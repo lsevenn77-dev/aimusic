@@ -29,6 +29,6 @@ test('song cards expose safe public metadata, hidden tracks have no metadata',as
 test('www page preserves query and disabled checkout is labelled on pricing',async()=>{
  const res=await worker.fetch(new Request('https://www.aifect.co.kr/music/one?q=1'),{},{});
  assert.equal(res.status,301);assert.equal(res.headers.get('location'),'https://aifect.co.kr/music/one?q=1');
- assert.match(publicPage('/pricing',{checkoutOpen:false}),/신규 가입 준비 중/);
- assert.doesNotMatch(publicPage('/pricing',{checkoutOpen:true}),/신규 가입 준비 중/);
+ assert.match(publicPage('/pricing',{checkoutOpen:false,premiumCatalogVisible:true}),/신규 가입 준비 중/);
+ assert.doesNotMatch(publicPage('/pricing',{checkoutOpen:true,premiumCatalogVisible:true}),/신규 가입 준비 중/);
 });

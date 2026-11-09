@@ -1,7 +1,7 @@
 // Screen-only Toss TEST card authentication. No approval or Gold delivery is requested.
 const API='/api/payments/toss-gold-test',STORAGE='aifect:toss:gold-test:v1',FLOW='gold_card_auth_preview';
 const byId=id=>document.getElementById(id);
-const params=new URLSearchParams(location.search),rawAmount=params.get('amount');
+const params=new URLSearchParams(location.search),rawAmount=params.get('amount'),requestedGold=params.get('gold');
 const returned={paymentKey:params.get('paymentKey'),orderId:params.get('orderId'),amount:/^[1-9]\d{0,11}$/.test(rawAmount||'')?Number(rawAmount):NaN};
 const resultPath=location.pathname.replace(/\/$/,'');
 // Authentication values leave the address bar before any SDK load or network request.
@@ -115,6 +115,8 @@ async function init(){
   const config=await api('/config');
   if(config.test_only!==true||config.flow!==FLOW||config.currency!=='KRW'||!validProducts(config.products))throw new Error('골드 테스트 상품 정보를 확인하지 못했어요.');
   products=new Map(config.products.map(pack=>[pack.gold,pack]));clientKey=config.client_key;
+  // A product link may select only an exact server-validated pack, never its price.
+  if(radios.some(radio=>radio.value===requestedGold&&products.has(Number(radio.value))))for(const radio of radios)radio.checked=radio.value===requestedGold;
   ready=config.available===true&&typeof clientKey==='string'&&/^test_ck_[A-Za-z0-9_-]+$/.test(clientKey);
   const pack=chosenPack();if(pack)renderPack(pack);
   status.textContent=ready?'골드 테스트 결제창을 사용할 수 있어요. 아래 테스트 안내를 확인해주세요.':'골드용 토스 테스트 연결 준비 중이에요. 현재 결제창은 열리지 않으며 실제 결제도 받지 않습니다.';

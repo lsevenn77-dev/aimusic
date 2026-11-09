@@ -91,6 +91,7 @@ function paymentPage(){
 
 export function paymentPageRoute(req,path){
  if(!['GET','HEAD'].includes(req.method)||!routes.has(path.replace(/\/$/,'')))return null;
+ if(PREMIUM.catalogVisible===false&&path.replace(/\/$/,'')==='/checkout/toss')return new Response(null,{status:302,headers:{location:'/checkout/toss/gold','cache-control':'no-store, max-age=0'}});
  return new Response(req.method==='HEAD'?null:paymentPage(),{headers:{
   'content-type':'text/html; charset=utf-8',
   'cache-control':'no-store, max-age=0',

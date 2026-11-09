@@ -62,6 +62,22 @@ test('production checkout remains off without an explicit contract fee, even wit
  const f=await setup(t,{GOLD_WEB_FEE_BP:''});assert.equal((await f.create()).status,409);assert.equal(f.calls.length,0);
 });
 
+test('public TEST readiness never grants legacy purchase or reviewer permissions',async t=>{
+ const f=await setup(t,{GOLD_CHECKOUT_ENABLED:'false',TOSS_GOLD_TEST_CHECKOUT_ENABLED:'true',TOSS_GOLD_TEST_CLIENT_KEY:'test_ck_gold_fixture',TOSS_GOLD_TEST_MID:'gold_fixture',AUTH_PEPPER:'a-long-fixture-state-pepper',BILLING_REVIEW_USER_IDS:'owner',BILLING_REVIEW_UNTIL:'1'});
+ for(const user of ['owner','other']){
+  const status=(await f.call('/api/gold','GET',undefined,user)).body;
+  assert.equal(status.test_checkout_available,true);
+  assert.equal(status.review_only,false);
+  assert.equal(status.checkout_available,false);
+  assert.equal((await f.create(500,crypto.randomUUID(),user)).status,409);
+ }
+ assert.equal(f.calls.length,0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM gold_orders').get().n,0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM gold_purchases').get().n,0);
+ f.env.TOSS_GOLD_TEST_CHECKOUT_ENABLED='false';
+ assert.equal((await f.call('/api/gold')).body.test_checkout_available,false);
+});
+
 
 test('full refund removes the entire web bonus lot and delayed success cannot re-credit it',async t=>{
  const f=await setup(t),o=await f.create();await f.callback(o);assert.equal((await f.call('/api/gold')).body.balance,525);

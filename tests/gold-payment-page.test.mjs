@@ -51,7 +51,8 @@ test('Gold page applies checkout-only security policy and loads external code wi
 test('Gold page reuses merchant, policy and exact brand assets and exposes accessible result states',async()=>{
  const page=await html();assert.ok(page.includes(businessDetailsHTML()));assert.ok(page.includes(businessFooterHTML()));
  for(const [url] of policyLinks)assert.ok(page.includes(`href="${url}"`));
- for(const url of ['/refund#gold','/terms#gold','/checkout/toss'])assert.ok(page.includes(`href="${url}"`));
+ for(const url of ['/refund#gold','/terms#gold'])assert.ok(page.includes(`href="${url}"`));
+ assert.doesNotMatch(page,/href="\/checkout\/toss"|Premium 테스트/,'Gold review must not advertise recurring-card testing');
  assert.ok(page.includes('/assets/aifect-wordmark.svg'));
  assert.match(page,/src="\/assets\/aifect-gold-product\.svg"[^>]+alt="AIFECT 골드 충전 상품"/);
  const asset=readFileSync(new URL('../dist/assets/aifect-gold-product.svg',import.meta.url),'utf8');assert.match(asset,/<svg\b/);assert.match(asset,/AIFECT 골드 충전 상품/);

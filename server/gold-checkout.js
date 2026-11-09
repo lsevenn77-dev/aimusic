@@ -3,13 +3,14 @@ import {WEB_GOLD_PACKS} from '../shared/gifts.js';
 import {includedKoreanVat} from '../shared/gifts.js';
 import {niceRequest,digest,equalSecret,verifyNiceSignature,findPayment} from './nicepay.js';
 import {reviewAccount,reviewAvailable} from './billing-review.js';
+import {tossGoldTestCheckoutReady} from './toss-gold-test-checkout.js';
 
 const SELECT='SELECT o.*,p.gold,p.price_krw,p.fee_krw,p.used,p.status purchase_status FROM gold_orders o JOIN gold_purchases p ON p.id=o.id';
 const readOrder=(env,oid)=>one(env,SELECT+' WHERE o.id=?',oid);
 const ACK=()=>new Response('OK',{headers:{'Content-Type':'text/html;charset=utf-8','Cache-Control':'no-store'}});
 const feeBasis=env=>/^\d{1,4}$/.test(env.GOLD_WEB_FEE_BP||'')?Number(env.GOLD_WEB_FEE_BP):null;
 export const goldCheckoutEnabled=env=>env.GOLD_CHECKOUT_ENABLED==='true'&&!!env.NICEPAY_CLIENT_ID&&!!env.NICEPAY_SECRET_KEY&&feeBasis(env)!==null;
-export const goldCheckoutStatus=(env,user)=>({checkout_available:!reviewAccount(env,user)&&goldCheckoutEnabled(env),review_only:reviewAvailable(env,user),payment_type:'one_time'});
+export const goldCheckoutStatus=(env,user)=>({checkout_available:!reviewAccount(env,user)&&goldCheckoutEnabled(env),review_only:reviewAvailable(env,user),test_checkout_available:tossGoldTestCheckoutReady(env),payment_type:'one_time'});
 const stateFor=(env,oid)=>digest('aifect-gold-callback:'+oid+':'+env.NICEPAY_SECRET_KEY);
 const safeOrder=o=>({id:o.id,gold:o.gold,price:o.price_krw,state:o.state,review_only:!!o.review_only,created:o.created});
 

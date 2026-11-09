@@ -4,7 +4,7 @@ import {fail,json,now} from './db.js';
 const ROOT='/api/payments/toss-gold-test',COOKIE='__Host-aifect_toss_gold_test';
 const FLOW='gold_card_auth_preview',ORDER_SECONDS=1200,COOKIE_SECONDS=1800,MAX_BODY=4096;
 const encoder=new TextEncoder(),decoder=new TextDecoder('utf-8',{fatal:true});
-const ready=env=>env.TOSS_GOLD_TEST_CHECKOUT_ENABLED==='true'&&/^test_ck_[A-Za-z0-9_-]{1,200}$/.test(env.TOSS_GOLD_TEST_CLIENT_KEY||'')&&typeof env.TOSS_GOLD_TEST_MID==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(env.TOSS_GOLD_TEST_MID)&&typeof env.AUTH_PEPPER==='string'&&env.AUTH_PEPPER.length>=16;
+export const tossGoldTestCheckoutReady=env=>env.TOSS_GOLD_TEST_CHECKOUT_ENABLED==='true'&&/^test_ck_[A-Za-z0-9_-]{1,200}$/.test(env.TOSS_GOLD_TEST_CLIENT_KEY||'')&&typeof env.TOSS_GOLD_TEST_MID==='string'&&/^[A-Za-z0-9_-]{1,100}$/.test(env.TOSS_GOLD_TEST_MID)&&typeof env.AUTH_PEPPER==='string'&&env.AUTH_PEPPER.length>=16;
 const products=()=>WEB_GOLD_PACKS.map(({gold,bonus_gold,total_gold,price})=>({gold,bonus_gold,total_gold,price}));
 const base64url=bytes=>btoa(String.fromCharCode(...new Uint8Array(bytes))).replaceAll('+','-').replaceAll('/','_').replace(/=+$/,'');
 function unbase64url(value){
@@ -91,11 +91,11 @@ export async function tossGoldTestCheckoutRoute(req,env,path=new URL(req.url).pa
  try{
   if(path===ROOT+'/config'){
    if(req.method!=='GET')fail(405,'GET 요청만 지원합니다.');
-   return json({available:ready(env),test_only:true,flow:FLOW,currency:'KRW',products:products(),client_key:ready(env)?env.TOSS_GOLD_TEST_CLIENT_KEY:null});
+   return json({available:tossGoldTestCheckoutReady(env),test_only:true,flow:FLOW,currency:'KRW',products:products(),client_key:tossGoldTestCheckoutReady(env)?env.TOSS_GOLD_TEST_CLIENT_KEY:null});
   }
   if(![ROOT+'/orders',ROOT+'/auth-return'].includes(path))fail(404,'페이지를 찾을 수 없습니다.');
   if(req.method!=='POST')fail(405,'POST 요청만 지원합니다.');
-  if(!ready(env))fail(503,'심사용 골드 테스트 결제창 연결을 준비하고 있어요.');
+  if(!tossGoldTestCheckoutReady(env))fail(503,'심사용 골드 테스트 결제창 연결을 준비하고 있어요.');
   const body=await mutationBody(req);
   return path===ROOT+'/orders'?await createOrder(req,env,body):await authReturn(req,env,body);
  }catch(e){return json({error:e.status?e.message:'심사용 골드 요청을 처리하지 못했어요.'},e.status||503);}

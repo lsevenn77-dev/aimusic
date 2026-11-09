@@ -254,3 +254,6 @@
 @media (max-width: 360px) {
   .studio-manager .studio-filter-button { padding-inline: 7px; }
 }
+
+/* During card review, preserve quota tools without the new-subscription promotion. */
+.studio-manager .studio-quota-card.studio-quota-manage-only { grid-template-columns: minmax(0, 1fr); }

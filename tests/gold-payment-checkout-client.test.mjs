@@ -69,6 +69,23 @@ test('all available choices update totals from the server catalog and query valu
  assert.equal(f.calls.length,1);assert.equal(f.sdkCalls.length,0);assert.equal(f.location.search,'');
 });
 
+test('shop product links select an exact catalog pack without accepting a query price',async()=>{
+ for(const gold of [500,1000,5000]){
+  const f=await fixture({path:'/checkout/toss/gold?gold='+gold+'&amount=1'});
+  const pack=WEB_GOLD_PACKS.find(p=>p.gold===gold);
+  assert.equal(f.radios.find(r=>r.checked).value,String(gold));
+  assert.equal(f.element('checkout-amount').textContent,pack.price.toLocaleString('ko-KR')+'원');
+  assert.equal(f.location.search,'');
+  await f.consent();await f.submit();
+  assert.equal(f.calls.find(c=>c.url.endsWith('/orders')).body.gold,gold);
+  assert.equal(f.sdkCalls.find(c=>c.kind==='payment').args.amount.value,pack.price);
+ }
+ for(const value of ['10000','0500','500.0','-500','<script>']){
+  const f=await fixture({path:'/checkout/toss/gold?gold='+encodeURIComponent(value)});
+  assert.equal(f.radios.find(r=>r.checked).value,'500');
+ }
+});
+
 test('same-tab test CARD redirect retains signed state and prevents another order while leaving',async()=>{
  const f=await fixture({payment:async(_args,{stored})=>assert.equal(JSON.parse(stored.get(STORAGE)).order_token,'signed-gold-state.signature')});
  await f.select(1000);await f.consent();assert.equal(f.element('checkout-submit').disabled,false);await f.submit();

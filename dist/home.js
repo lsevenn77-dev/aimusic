@@ -99,7 +99,7 @@ const homeBanners=[
  {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해보세요',subtitle:'취향을 나누고 친구를 만나요.',cta:'토킹룸 가기',href:'#voice?mode=talk'},
  {id:'crew',title:'크루',headline:'크루에 가입하고 함께 즐겨보세요',subtitle:'음악을 나누고 게임도 함께해요.',cta:'크루 둘러보기',href:'#community/crews?browse=1'},
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',subtitle:'고음질로 음악을 더 깊이 즐겨요.',cta:'프리미엄 혜택 보기',href:'#membership'}
-];
+].filter(b=>b.id!=='premium'||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false);
 function homeBannerImage(id,width){return '/assets/home-banners/'+(id==='crew'?'seamless-20261109/':'mobile-20261109/')+id+'-'+width+'.webp';}
 const homeBannerBackgroundRepairs=new Set(['studio:left','play:left','karaoke:left','talking:left','crew:left','crew:right']);
 function homeBannerBackgroundImage(id,side='left'){

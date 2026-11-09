@@ -6,7 +6,7 @@ import {publicPage} from '../server/public-pages.js';
 import {PREMIUM,businessDetailsHTML,businessFooterHTML,policyLinks} from '../shared/site-info.js';
 
 const request=(path='/checkout/toss',method='GET')=>new Request('https://aifect.test'+path,{method});
-const html=()=>paymentPageRoute(request(),'/checkout/toss').text();
+const html=()=>paymentPageRoute(request('/checkout/toss/success'),'/checkout/toss/success').text();
 
 test('web pricing separates app-only packs above the Toss single-payment limit',()=>{
  const web=publicPage('/pricing'),app=publicPage('/pricing/app');
@@ -16,7 +16,7 @@ test('web pricing separates app-only packs above the Toss single-payment limit',
  assert.ok(!web.includes('130,000원'));
  assert.ok(!web.includes('110,000원'));
  assert.ok(!web.includes('5,900원'));
- for(const price of ['6,500원','13,000원','65,000원','130,000원','5,900원'])assert.ok(app.includes(price),price);
+ for(const price of ['6,500원','13,000원','65,000원','130,000원'])assert.ok(app.includes(price),price);
  assert.ok(app.includes('토스 웹 결제창에서 구매할 수 없습니다')||app.includes('토스 웹 결제창으로 결제할 수 없습니다'));
  assert.ok(app.includes('href="/pricing"'));
 });
@@ -35,7 +35,7 @@ test('Premium product image uses a real same-origin asset with an accessible pro
 
 test('public pricing exposes the test route and privacy states its limited Toss processing',()=>{
  const pricing=publicPage('/pricing'),privacy=publicPage('/privacy');
- assert.ok(pricing.includes('href="/checkout/toss"'));
+ assert.ok(!pricing.includes('href="/checkout/toss"'));
  assert.ok(pricing.includes('href="/checkout/toss/gold"'));
  assert.ok(pricing.includes('실제 청구·자동결제·이용권·골드 지급은 없습니다'));
  assert.ok(privacy.includes('토스페이먼츠(TEST 심사용)'));
@@ -61,7 +61,7 @@ test('standalone checkout renders the authoritative monthly Premium product and 
 
 test('checkout and both callbacks use identical safe HTML and ignore all request data',async()=>{
  const expected=await html();
- for(const path of ['/checkout/toss','/checkout/toss/','/checkout/toss/success','/checkout/toss/fail']){
+ for(const path of ['/checkout/toss/success','/checkout/toss/fail']){
   const req=request(path+'?amount=1&customerKey=%3Cscript%3E&authKey=private-key');
   const response=paymentPageRoute(req,path);
   assert.equal(response.status,200);
@@ -76,7 +76,7 @@ test('checkout and both callbacks use identical safe HTML and ignore all request
 });
 
 test('checkout has static restrictive headers and no executable inline content',async()=>{
- const response=paymentPageRoute(request(),'/checkout/toss'),page=await response.text();
+ const response=paymentPageRoute(request('/checkout/toss/success'),'/checkout/toss/success'),page=await response.text();
  assert.equal(response.headers.get('referrer-policy'),'no-referrer');
  assert.equal(response.headers.get('x-robots-tag'),'noindex, nofollow');
  assert.match(response.headers.get('cache-control'),/no-store/);
