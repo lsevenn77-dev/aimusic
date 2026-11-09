@@ -9,19 +9,25 @@
 #home-release.home-promo-carousel .home-promo-original{display:block;width:100%;height:100%;object-fit:cover;object-position:var(--home-promo-focus,71% 20%);border:0;border-radius:0}
 #home-release.home-promo-carousel .home-promo-scenery{display:none}
 @media(min-width:801px){
- #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:clamp(24px,6cqi,84px)}
- #home-release.home-promo-carousel .home-promo-scenery{display:block;position:absolute;background-image:var(--home-promo-scenery);background-size:auto 100%;background-repeat:no-repeat;pointer-events:none}
- #home-release.home-promo-carousel .home-promo-scenery-left{inset:0 calc(var(--home-feature-height,272px) * 2 + var(--home-promo-inset) - 1px) 0 0;background-position:right center}
- #home-release.home-promo-carousel .home-promo-scenery-right{inset:0 0 0 auto;width:calc(var(--home-promo-inset) + 1px);background-position:left center;background-size:max(100%,calc(var(--home-feature-height,272px) * 239 / 768)) 100%}
- /* Keep the complete original opaque and move it inward as one layer. Both
-    outpaint strips use its vertical scale and meet underneath its edges. */
- #home-release.home-promo-carousel .home-promo-picture{position:absolute;inset:0 var(--home-promo-inset) 0 auto;width:auto;max-width:none;height:100%;aspect-ratio:2/1}
+ #home-release.home-promo-carousel .home-promo-link{--home-promo-photo-scale:1;--home-promo-photo-height:calc(var(--home-feature-height,272px) * var(--home-promo-photo-scale));--home-promo-shift:16cqi;--home-promo-inset-max:224px;--home-promo-inset:clamp(48px,var(--home-promo-shift),var(--home-promo-inset-max))}
+ #home-release.home-promo-carousel .home-promo-scenery{display:block;position:absolute;height:var(--home-promo-photo-height);background-image:var(--home-promo-scenery);background-size:auto 100%;background-repeat:no-repeat;pointer-events:none}
+ #home-release.home-promo-carousel .home-promo-scenery-left{inset:0 calc(var(--home-promo-photo-height) * 1.8 + var(--home-promo-inset)) auto 0;background-position:right center}
+ #home-release.home-promo-carousel .home-promo-scenery-right{inset:0 0 auto auto;width:calc(var(--home-promo-inset) + 1px);background-position:left center;background-size:max(100%,var(--home-promo-photo-height)) 100%}
+ /* Overlap real scene detail across the former hard join. Only the leftmost
+    8% of the source (empty scenery in all eight photos) blends; every person
+    remains fully opaque. All layers share the same scale and top alignment. */
+ #home-release.home-promo-carousel .home-promo-picture{position:absolute;inset:0 var(--home-promo-inset) auto auto;width:auto;max-width:none;height:var(--home-promo-photo-height);aspect-ratio:2/1;mask-image:linear-gradient(90deg,transparent,#000 8%,#000);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000)}
  #home-release.home-promo-carousel .home-promo-original{max-width:none;object-fit:contain;object-position:center}
+ #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-photo-scale:1.25;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
+ /* The crew window has a small exposure change at its upper right edge.
+    Blend only the inspected people-free glass/trim; portraits stay opaque. */
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right{--home-promo-right-blend:calc(var(--home-promo-photo-height) * .0662983425);width:var(--home-promo-inset);z-index:1}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::before{content:"";position:absolute;top:0;left:calc(-1 * var(--home-promo-right-blend));width:var(--home-promo-right-blend);height:40%;background:url('/assets/home-banners/center-20261109/crew-right-top-blend-51.webp') left top/100% 100% no-repeat;mask-image:linear-gradient(90deg,transparent,#000),linear-gradient(180deg,#000 70%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000),linear-gradient(180deg,#000 70%,transparent);-webkit-mask-composite:source-in;mask-composite:intersect;pointer-events:none}
  @container(max-width:790px){
-  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:clamp(16px,4cqi,32px)}
+  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:clamp(24px,8cqi,56px)}
  }
  @container(min-width:541px) and (max-width:650px){
-  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:16px}
+  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:24px}
  }
 }
 /* Gently shade and soften the scenery behind the words. Both effects diminish
@@ -43,6 +49,9 @@
 #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-bg:#0f2033;--home-promo-accent:var(--ds-accent-mint);--home-promo-shade-end:55%;--home-promo-focus:80% 20%}
 #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-bg:var(--ds-panel);--home-promo-accent:var(--ds-accent-mint);--home-promo-shade-end:55%;--home-promo-focus:63% 20%}
 #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-bg:#202545;--home-promo-accent:#edca7e}
+@media(min-width:801px){
+ #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-end:52%}
+}
 #home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;box-sizing:border-box;height:100%;width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
 #home-release.home-promo-carousel .home-promo-headline{font-size:clamp(22px,3.2cqi,36px);line-height:1.35;font-weight:750;font-style:italic;letter-spacing:-.04em;word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 2px 5px color-mix(in srgb,var(--ds-bg) 50%,transparent),0 4px 16px color-mix(in srgb,var(--ds-bg) 38%,transparent)}
 #home-release.home-promo-carousel .home-promo-headline>span{display:block}
@@ -61,7 +70,7 @@
  #home-release.home-promo-carousel .home-promo-cta{font-size:14px;padding-inline:18px}
 }
 @container(min-width:541px) and (max-width:650px){
- #home-release.home-promo-carousel .home-promo-copy{width:40%;padding-left:54px}
+ #home-release.home-promo-carousel .home-promo-copy{height:calc(100% - 34px);width:40%;padding-left:54px}
  #home-release.home-promo-carousel .home-promo-subtitle{font-size:12px}
  #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-end:48%}
  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-shade-end:40%}
