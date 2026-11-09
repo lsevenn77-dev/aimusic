@@ -50,15 +50,12 @@ async function notificationsView(base,raw,readApi=api){
   const message={room:'종료되었거나 삭제된 방이에요.',source:'이 선물의 발생 위치를 확인할 수 없어요.'}[q.get('unavailable')]||'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.';
   return {html:heading('알림 안내')+empty('콘텐츠를 열 수 없어요',message+' 뒤로 가면 이전 알림 목록으로 돌아갈 수 있어요.','#notifications','알림함'),tracks:[]};
  }
- if(q.has('request')){let r;try{r=await readApi('/api/notifications/crew-requests/'+encodeURIComponent(q.get('request')));}catch{return {html:heading('참여 요청 안내')+empty('요청을 열 수 없어요','크루 가입 상태 또는 작품의 공개 상태가 변경되었어요.','#notifications?filter=crew','알림함'),tracks:[]};}return {html:heading('작품 참여 요청')+`<section class="activity-page"><p>${esc(r.title)} 작품 참여 요청이 도착했어요.</p><a class="small-button" href="${esc(r.href)}">작품 확인</a><a class="small-button" href="#notifications?filter=crew">알림함</a></section>`,tracks:[]};}
- const filter=['gifts','participation','comments','works','artists','crew'].includes(q.get('filter'))?q.get('filter'):'all',data=await readApi('/api/notifications?filter='+filter,'GET',undefined,{fresh:true});
- const resume=activityResume?.account===me.id&&activityResume.filter===filter?activityResume:null;
+ if(q.has('request')){let r;try{r=await readApi('/api/notifications/crew-requests/'+encodeURIComponent(q.get('request')));}catch{return {html:heading('참여 요청 안내')+empty('요청을 열 수 없어요','크루 가입 상태 또는 작품의 공개 상태가 변경되었어요.','#notifications','알림함'),tracks:[]};}return {html:heading('작품 참여 요청')+`<section class="activity-page"><p>${esc(r.title)} 작품 참여 요청이 도착했어요.</p><a class="small-button" href="${esc(r.href)}">작품 확인</a><a class="small-button" href="#notifications">알림함</a></section>`,tracks:[]};}
+ const data=await readApi('/api/notifications','GET',undefined,{fresh:true});
+ const resume=activityResume?.account===me.id?activityResume:null;
  activityResume=null;
- const tabs=[['all','전체'],['comments','댓글·응원'],['works','작품참여'],['artists','아티스트'],['crew','크루'],['gifts','선물']];
- return {activity:{...data,filter,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page activity-inbox" aria-label="알림">
-  <div class="activity-toolbar"><nav class="tabs" aria-label="알림 종류">
-   ${tabs.map(([key,name])=>`<a href="#notifications?filter=${key}" class="tab ${key==='all'?'activity-tab-all ':''}${filter===key?'active':''}" ${filter===key?'aria-current="page"':''}>${name}</a>`).join('')}
-  </nav><button type="button" class="activity-settings-trigger" aria-label="알림 설정" title="알림 설정" aria-haspopup="dialog" aria-controls="activity-preferences">${activitySettingsIcon}<span>알림 설정</span></button></div>
+ return {activity:{...data,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page activity-inbox" aria-label="알림">
+  <div class="activity-toolbar"><button type="button" class="activity-settings-trigger" aria-label="알림 설정" title="알림 설정" aria-haspopup="dialog" aria-controls="activity-preferences">${activitySettingsIcon}<span>알림 설정</span></button></div>
   ${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div>
   <button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p><button type="button" class="activity-top" aria-label="알림 맨 위로" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 10 6-6 6 6M12 4v16"/></svg></button></section>`};
 }
@@ -88,7 +85,7 @@ function bindNotifications(view){
   try{
    if(b.hasAttribute('data-activity-more')){
     if(!state.next)return;
-    const data=await api('/api/notifications?filter='+state.filter+'&before='+encodeURIComponent(state.next),'GET',undefined,{fresh:true});
+    const data=await api('/api/notifications?before='+encodeURIComponent(state.next),'GET',undefined,{fresh:true});
     if(!active())return;const known=new Set(state.items.map(n=>n.id));state.items.push(...data.items.filter(n=>!known.has(n.id)));state.next=data.next;draw();
    }else{
     const id=b.dataset.activityOpen;await mark([id]);
@@ -101,7 +98,7 @@ function bindNotifications(view){
  const refresh=async()=>{
   if(!active()||document.hidden||loading||refreshing||restoring)return;refreshing=true;
   const revision=activityReadRevision;
-  try{const data=await api('/api/notifications?filter='+state.filter,'GET',undefined,{fresh:true});
+  try{const data=await api('/api/notifications','GET',undefined,{fresh:true});
    if(!active()||loading||revision!==activityReadRevision)return;
    const previous=JSON.stringify(state.items);const old=new Map(state.items.map(n=>[n.id,n]));data.items.forEach(n=>old.set(n.id,n));
    // Retain loaded older pages and their cursor; only the newest page is polled.
@@ -131,7 +128,7 @@ function bindNotifications(view){
      const cursor=state.next;
      if(visited.has(cursor))return;
      visited.add(cursor);
-     const page=await api('/api/notifications?filter='+state.filter+'&before='+encodeURIComponent(cursor),'GET',undefined,{fresh:true,signal:controller.signal});
+     const page=await api('/api/notifications?before='+encodeURIComponent(cursor),'GET',undefined,{fresh:true,signal:controller.signal});
      if(!active()||controller.signal.aborted)return;
      const known=new Set(state.items.map(n=>n.id));
      state.items.push(...page.items.filter(n=>!known.has(n.id)));state.next=page.next;draw();
@@ -141,11 +138,16 @@ function bindNotifications(view){
    finally{cancelRestore();}
   });
  }
- if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{if(me?.id===state.account&&!/^#notifications(?:\?filter=|$)/.test(location.hash))activityResume={account:state.account,filter:state.filter,count:state.items.length,scroll:window.scrollY};disposed=true;cancelRestore();clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);cleanupLayout();});
+ if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{
+  const [route,query='']=location.hash.slice(1).split('?'),params=new URLSearchParams(query);
+  const isInbox=route==='notifications'&&!params.has('request')&&!params.has('unavailable');
+  if(me?.id===state.account&&!isInbox)activityResume={account:state.account,count:state.items.length,scroll:window.scrollY};
+  disposed=true;cancelRestore();clearInterval(timer);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',visible);cleanupLayout();
+ });
 }
 function bindActivityLayout(root,active){
- const top=root.querySelector('.activity-top'),tabs=root.querySelector('.tabs');
- if(!top||!tabs||typeof ResizeObserver==='undefined')return ()=>{};
+ const top=root.querySelector('.activity-top');
+ if(!top||typeof ResizeObserver==='undefined')return ()=>{};
  let moving=false,unlock;
  const layout=()=>{
   if(!active())return;
@@ -155,11 +157,10 @@ function bindActivityLayout(root,active){
   document.querySelectorAll('.player,.mobile-navigation,#player-extension,#player-action-panel,#player-lyric').forEach(el=>{const r=el.getBoundingClientRect();if(r.height&&r.width&&getComputedStyle(el).visibility!=='hidden'&&!el.hidden)bottom=Math.max(bottom,innerHeight-r.top+12);});
   top.style.bottom=bottom+'px';top.hidden=window.scrollY<500;
   const r=root.getBoundingClientRect();top.style.right=Math.max(16,innerWidth-r.right)+'px';
-  root.classList.toggle('tabs-stuck',r.top<Math.max(0,rect?.bottom||0)-1);
+  root.classList.toggle('toolbar-stuck',r.top<Math.max(0,rect?.bottom||0)-1);
   if(window.scrollY<2){moving=false;top.disabled=false;}
  };
  top.onclick=()=>{if(moving)return;moving=true;top.disabled=true;window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});clearTimeout(unlock);unlock=setTimeout(()=>{moving=false;top.disabled=false;},1500);};
- const reveal=()=>{if(!active())return;const selected=tabs.querySelector('.active');if(selected)tabs.scrollLeft=Math.max(0,selected.offsetLeft-tabs.offsetLeft-(tabs.clientWidth-selected.offsetWidth)/2);layout();};requestAnimationFrame(()=>requestAnimationFrame(reveal));
  const observer=new ResizeObserver(layout);document.querySelectorAll('.topbar,.player,.mobile-navigation,#player-extension').forEach(el=>observer.observe(el));
  window.addEventListener('scroll',layout,{passive:true});window.addEventListener('resize',layout);window.visualViewport?.addEventListener('resize',layout);layout();
  return ()=>{observer.disconnect();clearTimeout(unlock);window.removeEventListener('scroll',layout);window.removeEventListener('resize',layout);window.visualViewport?.removeEventListener('resize',layout);};
