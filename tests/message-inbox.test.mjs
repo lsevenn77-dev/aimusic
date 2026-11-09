@@ -11,13 +11,13 @@ test('notice and crew stay first while only ordinary DMs follow message timestam
  c.items=items;const ordered=JSON.parse(vm.runInContext('JSON.stringify(dmOrderedConversations(items))',c));
  assert.deepEqual(ordered.notices.map(p=>p.id),['official']);assert.deepEqual(ordered.direct.map(p=>p.id),['new','fake','old']);assert.equal(items[0].id,'old');
  c.portrait=()=>'';c.crewInboxHTML=()=>'<a>CREW</a>';
- const html=c.conversationListHTML(items);assert.ok(html.indexOf('공지채팅')<html.indexOf('CREW'));assert.ok(html.indexOf('CREW')<html.indexOf('#dm/new'));assert.ok(html.indexOf('#dm/new')<html.indexOf('#dm/old'));assert.doesNotMatch(html,/dm-pin|data-dm-filter/);
+ const html=c.conversationListHTML(items);assert.ok(html.indexOf('공지')<html.indexOf('CREW'));assert.ok(html.indexOf('CREW')<html.indexOf('#dm/new'));assert.ok(html.indexOf('#dm/new')<html.indexOf('#dm/old'));assert.doesNotMatch(html,/dm-pin|data-dm-filter/);
 });
 
 test('empty channels stay visible and search covers channel names and previews',()=>{
- const c=make();c.icon=()=>'';assert.match(c.conversationListHTML([]),/공지채팅/);assert.match(c.conversationListHTML([]),/크루채팅/);
+ const c=make();c.icon=()=>'';assert.match(c.conversationListHTML([]),/공지/);assert.match(c.conversationListHTML([]),/크루채팅/);
  assert.equal(c.dmSearchMatch({name:'별빛',last_message:'내일 합주'},'합주'),true);
- assert.equal(c.dmSearchMatch({name:'별빛'},'공지','공지채팅'),true);
+ assert.equal(c.dmSearchMatch({name:'별빛'},'공지','공지'),true);
  vm.runInContext("dmInboxQuery='없는말'",c);assert.match(c.conversationListHTML([]),/검색 결과가 없어요/);
 });
 

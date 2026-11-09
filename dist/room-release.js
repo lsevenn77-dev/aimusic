@@ -153,7 +153,7 @@ function roomMessages(client,sheet){
   const t=reset(),uid=me?.id;
   const d=await api('/api/notices/welcome','GET',undefined,{fresh:true});if(!current(t)||uid!==me?.id)return;
   peer=null;
-  sheet.innerHTML='<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button><span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span><strong>공지채팅 · 아이팩트 안내</strong></header><div class="room-welcome-guide">'+welcomeGuideHTML(d)+'</div>';
+  sheet.innerHTML='<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button><span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span><strong>공지 · 아이팩트 안내</strong></header><div class="room-welcome-guide">'+welcomeGuideHTML(d)+'</div>';
   sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
   noticeCleanup=bindWelcomeNotice({welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at}},()=>{
    if(!current(t)||uid!==me?.id)return;

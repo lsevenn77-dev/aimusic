@@ -52,16 +52,16 @@ async function dmNoticeView(raw,readApi=api){
  const inbox=await readApi('/api/dm'),{notices}=dmOrderedConversations(inbox.conversations);
  rememberDmInbox(inbox);
  const back='<a class="chat-ui-icon chat-ui-plain dm-back" href="#dm" aria-label="대화 목록으로 돌아가기">'+icon('back')+'</a>';
- if(!notices.length)return {html:dmInboxHTML(inbox,'<header class="dm-thread-header">'+back+'<h1>공지채팅</h1></header><div class="dm-empty"><p>아직 받은 공지가 없어요.</p></div>','notice'),inbox:true,refreshInbox:true,selectedConversation:'notice'};
+ if(!notices.length)return {html:dmInboxHTML(inbox,'<header class="dm-thread-header">'+back+'<h1>공지</h1></header><div class="dm-empty"><p>아직 받은 공지가 없어요.</p></div>','notice'),inbox:true,refreshInbox:true,selectedConversation:'notice'};
  const requested=new URLSearchParams(raw.split('?')[1]||'').get('peer'),peer=notices.find(p=>p.id===requested)||notices[0];
- const channels=notices.length>1?'<label class="dm-notice-channel"><span class="sr-only">공지 대화 선택</span><select data-notice-channel>'+notices.map(p=>'<option value="'+esc(p.id)+'"'+(p.id===peer.id?' selected':'')+'>'+esc(chatNickname(p))+'</option>').join('')+'</select></label>':'';
+ const channels=notices.length>1?'<label class="dm-notice-channel"><span class="sr-only">공지 선택</span><select data-notice-channel>'+notices.map(p=>'<option value="'+esc(p.id)+'"'+(p.id===peer.id?' selected':'')+'>'+esc(chatNickname(p))+'</option>').join('')+'</select></label>':'';
  if(peer.notice_type==='welcome'&&peer.read_only===true){
   const d=await readApi('/api/notices/welcome');
-  const header='<header class="dm-thread-header">'+back+'<div class="dm-thread-person"><div><h1>공지채팅</h1><small>'+esc(chatNickname(peer))+'</small></div></div></header>';
+  const header='<header class="dm-thread-header">'+back+'<div class="dm-thread-person"><div><h1>공지</h1><small>'+esc(chatNickname(peer))+'</small></div></div></header>';
   return {html:dmInboxHTML(inbox,header+channels+welcomeGuideHTML(d),'notice'),inbox:true,selectedConversation:'notice',welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at}};
  }
  const d=await readApi('/api/dm/'+encodeURIComponent(peer.id));
- return {html:dmInboxHTML(inbox,'<header class="dm-thread-header">'+back+dmProfileLink(d.peer,'<div><h1>공지채팅</h1><small>'+esc(chatNickname(d.peer))+'</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+channels+chatPanelHTML('공지채팅',d,d.peer),'notice'),inbox:true,refreshInbox:true,selectedConversation:'notice',chat:{path:'/api/dm/'+peer.id,peer:d.peer,initial:d}};
+ return {html:dmInboxHTML(inbox,'<header class="dm-thread-header">'+back+dmProfileLink(d.peer,'<div><h1>공지</h1><small>'+esc(chatNickname(d.peer))+'</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+channels+chatPanelHTML('공지',d,d.peer),'notice'),inbox:true,refreshInbox:true,selectedConversation:'notice',chat:{path:'/api/dm/'+peer.id,peer:d.peer,initial:d}};
 }
 document.addEventListener('change',event=>{if(event.target.matches('[data-notice-channel]'))location.hash='dm/notice?peer='+encodeURIComponent(event.target.value);});
 document.addEventListener('click',event=>{

@@ -59,11 +59,11 @@ function dmConversationRow(p,selected=''){
 function noticeInboxHTML(notices,selected){
  const latest=notices[0]||{},p={...latest,unread:notices.reduce((n,p)=>n+Number(p.unread||0),0),muted:notices.length>0&&notices.every(p=>p.muted)};
  const active=selected==='notice'||notices.some(p=>p.id===selected);
- return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'공지채팅','아직 받은 공지가 없어요.',true)+conversationMetaHTML(p)+'</a>';
+ return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'공지','아직 받은 공지가 없어요.',true)+conversationMetaHTML(p)+'</a>';
 }
 function conversationListHTML(conversations=[],crew=null,selected=''){
  const {notices,direct}=dmOrderedConversations(conversations),query=dmInboxQuery;
- const notice=(!query||dmSearchMatch({},query,'공지채팅')||notices.some(p=>dmSearchMatch(p,query)))?noticeInboxHTML(notices,selected):'';
+ const notice=(!query||dmSearchMatch({},query,'공지')||notices.some(p=>dmSearchMatch(p,query)))?noticeInboxHTML(notices,selected):'';
  const crewRow=dmSearchMatch(crew,query,'크루채팅')?(crewInboxHTML(crew,selected)||'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있어요.</p></div></a>'):'';
  const rows=direct.filter(p=>dmSearchMatch(p,query)).map(p=>dmConversationRow(p,selected)).join('');
  return '<div class="conversation-list">'+notice+crewRow+rows+'</div>'+(!notice&&!crewRow&&!rows?'<div class="dm-empty" role="status"><p>검색 결과가 없어요.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해보세요.</p></div>':'');
