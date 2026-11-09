@@ -90,10 +90,11 @@ test('the shared geometry uses the complete mobile viewport and keeps desktop co
  assert.equal(c.messageWorkspaceGeometry({mobile:true,height:844,top:78,playerTop:786}).height,844);
  const keyboard=c.messageWorkspaceGeometry({mobile:true,height:320,offset:12,top:78,playerTop:262});assert.equal(keyboard.top,12);assert.equal(keyboard.height,320);
  const desktop=c.messageWorkspaceGeometry({mobile:false,height:900,top:112,playerTop:820});
- assert.equal(desktop.height,666);assert.ok(desktop.top+desktop.height<=820-24);
+ assert.equal(desktop.height,684);assert.ok(desktop.top+desktop.height<=820-24);
+ assert.equal(c.messageWorkspaceGeometry({mobile:false,height:900,top:112}).height,720);
  const short=c.messageWorkspaceGeometry({mobile:false,height:540,top:112,playerTop:470});
  assert.equal(short.height,334);assert.ok(short.top+short.height<=470-24);
- assert.equal(c.messageWorkspaceGeometry({mobile:false,height:1600,top:112}).height,720);
+ assert.equal(c.messageWorkspaceGeometry({mobile:false,height:1600,top:112}).height,780);
 });
 
 test('room drafts survive navigation and remain isolated by account and room',()=>{
