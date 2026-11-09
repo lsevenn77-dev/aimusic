@@ -12,11 +12,23 @@ function roomInviteButtons(invitation){
 }
 Object.assign(VoiceRoomClient.prototype,{
  bindRoomRelease(){
-  const options={signal:this.talkViewEvents.signal},room=this.host;
+  const options={signal:this.talkViewEvents.signal},room=this.host,uid=me?.id;
   this.roomDMUnreadStop?.();
-  let unreadLoading=false;
-  const unread=async()=>{if(unreadLoading)return;unreadLoading=true;try{const d=await api('/api/dm/summary','GET',undefined,{fresh:true});if(!this.closed&&!options.signal.aborted){const button=room.querySelector('[data-voice=inbox]');button?.toggleAttribute('data-unread-dm',d.direct_unread>0);button?.setAttribute('aria-label',d.direct_unread>0?'메시지 · 안 읽은 DM 있음':'메시지');}}catch{}finally{unreadLoading=false;}};
-  void unread();this.roomDMUnreadStop=watchSocialChat('',()=>{void unread();this.roomInboxChanged?.();},()=>{},()=>{room.querySelector('[data-voice=inbox]')?.removeAttribute('data-unread-dm');});
+  let unreadLoading=false,unreadAgain=false,unreadStopped=false,unreadVersion=0;
+  const unreadCurrent=()=>!!uid&&uid===me?.id&&!unreadStopped&&!this.closed&&!options.signal.aborted;
+  const unread=async()=>{
+   if(!unreadCurrent())return;const version=++unreadVersion;
+   if(unreadLoading){unreadAgain=true;return;}unreadLoading=true;
+   try{
+    const d=await api('/api/dm/summary','GET',undefined,{fresh:true});
+    if(unreadCurrent()&&version===unreadVersion){const button=room.querySelector('[data-voice=inbox]');button?.toggleAttribute('data-unread-dm',d.direct_unread>0);button?.setAttribute('aria-label',d.direct_unread>0?'메시지 · 안 읽은 DM 있음':'메시지');}
+   }catch{}finally{unreadLoading=false;if(unreadAgain){unreadAgain=false;void unread();}}
+  };
+  void unread();const stopUnread=watchSocialChat('',()=>{if(!unreadCurrent())return;void unread();this.roomInboxChanged?.();},()=>{},()=>{
+   if(!unreadCurrent())return;unreadStopped=true;unreadAgain=false;
+   const button=room.querySelector('[data-voice=inbox]');button?.removeAttribute('data-unread-dm');button?.setAttribute('aria-label','메시지');
+  });
+  this.roomDMUnreadStop=()=>{unreadStopped=true;unreadAgain=false;stopUnread();window.removeEventListener('aifect:dm-read',unread);};
   window.addEventListener('aifect:dm-read',unread,options);
   const scrollTitle=()=>{
    const title=room.querySelector('.talk-track strong');

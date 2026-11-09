@@ -80,7 +80,7 @@ test('verified welcome channel uses its own endpoint while existing official DMs
 });
 
 function acknowledgeHarness({hidden=false,renderState='ready',readAt=0}={}){
- const docEvents=new Map(),winEvents=new Map(),retryEvents=new Map(),frames=new Map(),observers=[];
+ const docEvents=new Map(),winEvents=new Map(),retryEvents=new Map(),frames=new Map(),timers=new Map(),observers=[];
  const pane={scrollTop:900,isConnected:true,getClientRects:()=>[{}]};
  const label={textContent:''},retry={disabled:false,addEventListener:(e,f)=>retryEvents.set(e,f),removeEventListener:e=>retryEvents.delete(e)};
  const status={hidden:true,querySelector:s=>s==='span'?label:retry};
@@ -88,12 +88,19 @@ function acknowledgeHarness({hidden=false,renderState='ready',readAt=0}={}){
  let next=0,acknowledged=0;const calls=[];
  const c=context({document:doc,window:{addEventListener:(e,f)=>winEvents.set(e,f),removeEventListener:e=>winEvents.delete(e)},$:selector=>({'#welcome-guide-scroll':pane,'#welcome-guide-status':status}[selector]),
   requestAnimationFrame:f=>{frames.set(++next,f);return next;},cancelAnimationFrame:id=>frames.delete(id),
+  AbortController,setTimeout:(callback,delay)=>{timers.set(++next,{callback,delay});return next;},clearTimeout:id=>timers.delete(id),
   ResizeObserver:class{constructor(f){this.callback=f;observers.push(this);}observe(){}disconnect(){this.closed=true;}},
   MutationObserver:class{constructor(f){this.callback=f;observers.push(this);}observe(){}disconnect(){this.closed=true;}},
-  api:(path,method,body)=>new Promise((resolve,reject)=>calls.push({path,method,body,resolve,reject}))
+  api:(path,method,body,options={})=>new Promise((resolve,reject)=>{
+   calls.push({path,method,body,options,resolve,reject});
+   options.signal?.addEventListener('abort',()=>reject(Object.assign(new Error('Aborted'),{name:'AbortError'})),{once:true});
+  })
  });
  const cleanup=c.bindWelcomeNotice({welcomeNotice:{campaign_id:'welcome-guide-20261108-v1',read_at:readAt}},()=>acknowledged++);
- return {c,pane,doc,docEvents,winEvents,retryEvents,status,label,retry,observers,calls,cleanup,acknowledged:()=>acknowledged,paint:()=>{for(const f of [...frames.values()])f();frames.clear();}};
+ return {c,pane,doc,docEvents,winEvents,retryEvents,status,label,retry,observers,calls,timers,cleanup,acknowledged:()=>acknowledged,
+  paint:()=>{for(const f of [...frames.values()])f();frames.clear();},
+  fireTimer(delay){const entry=[...timers].find(([,timer])=>timer.delay===delay);assert.ok(entry,'expected a '+delay+'ms timer');timers.delete(entry[0]);entry[1].callback();}
+ };
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 test('notice opens at the beginning and is acknowledged only after visible ready paint, once',async()=>{
@@ -118,4 +125,60 @@ test('already-read notices, route changes, and account changes cannot acknowledg
  const read=acknowledgeHarness({readAt:1});read.paint();assert.equal(read.calls.length,0);read.cleanup();
  const away=acknowledgeHarness();away.c.renderId=2;away.paint();assert.equal(away.calls.length,0);away.cleanup();
  const switched=acknowledgeHarness();switched.paint();switched.c.me={id:'different-member'};switched.calls[0].resolve({ok:true});await settle();assert.equal(switched.acknowledged(),0);switched.cleanup();
+});
+
+test('an already-read guide synchronizes its inbox once after it is actually visible',()=>{
+ const h=acknowledgeHarness({hidden:true,renderState:'loading',readAt:123});h.paint();
+ assert.equal(h.acknowledged(),0);assert.equal(h.calls.length,0);
+ h.doc.hidden=false;h.docEvents.get('visibilitychange')();assert.equal(h.acknowledged(),0);
+ h.doc.documentElement.dataset.renderState='ready';h.pane.getClientRects=()=>[];h.observers.at(-1).callback();assert.equal(h.acknowledged(),0);
+ h.pane.getClientRects=()=>[{}];h.observers[0].callback();assert.equal(h.acknowledged(),1);
+ h.winEvents.get('focus')();h.observers[0].callback();assert.equal(h.acknowledged(),1);assert.equal(h.calls.length,0);h.cleanup();
+});
+
+test('network recovery and page restoration retry a failed receipt without reopening the guide',async()=>{
+ for(const event of ['online','pageshow']){
+  const h=acknowledgeHarness();h.paint();h.calls[0].reject(new Error('연결 끊김'));await settle();
+  h.winEvents.get(event)?.();assert.equal(h.calls.length,2,event+' must retry the receipt');
+  h.winEvents.get(event)?.();assert.equal(h.calls.length,2,'recovery cannot duplicate an in-flight receipt');
+  h.calls[1].resolve({ok:true});await settle();assert.equal(h.acknowledged(),1);assert.equal(h.status.hidden,true);assert.equal(h.timers.size,0);
+  h.cleanup();assert.equal(h.winEvents.has(event),false);
+ }
+});
+
+test('temporary receipt failures retry automatically with bounded backoff',async()=>{
+ const h=acknowledgeHarness();h.observers.at(-1).callback();
+ for(const [index,delay] of [1000,3000,8000].entries()){
+  h.calls[index].reject(new Error('서버 연결 실패'));await settle();
+  h.observers[0].callback();h.paint();assert.equal(h.calls.length,index+1,'layout and paint do not bypass backoff');
+  h.fireTimer(delay);assert.equal(h.calls.length,index+2);
+ }
+ h.calls[3].reject(new Error('서버 연결 실패'));await settle();
+ assert.equal(h.timers.size,0,'automatic retries stop after three attempts');assert.equal(h.acknowledged(),0);assert.equal(h.status.hidden,false);
+ h.retryEvents.get('click')();assert.equal(h.calls.length,5);h.calls[4].resolve({ok:true});await settle();
+ assert.equal(h.acknowledged(),1);assert.equal(h.timers.size,0);h.cleanup();
+});
+
+test('a stalled receipt is aborted and retried instead of remaining pending forever',async()=>{
+ const h=acknowledgeHarness();h.paint();assert.ok(h.calls[0].options.signal);
+ h.fireTimer(10000);await settle();assert.equal(h.calls[0].options.signal.aborted,true);assert.equal(h.status.hidden,false);assert.equal(h.acknowledged(),0);
+ h.fireTimer(1000);assert.equal(h.calls.length,2);h.calls[1].resolve({ok:true});await settle();
+ assert.equal(h.acknowledged(),1);assert.equal(h.timers.size,0);h.cleanup();
+});
+
+test('retry timers retain view guards and cleanup lets an already-visible receipt finish within its deadline',async()=>{
+ const hidden=acknowledgeHarness();hidden.paint();hidden.calls[0].reject(new Error('연결 끊김'));await settle();
+ hidden.doc.hidden=true;hidden.fireTimer(1000);assert.equal(hidden.calls.length,1);
+ hidden.winEvents.get('online')?.();assert.equal(hidden.calls.length,1);
+ hidden.doc.hidden=false;hidden.docEvents.get('visibilitychange')();assert.equal(hidden.calls.length,2);hidden.cleanup();await settle();
+ assert.equal(hidden.calls[1].options.signal.aborted,false,'following a guide link must not cancel a receipt already being saved');assert.equal(hidden.acknowledged(),0);
+ hidden.calls[1].resolve({ok:true});await settle();assert.equal(hidden.acknowledged(),0);assert.equal(hidden.timers.size,0);
+ for(const event of ['focus','online','pageshow'])assert.equal(hidden.winEvents.has(event),false);
+ assert.equal(hidden.docEvents.has('visibilitychange'),false);assert.equal(hidden.retryEvents.size,0);
+ for(const change of [h=>{h.c.renderId++;},h=>{h.c.me={id:'other-member'};},h=>{h.pane.isConnected=false;}]){
+  const h=acknowledgeHarness();h.paint();h.calls[0].reject(new Error('연결 끊김'));await settle();change(h);h.fireTimer(1000);
+  h.winEvents.get('pageshow')?.();assert.equal(h.calls.length,1);assert.equal(h.acknowledged(),0);h.cleanup();assert.equal(h.timers.size,0);
+ }
+ const stalled=acknowledgeHarness();stalled.paint();stalled.cleanup();stalled.fireTimer(10000);await settle();
+ assert.equal(stalled.calls[0].options.signal.aborted,true);assert.equal(stalled.calls.length,1);assert.equal(stalled.acknowledged(),0);assert.equal(stalled.timers.size,0);
 });

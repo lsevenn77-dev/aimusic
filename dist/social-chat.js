@@ -162,15 +162,30 @@ function bindSocialChat(view){
  const search=document.querySelector('#dm-inbox-search');const filter=()=>{dmInboxQuery=search.value;if(inboxData)paintInbox(inboxData);};search?.addEventListener('input',filter);
  let inboxFetching=false,inboxAgain=false,inboxVersion=0;
  const loadInbox=async()=>{if(!view?.inbox||!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
-  try{do{inboxAgain=false;const version=inboxVersion,d=await api('/api/dm');if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);syncCrewInbox(d.crew);$('#dm-list-error').textContent='';}while(inboxAgain&&current());}
-  catch(e){if(current())$('#dm-list-error').textContent=e.message;}finally{inboxFetching=false;}
+  try{do{inboxAgain=false;const version=inboxVersion;
+   try{const d=await api('/api/dm','GET',undefined,{fresh:true});if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);syncCrewInbox(d.crew);$('#dm-list-error').textContent='';}
+   catch(e){if(current()&&version===inboxVersion)$('#dm-list-error').textContent=e.message;}
+  }while(inboxAgain&&current());}finally{inboxFetching=false;}
  };
- const localInbox=e=>{if(current()&&view?.inbox&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{void loadInbox();};if(view?.inbox){window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);}
+ const localInbox=e=>{if(current()&&view?.inbox&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{inboxVersion++;void loadInbox();};if(view?.inbox){window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);}
  if(view.inbox)syncCrewInbox(inboxData?.crew);
  const clearInboxEvents=()=>{stopCrewInbox?.();window.removeEventListener('aifect:inbox-local',localInbox);window.removeEventListener('aifect:inbox-refresh',refreshInbox);};
  if(view?.inbox&&!view.chat){
   if(view.refreshInbox)void loadInbox();
-  const stopNotice=view.welcomeNotice?bindWelcomeNotice(view,()=>{void loadInbox();void refreshMessageBadge();}):()=>{};
+  const noticeRead=()=>{
+   if(!current())return;inboxVersion++;
+   if(inboxData){
+    const isWelcome=p=>p.is_notice===true&&p.notice_type==='welcome'&&p.read_only===true;
+    // The summary and conversation rows may have been read on either side of the receipt update.
+    const count=Number(inboxData.notice_unread??inboxData.conversations.filter(isWelcome).reduce((sum,p)=>sum+Number(p.unread||0),0));
+    inboxData={...inboxData,notice_unread:0,conversations:inboxData.conversations.map(p=>isWelcome(p)?{...p,unread:0}:p)};
+    for(const key of ['unread','direct_unread'])if(Number.isFinite(inboxData[key]))inboxData[key]=Math.max(0,inboxData[key]-count);
+    rememberDmInbox(inboxData);paintInbox(inboxData);
+    if(Number.isFinite(inboxData.unread))paintMessageBadge(inboxData.unread);
+   }
+   window.dispatchEvent(new Event('aifect:dm-read'));void loadInbox();void refreshMessageBadge();
+  };
+  const stopNotice=view.welcomeNotice?bindWelcomeNotice(view,noticeRead):()=>{};
   const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});
   socialCleanup=()=>{clearInboxEvents();stopNotice();stop();search?.removeEventListener('input',filter);};return;
  }

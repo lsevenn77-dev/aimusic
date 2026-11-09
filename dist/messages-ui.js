@@ -17,28 +17,36 @@ function bindWelcomeNotice(view,acknowledged=()=>{}){
  if(!notice||!pane)return ()=>{};
  const ticket=renderId,uid=me?.id,status=$('#welcome-guide-status');
  const retry=status?.querySelector('[data-welcome-read-retry]');
- let closed=false,pending=false,done=Number(notice.read_at)>0;
+ let closed=false,pending=false,done=Number(notice.read_at)>0,synced=false,retries=0,retryTimer=null;
  const current=()=>!closed&&ticket===renderId&&uid===me?.id&&!!uid&&pane.isConnected;
+ const synchronize=()=>{if(synced||!current())return;synced=true;if(status)status.hidden=true;acknowledged();};
  const acknowledge=async()=>{
   const renderState=document.documentElement?.dataset?.renderState;
-  if(done||pending||!current()||document.hidden||(renderState&&renderState!=='ready')||!pane.getClientRects().length)return;
+  if(pending||!current()||document.hidden||(renderState&&renderState!=='ready')||!pane.getClientRects().length)return;
+  clearTimeout(retryTimer);retryTimer=null;
+  if(done){synchronize();return;}
   pending=true;if(retry)retry.disabled=true;
+  const controller=new AbortController();let timedOut=false;
+  const deadline=setTimeout(()=>{timedOut=true;controller.abort();},10000);
   try{
-   await api('/api/notices/welcome','PATCH',{campaign_id:notice.campaign_id});
-   done=true;if(!current())return;
-   if(status)status.hidden=true;
-   acknowledged();
+   await api('/api/notices/welcome','PATCH',{campaign_id:notice.campaign_id},{signal:controller.signal});
+   done=true;synchronize();
   }catch(error){
-   if(current()&&status){status.querySelector('span').textContent='읽음 상태를 반영하지 못했어요. '+error.message;status.hidden=false;}
-  }finally{pending=false;if(retry)retry.disabled=false;}
+   if(!current())return;
+   if(status){status.querySelector('span').textContent='읽음 상태를 반영하지 못했어요. '+(timedOut?'연결 응답이 늦어지고 있어요. 다시 시도해주세요.':error.message);status.hidden=false;}
+   const delay=[1000,3000,8000][retries++];
+   if(delay!==undefined&&(!error.status||error.status===408||error.status===429||error.status>=500))retryTimer=setTimeout(()=>{retryTimer=null;void acknowledge();},delay);
+  }finally{clearTimeout(deadline);pending=false;if(retry)retry.disabled=false;}
  };
  pane.scrollTop=0;
- const frame=requestAnimationFrame(()=>{if(current()){pane.scrollTop=0;void acknowledge();}});
- const visible=()=>{void acknowledge();};
- document.addEventListener('visibilitychange',visible);window.addEventListener('focus',visible);retry?.addEventListener('click',visible);
+ const frame=requestAnimationFrame(()=>{if(current()){pane.scrollTop=0;visible();}});
+ const visible=()=>{if(retryTimer===null)void acknowledge();};
+ const resume=()=>{if(pending)return;retries=0;clearTimeout(retryTimer);retryTimer=null;void acknowledge();};
+ document.addEventListener('visibilitychange',resume);window.addEventListener('focus',resume);window.addEventListener('online',resume);window.addEventListener('pageshow',resume);retry?.addEventListener('click',resume);
  const resize=typeof ResizeObserver==='function'?new ResizeObserver(visible):null;resize?.observe(pane);
  const ready=typeof MutationObserver==='function'&&document.documentElement?new MutationObserver(visible):null;ready?.observe(document.documentElement,{attributes:true,attributeFilter:['data-render-state']});
- return ()=>{closed=true;cancelAnimationFrame(frame);resize?.disconnect();ready?.disconnect();document.removeEventListener('visibilitychange',visible);window.removeEventListener('focus',visible);retry?.removeEventListener('click',visible);};
+ // Following a guide link must let its already-started receipt finish within the deadline.
+ return ()=>{closed=true;cancelAnimationFrame(frame);clearTimeout(retryTimer);resize?.disconnect();ready?.disconnect();document.removeEventListener('visibilitychange',resume);window.removeEventListener('focus',resume);window.removeEventListener('online',resume);window.removeEventListener('pageshow',resume);retry?.removeEventListener('click',resume);};
 }
 async function dmNoticeView(raw,readApi=api){
  const inbox=await readApi('/api/dm'),{notices}=dmOrderedConversations(inbox.conversations);
