@@ -114,7 +114,7 @@ test('desktop and compact desktop reuse the exact mobile photo independently fro
 
 test('desktop scenery matches reviewed WebP files and records the unchanged original photo provenance',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
- const base=new URL('../dist/assets/home-banners/inset-20261109/',import.meta.url);
+ const base=new URL('../dist/assets/home-banners/center-20261109/',import.meta.url);
  const manifestText=readFileSync(new URL('manifest.json',base),'utf8'),manifest=JSON.parse(manifestText);
  assert.equal(manifest.assets.length,banners.length);
  assert.deepEqual(manifest.assets.map(asset=>asset.id),Array.from(banners,banner=>banner.id));
@@ -130,7 +130,7 @@ test('desktop scenery matches reviewed WebP files and records the unchanged orig
   assert.ok(asset.prompt.trim(),'generation prompt must be preserved for '+banner.id);
   assert.ok(asset.provenance.generated.filename.endsWith('.png'));
   assert.match(asset.provenance.generated.sha256,/^[a-f0-9]{64}$/);
-  for(const [side,width] of [['left',2211],['right',239]]){
+  for(const [side,width] of [['left',2365],['right',768]]){
    const output=asset.outputs.find(item=>item.side===side);
    assert.ok(output,'missing '+side+' desktop scenery for '+banner.id);
    assert.equal(output.filename,banner.id+'-'+side+'-'+width+'.webp');
