@@ -176,6 +176,50 @@
   padding:calc(10px) calc(16px);border-radius:var(--ds-radius-input);box-shadow:none;
   font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
 }
+/* Approved desktop inbox: one row for the message, source and type/time.
+   Keep the original DOM order and the stacked layout on smaller screens. */
+@media(min-width:1024px) {
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-inbox {
+    width:100%;max-width:1360px;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
+    min-height:72px;padding-block:calc(14px);gap:calc(16px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-avatar {
+    width:40px;height:40px;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy {
+    display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr) 188px;
+    align-items:center;gap:0 calc(20px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > p {
+    grid-column:1;grid-row:1;min-width:0;margin:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.5;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-detail {
+    grid-column:2;grid-row:1;min-width:0;align-items:center;flex-wrap:nowrap;
+    overflow:hidden;white-space:nowrap;line-height:1.5;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-meta {
+    grid-column:3;grid-row:1;min-width:0;justify-content:flex-end;flex-wrap:nowrap;
+    gap:calc(6px);white-space:nowrap;font-size:var(--pc-font-caption,13px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > span:first-child {
+    min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > :is([aria-hidden],time) {
+    flex:none;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail {
+    width:100%;gap:calc(8px);
+  }
+}
+@media(min-width:1024px) and (max-width:1279px) {
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy {
+    grid-template-columns:minmax(0,1.9fr) minmax(0,1fr) 126px;
+    column-gap:calc(12px);
+  }
+}
 @media(max-width:800px) {
   #main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-inbox {
     padding-top:calc(16px);
