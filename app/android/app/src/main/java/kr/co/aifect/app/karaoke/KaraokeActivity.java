@@ -92,7 +92,7 @@ public class KaraokeActivity extends AppCompatActivity {
         if(destroyed)return;
         if(engine!=null&&(state==State.RECORDING||state==State.PREROLL||state==State.PLAYING||state==State.GUIDE)){
             double at=engine.position();drawLyrics(state==State.PREROLL?Math.max(at,engine.recordPosition()):at);
-            if(state==State.PREROLL){if(!engine.preRolling()){setState(State.RECORDING);message("녹음 중 · 가사를 밀면 그 구간부터 다시 불러요.");}else message("반주 먼저 듣기 · "+Math.max(1,(int)Math.ceil(engine.recordPosition()-at))+"초 뒤 녹음 시작");}
+            if(state==State.PREROLL){if(!engine.preRolling()){setState(State.RECORDING);message("녹음 중 · 가사를 밀면 그 구간부터 다시 불러요.");}else{int left=Math.max(1,(int)Math.ceil(engine.recordPosition()-at));showCountdown(left);message("앞부분 반주 듣기 · "+left+"초 뒤 녹음 시작");}}
         }
         ui.postDelayed(this,50);
     }};
@@ -298,12 +298,12 @@ public class KaraokeActivity extends AppCompatActivity {
         setState(State.LOADING);
     }
     private LinearLayout recordingPanel,postPanel,bottomControls,soundSettings,reverbSettings,postSound,postReverb;
-    private android.app.Dialog settingsDialog;
+    private android.app.Dialog settingsDialog;private LinearLayout advancedAudio;
     private TransportButton monitorControl,settingsControl;
     private TakeWaveformView waveform;private long waveformStamp=-1;
     private boolean returnToRecording;private LinearLayout songCard,publicationFields;private int syncMinimum=-200;private TextView syncLeft,syncRight,syncValue;
     private android.widget.ImageView songArt;
-    private TextView recordingNow,recordingEnd;
+    private TextView recordingNow,recordingEnd,countdownBadge;
     private void attach(View view,LinearLayout host){if(view.getParent()==host)return;if(view.getParent() instanceof android.view.ViewGroup)((android.view.ViewGroup)view.getParent()).removeView(view);host.addView(view,new LinearLayout.LayoutParams(-1,-2));}
     private void moveSlider(SeekBar bar,LinearLayout host){LinearLayout source=(LinearLayout)bar.getParent();View label=source.getChildAt(source.indexOfChild(bar)-1);source.removeView(label);source.removeView(bar);attach(label,host);attach(bar,host);}
     private void styleStep(LinearLayout box,String heading){box.setPadding(dp(10),dp(12),dp(10),dp(12));if(box.getChildCount()>0&&box.getChildAt(0) instanceof TextView){TextView label=(TextView)box.getChildAt(0);label.setText(heading);label.setTextSize(16);label.setTypeface(null,Typeface.BOLD);}GradientDrawable background=new GradientDrawable();background.setColor(CARD);background.setStroke(dp(1),Color.rgb(47,46,55));background.setCornerRadius(dp(12));box.setBackground(background);}
@@ -326,7 +326,7 @@ public class KaraokeActivity extends AppCompatActivity {
         monitor.setText("모니터링");monitor.setContentDescription("이어폰으로 내 목소리 듣기");monitoring.setPadding(dp(12),0,dp(12),dp(8));monitoring.removeView(routeLabel);View legend=recordingPanel.findViewWithTag("duet-legend");if(legend!=null){recordingPanel.removeView(legend);recordingPanel.addView(legend);}
         soundSettings=volumes;LinearLayout advanced=new LinearLayout(this);advanced.setOrientation(LinearLayout.VERTICAL);moveSlider(hear,advanced);attach(automatic,advanced);moveSlider(noise,soundSettings);
         LinearLayout ticks=new LinearLayout(this);for(String label:new String[]{"1 낮음","2 약","3 보통","4 강","5 최대"}){TextView tick=text(label,12,MUTED);tick.setGravity(Gravity.CENTER);ticks.addView(tick,new LinearLayout.LayoutParams(0,-2,1));}soundSettings.addView(ticks);styleStep(soundSettings,"소리 크기");
-        Button moreAudio=button("청음·자동 보정 추가 설정",false);moreAudio.setTextSize(13);moreAudio.setOnClickListener(v->advanced.setVisibility(advanced.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE));advanced.setVisibility(View.GONE);soundSettings.addView(moreAudio);soundSettings.addView(advanced);
+        Button moreAudio=button("청음·자동 보정 추가 설정",false);moreAudio.setTextSize(13);moreAudio.setOnClickListener(v->advanced.setVisibility(advanced.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE));advanced.setVisibility(View.GONE);advancedAudio=advanced;soundSettings.addView(moreAudio);soundSettings.addView(advanced);
         reverbSettings=fx;styleStep(fx,"목소리 효과");View strengthLabel=fx.getChildAt(fx.indexOfChild(effectStrength)-1);fx.removeAllViews();fx.addView(text("목소리 효과",16,Color.WHITE));
         LinearLayout presetGrid=new LinearLayout(this);presetGrid.setOrientation(LinearLayout.VERTICAL);presetGrid.setTag("vocal-preset-grid");
         for(int row=0;row<2;row++){LinearLayout choices=new LinearLayout(this);for(int col=0;col<3;col++){int index=row*3+col;LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),dp(4),dp(3),dp(4));if(index<5){Button tile=index<4?presetButtons.get(index):customButton;attach(tile,choices);tile.setLayoutParams(p);}else choices.addView(new Space(this),p);}presetGrid.addView(choices);}fx.addView(presetGrid);
@@ -334,7 +334,7 @@ public class KaraokeActivity extends AppCompatActivity {
         for(int i=customDetails.getChildCount()-1;i>=0;i--){View child=customDetails.getChildAt(i);if(child instanceof TextView&&!(i+1<customDetails.getChildCount()&&customDetails.getChildAt(i+1) instanceof SeekBar))customDetails.removeViewAt(i);}
         moveSlider(size,customDetails);moveSlider(echo,customDetails);moveSlider(room,customDetails);moveSlider(toneControl,customDetails);
         while(lyrics.getChildCount()>0)lyrics.removeViewAt(0);lyrics.setPadding(dp(12),dp(14),dp(12),dp(14));LinearLayout sizeBlock=new LinearLayout(this);sizeBlock.setOrientation(LinearLayout.VERTICAL);sizeBlock.setPadding(dp(4),dp(14),dp(4),dp(2));sizeBlock.addView(text("가사 글자 크기",12,MUTED));LinearLayout sizeChoices=new LinearLayout(this);String[] sizes={"small","normal","large"},sizeNames={"작게","보통","크게"};
-        for(int i=0;i<sizes.length;i++){final String choice=sizes[i];Button b=button(sizeNames[i],false);b.setTag("lyric-size-"+choice);b.setTextSize(13);b.setMinWidth(0);b.setMinimumWidth(0);b.setPadding(dp(4),0,dp(4),0);b.setMinHeight(dp(48));b.setOnClickListener(v->chooseLyricTextSize(choice,true));lyricSizeButtons.add(b);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(2),0,dp(2),dp(8));sizeChoices.addView(b,p);}sizeBlock.addView(sizeChoices);lyricWheel.setTextSizeChoice(lyricTextSize);refreshLyricTextSizes();lyrics.addView(lyricWheel,new LinearLayout.LayoutParams(-1,dp(320)));attach(sizeBlock,recordingPanel);styleLyricsCard(lyrics);attach(lyrics,recordingPanel);attach(pickLine,recordingPanel);pickLine.setVisibility(View.GONE);attach(timeline,recordingPanel);LinearLayout times=new LinearLayout(this);times.setPadding(dp(12),0,dp(12),dp(8));recordingNow=text("0:00",13,MUTED);recordingEnd=text("0:00",13,MUTED);recordingEnd.setGravity(Gravity.END);times.addView(recordingNow,new LinearLayout.LayoutParams(0,-2,1));times.addView(recordingEnd,new LinearLayout.LayoutParams(0,-2,1));attach(times,recordingPanel);routeLabel.setGravity(Gravity.CENTER);routeLabel.setPadding(dp(8),dp(2),dp(8),dp(10));routeLabel.setTag("recording-route");attach(routeLabel,recordingPanel);
+        for(int i=0;i<sizes.length;i++){final String choice=sizes[i];Button b=button(sizeNames[i],false);b.setTag("lyric-size-"+choice);b.setTextSize(13);b.setMinWidth(0);b.setMinimumWidth(0);b.setPadding(dp(4),0,dp(4),0);b.setMinHeight(dp(48));b.setOnClickListener(v->chooseLyricTextSize(choice,true));lyricSizeButtons.add(b);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(2),0,dp(2),dp(8));sizeChoices.addView(b,p);}sizeBlock.addView(sizeChoices);lyricWheel.setTextSizeChoice(lyricTextSize);refreshLyricTextSizes();FrameLayout lyricStage=new FrameLayout(this);lyricStage.addView(lyricWheel,new FrameLayout.LayoutParams(-1,dp(280)));countdownBadge=countdownBadge();lyricStage.addView(countdownBadge,new FrameLayout.LayoutParams(dp(116),dp(116),Gravity.CENTER));lyrics.addView(lyricStage,new LinearLayout.LayoutParams(-1,-2));attach(sizeBlock,recordingPanel);styleLyricsCard(lyrics);attach(lyrics,recordingPanel);attach(pickLine,recordingPanel);pickLine.setVisibility(View.GONE);attach(timeline,recordingPanel);LinearLayout times=new LinearLayout(this);times.setPadding(dp(12),0,dp(12),dp(8));recordingNow=text("0:00",13,MUTED);recordingEnd=text("0:00",13,MUTED);recordingEnd.setGravity(Gravity.END);times.addView(recordingNow,new LinearLayout.LayoutParams(0,-2,1));times.addView(recordingEnd,new LinearLayout.LayoutParams(0,-2,1));attach(times,recordingPanel);routeLabel.setGravity(Gravity.CENTER);routeLabel.setPadding(dp(8),dp(2),dp(8),dp(10));routeLabel.setTag("recording-route");attach(routeLabel,recordingPanel);
         Button backToReview=button("후작업으로 돌아가기",false);backToReview.setOnClickListener(v->{if(hasTake){returnToRecording=false;setState(State.REVIEW);}});backToReview.setTag("back-to-review");attach(backToReview,recordingPanel);
         postPanel=box();postPanel.setTag("recording-post");postPanel.addView(text("녹음이 완료되었습니다!",21,Color.WHITE));postPanel.addView(text("후작업을 진행해 주세요.",12,MUTED));add(postPanel,14);
         LinearLayout player=box(),playRow=new LinearLayout(this);player.setPadding(dp(8),dp(8),dp(8),dp(8));playRow.setGravity(Gravity.CENTER_VERTICAL);attach(preview,playRow);((TransportButton)preview).setCompact(true);preview.setLayoutParams(new LinearLayout.LayoutParams(dp(54),dp(54)));preview.setContentDescription("녹음 들어보기");attach(previewPause,playRow);((TransportButton)previewPause).setCompact(true);previewPause.setLayoutParams(new LinearLayout.LayoutParams(dp(54),dp(54)));previewPause.setContentDescription("녹음 다시듣기 일시정지");
@@ -351,7 +351,7 @@ public class KaraokeActivity extends AppCompatActivity {
     private void mountStudioSettings(boolean reviewing){
         if(settingsDialog!=null&&settingsDialog.isShowing())return;soundSettings.setBackgroundColor(Color.TRANSPARENT);reverbSettings.setBackgroundColor(Color.TRANSPARENT);soundSettings.setPadding(0,0,0,0);reverbSettings.setPadding(0,0,0,0);
         if(reviewing){attach(soundSettings,postSound);attach(reverbSettings,postReverb);for(int i=0;i<soundSettings.getChildCount();i++){View child=soundSettings.getChildAt(i);child.setVisibility(i==0||i>=5?View.GONE:View.VISIBLE);}reverbSettings.getChildAt(0).setVisibility(View.GONE);if(songCard!=null)songCard.setVisibility(View.GONE);}
-        else{for(int i=0;i<soundSettings.getChildCount();i++)soundSettings.getChildAt(i).setVisibility(View.VISIBLE);reverbSettings.getChildAt(0).setVisibility(View.VISIBLE);if(songCard!=null)songCard.setVisibility(View.VISIBLE);if(soundSettings.getParent() instanceof ViewGroup)((ViewGroup)soundSettings.getParent()).removeView(soundSettings);if(reverbSettings.getParent() instanceof ViewGroup)((ViewGroup)reverbSettings.getParent()).removeView(reverbSettings);}
+        else{for(int i=0;i<soundSettings.getChildCount();i++){View child=soundSettings.getChildAt(i);if(child!=advancedAudio)child.setVisibility(View.VISIBLE);}reverbSettings.getChildAt(0).setVisibility(View.VISIBLE);if(songCard!=null)songCard.setVisibility(View.VISIBLE);if(soundSettings.getParent() instanceof ViewGroup)((ViewGroup)soundSettings.getParent()).removeView(soundSettings);if(reverbSettings.getParent() instanceof ViewGroup)((ViewGroup)reverbSettings.getParent()).removeView(reverbSettings);}
         presetDescription.setVisibility(View.VISIBLE);compactReviewSliders(reviewing);
     }
     private static String validLyricTextSize(String value){return "small".equals(value)||"large".equals(value)?value:"normal";}
@@ -381,10 +381,12 @@ public class KaraokeActivity extends AppCompatActivity {
         if(!validateDuetParts())return;
         if(ContextCompat.checkSelfPermission(this,Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)beginCountdown();else microphone.launch(Manifest.permission.RECORD_AUDIO);
     }
-    private void beginCountdown(){if(!foreground||engine==null)return;if(cursor>0){startRecording();return;}setState(State.COUNTDOWN);countdown(3,++countdownId);}
+    private void beginCountdown(){if(!foreground||engine==null)return;if(cursor>=3){startRecording();return;}setState(State.COUNTDOWN);countdown(3,++countdownId);}
     private void countdown(int n,int id){
         if(state!=State.COUNTDOWN||!foreground||id!=countdownId)return;
-        if(n>0){message(n+" · 준비하세요");ui.postDelayed(()->countdown(n-1,id),1000);return;}
+        // Near the top of the song only the backing that exists before the line can play under the count.
+        if(n>0&&cursor>0&&n<=Math.ceil(cursor)){startRecording();return;}
+        if(n>0){showCountdown(n);message(n+" · 준비하세요");ui.postDelayed(()->countdown(n-1,id),1000);return;}
         startRecording();
     }
     private void startRecording(){
@@ -402,7 +404,7 @@ public class KaraokeActivity extends AppCompatActivity {
         message(error!=null?error:pauseRequested?"일시정지했어요. 이어 부르기를 누르면 같은 위치부터 시작해요.":hasTake?"녹음한 "+time(dry.length()/2.0/PcmFiles.RATE)+"까지만 저장돼요. 들어보고 싱크를 조절해주세요.":"가사를 골라 선택한 위치부터 불러보세요.");pauseRequested=false;drawLyrics(cursor);
     }
     private void setState(State nextState){
-        state=nextState;updateKeyControls();boolean recording=state==State.RECORDING||state==State.PREROLL,playing=state==State.PLAYING,guiding=state==State.GUIDE;
+        state=nextState;updateKeyControls();if(countdownBadge!=null&&state!=State.COUNTDOWN&&state!=State.PREROLL)countdownBadge.setVisibility(View.GONE);boolean recording=state==State.RECORDING||state==State.PREROLL,playing=state==State.PLAYING,guiding=state==State.GUIDE;
         boolean busy=state==State.LOADING||state==State.UPLOADING||state==State.STOPPING||state==State.SEEKING,active=recording||playing||guiding||state==State.COUNTDOWN;
         if(soloMode!=null){soloMode.setEnabled(!busy&&!active);duetMode.setEnabled(!busy&&!active);}
         if(editParts!=null)editParts.setEnabled(!busy&&!active);
@@ -663,6 +665,9 @@ public class KaraokeActivity extends AppCompatActivity {
         }
     }
     private void styleLyricsCard(LinearLayout card){GradientDrawable bg=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{0xff3a2468,0xff1b1d3c,0xff2a1c50});bg.setCornerRadius(dp(22));bg.setStroke(dp(1),0x664c3a8a);card.setBackground(bg);}
+    /** Large 3 · 2 · 1 over the lyrics before every take. */
+    private TextView countdownBadge(){TextView badge=new TextView(this);badge.setTextSize(56);badge.setTextColor(Color.WHITE);badge.setTypeface(null,Typeface.BOLD);badge.setGravity(Gravity.CENTER);badge.setIncludeFontPadding(false);GradientDrawable bg=new GradientDrawable();bg.setShape(GradientDrawable.OVAL);bg.setColor(0xd92a1c50);bg.setStroke(dp(2),PINK);badge.setBackground(bg);badge.setTag("recording-countdown");badge.setVisibility(View.GONE);badge.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);return badge;}
+    private void showCountdown(int n){if(countdownBadge==null)return;String value=String.valueOf(n);if(!value.contentEquals(countdownBadge.getText())){countdownBadge.setText(value);countdownBadge.setScaleX(1.25f);countdownBadge.setScaleY(1.25f);countdownBadge.animate().scaleX(1).scaleY(1).setDuration(220).start();}countdownBadge.setVisibility(View.VISIBLE);}
     private void message(String message){status.setText(message);}
     private static String friendly(Exception e){String m=e.getMessage();return m==null||m.isBlank()?"완료하지 못했어요. 다시 시도해주세요.":m;}
     private static String partTime(double seconds){int n=(int)Math.round(Math.max(0,seconds)*10);return String.format(java.util.Locale.ROOT,"%d:%02d.%d",n/600,n%600/10,n%10);}
