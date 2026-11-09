@@ -671,3 +671,35 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   }
 }
 /* PLAY_PC_TYPE_END */
+
+/* One desktop content width for Song, Dubbing and Browse. Keep the existing
+   section zoom for controls/type; only remove its independent 944px cap.
+   Spacing below is in final CSS pixels, outside the regional scale pass. */
+@media (min-width: 801px) {
+  #main > .play-page[data-play-mode] {
+    --play-layout-gap: 16px;
+
+    > :is(.play-subbar, .play-content) {
+      width: auto;
+      max-width: none;
+      margin-inline: 0;
+    }
+    > .play-banner .home-feature {
+      margin-block-end: calc(var(--play-layout-gap) * 1.5);
+    }
+    > .play-main-tabs { margin-block: 0 var(--play-layout-gap); }
+    > .play-subbar {
+      margin-block: 0 calc(var(--play-layout-gap) / var(--play-section-zoom));
+    }
+    .play-category-tabs {
+      grid-auto-columns: minmax(0, 1fr);
+      gap: calc(var(--play-layout-gap) / var(--play-section-zoom));
+    }
+    .play-search { margin-bottom: var(--play-layout-gap); }
+    .play-discovery-tools {
+      gap: calc(var(--play-layout-gap) / var(--play-section-zoom));
+      margin-bottom: calc(var(--play-layout-gap) / var(--play-section-zoom));
+    }
+    .play-discovery-tools .play-search { margin: 0; }
+  }
+}
