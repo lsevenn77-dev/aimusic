@@ -3,9 +3,55 @@
 .page-wrap:has(>main>.shop-page)::before,main:has(>.shop-page)::before{display:none}
 #main:has(>.shop-page){--main-frame-gutter:20px;--main-frame-top:10px;padding-bottom:32px;background:transparent;box-shadow:none}
 .shop-page{--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;--ui-control-height:44px;--shop-outline:#8f7da888;--shop-purple:linear-gradient(180deg,#b45ce8,#8434c7);width:100%;min-width:0;container-type:inline-size;color:var(--ds-text);font-size:var(--pc-font-body,15px)}
-.shop-page .shop-banner{width:100%;min-width:0;border:0;border-radius:0;margin:0;background:#17132b}
-.shop-page .shop-banner img{display:block;width:100%;height:auto;aspect-ratio:2172/469;object-fit:contain;border:0;border-radius:0;margin:0}
-.shop-page .shop-banner-caption{display:none}
+/* Match the Play frame from main-layout.css without narrowing the product grid. */
+.shop-page .shop-banner{--shop-play-gutter:47.25px;--shop-play-top:24.75px;min-width:0;border:0;border-radius:0;margin:calc(var(--shop-play-top) - var(--main-frame-top)) calc(var(--shop-play-gutter) - var(--main-frame-gutter)) 0;background:#17132b}
+.shop-page .shop-banner .home-feature{container:shop-banner-frame / size}
+.shop-page .shop-banner .shop-banner-link{--shop-banner-accent:var(--ds-selected);display:flex;align-items:center;padding:12px max(68px,7cqi) 40px;background:linear-gradient(112deg,var(--ds-panel),color-mix(in srgb,var(--shop-banner-accent) 12%,var(--ds-bg)));color:var(--ds-text);text-decoration:none}
+.shop-page .shop-banner .shop-banner-link:focus-visible{outline-offset:-3px}
+.shop-page .shop-banner .shop-banner-link[data-shop-banner=themes]{--shop-banner-accent:var(--ds-accent-mint)}
+.shop-page .shop-banner .shop-banner-link[data-shop-banner=gifts]{background:#17132b}
+.shop-page .shop-banner-intro-art{position:absolute;inset:0;display:block}
+.shop-page .shop-banner-intro-art img{display:block;width:100%;height:100%;object-fit:contain;border:0;border-radius:0}
+.shop-page .shop-banner-copy{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;max-width:45cqi;min-width:0;word-break:keep-all;overflow-wrap:anywhere}
+.shop-page [data-shop-banner=gifts] .shop-banner-copy{display:none}
+.shop-page .shop-banner-label{font-size:var(--pc-font-caption,13px);font-weight:700;color:var(--shop-banner-accent);line-height:1.35}
+.shop-page .shop-banner-title{display:block;margin-top:6px;font-size:clamp(24px,3.45cqi,36px);font-weight:750;letter-spacing:-.035em;line-height:1.22}
+.shop-page .shop-banner-title>span{display:block}
+.shop-page .shop-banner-description{display:block;max-width:20em;margin-top:9px;font-size:var(--pc-font-body,15px);color:var(--ds-body);line-height:1.45}
+.shop-page .shop-banner-cta{display:inline-flex;align-items:center;gap:12px;min-height:36px;margin-top:6px;font-size:var(--pc-font-control,14px);color:var(--shop-banner-accent);font-weight:600}
+.shop-page .shop-banner-cta>span{font-size:20px;line-height:1}
+.shop-page .shop-banner-gallery{position:absolute;top:50%;right:max(60px,6cqi);display:flex;align-items:center;justify-content:center;gap:8px;width:40cqi;height:66%;transform:translateY(-55%);pointer-events:none}
+.shop-page .shop-banner-gallery img{display:block;min-width:0;width:calc((100% - 16px) / 3);max-height:100%;object-fit:contain}
+.shop-page .shop-banner-gallery img:nth-child(2){width:38%;flex:none}
+.shop-page [data-shop-banner=themes] .shop-banner-gallery img{aspect-ratio:1;border-radius:var(--ds-radius-card,16px);object-fit:cover}
+.shop-page .shop-banner .home-feature-pagination{--feature-step:32px}
+.shop-page .shop-banner .home-feature-dots button::after{opacity:.9}
+@media(min-width:1300px){.shop-page .shop-banner{--shop-play-gutter:51.75px}}
+@media(max-width:1150px){.shop-page .shop-banner{--shop-play-gutter:31.5px;--shop-play-top:22.5px}}
+@container shop-banner-frame (max-width:790px){.shop-page .shop-banner .shop-banner-link{padding-left:64px}.shop-page .shop-banner-title{font-size:26px}.shop-page .shop-banner-description{font-size:14px}}
+@container shop-banner-frame (max-width:690px){.shop-page .shop-banner .shop-banner-link{padding-left:4.5cqi}.shop-page .shop-banner-copy{max-width:44cqi}.shop-page .shop-banner-title{font-size:22px}.shop-page .shop-banner-gallery{right:3cqi;width:45cqi}.shop-page .shop-banner .home-feature-arrow{top:auto;bottom:0}}
+@container shop-banner-frame (max-height:180px){.shop-page .shop-banner .shop-banner-link{padding-block:5px 30px}.shop-page .shop-banner-title{font-size:20px;margin-top:3px}.shop-page .shop-banner-description{font-size:12px;margin-top:5px}.shop-page .shop-banner-cta{min-height:24px;margin-top:2px;font-size:12px}}
+@media(max-width:800px){
+ .shop-page .shop-banner{--shop-play-gutter:0px;--shop-play-top:0px}
+ .shop-page .shop-banner .shop-banner-link{padding:10px 5cqi 32px}
+ .shop-page .shop-banner-intro-art{left:34%}
+ .shop-page .shop-banner-intro-art img{object-fit:cover;object-position:left center;mask-image:linear-gradient(90deg,transparent,#000 32%)}
+ .shop-page [data-shop-banner=gifts] .shop-banner-copy{display:flex;max-width:55cqi}
+ .shop-page .shop-banner-copy{max-width:50cqi}
+ .shop-page .shop-banner-title{font-size:clamp(18px,5.55cqi,26px);line-height:1.26}
+ .shop-page .shop-banner-description{max-width:15em;font-size:clamp(12px,3.24cqi,14px);line-height:1.42;margin-top:7px}
+ .shop-page .shop-banner-label{font-size:clamp(12px,3.25cqi,14px)}
+ .shop-page .shop-banner-cta{font-size:13px;min-height:28px;margin-top:5px}
+ .shop-page .shop-banner-gallery{right:1cqi;width:45cqi;gap:2px;height:62%}
+ .shop-page .shop-banner-gallery img{width:calc((100% - 4px) / 3)}
+ .shop-page .shop-banner-gallery img:nth-child(2){width:42%}
+ .shop-page .shop-banner .home-feature-pagination{--feature-step:44px}
+ .shop-page .shop-banner .home-feature-dots button::after{transform:translateY(7px)}
+ .shop-page .shop-banner .home-feature-dots button:first-child::after{justify-self:end;margin-right:1px}
+ .shop-page .shop-banner .home-feature-dots button:last-child::after{justify-self:start;margin-left:1px}
+ .shop-page .shop-banner .home-feature-dots button[aria-pressed=true]::after{width:15px}
+}
+@container shop-banner-frame (max-width:350px){.shop-page .shop-banner .shop-banner-link{padding-left:4cqi}.shop-page .shop-banner-title{font-size:18px}.shop-page .shop-banner-description{font-size:12px;max-width:13em}.shop-page .shop-banner-cta{font-size:12px}}
 .shop-page .shop-heading{display:flex;align-items:center;gap:12px;min-width:0;margin:16px 0 20px}
 .shop-page .shop-title{display:flex;align-items:center;gap:12px;flex:none;margin:0;font-size:var(--pc-font-page,25px);line-height:1.3;font-weight:700;white-space:nowrap}
 .shop-page .shop-title svg{width:32px;height:32px;flex:none}
@@ -55,9 +101,6 @@
 @media(min-width:768px) and (max-width:1279px){.shop-page .shop-heading{flex-wrap:wrap}.shop-page .shop-balances{margin-left:auto}.shop-page .shop-actions a{padding-inline:9px}.shop-page .shop-toolbar{gap:14px}}
 @media(max-width:800px){#main:has(>.shop-page){--main-frame-gutter:12px;--main-frame-top:10px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}}
 @media(max-width:767px){
- /* Keep the supplied artwork intact; readable copy sits below it, never over it. */
- .shop-page .shop-banner-caption{display:grid;gap:4px;padding:10px 12px 12px;text-align:left;color:var(--ds-text)}
- .shop-page .shop-banner-caption p{margin:0;font:inherit;font-size:14px;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
  .shop-page .shop-heading{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;margin:10px 0}
  .shop-page .shop-title{grid-area:1/1;gap:5px;font-size:19px}
  .shop-page .shop-title svg{width:23px;height:23px}

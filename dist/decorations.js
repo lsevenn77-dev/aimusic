@@ -129,13 +129,30 @@ async function shopThemePreview(button){
 function shopBalancesHTML(wallet){
  return '<span class="shop-balance shop-balance-gold">'+shopCoin('G')+'<span>보유 골드</span><b data-shop-gold>'+number(wallet?.balance||0)+' G</b></span><span class="shop-balance shop-balance-silver">'+shopCoin('S')+'<span>보유 실버</span><b data-shop-silver>'+number(wallet?.free?.balance||0)+' S</b></span>';
 }
+// Category artwork comes from the same live catalog as the shelves below.
+function shopBannerSlides(products){
+ const slides=[{id:'gifts',title:'나만의 스타일을 완성해봐!',label:'AIFECT 상점',heading:['나만의 스타일을','완성해봐!'],description:'선물 · 테두리 · 테마로 더 특별한 AIFECT를 즐겨봐.',cta:'선물 둘러보기',art:[]}];
+ for(const [id,kind,label,heading,description,cta] of [
+  ['frames','PROFILE_FRAME','테두리',['나만의 테두리로','프로필을 꾸며봐'],'내 취향에 맞는 테두리를 골라 개성을 더해봐.','테두리 둘러보기'],
+  ['themes','TALKING_ROOM_THEME','테마',['우리 방의 분위기를','바꿔봐'],'마음에 드는 테마로 함께하는 공간을 꾸며봐.','테마 둘러보기']
+ ]){
+  const art=products.filter(p=>p.kind===kind&&decorationProductImage(p)).slice(0,3).map(p=>({src:decorationProductImage(p),name:p.name}));
+  if(art.length)slides.push({id,title:heading.join(' '),label,heading,description,cta,art});
+ }
+ return slides;
+}
+function shopBannerHTML(banner){
+ const intro=banner.id==='gifts';
+ const art=intro?'<picture class="shop-banner-intro-art"><source media="(min-width:801px)" srcset="/images/shop/aifect_shop_banner_final.webp?v=115d346082e4" width="2172" height="469"><img src="/images/shop/aifect-store-banner-mobile.webp" width="1080" height="512" alt="" loading="eager" fetchpriority="high" decoding="async" draggable="false"></picture>':'<span class="shop-banner-gallery" aria-hidden="true">'+banner.art.map(p=>'<img src="'+esc(p.src)+'" alt="" loading="eager" decoding="async" draggable="false">').join('')+'</span>';
+ return '<a class="home-feature-slide shop-banner-link" data-shop-banner="'+esc(banner.id)+'" href="#gifts/'+esc(banner.id)+'" aria-label="'+esc(banner.title+' · '+banner.cta)+'" draggable="false">'+art+'<span class="home-feature-copy shop-banner-copy"><span class="shop-banner-label">'+esc(banner.label)+'</span><span class="shop-banner-title">'+banner.heading.map(line=>'<span>'+esc(line)+'</span>').join('')+'</span><span class="shop-banner-description">'+esc(banner.description)+'</span><span class="shop-banner-cta">'+esc(banner.cta)+' <span aria-hidden="true">&gt;</span></span></span></a>';
+}
 async function finalGiftShopView(category,readApi=api){
  const [wallet,d,c]=await Promise.all([me?readApi('/api/gold','GET',undefined,{fresh:true}):null,readApi('/api/decorations','GET',undefined,{fresh:true}),readApi('/api/gifts/catalog')]);
  const active=['frames','themes'].includes(category)?category:'gifts';
  const tabs=[['gifts','선물','gift'],['frames','테두리','frame'],['themes','테마','image']];
  // The API catalog defines what is on sale. Retired legacy choices stay excluded.
  const products=[...c.gifts,...c.silver_gifts,...d.products.filter(p=>p.kind==='PROFILE_FRAME'),...shopThemeProducts(d.products)];
- return '<div class="shop-page" data-shop-active="'+active+'"><section class="shop-banner" aria-label="AIFECT 상점 배너"><img src="/images/shop/aifect_shop_banner_final.webp?v=115d346082e4" width="2172" height="469" alt="AIFECT 상점 — 나만의 스타일을 완성해봐! 프레임 · 배지 · 효과 · 이모티콘 · 테마 등 다양한 아이템으로 더 특별한 AIFECT를 즐겨보세요!" loading="eager" fetchpriority="high" decoding="async"><div class="shop-banner-caption" aria-hidden="true"><p>프레임 · 배지 · 효과 · 이모티콘 · 테마 등</p><p>다양한 아이템으로 더 특별한 AIFECT를 즐겨보세요!</p></div></section>'+
+ return '<div class="shop-page" data-shop-active="'+active+'"><section class="shop-banner home-content-refresh" id="shop-banner" aria-label="AIFECT 상점 배너" data-shop-banners="'+esc(JSON.stringify(shopBannerSlides(products)))+'"></section>'+
  '<header class="shop-heading"><h1 class="shop-title">'+shopIcon('cart')+'<span>상점</span></h1><nav class="shop-actions" aria-label="상점 관리"><a href="#gold">'+shopIcon('wallet')+'<span>골드 충전</span></a><a href="#gifts/rewards">'+shopCoin('S')+'<span>실버 받기</span></a><a href="#inventory">'+shopIcon('inventory')+'<span>인벤토리</span></a></nav><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div></header>'+
  '<div class="shop-toolbar"><div class="shop-tabs" role="tablist" aria-label="상점 카테고리">'+tabs.map(([id,label,glyph])=>'<button type="button" role="tab" id="shop-tab-'+id+'" data-shop-tab="'+id+'" aria-controls="shop-products" aria-selected="'+(id===active)+'" tabindex="'+(id===active?'0':'-1')+'">'+shopIcon(glyph)+'<span>'+label+'</span></button>').join('')+'</div><label class="shop-item-search">'+shopIcon('search')+'<input type="search" placeholder="아이템 검색" aria-label="아이템 검색" autocomplete="off"></label></div>'+
  '<div id="shop-products" class="shop-products" role="tabpanel" aria-labelledby="shop-tab-'+active+'" tabindex="0">'+shopCards(products,d.periods)+'</div><p class="shop-empty" role="status" hidden>검색 결과가 없어요.</p>'+
@@ -145,6 +162,8 @@ let shopLayoutCleanup=()=>{};
 function bindShopShelves(){
  shopLayoutCleanup();const root=$('.shop-page');if(!root)return;
  const controller=new AbortController(),tabs=[...root.querySelectorAll('[data-shop-tab]')],input=root.querySelector('.shop-item-search input');
+ const banner=root.querySelector('#shop-banner');
+ const bannerCleanup=banner?mountFeatureCarousel(banner,JSON.parse(banner.dataset.shopBanners),{renderSlide:shopBannerHTML,label:'AIFECT 상점 안내',previousLabel:'이전 상점 배너',nextLabel:'다음 상점 배너',dotsLabel:'상점 배너 선택',initialId:root.dataset.shopActive,intervalMs:4000,syncAudio:false,pauseForDialogs:true}):null;
  const cards=[...root.querySelectorAll('.shop-card')].map(card=>({card,name:shopNormalizeSearch(card.dataset.shopName)}));
  const update=()=>{
   const active=root.dataset.shopActive,query=shopNormalizeSearch(input.value);let count=0;
@@ -162,7 +181,14 @@ function bindShopShelves(){
  }
  input.addEventListener('input',update,{signal:controller.signal});
  input.addEventListener('search',update,{signal:controller.signal});
- update();shopLayoutCleanup=()=>controller.abort();
+ // Shelf tabs keep the URL. A banner linking to that same URL must still select its category.
+ banner?.addEventListener('click',event=>{
+  if(event.defaultPrevented||event.button>0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+  const link=event.target.closest('a[data-shop-banner]');
+  if(!link||link.getAttribute('href')!==location.hash)return;
+  event.preventDefault();root.dataset.shopActive=link.dataset.shopBanner;input.value='';update();
+ },{signal:controller.signal});
+ update();shopLayoutCleanup=()=>{controller.abort();bannerCleanup?.();};
  if(typeof registerRouteCleanup==='function')shopLayoutCleanup=registerRouteCleanup(shopLayoutCleanup);
 }
 

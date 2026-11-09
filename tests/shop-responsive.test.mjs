@@ -9,19 +9,32 @@ test('responsive grid uses eight desktop and four mobile columns without shelf s
  assert.ok(!/\.shop-products\{[^}]*repeat\([23],minmax\(0,1fr\)\)/.test(css));
  assert.ok(!/overflow-x:auto|scroll-snap|shop-scrollbar/.test(css));assert.match(css,/\.shop-card\[hidden\]\{display:none\}/);
 });
-test('final WebP banner preserves its full ratio and has no duplicate overlay',()=>{
+test('shop carousel preserves the approved desktop artwork and uses separate mobile copy',()=>{
  const banner=readFileSync('public/images/shop/aifect_shop_banner_final.webp');
  assert.equal(banner.toString('ascii',8,12),'WEBP');assert.equal(banner.toString('ascii',12,16),'VP8 ');
  assert.equal(banner.readUInt16LE(26)&0x3fff,2172);assert.equal(banner.readUInt16LE(28)&0x3fff,469);
- assert.match(css,/\.shop-banner img\{[^}]*width:100%;height:auto;aspect-ratio:2172\/469;object-fit:contain;[^}]*border-radius:0/);
- const js=readFileSync('dist/decorations.js','utf8');assert.ok(js.includes('/images/shop/aifect_shop_banner_final.webp?v=115d346082e4" width="2172" height="469"'));
- assert.ok(!js.includes('shop-banner-copy'));assert.ok(!js.includes('aifect-store-banner-mobile.webp'));
- assert.ok(js.includes('loading="eager" fetchpriority="high"'));assert.ok(js.includes('프레임 · 배지 · 효과 · 이모티콘 · 테마 등'));
+ const mobile=readFileSync('public/images/shop/aifect-store-banner-mobile.webp');
+ assert.equal(mobile.toString('ascii',8,12),'WEBP');
+ const js=readFileSync('dist/decorations.js','utf8');
+ assert.match(js,/<section class="shop-banner home-content-refresh" id="shop-banner"/);
+ assert.match(js,/<source media="\(min-width:801px\)" srcset="\/images\/shop\/aifect_shop_banner_final\.webp[^\"]*" width="2172" height="469">/);
+ assert.ok(js.includes('src="/images/shop/aifect-store-banner-mobile.webp"'));
+ assert.ok(js.includes('loading="eager" fetchpriority="high"'));
+ assert.match(css,/\.shop-banner-intro-art img\{[^}]*object-fit:contain/);
+ assert.match(css,/\[data-shop-banner=gifts\] \.shop-banner-copy\{display:none\}/);
+ assert.match(css,/@media\(max-width:800px\)[\s\S]*\[data-shop-banner=gifts\] \.shop-banner-copy\{display:flex/);
+ assert.ok(!js.includes('shop-banner-caption'),'mobile copy belongs inside the shared carousel frame');
  for(const unit of ['g','s']){const svg=readFileSync('dist/assets/shop/coin-'+unit+'.svg','utf8');assert.ok(svg.includes('<svg'));assert.ok(svg.includes('<radialGradient'));}
 });
 
-test('mobile banner has no forced crop or height and search preserves zoom-safe input size',()=>{
- assert.ok(!css.includes('shop-banner-copy'));assert.ok(!css.includes('aspect-ratio:1080/512'));
+test('shop frame inherits Play carousel heights while preserving the product gutter and zoom-safe search',()=>{
+ const shared=readFileSync('dist/home-content.css','utf8');
+ assert.match(shared,/\.home-content-refresh \.home-feature\{--home-feature-height:272px;/);
+ assert.match(shared,/@media\(max-width:800px\)[\s\S]*--home-feature-height:224px/);
+ assert.doesNotMatch(css,/\.shop-banner \.home-feature\{[^}]*(?:^|;)height:/);
+ assert.match(css,/\.shop-banner\{[^}]*margin:calc\(var\(--shop-play-top\) - var\(--main-frame-top\)\) calc\(var\(--shop-play-gutter\) - var\(--main-frame-gutter\)\)/);
+ assert.match(css,/@media\(max-width:800px\)\{\s*\.shop-page \.shop-banner\{--shop-play-gutter:0px;--shop-play-top:0px\}/);
+ assert.match(css,/#main:has\(>\.shop-page\)\{--main-frame-gutter:20px;/);
  assert.match(css,/\.shop-item-search input\{height:38px;font-size:16px/);
  assert.ok(!css.includes('.is-silver .shop-card-buy'));
  assert.ok(css.includes('.page-wrap:has(>main>.shop-page)::before'));
