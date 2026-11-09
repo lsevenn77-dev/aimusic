@@ -270,18 +270,37 @@
 }
 /* The table defines the desktop height; the feature stretches in the same grid. */
 .home-content-refresh .home-chart-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:stretch;min-width:0}
-.home-content-refresh .home-chart-feature{display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;align-content:center;position:relative;isolation:isolate;overflow:hidden;min-width:0;border-radius:var(--ds-radius-card);background:var(--ds-panel);padding:16px;gap:12px;align-items:center}
-.home-content-refresh .home-chart-backdrop{position:absolute;inset:0;z-index:-1;overflow:hidden}
-.home-content-refresh .home-chart-backdrop img{width:100%;height:100%;object-fit:cover;filter:blur(28px);transform:scale(1.2);opacity:.3}
-.home-content-refresh .home-chart-backdrop::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,var(--ds-panel),#0c121b88)}
-.home-content-refresh .home-chart-cover{display:block;width:80px;max-width:100%;min-width:44px}
-.home-content-refresh .home-chart-art{width:100%;aspect-ratio:1;border-radius:8px}
+.home-content-refresh .home-chart-feature{display:block;position:relative;isolation:isolate;overflow:hidden;min-width:0;min-height:440px;border:1px solid color-mix(in srgb,var(--ds-mint) 26%,var(--ds-panel));border-radius:var(--ds-radius-card);background:var(--ds-panel);padding:0}
+.home-content-refresh .home-chart-stage,.home-content-refresh .home-chart-outgoing{position:absolute;inset:0}
+.home-content-refresh .home-chart-slide{box-sizing:border-box;position:absolute;inset:0;isolation:isolate;display:grid;grid-template-rows:18px minmax(0,1fr) auto;justify-items:center;gap:calc(12px);padding:calc(22px) calc(20px) calc(48px);min-width:0;min-height:0}
+.home-content-refresh .home-chart-backdrop{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;-webkit-mask-image:linear-gradient(to bottom,#000 0%,#000 14%,#0008 48%,transparent 83%);mask-image:linear-gradient(to bottom,#000 0%,#000 14%,#0008 48%,transparent 83%)}
+.home-content-refresh .home-chart-backdrop img{width:100%;height:100%;object-fit:cover;object-position:center 25%;filter:blur(1.5px);transform:scale(1.12);opacity:.3}
+.home-content-refresh .home-chart-rank-label{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.home-content-refresh .home-chart-sparkles{position:relative;z-index:1;display:flex;align-items:center;justify-content:center;gap:calc(6px);height:18px;color:color-mix(in srgb,var(--ds-text) 78%,var(--ds-mint));pointer-events:none}
+.home-content-refresh .home-chart-sparkle{display:block;width:17px;height:17px;flex:none;fill:none;stroke:currentColor}
+.home-content-refresh .home-chart-cover{position:relative;z-index:1;display:grid;place-items:center;container-type:size;width:100%;height:100%;max-width:100%;min-width:0;min-height:0;border-radius:var(--ds-radius-input)}
+.home-content-refresh .home-chart-art{width:min(100cqw,100cqh,230px);height:auto;aspect-ratio:1;border:1px solid color-mix(in srgb,var(--ds-mint) 60%,var(--ds-lavender));border-radius:var(--ds-radius-input);overflow:hidden}
 .home-content-refresh .home-chart-art img{object-fit:contain}
-.home-content-refresh .home-chart-copy{min-width:0;max-width:100%;text-align:center}
+.home-content-refresh .home-chart-copy{position:relative;z-index:1;min-width:0;width:100%;max-width:100%;text-align:center}
 .home-content-refresh .home-chart-title{display:block;font-size:16px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:24px}
 .home-content-refresh .home-chart-artist{font-size:12px;color:var(--ds-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:5px}
-.home-content-refresh .home-chart-copy p{font-size:12px;line-height:1.6;color:var(--ds-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:8px 0 0;overflow-wrap:anywhere}
-.home-content-refresh .home-chart-listen{margin-top:8px;font-size:13px}
+.home-content-refresh .home-chart-copy p{font-size:12px;line-height:1.6;height:calc(38.4px * var(--ui-type-scale,1));color:var(--ds-body);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:calc(8px) 0 0;overflow-wrap:anywhere}
+#main .listening-home #home-popular .home-chart-listen{width:min(100%,200px);height:44px;min-height:44px;margin-top:calc(12px);padding:0 calc(20px);gap:calc(8px);border:1px solid color-mix(in srgb,var(--ds-selected) 60%,var(--ds-panel))!important;border-radius:999px;background:color-mix(in srgb,var(--ds-selected) 48%,var(--ds-panel))!important;color:var(--ds-text);font-size:var(--home-control-size,14px);font-weight:500;transition:filter .18s ease}
+#main .listening-home #home-popular .home-chart-listen>svg{width:18px!important;height:18px!important;flex-basis:18px!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;color:inherit}
+#main .listening-home #home-popular .home-chart-listen:hover{filter:brightness(1.12)}
+.home-content-refresh .home-chart-dots{position:absolute;z-index:3;inset:auto 0 0;display:flex;align-items:center;justify-content:center;height:44px;gap:0}
+.home-content-refresh .home-chart-dot{display:grid;place-items:center;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:var(--ds-radius-sm);background:none;cursor:pointer}
+.home-content-refresh .home-chart-dot>span{display:block;width:6px;height:6px;border-radius:999px;background:color-mix(in srgb,var(--ds-muted) 48%,var(--ds-panel));transition:width .2s ease,background-color .2s ease}
+.home-content-refresh .home-chart-dot[aria-pressed=true]>span{width:22px;background:#8EDDD2}
+#main .listening-home #home-popular .home-chart-feature :is(a,button):focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
+.home-content-refresh .home-chart-outgoing{z-index:2;pointer-events:none;animation:home-chart-fade-out .36s ease both}
+.home-content-refresh .home-chart-stage.is-transitioning>.home-chart-slide{animation:home-chart-fade-in .36s ease both}
+@keyframes home-chart-fade-in{from{opacity:0}to{opacity:1}}
+@keyframes home-chart-fade-out{from{opacity:1}to{opacity:0}}
+@media(prefers-reduced-motion:reduce){
+ .home-content-refresh .home-chart-stage.is-transitioning>.home-chart-slide,.home-content-refresh .home-chart-outgoing{animation:none}
+ .home-content-refresh .home-chart-dot>span,#main .listening-home #home-popular .home-chart-listen{transition:none}
+}
 #main .home-content-refresh .song-table-chart{min-width:0;margin:0}
 #main .home-content-refresh .song-table-head{height:36px}
 #main .home-content-refresh .song-table-row{--list-thumb-size:40px;--list-text-gap:10px;min-height:58px;padding-block:7px}
@@ -294,11 +313,7 @@
 #main .home-content-refresh .chart-movement.down{color:#8EDDD2}
 @container(min-width:960px){
  .home-content-refresh .home-chart-layout:has(.home-chart-feature){grid-template-columns:minmax(0,3fr) minmax(240px,1fr)}
- .home-content-refresh .home-chart-feature{grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;align-content:center;justify-items:center;gap:12px;padding:18px}
- .home-content-refresh .home-chart-cover{width:100%;min-height:0;display:flex;justify-content:center;align-items:center}
- .home-content-refresh .home-chart-art{width:min(100%,230px);height:auto;max-height:100%;aspect-ratio:1}
- .home-content-refresh .home-chart-copy{width:100%;text-align:center}
- .home-content-refresh .home-chart-copy p{-webkit-line-clamp:3}
+ .home-content-refresh .home-chart-feature{contain:size;height:100%}
 }
 @media(max-width:700px){
  .home-content-refresh .home-music-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 8px}
