@@ -34,19 +34,15 @@
 #home-release.home-promo-carousel .home-promo-cta{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-height:44px;padding:8px 24px;border:0;border-radius:999px;background:linear-gradient(100deg,var(--ds-mint),var(--ds-lavender),var(--ds-lilac));color:var(--ds-ink);font-size:16px;line-height:1.4;font-weight:750;text-shadow:none;white-space:nowrap;box-shadow:none}
 #home-release.home-promo-carousel .home-promo-cta svg{width:20px;height:20px;flex:none}
 #home-release.home-promo-carousel .home-promo-link:focus-visible .home-promo-cta{outline:2px solid var(--ds-text);outline-offset:3px}
-/* Close-up desktop photographs contain their own framing. Render them without
-   another transform so faces, hands and garment details are not enlarged twice. */
+/* Preserve the approved head-to-waist framing inside Play's shallow PC frame.
+   The same photograph supplies the soft scenery at the left; only its edge is
+   feathered, so faces, hands and instruments remain sharp and uncropped. */
 @media(min-width:801px){
- #home-release.home-promo-carousel .home-promo-original{object-position:var(--home-promo-close-position,right 50%);transform:none}
- #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-close-position:right 54%}
- #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-close-position:right 40%}
- #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-close-position:right 32%}
- #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-close-position:right 59%}
- #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-close-position:right 18%}
- #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-close-position:right 60%}
- #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-close-position:right 38%}
- @container(min-width:1101px){
-  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-close-position:right 76%}
+ #home-release.home-promo-carousel .home-promo-picture::before{content:"";position:absolute;inset:-8px;background:var(--home-promo-photo) center/cover no-repeat;filter:blur(8px);pointer-events:none}
+ #home-release.home-promo-carousel .home-promo-original{position:absolute;inset:0 0 0 auto;width:min(100%,calc(var(--home-feature-height,272px) * 3));height:100%;max-width:none;object-fit:contain;object-position:right center;transform:none;mask-image:linear-gradient(90deg,transparent,#000 12%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%)}
+ @container(max-width:816px){
+  #home-release.home-promo-carousel .home-promo-picture::before{background-position:left center;background-size:300% 100%}
+  #home-release.home-promo-carousel .home-promo-original{top:50%;bottom:auto;height:auto;transform:translateY(-50%);mask-image:linear-gradient(180deg,transparent,#000 4%,#000 96%,transparent);-webkit-mask-image:linear-gradient(180deg,transparent,#000 4%,#000 96%,transparent)}
  }
 }
 .home-participation-options{display:grid;gap:12px;margin-top:20px}
@@ -92,6 +88,10 @@
  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-mobile-head-top:23%;--home-promo-mobile-second-size:.9em;--home-promo-shade-end:51%}
  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-mobile-head-top:17%;--home-promo-mobile-title-size:4.1cqi;--home-promo-mobile-second-size:.88em;--home-promo-shade-solid:15%;--home-promo-shade-end:41%}
  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-mobile-head-top:18%;--home-promo-shade-end:49%}
+ /* Keep the new crew's three heads, guitar and keyboard from the same photo.
+    Fill only the spare vertical room with its softly blurred olive scenery. */
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-picture::before{content:"";position:absolute;inset:-6px;background:var(--home-promo-mobile-photo) left center/300% 100% no-repeat;filter:blur(10px);pointer-events:none}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-original{position:relative;z-index:1;object-position:center;mask-image:linear-gradient(180deg,transparent 13%,#000 20%,#000 80%,transparent 87%);-webkit-mask-image:linear-gradient(180deg,transparent 13%,#000 20%,#000 80%,transparent 87%)}
  #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-mobile-head-top:18%;--home-promo-shade-end:51%}
  #home-release.home-promo-carousel .home-feature-pagination{position:static;grid-row:2;transform:none;width:100%;min-width:0}
  #home-release.home-promo-carousel .home-feature-autoplay{width:44px;flex:0 0 44px}

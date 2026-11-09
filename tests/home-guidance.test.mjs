@@ -18,7 +18,9 @@ test('all eight service banners expose a whole-banner link and responsive WebP a
   const html=c.homeBannerHTML(b);
   assert.match(html,new RegExp('href="'+b.href.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'"'));
   assert.ok(html.includes(b.headline));assert.ok(html.includes(b.cta));
-  assert.match(html,/width="1536" height="768"/);assert.match(html,/768w, [^"]+1536w/);
+  assert.match(html,new RegExp('<img\\b[^>]*width="1536" height="'+(b.id==='crew'?512:768)+'"'));
+  assert.match(html,/768w, [^"]+1536w/);
+  assert.ok(html.includes(c.homeBannerDesktopImage(b.id)),b.id+' must render its approved desktop scene');
   assert.equal((html.match(/<a\b/g)||[]).length,1,'the artwork and live copy share one destination on desktop and mobile');
   for(const width of [768,1536]){
    const image=readFileSync(new URL('../dist'+c.homeBannerImage(b.id,width),import.meta.url));
@@ -51,41 +53,53 @@ test('participation exposes a choice of open duet or dubbing projects, not compl
  assert.doesNotMatch(html,/href="#karaoke\/browse"|data-pay|data-follow|data-record/);
 });
 
-test('published mobile banner variants match the visually reviewed asset manifest without duplicate scenes',()=>{
- const base=new URL('../dist/assets/home-banners/mobile-20261109/',import.meta.url);
- const manifest=JSON.parse(readFileSync(new URL('manifest.json',base),'utf8'));
- assert.equal(manifest.banners.length,8);
+test('mobile retains the seven approved photos and uses the new full-frame crew scene',()=>{
+ const c=context(),banners=vm.runInContext('homeBanners',c);
+ const original=JSON.parse(readFileSync(new URL('../dist/assets/home-banners/mobile-20261109/manifest.json',import.meta.url),'utf8'));
+ const approved=JSON.parse(readFileSync(new URL('../dist/assets/home-banners/approved-20261109/manifest.json',import.meta.url),'utf8'));
+ assert.equal(banners.filter(banner=>banner.id!=='crew').length,7);
  for(const width of [768,1536]){
   const hashes=new Set();
-  for(const banner of manifest.banners){
-   const output=banner.outputs.find(item=>item.width===width);
+  for(const banner of banners){
+   const asset=(banner.id==='crew'?approved.assets:original.banners).find(item=>item.id===banner.id);
+   assert.ok(asset,'missing reviewed mobile scene for '+banner.id);
+   const output=asset.outputs.find(item=>item.width===width);
+   assert.ok(output,'missing mobile variant for '+banner.id+' at '+width);
    assert.equal(output.filename,banner.id+'-'+width+'.webp');
-   const bytes=readFileSync(new URL(output.filename,base));
+   const expectedDirectory=banner.id==='crew'?'approved-20261109':'mobile-20261109';
+   assert.equal(c.homeBannerImage(banner.id,width),'/assets/home-banners/'+expectedDirectory+'/'+output.filename);
+   assert.equal(c.homeBannerImage(banner.id,width),output.url,'rendered mobile photo must match its reviewed manifest');
+   const bytes=readFileSync(new URL('../dist'+output.url,import.meta.url));
    const hash=createHash('sha256').update(bytes).digest('hex');
    assert.equal(hash,output.sha256,output.filename+' differs from its reviewed image');
-   assert.equal(bytes.length,output.bytes);assert.equal(output.height,width/2);
+   assert.equal(bytes.length,output.bytes);assert.equal(output.height,width/(banner.id==='crew'?3:2));
    hashes.add(hash);
   }
   assert.equal(hashes.size,8,'each destination must show its own approved scene');
  }
 });
 
-test('desktop panorama files are complete WebP scenes matching the reviewed manifest',()=>{
+test('desktop panorama files are complete WebP scenes matching the newly approved manifest',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
- const base=new URL('../dist/assets/home-banners/desktop-close-20261109/',import.meta.url);
+ const base=new URL('../dist/assets/home-banners/approved-20261109/',import.meta.url);
  const manifest=JSON.parse(readFileSync(new URL('manifest.json',base),'utf8'));
  assert.equal(manifest.assets.length,banners.length);
  const hashes=new Set();
  for(const banner of banners){
   const asset=manifest.assets.find(item=>item.id===banner.id);
   assert.ok(asset,'missing desktop scene for '+banner.id);
+  const output=asset.outputs.find(item=>item.width===2172);
+  assert.ok(output,'missing full-size desktop scene for '+banner.id);
+  assert.equal(output.filename,banner.id+'-2172.webp');
+  assert.equal(c.homeBannerDesktopImage(banner.id),output.url,'rendered desktop photo must match its reviewed manifest');
+  assert.equal(output.width,2172);assert.equal(output.height,724);
   const bytes=readFileSync(new URL('../dist'+c.homeBannerDesktopImage(banner.id),import.meta.url));
   assert.equal(bytes.toString('ascii',0,4),'RIFF');
   assert.equal(bytes.toString('ascii',8,12),'WEBP');
-  assert.equal(bytes.readUInt32LE(4)+8,bytes.length,'incomplete WebP: '+asset.file);
-  assert.equal(bytes.length,asset.bytes);
+  assert.equal(bytes.readUInt32LE(4)+8,bytes.length,'incomplete WebP: '+output.filename);
+  assert.equal(bytes.length,output.bytes);
   const hash=createHash('sha256').update(bytes).digest('hex');
-  assert.equal(hash,asset.sha256,asset.file+' differs from its reviewed scene');
+  assert.equal(hash,output.sha256,output.filename+' differs from its reviewed scene');
   hashes.add(hash);
  }
  assert.equal(hashes.size,banners.length,'each banner needs its own desktop scene');
