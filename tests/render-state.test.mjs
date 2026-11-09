@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync('dist/render-state.js','utf8');
-function boot({marker=null,hash='#home',route='home'}={}){
+function boot({marker=null,playTargets=[],hash='#home',route='home'}={}){
  const handlers=new Map(),timers=new Map(),nodes=new Map();let sequence=0,reloads=0,replacements=0;
  const root={dataset:{},toggleAttribute(name,on){this[name]=on;}},main={dataset:{route},inert:false,setAttribute(){},removeAttribute(){}};
  for(const id of ['route-pending-message','route-pending-actions','route-retry'])nodes.set(id,{});nodes.set('main',main);
- const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;if(marker)marker.targeted=true;}};
+ const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;const playTarget=playTargets.find(target=>'#'+target.id===location.hash);if(marker)marker.targeted=!playTarget;for(const target of playTargets)target.targeted=target===playTarget;}};
  const history={state:{retained:true},replaceState(state,title,url){this.state=state;location.href='https://aifect.test'+url;location.hash=url.slice(url.indexOf('#'));}};
- const context=vm.createContext({URLSearchParams,document:{documentElement:root,getElementById:id=>nodes.get(id),querySelector:()=>marker},location,history,window:{addEventListener(name,fn){handlers.set(name,fn);}},setTimeout(fn){const id=++sequence;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}});
+ const context=vm.createContext({URLSearchParams,document:{documentElement:root,getElementById:id=>nodes.get(id),querySelector:()=>marker,querySelectorAll:selector=>selector==='[data-play-route-target]'?playTargets:[]},location,history,window:{addEventListener(name,fn){handlers.set(name,fn);}},setTimeout(fn){const id=++sequence;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}});
  vm.runInContext(source,context);const api=context.window.AifectRender;
  return {api,root,main,nodes,handlers,location,history,win:context.window,get replacements(){return replacements;},tick(){const tasks=[...timers.values()];timers.clear();tasks.forEach(fn=>fn());},get reloads(){return reloads;},get timers(){return timers.size;}};
 }
@@ -37,6 +37,45 @@ test('back-forward cache restores interrupted work and same-route updates retain
  const id=c.api.begin('home',undefined,()=>{});c.api.ready(id);const update=c.api.begin('home','home',()=>{});assert.equal(c.root.dataset.renderState,'ready');c.api.ready(update);
 });
 
+test('retained tab navigation keeps the mounted shell interactive and does not retarget history',()=>{
+ const target=(id,targeted=false)=>({id,targeted,matches(){return this.targeted;},removeAttribute(name){if(name==='id')this.id='';}});
+ const marker=target('home'),song=target('karaoke'),duets=target('karaoke/duets');
+ const c=boot({marker,playTargets:[song,duets],hash:'#karaoke',route:'karaoke'});
+ const initial=c.api.begin('karaoke','home',()=>{}, {retain:true});
+ assert.equal(c.root.dataset.renderState,'loading','retention cannot reveal an unfinished first render');
+ c.api.ready(initial);
+ assert.equal(c.root.dataset.renderState,'ready');assert.equal(c.main.inert,false);
+ assert.equal(c.replacements,1,'the first Play shell retargets its newly mounted anchor once');
+ assert.equal(marker.id,'','the primary marker must not duplicate a Play target ID');
+ assert.equal(song.targeted,true);
+ for(const [previous,next] of [['karaoke','karaoke/duets'],['karaoke/duets','karaoke'],['karaoke','karaoke/duets']]){
+  c.location.hash='#'+next;c.location.href='https://aifect.test/#'+next;
+  song.targeted=next==='karaoke';duets.targeted=next==='karaoke/duets';
+  const epoch=c.api.begin(next,previous,()=>{}, {retain:true});
+  assert.equal(c.root.dataset.renderState,'ready','a tab or history transition keeps the shell visible');
+  assert.equal(c.main.inert,false);
+  c.main.dataset.route=next;c.api.ready(epoch);
+  assert.equal(c.timers,0,'the locally rendered loading state does not leave a global timeout armed');
+  assert.equal(c.replacements,1,'existing tab targets do not invoke replacement navigation');
+ }
+ c.location.hash='#song/one';c.location.href='https://aifect.test/#song/one';
+ song.targeted=false;duets.targeted=false;
+ const leave=c.api.begin('song/one','karaoke/duets',()=>{});
+ assert.equal(c.root.dataset.renderState,'loading');assert.equal(c.main.inert,true);
+ c.main.dataset.route='song/one';c.api.ready(leave);
+ assert.equal(marker.id,'song/one');assert.equal(c.root.dataset.renderState,'ready');
+});
+
+test('retained navigation still rejects stale completion and preserves failure recovery',()=>{
+ const c=boot();c.api.ready(c.api.begin('home',undefined,()=>{}));
+ const previous=c.api.begin('karaoke','home',()=>{}, {retain:true});
+ const next=c.api.begin('song/one','karaoke',()=>{});
+ c.api.ready(previous);assert.equal(c.root.dataset.renderState,'loading');
+ c.api.ready(next);c.api.fail(next);assert.equal(c.root.dataset.renderState,'error');
+ c.api.begin('karaoke','song/one',()=>{}, {retain:true});
+ assert.equal(c.root.dataset.renderState,'loading','a failed shell must be rebuilt before it can be retained');
+});
+
 test('optional external resource failure cannot hide a running app',()=>{
  const c=boot(),id=c.api.begin('home',undefined,()=>{});c.api.ready(id);
  c.handlers.get('error')({target:{matches:()=>true,getAttribute:()=> 'https://optional.example/script.js'}});
@@ -59,7 +98,7 @@ test('bare home URL is normalized without pushing history and no-JS fallback rem
  const id=c.api.begin('home',undefined,()=>{});c.api.ready(id);assert.equal(c.location.hash,'#home');assert.deepEqual(c.history.state,{retained:true});
  const html=readFileSync('dist/index.html','utf8'),css=readFileSync('dist/render-state.css','utf8');
  assert.ok(html.indexOf('data-render-target hidden')<html.indexOf('<main id="main"'));
- assert.match(css,/html\[data-render-state="ready"\]:not\(:has\(\[data-render-target\]:target\)\) #main\{display:none!important\}/);
+ assert.match(css,/html\[data-render-state="ready"\]:not\(:has\(\[data-render-target\]:target,\[data-play-route-target\]:target\)\) #main\{display:none!important\}/);
 });
 
 test('malformed UTF-8 fragments use the browser tolerant decoding and keep literal plus signs',()=>{

@@ -132,7 +132,7 @@ function homeFloatPose(slot,g){
  return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]})`;
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
-function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false,initialId,intervalMs=5500,showCount=false,pauseForDialogs=false}={}){
+function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false,initialId,intervalMs=5500,showCount=false,pauseForDialogs=false,retainOnRoute=null}={}){
  if(!tracks.length)return;
  const multi=tracks.length>1;
  const initialIndex=Math.max(0,tracks.findIndex(t=>t.id===initialId));
@@ -203,9 +203,10 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.addEventListener(event,syncPlayback);
  // Only the displayed artwork is eager; preview/remaining slides load on demand.
  const motionChange=()=>{if(motion.matches)clearTransition();schedule();};
- document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',cleanup);motion.addEventListener('change',motionChange);
+ const routeChange=()=>{if(!retainOnRoute?.())cleanup();};
+ document.addEventListener('visibilitychange',schedule);window.addEventListener('hashchange',routeChange);motion.addEventListener('change',motionChange);
  if(pauseForDialogs)document.addEventListener('close',schedule,true);
- function cleanup(){clear();clearTransition();for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);if(pauseForDialogs)document.removeEventListener('close',schedule,true);window.removeEventListener('hashchange',cleanup);motion.removeEventListener('change',motionChange);}
+ function cleanup(){clear();clearTransition();for(const [name,fn,options] of listeners)feature.removeEventListener(name,fn,options);if(syncAudio&&typeof audio!=='undefined')for(const event of playbackEvents)audio.removeEventListener(event,syncPlayback);document.removeEventListener('visibilitychange',schedule);if(pauseForDialogs)document.removeEventListener('close',schedule,true);window.removeEventListener('hashchange',routeChange);motion.removeEventListener('change',motionChange);}
  schedule();return cleanup;
 }
 function updateHomeAccount(){

@@ -84,11 +84,12 @@ async function render(){
  if(typeof retainRoomRoute==='function'&&retainRoomRoute(location.hash.slice(1)))return;
  const serial=++presentationSerial,main=typeof $==='function'?$('#main'):null,raw=location.hash.slice(1)||'home';
  const presentation=window.AifectRender;
+ const retainPlay=typeof canRefreshPlayRoute==='function'&&canRefreshPlayRoute(raw);
  const epoch=presentation?.begin(raw,main?.dataset.route,()=>{
   if(serial!==presentationSerial)return;
   ++renderId;navigationController?.abort();
   if(typeof cleanupHome==='function')cleanupHome();
- });
+ },{retain:retainPlay});
  try{
   const outcome=await renderRoute(()=>presentation?.ready(epoch));
   if(serial===presentationSerial){
@@ -124,6 +125,8 @@ async function renderRoute(showCachedRoute){
  const outgoing=$('#main');
  const previousStudioRoute=outgoing.dataset.route,previousStudioAccount=outgoing.dataset.account;
  if(outgoing.dataset.route!==raw||outgoing.dataset.account!==(me?.id||'guest'))cleanupRouteOverlays();
+ if(typeof refreshPlayRoute==='function'&&await refreshPlayRoute(raw,ticket,readApi,showCachedRoute))return;
+ if(ticket!==renderId)return;
  if(base!=='home'){
   if(typeof refreshMusicLibraryRoute==='function'&&await refreshMusicLibraryRoute(raw,ticket,false,readApi))return;
   if(ticket!==renderId)return;
@@ -157,6 +160,7 @@ async function renderRoute(showCachedRoute){
  main.classList.toggle('secondary-page',['charts','search','discover','collections','artists','producers','library','history','playlist','following','studio','manage','upload','cover','account','membership','rewards','payouts','inventory','gold'].includes(base)||base==='karaoke'&&param==='drafts');
  main.dataset.route=raw;
  main.dataset.commonBackground=String(!['karaoke','sing','cover','studio','manage','upload','dubbing'].includes(base));
+ if(pendingView?.play){bindRenderedRoute(base,param,pendingView,ticket);showCachedRoute?.();}
  let html='',nextTracks=[];
  try{
   if(base==='home')return await renderHome(ticket);
@@ -259,7 +263,8 @@ async function renderRoute(showCachedRoute){
   saveNavigationSnapshot(raw,html,nextTracks,explorer,restored?window.scrollY||0:0);
   const keepVisible=restored&&(html===cached.html||refreshWatch.changed()),scroll=window.scrollY||0;
   refreshWatch?.cleanup();
-  if(!keepVisible){routeTracks=nextTracks;main.innerHTML=html;if(!restored&&typeof AifectMotion!=='undefined')AifectMotion.enter(main,base+'/'+(param||''));bindRenderedRoute(base,param,explorer,ticket);window.scrollTo({top:restored?scroll:0,behavior:'instant'});}
+  if(explorer?.play&&typeof canRefreshPlayRoute==='function'&&canRefreshPlayRoute(raw))paintPlayRoute(explorer,raw);
+  else if(!keepVisible){routeTracks=nextTracks;main.innerHTML=html;if(!restored&&typeof AifectMotion!=='undefined')AifectMotion.enter(main,base+'/'+(param||''));bindRenderedRoute(base,param,explorer,ticket);window.scrollTo({top:restored?scroll:0,behavior:'instant'});}
   main.removeAttribute('aria-busy');window.AifectUploadAds?.routeReady(base);if(base==='song'&&paramQuery?.includes('comments=1'))$('.comments-panel')?.scrollIntoView({block:'start'});
  }catch(e){if(ticket!==renderId||account!==(me?.id||'guest'))return;refreshWatch?.cleanup();if(restored&&e.status!==401&&e.status!==403){main.removeAttribute('aria-busy');return;}main.innerHTML=heading('다시 연결해주세요')+`<div class="surface empty-design"><p>${esc(e.message)}</p><button class="primary-button" id="reload-page">다시 시도</button></div>`;$('#reload-page').onclick=render;main.removeAttribute('aria-busy');}
 }

@@ -31,7 +31,18 @@
   const raw=location.hash.slice(1)||'home';
   if(document.getElementById('main')?.dataset.route!==raw)return false;
   if(!location.hash)history.replaceState(history.state,'',location.pathname+location.search+'#home');
-  try{marker.id=decodeURIComponent(raw);}catch{marker.id=new URLSearchParams('r='+raw.replaceAll('+','%2B').replaceAll('&','%26')).get('r');}
+  let targetId;
+  try{targetId=decodeURIComponent(raw);}catch{targetId=new URLSearchParams('r='+raw.replaceAll('+','%2B').replaceAll('&','%26')).get('r');}
+  // Play keeps hidden targets for its tab URLs alongside its persistent shell.
+  // Drop the generic ID to avoid duplicates. The initial shell needs one
+  // retarget; subsequent native tab/history navigations already target it.
+  const playTarget=[...(document.querySelectorAll?.('[data-play-route-target]')||[])].find(target=>target.id===targetId);
+  if(playTarget){
+   if(marker.id)marker.removeAttribute('id');
+   if(!playTarget.matches(':target'))location.replace(location.href);
+   return playTarget.matches(':target');
+  }
+  marker.id=targetId;
   // Updating an ID alone does not update :target. Same-fragment replacement
   // retargets without a new history entry, document reload or hashchange event.
   if(!marker.matches(':target'))location.replace(location.href);
@@ -42,9 +53,11 @@
   mount,
   syncTarget,
   connect(callback){retry=callback;},
-  begin(raw,previous,onTimeout){
+  begin(raw,previous,onTimeout,options={}){
    ++epoch;expired=false;cancel=onTimeout;
-   if(state()!=='ready'||raw!==previous){root.dataset.renderState='loading';mount();}
+   // Retention is opt-in by a router that can update an already mounted shell.
+   // It never reveals incomplete bootstrap or bypasses a previous failure.
+   if(state()!=='ready'||raw!==previous&&!options.retain){root.dataset.renderState='loading';mount();}
    arm();return epoch;
   },
   ready(id){

@@ -39,6 +39,27 @@ function playSelection(param,raw){
  const requested=mode==='song'?param:q.get('tab');
  return {mode,tab:playSections[mode].some(([k])=>k===requested)?requested:playSections[mode][0][0],type:playTypes.some(([k])=>k===q.get('type'))?q.get('type'):'all',kind:dubbingCastingKinds.some(([k])=>k===q.get('kind'))?q.get('kind'):'original'};
 }
+// A Play tab is a state of this shell, not a new page. Keep the existing hashes
+// so deep links, aliases, native links and browser history share one route path.
+function playRouteSelection(raw){
+ raw=String(raw||'').replace(/^#\/?/,'');
+ raw=(playAlias('#'+raw)||'#'+raw).slice(1);
+ const [route]=raw.split('?'),[base,param]=route.split('/');
+ return base==='karaoke'&&param!=='chart'&&route.split('/').length<=2?playSelection(param,raw):null;
+}
+function playRouteTargetsHTML(raw=''){
+ const routes=new Set(['#play','#karaoke/songs','#karaoke/dubbing','#karaoke/browse']);
+ for(const [mode,tabs] of Object.entries(playSections))for(const [tab] of tabs){
+  for(const [type] of mode==='browse'?playTypes:[['all']])routes.add(playHref(mode,tab,type));
+ }
+ for(const [kind] of dubbingCastingKinds)routes.add('#karaoke/dubbing?tab=mine&kind='+kind);
+ if(raw)routes.add('#'+raw.replace(/^#/,''));
+ return '<div data-play-route-targets hidden aria-hidden="true">'+[...routes].map(href=>'<span data-play-route-target id="'+esc(href.slice(1))+'"></span>').join('')+'</div>';
+}
+function playSubtabs(s){
+ const menu=s.mode==='dubbing'?[['create','더빙 만들기','plus'],...playSections.dubbing]:playSections[s.mode];
+ return playTabs(menu,s.tab,'플레이 하위 메뉴',t=>s.mode==='dubbing'&&t==='create'?'#dubbing/new':playHref(s.mode,t,s.type),'play-category-tabs'+(s.mode==='dubbing'?' play-dubbing-tabs':''));
+}
 function playTypeIcon(type){
  const label={solo:'솔로',duet:'듀엣',dubbing:'더빙'}[type];
  return `<span class="play-type-icon${type==='duet'?' play-duet-icon':type==='dubbing'?' play-dubbing-icon':''}" role="img" aria-label="${label}">${type==='duet'?icon('mic')+icon('mic'):type==='dubbing'?icon('message')+icon('waveform'):icon('mic')}</span>`;
@@ -46,10 +67,9 @@ function playTypeIcon(type){
 function playTabs(items,active,label,href,extra=''){
  return `<nav class="tabs play-tabs ${extra}" role="tablist" aria-label="${label}">${items.map(([key,title,symbol])=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" tabindex="${active===key?'0':'-1'}" ${active===key?'aria-current="page"':''} href="${esc(href(key))}">${symbol?icon(symbol):''}<span>${title}</span></a>`).join('')}</nav>`;
 }
-function playShell(s,content){
- const menu=s.mode==='dubbing'?[['create','더빙 만들기','plus'],...playSections.dubbing]:playSections[s.mode];
- return `<div class="play-page" data-play-mode="${s.mode}"><div class="home-content-refresh play-banner" id="play-banner" aria-label="플레이 추천 배너"></div>${playTabs([['song','노래'],['dubbing','더빙'],['browse','둘러보기']],s.mode,'플레이 종류',m=>playHref(m),'play-main-tabs')}
- <div class="play-subbar">${playTabs(menu,s.tab,'플레이 하위 메뉴',t=>s.mode==='dubbing'&&t==='create'?'#dubbing/new':playHref(s.mode,t,s.type),'play-category-tabs'+(s.mode==='dubbing'?' play-dubbing-tabs':''))}</div>
+function playShell(s,content,raw=''){
+ return `<div class="play-page" data-play-mode="${s.mode}">${playRouteTargetsHTML(raw)}<div class="home-content-refresh play-banner" id="play-banner" aria-label="플레이 추천 배너"></div>${playTabs([['song','노래'],['dubbing','더빙'],['browse','둘러보기']],s.mode,'플레이 종류',m=>playHref(m),'play-main-tabs')}
+ <div class="play-subbar">${playSubtabs(s)}</div>
  <section class="play-content" aria-label="${playSections[s.mode].find(([k])=>k===s.tab)[1]}">${content}</section></div>`;
 }
 // Show the selected banner while its list loads, then retain that same carousel
@@ -57,7 +77,8 @@ function playShell(s,content){
 function playPendingView(base,param,raw){
  if(base!=='karaoke'||param==='chart')return null;
  const play=playSelection(param,raw);
- return {play,html:playShell(play,'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>')};
+ const view={play,raw,items:[],tracks:[],nextOffset:null,pending:true};
+ return {...view,html:playShell(play,playContentHTML(view),raw)};
 }
 function bindPlayBanner(play,root=document.querySelector('.play-page')){
  const banner=root?.querySelector('#play-banner');if(!banner)return;
@@ -66,7 +87,7 @@ function bindPlayBanner(play,root=document.querySelector('.play-page')){
   return;
  }
  playBannerElement=banner;
- const dispose=mountFeatureCarousel(banner,playBanners,{renderSlide:playBannerHTML,label:'플레이 추천',previousLabel:'이전 플레이 배너',nextLabel:'다음 플레이 배너',dotsLabel:'플레이 배너 선택',syncAudio:false,initialId:play.mode,intervalMs:4000});
+ const dispose=mountFeatureCarousel(banner,playBanners,{renderSlide:playBannerHTML,label:'플레이 추천',previousLabel:'이전 플레이 배너',nextLabel:'다음 플레이 배너',dotsLabel:'플레이 배너 선택',syncAudio:false,initialId:play.mode,intervalMs:4000,retainOnRoute:()=>typeof location!=='undefined'&&!!playRouteSelection(location.hash.slice(1))&&banner.isConnected});
  playBannerCleanup=()=>{dispose?.();playBannerElement=null;playBannerCleanup=null;};
 }
 function playEmpty(title,body,href,label){return `<div class="play-empty" role="status"><h2>${esc(title)}</h2><p>${esc(body)}</p>${href?`<a class="small-button" href="${esc(href)}">${esc(label)}</a>`:''}</div>`;}
@@ -146,61 +167,190 @@ function playResults(view){
  if(s.mode==='song')return `<div class="play-song-unified">${playSongRows(items,s.tab)}</div>`;
  return `<div class="home-music-grid play-grid">${items.map(t=>t.type==='dubbing'?playDubbingCard(t):playMusicCard(t,s.mode==='song'?(s.tab==='duets'?'duet':'song'):null)).join('')}</div>`;
 }
+const playNavigationCache=new Map();
+const playCacheAccount=()=>typeof me==='undefined'?'guest':me?.id||'guest';
+const playCacheRevision=()=>typeof apiRevision==='number'?apiRevision:0;
+function cachedPlayView(raw){
+ const key=playCacheAccount()+':'+raw,entry=playNavigationCache.get(key);
+ if(!entry)return null;
+ if(entry.revision!==playCacheRevision()||entry.until<=Date.now()){playNavigationCache.delete(key);return null;}
+ return {...entry.view,play:{...entry.view.play},items:[...entry.view.items],tracks:[...entry.view.tracks]};
+}
+function cachePlayView(view){
+ if(view.pending||view.error||view.gated||view.play.mode==='song'&&view.play.tab==='drafts'||view.account!==playCacheAccount()||view.revision!==playCacheRevision())return;
+ const key=view.account+':'+view.raw;
+ const {html,...data}=view;playNavigationCache.delete(key);
+ playNavigationCache.set(key,{view:data,revision:view.revision,until:Date.now()+30000});
+ while(playNavigationCache.size>24)playNavigationCache.delete(playNavigationCache.keys().next().value);
+}
+function playListHTML(view){
+ if(view.pending)return '<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';
+ if(view.error)return `<div class="play-empty" role="alert"><h2>목록을 불러오지 못했어요</h2><p>${esc(view.error)}</p><button class="small-button" data-play-retry>다시 불러오기</button></div>`;
+ if(view.gated)return gate();
+ if(view.play.mode==='song'&&view.play.tab==='drafts')return playDraftRows(view.drafts||[]);
+ return (view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+playResults(view);
+}
+function playToolsHidden(view){return view.gated||view.play.mode==='song'&&view.play.tab==='drafts';}
+function playExtraHTML(view){return !view.gated&&view.play.mode==='dubbing'&&view.play.tab==='mine'?castingMineTabs(view.play.kind):'';}
+function playContentHTML(view){
+ return `<div data-play-tools ${playToolsHidden(view)?'hidden':''}>${playToolbar(view.play)}</div><div data-play-extra>${playExtraHTML(view)}</div><div id="play-results" aria-live="polite"${view.pending?' aria-busy="true"':''}>${playListHTML(view)}</div><button class="small-button play-more" id="play-more" ${(view.nextOffset==null||view.pending||view.error||view.gated)?'hidden':''}>더 보기</button>`;
+}
+function playDataPath(s,query='',offset=0){
+ const params=new URLSearchParams({tab:s.tab});
+ if(s.mode==='browse')params.set('type',s.type);
+ if(query)params.set('q',query);
+ if(offset)params.set('offset',String(offset));
+ return s.mode==='song'?'/api/play/songs?'+params:s.mode==='browse'?'/api/play/works?'+params:s.tab==='mine'?'/api/dubbing/casting/mine?'+new URLSearchParams({kind:s.kind,...(query?{q:query}:{}),...(offset?{offset:String(offset)}:{})}):'/api/dubbing/projects?'+new URLSearchParams({tab:'open',...(query?{q:query}:{}),...(offset?{offset:String(offset)}:{})});
+}
 async function playView(base,param,raw,readApi=api){
  if((base==='community'&&(!param||param==='voice'))||(base==='voice'&&!param)){
   const v=await voiceView('voice',undefined,readApi.signal);return {...v,playVoice:true};
  }
  if(base!=='karaoke'||param==='chart')return null;
- const s=playSelection(param,raw),view={play:s,items:[],tracks:[],nextOffset:null};
+ const s=playSelection(param,raw),view={play:s,raw,account:playCacheAccount(),revision:playCacheRevision(),items:[],tracks:[],nextOffset:null,query:''};
  try{
-  if((s.mode==='song'&&s.tab==='drafts'||s.mode==='dubbing'&&s.tab==='mine'||s.mode==='browse'&&s.tab==='following')&&!me){returnRoute=location.hash;return {...view,html:playShell(s,gate())};}
-  if(s.mode==='song'&&s.tab==='drafts')return {...view,html:playShell(s,playDraftRows(await listSingDrafts()))};
-  if(s.mode==='song'){
-   const d=await readApi('/api/play/songs?'+new URLSearchParams({tab:s.tab}),'GET',undefined,{fresh:true});
-   view.items=d.tracks;view.nextOffset=d.nextOffset;
-  }else if(s.mode==='dubbing'){
-   const d=await readApi(s.tab==='mine'?'/api/dubbing/casting/mine?kind='+s.kind:'/api/dubbing/projects?tab=open','GET',undefined,{fresh:true});view.items=d.projects;view.nextOffset=d.nextOffset;
-  }else{
-   const d=await readApi('/api/play/works?'+new URLSearchParams({tab:s.tab,type:s.type}),'GET',undefined,{fresh:true});view.items=d.works;view.nextOffset=d.nextOffset;view.dubbingAvailable=d.dubbingAvailable;
+  if((s.mode==='song'&&s.tab==='drafts'||s.mode==='dubbing'&&s.tab==='mine'||s.mode==='browse'&&s.tab==='following')&&!me){returnRoute=location.hash;view.gated=true;}
+  else if(s.mode==='song'&&s.tab==='drafts')view.drafts=await listSingDrafts();
+  else{
+   const cached=cachedPlayView(raw);
+   if(cached)return {...cached,html:playShell(s,playContentHTML(cached),raw)};
+   const d=await readApi(playDataPath(s),'GET',undefined,{fresh:true});
+   view.items=d.tracks||d.works||d.projects||[];view.nextOffset=d.nextOffset??null;view.dubbingAvailable=d.dubbingAvailable;
+   view.tracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');
+   cachePlayView(view);
   }
-  view.tracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');
-  view.html=playShell(s,playToolbar(s)+(s.mode==='dubbing'&&s.tab==='mine'?castingMineTabs(s.kind):'')+(view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+'<div id="play-results" aria-live="polite">'+playResults(view)+'</div><button class="small-button play-more" id="play-more" '+(view.nextOffset===null?'hidden':'')+'>더 보기</button>');
- }catch(e){view.html=playShell(s,`<div class="play-empty" role="alert"><h2>목록을 불러오지 못했어요</h2><p>${esc(e.message)}</p><button class="small-button" data-play-retry>다시 불러오기</button></div>`);}
+ }catch(e){if(e.name==='AbortError')throw e;view.error=e.message;}
+ view.html=playShell(s,playContentHTML(view),raw);
  return view;
+}
+function canRefreshPlayRoute(raw){
+ const main=document.querySelector('#main');
+ return !!(playRouteSelection(raw)&&playRouteSelection(main?.dataset.route)&&main?.dataset.account===playCacheAccount()&&main.querySelector('.play-page [data-play-tools]'));
+}
+function playSetTabState(nav,selected,mode,type){
+ nav?.querySelectorAll('a[role="tab"]').forEach(tab=>{
+  const s=playRouteSelection(tab.getAttribute('href'));
+  const active=!!s&&(mode?s.tab===selected:s.mode===selected);
+  tab.classList.toggle('active',active);tab.setAttribute('aria-selected',String(active));tab.tabIndex=active?0:-1;
+  if(active)tab.setAttribute('aria-current','page');else tab.removeAttribute('aria-current');
+  if(mode&&s)tab.setAttribute('href',playHref(mode,s.tab,type));
+ });
+}
+// Hold enough space for the current viewport when a shorter tab replaces a long
+// list. Release that extra space as the reader scrolls up, never jump to the top.
+function holdPlayViewport(root,pending=false){
+ const content=root.querySelector('.play-content');if(!content?.getBoundingClientRect)return;
+ const rect=content.getBoundingClientRect(),scale=content.offsetHeight?rect.height/content.offsetHeight:1;
+ const height=Math.max(pending?rect.height:0,(window.scrollY||0)>0?window.innerHeight-rect.top:0);
+ content.style.minHeight=height>0?Math.ceil(height/(scale||1))+'px':'';
+}
+function paintPlayRoute(view,raw){
+ const main=document.querySelector('#main'),root=main.querySelector('.play-page'),s=view.play;
+ const changedMode=root.dataset.playMode!==s.mode;
+ holdPlayViewport(root,true);
+ root._playListCleanup?.();root._playView=view;
+ root.dataset.playMode=s.mode;
+ playSetTabState(root.querySelector('.play-main-tabs'),s.mode);
+ if(changedMode)root.querySelector('.play-subbar').innerHTML=playSubtabs(s);
+ else playSetTabState(root.querySelector('.play-category-tabs'),s.tab,s.mode,s.type);
+ const tools=root.querySelector('[data-play-tools]');
+ if(changedMode)tools.innerHTML=playToolbar(s);
+ tools.hidden=!!playToolsHidden(view);
+ const field=tools.querySelector('input');if(field)field.value=view.query||'';
+ const type=tools.querySelector('#play-work-type');if(type)type.value=s.type;
+ const extra=root.querySelector('[data-play-extra]'),extraHTML=playExtraHTML(view);
+ if(extra.innerHTML!==extraHTML)extra.innerHTML=extraHTML;
+ root.querySelector('.play-content').setAttribute('aria-label',playSections[s.mode].find(([key])=>key===s.tab)[1]);
+ root.querySelector('.play-load-error')?.remove();
+ const results=root.querySelector('#play-results');results.innerHTML=playListHTML(view);
+ if(view.pending)results.setAttribute('aria-busy','true');else results.removeAttribute('aria-busy');
+ const more=root.querySelector('#play-more');more.hidden=view.nextOffset==null||!!(view.pending||view.error||view.gated);more.disabled=false;
+ // Remember any direct-link query too, so back/forward stays inside the shell.
+ if(![...root.querySelectorAll('[data-play-route-target]')].some(target=>target.id===raw)){
+  const target=document.createElement('span');target.setAttribute('data-play-route-target','');target.id=raw;root.querySelector('[data-play-route-targets]').append(target);
+ }
+ main.dataset.route=raw;main.classList.toggle('secondary-page',s.mode==='song'&&s.tab==='drafts');
+ routeTracks=remember(view.tracks||[]);
+ bindPlay(view);icons();paintInteractions();
+ holdPlayViewport(root,!!view.pending);
+ return root;
+}
+async function refreshPlayRoute(raw,ticket,readApi=api,visible){
+ if(!canRefreshPlayRoute(raw))return false;
+ const play=playRouteSelection(raw),account=playCacheAccount(),revision=playCacheRevision();
+ const cached=cachedPlayView(raw),pending=cached||{play,raw,account,revision,items:[],tracks:[],nextOffset:null,pending:true};
+ const root=paintPlayRoute(pending,raw),mounted=()=>ticket===renderId&&root.isConnected&&root._playView===pending,current=()=>mounted()&&account===playCacheAccount();
+ visible?.();
+ let timedOut=false;
+ const timer=setTimeout(()=>{if(current()){timedOut=true;paintPlayRoute({...pending,pending:false,error:'연결이 지연되고 있어요. 다시 시도해주세요.'},raw);}},20000);
+ try{
+  // The first shell is visible while boot resolves the account. A quick tab
+  // click must not settle a guest gate or read before that identity is known.
+  await (typeof accountReady==='undefined'?undefined:accountReady);
+  if(!mounted()||timedOut)return true;
+  if(account!==playCacheAccount()||revision!==playCacheRevision()){void render();return true;}
+  if(cached&&cachedPlayView(raw))return true;
+  const view=await playView('karaoke',raw.split('/')[1]?.split('?')[0],raw,readApi);
+  if(!current()||timedOut)return true;
+  if(revision!==playCacheRevision()){void render();return true;}
+  paintPlayRoute(view,raw);
+ }catch(e){if(current()&&e.name!=='AbortError')paintPlayRoute({...pending,pending:false,error:e.message},raw);}
+ finally{clearTimeout(timer);}
+ return true;
 }
 function bindPlay(view){
  if(!view?.play)return;
  const root=document.querySelector('.play-page');if(!root)return;
+ root._playListCleanup?.();root._playView=view;
  bindPlayBanner(view.play,root);
- root.addEventListener('error',playDubbingArtworkError,true);
- bindPlayDuetChildren(root);
- if(view.play.mode==='dubbing'&&view.play.tab!=='mine')bindDubbingCasting(view,root);
+ if(!root.dataset.playBound){
+  root.dataset.playBound='true';
+  root.addEventListener('error',playDubbingArtworkError,true);
+  bindPlayDuetChildren(root);
+  root.addEventListener('click',event=>{
+   if(!(event.target instanceof Element))return;
+   if(event.target.closest('[data-play-retry]')){playNavigationCache.delete(playCacheAccount()+':'+root._playView.raw);void render();}
+  });
+  root.addEventListener('keydown',e=>{
+   if(!(e.target instanceof HTMLAnchorElement))return;
+   const nav=e.target.closest('nav[role="tablist"]');if(!nav||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+   const tabs=[...nav.querySelectorAll('a')],i=tabs.indexOf(e.target);if(i<0)return;e.preventDefault();
+   const next=tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];
+   tabs.forEach(tab=>{tab.tabIndex=tab===next?0:-1;});next.focus({preventScroll:true});
+  });
+  const scroll=()=>{if(root.isConnected&&!root._playView?.pending)holdPlayViewport(root);};
+  window.addEventListener('scroll',scroll,{passive:true});
+  if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{window.removeEventListener('scroll',scroll);root._playListCleanup?.();});
+ }
+ if(!view.pending&&!view.error&&!view.gated&&view.play.mode==='dubbing'&&view.play.tab!=='mine')bindDubbingCasting(view,root);
  root.querySelectorAll('img.play-dubbing-art').forEach(image=>{if(image instanceof HTMLImageElement&&image.complete&&!image.naturalWidth)playDubbingArtworkError({target:image});});
- root.querySelector('[data-play-retry]')?.addEventListener('click',()=>render());
- root.querySelectorAll('nav').forEach(nav=>nav.addEventListener('keydown',e=>{
-  if(nav.getAttribute('role')!=='tablist'||!(e.target instanceof HTMLAnchorElement))return;
-  if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
-  const tabs=[...nav.querySelectorAll('a')],i=tabs.indexOf(e.target);if(i<0)return;e.preventDefault();
-  const next=tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];
-  tabs.forEach(tab=>{tab.tabIndex=tab===next?0:-1;});next.focus();
- }));
- const typeFilter=/** @type {HTMLSelectElement} */(root.querySelector('#play-work-type'));
+ const typeFilter=root.querySelector('#play-work-type');
  if(typeFilter)typeFilter.onchange=()=>{location.hash=playHref(view.play.mode,view.play.tab,typeFilter.value);};
- const form=/** @type {HTMLFormElement} */(root.querySelector('#play-search')),more=/** @type {HTMLButtonElement} */(root.querySelector('#play-more')),results=root.querySelector('#play-results');if(!form)return;
- let query=form?.querySelector('input')?.value||'',generation=0;
+ const form=root.querySelector('#play-search'),more=root.querySelector('#play-more'),results=root.querySelector('#play-results');if(!form)return;
+ form.inert=!!view.pending;
+ const controller=new AbortController(),account=playCacheAccount(),routeTicket=renderId;
+ let generation=0;
+ root._playListCleanup=()=>{generation++;controller.abort();};
+ const current=()=>root.isConnected&&root._playView===view&&!controller.signal.aborted&&account===playCacheAccount()&&routeTicket===renderId;
  const s=view.play;
- const paint=()=>{results.innerHTML=playResults(view);remember(view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing'));routeTracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');more.hidden=view.nextOffset===null;if(s.mode==='dubbing'&&s.tab!=='mine')bindDubbingCasting(view,root);};
- const load=async(append=false)=>{
-  const ticket=++generation;more.disabled=true;results.setAttribute('aria-busy','true');
-  try{
-   const params=new URLSearchParams({tab:s.tab,type:s.type,offset:String(append?view.nextOffset:0),q:query});
-   const path=s.mode==='song'?'/api/play/songs?'+params:s.mode==='browse'?'/api/play/works?'+params:s.tab==='mine'?'/api/dubbing/casting/mine?'+params+'&kind='+s.kind:'/api/dubbing/projects?tab=open&offset='+(append?view.nextOffset:0)+'&q='+encodeURIComponent(query);
-   const d=await api(path,'GET',undefined,{fresh:true});if(ticket!==generation||!root.isConnected)return;
-   const items=d.tracks||d.works||d.projects;view.items=append?[...view.items,...items]:items;view.nextOffset=d.nextOffset;
-   paint();
-  }catch(e){if(ticket===generation&&root.isConnected){let note=root.querySelector('.play-load-error');if(!note){note=document.createElement('p');note.className='play-load-error';note.setAttribute('role','alert');results.before(note);}note.textContent=e.message+' · 다시 검색하거나 더 보기를 눌러주세요.';}}
-  finally{if(ticket===generation&&root.isConnected){more.disabled=false;results.removeAttribute('aria-busy');}}
+ const paint=()=>{
+  holdPlayViewport(root,true);results.innerHTML=playResults(view);
+  view.tracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');routeTracks=remember(view.tracks);more.hidden=view.nextOffset==null;
+  cachePlayView(view);
+  if(s.mode==='dubbing'&&s.tab!=='mine')bindDubbingCasting(view,root);
+  icons();paintInteractions();holdPlayViewport(root);
  };
- form.onsubmit=e=>{e.preventDefault();query=form.querySelector('input').value.trim();root.querySelector('.play-load-error')?.remove();void load();};
+ const load=async(append=false)=>{
+  if(view.pending||!current()||append&&view.nextOffset==null)return;
+  const ticket=++generation,revision=playCacheRevision();more.disabled=true;results.setAttribute('aria-busy','true');
+  try{
+   const d=await api(playDataPath(s,view.query||'',append?view.nextOffset:0),'GET',undefined,{fresh:true,signal:controller.signal});
+   if(ticket!==generation||!current()||revision!==playCacheRevision())return;
+   const items=d.tracks||d.works||d.projects||[];view.items=append?[...view.items,...items]:items;view.nextOffset=d.nextOffset??null;view.revision=revision;
+   paint();
+  }catch(e){if(e.name!=='AbortError'&&ticket===generation&&current()){let note=root.querySelector('.play-load-error');if(!note){note=document.createElement('p');note.className='play-load-error';note.setAttribute('role','alert');results.before(note);}note.textContent=e.message+' · 다시 검색하거나 더 보기를 눌러주세요.';}}
+  finally{if(ticket===generation&&current()){more.disabled=false;results.removeAttribute('aria-busy');}}
+ };
+ form.onsubmit=e=>{e.preventDefault();view.query=form.querySelector('input').value.trim();root.querySelector('.play-load-error')?.remove();void load();};
  more.onclick=()=>load(true);
 }
