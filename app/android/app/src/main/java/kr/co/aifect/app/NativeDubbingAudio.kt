@@ -63,7 +63,7 @@ internal class DubbingDrafts(context:Context,account:String,project:String,sound
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 internal class NativeDubbingAudio(private val context:Context,private val api:NativeApi){
- val status=MutableStateFlow("");val countdown=MutableStateFlow(0);val level=MutableStateFlow(0f);val elapsed=MutableStateFlow(0.0);val running=MutableStateFlow(false)
+ val status=MutableStateFlow("");val countdown=MutableStateFlow(0);val level=MutableStateFlow(0f);val elapsed=MutableStateFlow(0.0);val running=MutableStateFlow(false);val capturing=MutableStateFlow(false)
  private val scope=CoroutineScope(SupervisorJob()+Dispatchers.Main.immediate)
  private val background=ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context,OkHttpDataSource.Factory(api.client)))).build()
  private val preview=ExoPlayer.Builder(context).setMediaSourceFactory(DefaultMediaSourceFactory(DefaultDataSource.Factory(context,OkHttpDataSource.Factory(api.client)))).build()
@@ -75,28 +75,22 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
  private var preparedUrl:String?=null
  private var preparedFile:File?=null
  private var backgroundCall:okhttp3.Call?=null
- init{background.addListener(object:Player.Listener{override fun onPlayerError(error:androidx.media3.common.PlaybackException){playerError="배경 음향을 불러오지 못했어요. 연결을 확인해주세요."}})}
+ val previewing=MutableStateFlow(false)
+ init{
+  background.addListener(object:Player.Listener{override fun onPlayerError(error:androidx.media3.common.PlaybackException){playerError="배경 음향을 불러오지 못했어요. 연결을 확인해주세요."}})
+  preview.addListener(object:Player.Listener{override fun onIsPlayingChanged(isPlaying:Boolean){previewing.value=isPlaying}})
+ }
+ /** Playback position of the listen-only player, for the background sound bar. */
+ fun previewPositionMs():Long=if(closed)0 else preview.currentPosition
  /** One complete download per recorder. Each line only seeks the same local sound. */
- suspend fun prepareBackground(url:String)=withContext(Dispatchers.Main.immediate){
+ suspend fun prepareBackground(url:String,soundId:String)=withContext(Dispatchers.Main.immediate){
   if(preparedUrl==url&&preparedFile?.isFile==true)return@withContext
-  status.value="배경 음향을 한 번에 준비하고 있어요"
-  val file=File.createTempFile("dubbing-background-",".audio",context.cacheDir)
-  try{
-   withContext(Dispatchers.IO){
-    val call=api.client.newCall(Request.Builder().url(Endpoint.url(url)).build());backgroundCall=call
-    try{call.execute().use{response->
-     check(response.isSuccessful){"배경 음향을 내려받지 못했어요. 다시 시도해주세요."}
-     val body=response.body?:error("배경 음향이 비어 있어요.");val expected=body.contentLength();val limit=96L*1024*1024
-     check(expected<=limit){"배경 음향 파일이 너무 커요."}
-     var bytes=0L
-     body.byteStream().use{input->file.outputStream().buffered().use{out->val buffer=ByteArray(65536);while(true){ensureActive();val n=input.read(buffer);if(n<0)break;bytes+=n;check(bytes<=limit){"배경 음향 파일이 너무 커요."};out.write(buffer,0,n)}}}
-     check(bytes>=44&&(expected<0||bytes==expected)){"배경 음향 다운로드가 끝나지 않았어요."}
-    }}finally{backgroundCall=null}
-   }
-   currentCoroutineContext().ensureActive();check(!closed)
-   playerError=null;background.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(file)));background.prepare();awaitReady()
-   preparedFile?.delete();preparedFile=file;preparedUrl=url;status.value="배경 음향 준비 완료"
-  }catch(e:Exception){file.delete();throw e}
+  status.value="배경 음향을 준비하고 있어요"
+  // The project screen usually fetched this exact sound already; reuse it instead of downloading again.
+  val file=withContext(Dispatchers.IO){dubbingBackgroundFile(context,api,url,soundId){backgroundCall=it}}
+  currentCoroutineContext().ensureActive();check(!closed)
+  playerError=null;background.setMediaItem(MediaItem.fromUri(android.net.Uri.fromFile(file)));background.prepare();awaitReady()
+  preparedFile=file;preparedUrl=url;status.value="배경 음향 준비 완료"
  }
  private suspend fun awaitReady(){try{withTimeout(20000){while(background.playbackState!=Player.STATE_READY){playerError?.let{error(it)};delay(30)}}}catch(e:TimeoutCancellationException){throw IllegalStateException("배경 음향을 재생할 준비가 지연되고 있어요. 준비 상태를 다시 확인해주세요.",e)}}
  private suspend fun ready(url:String,position:Long){
@@ -110,14 +104,26 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
   job=scope.launch{
    val take=payload("id" to requestIdentity(),"uploaded" to false);val output=drafts.file(take);var accepted=false
    try{
-    val window=dubbingWindow(line);status.value="시작 준비";ready(url,(window.cueStart*1000).toLong())
+    val window=dubbingWindow(line);val from=dubbingLeadIn(window);status.value="시작 준비";ready(url,(from*1000).toLong())
     val size=max(9600,AudioRecord.getMinBufferSize(48000,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT))
     val input=AudioRecord.Builder().setAudioSource(MediaRecorder.AudioSource.VOICE_RECOGNITION).setAudioFormat(AudioFormat.Builder().setSampleRate(48000).setChannelMask(AudioFormat.CHANNEL_IN_MONO).setEncoding(AudioFormat.ENCODING_PCM_16BIT).build()).setBufferSizeInBytes(size).build();recorder=input
     check(input.state==AudioRecord.STATE_INITIALIZED){"마이크를 연결하지 못했어요."}
-    for(i in 3 downTo 1){countdown.value=i;status.value="시작 준비";delay(1000)};countdown.value=0
-    background.play();status.value="효과음 듣는 중 · 대사 시작을 기다려주세요"
-    withTimeout(((window.start-window.cueStart)*1000+15000).toLong()){while(background.currentPosition< (window.start*1000).toLong()-15){playerError?.let{error(it)};delay(10)}}
-    status.value="녹음 중";input.startRecording();check(input.recordingState==AudioRecord.RECORDSTATE_RECORDING){"마이크를 시작하지 못했어요."}
+    // 3 · 2 · 1 runs over the sound just before the line, so the effects lead into the take.
+    // When the line starts too early for three seconds of sound, the missing part is counted in silence.
+    val silent=max(0.0,DUBBING_COUNT_IN-(window.start-from));val begin=System.nanoTime();var playing=false
+    withTimeout(((window.start-from+silent)*1000+15000).toLong()){
+     while(true){
+      playerError?.let{error(it)}
+      val waited=(System.nanoTime()-begin)/1e9
+      if(!playing&&waited>=silent){background.play();playing=true}
+      val remaining=if(playing)window.start-background.currentPosition/1000.0 else silent-waited+(window.start-from)
+      if(remaining<=.015)break
+      countdown.value=if(remaining<=DUBBING_COUNT_IN)ceil(remaining).toInt().coerceAtLeast(1) else 0
+      status.value=if(countdown.value>0)"시작 준비" else "효과음 듣는 중 · 곧 3 · 2 · 1이 시작돼요"
+      delay(10)
+     }
+    }
+    countdown.value=0;status.value="녹음 중";capturing.value=true;input.startRecording();check(input.recordingState==AudioRecord.RECORDSTATE_RECORDING){"마이크를 시작하지 못했어요."}
     val maximum=floor(window.duration*48000).toInt();val samples=withContext(Dispatchers.IO){
      RandomAccessFile(output,"rw").use{out->out.setLength(0);out.write(ByteArray(44));val buffer=ShortArray(960);var count=0
       while(isActive&&!stopRequested&&count<maximum){val n=input.read(buffer,0,min(buffer.size,maximum-count));check(n>0){"마이크 입력이 중단됐어요."};val bytes=ByteBuffer.allocate(n*2).order(ByteOrder.LITTLE_ENDIAN);var sum=0.0;repeat(n){bytes.putShort(buffer[it]);sum+=(buffer[it]/32768.0).pow(2)};out.write(bytes.array());count+=n;level.value=(sqrt(sum/n)*5).toFloat().coerceIn(0f,1f);elapsed.value=count/48000.0}
@@ -126,14 +132,46 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
     }
     playerError?.let{error(it)};take.put("duration",samples/48000.0);drafts.commit(line.getString("id"),take);accepted=true;status.value="녹음 완료 · 임시 저장으로 한 번에 올릴 수 있어요";complete(take)
    }catch(e:Exception){if(e is CancellationException)status.value="녹음이 중단됐어요. 완료한 대사는 그대로 남아 있어요." else{status.value="녹음 실패";failure(e.message?:"녹음을 확인해주세요.")}}
-   finally{if(!closed)background.pause();recorder?.run{runCatching{stop()};release()};recorder=null;running.value=false;countdown.value=0;level.value=0f;if(!accepted)output.delete()}
+   finally{if(!closed)background.pause();recorder?.run{runCatching{stop()};release()};recorder=null;running.value=false;capturing.value=false;countdown.value=0;level.value=0f;if(!accepted)output.delete()}
   }
  }
- fun finishLine(){stopRequested=true;if(countdown.value>0)stop()}
+ fun finishLine(){stopRequested=true;if(!capturing.value)stop()}
  fun stop(){job?.cancel();job=null;if(!closed){background.pause();preview.pause()}}
  fun listen(url:String,position:Double=0.0){stop();preview.setMediaItem(MediaItem.fromUri(if(url.startsWith('/'))Endpoint.url(url)else url), (position*1000).toLong());preview.prepare();preview.play();status.value="미리 듣는 중"}
- fun close(){if(closed)return;stop();closed=true;backgroundCall?.cancel();scope.cancel();background.release();preview.release();preparedFile?.delete();preparedFile=null}
+ fun close(){if(closed)return;stop();closed=true;backgroundCall?.cancel();scope.cancel();background.release();preview.release();preparedFile=null}
 }
+
+internal const val DUBBING_COUNT_IN=3.0
+/** Where playback starts for a take: three seconds before the line, or earlier when its sound cue starts earlier. */
+internal fun dubbingLeadIn(window:DubbingWindow):Double=max(0.0,min(window.cueStart,window.start-DUBBING_COUNT_IN))
+
+/** One cached copy per sound version, shared by the project page and the recorder. */
+internal fun dubbingBackgroundFile(context:Context,api:NativeApi,url:String,soundId:String,onCall:(okhttp3.Call?)->Unit={}):File{
+ require(Regex("[A-Za-z0-9_-]{1,64}").matches(soundId)){"배경 음향을 확인해주세요."}
+ val folder=File(context.cacheDir,"dubbing-background").apply{mkdirs()}
+ val name=MessageDigest.getInstance("SHA-256").digest((url+"|"+soundId).toByteArray()).joinToString(""){"%02x".format(it)}.take(32)
+ val target=File(folder,"$name.audio")
+ synchronized(DubbingBackgroundLock){if(target.isFile&&target.length()>=44){target.setLastModified(System.currentTimeMillis());return target}}
+ val partial=File.createTempFile("download-",".part",folder)
+ try{
+  val call=api.client.newCall(Request.Builder().url(Endpoint.url(url)).build());onCall(call)
+  try{call.execute().use{response->
+   check(response.isSuccessful){"배경 음향을 내려받지 못했어요. 다시 시도해주세요."}
+   val body=response.body?:error("배경 음향이 비어 있어요.");val expected=body.contentLength();val limit=96L*1024*1024
+   check(expected<=limit){"배경 음향 파일이 너무 커요."}
+   var bytes=0L
+   body.byteStream().use{input->partial.outputStream().buffered().use{out->val buffer=ByteArray(65536);while(true){if(call.isCanceled())throw java.io.IOException("배경 음향 다운로드를 멈췄어요.");val n=input.read(buffer);if(n<0)break;bytes+=n;check(bytes<=limit){"배경 음향 파일이 너무 커요."};out.write(buffer,0,n)}}}
+   check(bytes>=44&&(expected<0||bytes==expected)){"배경 음향 다운로드가 끝나지 않았어요."}
+  }}finally{onCall(null)}
+  synchronized(DubbingBackgroundLock){
+   if(!(target.isFile&&target.length()>=44)){target.delete();check(partial.renameTo(target)){"배경 음향을 저장하지 못했어요."}}
+   // Keep a few recent sounds; older ones are downloaded again if needed.
+   folder.listFiles{f->f.extension=="audio"}?.sortedByDescending{it.lastModified()}?.drop(4)?.forEach{it.delete()}
+  }
+  return target
+ }finally{partial.delete()}
+}
+private object DubbingBackgroundLock
 
 internal suspend fun NativeApi.uploadDubbingTake(path:String,file:File):JSONObject=withContext(Dispatchers.IO){
  require(file.length() in 9644L..(48L*96000+44)){"녹음 파일을 확인해주세요."}

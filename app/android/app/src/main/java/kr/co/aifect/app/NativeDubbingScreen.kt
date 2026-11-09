@@ -8,14 +8,18 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.automirrored.outlined.List
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
@@ -52,11 +56,14 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
 
 @Composable internal fun NativeDubbingScreen(api:NativeApi,route:String,navigate:(String)->Unit,close:()->Unit){
  var account by remember{mutableStateOf<String?>(null)};var error by remember{mutableStateOf<String?>(null)}
+ // The project detail is slow on the server; ask for it together with the account check instead of after it.
+ val early=rememberCoroutineScope();val projectId=route.substringAfter('/',"").takeIf{route.startsWith("dubbing/")&&route!="dubbing/new"}
+ val prefetched=remember(projectId){projectId?.let{pid->early.async{runCatching{api.call("/api/dubbing/projects/$pid",fresh=true).getJSONObject("project")}.getOrNull()}}}
  LaunchedEffect(Unit){try{account=api.call("/api/me",fresh=true).optJSONObject("user")?.optString("id").orEmpty();if(account.isNullOrBlank())error="로그인한 뒤 다시 열어주세요."}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  if(account.isNullOrBlank()){NativeAudioHeader("더빙",close);Text(error?:"계정 확인 중…",Modifier.padding(20.dp));return}
  key(account,route){when{
   route=="dubbing/new"->NativeDubbingCreate(api,account!!,null,{navigate("dubbing/$it")},{navigate("dubbing")})
-  route.startsWith("dubbing/")->NativeDubbingProject(api,account!!,route.substringAfter('/'),navigate,{navigate("dubbing")})
+  route.startsWith("dubbing/")->NativeDubbingProject(api,account!!,route.substringAfter('/'),navigate,{navigate("dubbing")},prefetched)
   else->NativeDubbingLibrary(api,route.contains("mine"),navigate,close)
  }}
 }
@@ -196,7 +203,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  }
 }
 
-@Composable private fun NativeDubbingProject(api:NativeApi,account:String,id:String,navigate:(String)->Unit,back:()->Unit){
+@Composable private fun NativeDubbingProject(api:NativeApi,account:String,id:String,navigate:(String)->Unit,back:()->Unit,prefetched:Deferred<JSONObject?>?=null){
  var project by remember{mutableStateOf<JSONObject?>(null)};var error by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)};var editing by remember{mutableStateOf(false)};var recording by rememberSaveable{mutableStateOf(false)};var confirm by remember{mutableStateOf("")};val scope=rememberCoroutineScope();val context=LocalContext.current
  val audio=remember{NativeDubbingAudio(context,api)};DisposableEffect(Unit){onDispose{audio.close()}}
  val lifecycleOwner=LocalLifecycleOwner.current
@@ -204,56 +211,66 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  var soundRequest by rememberSaveable{mutableStateOf(requestIdentity())};var performanceRequest by rememberSaveable{mutableStateOf(requestIdentity())}
  suspend fun reload(){project=api.call("/api/dubbing/projects/$id",fresh=true).getJSONObject("project")}
  fun task(block:suspend ()->Unit){if(busy)return;busy=true;error=null;scope.launch{try{block()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}
- LaunchedEffect(id){try{reload()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
+ LaunchedEffect(id){try{val early=prefetched?.await();if(early!=null&&early.optString("id")==id)project=early else reload()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  val sound=project?.optJSONObject("sound")?:JSONObject();val currentRole=project?.optJSONArray("roles").objects().find{it.optBoolean("mine")}
  LaunchedEffect(sound.optString("state"),recording){if(!recording&&sound.optString("state") in listOf("queued","planning","generating","mixing")){while(isActive){delay(5000);try{reload()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message;break}}}}
  if(editing&&project!=null){NativeDubbingCreate(api,account,project,{editing=false;task{reload()}},{editing=false});return}
  if(recording&&project!=null&&currentRole!=null){NativeDubbingRecorder(api,account,project!!,currentRole,{recording=false;task{reload()}});return}
+ var scriptOpen by rememberSaveable{mutableStateOf(false)};var versionsOpen by rememberSaveable{mutableStateOf(false)};var menu by remember{mutableStateOf(false)}
+ val previewing by audio.previewing.collectAsState();var previewAt by remember{mutableLongStateOf(0L)}
+ LaunchedEffect(previewing){while(previewing){previewAt=audio.previewPositionMs();delay(200)}}
+ // Fetch the ready background while the singer reads the page, so the recorder opens without a download.
+ LaunchedEffect(sound.optString("id"),sound.optString("state")){
+  val soundId=sound.optString("id");if(sound.optString("state")=="ready"&&soundId.isNotBlank())withContext(Dispatchers.IO){runCatching{dubbingBackgroundFile(context,api,"/api/dubbing/projects/$id/background",soundId)}}
+ }
  Column(Modifier.fillMaxSize().testTag("native-dubbing-project")){
-  NativeAudioHeader("더빙 스튜디오",back){IconButton({task{reload()}}){Icon(Icons.Outlined.Refresh,"새로고침")}}
-  LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(18.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
-   if(error!=null)item{Text(error.orEmpty(),color=Pink)}
-   if(busy||project==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
-   project?.let{p->
-    val script=p.getJSONObject("script");val roles=p.getJSONArray("roles").objects()
-    item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(14.dp)){
-     DubbingCover(p,Modifier.size(76.dp))
-     Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(5.dp)){
-      Text(p.optString("title"),fontSize=21.sp,lineHeight=28.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
-      Text("${p.optString("ownerName")} · ${timeLabel((p.optDouble("duration")*1000).toLong())}",fontSize=12.sp,color=Muted)
+  NativeAudioHeader("더빙 스튜디오",back){
+   Box{
+    IconButton({menu=true}){Icon(Icons.Outlined.MoreHoriz,"더빙 메뉴")}
+    DropdownMenu(menu,{menu=false},containerColor=Panel){
+     DropdownMenuItem(text={Text("새로고침")},onClick={menu=false;task{reload()}})
+     project?.takeIf{it.optBoolean("isOwner")}?.let{p->
+      if(p.optBoolean("canEdit"))DropdownMenuItem(text={Text("대본 수정")},onClick={menu=false;editing=true})
+      DropdownMenuItem(text={Text(if(p.optString("visibility")=="private")"배역 모집 시작" else "모집 중지")},onClick={menu=false;confirm=if(p.optString("visibility")=="private")"publish" else "unpublish"})
+      DropdownMenuItem(text={Text("작품 삭제",color=Pink)},onClick={menu=false;confirm="delete"})
      }
-    }}
-    item{Surface(color=Panel,shape=RoundedCornerShape(14.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth()){
-     Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-       Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
-        Text("배경 음향",fontSize=15.sp,fontWeight=FontWeight.SemiBold)
-        Text(when(sound.optString("state")){"ready"->"녹음 준비 완료";"not_started"->"기본 배경 또는 효과음을 선택해요";"failed","unknown"->sound.optString("error","제작 결과를 확인해주세요.");else->"음향 제작 중 · ${sound.optInt("progress")}%"},fontSize=12.sp,lineHeight=18.sp,color=Muted)
-       }
-       if(sound.optString("state")=="ready"){
-        BrandPlayButton("배경 음향 듣기",{audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))})
-        IconButton({audio.stop()}){Icon(Icons.Outlined.Stop,"배경 음향 정지",Modifier.size(20.dp),tint=Muted)}
-       }
-      }
+    }
+   }
+  }
+  LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(16.dp,4.dp,16.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   if(error!=null)item{Text(error.orEmpty(),color=Pink)}
+   if(busy||project==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)}
+   project?.let{p->
+    val script=p.getJSONObject("script");val roles=p.getJSONArray("roles").objects();val lines=script.optJSONArray("lines").objects().sortedBy{it.optInt("order")}
+    item{DubbingSectionTitle("작품 정보")}
+    item{
+     DubbingInfoCard(p,sound,previewing,previewAt,{if(previewing)audio.stop()else audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))}){
       if(p.optBoolean("isOwner")&&sound.optString("state")=="not_started")Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
        OutlinedButton({confirm="basic"},enabled=!busy,modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke)){Text("기본 배경",fontSize=12.sp,color=SoftText)}
        BrandButton({confirm="sound"},enabled=!busy&&sound.optBoolean("aiAvailable"),modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Text("효과음 · ${sound.optInt("chargeGold",sound.optInt("priceGold",50))} G",fontSize=12.sp)}
       }
       if(sound.optInt("refundedGold")>0)Text("${sound.optInt("refundedGold")} G 환급",fontSize=12.sp,color=Muted)
      }
-    }}
-    item{Text("배역 선택",fontSize=18.sp,fontWeight=FontWeight.Bold)}
+    }
+    if(p.optBoolean("isOwner")&&p.optString("visibility")=="private")item{BrandButton({confirm="publish"},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)){Text("배역 모집 시작",fontSize=14.sp)}}
+    item{DubbingSectionTitle("배역 선택","${roles.count{it.optBoolean("claimed")}} / ${roles.size}명 참여")}
     items(roles,key={it.getString("id")}){r->
      var more by remember{mutableStateOf(false)}
-     val cancel=r.optBoolean("mine")&&p.optJSONObject("recording")?.optJSONArray("roles").objects().none{it.getString("roleId")==r.getString("id")}
+     val mine=r.optBoolean("mine")
+     val cancel=mine&&p.optJSONObject("recording")?.optJSONArray("roles").objects().none{it.getString("roleId")==r.getString("id")}
      val fresh=p.optString("visibility")=="public"&&p.optString("rootId")==id&&sound.optString("state")=="ready"
-     Surface(color=Panel,shape=RoundedCornerShape(14.dp),border=BorderStroke(1.dp,if(r.optBoolean("mine"))Violet.copy(alpha=.5f) else Stroke),modifier=Modifier.fillMaxWidth()){
-      Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+     Surface(color=Panel,shape=RoundedCornerShape(16.dp),border=BorderStroke(if(mine)1.5.dp else 1.dp,if(mine)Violet else Stroke),modifier=Modifier.fillMaxWidth().testTag("dubbing-role-${r.getString("id")}")){
+      Column(Modifier.padding(horizontal=14.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
-        DefaultProfileArtwork(r.optString("name"),Modifier.size(44.dp).clip(RoundedCornerShape(12.dp)))
+        DefaultProfileArtwork(r.optString("name"),Modifier.size(48.dp).clip(RoundedCornerShape(14.dp)))
         Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
-         Text(r.optString("name"),fontSize=16.sp,fontWeight=FontWeight.SemiBold)
-         Text(if(r.optBoolean("mine"))"내 배역" else r.optString("participant").takeIf{it!="null"&&it.isNotBlank()}?:"참여 가능",fontSize=11.sp,color=if(r.optBoolean("mine"))Pink else Muted)
+         Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+          Text(r.optString("name"),fontSize=17.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
+          if(mine)DubbingChip("내 배역",Violet)
+          else if(r.optBoolean("claimed"))Text(r.optString("participant").takeIf{it!="null"&&it.isNotBlank()}?:"참여 중",fontSize=11.sp,color=Muted,maxLines=1)
+          else Text("참여 가능",fontSize=11.sp,color=Aqua)
+         }
+         if(r.optString("personality").isNotBlank())Text(r.optString("personality"),fontSize=13.sp,lineHeight=18.sp,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis)
         }
         if(cancel||fresh)Box{
          IconButton({more=true}){Icon(Icons.Outlined.MoreVert,"${r.optString("name")} 배역 메뉴",Modifier.size(20.dp),tint=Muted)}
@@ -263,24 +280,22 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
          }
         }
        }
-       if(r.optString("personality").isNotBlank())Text(r.optString("personality"),fontSize=12.sp,lineHeight=18.sp,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis)
-       if(r.optBoolean("mine"))BrandButton({audio.stop();recording=true},enabled=!busy&&p.optBoolean("recordingAvailable"),modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Icon(Icons.Outlined.Mic,null,Modifier.size(18.dp));Text("녹음하기",Modifier.padding(start=6.dp),fontSize=14.sp)}
-       else if(!r.optBoolean("claimed")&&currentRole==null&&p.optString("visibility")=="public"&&p.optString("state") in listOf("recruiting","recording"))BrandButton({task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","POST",payload("revision" to p.getInt("revision")));reload();recording=true}},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Text("배역 선택하고 녹음",fontSize=14.sp)}
+       if(!r.optBoolean("claimed")&&currentRole==null&&p.optString("visibility")=="public"&&p.optString("state") in listOf("recruiting","recording"))BrandButton({task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","POST",payload("revision" to p.getInt("revision")));reload();recording=true}},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Text("배역 선택하고 녹음",fontSize=14.sp)}
       }
      }
     }
-    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){BrandButton({audio.listen(final.getString("audioUrl"))},modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")};TextButton({audio.stop()}){Text("재생 정지")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
-    if(p.optBoolean("isOwner"))item{var management by remember{mutableStateOf(false)};Box(Modifier.fillMaxWidth()){
-     OutlinedButton({management=true},enabled=!busy,modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke)){Text("작품 관리",color=SoftText,fontSize=13.sp);Icon(Icons.Outlined.ExpandMore,null,Modifier.size(18.dp))}
-     DropdownMenu(management,{management=false},containerColor=Panel){
-      if(p.optBoolean("canEdit"))DropdownMenuItem(text={Text("대본 수정")},onClick={management=false;editing=true})
-      DropdownMenuItem(text={Text(if(p.optString("visibility")=="private")"배역 모집 시작" else "모집 중지")},onClick={management=false;confirm=if(p.optString("visibility")=="private")"publish" else "unpublish"})
-      DropdownMenuItem(text={Text("작품 삭제",color=Pink)},onClick={management=false;confirm="delete"})
+    if(currentRole!=null)item{
+     BrandButton({audio.stop();recording=true},enabled=!busy&&p.optBoolean("recordingAvailable"),modifier=Modifier.fillMaxWidth().heightIn(min=56.dp).testTag("dubbing-open-recorder"),shape=RoundedCornerShape(28.dp)){
+      Icon(Icons.Outlined.Mic,null,Modifier.size(22.dp));Text("녹음하기",Modifier.padding(start=8.dp),fontSize=17.sp,fontWeight=FontWeight.Bold)
      }
-    }}
-    item{Text("대본",fontSize=18.sp,fontWeight=FontWeight.Bold)}
-    script.optJSONArray("scenes").objects().forEach{scene->item{Text(scene.optString("title"),fontWeight=FontWeight.Bold,color=SoftText);Text(scene.optString("description"),color=Muted,fontSize=13.sp)};items(script.optJSONArray("lines").objects().filter{it.getString("sceneId")==scene.getString("id")},key={it.getString("id")}){l->Column(Modifier.fillMaxWidth().background(if(l.getString("roleId")==currentRole?.optString("id"))Raised else Panel,RoundedCornerShape(12.dp)).padding(14.dp)){Text("${l.optInt("order")} · ${l.optString("emotion")} · ${l.optString("direction")}",fontSize=11.sp,color=Muted);Text("${roles.find{it.getString("id")==l.getString("roleId")}?.optString("name")}: ${l.optString("text")}",Modifier.padding(top=6.dp),fontSize=17.sp)}}}
-    if(p.optJSONArray("versions").objects().size>1)item{Text("다른 더빙",fontWeight=FontWeight.Bold);p.getJSONArray("versions").objects().filter{it.getString("id")!=id}.forEach{v->TextButton({navigate("dubbing/${v.getString("id")}")}){Text("${v.optString("ownerName")} · ${v.optInt("participants")}/${v.optInt("roleCount")}명 · ${v.optString("state")}")}}}
+    }
+    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){BrandButton({audio.listen(final.getString("audioUrl"))},modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")};TextButton({audio.stop()}){Text("재생 정지")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
+    item{DubbingSectionTitle("대본 미리보기","총 ${lines.size}개 대사")}
+    val starts=dubbingLineStarts(lines)
+    items(if(scriptOpen)lines else lines.take(4),key={"line-"+it.getString("id")}){l->DubbingLineCard(l,roles,currentRole?.optString("id"),starts[l.getString("id")]?:0.0)}
+    if(lines.size>4)item{DubbingExpandButton(scriptOpen){scriptOpen=!scriptOpen}}
+    val others=p.optJSONArray("versions").objects().filter{it.getString("id")!=id}
+    if(others.isNotEmpty())item{DubbingVersions(p,others,versionsOpen,{versionsOpen=!versionsOpen}){navigate("dubbing/$it")}}
     if(p.optString("visibility")=="public")item{NativeDubbingComments(api,p)}
    }
   }
@@ -309,8 +324,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
   if(sound.optString("state")=="not_started")sound=api.call("$path/recording/prepare","POST").getJSONObject("sound")
   if(sound.optString("state")!="ready"){audio.status.value="배경 음향을 준비하고 있어요. 완료되면 녹음을 시작할 수 있어요.";try{withTimeout(180000){while(sound.optString("state") in listOf("queued","planning","generating","mixing")){delay(5000);sound=api.call("$path/sound",fresh=true).getJSONObject("sound")}}}catch(e:TimeoutCancellationException){throw IllegalStateException("음향 준비에 시간이 더 필요해요. 준비 상태를 다시 확인해주세요.",e)}}
   check(sound.optString("state")=="ready"){sound.optString("error","배경 음향 상태를 확인해주세요.")}
-  view=api.call("$path/recording/$roleId/start","POST",payload("soundId" to sound.getString("id")))
-  audio.prepareBackground("$path/background")
+  coroutineScope{val background=async{audio.prepareBackground("$path/background",sound.getString("id"))};view=api.call("$path/recording/$roleId/start","POST",payload("soundId" to sound.getString("id")));background.await()}
   drafts=DubbingDrafts(context,account,id,sound.getString("id"),roleId);selected=mine.indexOfFirst{!it.has("takeId")}.coerceAtLeast(0)
  }
  LaunchedEffect(Unit){busy=true;try{prepare()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
@@ -318,52 +332,88 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  val complete=mine.count{it.has("takeId")||drafts?.takes?.containsKey(it.getString("id"))==true}
  val scriptList=rememberLazyListState()
  val selectedId=current?.optString("id")
- LaunchedEffect(selectedId){val at=all.indexOfFirst{it.optString("id")==selectedId};if(at>=0)scriptList.animateScrollToItem((at-1).coerceAtLeast(0))}
  val roles=project.getJSONObject("script").optJSONArray("roles").objects()
- val colors=listOf(Color(0xFFA7C9FF),Color(0xFFF4B1D3),Color(0xFF9DE1C7),Color(0xFFF1D38F),Color(0xFFCFB5F5),Color(0xFFFFB6A1))
+ var scriptOpen by rememberSaveable{mutableStateOf(false)}
+ val capturing by audio.capturing.collectAsState()
+ val selectedAt=all.indexOfFirst{it.optString("id")==selectedId}
+ // A short window around the chosen line, as in the approved design; the whole script opens on request.
+ val windowStart=(selectedAt-1).coerceIn(0,(all.size-4).coerceAtLeast(0))
+ val visible=if(scriptOpen)all else all.drop(windowStart).take(4)
+ LaunchedEffect(selectedId,scriptOpen){if(scriptOpen&&selectedAt>=0)scriptList.animateScrollToItem((selectedAt-1).coerceAtLeast(0))}
  Column(Modifier.fillMaxSize().testTag("native-dubbing-recorder")){
   NativeAudioHeader("${role.optString("name")} · 녹음",::leave)
-  Column(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=8.dp)){
-   Text(project.optString("title"),fontSize=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-   Text("내 대사 $complete / ${mine.size} · ${if(submitted)"제출 완료" else "대사를 선택해 녹음하세요"}",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=5.dp))
-   if(busy)LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=8.dp))
-   error?.let{Text(it,color=Muted,fontSize=13.sp);TextButton({task{if(drafts==null){sound=api.call("$path/sound",fresh=true).getJSONObject("sound");prepare()}else refresh()}}){Text(if(drafts==null)"준비 상태 확인" else "저장 상태 확인")}}
+  Row(Modifier.fillMaxWidth().padding(horizontal=16.dp,vertical=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+   DubbingCover(project,Modifier.size(56.dp))
+   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(4.dp)){
+    Text(project.optString("title"),fontSize=18.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
+    Text("내 대사 $complete / ${mine.size} · ${if(submitted)"제출 완료" else "대사를 선택해 녹음하세요"}",color=Muted,fontSize=12.sp)
+   }
   }
-  LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("dubbing-full-script"),state=scriptList,contentPadding=PaddingValues(horizontal=16.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-   items(all,key={it.getString("id")}){line->
+  if(busy)LinearProgressIndicator(Modifier.fillMaxWidth().padding(horizontal=16.dp),color=Pink,trackColor=Stroke)
+  error?.let{Column(Modifier.padding(horizontal=16.dp)){Text(it,color=Muted,fontSize=13.sp);TextButton({task{if(drafts==null){sound=api.call("$path/sound",fresh=true).getJSONObject("sound");prepare()}else refresh()}}){Text(if(drafts==null)"준비 상태 확인" else "저장 상태 확인")}}}
+  LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("dubbing-full-script"),state=scriptList,contentPadding=PaddingValues(horizontal=16.dp,vertical=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   items(visible,key={it.getString("id")}){line->
     val lineId=line.getString("id");val mineIndex=mine.indexOfFirst{it.getString("id")==lineId};val ownLine=mineIndex>=0;val at=roles.indexOfFirst{it.optString("id")==line.optString("roleId")};val active=lineId==selectedId
     val saved=mine.getOrNull(mineIndex)?.has("takeId")==true;val local=drafts?.takes?.get(lineId);val recorded=saved||local!=null
-    Surface(onClick={if(ownLine&&!running&&!busy){audio.stop();selected=mineIndex}},enabled=ownLine&&!running&&!busy,color=if(active)Raised else Color.Transparent,shape=RoundedCornerShape(12.dp),modifier=Modifier.fillMaxWidth().testTag("dubbing-script-$lineId")){
-     Column(Modifier.padding(12.dp)){
-      Text("${roles.getOrNull(at)?.optString("name").orEmpty()}: ${line.optString("text")}",fontSize=17.sp,lineHeight=25.sp,color=if(active)Color.White else colors[at.coerceAtLeast(0)%colors.size],fontWeight=if(active)FontWeight.SemiBold else FontWeight.Normal)
-      if(ownLine)Row(Modifier.padding(top=5.dp),verticalAlignment=Alignment.CenterVertically){
-       if(recorded)Icon(Icons.Outlined.CheckCircle,null,Modifier.size(14.dp),tint=Muted)
-       Text(if(saved||local?.optBoolean("uploaded")==true)"임시 저장됨" else if(recorded)"녹음됨 · 저장 전" else "미녹음",fontSize=12.sp,color=Muted,modifier=Modifier.padding(start=if(recorded)5.dp else 0.dp))
+    Surface(onClick={if(ownLine&&!running&&!busy){audio.stop();selected=mineIndex}},enabled=ownLine&&!running&&!busy,color=Panel,shape=RoundedCornerShape(14.dp),border=BorderStroke(if(active)1.5.dp else 1.dp,if(active)Violet else Stroke),modifier=Modifier.fillMaxWidth().testTag("dubbing-script-$lineId")){
+     Row(Modifier.padding(12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+      DubbingRoleChip(roles.getOrNull(at)?.optString("name").orEmpty(),dubbingRoleColor(at))
+      Column(Modifier.weight(1f)){
+       Text(line.optString("text"),fontSize=15.sp,lineHeight=22.sp,color=if(active)Color.White else SoftText,fontWeight=if(active)FontWeight.SemiBold else FontWeight.Normal)
+       if(ownLine&&recorded)Row(Modifier.padding(top=4.dp),verticalAlignment=Alignment.CenterVertically){
+        Icon(Icons.Outlined.CheckCircle,null,Modifier.size(13.dp),tint=Aqua)
+        Text(if(saved||local?.optBoolean("uploaded")==true)"임시 저장됨" else "녹음됨 · 저장 전",fontSize=11.sp,color=Muted,modifier=Modifier.padding(start=5.dp))
+       }
       }
      }
     }
    }
+   if(all.size>4)item{DubbingExpandButton(scriptOpen){scriptOpen=!scriptOpen}}
   }
-  HorizontalDivider(color=Stroke)
-  Column(Modifier.fillMaxWidth().background(Panel).padding(horizontal=16.dp,vertical=10.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-    Text(if(count>0)"$count · 준비" else status,fontSize=13.sp,color=if(count>0)Pink else Muted,modifier=Modifier.weight(1f),maxLines=2)
-    if(current!=null)Text("${"%.1f".format(elapsed)} / ${"%.1f".format(dubbingWindow(current).duration)}초",fontSize=12.sp,color=Muted)
-   }
+  Column(Modifier.fillMaxWidth().padding(start=16.dp,end=16.dp,top=6.dp,bottom=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
    if(current!=null){
-    if(!submitted)BrandButton({if(running)audio.finishLine()else{recordLine=current;permission.launch(Manifest.permission.RECORD_AUDIO)}},enabled=!busy&&drafts!=null,modifier=Modifier.fillMaxWidth().testTag("dubbing-record-line")){
-     Icon(if(running)Icons.Outlined.Stop else Icons.Outlined.Mic,null,Modifier.size(20.dp));Text(if(running)if(count>0)"준비 취소" else "이 대사 마치기" else "3 · 2 · 1 후 녹음",Modifier.padding(start=8.dp))
-    }
     val local=drafts?.takes?.get(current.getString("id"));val url=local?.let{drafts!!.file(it).toURI().toString()}?:current.optString("audioUrl").takeIf{it.isNotBlank()}
+    val total=dubbingWindow(current).duration;val taken=local?.optDouble("duration",total)?:total
+    fun record(){recordLine=current;permission.launch(Manifest.permission.RECORD_AUDIO)}
+    when{
+     count>0->Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){
+      Box(Modifier.size(108.dp).clip(CircleShape).background(Ink).border(3.dp,Brush.linearGradient(listOf(Violet,Pink)),CircleShape).clickable(onClickLabel="녹음 준비 취소"){audio.finishLine()}.testTag("dubbing-countdown"),contentAlignment=Alignment.Center){
+       Text("$count",fontSize=46.sp,fontWeight=FontWeight.Bold)
+      }
+     }
+     running->{
+      DubbingProgressCard(if(capturing)"녹음 중..." else status,capturing,elapsed,total,if(capturing)(elapsed/total).toFloat() else 0f)
+      Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){
+       Box(Modifier.size(72.dp).clip(CircleShape).border(2.dp,Violet,CircleShape).clickable(onClickLabel=if(capturing)"이 대사 마치기" else "녹음 준비 취소"){audio.finishLine()}.testTag("dubbing-record-line"),contentAlignment=Alignment.Center){
+        Box(Modifier.size(24.dp).background(SoftText,RoundedCornerShape(5.dp)))
+       }
+      }
+     }
+     (local!=null||current.has("takeId"))&&!submitted->Surface(color=Panel,shape=RoundedCornerShape(16.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth().testTag("dubbing-line-done")){
+      Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+       DubbingProgressHeader("녹음 완료",Icons.Outlined.CheckCircle,taken,total)
+       LinearProgressIndicator({1f},Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),color=Violet,trackColor=Stroke)
+       Row(horizontalArrangement=Arrangement.spacedBy(10.dp)){
+        OutlinedButton({record()},enabled=!busy&&drafts!=null,modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("dubbing-record-line"),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Stroke)){Icon(Icons.Outlined.Refresh,null,Modifier.size(18.dp));Text("다시 녹음",Modifier.padding(start=6.dp),color=SoftText)}
+        BrandButton({if(url!=null)audio.listen(url)},enabled=url!=null,modifier=Modifier.weight(1f).heightIn(min=48.dp),shape=RoundedCornerShape(24.dp)){Icon(Icons.Outlined.PlayArrow,null,Modifier.size(20.dp));Text("녹음 확인",Modifier.padding(start=6.dp))}
+       }
+      }
+     }
+     !submitted->BrandButton({record()},enabled=!busy&&drafts!=null,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp).testTag("dubbing-record-line"),shape=RoundedCornerShape(28.dp)){
+      Icon(Icons.Outlined.Mic,null,Modifier.size(22.dp));Text("녹음하기",Modifier.padding(start=8.dp),fontSize=17.sp,fontWeight=FontWeight.Bold)
+     }
+     url!=null->OutlinedButton({audio.listen(url)},modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(24.dp),border=BorderStroke(1.dp,Stroke)){Text("녹음 확인",color=SoftText)}
+    }
+    if(!running&&status.isNotBlank())Text(status,fontSize=12.sp,color=Muted,maxLines=2)
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){
-     TextButton({audio.stop();selected--},enabled=selected>0&&!running&&!busy){Text("이전")}
-     TextButton({if(url!=null)audio.listen(url)},enabled=url!=null&&!running){Text("녹음 확인")}
-     TextButton({audio.stop();selected++},enabled=selected<mine.lastIndex&&!running&&!busy){Text("다음")}
+     TextButton({audio.stop();selected--},enabled=selected>0&&!running&&!busy){Text("이전",fontSize=15.sp,color=if(selected>0)SoftText else Muted)}
+     TextButton({audio.stop();selected++},enabled=selected<mine.lastIndex&&!running&&!busy){Text("다음",fontSize=15.sp,color=if(selected<mine.lastIndex)SoftText else Muted)}
     }
    }
    if(!submitted)Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-    OutlinedButton({task{saveAll()}},enabled=!busy&&!running&&drafts!=null,modifier=Modifier.weight(1f).testTag("dubbing-save-all")){Text("임시 저장")}
-    OutlinedButton({submit=true},enabled=!busy&&!running&&mine.isNotEmpty()&&complete==mine.size,modifier=Modifier.weight(1f)){Text("전체 제출")}
+    OutlinedButton({task{saveAll()}},enabled=!busy&&!running&&drafts!=null,modifier=Modifier.weight(1f).heightIn(min=52.dp).testTag("dubbing-save-all"),shape=RoundedCornerShape(26.dp),border=BorderStroke(1.dp,Violet.copy(alpha=.6f))){Text("임시 저장",fontSize=15.sp,color=Color.White)}
+    val ready=!busy&&!running&&mine.isNotEmpty()&&complete==mine.size
+    Button({submit=true},enabled=ready,modifier=Modifier.weight(1f).heightIn(min=52.dp),shape=RoundedCornerShape(26.dp),colors=ButtonDefaults.buttonColors(containerColor=Color(0xFF5B3F8F),contentColor=Color.White,disabledContainerColor=Panel,disabledContentColor=Muted)){Text("전체 제출",fontSize=15.sp,fontWeight=FontWeight.SemiBold)}
    }
   }
  }
@@ -383,8 +433,140 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  suspend fun load(){comments=api.call("$path/comments",fresh=true).optJSONArray("comments").objects()}
  fun task(block:suspend ()->Unit){if(busy)return;busy=true;scope.launch{try{block()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}
  LaunchedEffect(Unit){try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
- Column(verticalArrangement=Arrangement.spacedBy(10.dp)){TextButton({task{community=api.call("$path/like",if((community.optBoolean("liked")||community.optInt("liked")==1))"DELETE" else "PUT")}},enabled=!busy){Icon(if((community.optBoolean("liked")||community.optInt("liked")==1))Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,null);Text("좋아요 ${community.optInt("likes")}")};Text("함께 나누는 이야기",fontWeight=FontWeight.Bold)
-  comments.forEach{c->Column{Row(verticalAlignment=Alignment.CenterVertically){Text(c.optString("name"),fontWeight=FontWeight.Bold);OfficialAiBadge(c)};Text(c.optString("body"),fontSize=14.sp);if(c.optBoolean("canDelete"))TextButton({task{api.call("$path/comments/${c.getString("id")}","DELETE");load()}}){Text("삭제")}}}
-  OutlinedTextField(text,{text=it.take(2000);request=requestIdentity()},label={Text("응원의 말을 남겨주세요")},modifier=Modifier.fillMaxWidth());BrandButton({task{api.call("$path/comments","POST",payload("id" to request,"body" to text));text="";request=requestIdentity();load()}},enabled=!busy&&text.isNotBlank()){Text("댓글 등록")};error?.let{Text(it,color=Pink)}
+ val liked=community.optBoolean("liked")||community.optInt("liked")==1
+ Column(Modifier.padding(top=6.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
+  Row(verticalAlignment=Alignment.CenterVertically){
+   Text("함께 나누는 이야기",Modifier.weight(1f),fontSize=18.sp,fontWeight=FontWeight.Bold)
+   TextButton({task{community=api.call("$path/like",if(liked)"DELETE" else "PUT")}},enabled=!busy){Icon(if(liked)Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,"좋아요",tint=if(liked)Pink else Violet);Text("좋아요 ${community.optInt("likes")}",Modifier.padding(start=6.dp),color=SoftText)}
+  }
+  comments.forEach{c->Column(Modifier.fillMaxWidth().background(Panel,RoundedCornerShape(12.dp)).padding(12.dp)){Row(verticalAlignment=Alignment.CenterVertically){Text(c.optString("name"),fontWeight=FontWeight.Bold,fontSize=14.sp);OfficialAiBadge(c)};Text(c.optString("body"),fontSize=14.sp,color=SoftText);if(c.optBoolean("canDelete"))TextButton({task{api.call("$path/comments/${c.getString("id")}","DELETE");load()}}){Text("삭제",fontSize=12.sp)}}}
+  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   OutlinedTextField(text,{text=it.take(2000);request=requestIdentity()},Modifier.weight(1f).testTag("dubbing-comment-input"),placeholder={Text("응원의 말을 남겨주세요.",color=Muted)},shape=RoundedCornerShape(14.dp),colors=OutlinedTextFieldDefaults.colors(unfocusedContainerColor=Panel,focusedContainerColor=Panel,unfocusedBorderColor=Stroke,focusedBorderColor=Violet),maxLines=4)
+   val canSend=!busy&&text.isNotBlank()
+   Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(if(canSend)BrandGradient else Brush.linearGradient(listOf(Panel,Panel))).clickable(enabled=canSend,onClickLabel="댓글 등록"){task{api.call("$path/comments","POST",payload("id" to request,"body" to text));text="";request=requestIdentity();load()}}.testTag("dubbing-comment-send"),contentAlignment=Alignment.Center){
+    Icon(Icons.AutoMirrored.Outlined.Send,"댓글 등록",tint=if(canSend)Ink else Muted)
+   }
+  }
+  error?.let{Text(it,color=Pink,fontSize=12.sp)}
+ }
+}
+
+private val DubbingRoleColors=listOf(Color(0xFFA7C9FF),Color(0xFFF4B1D3),Color(0xFF9DE1C7),Color(0xFFF1D38F),Color(0xFFCFB5F5),Color(0xFFFFB6A1))
+internal fun dubbingRoleColor(index:Int)=DubbingRoleColors[index.coerceAtLeast(0)%DubbingRoleColors.size]
+/** Script lines start one after another: each line's length plus its pause. */
+internal fun dubbingLineStarts(lines:List<JSONObject>):Map<String,Double>{var at=0.0;return lines.sortedBy{it.optInt("order")}.associate{l->val start=at;at+=l.optDouble("durationSeconds",0.0).coerceAtLeast(0.0)+l.optDouble("gapSeconds",0.0).coerceAtLeast(0.0);l.optString("id") to start}}
+
+@Composable private fun DubbingSectionTitle(title:String,trailing:String?=null){
+ Row(Modifier.fillMaxWidth().padding(top=6.dp),verticalAlignment=Alignment.CenterVertically){
+  Text(title,Modifier.weight(1f),fontSize=18.sp,fontWeight=FontWeight.Bold)
+  trailing?.let{Text(it,fontSize=13.sp,color=SoftText)}
+ }
+}
+@Composable private fun DubbingChip(text:String,color:Color){
+ Surface(color=color.copy(alpha=.16f),shape=RoundedCornerShape(8.dp),border=BorderStroke(1.dp,color.copy(alpha=.45f))){Text(text,Modifier.padding(horizontal=7.dp,vertical=2.dp),fontSize=11.sp,color=color,fontWeight=FontWeight.SemiBold,maxLines=1)}
+}
+@Composable private fun DubbingRoleChip(name:String,color:Color){
+ Surface(color=color.copy(alpha=.16f),shape=RoundedCornerShape(10.dp)){Text(name,Modifier.widthIn(min=44.dp).padding(horizontal=10.dp,vertical=5.dp),fontSize=13.sp,color=color,fontWeight=FontWeight.SemiBold,maxLines=1,textAlign=androidx.compose.ui.text.style.TextAlign.Center)}
+}
+@Composable private fun DubbingExpandButton(open:Boolean,toggle:()->Unit){
+ OutlinedButton(toggle,Modifier.fillMaxWidth().heightIn(min=48.dp).testTag("dubbing-script-expand"),shape=RoundedCornerShape(16.dp),border=BorderStroke(1.dp,Stroke)){
+  Icon(Icons.AutoMirrored.Outlined.List,null,Modifier.size(18.dp),tint=SoftText);Text(if(open)"대본 접기" else "전체 대본 펼쳐보기",Modifier.padding(horizontal=8.dp),color=Color.White,fontWeight=FontWeight.SemiBold)
+  Icon(if(open)Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,null,Modifier.size(20.dp),tint=SoftText)
+ }
+}
+@Composable private fun DubbingLineCard(l:JSONObject,roles:List<JSONObject>,mineRole:String?,start:Double){
+ val at=roles.indexOfFirst{it.optString("id")==l.optString("roleId")};val mine=mineRole!=null&&l.optString("roleId")==mineRole;val color=dubbingRoleColor(at)
+ Surface(color=Panel,shape=RoundedCornerShape(14.dp),border=BorderStroke(if(mine)1.5.dp else 1.dp,if(mine)Violet else Stroke),modifier=Modifier.fillMaxWidth()){
+  Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    Surface(color=Raised,shape=RoundedCornerShape(8.dp)){Text("%02d".format(l.optInt("order")),Modifier.padding(horizontal=7.dp,vertical=2.dp),fontSize=12.sp,fontWeight=FontWeight.Bold)}
+    Text(listOf(l.optString("emotion"),l.optString("direction")).filter{it.isNotBlank()&&it!="null"}.joinToString(" · "),Modifier.weight(1f),fontSize=12.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+    if(mine)DubbingChip("내 대사",Pink) else Surface(color=Color.Transparent,shape=RoundedCornerShape(10.dp),border=BorderStroke(1.dp,Stroke)){Text(timeLabel((start*1000).toLong()),Modifier.padding(horizontal=7.dp,vertical=1.dp),fontSize=11.sp,color=Muted)}
+   }
+   Row(verticalAlignment=Alignment.Top,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+    DubbingRoleChip(roles.getOrNull(at)?.optString("name").orEmpty(),color)
+    Text(l.optString("text"),Modifier.weight(1f).padding(top=3.dp),fontSize=15.sp,lineHeight=22.sp,color=if(mine)Color.White else SoftText)
+   }
+  }
+ }
+}
+/** Cover-backed project summary with the background sound player, as in the approved design. */
+@Composable private fun DubbingInfoCard(p:JSONObject,sound:JSONObject,playing:Boolean,positionMs:Long,toggle:()->Unit,extra:@Composable ColumnScope.()->Unit){
+ val durationMs=(p.optDouble("duration")*1000).toLong().coerceAtLeast(1)
+ val description=p.optJSONObject("options")?.optString("idea").orEmpty().takeIf{it.isNotBlank()&&it!="null"}?:p.optJSONObject("script")?.optJSONArray("scenes").objects().firstOrNull()?.optString("description").orEmpty().takeIf{it.isNotBlank()&&it!="null"}
+ Surface(color=Panel,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth().testTag("dubbing-info")){
+  Box{
+   DubbingCover(p,Modifier.matchParentSize())
+   Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Ink.copy(alpha=.94f),Ink.copy(alpha=.72f),Ink.copy(alpha=.40f)))))
+   Column(Modifier.padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+    DubbingChip("더빙 작품",SoftText)
+    Text(p.optString("title"),fontSize=22.sp,lineHeight=29.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
+    Text("${p.optString("ownerName")}  ·  ${timeLabel(durationMs)}",fontSize=13.sp,color=SoftText)
+    description?.let{Text(it,fontSize=13.sp,lineHeight=19.sp,color=SoftText,maxLines=3,overflow=TextOverflow.Ellipsis)}
+    Surface(color=Ink.copy(alpha=.72f),shape=RoundedCornerShape(14.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth().padding(top=4.dp)){
+     Row(Modifier.padding(horizontal=12.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
+      Text("배경 음향",fontSize=13.sp,fontWeight=FontWeight.SemiBold)
+      if(sound.optString("state")=="ready"){
+       Box(Modifier.size(40.dp).clip(CircleShape).border(1.5.dp,Violet,CircleShape).clickable(onClickLabel=if(playing)"배경 음향 정지" else "배경 음향 듣기",onClick=toggle).testTag("dubbing-background-toggle"),contentAlignment=Alignment.Center){
+        Icon(if(playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,null,Modifier.size(22.dp))
+       }
+       Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
+        DubbingWave((positionMs.toFloat()/durationMs).coerceIn(0f,1f),Modifier.fillMaxWidth().height(22.dp))
+        Text("${timeLabel(if(playing)positionMs else 0)} / ${timeLabel(durationMs)}",fontSize=11.sp,color=Muted)
+       }
+      }else Text(when(sound.optString("state")){"not_started"->"기본 배경 또는 효과음을 선택해요";"failed","unknown"->sound.optString("error","제작 결과를 확인해주세요.");else->"음향 제작 중 · ${sound.optInt("progress")}%"},Modifier.weight(1f),fontSize=12.sp,lineHeight=17.sp,color=Muted)
+     }
+    }
+    extra()
+   }
+  }
+ }
+}
+@Composable private fun DubbingWave(progress:Float,modifier:Modifier){
+ Canvas(modifier){
+  val bars=40;val gap=size.width/bars
+  for(i in 0 until bars){
+   val h=size.height*(.25f+.75f*((kotlin.math.sin(i*1.7)+kotlin.math.sin(i*.45)+2)/4).toFloat())
+   drawLine(if(i.toFloat()/bars<progress)Violet else Violet.copy(alpha=.35f),androidx.compose.ui.geometry.Offset(i*gap+gap/2,(size.height-h)/2),androidx.compose.ui.geometry.Offset(i*gap+gap/2,(size.height+h)/2),strokeWidth=gap*.5f,cap=androidx.compose.ui.graphics.StrokeCap.Round)
+  }
+ }
+}
+@Composable private fun DubbingVersions(p:JSONObject,others:List<JSONObject>,open:Boolean,toggle:()->Unit,openVersion:(String)->Unit){
+ Surface(color=Panel,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth().testTag("dubbing-versions")){
+  Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Row(verticalAlignment=Alignment.CenterVertically){
+    Text("다른 더빙",Modifier.weight(1f).padding(start=4.dp),fontSize=18.sp,fontWeight=FontWeight.Bold)
+    if(others.size>3)TextButton(toggle){Text(if(open)"접기" else "더보기",color=SoftText,fontSize=13.sp);Icon(if(open)Icons.Outlined.ExpandLess else Icons.Outlined.ChevronRight,null,Modifier.size(18.dp),tint=SoftText)}
+   }
+   (if(open)others else others.take(3)).forEach{v->
+    Surface(onClick={openVersion(v.getString("id"))},color=Color.Transparent,shape=RoundedCornerShape(14.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth()){
+     Row(Modifier.padding(10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+      DubbingCover(p,Modifier.size(52.dp))
+      Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
+       Text(v.optString("ownerName"),fontSize=16.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+       Text("${v.optInt("participants")} / ${v.optInt("roleCount")}명 참여",fontSize=12.sp,color=Muted)
+      }
+      val (label,color)=when(v.optString("state")){"recruiting"->"모집중" to Violet;"recording"->"녹음중" to Aqua;"mixing"->"합성중" to Aqua;"complete"->"완성" to Pink;"script_ready"->"준비중" to Muted;else->v.optString("state") to Muted}
+      Surface(color=color.copy(alpha=.14f),shape=RoundedCornerShape(16.dp),border=BorderStroke(1.dp,color.copy(alpha=.6f))){Text(label,Modifier.padding(horizontal=12.dp,vertical=5.dp),fontSize=13.sp,color=color,fontWeight=FontWeight.SemiBold)}
+     }
+    }
+   }
+  }
+ }
+}
+@Composable private fun DubbingProgressHeader(label:String,icon:androidx.compose.ui.graphics.vector.ImageVector?,elapsed:Double,total:Double,live:Boolean=false){
+ Row(verticalAlignment=Alignment.CenterVertically){
+  if(live)Box(Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFF5A6E)))
+  icon?.let{Icon(it,null,Modifier.size(20.dp),tint=Aqua)}
+  Text(label,Modifier.weight(1f).padding(start=8.dp),fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=2)
+  Text(androidx.compose.ui.text.buildAnnotatedString{pushStyle(androidx.compose.ui.text.SpanStyle(fontWeight=FontWeight.Bold,color=Color.White));append("%.1f".format(elapsed));pop();append(" / %.1f초".format(total))},fontSize=14.sp,color=Muted)
+ }
+}
+@Composable private fun DubbingProgressCard(label:String,live:Boolean,elapsed:Double,total:Double,progress:Float){
+ Surface(color=Panel,shape=RoundedCornerShape(16.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth().testTag("dubbing-line-progress")){
+  Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   DubbingProgressHeader(label,null,elapsed,total,live)
+   LinearProgressIndicator({progress.coerceIn(0f,1f)},Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),color=Violet,trackColor=Stroke)
+  }
  }
 }
