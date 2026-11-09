@@ -296,10 +296,10 @@ function roomMemberAvatar(p,ignoreMute=false){return `<span class="room-member-p
 Object.assign(VoiceRoomClient.prototype,{
  bindTalkViews(){
   this.talkViewEvents?.abort();const events=this.talkViewEvents=new AbortController(),options={signal:events.signal};
-  const labels={'voice-sound':'소리 설정','voice-room-settings':'방 설정','voice-members':'참여자','voice-music-sheet':'플레이리스트','live-search-sheet':'노래 신청','talk-leave':'방 나가기','voice-kick-confirm':'참여자 강퇴','voice-seat-picker':'좌석 초대','voice-gift-sheet':'선물 보내기','talk-volume':'청취 음량'};
+  const labels={'voice-sound':'소리 설정','voice-room-settings':'방 설정','voice-members':'참여자','voice-music-sheet':'플레이리스트','live-search-sheet':'노래 예약','talk-leave':'방 나가기','voice-kick-confirm':'참여자 강퇴','voice-seat-picker':'좌석 초대','voice-gift-sheet':'선물 보내기','talk-volume':'청취 음량'};
   for(const sheet of this.host.querySelectorAll('dialog')){
    const emoji=sheet.id==='voice-emoji-picker';sheet.classList.toggle('room-popup',!emoji);sheet.classList.toggle('room-emoji-dock',emoji);
-   sheet.setAttribute('aria-label',labels[sheet.id]||sheet.getAttribute('aria-label')||'방 메뉴');sheet.removeAttribute('aria-labelledby');sheet.tabIndex=-1;
+   sheet.setAttribute('aria-label',labels[sheet.id]||sheet.getAttribute('aria-label')||'방 메뉴');sheet.tabIndex=-1;
    if(emoji)this.host.querySelector('#voice-chat-form').after(sheet);else this.host.querySelector('.voice-chat-panel').append(sheet);
   }
   const ids={inbox:'room-inbox',participants:'voice-members',sound:'voice-sound',share:'voice-invite-sheet',settings:'voice-room-settings',leave:'talk-leave','music-picker':'voice-music-sheet','view-queue':'voice-music-sheet','personal-volume':'talk-volume','karaoke-search-open':'live-search-sheet',emoji:'voice-emoji-picker',gift:'voice-gift-sheet'};
@@ -336,6 +336,12 @@ Object.assign(VoiceRoomClient.prototype,{
   if(this.liveMode)advanced.append($('#live-delay').closest('label'));
   $('#voice-listen-volume').closest('label').hidden=true;
   this.bindRoomSettings();this.bindRoomShare();this.bindRoomRelease();
+  // Audio controls are reordered by the existing room/audio bindings. Give the
+  // final controls a single scroll owner while keeping the title in view.
+  const heading=sound.querySelector('.room-popup-heading'),body=sound.querySelector('.room-popup-body')||document.createElement('div');
+  body.className='room-popup-body';
+  for(const child of [...sound.children])if(child!==heading&&child!==body)body.append(child);
+  if(heading)sound.prepend(heading);sound.append(body);
   // Keep destructive room controls in the scrolling body, above the fixed footer.
   $('#voice-settings-form .live-form-fields').append(this.host.querySelector('#voice-room-settings [data-voice=close]'));
  },
