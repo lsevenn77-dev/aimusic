@@ -2,7 +2,7 @@
 #main > .message-workspace{
  --dm-title:25px;--dm-thread-title:18px;--dm-name:16px;--dm-body:15px;--dm-time:13px;--dm-preview:14px;
  display:grid;grid-template-columns:minmax(340px,36fr) minmax(0,64fr);grid-template-rows:minmax(0,1fr);
- width:min(1320px,100%);max-width:100%;height:min(720px,74dvh);min-height:0;margin-inline:auto;overflow:hidden;
+ width:min(1320px,100%);max-width:100%;height:min(780px,80dvh);min-height:0;margin-inline:auto;overflow:hidden;
  border:1px solid var(--ds-line);border-radius:18px;background:var(--ds-bg);box-shadow:none;
 }
 #main .message-workspace .message-list-pane{display:flex;flex-direction:column;min-width:0;min-height:0;padding:18px 12px;background:var(--ds-panel);border-right:1px solid var(--ds-line);overflow:hidden}

@@ -22,6 +22,6 @@ function messageWorkspaceGeometry({mobile,height,offset=0,top=0,playerTop=Infini
  if(mobile)return {top:start,height:Math.max(0,bottom-start)};
  // Keep the desktop composer comfortably above the viewport/player edge.
  // Short windows still fit the available space; mobile owns its full visual viewport.
- const available=Math.max(0,bottom-start-24),preferred=Math.min(720,Math.round(height*.74));
+ const available=Math.max(0,bottom-start-24),preferred=Math.min(780,Math.round(height*.8));
  return {top:start,height:Math.min(available,preferred)};
 }
