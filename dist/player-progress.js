@@ -3,7 +3,9 @@ function playerLevel(p){return p?.player_level||AifectPlayer.playerProgress(p?.p
 function playerFrameURL(p){
  if(!p?.profile_frame)return '';
  const path=p.profile_frame_artwork||AifectPlayer.PLAYER_ITEMS[p.profile_frame]?.artwork||'';
- return /^\/assets\/[A-Za-z0-9_./-]+\.(png|webp)(\?v=[A-Za-z0-9_-]+)?$/.test(path)&&!path.includes('..')?path:'';
+ if(!/^\/assets\/[A-Za-z0-9_./-]+\.(png|webp)(\?v=[A-Za-z0-9_-]+)?$/.test(path)||path.includes('..'))return '';
+ // The first paint uses the same photo-centered canvas as async equipment.
+ return AifectPlayer.frameDisplayAssets?.(path).overlay||path;
 }
 function playerAvatarClass(p){return (p?.player_xp!=null||p?.player_level||playerFrameURL(p)?' player-avatar':'')+(playerFrameURL(p)?' player-has-frame':'');}
 function playerBadgeHTML(p){

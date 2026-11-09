@@ -1,4 +1,5 @@
 import {DECORATIONS,frameDisplayAssets} from './decorations.js';
+export {frameDisplayAssets};
 export const PLAYER_RULES=Object.freeze([
  {kind:'publish',label:'제작곡 공개',xp:100,limit:'곡마다 한 번 · 공개 보상 합산 하루 최대 3회'},
  {kind:'cover',label:'커버 · 듀엣 공개',xp:60,limit:'곡마다 한 번 · 공개 보상 합산 하루 최대 3회'},

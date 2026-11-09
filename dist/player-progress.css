@@ -1,7 +1,7 @@
 /* A transparent cosmetic asset overlays the circular photo; level stays lower left. */
 .artist-portrait.player-avatar,.social-profile-photo.player-avatar,.avatar.player-avatar{position:relative;overflow:visible;isolation:isolate}
 .player-avatar>img{border-radius:50%;width:100%;height:100%;object-fit:cover}
-.player-avatar>img.player-frame-artwork{position:absolute;left:-13%;top:-13%;width:126%;height:126%;max-width:none;border:0;border-radius:0;object-fit:contain;pointer-events:none;box-shadow:none;background:transparent;z-index:1}
+.player-avatar>img.player-frame-artwork{position:absolute;left:-25%;top:-25%;width:150%;height:150%;max-width:none;border:0;border-radius:0;object-fit:contain;pointer-events:none;box-shadow:none;background:transparent;z-index:1}
 .player-avatar .player-level-badge{position:absolute;left:0;bottom:0;z-index:2;display:flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 4px;border-radius:7px;background:#263c42;color:var(--ds-body);font:600 10px/1 system-ui;border:2px solid #171d27;box-sizing:border-box;letter-spacing:0;white-space:nowrap;text-shadow:none}
 .social-profile-photo.player-avatar .player-level-badge{left:8%;bottom:3%;min-width:30px;height:27px;font-size:13px;border-radius:9px}
 .player-progress-card{padding:22px 26px;background:var(--surface-wash);border-radius:18px;margin:20px 0;color:var(--ds-text)}

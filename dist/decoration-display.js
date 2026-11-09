@@ -28,12 +28,7 @@ const frameEffects=(()=>{
 })();
 // Shared normalized canvas artwork for existing equipped profile frames.
 function profileFrameCanvasArtwork(path){
- const paths=new Set([
-  '/assets/products/aurora_ring_frame.png',
-  ...['moonlight_bunny.png','mecha_bunny.png','space_bunny_base.png','space_bunny_fx.webp'].map(file=>'/assets/products/bunnies-v1/'+file),
-  ...['crew-basic-v2','player-level-10-forest-v1','crew-level-3-v2','crew-level-4-v2','crew-level-5-v2'].map(file=>'/assets/'+file+'.webp')
- ]),file=(path||'').split('?')[0];
- return paths.has(file)?'/assets/profile-frames-v1/'+file.slice(file.lastIndexOf('/')+1):path;
+ return AifectPlayer.frameDisplayAssets(path).overlay;
 }
 // Display-only refresh. This never enters the audio/WebRTC graph or room socket.
 (()=>{
@@ -44,12 +39,10 @@ function profileFrameCanvasArtwork(path){
   return assetHealth.get(path)!=='failed';
  }
  const validAsset=p=>typeof p==='string'&&/^\/assets\/[a-zA-Z0-9_./-]+\.(png|webp)$/.test(p)&&!p.includes('..');
- // The catalog keeps its original URLs. Only these legacy canvases need an
- // offline-normalized rendition in the new layout; future art is authored at 1.50D.
- function canvasSource(host,path){
-  if(!path||!host.classList.contains('profile-frame-canvas'))return path;
-  return profileFrameCanvasArtwork(path);
- }
+ // Product thumbnails keep their original artwork. Every equipped avatar uses
+ // the same normalized base/effect canvas, whose center is the photo opening.
+ const canvasSource=path=>profileFrameCanvasArtwork(path);
+ const paidFrameSources=new Set(Object.values(AifectPlayer.PLAYER_ITEMS).filter(item=>item.paid).flatMap(item=>[item.artwork,item.display.overlay]));
  const expired=(entry,at)=>entry?.expires_at&&entry.expires_at<=at;
  const observed=new Set(),sizeObserver=typeof ResizeObserver==='function'?new ResizeObserver(()=>paintFrames()):null;
  function alignFrame(img,host){
@@ -58,7 +51,8 @@ function profileFrameCanvasArtwork(path){
   // Local layout coordinates share the positioned parent's padding box. Unlike
   // client rects, they are not scaled by page/dialog entrance animations.
   const width=img.offsetWidth,height=img.offsetHeight;
-  for(const [key,value] of Object.entries({x:img.offsetLeft+width/2,y:img.offsetTop+height/2,width:width*1.26,height:height*1.26}))host.style.setProperty('--avatar-frame-'+key,value+'px');
+  const scale=AifectPlayer.frameDisplayAssets(null).scale;
+  for(const [key,value] of Object.entries({x:img.offsetLeft+width/2,y:img.offsetTop+height/2,width:width*scale,height:height*scale}))host.style.setProperty('--avatar-frame-'+key,value+'px');
   if(sizeObserver&&!observed.has(img)){sizeObserver.observe(img);observed.add(img);}
  }
  function paintFrames(){
@@ -66,18 +60,21 @@ function profileFrameCanvasArtwork(path){
   for(const img of document.querySelectorAll('img[data-avatar-profile]')){
    if(img.closest('.player-item-preview'))continue;
    const host=img.parentElement,entry=frames.get(img.dataset.avatarProfile),at=Date.now()/1000+(entry?.offset||0);
-   for(const artwork of host.querySelectorAll(':scope > img.player-frame-artwork[src="/assets/products/aurora_ring_frame.png"],:scope > img.player-frame-artwork[src^="/assets/products/bunnies-v1/"]'))artwork.style.visibility=entry&&(entry.artwork!==artwork.getAttribute('src')||expired(entry,at))?'hidden':'';
+   for(const artwork of host.querySelectorAll(':scope > img.player-frame-artwork')){
+    const src=artwork.getAttribute('src');
+    if(paidFrameSources.has(src))artwork.style.visibility=entry&&(canvasSource(entry.artwork)!==canvasSource(src)||expired(entry,at))?'hidden':'';
+   }
    if(host.querySelector(':scope > img.player-frame-artwork'))alignFrame(img,host);
    let overlay=host.querySelector(':scope > .decoration-avatar-overlay');
    if(!entry?.artwork||expired(entry,at)||!validAsset(entry.artwork)){frameEffects.set(overlay,null);overlay?.remove();continue;}
    if(!overlay){overlay=document.createElement('img');overlay.className='decoration-avatar-overlay';overlay.alt='';overlay.setAttribute('aria-hidden','true');host.append(overlay);host.classList.add('decoration-avatar-host');}
-   const artwork=canvasSource(host,entry.artwork);
+   const artwork=canvasSource(entry.artwork);
    if(overlay.getAttribute('src')!==artwork)overlay.src=artwork;
    const room=host.closest?.('[data-voice-room]');
    const animated=!room||(room.classList.contains('live-karaoke-room')
     ? room.dataset.singerProfile===img.dataset.avatarProfile
     : Array.from(room.querySelectorAll('#voice-seats [data-avatar-profile]')).some(face=>face.dataset.avatarProfile===img.dataset.avatarProfile));
-   frameEffects.set(overlay,animated?canvasSource(host,entry.effect):null);
+   frameEffects.set(overlay,animated?canvasSource(entry.effect):null);
    alignFrame(img,host);
   }
   layoutProfileFrames();
@@ -128,7 +125,7 @@ function profileFrameCanvasArtwork(path){
    const path=playerFrameURL(me);host.classList.toggle('player-has-frame',!!path);
    // On canvas layouts the equipment refresh owns the paid base and effect together.
    if(path&&!(host.classList.contains('profile-frame-canvas')&&AifectPlayer.PLAYER_ITEMS[me.profile_frame]?.paid)){
-    const art=document.createElement('img');art.className='player-frame-artwork';art.src=canvasSource(host,path);art.alt='';art.setAttribute('aria-hidden','true');host.append(art);alignFrame(img,host);
+    const art=document.createElement('img');art.className='player-frame-artwork';art.src=canvasSource(path);art.alt='';art.setAttribute('aria-hidden','true');host.append(art);alignFrame(img,host);
    }
   }
   layoutProfileFrames();void refresh(true);

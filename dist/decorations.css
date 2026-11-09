@@ -6,7 +6,7 @@
 @media(max-width:1000px){.decoration-inventory-sections{grid-template-columns:1fr}.decoration-inventory-section>.field-help{min-height:0}}
 @media(max-width:480px){.decoration-inventory-item img{width:68px}.decoration-inventory-item h3{overflow-wrap:anywhere}.decoration-inventory-item .decoration-actions{gap:6px}.decoration-inventory-item .decoration-actions button{padding:8px}.decoration-inventory-sections{gap:12px}}
 
-/* All ratios use the photo diameter. Opt in only with a normalized canvas. */
+/* Reserved layouts already include the normalized 1.50D canvas. */
 .profile-frame-canvas{
  --profile-frame-base-limit:1.35;--profile-frame-effect-limit:1.45;--profile-frame-layout:1.50;
  --profile-frame-safe-inset:calc((var(--profile-frame-layout) - var(--profile-frame-effect-limit)) / 2);
@@ -20,7 +20,7 @@
 .avatar-frame-host,.profile-preview-photo.player-avatar{overflow:visible!important}
 :is(.player-avatar,.avatar-frame-host)>img:is(.player-frame-artwork,.decoration-avatar-overlay,.frame-fx-layer){
  position:absolute!important;left:var(--avatar-frame-x,50%)!important;top:var(--avatar-frame-y,50%)!important;right:auto!important;bottom:auto!important;
- width:var(--avatar-frame-width,126%)!important;height:var(--avatar-frame-height,126%)!important;max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important;
+ width:var(--avatar-frame-width,150%)!important;height:var(--avatar-frame-height,150%)!important;max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important;
  transform:translate(-50%,-50%)!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;object-fit:contain!important;object-position:center!important;aspect-ratio:auto!important;
  background:transparent!important;box-shadow:none!important;pointer-events:none!important;
 }
@@ -30,9 +30,6 @@
 .shop-product-summary>.frame-detail-layers>img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;pointer-events:none;background:transparent;border:0;border-radius:0;padding:0;margin:0}
 #public-profile-form .profile-frame-layout,.profile-preview-photo.profile-frame-layout{margin-top:var(--frame-top,0px)!important}
 .profile-preview-card:has(.profile-frame-layout){grid-template-columns:max-content minmax(0,1fr)}
-/* This asset's transparent photo opening is centered at (259.1,251.0) in
-   its original 512px canvas. Align the opening without rewriting the artwork. */
-:is(.player-avatar,.avatar-frame-host)>img.player-frame-artwork[src^="/assets/player-level-10-forest-v1.webp"]{transform:translate(-50.605%,-49.029%)!important}
 .gift-shop-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:12px 0 24px}
 .gift-shop-heading h1{margin:0}.gift-dashboard{min-width:0;max-width:100%}
 .gift-dashboard .gift-catalog{display:flex;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin;padding:8px 2px 14px;max-width:100%;min-width:0}
