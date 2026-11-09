@@ -114,7 +114,7 @@ test('desktop and compact desktop reuse the exact mobile photo independently fro
 
 test('desktop scenery matches reviewed WebP files and records the unchanged original photo provenance',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
- const base=new URL('../dist/assets/home-banners/center-20261109/',import.meta.url);
+ const base=new URL('../dist/assets/home-banners/repair-20261109/',import.meta.url);
  const manifestText=readFileSync(new URL('manifest.json',base),'utf8'),manifest=JSON.parse(manifestText);
  assert.equal(manifest.assets.length,banners.length);
  assert.deepEqual(manifest.assets.map(asset=>asset.id),Array.from(banners,banner=>banner.id));
