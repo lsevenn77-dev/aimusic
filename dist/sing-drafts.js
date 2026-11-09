@@ -45,7 +45,7 @@ function openSingDraftDelete(s=sing){
   const voice=s.voice;s.draftDeletePending=true;cancel.disabled=confirm.disabled=true;error.hidden=true;
   try{
    stopPreview();await removeSingDraft(s);
-   if(valid()&&s.voice===voice){s.voice=null;s.beforePunch=null;s.editMixBaseline=null;s.coverFile=null;s.publishRequest=null;s.savedAt=0;s.processed=null;s.dirty=false;s.cursor=0;s.state='idle';renderSingPanel();drawLyrics(0);}
+   if(valid()&&s.voice===voice){s.voice=null;s.beforePunch=null;s.editMixBaseline=null;s.coverFile=null;s.publishRequest=null;s.savedAt=0;s.processed=null;s.dirty=false;s.cursor=0;s.state='idle';s.preparationOpen=true;renderSingPanel();drawLyrics(0);}
    dismiss();
   }catch{
    if(active()&&valid()){error.textContent='임시 녹음을 삭제하지 못했어요. 저장 공간을 확인하고 다시 시도해주세요.';error.hidden=false;cancel.disabled=confirm.disabled=false;confirm.focus();}

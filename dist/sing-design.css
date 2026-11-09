@@ -216,3 +216,59 @@
   #main .sing-entry-actions { width:100%;gap:8px; }
   #main .sing-entry-actions a { width:100%; }
 }
+
+/* Preparation controls stay in the header's layout when recording starts.
+   These are final CSS pixels, like the rest of this presentation file. */
+#main #sing.web-studio .sing-prep-controls {
+  display:flex;align-items:center;gap:8px;min-width:0;flex:0 0 auto;
+}
+#main #sing.web-studio .sing-prep-controls.is-hidden {
+  visibility:hidden;pointer-events:none;
+}
+#main #sing.web-studio .sing-mode-switch {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;
+  width:136px;min-width:112px;height:40px;flex:0 1 136px;
+  padding:3px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);box-shadow:none;
+}
+#main #sing.web-studio .sing-mode-switch button {
+  display:flex;align-items:center;justify-content:center;
+  width:100%;min-width:0;min-height:0;margin:0;padding:0 8px;
+  border:0;border-radius:var(--ds-radius-sm);background:transparent;box-shadow:none;
+  color:var(--ds-muted);font-family:inherit;font-size:var(--pc-font-control,14px)!important;
+  font-weight:500;line-height:1.4;white-space:nowrap;
+}
+#main #sing.web-studio .sing-mode-switch button:not(:disabled):hover {
+  background:var(--ds-soft);color:var(--ds-text);
+}
+#main #sing.web-studio .sing-mode-switch button[aria-pressed=true] {
+  background:var(--ds-soft);color:var(--ds-selected);
+}
+#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording) {
+  .sing-header-mode { display:flex;align-items:center;gap:8px;max-width:none; }
+  .studio-song-meta h1 { overflow:hidden;text-overflow:ellipsis;white-space:nowrap; }
+  .sing-prep-controls #duet-guide {
+    display:flex;align-items:center;justify-content:flex-end;
+    flex:0 0 100px;width:100px;min-width:0;min-height:40px;
+  }
+  .sing-prep-controls #duet-guide button {
+    width:100%;min-width:0;height:40px;min-height:40px;padding:0 10px;white-space:nowrap;
+  }
+}
+@media(max-width:1023px) {
+  #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording) {
+    .sing-head:has(#duet-guide) {
+      grid-template-columns:44px 55px minmax(0,1fr);
+      .sing-header-mode {
+        grid-column:1 / -1;justify-content:space-between;width:100%;max-width:100%;
+        margin:0;gap:8px;
+      }
+    }
+    .sing-prep-controls { flex:1 1 auto; }
+    .sing-mode-switch { height:48px;padding:1px; }
+    .sing-mode-switch button { min-height:44px; }
+    .sing-prep-controls #duet-guide { min-height:48px; }
+    .sing-prep-controls #duet-guide button { height:48px;min-height:48px; }
+    .record-settings-icon { width:48px;height:48px;min-height:48px;flex:0 0 48px; }
+  }
+}

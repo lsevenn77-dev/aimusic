@@ -54,6 +54,7 @@ test('unavailable sessions, foreign owners and already open dialogs never open a
 
 test('duplicate opening and confirmation delete exactly once and reset only the completed current take',async()=>{
  const f=fixture();let finish;f.c.deleteRecord=async key=>{f.counts.deletes++;await new Promise(resolve=>{finish=resolve;});f.records.delete(key);f.records.delete('index:'+key);};
+ f.run('sing.preparationOpen=false');
  await f.click();await f.click();assert.equal(f.counts.opens,1);
  const content=f.dlg.content,first=content.confirm.onclick();await tick();await content.confirm.onclick();
  assert.equal(f.counts.deletes,1);assert.equal(content.cancel.disabled,true);assert.equal(content.confirm.disabled,true);assert.equal(f.take.voice.length,2);
@@ -61,6 +62,7 @@ test('duplicate opening and confirmation delete exactly once and reset only the 
  assert.equal(f.dlg.open,false);assert.equal(f.records.has('account:song'),false);assert.equal(f.records.get('other:song'),'another account');
  for(const key of ['voice','beforePunch','editMixBaseline','coverFile','publishRequest','processed'])assert.equal(f.take[key],null,key);
  assert.equal(f.take.state,'idle');assert.equal(f.take.cursor,0);assert.equal(f.take.savedAt,0);assert.equal(f.take.dirty,false);assert.equal(f.take.draftDeletePending,false);assert.equal(f.take.draftDeleteOpen,false);assert.equal(f.counts.renders,1);assert.equal(f.counts.draws,1);
+ assert.equal(f.take.preparationOpen,true);assert.equal(f.run('singPreparationVisible(sing)'),true);
 });
 
 test('a stale session or signed-in account cannot confirm an earlier deletion prompt',async()=>{
