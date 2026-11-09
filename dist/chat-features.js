@@ -31,7 +31,7 @@ function bindDmEmoji(form,input,editor){
 function chatAttachmentTools(p,inlineComposer=''){
  const photo='<label class="chat-ui-icon chat-ui-plain" role="button" tabindex="0" aria-label="사진 보내기">'+icon('image')+'<input id="chat-image-file" type="file" accept="image/jpeg,image/png,image/webp" hidden></label>';
  const gift=p?chatIconButton('present','선물 보내기','type="button" data-profile-gift="'+esc(p.id)+'"','surface'):'';
- return '<div class="chat-attachment-tools">'+photo+inlineComposer+gift+'<small>사진은 서버에 14일 동안 보관돼요.</small></div><p id="chat-upload-status" class="field-help" role="status"></p>';
+ return '<div class="chat-attachment-tools">'+photo+inlineComposer+gift+'</div><p id="chat-upload-status" class="field-help" role="status"></p>';
 }
 function chatImageHTML(m,crew=false){const media=crew?'/media/crew-chat/':'/media/dm/';return m.image_expires&&m.image_expires*1000<=Date.now()?'<span class="expired-chat-image">보관 기간이 지난 사진</span>':'<a class="chat-image" href="'+media+esc(m.image_id)+'" target="_blank" rel="noopener"><img src="'+media+esc(m.image_id)+'" alt="받은 사진" loading="lazy"></a>';}
 async function uploadChatImage(path,file){const image=await optimizeUploadImage(file),r=await fetch(path,{method:'PUT',headers:{'content-type':'image/webp'},body:image});const d=await r.json();if(!r.ok)throw new Error(d.error||'이미지를 올리지 못했어요.');return d;}

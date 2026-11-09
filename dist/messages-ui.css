@@ -9,9 +9,9 @@
 #main .message-workspace .dm-section-heading{flex:none;display:flex;flex-wrap:nowrap;align-items:center;justify-content:space-between;gap:8px;margin:0 8px 12px}
 #main .message-workspace .dm-section-heading h2{font-size:var(--dm-title);font-weight:700}
 #main .message-workspace .inbox-tools{flex-wrap:nowrap;gap:8px;min-width:0}
-#main .message-workspace .dm-new-trigger{display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:36px;padding:0 12px;border:0;border-radius:12px;background:color-mix(in srgb,var(--ds-selected) 14%,transparent);color:var(--ds-selected);font:inherit;font-size:14px;line-height:1.4;white-space:nowrap;box-shadow:none}
-#main .message-workspace .dm-new-trigger:is(:hover,[aria-expanded="true"]){background:color-mix(in srgb,var(--ds-selected) 22%,transparent)}
-#main .message-workspace .dm-new-trigger:focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
+#main .message-workspace .dm-new-trigger{display:inline-flex;align-items:center;justify-content:center;flex:none;min-height:36px;padding:0 12px;border:0;border-radius:12px;background:none;color:var(--ds-selected);font:inherit;font-size:14px;line-height:1.4;white-space:nowrap;box-shadow:none}
+#main .message-workspace .dm-new-trigger:is(:hover,[aria-expanded="true"]){color:var(--ds-text)}
+#main .message-workspace .dm-new-trigger:focus-visible{outline:0;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
 #main .message-workspace .inbox-tools .text-link{border:0;background:none;box-shadow:none;min-height:44px;padding:0 6px;color:var(--ds-body);font-size:14px}
 #main .message-workspace .inbox-tools .text-link:hover{color:var(--ds-accent-mint);background:none}
 #main .message-workspace .dm-mobile-exit{display:none}
@@ -50,11 +50,11 @@
 #main .message-workspace .dm-back{font-size:0}
 #main .message-workspace .dm-block-button{padding:0!important;white-space:nowrap;font-size:13px}
 #main .message-workspace .dm-chat-panel{
- display:grid;grid-template-columns:44px minmax(0,1fr) 44px;grid-template-rows:auto minmax(0,1fr) auto auto auto auto auto;
- grid-template-areas:"earlier earlier earlier" "log log log" "connection connection connection" "error error error" "upload upload upload" "photo compose gift" "hint hint hint";
+ display:grid;grid-template-columns:44px minmax(0,1fr) 44px;grid-template-rows:auto minmax(0,1fr) auto auto auto auto;
+ grid-template-areas:"earlier earlier earlier" "log log log" "connection connection connection" "error error error" "upload upload upload" "photo compose gift";
  gap:0 6px;flex:1;min-height:0;width:100%;padding:12px 24px 24px!important;margin:0;border:0!important;border-radius:0;background:var(--ds-bg)!important;box-shadow:none;overflow:hidden;
 }
-#main .message-workspace .crew-chat-panel{grid-template-columns:44px minmax(0,1fr);grid-template-areas:"earlier earlier" "log log" "connection connection" "error error" "upload upload" "photo compose" "hint hint"}
+#main .message-workspace .crew-chat-panel{grid-template-columns:44px minmax(0,1fr);grid-template-areas:"earlier earlier" "log log" "connection connection" "error error" "upload upload" "photo compose"}
 #main .message-workspace #chat-log{grid-area:log;min-height:0;height:auto;max-height:none;overflow:auto;overscroll-behavior:contain;padding:8px 20px 20px 4px;scrollbar-width:thin;scrollbar-gutter:stable;scrollbar-color:var(--ds-line) transparent}
 #main .message-workspace #chat-earlier{grid-area:earlier;justify-self:center;margin:0 0 6px;min-height:36px;width:auto;font-size:13px;white-space:nowrap}
 #main .message-workspace #chat-error{grid-area:error}
@@ -64,7 +64,6 @@
 #main .message-workspace .chat-attachment-tools>label{grid-area:photo;align-self:end}
 #main .message-workspace .chat-attachment-tools>[data-profile-gift]{grid-area:gift;align-self:end}
 #main .message-workspace #chat-compose{grid-area:compose}
-#main .message-workspace .chat-attachment-tools>small{grid-area:hint;margin:6px 0 0;color:var(--ds-muted);font-size:11px}
 #main .message-workspace :is(#chat-error,#chat-connection,#chat-upload-status):empty{display:none;margin:0}
 #main .message-workspace #dm-emoji-picker{grid-area:log;position:relative!important;inset:auto!important;align-self:end;justify-self:end;width:min(416px,100%);max-height:min(400px,100%)!important;min-height:0;margin:0 0 8px;z-index:5}
 #main .message-workspace .dm-message{display:flex;align-items:flex-start;gap:10px;margin:12px 0 0;min-width:0}
@@ -173,7 +172,6 @@ html[data-message-route] #main{min-height:0;padding-bottom:12px!important}
  #main .message-workspace .dm-thread-person>.artist-portrait{display:none}
  #main .message-workspace .dm-chat-panel{padding:8px!important;gap:0 4px}
  #main .message-workspace #chat-log{padding:8px 10px 16px 0}
- #main .message-workspace .chat-attachment-tools>small{font-size:10px;margin-top:4px}
  #main .message-workspace .dm-message-content{max-width:calc(100% - 40px)}
  #main .message-workspace .dm-message-line{gap:4px}
  #main .message-workspace .dm-bubble{padding:8px 10px}
