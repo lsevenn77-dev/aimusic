@@ -103,7 +103,7 @@ const homeBanners=[
 function homeBannerImage(id,width){return '/assets/home-banners/'+(id==='crew'?'seamless-20261109/':'mobile-20261109/')+id+'-'+width+'.webp';}
 const homeBannerBackgroundRepairs=new Set(['studio:left','play:left','karaoke:left','talking:left','crew:left','crew:right']);
 function homeBannerBackgroundImage(id,side='left'){
- const revision=side==='left'&&(id==='play'||id==='talking')?'detail-20261109':homeBannerBackgroundRepairs.has(id+':'+side)?'repair-20261109':'center-20261109';
+ const revision=side==='left'&&['play','karaoke','talking'].includes(id)?'pc-refresh-20261109':homeBannerBackgroundRepairs.has(id+':'+side)?'repair-20261109':'center-20261109';
  return '/assets/home-banners/'+revision+'/'+id+'-'+side+'-'+(side==='right'?768:2365)+'.webp';
 }
 const homeBannerDesktopCopy={
@@ -120,7 +120,7 @@ function homeBannerText(text){
  return text.split(/([A-Za-z]+)/g).map((part,index)=>index%2?'<span class="home-promo-latin" lang="en">'+esc(part)+'</span>':esc(part)).join('');
 }
 function homeBannerHTML(b,next){
- const sizes='(max-width: 800px) 100vw, '+(b.id==='artists'?'680':b.id==='crew'?'653':'544')+'px';
+ const sizes='(max-width: 800px) 100vw, '+(b.id==='artists'?'680':b.id==='crew'?'718':b.id==='talking'?'598':'544')+'px';
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
  const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
  const scenery=id=>['left','right'].map(side=>`<span class="home-promo-scenery home-promo-scenery-${side}" aria-hidden="true" style="--home-promo-scenery:url('${homeBannerBackgroundImage(id,side)}')"></span>`).join('');

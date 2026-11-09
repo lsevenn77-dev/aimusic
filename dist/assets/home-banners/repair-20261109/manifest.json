@@ -752,32 +752,46 @@
         {
           "side": "left",
           "filename": "play-left-2365.webp",
-          "url": "/assets/home-banners/detail-20261109/play-left-2365.webp",
+          "url": "/assets/home-banners/pc-refresh-20261109/play-left-2365.webp",
           "width": 2365,
           "height": 768,
-          "format": "WEBP",
+          "bytes": 691794,
+          "sha256": "7139b92c19e91d403e7327d1fea2217141ba871732cb3698dc84a8e7de3ac6b9",
           "mime_type": "image/webp",
-          "quality": 92,
-          "method": 6,
-          "original_left_anchor_x": 2211,
-          "context_width": 154,
-          "source_context": {
-            "source_x": 0,
-            "source_y": 0,
-            "width": 154,
-            "height": 768,
-            "output_x": 2211,
-            "output_y": 0
+          "prompt": "Use case: precise-object-edit. The input is the EXACT edit target for a photographic website banner. Keep its 3072x1024 3:1 canvas and exact framing. The picture is a wide strip y251 through772; the pure black padding above and below must remain unchanged. Do not move, crop, stretch, zoom or relight the scene. Preserve every original person, face, hair, expression, hand, garment, body pose and held object at the SAME coordinates. No new people or human reflections. No text, buttons, logos, graphics or watermark. Remove the entire large perforated black music stand/plate in the lower middle-left, including its purple-silver rim and every hole. It must be COMPLETELY absent. Reconstruct the previously occluded dark teal acoustic wall panels, continuing each existing vertical panel seam at its exact position and realistic perspective. Preserve the floor/wall depth and subtle teal studio illumination. Keep the black speaker on its tripod, all glass windows, teal sofa and the singing woman exactly unchanged. In the cleared area use the real continuation of the room; do not insert any replacement furniture, screen, board, lectern, equipment, prop or extra sofa. Only change pixels belonging to the removed music stand and the immediately occluded area. The result should look like the stand had never been present.",
+          "detail_revision": "pc-refresh-20261109",
+          "generated": {
+            "filename": "generated-play.png",
+            "sha256": "2af5aa928082d112b1d74d30c3965ad326c7fb5c8a9bc4707cf471436f2c289f",
+            "width": 2172,
+            "height": 724,
+            "bytes": 1105055
           },
-          "display_overlap_formula": "photoHeight * 154 / 768",
-          "display_overlap_at_272": 54.54166666666667,
-          "bytes": 234510,
-          "sha256": "f4e612398f2bedc013f5e7086aef77e1f0371d1b8a827ae96652fc08070be6b8",
+          "generated_sha256": "2af5aa928082d112b1d74d30c3965ad326c7fb5c8a9bc4707cf471436f2c289f",
+          "input_template": {
+            "filename": "input-play.png",
+            "sha256": "42cfe6262b93b5c9b00f43da4e7af229d3500aab0470b3f3ad4034a49493b29b",
+            "width": 3072,
+            "height": 1024,
+            "bytes": 1791698
+          },
+          "crop": {
+            "left": 0,
+            "top": 179,
+            "width": 2172,
+            "height": 366
+          },
+          "crop_reason": "Extract the photographic strip, discard black padding and generated portraits, then register background-only pixels to the original 4515 by 768 scene.",
           "encoding": {
             "format": "webp",
-            "lossless": true
+            "lossless": true,
+            "effort": 6,
+            "resize": {
+              "width": 2365,
+              "height": 768
+            }
           },
-          "detail_revision": "detail-20261109"
+          "format": "WEBP"
         },
         {
           "filename": "play-right-768.webp",
@@ -896,7 +910,11 @@
           }
         ],
         "detail_revision": "detail-20261109",
-        "detail_fix": "One coherent perforation grid across the entire visible metal tray."
+        "detail_fix": "One coherent perforation grid across the entire visible metal tray.",
+        "latest_detail_revision": "pc-refresh-20261109",
+        "latest_detail_scope": "Remove the complete perforated stand and restore continuous teal acoustic panels.",
+        "latest_generated_sha256": "2af5aa928082d112b1d74d30c3965ad326c7fb5c8a9bc4707cf471436f2c289f",
+        "original_portraits_unchanged": true
       },
       "original_left_anchor_x": 2211,
       "context_width": 154
@@ -1808,99 +1826,48 @@
       },
       "outputs": [
         {
-          "filename": "karaoke-left-2365.webp",
-          "url": "/assets/home-banners/repair-20261109/karaoke-left-2365.webp",
           "side": "left",
-          "sha256": "575bc62ab459051482c708fd836771de0ea4f03b5c43edf183e7354aebdf23d4",
-          "bytes": 26840,
-          "format": "WEBP",
+          "filename": "karaoke-left-2365.webp",
+          "url": "/assets/home-banners/pc-refresh-20261109/karaoke-left-2365.webp",
           "width": 2365,
           "height": 768,
-          "prompt": "Use case: precise-object-edit.\nAsset type: people-free LEFT background strip for an existing photographic website banner.\nInput image 1 is the EDIT TARGET, 2304x768. Its rightmost 150px strip (x2154..2303, all y) is an exact, locked insert from the authentic photo and is the immutable geometry/color/texture anchor. Input image 2 is the authentic original photograph, a REFERENCE ONLY that explains how the sofa, wall and plant continue to the right; do not put its people in image1. Edit only x0..2153 of image1 to repair the existing empty background and furniture geometry so it is one physically continuous scene with the locked strip. Preserve the locked rightmost strip, the camera height, perspective, image size, framing and lighting.\nRepair the BLUE SOFA geometry and the horizontal back rail. In the locked rightmost strip the real sofa has softly rounded channel cushions, detailed blue velvet and a gently rising top toward the right; the wall-to-sofa rail also rises gently toward the right. Continue those exact physical curves, channel seams, rail height and perspective smoothly to the LEFT. Remove the current discontinuous almost-flat top, extra ridge/ghost lines and incompatible cushion segmentation. One continuous sofa and one rail only. Keep the navy padded wall, vertical blue practical lights and original lighting; do not add fixtures, speakers, tables, furniture or duplicate props.\nAt x2154 every furniture edge, cushion groove, fabric ridge, wall line and leaf must join the exact locked strip at its existing y coordinate and angle. Near this boundary prioritize exact geometry, not a generic similar room. Follow the authentic reference for couch form and velvet texture. Do not hide the join with blur, haze, a gradient, repeated patterns, double edges or a fade. The center/right authentic photo will be layered later and never regenerated. The output must contain NO person, face, head, hand, skin, clothing, person reflection, silhouette, text, logo, watermark, UI, borders or padding. Do not change the right anchor or the original reference. Return exactly2304x768, full-bleed photo.",
+          "bytes": 632444,
+          "sha256": "72d1a9f41795a4dd02f44dbdf3cbe876fa9b8d2af296e37354506d49c1783bf7",
+          "mime_type": "image/webp",
+          "prompt": "Use case: precise-object-edit. The input is the EXACT edit target for a photographic website banner. Keep its 3072x1024 3:1 canvas and exact framing. The picture is a wide strip y251 through772; the pure black padding above and below must remain unchanged. Do not move, crop, stretch, zoom or relight the scene. Preserve every original person, face, hair, expression, hand, garment, body pose and held object at the SAME coordinates. No new people or human reflections. No text, buttons, logos, graphics or watermark. Rebuild ONLY the blue velvet sofa to the LEFT of the seated man, so it has one clearly finished finite LEFT END instead of an impossibly endless bench. Place that rounded padded left end around x1380 to1500 of this 3072-wide canvas, comfortably before the man at x1770, not at the far-left picture edge. The sofa extends from that end behind the two people to the unchanged right part. The upper edge must join the original sofa behind the man's shoulder without a height step, with the SAME broad vertical upholstery channels, cushion thickness and gentle perspective slope. The narrow metallic/dark wall trim BEHIND the sofa is a SEPARATE line from the sofa top: preserve its straight perspective continuation, do not merge it with upholstery. Match the existing indigo velvet texture, blue light from overhead LEDs, and gentle shadows. Show a small believable rounded outer side/arm at the new left end; do NOT create a huge deep seat stretching across the left. Remove all sofa left of this finite end and reveal the same navy acoustic wall below the existing trim, with a low strip of real dark floor and grounded soft shadow at the bottom. Keep left half calm and uncluttered. Do not add lamps, plants, furniture or extra LED lights. All people, microphones, table, drinks and right-side room are completely unchanged.",
+          "detail_revision": "pc-refresh-20261109",
           "generated": {
-            "filename": "exec-043d8ba8-52c8-48bc-9d39-ad6541d7040f.png",
-            "sha256": "76400278a28c467e28b085a6fe8e54b94955dd7bef64a00d48a1b977a25bce09",
-            "bytes": 1824217,
-            "format": "PNG",
+            "filename": "generated-karaoke.png",
+            "sha256": "628e8b18f3dc48072427a51b416c7bd4a8e7c1786a514e87dde4020285a9bf0b",
             "width": 2172,
-            "height": 724
+            "height": 724,
+            "bytes": 1145545
           },
-          "inputs": [
-            {
-              "filename": "karaoke-left-anchored.png",
-              "sha256": "6d4501d33896a1be7e251a6333602830eef7fdbfff2d2db9f728b6ab44b70738",
-              "bytes": 691468,
-              "format": "PNG",
-              "width": 2304,
-              "height": 768
-            },
-            {
-              "filename": "karaoke-1536.webp",
-              "sha256": "f7fe983124f55d981e0b9e95b55510536d3ce21612ca7f954558e999f7a3e387",
-              "bytes": 153684,
-              "format": "WEBP",
-              "width": 1536,
-              "height": 768
-            }
-          ],
-          "assembly": {
-            "selected_background": {
-              "filename": "karaoke-left-candidate.png",
-              "sha256": "c5c1203e4d54bb1ea3c72d279bb3dc0aa2f79fcf988977e7ebcc510ecf84e1a5",
-              "bytes": 1511695,
-              "format": "PNG",
+          "generated_sha256": "628e8b18f3dc48072427a51b416c7bd4a8e7c1786a514e87dde4020285a9bf0b",
+          "input_template": {
+            "filename": "input-karaoke.png",
+            "sha256": "c78ac6433e41e31d60d8207f830ed439d6d6489f7a446376e88149abe254df25",
+            "width": 3072,
+            "height": 1024,
+            "bytes": 2191182
+          },
+          "crop": {
+            "left": 0,
+            "top": 177,
+            "width": 2172,
+            "height": 369
+          },
+          "crop_reason": "Extract the photographic strip, discard black padding and generated portraits, then register background-only pixels to the original 4515 by 768 scene.",
+          "encoding": {
+            "format": "webp",
+            "lossless": true,
+            "effort": 6,
+            "resize": {
               "width": 2365,
               "height": 768
-            },
-            "calibrated_background": {
-              "filename": "karaoke-left-calibrated.png",
-              "sha256": "b47234f855dc6c82752436c6d3e28375dad7e7ba513cfa3bba8065444cb916ef",
-              "bytes": 1559825,
-              "format": "PNG",
-              "width": 2365,
-              "height": 768
-            },
-            "original_left_anchor_x": 2211,
-            "context_width": 154,
-            "source_roi": {
-              "x": 0,
-              "y": 0,
-              "width": 154,
-              "height": 768
-            },
-            "anchor_contains_people": false,
-            "original_anchor_pixel_copy": true,
-            "original_anchor_copy_before_webp": true,
-            "generated_region": {
-              "x": 0,
-              "y": 0,
-              "width": 2211,
-              "height": 768
-            },
-            "calibration": {
-              "script": {
-                "filename": "calibrate_generated_boundary.py",
-                "sha256": "f1460d393703cfffbed099bcd80d79f3b4fc66332b0a88276ea02aa3b6e89d23",
-                "bytes": 3726
-              },
-              "generated_region_only": true,
-              "rail_y_shift": 1,
-              "background_color_boundary_width": 256,
-              "method": "Align generated rail y396 to source y397 with a1px local coordinate correction; then harmonic RGB boundary matching, plus slope-aware rail highlight-profile calibration.",
-              "source_alpha_fade_changed": false,
-              "blur_added": false,
-              "image_crossfade_width_increased": false,
-              "source_people_modified": false
-            },
-            "encoding": {
-              "format": "WEBP",
-              "quality": 92,
-              "method": 6
             }
           },
-          "source_url": "/assets/home-banners/mobile-20261109/karaoke-1536.webp",
-          "source_sha256": "f7fe983124f55d981e0b9e95b55510536d3ce21612ca7f954558e999f7a3e387",
-          "mime_type": "image/webp"
+          "format": "WEBP"
         },
         {
           "filename": "karaoke-right-768.webp",
@@ -2047,7 +2014,11 @@
           "height": 272,
           "format": "PNG",
           "method": "Reference simulation of existing52% mask,1.75px backdrop blur and44% ds-bg shade; not a browser screenshot. No product asset changes."
-        }
+        },
+        "latest_detail_revision": "pc-refresh-20261109",
+        "latest_detail_scope": "End the left sofa with a finite padded side and align upholstery and the separate wall trim.",
+        "latest_generated_sha256": "628e8b18f3dc48072427a51b416c7bd4a8e7c1786a514e87dde4020285a9bf0b",
+        "original_portraits_unchanged": true
       },
       "original_sha256_verified_unchanged": true
     },
@@ -2259,104 +2230,48 @@
       },
       "outputs": [
         {
-          "filename": "talking-left-2365.webp",
-          "url": "/assets/home-banners/detail-20261109/talking-left-2365.webp",
           "side": "left",
-          "sha256": "64f156985eac31cde3c2f6972f7eef565ef24fd3251204b2383e658d8db9a268",
-          "bytes": 644558,
-          "format": "WEBP",
+          "filename": "talking-left-2365.webp",
+          "url": "/assets/home-banners/pc-refresh-20261109/talking-left-2365.webp",
           "width": 2365,
           "height": 768,
-          "prompt": "Use case: precise-object-edit.\nAsset type: people-free LEFT background strip for an existing photographic website banner.\nInput image 1 is the EDIT TARGET, 2304x768. Its rightmost 150px strip (x2154..2303, all y) is an exact, locked insert from the authentic photo and is the immutable geometry/color/texture anchor. Input image 2 is the authentic original photograph, a REFERENCE ONLY that explains how the sofa, wall and plant continue to the right; do not put its people in image1. Edit only x0..2153 of image1 to repair the existing empty background and furniture geometry so it is one physically continuous scene with the locked strip. Preserve the locked rightmost strip, the camera height, perspective, image size, framing and lighting.\nRepair the DARK BLUE SOFA geometry. In the locked rightmost strip the real sofa's upper edge climbs diagonally toward the right, and the nearest channel cushions have the same continuous curved contour. Continue that exact contour and direction into the LEFT background, curving naturally lower toward the left. Remove the current near-horizontal incompatible cushion lip, extra ridge/ghost edges and any abrupt step. Keep the teal wall and the same plant. Leaves at the right edge must connect to the single original plant and match its existing natural foreground depth; do not duplicate the plant or add props. Match the exact sofa fabric texture and lighting.\nAt x2154 every furniture edge, cushion groove, fabric ridge, wall line and leaf must join the exact locked strip at its existing y coordinate and angle. Near this boundary prioritize exact geometry, not a generic similar room. Follow the authentic reference for couch form and velvet texture. Do not hide the join with blur, haze, a gradient, repeated patterns, double edges or a fade. The center/right authentic photo will be layered later and never regenerated. The output must contain NO person, face, head, hand, skin, clothing, person reflection, silhouette, text, logo, watermark, UI, borders or padding. Do not change the right anchor or the original reference. Return exactly2304x768, full-bleed photo.",
-          "generated": {
-            "filename": "exec-a257fc20-963b-4705-84a5-a40987c34672.png",
-            "sha256": "4f53e20574dddd3d6384092f7c4862ed2a9e76dcc82377f1f4771146974eb3b0",
-            "bytes": 1760674,
-            "format": "PNG",
-            "width": 2172,
-            "height": 724
-          },
-          "inputs": [
-            {
-              "filename": "talking-left-anchored.png",
-              "sha256": "91291e7791d902a786f0d03ee213975345b9820a1c85a36fe38eea737e73075c",
-              "bytes": 828238,
-              "format": "PNG",
-              "width": 2304,
-              "height": 768
-            },
-            {
-              "filename": "talking-1536.webp",
-              "sha256": "6e3e3884274287ec347226d2fd8735b42b875aff997cdea496cd4757f3db0504",
-              "bytes": 191944,
-              "format": "WEBP",
-              "width": 1536,
-              "height": 768
-            }
-          ],
-          "assembly": {
-            "selected_background": {
-              "filename": "talking-left-candidate.png",
-              "sha256": "01d4e4b853ac30bca6307f86cec38426b7300d2c97424783735f72c97e1b05ab",
-              "bytes": 1535670,
-              "format": "PNG",
-              "width": 2365,
-              "height": 768
-            },
-            "calibrated_background": {
-              "filename": "talking-left-calibrated.png",
-              "sha256": "825d40d0146823b94b478b56670cbb7f5496290a224b9160b392e718a6938339",
-              "bytes": 1557444,
-              "format": "PNG",
-              "width": 2365,
-              "height": 768
-            },
-            "original_left_anchor_x": 2211,
-            "context_width": 154,
-            "source_roi": {
-              "x": 0,
-              "y": 0,
-              "width": 154,
-              "height": 768
-            },
-            "anchor_contains_people": false,
-            "original_anchor_pixel_copy": true,
-            "original_anchor_copy_before_webp": true,
-            "generated_region": {
-              "x": 0,
-              "y": 0,
-              "width": 2211,
-              "height": 768
-            },
-            "calibration": {
-              "script": {
-                "filename": "calibrate_generated_boundary.py",
-                "sha256": "f1460d393703cfffbed099bcd80d79f3b4fc66332b0a88276ea02aa3b6e89d23",
-                "bytes": 3726
-              },
-              "generated_region_only": true,
-              "rail_y_shift": 0,
-              "background_color_boundary_width": 256,
-              "method": "Harmonic RGB boundary matching to the immutable source left edge within generated background.",
-              "source_alpha_fade_changed": false,
-              "blur_added": false,
-              "image_crossfade_width_increased": false,
-              "source_people_modified": false
-            },
-            "encoding": {
-              "format": "WEBP",
-              "quality": 92,
-              "method": 6
-            }
-          },
-          "source_url": "/assets/home-banners/mobile-20261109/talking-1536.webp",
-          "source_sha256": "6e3e3884274287ec347226d2fd8735b42b875aff997cdea496cd4757f3db0504",
+          "bytes": 723782,
+          "sha256": "48b08a91493b9f47e5be4e04790eaa703c6adfadd4ba17eee7f01e1a6353e72a",
           "mime_type": "image/webp",
+          "prompt": "Use case: precise-object-edit. The input is the EXACT edit target for a photographic website banner. Keep its 3072x1024 3:1 canvas and exact framing. The picture is a wide strip y251 through772; the pure black padding above and below must remain unchanged. Do not move, crop, stretch, zoom or relight the scene. Preserve every original person, face, hair, expression, hand, garment, body pose and held object at the SAME coordinates. No new people or human reflections. No text, buttons, logos, graphics or watermark. The sofa's current left section is structurally wrong: it is an excessively long almost straight bench pasted onto the curved sofa behind the group. Reconstruct this as ONE believable compact curved midnight-blue velvet lounge sofa, sized for these three seated friends, with matching broad vertical channels and consistent perspective. Shorten its LEFT section substantially: the finished rounded LEFT ARM/END should sit around x1530 to1650 in this canvas, immediately to the left of the seated man's lower body beginning around x1680, NOT around x900 as it does now. Let the top of the left arm and back curve gently into the original back behind the man (around x1780,y540), continuing naturally toward the farther back behind the two women. Keep the existing right sofa/arm geometry, so the left arm has the same padded thickness and the whole sofa follows one coherent shallow curve around the existing table. The top-back edge, back-to-seat seam and seat-front edge must follow the SAME curved plan and camera perspective; the left seat must not become a broad flat bench. Left of the compact sofa, reconstruct the same quiet deep teal wall and narrow dark floor with soft contact shadow, no saturated purple floor spotlight. Preserve the single existing indoor tree behind and to the left of the sofa; its trunk should extend naturally to one understated dark planter grounded on the floor now revealed, no floating tree, no blurry foreground foliage, no duplicated leaves. Keep all three people and the table/drinks absolutely unchanged, including the left man's hoodie/arm silhouette; no face or body edits, no enlargement. Keep the speaker, lamp and original wall lighting at fixed positions. The result must read as one photograph of a physical room, not stitched furniture pieces.",
+          "detail_revision": "pc-refresh-20261109",
+          "generated": {
+            "filename": "generated-talking.png",
+            "sha256": "89ee958e22f250653ca718e4a6dec895544d3998fd8a3424f361517108d78fb8",
+            "width": 2172,
+            "height": 724,
+            "bytes": 1178938
+          },
+          "generated_sha256": "89ee958e22f250653ca718e4a6dec895544d3998fd8a3424f361517108d78fb8",
+          "input_template": {
+            "filename": "input-talking.png",
+            "sha256": "d9d6840ad8d505fb6918ba304ffc7f8e7f50988f7850d80809cb92e782841feb",
+            "width": 3072,
+            "height": 1024,
+            "bytes": 2583876
+          },
+          "crop": {
+            "left": 0,
+            "top": 179,
+            "width": 2172,
+            "height": 366
+          },
+          "crop_reason": "Extract the photographic strip, discard black padding and generated portraits, then register background-only pixels to the original 4515 by 768 scene.",
           "encoding": {
             "format": "webp",
-            "lossless": true
+            "lossless": true,
+            "effort": 6,
+            "resize": {
+              "width": 2365,
+              "height": 768
+            }
           },
-          "detail_revision": "detail-20261109"
+          "format": "WEBP"
         },
         {
           "filename": "talking-right-768.webp",
@@ -2505,7 +2420,11 @@
           "method": "Reference simulation of existing52% mask,1.75px backdrop blur and44% ds-bg shade; not a browser screenshot. No product asset changes."
         },
         "detail_revision": "detail-20261109",
-        "detail_fix": "One rear plant and continuous curved sofa; remove duplicated foreground foliage."
+        "detail_fix": "One rear plant and continuous curved sofa; remove duplicated foreground foliage.",
+        "latest_detail_revision": "pc-refresh-20261109",
+        "latest_detail_scope": "Replace the overlong left bench with one compact curved sofa, matching its right arm and original back; ground the single tree in its planter.",
+        "latest_generated_sha256": "89ee958e22f250653ca718e4a6dec895544d3998fd8a3424f361517108d78fb8",
+        "original_portraits_unchanged": true
       },
       "original_sha256_verified_unchanged": true
     },
