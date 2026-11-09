@@ -36,11 +36,14 @@ function refreshMyPageProfile(){
 }
 // Keep only enough content height to prevent the browser clamping the current
 // scroll position when a long tab is replaced by a loader or a shorter result.
-function holdMyPageViewport(node,pending=false){
+function holdMyPageViewport(node,pending=false,shrinkOnly=false){
  if(!node?.style||!node.getBoundingClientRect)return;
+ const reserved=parseFloat(node.style.minHeight)||0;
+ if(shrinkOnly&&!reserved)return;
  const before=node.getBoundingClientRect(),scale=node.offsetHeight?before.height/node.offsetHeight:1;
  const height=Math.max(pending?before.height:0,(window.scrollY||0)>0?(window.innerHeight||0)-before.top:0);
- node.style.minHeight=height>0?Math.ceil(height/(scale||1))+'px':'';
+ const minimum=Math.ceil(height/(scale||1)),next=shrinkOnly?Math.min(reserved,minimum):minimum;
+ node.style.minHeight=next>0?next+'px':'';
 }
 const myDate=n=>n?new Date(n*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}):'';
 const myEmpty=text=>`<p class="mp-empty">${esc(text)}</p>`;
@@ -485,7 +488,9 @@ function bindMyPage(view){
  if(s.own){
   for(const tab of ['works','library','activity'])rememberMyPageRouteTarget(myTabHref(tab));
   const content=$('#mp-content'),aside=$('#mp-aside-content');
-  const scroll=()=>{if(myPageState===s&&!s.pending&&content?.isConnected){holdMyPageViewport(content);holdMyPageViewport(aside);}};
+  // Scrolling may release a tab-change reservation, never grow the page or
+  // keep pushing the studio banner below the viewport.
+  const scroll=()=>{if(myPageState===s&&!s.pending&&content?.isConnected){holdMyPageViewport(content,false,true);holdMyPageViewport(aside,false,true);}};
   window.addEventListener('scroll',scroll,{passive:true});
   registerRouteCleanup(()=>{s.request=(s.request||0)+1;window.removeEventListener('scroll',scroll);});
  }
