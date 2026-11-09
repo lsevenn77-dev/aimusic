@@ -106,6 +106,11 @@ for(let i=0;i<2;i++){
 f.sql.prepare('INSERT INTO free_gift_wallets(user_id,balance) VALUES(?,?)').run('owner',1280);
 f.sql.prepare('INSERT INTO free_gifts(id,sender_id,recipient_profile_id,request_id,created,gift_type,gift_name,silver,quantity) VALUES(?,?,?,?,?,?,?,?,?)').run('qa-profile-gift','other','producer','qa-profile-gift',communityNow,'silver-letter','손편지',6,3);
 
+// Use recent publication dates so all chart kinds exercise full real lists.
+// Creation order stays unchanged for the existing Play/MyPage fixtures.
+for(const [i,id] of originalIds.entries())f.sql.prepare('UPDATE tracks SET first_published_at=? WHERE id=?').run(communityNow-i*60,id);
+f.sql.prepare("UPDATE tracks SET first_published_at=? WHERE kind='cover'").run(communityNow-120);
+
 const counts=new Map(),requests=[];let rules=[],previewUser='owner';
 const stats=()=>({fixture:true,user:previewUser,songs:originalIds.length,duets:3,dubbings:dubbingIds,crews:crewIds.length,myPage:{playlists:3,history:6,gallery:2},liveDirectory:'service-disabled fixture',counts:Object.fromEntries(counts),requests:requests.slice(-300),rules});
 const json=value=>new Response(JSON.stringify(value),{headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store'}});
@@ -440,6 +445,79 @@ const myPageProbeJS=String.raw`(()=>{
  });
  window.addEventListener('hashchange',()=>setTimeout(send,100));window.AifectMyPageQA={snapshot,reset,runSuite};void waitFor(ready,'MyPage bootstrap',20000).then(send).catch(error=>parent.postMessage({type:'aifect-mypage-qa',error:error.message},location.origin));
 })();`;
+const chartProbeJS=String.raw`(()=>{
+ if(window.name!=='aifect-chart-qa')return;
+ const selectors={main:'#main',page:'.charts-final',tabs:'.chart-tabs',content:'#chart-content',header:'.topbar',sidebar:'.sidebar',player:'.player'};
+ const refs=()=>Object.fromEntries(Object.entries(selectors).map(([name,selector])=>[name,document.querySelector(selector)]));
+ const playerAudio=()=>typeof audio==='undefined'?null:audio;
+ function selection(hash=location.hash){const [route,query]=hash.replace(/^#/,'').split('?'),kind=route==='charts/covers'?'covers':route==='charts/releases'?'releases':'',requested=new URLSearchParams(query||'').get('period');return {kind,period:['week','month','all'].includes(requested)?requested:'week'};}
+ const selectedLink=()=>document.querySelector('.chart-tabs a.active');
+ const ready=()=>!!(/^#charts(?:\/(?:covers|releases))?(?:\?|$)/.test(location.hash)&&document.documentElement.dataset.renderState==='ready'&&document.querySelector('#main')?.dataset.route===location.hash.slice(1)&&document.querySelector('.charts-final #chart-content')&&selection(selectedLink()?.getAttribute('href')||'').kind===selection().kind&&!document.querySelector('#chart-content[aria-busy="true"]'));
+ let baseline=null,measure=null,frame=0,suite=null;
+ function snapshot(){const nodes=refs(),sound=playerAudio();return {ready:ready(),hash:location.hash,width:innerWidth,height:innerHeight,scrollY,renderState:document.documentElement.dataset.renderState,mainDisplay:nodes.main?getComputedStyle(nodes.main).display:null,mainInert:nodes.main?.inert,selection:selection(),selected:[...document.querySelectorAll('.chart-tabs .active')].map(element=>({label:element.textContent.trim(),href:element.getAttribute('href')})),rows:document.querySelectorAll('[data-chart-row]').length,contentBusy:nodes.content?.getAttribute('aria-busy'),sameNodes:baseline?Object.fromEntries(Object.keys(selectors).map(key=>[key,nodes[key]===baseline.nodes[key]])):null,geometry:{documentWidth:document.documentElement.scrollWidth,viewportWidth:innerWidth,tabs:nodes.tabs?.getBoundingClientRect().toJSON()},audio:{sameInstance:baseline?sound===baseline.audio:null,paused:sound?.paused,currentTime:sound?.currentTime,readyState:sound?.readyState,error:sound?.error?.message||null},measure,suite};}
+ const send=()=>parent.postMessage({type:'aifect-chart-qa',snapshot:snapshot()},location.origin);
+ function observe(){
+  if(!baseline)return;measure.frames++;const nodes=refs();
+  if(!nodes.main||getComputedStyle(nodes.main).display==='none')measure.hiddenFrames++;
+  if(nodes.main?.inert)measure.inertFrames++;
+  if(document.documentElement.dataset.renderState!=='ready')measure.nonReadyFrames++;
+  for(const key of Object.keys(selectors))if(nodes[key]!==baseline.nodes[key])measure.changedNodeFrames[key]++;
+  measure.minScroll=Math.min(measure.minScroll,scrollY);measure.maxScroll=Math.max(measure.maxScroll,scrollY);frame=requestAnimationFrame(observe);
+ }
+ function reset(){
+  cancelAnimationFrame(frame);if(baseline?.audio)for(const [name,handler] of baseline.handlers)baseline.audio.removeEventListener(name,handler);
+  baseline={nodes:refs(),tabLinks:[...document.querySelectorAll('.chart-tabs a')],audio:playerAudio(),handlers:[]};measure={frames:0,hiddenFrames:0,inertFrames:0,nonReadyFrames:0,changedNodeFrames:Object.fromEntries(Object.keys(selectors).map(key=>[key,0])),minScroll:scrollY,maxScroll:scrollY,audioEvents:{},startedAt:Date.now()};
+  if(baseline.audio)for(const name of ['pause','play','emptied','abort','ended']){const handler=()=>{measure.audioEvents[name]=(measure.audioEvents[name]||0)+1;};baseline.handlers.push([name,handler]);baseline.audio.addEventListener(name,handler);}
+  frame=requestAnimationFrame(observe);send();
+ }
+ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms)),ensure=(condition,message)=>{if(!condition)throw Error(message);};
+ async function waitFor(predicate,label,timeout=8000){const until=performance.now()+timeout;while(performance.now()<until){if(await predicate())return;await delay(25);}throw Error('Timeout: '+label+' ('+location.hash+')');}
+ const apiStats=()=>fetch('/__qa/stats').then(response=>response.json());
+ const qaControl=payload=>fetch('/__qa/control',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)}).then(response=>response.json());
+ const chartReads=(stats,kind,period)=>Object.entries(stats.counts).filter(([key])=>{if(!key.startsWith('GET /api/catalog?'))return false;const q=new URL(key.slice(4),location.origin).searchParams;return ['listens','covers','new'].includes(q.get('chart'))&&(kind===undefined||q.get('chart')===({covers:'covers',releases:'new'}[kind]||'listens'))&&(!period||q.get('period')===period);}).reduce((sum,[,count])=>sum+count,0);
+ const chartRequest=kind=>'/api/catalog?section=tracks&full=1&chart='+({covers:'covers',releases:'new'}[kind]||'listens');
+ function tabLink(kind){const link=[...document.querySelectorAll('.chart-tabs a')].find(element=>selection(element.getAttribute('href')).kind===kind);ensure(link,'Missing actual chart tab: '+kind);return link;}
+ async function navigate(kind){const before=scrollY;tabLink(kind).click();await waitFor(()=>selection().kind===kind&&ready(),'chart '+(kind||'popular'));await delay(70);return before;}
+ async function period(value){const before=scrollY,details=document.querySelector('.chart-period');ensure(details,'Missing actual period dropdown');if(!details.open)details.querySelector('summary').click();const link=[...details.querySelectorAll('a')].find(element=>selection(element.getAttribute('href')).period===value);ensure(link,'Missing actual chart period: '+value);link.click();await waitFor(()=>selection().period===value&&ready(),'period '+value);await delay(70);return before;}
+ function assertShell(kind,before){
+  const nodes=refs(),sound=playerAudio();for(const name of Object.keys(selectors)){ensure(baseline.nodes[name],'Missing baseline node: '+name);ensure(nodes[name]===baseline.nodes[name],'Replaced persistent node: '+name);}
+  const links=[...document.querySelectorAll('.chart-tabs a')];ensure(links.length===baseline.tabLinks.length&&links.every((link,index)=>link===baseline.tabLinks[index]),'Top tab links were remounted');
+  const selected=[...document.querySelectorAll('.chart-tabs a.active')];ensure(selected.length===1&&selection(selected[0].getAttribute('href')).kind===kind&&selection().kind===kind,'Selected chart tab and URL differ');ensure(selected[0].getAttribute('aria-current')==='page','Active chart tab lost aria-current');
+  ensure(Math.abs(scrollY-before)<=2,'Window scroll moved from '+before+' to '+scrollY);ensure(sound===baseline.audio,'Global Audio instance was replaced');ensure(!sound.paused,'Global audio paused');ensure(sound.currentTime>=suite.audioStartedAt-.05,'Global playback position restarted');
+  ensure(document.documentElement.scrollWidth<=innerWidth+1,'Chart created horizontal overflow');return {hash:location.hash,selected:kind||'popular',period:selection().period,scrollBefore:before,scrollAfter:scrollY,rows:document.querySelectorAll('[data-chart-row]').length,audioTime:sound.currentTime};
+ }
+ async function ensureMusic(){
+  const play=document.querySelector('.sidebar a[href="#karaoke"]');ensure(play,'Actual Play navigation is missing');play.click();await waitFor(()=>location.hash==='#karaoke'&&document.documentElement.dataset.renderState==='ready'&&document.querySelector('.play-category-tabs'),'Play initial page');
+  const duet=[...document.querySelectorAll('.play-category-tabs a')].find(element=>element.getAttribute('href')==='#karaoke/duets');ensure(duet,'Actual duet tab is missing');duet.click();await waitFor(()=>location.hash==='#karaoke/duets'&&document.querySelector('.play-duet-play[data-play]')&&!document.querySelector('#play-results[aria-busy="true"]'),'Play duet list');
+  const sound=playerAudio();ensure(sound,'Global Audio was not initialized');if(sound.paused)document.querySelector('.play-duet-play[data-play]').click();await waitFor(()=>!sound.paused&&sound.readyState>=2&&sound.currentTime>0,'real duet playback',10000);
+  const charts=document.querySelector('.sidebar a[href="#charts"]');ensure(charts,'Actual chart navigation is missing');charts.click();await waitFor(()=>ready()&&selection().kind==='','Chart return');await delay(100);
+ }
+ async function invalidateThroughRealLike(){const button=document.querySelector('.player [data-like]');ensure(button,'Player like action is missing');const before=button.getAttribute('aria-pressed');button.click();await waitFor(()=>!button.disabled&&button.getAttribute('aria-pressed')!==before,'local like API completion');}
+ function assertLocalLoading(){const panel=document.querySelector('#chart-content');ensure(panel?.getAttribute('aria-busy')==='true','Chart loading is missing from its content');ensure(document.documentElement.dataset.renderState==='ready','Request used global loading');ensure(!document.querySelector('#main').inert,'Request made main inert');for(const [name,node] of Object.entries(baseline.nodes))ensure(refs()[name]===node,'Loading replaced '+name);return {hash:location.hash,contentBusy:panel.getAttribute('aria-busy')};}
+ async function runSuite(){
+  if(suite?.running)return;suite={running:true,width:innerWidth,height:innerHeight,startedAt:Date.now(),cases:[]};send();
+  const record=async(name,run)=>{suite.current=name;send();try{suite.cases.push({name,passed:true,...await run()});}catch(error){suite.cases.push({name,passed:false,error:error.message,hash:location.hash,scrollY});}send();};
+  try{
+   await qaControl({rules:[],reset:true});await waitFor(ready,'initial chart');await ensureMusic();window.scrollTo({top:120,left:0,behavior:'instant'});await delay(100);ensure(scrollY>=100,'Chart fixture did not provide height for scroll check');suite.startScroll=scrollY;suite.audioStartedAt=playerAudio().currentTime;reset();
+   for(const [name,kind] of [['인기차트에서 커버차트','covers'],['커버차트에서 신곡차트','releases'],['신곡차트에서 인기차트 복귀','']])await record(name,async()=>{const before=await navigate(kind);ensure(document.querySelectorAll('[data-chart-row]').length>=20,'Expected full fixture chart list');return assertShell(kind,before);});
+   await record('방문한 차트 재사용과 불필요한 요청 방지',async()=>{const before=await apiStats(),position=scrollY;for(const kind of ['covers','releases',''])await navigate(kind);const after=await apiStats();ensure(chartReads(after)===chartReads(before),'Recent tab round trip requested chart data again');return {...assertShell('',position),chartReads:{before:chartReads(before),after:chartReads(after)}};});
+   await record('주간·월간·전체 기간 전환',async()=>{const position=scrollY;for(const value of ['month','all','week']){await period(value);ensure(document.querySelector('.chart-period [aria-current="true"]')?.textContent.trim()===({week:'주간',month:'월간',all:'전체'}[value]),'Period menu and URL differ');assertShell('',position);}return assertShell('',position);});
+   await record('차트 탭 뒤로가기·앞으로가기',async()=>{await navigate('');const popularHash=location.hash;await navigate('covers');const coverHash=location.hash,position=scrollY;history.back();await waitFor(()=>location.hash===popularHash&&ready(),'chart history.back');await delay(70);const backward=assertShell('',position);history.forward();await waitFor(()=>location.hash===coverHash&&ready(),'chart history.forward');await delay(70);return {backward,forward:assertShell('covers',position)};});
+   await record('기간 변경 뒤로가기·앞으로가기',async()=>{await period('week');const weekHash=location.hash;await period('month');const monthHash=location.hash,position=scrollY;history.back();await waitFor(()=>location.hash===weekHash&&ready(),'period history.back');await delay(70);const backward=assertShell('covers',position);history.forward();await waitFor(()=>location.hash===monthHash&&ready(),'period history.forward');await delay(70);const forward=assertShell('covers',position);await period('week');return {backward,forward};});
+   await record('현재 탭 재클릭',async()=>{const before=await apiStats(),position=scrollY,hash=location.hash,length=history.length;tabLink(selection().kind).click();await delay(150);ensure(ready(),'Selected chart stopped being ready');ensure(chartReads(await apiStats())===chartReads(before),'Current tab re-requested chart data');ensure(location.hash===hash&&history.length===length,'Current tab changed history');return assertShell(selection().kind,position);});
+   await record('지연 응답 중 이동·이전 응답 무시',async()=>{await navigate('');await invalidateThroughRealLike();await qaControl({rules:[{match:chartRequest('covers'),delayMs:1200}]});const before=await apiStats(),position=scrollY;tabLink('covers').click();await waitFor(async()=>chartReads(await apiStats(),'covers')>chartReads(before,'covers'),'delayed chart request');await delay(60);const loading=assertLocalLoading();await navigate('releases');await delay(1350);ensure(selection().kind==='releases'&&document.querySelector('.chart-releases'),'Late cover response replaced release chart');await qaControl({rules:[]});return {...assertShell('releases',position),loading};});
+   await record('콘텐츠 오류 표시·재시도',async()=>{await invalidateThroughRealLike();await qaControl({rules:[{match:chartRequest(''),failures:1,status:503}]});const position=scrollY;await navigate('');const retry=document.querySelector('#chart-content [data-chart-retry]');ensure(retry,'Chart retry button was not shown');assertShell('',position);retry.click();await waitFor(()=>ready()&&!document.querySelector('[data-chart-retry]')&&document.querySelectorAll('[data-chart-row]').length>=20,'chart retry');await delay(70);await qaControl({rules:[]});return assertShell('',position);});
+   await record('지연 오류가 새 탭을 덮지 않음',async()=>{await invalidateThroughRealLike();await qaControl({rules:[{match:chartRequest('covers'),delayMs:1000,failures:1,status:503}]});const before=await apiStats(),position=scrollY;tabLink('covers').click();await waitFor(async()=>chartReads(await apiStats(),'covers')>chartReads(before,'covers'),'delayed failing chart request');await navigate('releases');await delay(1150);ensure(!document.querySelector('[data-chart-retry]')&&document.querySelector('.chart-releases'),'Late error replaced current release chart');await qaControl({rules:[]});return assertShell('releases',position);});
+   await record('공통 화면·스크롤·음악 재생 연속성',async()=>{await delay(150);ensure(measure.frames>0,'No visible frames sampled');ensure(!measure.hiddenFrames&&!measure.inertFrames&&!measure.nonReadyFrames,'Global loading, hidden or inert main was observed');for(const [name,count] of Object.entries(measure.changedNodeFrames))ensure(!count,'Persistent '+name+' changed during '+count+' frames');for(const event of ['pause','emptied','abort','ended'])ensure(!measure.audioEvents[event],'Unexpected global audio event: '+event);ensure(playerAudio().currentTime>suite.audioStartedAt,'Playback time did not advance');ensure(Math.abs(measure.minScroll-suite.startScroll)<=2&&Math.abs(measure.maxScroll-suite.startScroll)<=2,'Window scroll changed during chart navigation');return {...measure,audioFrom:suite.audioStartedAt,audioTo:playerAudio().currentTime};});
+  }catch(error){suite.error=error.message;}
+  finally{await qaControl({rules:[]}).catch(()=>{});suite.running=false;suite.finishedAt=Date.now();suite.passed=suite.cases.filter(result=>result.passed).length;suite.failed=suite.cases.filter(result=>!result.passed).length+(suite.error?1:0);suite.current=null;send();}
+ }
+ window.addEventListener('message',async event=>{
+  if(event.origin!==location.origin||event.source!==parent||event.data?.type!=='aifect-chart-qa-control')return;
+  if(event.data.command==='reset')reset();else if(event.data.command==='snapshot')send();else if(event.data.command==='suite')void runSuite();else if(event.data.command==='back'){history.back();setTimeout(send,150);}else if(event.data.command==='forward'){history.forward();setTimeout(send,150);}else if(event.data.command==='seed-draft'){try{await ensureMusic();reset();}catch(error){parent.postMessage({type:'aifect-chart-qa',error:error.message},location.origin);}}
+ });
+ window.addEventListener('hashchange',()=>setTimeout(send,100));window.AifectChartQA={snapshot,reset,runSuite};void waitFor(ready,'Chart bootstrap',20000).then(send).catch(error=>parent.postMessage({type:'aifect-chart-qa',error:error.message},location.origin));
+})();`;
 const qaHTML=`<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AIFECT 탭 전환 로컬 QA</title>
 <style>body{margin:16px;background:#111722;color:#f0f1f7;font:14px system-ui,sans-serif}h1{font-size:20px}button,a{font:inherit;margin:3px;padding:9px;color:inherit;background:#253046;border:1px solid #59647c;border-radius:6px}a{display:inline-block}#viewport{overflow:auto;margin-top:12px}iframe{display:block;border:1px solid #59647c;background:#0c121b;width:1440px;height:900px}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#1b2332;padding:12px;max-height:460px;overflow:auto}.controls{position:sticky;top:0;z-index:10;display:flex;gap:4px;flex-wrap:wrap;align-items:center;background:#111722;padding-block:6px}#suite-state{display:block;min-width:160px;padding:8px;color:#c6d7f8}</style></head><body>
 <h1>AIFECT 플레이 탭 · 로컬 샘플 검증</h1><p>실제 앱과 메모리 샘플 데이터로 검사해. 회귀 테스트는 실제 탭 링크를 클릭하며, 스크롤 120px에서 시작해.</p>
@@ -504,13 +582,20 @@ const myPageHTML=qaHTML
  .replace("{match:'/api/play/',failures:1,status:503}","{match:'/api/me/music-library',failures:1,status:503}")
  .replace("const show=async()=>{const server=await fetch('/__qa/stats').then(response=>response.json());report.textContent=JSON.stringify({client,server},null,2);};",myPageReportJS)
  .replace(' if(client.suite){',' if(!client.suite){document.getElementById(\'suite\').disabled=!client.ready;suiteState.textContent=client.ready?\'테스트 준비 완료\':\'앱 준비 중…\';}\n if(client.suite){');
+const chartHTML=myPageHTML
+ .replaceAll('AIFECT 마이페이지 탭','AIFECT 차트 탭')
+ .replace('실제 내 작품·내 보관함·내 활동 버튼과 보관함 하위 카테고리를 검사해. 스크롤 120px, 프로필·배너·탭·플레이어 유지, URL 기록, 로컬 오류·지연을 확인해.','실제 인기·커버·신곡 차트 링크와 주간·월간·전체 기간을 검사해. 스크롤 120px, 탭·공통 화면·플레이어 유지, URL 기록, 캐시와 로컬 오류·지연을 확인해.')
+ .replaceAll('aifect-mypage-qa','aifect-chart-qa')
+ .replaceAll('/#profile','/#charts')
+ .replace("{match:'/api/me/music-library',delayMs:1500},{match:'/api/me/profile?section=activity',delayMs:1500}","{match:'/api/catalog?section=tracks&full=1&chart=',delayMs:1500}")
+ .replace("{match:'/api/me/music-library',failures:1,status:503}","{match:'/api/catalog?section=tracks&full=1&chart=',failures:1,status:503}");
 const staticRoot=resolve('dist/client');
 const env={...featureEnv,DB:f.DB,ASSETS:{async fetch(req){
  const url=new URL(req.url),pathname=decodeURIComponent(url.pathname),file=resolve(staticRoot,'.'+(pathname==='/'?'/aifect-shell.txt':pathname));
  if(!file.startsWith(staticRoot+sep))return new Response('Not found',{status:404});
  try{
   let data=await readFile(file);const shell=/aifect-(?:profile-)?shell\.txt$/.test(file);
-  if(shell)data=Buffer.from(data.toString().replace('</body>','<script defer src="/__qa/probe.js"></script><script defer src="/__qa/community-probe.js"></script><script defer src="/__qa/mypage-probe.js"></script></body>'));
+  if(shell)data=Buffer.from(data.toString().replace('</body>','<script defer src="/__qa/probe.js"></script><script defer src="/__qa/community-probe.js"></script><script defer src="/__qa/mypage-probe.js"></script><script defer src="/__qa/chart-probe.js"></script></body>'));
   const mime={'.txt':'text/plain; charset=utf-8','.html':'text/html; charset=utf-8','.css':'text/css','.js':'text/javascript','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp','.woff2':'font/woff2','.json':'application/json'}[extname(file)]||'application/octet-stream';
   return new Response(req.method==='HEAD'?null:data,{headers:{'content-type':mime,'cache-control':'no-store'}});
  }catch{return new Response('Build assets first: npm run build',{status:404});}
@@ -521,9 +606,11 @@ async function handle(req){
  if(path==='/qa')return new Response(qaHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
  if(path==='/qa-community')return new Response(communityHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
  if(path==='/qa-mypage')return new Response(myPageHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
+ if(path==='/qa-charts')return new Response(chartHTML,{headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store'}});
  if(path==='/__qa/probe.js')return new Response(probeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
  if(path==='/__qa/community-probe.js')return new Response(communityProbeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
  if(path==='/__qa/mypage-probe.js')return new Response(myPageProbeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
+ if(path==='/__qa/chart-probe.js')return new Response(chartProbeJS,{headers:{'content-type':'text/javascript','cache-control':'no-store'}});
  if(path==='/__qa/stats'||path==='/__qa/health')return json(stats());
  if(path==='/__qa/control'&&req.method==='POST'){
   const control=await req.json();
@@ -548,8 +635,9 @@ async function handle(req){
 }
 
 if(args.includes('--check')){
- for(const [name,source] of [['play-probe',probeJS],['community-probe',communityProbeJS],['mypage-probe',myPageProbeJS],['play-controller',qaHTML],['community-controller',communityHTML],['mypage-controller',myPageHTML]])new Script(name.endsWith('controller')?source.match(/<script>([\s\S]*?)<\/script>/)[1]:source,{filename:name+'.js'});
+ for(const [name,source] of [['play-probe',probeJS],['community-probe',communityProbeJS],['mypage-probe',myPageProbeJS],['chart-probe',chartProbeJS],['play-controller',qaHTML],['community-controller',communityHTML],['mypage-controller',myPageHTML],['chart-controller',chartHTML]])new Script(name.endsWith('controller')?source.match(/<script>([\s\S]*?)<\/script>/)[1]:source,{filename:name+'.js'});
  const read=async path=>{const response=await handle(new Request('http://127.0.0.1:'+port+path));assert.equal(response.status,200,path);return response.json();};
+ for(const chart of ['listens','covers','new'])for(const period of ['week','month','all'])assert.equal((await read('/api/catalog?section=tracks&full=1&chart='+chart+'&period='+period)).tracks.length,30,'Chart fixture '+chart+'/'+period);
  assert.equal((await read('/api/play/songs?tab=recommended')).tracks.length,25);
  assert.equal((await read('/api/play/songs?tab=latest&offset=25')).tracks.length,5);
  assert.equal((await read('/api/play/songs?tab=duets')).tracks.length,3);
@@ -566,9 +654,10 @@ if(args.includes('--check')){
  previewUser='other';assert.equal((await read(libraryPath+'playlists')).total,0,'private MyPage collections must stay account scoped');previewUser='owner';
  const communityPage=await handle(new Request('http://127.0.0.1:'+port+'/qa-community'));assert.equal(communityPage.status,200);assert.match(await communityPage.text(),/name="aifect-community-qa"[^>]*src="\/#community"/);
  const myPage=await handle(new Request('http://127.0.0.1:'+port+'/qa-mypage'));assert.equal(myPage.status,200);assert.match(await myPage.text(),/name="aifect-mypage-qa"[^>]*src="\/#profile"/);
+ const chartPage=await handle(new Request('http://127.0.0.1:'+port+'/qa-charts'));assert.equal(chartPage.status,200);assert.match(await chartPage.text(),/name="aifect-chart-qa"[^>]*src="\/#charts"/);
  const stream=await handle(new Request('http://127.0.0.1:'+port+'/media/one/stream',{headers:{range:'bytes=0-43'}}));assert.equal(stream.status,206);assert.equal((await stream.arrayBuffer()).byteLength,44);assert.equal(stream.headers.get('content-type'),'audio/wav');
  await Promise.allSettled([...pending]);for(const cleanup of cleanups)await cleanup();
- console.log('Tab fixtures verified: Play /qa + Community /qa-community + MyPage /qa-mypage, 30 songs, 3 duet halves, 3 dubbings, 6 crews, 3 private playlists, weekly rankings, account isolation and WAV range streaming.');
+ console.log('Tab fixtures verified: Play /qa + Community /qa-community + MyPage /qa-mypage + Charts /qa-charts, 30 songs, 3 duet halves, 3 dubbings, 6 crews, 3 private playlists, weekly rankings, account isolation and WAV range streaming.');
 }else{
  const server=createServer(async(req,res)=>{
   try{
@@ -578,6 +667,6 @@ if(args.includes('--check')){
    res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
   }catch(error){console.error(error);res.writeHead(500,{'content-type':'application/json'});res.end(JSON.stringify({error:'Local preview error: '+error.message}));}
  });
- server.listen(port,host,()=>console.log('AIFECT local tab QA listening at http://'+host+':'+port+'/qa, /qa-community and /qa-mypage'));
+ server.listen(port,host,()=>console.log('AIFECT local tab QA listening at http://'+host+':'+port+'/qa, /qa-community, /qa-mypage and /qa-charts'));
  for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(async()=>{await Promise.allSettled([...pending]);for(const cleanup of cleanups)await cleanup();process.exit(0);}));
 }

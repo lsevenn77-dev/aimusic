@@ -38,7 +38,7 @@ test('single and bulk confirmations preserve target scope and deletion safeguard
  assert.match(html,/삭제하면 복구할 수 없습니다/);assert.match(html,/연결된 노래방·다른 회원의 커버곡/);assert.match(html,/name="verify"/);
  await assert.rejects(form.onsubmit(new Map([['verify','wrong']])),/삭제를 정확히/);
 });
-test('studio tabs isolate inventory, quota, upgrade and status summaries',()=>{
+test('studio tabs isolate inventory and status summaries below the shared quota banner',()=>{
  const ctx=sandbox(sampleTracks(6));
  const html=ctx.studioHTML(ctx.studioData);
  assert.equal((html.match(/role="tab"/g)||[]).length,2);
@@ -54,7 +54,7 @@ test('studio tabs isolate inventory, quota, upgrade and status summaries',()=>{
  ctx.studioResetFilters('cover');ctx.member.plan='free';
  const covers=ctx.studioHTML(ctx.studioData);
  assert.match(covers,/전체 커버곡<\/span><strong>3/);
- assert.doesNotMatch(covers,/업로드·변환 중|이번 달 제작곡|PREMIUM|data-studio-select="work-0"/);
+ assert.doesNotMatch(ctx.studioWorksHTML(ctx.studioData),/업로드·변환 중|이번 달 제작곡|PREMIUM|data-studio-select="work-0"/);
  assert.match(covers,/data-studio-select="work-1"/);
 });
 test('kind, status and keyword filters restrict the visible works',()=>{

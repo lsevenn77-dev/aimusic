@@ -59,6 +59,51 @@ test('profile tab shows the account-validated header and local loader before its
  assert.equal(visible,1,'another account cannot reveal the old header');
 });
 
+function chartRouterFixture(pending){
+ const effects=[],main={dataset:{route:'charts?period=week',account:'guest'}};
+ Object.defineProperty(main,'innerHTML',{set(){effects.push('replace-main');}});
+ const presentation={
+  begin(raw,previous,cancel,options){effects.push(['begin',raw,previous,options.retain]);return 7;},
+  ready(epoch){effects.push(['ready',epoch]);},fail(){effects.push('global-error');}
+ };
+ const c=nicknameContext({
+  renderId:1,me:null,api:async()=>({}),URLSearchParams,AbortController,
+  location:{hash:'#charts/covers?period=week'},history:{replaceState(){effects.push('replace-history');}},
+  window:{AifectRender:presentation,scrollTo(){effects.push('scroll');}},
+  document:{querySelectorAll:()=>[],addEventListener(){}},$:selector=>selector==='#main'?main:null,
+  setMobileMenu(){},canRefreshChartRoute:()=>true,
+  refreshChartRoute:async(raw,ticket,read,show)=>{
+   effects.push(['chart',raw,ticket,read.current()]);main.dataset.route=raw;show?.();
+   return await pending.promise;
+  },
+  cleanupLyricsEditor(){effects.push('cleanup-editor');},cleanupSing(){effects.push('cleanup-sing');},
+  cleanupHome(){effects.push('cleanup-home');}
+ });
+ vm.runInContext(source('views.js'),c);
+ c.cleanupRouteBindings=()=>effects.push('cleanup-bindings');
+ return {c,main,effects};
+}
+
+test('the chart router reveals local loading without replacing or cleaning up the shared page',async()=>{
+ const pending=deferred(),f=chartRouterFixture(pending);
+ const opening=f.c.render();
+ assert.deepEqual(f.effects,[['begin','charts/covers?period=week','charts?period=week',true],['chart','charts/covers?period=week',2,true],['ready',7]]);
+ assert.equal(f.main.dataset.route,'charts/covers?period=week');
+ pending.resolve(true);await opening;
+ assert.deepEqual(f.effects.at(-1),['ready',7]);
+ assert.equal(f.effects.filter(Array.isArray).length,f.effects.length,'no shell replacement, global error, scroll reset or route teardown occurs');
+});
+
+test('an invalidated chart transition cannot fall through into a full page teardown',async()=>{
+ const pending=deferred(),f=chartRouterFixture(pending);
+ const opening=f.c.renderRoute(()=>{});
+ assert.deepEqual(f.effects,[['chart','charts/covers?period=week',2,true]]);
+ f.c.renderId++;f.main.dataset.route='song/new';f.c.location.hash='#song/new';
+ pending.resolve(false);await opening;
+ assert.equal(f.main.dataset.route,'song/new');
+ assert.deepEqual(f.effects,[['chart','charts/covers?period=week',2,true]],'the stale route returns before global cleanup and page writes');
+});
+
 function skin(){
  let observer,scans=0,styles=0;
  const item={matches:()=>false,classList:{contains:()=>false,add(){}},scrollWidth:100,clientWidth:100};
