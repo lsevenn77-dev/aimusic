@@ -81,7 +81,7 @@ function livePrepareTrack(c,active){
    if(c.closed||c.liveToken!==token||c.liveTrack!==active.track.id)return;
    c.liveWords=Array.isArray(d.words)?d.words:[];
    if(!d.mr||!c.liveWords.length)throw Error('반주와 시간 가사가 준비되지 않았어요.');
-   const a=new Audio(d.mr);a.preload='auto';a.volume=c.liveVolume??.75;
+   const a=new Audio(d.mr);a.muted=!!c.roomAudio?.blocked;a.preload='auto';a.volume=c.liveVolume??.75;
    a.onended=()=>{const turn=c.state?.karaoke?.active?.invitation_id;clearTimeout(c.liveEndTimer);c.liveEndTimer=setTimeout(()=>{const k=c.state?.karaoke;if(c.liveAudio===a&&k?.active?.invitation_id===turn&&k?.active?.user_id===c.state.self&&k.phase==='singing')c.safe(()=>liveKaraokeAction(c,'karaoke-finish'));},Math.ceil((c.livePitchLatency||0)*1000));};
    a.onerror=()=>{if(c.liveAudio===a){c.liveError='반주를 재생할 수 없어요. 네트워크와 곡 상태를 확인해주세요.';paintLiveKaraoke(c);}};
    a.oncanplay=()=>{if(c.liveAudio===a)paintLiveKaraoke(c);};
@@ -101,7 +101,7 @@ async function livePitchGraph(c){
   const node=new AudioWorkletNode(ctx,'room-backing',{outputChannelCount:[2]});
   node.port.onmessage=({data})=>{if(Number.isFinite(data?.latency))c.livePitchLatency=data.latency;};
   const source=ctx.createMediaElementSource(audio);
-  const gain=ctx.createGain();gain.gain.value=c.liveVolume??.75;audio.volume=1;
+  const gain=ctx.createGain();gain.gain.value=c.roomAudio?.blocked?0:(c.liveVolume??.75);audio.volume=1;
   source.connect(node).connect(gain).connect(ctx.destination);
   c.livePitch={source,node,gain,key:null};c.livePitchError='';
  })();
@@ -110,6 +110,8 @@ async function livePitchGraph(c){
 }
 function liveSetVolume(c,value){
  if(!c.liveAudio)return;
+ if(c.roomAudio?.blocked){c.roomAudio.quietElement(c.liveAudio);c.roomAudio.zeroGain(c.livePitch?.gain,c.levelContext);return;}
+ c.liveAudio.muted=false;
  if(c.livePitch?.gain){c.liveAudio.volume=1;c.livePitch.gain.gain.setTargetAtTime(value,c.levelContext.currentTime,.015);}
  else c.liveAudio.volume=value;
 }
@@ -131,7 +133,7 @@ function disconnectLiveMonitor(c){
  c.liveMonitorTap=null;
 }
 function syncLiveMonitor(c){
- if(!c.liveMonitorEnabled||c.closed||!isLiveSingerTurn(c)||!c.micSender?.track?.enabled){
+ if(c.roomAudio?.blocked||!c.liveMonitorEnabled||c.closed||!isLiveSingerTurn(c)||!c.micSender?.track?.enabled){
   disconnectLiveMonitor(c);
   return;
  }
@@ -197,21 +199,31 @@ async function liveSearchSongs(c){
   out.innerHTML=data.tracks.slice(0,30).map(t=>`<div class="live-result"><img src="${esc(t.cover||trackArtworkPath(t))}" width="38" height="38" alt=""><div><strong title="${esc(t.title)}">${esc(t.title)}</strong><small>${trackNickname(t)}</small></div><button class="small-button" type="button" data-voice="karaoke-request" data-target="${esc(t.id)}">예약</button></div>`).join('')||`<p class="quiet">${q?'부를 수 있는 곡을 찾지 못했어요.':collection==='mine'?'아직 부른 곡이 없어요.':'최근 예약 기록이 없어요.'}</p>`;
  }catch(error){if(controller.signal.aborted||c.closed)return;out.dataset.state='error';out.setAttribute('aria-busy','false');out.textContent='곡을 불러오지 못했어요. 검색을 눌러 다시 시도해주세요.';throw error;}
 }
+function liveMicIntent(c){
+ const guard=c.roomAudio,intent=c.micIntentRevision||0,generation=c.generation,epoch=c.epoch;
+ return ()=>!c.closed&&c.roomAudio===guard&&(c.micIntentRevision||0)===intent&&c.generation===generation&&c.epoch===epoch;
+}
 async function liveKaraokeAction(c,action,target){
  if(action==='karaoke-begin'){
+  const sameIntent=liveMicIntent(c);
+  if(c.roomAudio&&!await c.roomAudio.allowCapture(true))return;
+  if(!sameIntent())return;
+  const audioRevision=c.roomAudio?.revision;
   const id=target,k=c.state?.karaoke;
-  const current=()=>!c.closed&&c.state?.karaoke?.active?.invitation_id===id&&c.state.karaoke.active.user_id===c.state.self;
+  const current=()=>sameIntent()&&c.roomAudio?.revision===audioRevision&&!c.roomAudio?.blocked&&!c.roomAudio?.micNeedsGesture&&c.state?.karaoke?.active?.invitation_id===id&&c.state.karaoke.active.user_id===c.state.self;
   if(!id||!current()||!['invited','ready'].includes(k.phase)||c.liveStartingId===id)return;
   c.liveStartingId=id;c.resumeSound?.();paintLiveKaraoke(c);
   try{
    const audio=c.liveAudio;
-   if(audio){c.livePriming=true;audio.muted=true;Promise.resolve(audio.play()).then(()=>{if(c.liveAudio===audio&&c.state?.karaoke?.phase!=='singing'){audio.pause();audio.currentTime=0;}}).catch(()=>{}).finally(()=>{audio.muted=false;c.livePriming=false;});}
+   if(audio){c.livePriming=true;audio.muted=true;Promise.resolve(audio.play()).then(()=>{if(c.liveAudio===audio&&c.state?.karaoke?.phase!=='singing'){audio.pause();audio.currentTime=0;}}).catch(()=>{}).finally(()=>{audio.muted=!!c.roomAudio?.blocked;c.livePriming=false;});}
    if(k.phase==='invited'){
     const state=await c.command('karaoke',{operation:'accept',invitation_id:id,request_id:crypto.randomUUID()});
     if(!c.acceptState(state))await c.refresh();
    }
    if(!current()||c.state.karaoke.phase!=='ready')return;
-   c.micDesired=true;await c.enableMic();
+   // The original button gesture already authorized capture. A delayed accept
+   // response must not turn into a new gesture after an interruption or mute.
+   c.micDesired=true;await c.enableMic(false);
    while(current()&&c.state.karaoke.phase==='ready'&&liveNow(c)<c.state.karaoke.readyExpiresAt){
     if(c.liveError)throw Error(c.liveError);
     if(liveTrackReady(c)&&c.state.members.some(p=>p.id===c.state.self&&p.publishing&&!p.muted)){
@@ -253,11 +265,17 @@ async function liveKaraokeAction(c,action,target){
  }
  if(action==='karaoke-search-open'){if(c.state?.karaoke?.active?.user_id===c.state?.self&&c.state?.self)return;c.showSheet('live-search-sheet');if(c.host.querySelector('#live-search-sheet').open)await liveSearchSongs(c);return;}
  if(action==='karaoke-resume'){
+  if(c.roomAudio?.blocked&&!await c.roomAudio.resumeByUser())return;
   c.resumeSound();c.livePlayBlocked=false;if(c.liveAudio&&c.state?.karaoke?.phase==='singing'){try{await c.liveAudio.play();c.host.querySelector('#live-audio-unlock').hidden=true;}catch(e){c.livePlayBlocked=true;throw e;}}return;
  }
  if(action==='karaoke-retry'){c.liveTrack=null;const active=c.state?.karaoke?.active;if(active)livePrepareTrack(c,active);return;}
  const operation=action.slice('karaoke-'.length);
  if(!['request','cancel','call','accept','start','abandon','finish','next'].includes(operation))return;
+ const sameIntent=liveMicIntent(c);
+ if(['accept','start'].includes(operation)&&c.roomAudio&&!await c.roomAudio.allowCapture(true))return;
+ if(['accept','start'].includes(operation)&&!sameIntent())return;
+ const audioRevision=c.roomAudio?.revision;
+ const captureCurrent=()=>sameIntent()&&c.roomAudio?.revision===audioRevision&&!c.roomAudio?.blocked&&!c.roomAudio?.micNeedsGesture;
  const command={operation,request_id:crypto.randomUUID()};
  if(c.liveCommandPending)return;
  if(operation==='start'&&!liveTrackReady(c))throw Error('반주를 불러온 뒤 시작해주세요.');
@@ -272,7 +290,7 @@ async function liveKaraokeAction(c,action,target){
    const prepared=c.liveAudio,volume=c.liveVolume??.75;
    c.livePriming=true;liveSetVolume(c,0);
    try{await prepared.play();prepared.pause();prepared.currentTime=0;}finally{liveSetVolume(c,volume);c.livePriming=false;}
-   if(c.closed)return;
+   if(!captureCurrent())return;
   }
   const result=await c.command('karaoke',command);
   if(!c.acceptState?.(result))await c.refresh();
@@ -280,8 +298,8 @@ async function liveKaraokeAction(c,action,target){
  }
  finally{c.liveCommandPending=false;paintLiveKaraoke(c);}
  // Permission prompts can remain unanswered. Keep the give-up control usable.
- if(operation==='accept'&&!c.closed&&c.state?.karaoke?.active?.invitation_id===command.invitation_id&&c.state.karaoke.phase==='ready'){
-  c.micDesired=true;await c.enableMic();
+ if(operation==='accept'&&captureCurrent()&&c.state?.karaoke?.active?.invitation_id===command.invitation_id&&c.state.karaoke.phase==='ready'){
+  c.micDesired=true;await c.enableMic(false);
  }
 }
 function paintLiveKaraoke(c){
@@ -364,7 +382,8 @@ function liveSync(c){
  }else phase.textContent=now<k.startsAt?Math.max(1,Math.ceil((k.startsAt-now)/1000))+'초 뒤 시작':'노래하는 중 · LIVE';
  timer.textContent=time(seconds)+' / '+time(duration);progress.max=duration;progress.value=seconds;
  const audio=c.liveAudio;
- if(audio&&!c.livePriming){
+ if(c.roomAudio?.blocked)c.roomAudio.quietElement(audio);
+ if(audio&&!c.livePriming&&!c.roomAudio?.blocked){
   const key=c.liveKeyTurn===active.invitation_id&&c.liveKeyDesired!=null?c.liveKeyDesired:(active.key||0);
   if(!c.livePitch&&!c.livePitchPending&&!c.livePitchError){
    livePitchGraph(c).catch(e=>{c.livePitchError=e.message;c.status?.(e.message);});
@@ -512,6 +531,7 @@ VoiceRoomClient.prototype.leave=function(...a){
 // A singer's new server-confirmed turn enables local monitoring once. UI repaints
 // and reopening settings never override the singer's subsequent choice.
 function syncRoomSingerMonitor(c){
+ if(c.roomAudio?.blocked){disconnectLiveMonitor(c);return;}
  const k=c.state?.karaoke,turn=k?.phase==='singing'&&k.active?.user_id===c.state.self?k.active.invitation_id:null;
  if(turn&&turn!==c.liveMonitorTurn){c.liveMonitorTurn=turn;c.liveMonitorEnabled=true;const el=c.host?.querySelector('#voice-monitor');if(el)el.checked=true;}
  if(!isLiveSingerTurn(c)){c.liveMonitorEnabled=false;const el=c.host?.querySelector('#voice-monitor');if(el)el.checked=false;disconnectLiveMonitor(c);}

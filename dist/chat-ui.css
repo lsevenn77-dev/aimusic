@@ -17,7 +17,7 @@
  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;
  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;
 }
-#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field:focus-within{outline:1px solid #8eddd2;outline-offset:1px}
+#main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field:focus-within{outline:1px solid var(--ds-line);outline-offset:1px}
 #main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-field :is(textarea,[data-dm-editor]){
  box-sizing:border-box;display:block;position:static;flex:1 1 0;min-width:0!important;width:100%;min-height:44px;max-height:116px!important;
  padding:10px 0 10px 14px!important;margin:0;border:0!important;border-radius:24px;background:transparent!important;box-shadow:none!important;outline:0;
@@ -35,7 +35,7 @@
 #main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-surface svg{fill:currentColor}
 #main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-icon:hover,#main .chat-ui-icon:hover{color:var(--ds-accent-mint);filter:none;transform:none}
 #main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .chat-ui-plain:is(:hover,:focus),#main .chat-ui-plain:is(:hover,:focus){background:transparent;box-shadow:none;border:0}
-#main .chat-ui-icon:focus-visible{outline:2px solid #8eddd2;outline-offset:-3px;border-radius:50%}
+#main .chat-ui-icon:focus-visible{outline:2px solid var(--ds-accent-lavender);outline-offset:-3px;border-radius:50%}
 #main .chat-ui-icon:disabled{opacity:.45;cursor:default}
 #main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .form-error:empty{display:none}
 #main :is(#voice-chat-form,#room-dm-compose,#chat-compose).chat-ui-composer .dm-length{position:absolute;right:46px;bottom:2px;font-size:10px;pointer-events:none}

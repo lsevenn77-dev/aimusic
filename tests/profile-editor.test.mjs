@@ -13,8 +13,8 @@ async function setup(t){
  const f=await fixture(t,{BUCKET});
  f.sql.exec("UPDATE producers SET name='기존회원',bio='이전 소개',image_version='old',image_type='image/png',nickname_confirmed=1 WHERE user_id='owner';INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','크루',0);INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','leader',0);INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,expires_at) VALUES('frame','owner','crew-outline','reward','frame',0,unixepoch()+86400);INSERT OR REPLACE INTO player_equipment(user_id,frame_inventory_id) VALUES('owner','frame')");
  const snapshot=()=>({...f.sql.prepare("SELECT * FROM producers WHERE user_id='owner'").get()});
- const save=async({name='기존회원',bio='새 소개',image,remove=false,user='owner',DB=f.DB,origin='https://aifect.test'}={})=>{
-  const fd=new FormData();fd.set('name',name);fd.set('bio',bio);if(image)fd.set('image',image,'test.png');if(remove)fd.set('remove_image','true');
+ const save=async({name='기존회원',bio='새 소개',image,banner,remove=false,removeBanner=false,user='owner',DB=f.DB,origin='https://aifect.test'}={})=>{
+  const fd=new FormData();fd.set('name',name);fd.set('bio',bio);if(image)fd.set('image',image,'test.png');if(banner)fd.set('banner',banner,'banner.png');if(remove)fd.set('remove_image','true');if(removeBanner)fd.set('remove_banner','true');
   const r=await worker.fetch(new Request('https://aifect.test/api/me/profile',{method:'PUT',headers:{Origin:origin,...(user?{Cookie:'aifect_session='+user}:{})},body:fd}),{DB,BUCKET},{waitUntil(p){p.catch(()=>{});}});
   return {status:r.status,body:await r.json()};
  };
@@ -72,6 +72,32 @@ test('a late database failure rolls back text, nickname cooldown and image toget
 test('legacy JSON saves remain compatible and nickname endpoint cannot remove a photo',async t=>{
  const f=await setup(t);assert.equal((await f.call('/api/me/profile','PUT',{name:'기존회원',bio:'JSON 소개'})).status,200);assert.equal(f.snapshot().image_version,'old');
  assert.equal((await f.call('/api/account/nickname','PUT',{name:'기존회원',remove_image:true})).status,200);assert.equal(f.snapshot().image_version,'old');assert.equal(f.snapshot().bio,'JSON 소개');
+});
+test('photo and backdrop publish together and clearing each retains original objects',async t=>{
+ const f=await setup(t),photo=new Blob([png],{type:'image/png'}),out=await f.save({image:photo,banner:photo});
+ assert.equal(out.status,200);assert.ok(out.body.profile.banner_version);assert.ok(out.body.profile.image_version);
+ const {image_version,banner_version}=out.body.profile;
+ assert.notEqual(image_version,banner_version);assert.ok(f.objects.has('images/banner/producer/'+banner_version));
+ assert.equal((await f.call('/api/me/profile')).body.profile.banner_version,banner_version);
+ assert.equal((await f.call('/api/producers/producer')).body.profile.banner_version,banner_version);
+ const cleared=await f.save({removeBanner:true});assert.equal(cleared.status,200);assert.equal(cleared.body.profile.banner_version,'');assert.equal(cleared.body.profile.image_version,image_version);
+ assert.ok(f.objects.has('images/banner/producer/'+banner_version));assert.equal((await f.save({remove:true})).body.profile.image_version,'');
+ assert.ok(f.objects.has('images/producer/producer/'+image_version));
+});
+test('a bad second image cannot save the first image or text and invalid banner changes do not unlink the photo',async t=>{
+ const f=await setup(t),before=f.snapshot(),image=new Blob([png],{type:'image/png'});
+ for(const banner of [new Blob(['bad'],{type:'image/png'}),new Blob([new Uint8Array(5*1024*1024+1)],{type:'image/png'})]){
+  const out=await f.save({name:'두사진회원',image,banner});assert.ok([400,413].includes(out.status));assert.deepEqual(f.snapshot(),before);assert.equal(f.objects.size,1);
+ }
+ assert.equal((await f.save({remove:true,banner:image,removeBanner:true})).status,400);assert.deepEqual(f.snapshot(),before);
+});
+test('banner storage and transaction failures roll back both images without deleting retained originals',async t=>{
+ const f=await setup(t),before=f.snapshot(),image=new Blob([png],{type:'image/png'}),put=f.BUCKET.put;
+ f.BUCKET.put=async(key,value)=>{if(key.startsWith('images/banner/'))throw Error('fixture banner upload failure');return put(key,value);};
+ assert.equal((await f.save({image,banner:image})).status,500);assert.deepEqual(f.snapshot(),before);assert.equal(f.objects.size,1);f.BUCKET.put=put;
+ f.sql.exec("CREATE TRIGGER fail_profile_banner BEFORE UPDATE OF banner_version ON producers WHEN NEW.user_id='owner' BEGIN SELECT RAISE(ABORT,'fixture banner failure'); END");
+ assert.equal((await f.save({name:'함께저장',image,banner:image})).status,500);assert.deepEqual(f.snapshot(),before);assert.equal(f.objects.size,1);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM nickname_changes WHERE user_id='owner'").get().n,0);
 });
 test('editor uses shared policy, accepts unchanged legacy names and exposes only compact draft controls',()=>{
  const c=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}},nicknamePolicy,esc:s=>String(s??''),avatarImage:()=>'<img class="profile-avatar-image">',playerFrameURL:()=>'',playerAvatarClass:()=>'',playerBadgeHTML:()=>''});

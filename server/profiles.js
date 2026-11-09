@@ -16,14 +16,14 @@ import {NICKNAME_DAYS} from '../shared/nickname-policy.js';
 // Upload bytes are staged under a new immutable key; only the DB batch publishes it.
 async function profileDraft(req){
  if(!req.headers.get('content-type')?.startsWith('multipart/form-data'))return {body:await req.json()};
- const limit=5*1024*1024+65536;
- if(Number(req.headers.get('content-length'))>limit)fail(413,'이미지는 5MB 이하로 업로드해주세요.');
+ const limit=10*1024*1024+65536;
+ if(Number(req.headers.get('content-length'))>limit)fail(413,'프로필과 배경 이미지는 각각 5MB 이하로 업로드해주세요.');
  const reader=req.body?.getReader(),chunks=[];let size=0;
  if(!reader)fail(400,'프로필 정보를 확인해주세요.');
- while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();fail(413,'이미지는 5MB 이하로 업로드해주세요.');}chunks.push(value);}
+ while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();fail(413,'프로필과 배경 이미지는 각각 5MB 이하로 업로드해주세요.');}chunks.push(value);}
  const form=await new Response(new Blob(chunks),{headers:{'content-type':req.headers.get('content-type')}}).formData();
- const image=form.get('image');
- return {body:{name:form.get('name'),bio:form.get('bio'),remove_image:form.get('remove_image')==='true'},image:image?.size?image:null};
+ const image=form.get('image'),banner=form.get('banner');
+ return {body:{name:form.get('name'),bio:form.get('bio'),remove_image:form.get('remove_image')==='true',remove_banner:form.get('remove_banner')==='true'},image:image?.size?image:null,banner:banner?.size?banner:null};
 }
 
 async function previewCrew(env,userId){
@@ -95,24 +95,29 @@ export async function profileRoute(req,env,path,user){
   return json({ok:true,image_version:img.version});
  }
  if(req.method==='PUT'){
-  const {body:b,image}=path==='/api/me/profile'?await profileDraft(req):{body:await req.json()};
+  const {body:b,image,banner}=path==='/api/me/profile'?await profileDraft(req):{body:await req.json()};
   const name=typeof b.name==='string'?b.name.trim():b.name,previous=await one(env,'SELECT id,bio FROM producers WHERE user_id=?',user.id),bio=str((path==='/api/account/nickname'?previous?.bio:undefined)??b.bio??'',1000,false);
   if(image&&b.remove_image)fail(400,'변경할 사진을 다시 선택해주세요.');
+  if(banner&&b.remove_banner)fail(400,'변경할 배경 이미지를 다시 선택해주세요.');
   await rate(env,'nickname-change:'+user.id,20,3600);
   const pid=previous?.id||id(),writes=[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1) ON CONFLICT(user_id) DO UPDATE SET name=excluded.name,bio=excluded.bio,nickname_confirmed=1',pid,user.id,name,bio,now())];
-  let staged;
-  if(image){
-   await rate(env,'profile-image:'+user.id,20,3600);
-   staged=await storeImage(new Request(req.url,{method:'PUT',headers:{'content-type':image.type},body:image}),env,'producer',pid);
-   writes.push(query(env,'UPDATE producers SET image_version=?,image_type=? WHERE user_id=?',staged.version,staged.type,user.id));
-  }else if(path==='/api/me/profile'&&b.remove_image===true){
-   // Unlink the user photo only. Equipment, decorations and original objects stay intact.
-   writes.push(query(env,"UPDATE producers SET image_version='',image_type='' WHERE user_id=?",user.id));
-  }
-  try{await nicknameBatch(env,user.id,name,writes);}
-  catch(error){if(staged)await env.BUCKET.delete(`images/producer/${pid}/${staged.version}`).catch(()=>{});throw error;}
+  const staged=[];
+  try{
+   for(const [file,remove,kind,column] of [[image,b.remove_image,'producer','image'],[banner,b.remove_banner,'banner','banner']]){
+    if(file){
+     await rate(env,'profile-'+column+':'+user.id,20,3600);
+     const saved=await storeImage(new Request(req.url,{method:'PUT',headers:{'content-type':file.type},body:file}),env,kind,pid);
+     staged.push(`images/${kind}/${pid}/${saved.version}`);
+     writes.push(query(env,`UPDATE producers SET ${column}_version=?,${column}_type=? WHERE user_id=?`,saved.version,saved.type,user.id));
+    }else if(path==='/api/me/profile'&&remove===true){
+     // Unlink only the selected image; retained originals and equipment stay intact.
+     writes.push(query(env,`UPDATE producers SET ${column}_version='',${column}_type='' WHERE user_id=?`,user.id));
+    }
+   }
+   await nicknameBatch(env,user.id,name,writes);
+  }catch(error){await Promise.all(staged.map(key=>env.BUCKET.delete(key).catch(()=>{})));throw error;}
  }else if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
- const profile=await one(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version FROM producers p WHERE p.user_id=?`,user.id);
+ const profile=await one(env,`SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version,p.banner_version FROM producers p WHERE p.user_id=?`,user.id);
  const [followers,counts,identity,number]=await Promise.all([
  profile?rows(env,`SELECT p.id,u.id user_id,${playerColumnsSQL('u.id')},${publicNameSQL()} name,p.image_version,'producer' profile_kind FROM follows f JOIN users u ON u.id=f.user_id LEFT JOIN producers p ON p.user_id=f.user_id WHERE f.kind='producer' AND f.target_id=? ORDER BY f.created DESC LIMIT 200`,profile.id):[],
  followCounts(env,user.id,user.id),playerIdentity(env,user.id),one(env,'SELECT number public_number,(SELECT code FROM public_profile_ids WHERE user_id=public_member_ids.user_id) public_id FROM public_member_ids WHERE user_id=?',user.id)]);

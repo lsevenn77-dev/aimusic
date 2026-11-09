@@ -284,3 +284,54 @@ test('each new own singing turn enables monitoring once and respects a manual of
  client.state.karaoke.active.user_id='self';client.state.karaoke.active.invitation_id='turn-2';sync();assert.equal(client.liveMonitorEnabled,true);
  client.state.karaoke.phase='idle';sync();assert.equal(client.liveMonitorEnabled,false);
 });
+
+
+test('an interrupted karaoke room cannot restart accompaniment or monitoring from sync and volume changes',()=>{
+ const {c,client}=monitorFixture();let played=0;
+ vm.runInContext(source('room-audio-session.js'),c);
+ const audio={muted:false,paused:false,currentTime:5,readyState:4,pause(){this.paused=true;},play(){played++;this.paused=false;return Promise.resolve();}};
+ const parameter={value:1,cancelScheduledValues(){},setValueAtTime(value){this.value=value;},setTargetAtTime(value){this.value=value;}};
+ Object.assign(client,{liveAudio:audio,livePitch:{gain:{gain:parameter}},liveVolume:.75,liveMonitorEnabled:true});
+ client.state.karaoke.phase='singing';client.state.karaoke.startsAt=Date.now()-5000;
+ client.state.karaoke.active.invitation_id='turn';client.state.karaoke.active.track.duration=90;
+ vm.runInContext('client.roomAudio=new RoomAudioSession(client);client.roomAudio.interrupt("session");liveSetVolume(client,1);liveSync(client)',c);
+ assert.equal(audio.muted,true);assert.equal(audio.paused,true);assert.equal(parameter.value,0);assert.equal(played,0);assert.equal(client.liveMonitorTap,undefined);
+});
+
+function delayedAcceptFixture(){
+ const session={state:'active',type:'auto',addEventListener(){},removeEventListener(){}};
+ const {c,host}=context({performance,navigator:{audioSession:session,mediaDevices:{getUserMedia:async()=>{throw Error('capture is instrumented');}}}});
+ // Run the real capture entry point and guard along with the real karaoke
+ // action. Only the asynchronous server response and hardware are replaced.
+ vm.runInContext(source('voice-rooms.js')+';this.actualEnableMic=VoiceRoomClient.prototype.enableMic;',c);
+ vm.runInContext(source('room-audio-session.js'),c);
+ let acceptResponse,captures=0;
+ const state={self:'self',room:{mode:'karaoke'},members:[{id:'self',name:'나',seat:0,role:'participant',muted:true,publishing:false}],
+  karaoke:{phase:'invited',inviteExpiresAt:Date.now()+15000,active:{user_id:'self',invitation_id:'turn',track:{id:'song',title:'곡',artist:'A',duration:90}},queue:[]}};
+ c.client={host,state,closed:false,joined:true,liveMode:true,liveTrack:'song',epoch:1,generation:'g',micAttempt:1,micState:'muted',
+  command:(_path,body)=>body?.operation==='accept'?new Promise(resolve=>{acceptResponse=resolve;}):Promise.resolve({}),
+  acceptState(next){if(next?.karaoke)this.state=next;return true;},
+  paint(){},status(){},resumeSound(){},stopMicTest(){},stopMicrophone(){},setCaptureEnabled(){},setMicPhase(){return 0;},
+  captureMicrophone:async()=>{captures++;return null;},enableMic:c.actualEnableMic};
+ vm.runInContext('client.roomAudio=new RoomAudioSession(client);liveNow=()=>Infinity;',c);
+ return {c,client:c.client,session,get captures(){return captures;},
+  finish(){assert.ok(acceptResponse,'the accept request is pending');acceptResponse({...state,karaoke:{...state.karaoke,phase:'ready',readyExpiresAt:Date.now()+10000}});}};
+}
+for(const action of ['karaoke-begin','karaoke-accept']){
+ test(`${action}: an old accept response cannot authorize capture after interruption and recovery`,async()=>{
+  const h=delayedAcceptFixture();h.c.requestedAction=action;
+  const actionTask=vm.runInContext('liveKaraokeAction(client,requestedAction,"turn")',h.c);
+  await new Promise(resolve=>setImmediate(resolve));
+  h.session.state='interrupted';h.client.roomAudio.onSessionState();await h.client.roomAudio.muteTask;
+  h.session.state='active';h.client.roomAudio.onSessionState();
+  assert.equal(h.client.roomAudio.blocked,false);assert.equal(h.client.roomAudio.micNeedsGesture,true);
+  h.finish();await actionTask;
+  assert.equal(h.captures,0);assert.equal(h.client.roomAudio.micNeedsGesture,true);assert.equal(h.client.micDesired,false);
+ });
+ test(`${action}: the same delayed accept starts capture when its original gesture remains valid`,async()=>{
+  const h=delayedAcceptFixture();h.c.requestedAction=action;
+  const actionTask=vm.runInContext('liveKaraokeAction(client,requestedAction,"turn")',h.c);
+  await new Promise(resolve=>setImmediate(resolve));h.finish();await actionTask;
+  assert.equal(h.captures,1);assert.equal(h.client.roomAudio.micNeedsGesture,false);
+ });
+}

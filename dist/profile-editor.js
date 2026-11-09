@@ -6,6 +6,7 @@ function profileEditorNameError(value,original,availableAt,at=Date.now()/1000){
 }
 function profileEditorHTML(p){
  const path=playerFrameURL(p),frame=path&&!AifectPlayer.PLAYER_ITEMS[p.profile_frame]?.paid?'<img class="player-frame-artwork" src="'+esc(profileFrameCanvasArtwork(path))+'" alt="" aria-hidden="true">':'';
+ const background=p.banner_version?'/media/banner/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.banner_version):p.image_version?'/media/producer/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.image_version):'';
  return `<button type="button" class="dialog-close" data-profile-edit-close aria-label="닫기" autofocus>×</button>
  <form id="profile-edit-form" novalidate>
   <div class="profile-edit-top">
@@ -16,6 +17,13 @@ function profileEditorHTML(p){
     <label class="form-field">닉네임<input name="name" value="${esc(p.name)}" autocomplete="nickname" maxlength="8" aria-describedby="profile-edit-name-status"></label>
     <p id="profile-edit-name-status" class="field-help" role="status"></p>
    </div>
+  </div>
+  <div class="profile-edit-banner">
+   <span class="profile-edit-label">배경 이미지</span>
+   <div class="profile-edit-banner-preview"><img data-profile-banner-preview ${background?'src="'+esc(background)+'"':''} alt="프로필 배경 미리보기" ${background?'':'hidden'}><span data-profile-banner-empty ${background?'hidden':''}>사이트 배경</span></div>
+   <div class="profile-edit-banner-actions"><button type="button" class="small-button" data-profile-banner-change>배경 변경</button><button type="button" class="small-button" data-profile-banner-remove ${p.banner_version?'':'hidden'}>배경 삭제</button></div>
+   <input type="file" name="banner" accept="image/jpeg,image/png,image/webp" aria-label="프로필 배경 이미지 선택" hidden>
+   <p class="field-help">배경을 삭제하면 프로필 사진이, 사진도 없으면 사이트 배경이 보여요.</p>
   </div>
   <label class="form-field profile-edit-bio">소개<textarea name="bio" rows="3" maxlength="1000">${esc(p.bio||'')}</textarea></label>
   <p class="form-error" role="alert"></p>
@@ -28,6 +36,7 @@ function closeProfileEditor(force=false){
  ++profileEditorSerial;if(!s)return;
  profileEditor=null;
  if(s.url)URL.revokeObjectURL(s.url);
+ if(s.bannerUrl)URL.revokeObjectURL(s.bannerUrl);
  s.controller.abort();s.panel.close();s.panel.remove();
  document.documentElement.style.overflow=s.overflow;
  document.documentElement.style.scrollbarGutter=s.gutter;
@@ -38,6 +47,11 @@ function paintProfileDraft(s){
  const img=s.panel.querySelector('.profile-avatar-image');
  img.src=s.url||(s.removed?DEFAULT_AVATAR:s.originalImage);img.hidden=false;
  s.panel.querySelector('[data-profile-photo-remove]').hidden=!(s.file||(!s.removed&&s.profile.image_version));
+ const background=s.bannerUrl||(!s.bannerRemoved&&s.originalBanner)||(s.url||(!s.removed&&s.profile.image_version?s.originalImage:''));
+ const banner=s.panel.querySelector('[data-profile-banner-preview]');
+ if(background)banner.src=background;else banner.removeAttribute('src');banner.hidden=!background;
+ s.panel.querySelector('[data-profile-banner-empty]').hidden=!!background;
+ s.panel.querySelector('[data-profile-banner-remove]').hidden=!(s.bannerFile||(!s.bannerRemoved&&s.profile.banner_version));
 }
 async function openProfileEditor(origin=document.activeElement){
  if(profileEditor)return;
@@ -48,44 +62,47 @@ async function openProfileEditor(origin=document.activeElement){
   const d=await api('/api/me/profile','GET',undefined,{fresh:true});
   if(serial!==profileEditorSerial||route!==location.hash||uid!==me?.id)return;
   const panel=document.createElement('dialog');panel.className='profile-edit-dialog compact-popup';panel.setAttribute('aria-label','프로필 편집');panel.setAttribute('aria-modal','true');panel.innerHTML=profileEditorHTML(d.profile);
-  const s=profileEditor={panel,profile:d.profile,availableAt:d.nickname_change_available_at||0,origin,uid,route,file:null,removed:false,url:'',saving:false,selecting:0,controller:new AbortController(),scrollX:window.scrollX,scrollY:window.scrollY,overflow:document.documentElement.style.overflow,gutter:document.documentElement.style.scrollbarGutter};
+  const s=profileEditor={panel,profile:d.profile,availableAt:d.nickname_change_available_at||0,origin,uid,route,file:null,removed:false,url:'',bannerFile:null,bannerRemoved:false,bannerUrl:'',originalBanner:d.profile.banner_version?'/media/banner/'+encodeURIComponent(d.profile.id)+'?v='+encodeURIComponent(d.profile.banner_version):'',saving:false,selections:new Set(),controller:new AbortController(),scrollX:window.scrollX,scrollY:window.scrollY,overflow:document.documentElement.style.overflow,gutter:document.documentElement.style.scrollbarGutter};
   s.originalImage=panel.querySelector('.profile-avatar-image').getAttribute('src');
   document.documentElement.style.scrollbarGutter='stable';document.documentElement.style.overflow='hidden';
   document.body.append(panel);panel.showModal();panel.querySelector('[data-profile-edit-close]').focus({preventScroll:true});
   // Native dialog autofocus and scroll-lock style changes must not move the page.
   window.scrollTo({left:s.scrollX,top:s.scrollY,behavior:'instant'});
   const form=panel.querySelector('form'),name=form.elements.name,status=panel.querySelector('[role=status]'),error=panel.querySelector('[role=alert]'),submit=form.querySelector('[type=submit]');
-  const validate=()=>{const message=profileEditorNameError(name.value,s.profile.name,s.availableAt);name.setCustomValidity(message);status.textContent=message;submit.disabled=s.saving||!!s.selecting||!!message;return !message;};
+  const validate=()=>{const message=profileEditorNameError(name.value,s.profile.name,s.availableAt);name.setCustomValidity(message);status.textContent=message;submit.disabled=s.saving||!!s.selections.size||!!message;return !message;};
   name.addEventListener('input',validate);
   name.addEventListener('blur',()=>{name.value=name.value.trim();validate();});
   panel.addEventListener('cancel',e=>{e.preventDefault();closeProfileEditor();});
   panel.addEventListener('close',()=>{if(profileEditor===s)closeProfileEditor(true);});
   panel.querySelectorAll('[data-profile-edit-close]').forEach(b=>b.onclick=()=>closeProfileEditor());
-  panel.querySelector('[data-profile-photo-change]').onclick=()=>form.elements.image.click();
-  panel.querySelector('[data-profile-photo-remove]').onclick=()=>{
-   ++selection;s.selecting=0;if(s.url)URL.revokeObjectURL(s.url);s.url='';s.file=null;s.removed=true;form.elements.image.value='';error.textContent='';paintProfileDraft(s);validate();
-  };
-  let selection=0;
-  form.elements.image.onchange=async()=>{
-   const file=form.elements.image.files?.[0];form.elements.image.value='';if(!file)return;
-   const revision=++selection;s.selecting=revision;error.textContent='';validate();
-   try{
-    if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('JPG·PNG·WebP 사진을 선택해주세요.');
-    if(file.size>5*1024*1024)throw Error('사진은 5MB 이하로 선택해주세요.');
-    const bitmap=await decodeUploadImage(file);bitmap.close();
-    if(profileEditor!==s||revision!==selection||s.selecting!==revision)return;
-    if(s.url)URL.revokeObjectURL(s.url);s.url=URL.createObjectURL(file);s.file=file;s.removed=false;paintProfileDraft(s);
-   }catch(e){if(profileEditor===s&&revision===selection)error.textContent=e.message;}
-   finally{if(profileEditor===s&&revision===selection){s.selecting=0;validate();}}
-  };
+  for(const [field,button,fileKey,urlKey,removedKey] of [['image','photo','file','url','removed'],['banner','banner','bannerFile','bannerUrl','bannerRemoved']]){
+   let selection=0;const input=form.elements[field];
+   panel.querySelector('[data-profile-'+button+'-change]').onclick=()=>input.click();
+   panel.querySelector('[data-profile-'+button+'-remove]').onclick=()=>{
+    ++selection;s.selections.delete(field);if(s[urlKey])URL.revokeObjectURL(s[urlKey]);s[urlKey]='';s[fileKey]=null;s[removedKey]=true;input.value='';error.textContent='';paintProfileDraft(s);validate();
+   };
+   input.onchange=async()=>{
+    const file=input.files?.[0];input.value='';if(!file)return;
+    const revision=++selection;s.selections.add(field);error.textContent='';validate();
+    try{
+     if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('JPG·PNG·WebP 이미지를 선택해주세요.');
+     if(file.size>5*1024*1024)throw Error('이미지는 각각 5MB 이하로 선택해주세요.');
+     const bitmap=await decodeUploadImage(file);bitmap.close();
+     if(profileEditor!==s||revision!==selection)return;
+     if(s[urlKey])URL.revokeObjectURL(s[urlKey]);s[urlKey]=URL.createObjectURL(file);s[fileKey]=file;s[removedKey]=false;paintProfileDraft(s);
+    }catch(e){if(profileEditor===s&&revision===selection)error.textContent=e.message;}
+    finally{if(profileEditor===s&&revision===selection){s.selections.delete(field);validate();}}
+   };
+  }
   form.onsubmit=async event=>{
-   event.preventDefault();if(s.saving||s.selecting||!validate())return;
+   event.preventDefault();if(s.saving||s.selections.size||!validate())return;
    if(form.elements.bio.value.length>1000){error.textContent='소개는 1,000자 이하로 입력해주세요.';return;}
    s.saving=true;error.textContent='';panel.setAttribute('aria-busy','true');panel.querySelectorAll('button,input,textarea').forEach(b=>b.disabled=true);submit.textContent='저장 중…';
    let out;
    try{
     const draft=new FormData();draft.set('name',name.value.trim());draft.set('bio',form.elements.bio.value);
     if(s.file)draft.set('image',await optimizeUploadImage(s.file,{allowFallback:true}));else if(s.removed)draft.set('remove_image','true');
+    if(s.bannerFile)draft.set('banner',await optimizeUploadImage(s.bannerFile));else if(s.bannerRemoved)draft.set('remove_banner','true');
     if(profileEditor!==s||uid!==me?.id)return;
     const response=await fetch('/api/me/profile',{method:'PUT',credentials:'same-origin',body:draft,signal:s.controller.signal});
     out=await response.json();if(!response.ok)throw Error(out.error||'프로필을 저장하지 못했어요. 다시 시도해주세요.');

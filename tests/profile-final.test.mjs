@@ -42,7 +42,7 @@ test('activity retains actual gold/silver and restored links while hiding deferr
  const calls=[],c=ui({crewPicture:()=>'',avatarImage:()=>'',api:async path=>{calls.push(path);return {};}});await c.myActivityData();assert.ok(!calls.some(x=>/diamonds|relations|membership/.test(x)));
  const a={wallet:{balance:123,silver_balance:456},player:{inventory:[],player:{level:1,xp:0,next_xp:100,progress:0}},inventory:{items:[]},activity:{},notifications:{}};
  const html=c.myActivityHTML(a);assert.match(html,/123 G/);assert.match(html,/456 S/);assert.doesNotMatch(html,/다이아|보유 이용권|나의 관계|내 도구함|#relations/);assert.equal((html.match(/<h2>인벤토리/g)||[]).length,1);
- const aside=c.myActivityAside({},a);assert.equal(JSON.stringify([...aside.matchAll(/<h2>([^<]+)/g)].map(m=>m[1])),JSON.stringify(['내 크루','받은 선물','보낸 선물 내역','계정 관리']));assert.match(aside,/#membership/);assert.ok(aside.includes('#gold/history'));assert.doesNotMatch(aside,/#account|data-mp-recent|알림 기록/);
+ const aside=c.myActivityAside({},a);assert.equal(JSON.stringify([...aside.matchAll(/<h2>([^<]+)/g)].map(m=>m[1])),JSON.stringify(['내 크루','받은 선물','계정 관리']));assert.match(aside,/#membership/);assert.doesNotMatch(aside,/#gold\/history|보낸 선물|#account|data-mp-recent|알림 기록/);
  const tabs=c.musicLibraryTabs({options:{section:'likes'},data:{counts:{likes:3,history:4,playlists:1}}});assert.equal((tabs.match(/role="tab"/g)||[]).length,3);assert.doesNotMatch(tabs,/보관한 음악/);assert.doesNotMatch(c.musicLibraryAside({tracks:[]}),/다운로드|mp-studio/);
  assert.equal(c.menuAlias('#profile?view=library&section=saved&q=keep'),'#profile?view=library&section=likes&q=keep');assert.equal(c.menuAlias('#gift-inventory'),'#inventory');
 });

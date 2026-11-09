@@ -60,3 +60,29 @@
   :is(#dialog, dialog).compact-popup h2 { font-size: 18px; }
   :is(#dialog, dialog).compact-popup :is(.field-help, small, .studio-confirm-detail) { font-size: 13px; }
 }
+
+/* Song menus keep one icon, label and chevron column. Compact form buttons and
+   inline music counters must not resize or center individual menu items. */
+#dialog.compact-popup:has(.track-options) {
+ width:min(360px,calc(100vw - 32px));max-width:360px;padding:12px;
+}
+#dialog.compact-popup #dialog-content>.track-options {padding:0;margin:0}
+:is(#dialog,#chart-track-menu) .track-options>.track-option {
+ box-sizing:border-box;display:grid!important;
+ grid-template-columns:20px minmax(0,1fr) 18px;align-items:center;
+ justify-content:initial;gap:12px;width:100%!important;min-width:0;
+ min-height:44px!important;height:auto!important;padding:10px 8px!important;margin:0;
+ text-align:left;white-space:normal;line-height:1.5;
+}
+:is(#dialog,#chart-track-menu) .track-options>.track-option>span {
+ min-width:0;display:block;font-size:14px!important;font-weight:400!important;
+ line-height:1.5;overflow-wrap:anywhere;
+}
+:is(#dialog,#chart-track-menu) .track-options>.track-option>svg {
+ width:20px!important;height:20px!important;margin:0!important;
+ justify-self:center;flex:none;padding:0!important;border:0!important;
+ border-radius:0!important;background:none!important;
+}
+:is(#dialog,#chart-track-menu) .track-options>.track-option>svg:last-child {
+ width:16px!important;height:16px!important;color:var(--ds-muted);
+}

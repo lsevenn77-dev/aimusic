@@ -1,0 +1,50 @@
+/* Selection is expressed by the existing fill and text. Keyboard focus remains
+   visible in the site's lavender; mint is reserved for content and progress. */
+:is(button,a,input,textarea,select,summary,[tabindex],[contenteditable=true]):focus-visible {
+ outline-color:var(--ds-selected,#D3BAFF)!important;
+}
+:is(.brand-search,.search-box,.mp-work-search,.directory-search,.dm-search):focus-within,
+.talking-room #talk-dock .voice-visibility label:focus-within {
+ outline-color:var(--ds-selected,#D3BAFF)!important;
+}
+/* The message search has a border-owning wrapper and a borderless input. */
+#main .dm-search:focus-within {border-color:var(--ds-line)}
+#main .dm-search:has(input:focus-visible) {border-color:var(--ds-selected,#D3BAFF)}
+#main #sing .take-tools [aria-pressed=true],
+#sing.web-studio .studio-punch-lyrics button[aria-pressed=true],
+#main #sing .take-editor .studio-sync-steps button:active,
+.duet-part-choices [aria-pressed=true][data-duet-part=B],
+.decoration-recipient-list .gift-target[aria-pressed=true],
+.inventory-grid .player-item.is-equipped,
+.dubbing-tabs a[aria-current],
+.dm-inbox-tabs button[aria-pressed=true],
+.live-sound-toolbar [aria-pressed=true],
+.fm-check:checked {
+ border-color:transparent!important;
+}
+#main #dm-conversations .conversation-row.is-selected {box-shadow:none}
+.live-karaoke-room .voice-panel-tabs button:first-child {box-shadow:none}
+.talking-room #talk-dock .talk-strip-person[aria-expanded=true] .voice-member-avatar {outline-color:transparent}
+/* Popup transport and expanded menu buttons keep their ordinary neutral edge. */
+.talking-room .talk-header nav button[aria-expanded=true],
+.talking-room .talk-header nav button[aria-expanded=true]:enabled:hover,
+.talking-room #voice-content .voice-sheet .voice-music-transport :is([data-voice=music-play],[data-voice=music-pause]),
+#recording-mode-dialog [data-sing-mode]:is(:hover,:focus-visible,:active) {
+ border-color:var(--ds-line);
+}
+.dubbing-chips input:focus-visible+span,
+.compact-periods :focus-visible+span,
+.live-directory .live-mode label:has(:focus-visible) {
+ outline-color:var(--ds-selected,#D3BAFF)!important;
+}
+@media(forced-colors:active) {
+ :is(button,a,input,textarea,select,summary,[tabindex],[contenteditable=true]):focus-visible,
+ :is(.brand-search,.search-box,.mp-work-search,.directory-search,.dm-search):focus-within,
+ .talking-room #talk-dock .voice-visibility label:focus-within,
+ .dubbing-chips input:focus-visible+span,
+ .compact-periods :focus-visible+span,
+ .live-directory .live-mode label:has(:focus-visible) {
+  outline-color:Highlight!important;
+ }
+ #main .dm-search:has(input:focus-visible) {border-color:Highlight}
+}

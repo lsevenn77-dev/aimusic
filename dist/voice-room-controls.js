@@ -12,7 +12,8 @@ Object.assign(VoiceRoomClient.prototype,{
    inline:this.chatEditor,
    close:()=>this.toggleEmojiPicker(false,true)
   });
-  input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();if((this.stickers?.body()??this.chatEditor.get()).trim())form.requestSubmit();}};
+  this.bindChatInteraction(form,input,picker,options);
+  input.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229&&!this.chatEditor.isComposing?.()){e.preventDefault();if((this.stickers?.body()??this.chatEditor.get()).trim())form.requestSubmit();}};
   this.host.querySelector('.voice-chat-panel').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#voice-emoji-picker').hidden){e.preventDefault();e.stopPropagation();this.toggleEmojiPicker(false,true);}},options);
   this.bindTalkViews();
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
@@ -100,7 +101,7 @@ Object.assign(VoiceRoomClient.prototype,{
    else request.textContent=this.micNoticeUntil>Date.now()?'마이크가 켜졌어요.':self.locked?'마이크 사용 제한':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':seated?(micOn?'대화 중이에요.':'마이크를 켜고 대화해보세요.'):'좌석을 눌러 참여해보세요.';
   }
   const mic=this.host.querySelector('.talk-central [data-voice=toggle-mic]');
-  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span>'+(micOn?'마이크 끄기':'마이크 켜기')+'</span>';}
+  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span>'+(micOn?'끄기':'켜기')+'</span>';}
   mic.hidden=!seated;mic.disabled=self.locked||!seated||!!this.micBusy;
   const down=this.host.querySelector('.talk-central [data-voice=release-mic]');if(down){down.hidden=!seated;down.disabled=!!this.seatReleasePending;}
   mic.setAttribute('aria-pressed',String(micOn));mic.setAttribute('aria-label',micOn?'내 마이크 끄기':'내 마이크 켜기');
@@ -154,9 +155,41 @@ Object.assign(VoiceRoomClient.prototype,{
  toggleEmojiPicker(open,focus=false){
   const picker=$('#voice-emoji-picker'),button=this.host.querySelector('[data-voice="emoji"]');
   if(!picker)return;
-  if(open){picker.hidden=false;this.adoptRoomPopup(picker,button);}else if(picker.open)picker.close();
+  if(open){
+   this.chatEditor?.remember?.();$('#voice-message')?.blur?.();
+   if(this.talkPopup?.open)this.closeRoomPopup();
+   picker.hidden=false;if(!picker.open)picker.show();
+   picker.querySelector?.('[data-cat-tab][aria-pressed=true]')?.focus({preventScroll:true});
+  }else if(picker.open)picker.close();
   picker.hidden=!open;button?.setAttribute('aria-expanded',String(open));
-  if(focus)button?.focus();
+  this.host.toggleAttribute?.('data-room-stickers',open);this.onViewport?.();
+  if(focus)button?.focus({preventScroll:true});
+ },
+ bindChatInteraction(form,input,picker,options){
+  const refresh=()=>this.onViewport?.();
+  const typing=()=>{if(!picker.hidden)this.toggleEmojiPicker(false);refresh();};
+  input.addEventListener('focus',typing,options);
+  input.addEventListener('pointerdown',typing,options);
+  input.addEventListener('input',refresh,options);
+  const toggle=this.host.querySelector('[data-voice="emoji"]');
+  toggle?.addEventListener?.('pointerdown',()=>this.chatEditor?.remember?.(),options);
+  form.querySelector?.('[type=submit]')?.addEventListener('pointerdown',event=>{
+   // Let a composing IME commit through the button's normal focus change.
+   // Once committed, keep the keyboard and draft until delivery is acknowledged.
+   if(document.activeElement===input&&!this.chatEditor?.isComposing?.())event.preventDefault();
+  },options);
+  picker.addEventListener?.('close',()=>{picker.hidden=true;toggle?.setAttribute('aria-expanded','false');this.host.toggleAttribute?.('data-room-stickers',false);refresh();},options);
+  this.host.addEventListener('pointerdown',event=>{
+   if(event.target.closest?.('#voice-chat-form,#voice-emoji-picker'))return;
+   if(!picker.hidden)this.toggleEmojiPicker(false);
+   if(typeof window!=='undefined'&&window.innerWidth<=800&&document.activeElement===input)input.blur();
+  },options);
+ },
+ finishChatInteraction(){
+  if(typeof window==='undefined'||window.innerWidth>800)return;
+  if(this.chatEditor?.isComposing?.())return;
+  if(this.chatEditor?.get?.()?.trim())return;
+  this.toggleEmojiPicker(false);$('#voice-message')?.blur?.();this.onViewport?.();
  },
  async finalAction(action,target){
   if(await this.roomReleaseAction?.(action,target))return true;
@@ -233,12 +266,27 @@ Object.assign(VoiceRoomClient.prototype,{
   for(const el of this.host.querySelectorAll('input[type=range]'))this.updateDesignField(el);
  },
  async startMicTest(){
+  if(this.roomAudio&&!await this.roomAudio.allowCapture(true))return;
   const attempt=this.testAttempt=(this.testAttempt||0)+1;if(this.processing){this.testGraph=this.processing;this.testOwned=false;}
-  else{const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});if(this.closed||attempt!==this.testAttempt){raw.getTracks().forEach(t=>t.stop());return;}this.testRaw=raw;this.testOwned=true;const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);if(this.closed||attempt!==this.testAttempt){graph.close();raw.getTracks().forEach(t=>t.stop());return;}this.testGraph=graph;if(graph.fallback){this.stopMicTest();throw Error('이 브라우저에서는 입력 레벨 분석을 지원하지 않아요.');}}
+  else{
+   const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});
+   if(this.closed||attempt!==this.testAttempt){raw.getTracks().forEach(t=>t.stop());return;}
+   this.testRaw=raw;this.testOwned=true;
+   if(this.roomAudio?.watchMicrophone(raw)===false){this.stopMicTest();return;}
+   try{
+    const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);
+    if(this.closed||attempt!==this.testAttempt){graph.close();raw.getTracks().forEach(t=>t.stop());return;}
+    this.testGraph=graph;
+    if(graph.fallback)throw Error('이 브라우저에서는 입력 레벨 분석을 지원하지 않아요.');
+   }catch(error){
+    if(attempt===this.testAttempt)this.stopMicTest();else raw.getTracks().forEach(t=>t.stop());
+    if(error.code==='AUDIO_INTERRUPTED')this.roomAudio?.interrupt('context');throw error;
+   }
+  }
   this.startLevels();for(const button of this.host.querySelectorAll('[data-voice="mic-test"]'))button.textContent='테스트 중지';
   clearTimeout(this.micTestTimer);this.micTestTimer=setTimeout(()=>this.stopMicTest(),30000);
  },
- stopMicTest(){this.testAttempt=(this.testAttempt||0)+1;clearTimeout(this.micTestTimer);if(this.testOwned){this.testGraph?.close();this.testRaw?.getTracks().forEach(t=>t.stop());}this.testRaw=null;this.testGraph=null;this.testOwned=false;for(const button of this.host?.querySelectorAll?.('[data-voice="mic-test"]')||[])button.textContent='테스트 시작';for(const meter of this.host?.querySelectorAll?.('#voice-input-meter,.talk-test-meter')||[])meter.value=0;}
+ stopMicTest(){this.testAttempt=(this.testAttempt||0)+1;clearTimeout(this.micTestTimer);if(this.testOwned){this.testGraph?.close();this.testRaw?.getTracks().forEach(t=>t.stop());}this.testRaw=null;this.testGraph=null;this.testOwned=false;for(const button of this.host?.querySelectorAll?.('[data-voice="mic-test"]')||[])button.textContent='테스트 시작';for(const meter of this.host?.querySelectorAll?.('#voice-input-meter,.talk-test-meter')||[])meter.value=0;this.roomAudio?.updateType();}
 });
 // Shared room surfaces are real dialogs, bounded by the actual chat region.
 function roomMemberAvatar(p,ignoreMute=false){return `<span class="room-member-photo${p.muted&&!ignoreMute?' is-muted':''}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}${p.muted&&!ignoreMute?'<span class="room-muted-mark" aria-label="음소거">'+voiceGlyph('muted')+'</span>':''}</span>`;}
@@ -246,7 +294,11 @@ Object.assign(VoiceRoomClient.prototype,{
  bindTalkViews(){
   this.talkViewEvents?.abort();const events=this.talkViewEvents=new AbortController(),options={signal:events.signal};
   const labels={'voice-sound':'소리 설정','voice-room-settings':'방 설정','voice-members':'참여자','voice-music-sheet':'플레이리스트','live-search-sheet':'노래 신청','talk-leave':'방 나가기','voice-kick-confirm':'참여자 강퇴','voice-seat-picker':'좌석 초대','voice-gift-sheet':'선물 보내기','talk-volume':'청취 음량'};
-  for(const sheet of this.host.querySelectorAll('dialog')){sheet.classList.add('room-popup');sheet.setAttribute('aria-label',labels[sheet.id]||sheet.getAttribute('aria-label')||'방 메뉴');sheet.removeAttribute('aria-labelledby');sheet.tabIndex=-1;this.host.querySelector('.voice-chat-panel').append(sheet);}
+  for(const sheet of this.host.querySelectorAll('dialog')){
+   const emoji=sheet.id==='voice-emoji-picker';sheet.classList.toggle('room-popup',!emoji);sheet.classList.toggle('room-emoji-dock',emoji);
+   sheet.setAttribute('aria-label',labels[sheet.id]||sheet.getAttribute('aria-label')||'방 메뉴');sheet.removeAttribute('aria-labelledby');sheet.tabIndex=-1;
+   if(emoji)this.host.querySelector('#voice-chat-form').after(sheet);else this.host.querySelector('.voice-chat-panel').append(sheet);
+  }
   const ids={inbox:'room-inbox',participants:'voice-members',sound:'voice-sound',share:'voice-invite-sheet',settings:'voice-room-settings',leave:'talk-leave','music-picker':'voice-music-sheet','view-queue':'voice-music-sheet','personal-volume':'talk-volume','karaoke-search-open':'live-search-sheet',emoji:'voice-emoji-picker',gift:'voice-gift-sheet'};
   for(const button of this.host.querySelectorAll('.room-header button')){button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls',ids[button.dataset.voice]);button.setAttribute('aria-expanded','false');}
   const outside=e=>{
@@ -283,6 +335,7 @@ Object.assign(VoiceRoomClient.prototype,{
  closeRoomPopup(){const p=this.talkPopup;if(p?.classList.contains('profile-preview')){closeProfilePreview();if(this.talkPopup===p){this.talkPopup=null;document.documentElement?.removeAttribute('data-room-popup');this.popupTrigger?.focus({preventScroll:true});}}else p?.close();},
  showTalkPopup(id,trigger){const sheet=document.getElementById(id);if(sheet)this.adoptRoomPopup(sheet,trigger);},
  adoptRoomPopup(sheet,trigger=this.actionTrigger){
+  if(sheet.id!=='voice-emoji-picker'&&!$('#voice-emoji-picker').hidden)this.toggleEmojiPicker(false);
   if(sheet===this.talkPopup&&sheet.open){this.closeRoomPopup();return;}
   const origin=trigger||document.activeElement,previous=this.talkPopup;
   this.talkPopup=null;if(previous?.open){if(previous.classList.contains('profile-preview'))closeProfilePreview();else if(previous.id==='voice-emoji-picker')this.toggleEmojiPicker(false);else previous.close();}

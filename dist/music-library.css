@@ -160,3 +160,41 @@
  #main #music-library .ml-song-actions {gap:0}
  #music-library .ml-playlists {grid-template-columns:minmax(0,1fr)}
 }
+
+/* A distinct, compact second row for playlist tools. */
+#music-library .ml-playlist-actions {
+ display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;
+ width:100%;max-width:440px;margin:8px 0 16px;
+}
+#music-library .ml-playlist-tool {
+ display:flex;align-items:center;justify-content:center;gap:6px;
+ box-sizing:border-box;min-width:0;min-height:44px;padding:8px;
+ border:0;border-radius:var(--ds-radius-sm);background:var(--ds-soft);
+ color:var(--ds-body);font:inherit;font-size:var(--pc-font-button,14px);
+ font-weight:400;line-height:1.4;white-space:nowrap;text-decoration:none;cursor:pointer;
+}
+#music-library .ml-playlist-tool:hover {background:var(--ds-panel);color:var(--ds-text)}
+#music-library .ml-playlist-tool svg {width:16px;height:16px;flex:none}
+@media(max-width:800px) {
+ #music-library .ml-tabs {
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;
+  width:100%;margin:0;padding:2px 0 12px;overflow:visible;
+ }
+ #music-library .ml-tabs>button {
+  min-width:0;padding:10px 4px;gap:2px 4px;font-size:13px;flex-wrap:wrap;align-content:center;
+ }
+ #music-library .ml-tabs>button span {min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;font-size:10px}
+ #music-library .ml-playlist-actions {max-width:none;gap:6px}
+ #music-library .ml-playlist-tool {padding-inline:4px;font-size:13px;gap:4px}
+ .mypage-layout .ml-recommendations {gap:12px;padding-block:2px 10px;scroll-padding-inline:1px}
+ .mypage-layout .ml-recommendation {
+  box-sizing:border-box;flex:0 0 min(276px,calc(100vw - 72px));min-height:82px;
+  padding:12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-panel);gap:4px;
+ }
+ .mypage-layout .ml-recommendation>a {gap:10px}
+}
+@media(max-width:350px) {
+ #music-library .ml-tabs>button {flex-direction:column;gap:2px;font-size:12px}
+ #music-library .ml-tabs>button span {font-size:9px}
+}

@@ -28,7 +28,7 @@
  & .live-request-area {height:16cqw;min-height:90px;gap:18px;padding:6px 0;flex:none;overflow:visible;--room-reserve:clamp(52px,12cqw,70px);--room-queue-photo:clamp(24px,7cqw,40px);}
  & #live-queue {min-width:0;grid-template-columns:repeat(6,minmax(0,1fr));gap:4px;--room-avatar-slot:calc(var(--room-queue-photo) + 12px);}
  & #live-queue > li {min-width:0;padding:5px 2px;border:1px solid transparent;border-radius:16px;}
- & #live-queue > li.is-current {border-color:#d3baff66 #afe5e344 #afe5e366 #d3baff44;background:var(--room-bubble);box-shadow:inset 0 1px 1px #ffffff40;}
+ & #live-queue > li.is-current {border-color:color-mix(in srgb,var(--ds-accent-lavender) 50%,transparent);background:var(--room-bubble);box-shadow:inset 0 1px 1px #ffffff40;}
  & #live-queue strong {font-size:var(--room-queue-name);white-space:normal;overflow-wrap:anywhere;line-height:1.2;max-height:3.6em;}
  & .voice-stage > #voice-music-player {flex:0 0 66px;height:66px;min-height:66px;margin:0 0 14px;align-items:center;}
  & #voice-seats {flex:none;height:47cqw;min-height:228px;padding:16px 10px;gap:12px 4px;margin-bottom:14px;box-sizing:border-box;}
@@ -45,10 +45,10 @@
  & .talk-central #talk-request {font-size:var(--room-body);line-height:1.3;}
  & .talk-central button {font-size:var(--room-button);white-space:nowrap;}
  & .talk-central [data-voice=release-mic] {width:auto;min-width:max-content;flex:none;}
- & #voice-chat .voice-chat-message > div {background:#ffffffe8;border-radius:15px;padding:5px 9px;gap:2px;box-shadow:inset 0 1px 1px #fff;}
- & #voice-chat .voice-chat-message b {color:#202a3b;font-size:var(--room-body);white-space:normal;overflow-wrap:anywhere;line-height:1.3;}
- & #voice-chat .voice-chat-message p {background:none;box-shadow:none;color:#30343d;font-size:var(--room-body);padding:0;line-height:1.4;}
- & #voice-chat .voice-chat-message time {color:#6b7280;}
+ & #voice-chat .voice-chat-message > div {background:color-mix(in srgb,var(--ds-panel) 82%,transparent);border-radius:15px;padding:7px 10px;gap:3px;box-shadow:none;}
+ & #voice-chat .voice-chat-message b {color:var(--ds-text);font-size:var(--room-body);white-space:normal;overflow-wrap:anywhere;line-height:1.3;}
+ & #voice-chat .voice-chat-message p {background:none;box-shadow:none;color:var(--ds-text);font-size:var(--room-body);padding:0;line-height:1.4;}
+ & #voice-chat .voice-chat-message time {color:var(--ds-muted);}
  & #voice-chat .voice-chat-system {flex:none;min-height:0;padding:3px 6px;margin:0;line-height:1.3;border:0;background:none;box-shadow:none;}
  & #voice-chat .voice-chat-system p {background:none;border:0;box-shadow:none;padding:0;font-size:var(--room-caption);line-height:1.3;margin:0;}
  & #voice-chat .voice-chat-system + .voice-chat-system {margin-top:-4px;}
@@ -198,7 +198,7 @@
 #main[data-room-entered] .voice-room[data-voice-room] {
  & #voice-seats .voice-seat-empty svg {border:1px solid var(--ds-muted);border-radius:50%;background:none;}
  & .talk-central [data-voice=release-mic],& .talk-central [data-voice=toggle-mic] {display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;width:auto;min-width:max-content;padding:4px 8px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-panel);color:var(--ds-text);font-size:15px;flex:none;}
- & .talk-central [data-voice=toggle-mic][aria-pressed=true] {color:var(--ds-mint);border-color:var(--ds-mint);background:var(--ds-panel);}
+ & .talk-central [data-voice=toggle-mic][aria-pressed=true] {color:var(--ds-text);border-color:var(--ds-line);background:color-mix(in srgb,var(--ds-accent-lavender) 13%,var(--ds-panel));}
  & .talk-central [data-voice=toggle-mic][aria-pressed=false] {color:var(--ds-muted);}
  & .talk-central :is([data-voice=release-mic],[data-voice=toggle-mic]) svg {width:20px;height:20px;flex:none;}
  & .room-popup::backdrop {background:transparent;backdrop-filter:none;}
@@ -275,4 +275,37 @@
 @media(max-width:360px){
  #main[data-room-entered] .voice-room[data-voice-room] .room-header {flex-wrap:wrap;}
  #main[data-room-entered] .voice-room[data-voice-room] .room-heading {flex-basis:100%;}
+}
+
+/* The sticker tray is part of the conversation, directly below its composer. */
+#main[data-room-entered] .voice-room[data-voice-room] {
+ & #voice-content .voice-chat-panel #voice-emoji-picker.room-emoji-dock[open] {
+  position:static!important;inset:auto!important;display:flex;flex:0 1 auto;order:0;
+  width:100%!important;max-width:none!important;height:clamp(120px,calc(var(--voice-viewport) * .32),256px);
+  min-height:0;max-height:36vh!important;margin:8px 0 0!important;padding:8px 0 0!important;
+  translate:none;transform:none;border:1px solid var(--ds-line);border-radius:16px;
+  background:var(--ds-panel)!important;box-shadow:none!important;
+ }
+ & #voice-emoji-picker .cat-status:empty {display:none;}
+ & #voice-seats {align-items:stretch;align-content:center;grid-template-rows:repeat(2,minmax(0,1fr));padding-block:24px;row-gap:12px;}
+ & #voice-seats .voice-seat-occupant,& #voice-seats .voice-person,& #voice-seats .voice-seat-empty {height:100%;justify-content:center;}
+ & #voice-seats .room-member-photo {margin-block:0 6px;}
+ & #voice-seats .voice-person strong {line-height:1.2;height:2.4em;min-height:2.4em;}
+ & #voice-seats .voice-seat-empty::after {height:2.4em;}
+ & :is(button,input,textarea,select,[contenteditable]):focus-visible {outline:2px solid var(--ds-accent-lavender);outline-offset:-2px;}
+ & .room-popup:focus {outline:none;}
+ & .room-popup :is(button[aria-pressed=true],label:has(:checked)),& #talk-theme-choices label:has(:checked) {border-color:var(--ds-line);}
+ & #voice-music-player :is([data-voice=music-play],[data-voice=music-pause]):enabled:hover {border-color:var(--ds-line);}
+}
+@media(max-width:800px){
+ #main[data-room-entered] .voice-room[data-voice-room] {
+  & #voice-seats {padding-block:12px;row-gap:10px;}
+  &[data-room-chat-active] .voice-columns,&.talking-room[data-room-chat-active] .voice-columns {grid-template-rows:minmax(0,24%) minmax(0,1fr);gap:6px;}
+  &[data-room-chat-active] .voice-columns > .voice-stage {height:100%;max-height:100%;overflow:auto;}
+  &[data-room-chat-active] #voice-content .voice-chat-panel {min-height:0;overflow:hidden;}
+  &[data-room-chat-active] #voice-announcement {max-height:44px;overflow:auto;flex:none;margin-bottom:4px;}
+  &[data-room-chat-active] #voice-chat {flex:1 1 0;min-height:0;margin-bottom:6px;}
+  &[data-room-keyboard] {--room-pad-end:4px;padding-bottom:4px;}
+  &[data-room-keyboard] #voice-message {max-height:min(116px,25vh)!important;}
+ }
 }

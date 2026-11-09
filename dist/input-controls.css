@@ -4,7 +4,7 @@
  outline:none!important;box-shadow:none!important;
 }
 :is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=image]):not([type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):is(:focus,:focus-visible) {
- border-color:var(--input-focus-border,#8EDDD2)!important;
+ border-color:var(--input-focus-border,var(--ds-line))!important;
 }
 /* Labels provide layout; their actual control owns the border. */
 .form-field:has(> :is(input,textarea,select)) {border:0!important;outline:0!important;box-shadow:none!important}
@@ -13,7 +13,7 @@
  outline:0!important;box-shadow:none!important;filter:none!important;
 }
 :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:focus-visible,input:focus) {
- border-color:#8EDDD2!important;
+ border-color:var(--ds-line)!important;
 }
 :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search) input {
  border:0!important;outline:0!important;box-shadow:none!important;
@@ -23,7 +23,7 @@
 :is([role=textbox],[role=combobox],[data-input-shell]):has(:is(input,textarea,select,[contenteditable=true])) {
  outline:0!important;box-shadow:none!important;
 }
-:is([role=textbox],[role=combobox],[data-input-shell]):has(:focus) {border-color:#8EDDD2!important}
+:is([role=textbox],[role=combobox],[data-input-shell]):has(:focus) {border-color:var(--ds-line)!important}
 :is([role=textbox],[role=combobox],[data-input-shell]) :is(input,textarea,select,[contenteditable=true]) {
  border:0!important;outline:0!important;box-shadow:none!important;
 }
@@ -51,4 +51,20 @@
  border-style:solid;border-width:1px;box-sizing:border-box
 }
 .aifect-dropdown:has(>.aifect-dropdown-trigger){border:0;outline:0;box-shadow:none}
-.aifect-dropdown>.aifect-dropdown-trigger:focus-visible{border:1px solid var(--ds-mint,#8EDDD2)!important;outline:0;box-shadow:none}
+.aifect-dropdown>.aifect-dropdown-trigger:focus-visible{border:1px solid var(--ds-selected,#D3BAFF)!important;outline:0;box-shadow:none}
+
+/* A focused editor has a neutral edge on touch, and a visible lavender edge
+   when reached with a keyboard. Validation colors keep their priority. */
+:is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=image]):not([type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):focus-visible {
+ border-color:var(--input-focus-border,var(--ds-selected,#D3BAFF))!important;
+}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search,[role=textbox],[role=combobox],[data-input-shell]):has(:focus-visible) {
+ border-color:var(--ds-selected,#D3BAFF)!important;
+}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search,[role=textbox],[role=combobox],[data-input-shell]):has(:is([aria-invalid=true],:user-invalid)) {
+ border-color:var(--ds-error,#f87171)!important;
+}
+@media(forced-colors:active) {
+ :is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):focus-visible,
+ :is(.brand-search,.search-box,[role=textbox],[role=combobox],[data-input-shell]):has(:focus-visible) {border-color:Highlight!important}
+}

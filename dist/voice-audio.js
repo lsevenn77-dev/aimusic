@@ -2,9 +2,9 @@
 const VoiceAudio=(()=>{
  const presets=Object.freeze({original:{name:'원음',highpass:0,mud:0,presence:0,compress:false,wet:0},radio:{name:'라디오 클린',highpass:85,mud:-2,presence:1.2,compress:true,wet:0},studio:{name:'스튜디오',highpass:75,mud:-2,presence:1,compress:true,wet:0.06,delay:.045,feedback:.12},hall:{name:'홀',highpass:75,mud:-2,presence:1,compress:true,wet:.16,delay:.09,feedback:.48},karaoke:{name:'노래방',highpass:85,mud:-1,presence:1.5,compress:true,wet:.18,delay:.18,feedback:.35}});
  async function microphone(raw,preset='radio',level=1,mix){
-  const Context=window.AudioContext||window.webkitAudioContext;let ctx,outgoing;
+  const Context=window.AudioContext||window.webkitAudioContext;let ctx,outgoing,audioStarted=false;
   try{
-   if(!Context)throw Error('unsupported');ctx=new Context({latencyHint:'interactive'});let timer;try{await Promise.race([ctx.resume(),new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(Error('suspended')),500);})]);}finally{clearTimeout(timer);}if(ctx.state!=='running')throw Error('suspended');
+   if(!Context)throw Error('unsupported');ctx=new Context({latencyHint:'interactive'});let timer;try{await Promise.race([ctx.resume(),new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(Error('suspended')),500);})]);}finally{clearTimeout(timer);}if(ctx.state!=='running')throw Error('suspended');audioStarted=true;
    if(mix!==undefined){
     if(!ctx.audioWorklet||typeof AudioWorkletNode!=='function')throw Error('worklet unsupported');
     let timer;
@@ -50,7 +50,15 @@ const VoiceAudio=(()=>{
     last.connect(analyser);
    };
    analyser.connect(destination);configure(preset);return {stream:destination.stream,analyser,context:ctx,setLevel:v=>input.gain.setTargetAtTime(Math.max(0,Math.min(1,v)),ctx.currentTime,0.015),setPreset:configure,setReverb,close(){source.disconnect();destination.stream.getTracks().forEach(t=>t.stop());void ctx.close().catch(()=>{});}};
-  }catch{outgoing?.getTracks().forEach(track=>track.stop());if(ctx)void ctx.close().catch(()=>{});return {stream:raw,fallback:true,supportsMix:false,setLevel(){},setMix(){},setPreset(){},setReverb(){},close(){}};}
+  }catch{
+   // Only missing processing APIs/effects may fall back to a raw microphone.
+   // An existing audio session that cannot run may be held by another app;
+   // resuming unsuccessfully or timing out must never bypass that restriction.
+   const interrupted=!!Context&&(!audioStarted||ctx?.state!=='running');
+   outgoing?.getTracks().forEach(track=>track.stop());if(ctx)void ctx.close().catch(()=>{});
+   if(interrupted){raw.getAudioTracks().forEach(track=>track.enabled=false);throw Object.assign(new Error('기기 오디오를 시작하지 못했어요. 다른 앱의 오디오 사용이 끝난 뒤 마이크를 다시 켜주세요.'),{code:'AUDIO_INTERRUPTED'});}
+   return {stream:raw,fallback:true,supportsMix:false,setLevel(){},setMix(){},setPreset(){},setReverb(){},close(){}};
+  }
  }
  function rms(analyser){const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);let energy=0;for(const n of data)energy+=((n-128)/128)**2;return Math.min(1,Math.max(0,Math.sqrt(energy/data.length)-.012)*5);}
  function echoMix(style,intensity){const n=Math.max(0,Math.min(1,intensity)),p={studio:{room:.35,echo:.08,size:.25},hall:{room:.9,echo:.2,size:.85},karaoke:{room:.5,echo:.65,size:.5}}[style]||{room:0,echo:0,size:.5};return {room:p.room*n,echo:p.echo*n,size:p.size,tone:0,noise:2};}

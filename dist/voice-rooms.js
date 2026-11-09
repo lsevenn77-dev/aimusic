@@ -62,7 +62,7 @@ function bindVoice(base,id) {
  voiceController.bind(host);
 }
 class VoiceRoomClient {
- constructor(id){this.id=id;this.micAttempt=1;this.micState="muted";this.preferences={music:1,voice:1,input:1,preset:'studio',noise:true,echo:true,reverb:0};this.meters=new Map();this.state=null;this.closed=false;this.joined=false;this.generation=null;this.audios=new Map();this.volumes=new Map();this.mediaQueue=Promise.resolve();this.receiveKey=null;this.retries=0;this.seenGifts=new Set();this.talkGiftQueue=[];this.giftRequest=crypto.randomUUID();this.inviteRequest=crypto.randomUUID();this.onOnline=()=>this.reconnect();this.onPageHide=()=>{this.foregroundMicDesired=this.micDesired===true;this.stopMedia();this.ws?.close();};window.addEventListener('pagehide',this.onPageHide);this.onVisibility=()=>{if(!document.hidden&&this.joined)void this.restoreForeground();};window.addEventListener('pageshow',this.onVisibility);window.addEventListener('focus',this.onVisibility);window.addEventListener('online',this.onOnline);document.addEventListener('visibilitychange',this.onVisibility);}
+ constructor(id){this.id=id;this.micAttempt=1;this.micState="muted";this.preferences={music:1,voice:1,input:1,preset:'studio',noise:true,echo:true,reverb:0};this.meters=new Map();this.state=null;this.closed=false;this.joined=false;this.generation=null;this.audios=new Map();this.volumes=new Map();this.mediaQueue=Promise.resolve();this.receiveKey=null;this.retries=0;this.seenGifts=new Set();this.talkGiftQueue=[];this.giftRequest=crypto.randomUUID();this.inviteRequest=crypto.randomUUID();this.onOnline=()=>this.reconnect();this.onPageHide=()=>{this.foregroundMicDesired=false;this.stopMedia();this.ws?.close();};window.addEventListener('pagehide',this.onPageHide);this.onVisibility=()=>{if(!document.hidden&&this.joined)void this.restoreForeground();};window.addEventListener('pageshow',this.onVisibility);window.addEventListener('focus',this.onVisibility);window.addEventListener('online',this.onOnline);document.addEventListener('visibilitychange',this.onVisibility);}
  path(action){return `rooms/${this.id}/${action}`;}
  command(action,b={}){return voiceRequest(this.path(action),{...b,generation:this.generation});}
  acceptState(state){
@@ -81,18 +81,19 @@ class VoiceRoomClient {
   el.toggleAttribute?.('data-connected',connected);
  }
  async safe(fn){try{await fn();}catch(e){this.status(e.message);toast(e.message);}}
- bind(host){this.host=host;if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>{const blocked=this.waitForMusicGesture||this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;this.waitForMusicGesture=false;if(this.liveMode||blocked)this.resumeSound();};host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
+ bind(host){this.host=host;if(!this.roomAudio&&typeof RoomAudioSession==='function')this.roomAudio=new RoomAudioSession(this);if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>{const blocked=this.waitForMusicGesture||this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;this.waitForMusicGesture=false;if(this.liveMode||blocked)this.resumeSound();};host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
   this.bindFinalControls();
   const chat=$('#voice-chat-form'),stickers=this.stickers;
   chat.onsubmit=busyForm(chat,async()=>{
+   if(this.chatEditor.canSend?.()===false)return;
    const text=this.chatEditor.get(),body=stickers?.body()??text;
    if(!body.trim())return;
    this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};
    await this.command('chat',this.chatPending);
    if(this.closed||chat!==$('#voice-chat-form'))return;
    this.toggleEmojiPicker(false);
-   if(this.chatEditor.get()===text)this.chatEditor.set('');
-   stickers?.clear();this.chatPending=null;
+   if(!this.chatEditor.isComposing?.()&&this.chatEditor.get()===text)this.chatEditor.set('');
+   stickers?.clear();this.chatPending=null;this.finishChatInteraction?.();
    await this.refresh();
   });
   const gift=$('#voice-gift-form');gift.onchange=()=>{this.giftRequest=crypto.randomUUID();this.giftSummary();};gift.onsubmit=busyForm(gift,()=>this.openGiftDialog());
@@ -119,7 +120,7 @@ class VoiceRoomClient {
    ws.onopen=()=>{
     if(this.closed||this.ws!==ws)return;
     const blocked=this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;
-    this.status(blocked?'실시간 연결됨 · 청취 대기':this.liveMode&&this.state?.karaoke?.phase==='singing'&&this.state.karaoke.active?.user_id===this.state.self?'실시간 연결됨 · 가창 중':'실시간 연결됨 · 청취 중',true);
+    this.status(this.roomAudio?.blocked?'기기 오디오 일시 중단 · 소리와 마이크 꺼짐':blocked?'실시간 연결됨 · 청취 대기':this.liveMode&&this.state?.karaoke?.phase==='singing'&&this.state.karaoke.active?.user_id===this.state.self?'실시간 연결됨 · 가창 중':'실시간 연결됨 · 청취 중',true);
    };
   }
   ws.onmessage=e=>{try{const v=JSON.parse(e.data);if(v.type==='state'){this.acceptState(v.state);return;}if(v.type==='music'&&this.state){if(v.music?.revision>=(this.state.music?.revision??-1)){this.state.music=v.music;this.paintMusic();}return;}if(v.type==='gift')this.animateGift(v);this.refresh().catch(err=>this.connectionError(err));}catch{}};ws.onclose=e=>{if(!this.closed&&this.joined&&this.ws===ws){if([4000,4001].includes(e.code)){this.status('입장 정보가 바뀌었어요. 다시 입장해주세요.');this.leave(false);return;}this.status('실시간 연결 복구 중…');clearTimeout(this.socketRetry);this.socketRetry=setTimeout(()=>{if(!this.closed)this.socket();},3000);}};}
@@ -169,13 +170,34 @@ class VoiceRoomClient {
  }
  showSheet(id){this.showTalkPopup(id,this.actionTrigger);}
  microphoneConstraints(){const supported=navigator.mediaDevices.getSupportedConstraints?.()||{},constraints={};for(const [key,value] of [['echoCancellation',this.preferences.echo],['noiseSuppression',this.preferences.noise],['autoGainControl',true]])if(supported[key]!==false)constraints[key]=value;if(supported.channelCount!==false)constraints.channelCount={ideal:1};const id=$('#voice-input').value;if(id)constraints.deviceId={ideal:id};return constraints;}
- watchProcessing(){const graph=this.processing,raw=this.stream,sender=this.micSender;if(!graph?.context||!raw||!sender)return;graph.context.onstatechange=()=>{if(this.closed||this.processing!==graph||this.micSender!==sender)return;const track=graph.context.state==='running'?graph.stream.getAudioTracks()[0]:raw.getAudioTracks()[0];track.enabled=sender.track?.enabled!==false;void sender.replaceTrack(track).catch(()=>this.status('마이크 장치 연결을 확인해주세요.'));};}
+ watchProcessing(){
+  const graph=this.processing,raw=this.stream,sender=this.micSender;if(!graph?.context||!raw||!sender)return;
+  graph.context.onstatechange=()=>{
+   if(this.closed||this.processing!==graph||this.micSender!==sender)return;
+   this.roomAudio?.contextChanged(graph.context,{capture:true});
+   if(this.roomAudio?.blocked||graph.context.state!=='running'){
+    this.setCaptureEnabled(false);return;
+   }
+   const track=graph.stream.getAudioTracks()[0];
+   track.enabled=sender.track?.enabled!==false&&!this.roomAudio?.micNeedsGesture;
+   void sender.replaceTrack(track).catch(()=>this.status('마이크 장치 연결을 확인해주세요.'));
+  };
+ }
+
  async changeMicrophone(){
-  if(!this.stream||!this.micSender)return;const epoch=this.epoch,attempt=this.micAttempt,sender=this.micSender;
+  if(!this.stream||!this.micSender||this.roomAudio?.blocked||this.roomAudio?.micNeedsGesture)return;const epoch=this.epoch,attempt=this.micAttempt,sender=this.micSender;
+  this.roomAudio?.setType('play-and-record');
   const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});
-  const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);graph.setReverb(this.preferences.reverb);
+  raw.getAudioTracks().forEach(t=>t.enabled=false);
+  if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt||sender!==this.micSender){raw.getTracks().forEach(t=>t.stop());return;}
+  this.pendingStream=raw;if(this.roomAudio?.watchMicrophone(raw)===false){this.pendingStream=null;return;}
+  let graph;
+  try{graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);graph.setReverb(this.preferences.reverb);}
+  catch(error){raw.getTracks().forEach(t=>t.stop());if(this.pendingStream===raw)this.pendingStream=null;if(error.code==='AUDIO_INTERRUPTED')this.roomAudio?.interrupt('context');throw error;}
   if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt||sender!==this.micSender){graph.close();raw.getTracks().forEach(t=>t.stop());return;}
-  try{graph.stream.getAudioTracks()[0].enabled=sender.track?.enabled!==false;await sender.replaceTrack(graph.stream.getAudioTracks()[0]);}catch(e){graph.close();raw.getTracks().forEach(t=>t.stop());throw e;}
+  try{const enabled=sender.track?.enabled!==false&&!this.roomAudio?.blocked&&!this.roomAudio?.micNeedsGesture;raw.getAudioTracks().forEach(t=>t.enabled=enabled);graph.stream.getAudioTracks()[0].enabled=enabled;await sender.replaceTrack(graph.stream.getAudioTracks()[0]);}catch(e){graph.close();raw.getTracks().forEach(t=>t.stop());throw e;}
+  if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt||sender!==this.micSender){graph.close();raw.getTracks().forEach(t=>t.stop());return;}
+  if(this.pendingStream===raw)this.pendingStream=null;
   const old=this.stream,oldGraph=this.processing;for(const track of old.getTracks())track.onended=null;if(oldGraph?.stream!==old)for(const track of oldGraph?.stream.getTracks()||[])track.onended=null;
   this.stream=raw;this.processing=graph;this.watchProcessing();raw.getAudioTracks()[0].onended=()=>{if(!this.closed&&this.stream===raw)this.safe(()=>this.mute());};graph.stream.getAudioTracks()[0].onended=raw.getAudioTracks()[0].onended;
   oldGraph?.close();old.getTracks().forEach(t=>t.stop());await this.monitor().catch(()=>{});
@@ -235,6 +257,7 @@ class VoiceRoomClient {
   this.paintFinalMusic();this.syncMusic();this.applyListenVolumes();
  }
  syncMusic(){
+  if(this.roomAudio?.blocked){this.roomAudio.quietElement(this.musicAudio);return;}
   const m=this.state?.music;if(!m||this.closed)return;const track=m.queue[m.index];
   if(!this.musicAudio){if(!track)return;const a=this.musicAudio=new Audio();a.preload='auto';a.onloadedmetadata=()=>this.syncMusic();a.onended=()=>{if(this.state?.members.find(p=>p.id===this.state.self)?.role==='host')this.safe(()=>this.musicCommand('ended'));};a.onwaiting=()=>this.musicNotice('음악 버퍼링 중');a.onplaying=()=>{this.musicNoticeText='';};a.onerror=async()=>{const key=this.musicTrack;let text=a.error?.code===3?'지원하지 않는 음악 형식이에요.':'음악 네트워크 연결을 확인해주세요.';try{const response=await fetch(a.src,{method:'HEAD',credentials:'same-origin'});if([401,403].includes(response.status))text='공동 음악 접근 권한을 확인해주세요.';else if([404,409].includes(response.status))text='곡이 변경되었거나 더 이상 공개되지 않아요.';}catch{}if(!this.closed&&this.musicTrack===key)this.musicNotice(text);};}
   const a=this.musicAudio;this.playbackGain(a,Math.max(0,Math.min(1,m.volume*this.preferences.music)));
@@ -260,39 +283,44 @@ class VoiceRoomClient {
    if(!this.ws||this.ws.readyState>=2)this.socket();
    if(this.receiver?.connectionState==='failed'||this.receiver?.connectionState==='closed')this.receiveKey=null;
    await this.receive();
-   const self=this.state?.members.find(m=>m.id===this.state.self);
-   if(this.foregroundMicDesired&&self?.seat!=null&&!self.locked&&(!this.liveMode||isLiveSingerTurn(this))){
-    this.micDesired=true;await this.enableMic();
-   }
+   // Returning to a page never re-enables a retired or interrupted microphone.
    this.foregroundMicDesired=false;
    if(this.liveMode)liveSync(this);
   }catch{this.scheduleReconnect();}finally{this.foregroundPending=false;}
  }
- resumeSound(){
+ resumeSound(userInitiated=false){
   if(this.closed)return;
+  if(this.roomAudio?.blocked){
+   this.roomAudio.quietOutputs();this.updateListening();
+   if(userInitiated)void this.roomAudio.resumeByUser().then(restored=>{if(restored&&!this.closed)this.resumeSound();});
+   return;
+  }
   try{const Context=window.AudioContext||window.webkitAudioContext;if(Context&&!this.levelContext)this.levelContext=new Context({latencyHint:'interactive'});
-   if(this.levelContext)this.levelContext.onstatechange=()=>{if(!this.closed){this.applyListenVolumes();this.updateListening();if(this.levelContext.state==='interrupted'&&!document.hidden)void this.restoreForeground();}};
+   if(this.levelContext)this.levelContext.onstatechange=()=>{if(!this.closed){this.roomAudio?.contextChanged(this.levelContext);this.applyListenVolumes();this.updateListening();}};
    const resumed=this.levelContext?.resume();
-   void resumed?.then(()=>{if(this.closed)return;this.applyListenVolumes();for(const a of this.audios.values())this.playRemote(a);this.syncMusic();this.updateListening();}).catch(()=>this.updateListening());
+   void resumed?.then(()=>{if(this.closed||this.roomAudio?.blocked)return;this.applyListenVolumes();for(const a of this.audios.values())this.playRemote(a);this.syncMusic();this.updateListening();}).catch(()=>this.updateListening());
   }catch{}
   for(const a of this.audios?.values()||[])this.playRemote(a);
   void this.processing?.context?.resume().catch(()=>{});this.syncMusic();this.updateListening();
  }
  updateListening(){
   const button=this.host?.querySelector('[data-voice="resume-audio"]');if(!button)return;
-  const blocked=this.musicBlocked||this.levelContext&&this.levelContext.state!=='running'||[...(this.audios?.values()||[])].some(a=>a.voiceBlocked);
+  const blocked=this.roomAudio?.blocked||this.musicBlocked||this.levelContext&&this.levelContext.state!=='running'||[...(this.audios?.values()||[])].some(a=>a.voiceBlocked);
   const changed=button.hidden===Boolean(blocked);
   button.hidden=!blocked;
   if(this.ws?.readyState===1&&$('#voice-status')?.hasAttribute('data-connected')){
-   this.status(blocked?'실시간 연결됨 · 청취 대기':this.liveMode&&this.state?.karaoke?.phase==='singing'&&this.state.karaoke.active?.user_id===this.state.self?'실시간 연결됨 · 가창 중':'실시간 연결됨 · 청취 중',true);
+   this.status(this.roomAudio?.blocked?'기기 오디오 일시 중단 · 소리와 마이크 꺼짐':blocked?'실시간 연결됨 · 청취 대기':this.liveMode&&this.state?.karaoke?.phase==='singing'&&this.state.karaoke.active?.user_id===this.state.self?'실시간 연결됨 · 가창 중':'실시간 연결됨 · 청취 중',true);
   }
  }
  playRemote(a){
+  if(this.roomAudio?.blocked){this.roomAudio.quietElement(a);return;}
   const active=()=>!this.closed&&[...this.audios.values()].includes(a);
   const blocked=()=>{if(!active())return;a.voiceBlocked=!(a.voiceStream&&this.levelContext?.state==='running');this.updateListening();};
   try{void a.play()?.then(()=>{if(active()){a.voiceBlocked=false;this.updateListening();}},blocked);}catch{blocked();}
  }
  playbackGain(element,volume){
+  if(this.roomAudio?.blocked){this.roomAudio.quietElement(element);return;}
+  if(!element.voiceStream)element.muted=false;
   const ctx=this.levelContext;
   // A gain node also supports mobile browsers that ignore HTMLAudio.volume.
   // Create it only on a running, user-unlocked context; otherwise retain native audio.
@@ -344,7 +372,7 @@ class VoiceRoomClient {
   }
  }
  giftSummary(){const form=$('#voice-gift-form');if(!form)return;const g=AifectGifts.GIFT_CATALOG.find(g=>g.id===form.elements.gift_type.value);$('#voice-gift-summary').textContent=`총 ${number((g?.gold||0)*Number(form.elements.quantity.value))} G · 보낸 선물은 취소할 수 없어요.`;}
- async action(action,target,button){this.actionTrigger=button;if(action==='dismiss'&&button){button.closest('dialog')?.close();return;}if(action==='resume-audio'){this.resumeSound();return;}if(await this.roomUIAction(action,target))return;if(action==='leave'){if(!this.joined){this.leave(false);location.hash='#voice';return;}this.showSheet('talk-leave');return;}if(action==='confirm-leave'){const destination=this.pendingRoomNavigation||new URL(this.liveMode?'#live':'#voice',location.href).href;void this.leave();voiceController=null;location.href=destination;return;}if(action==='leave'){await this.leave();location.hash='#voice';return;}if(action==='close'){await this.command('close');this.leave(false);location.hash='#voice';return;}if(action==='enable-mic')return this.enableMic();if(action==='mute')return this.mute();if(!this.liveMode&&['request-mic','cancel-mic','approve-mic','reject-mic'].includes(action))return this.talkSeatAction(action,target,button);
+ async action(action,target,button){this.actionTrigger=button;if(action==='dismiss'&&button){button.closest('dialog')?.close();return;}if(action==='resume-audio'){this.resumeSound(true);return;}if(await this.roomUIAction(action,target))return;if(action==='leave'){if(!this.joined){this.leave(false);location.hash='#voice';return;}this.showSheet('talk-leave');return;}if(action==='confirm-leave'){const destination=this.pendingRoomNavigation||new URL(this.liveMode?'#live':'#voice',location.href).href;void this.leave();voiceController=null;location.href=destination;return;}if(action==='leave'){await this.leave();location.hash='#voice';return;}if(action==='close'){await this.command('close');this.leave(false);location.hash='#voice';return;}if(action==='enable-mic'){this.micIntentRevision=(this.micIntentRevision||0)+1;this.micDesired=true;return this.enableMic(true);}if(action==='mute')return this.mute();if(!this.liveMode&&['request-mic','cancel-mic','approve-mic','reject-mic'].includes(action))return this.talkSeatAction(action,target,button);
   if(action==='request-mic'&&this.state.members.find(p=>p.id===this.state.self)?.role==='host'){this.openSeatPicker(Number(target));return;}if(action==='release-mic'){
    if(this.seatReleasePending)return;this.seatReleasePending=true;
    this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.stopMicrophone();
@@ -389,39 +417,45 @@ class VoiceRoomClient {
   this.micState=phase;this.paint();return this.micPhaseStarted=performance.now();
  }
  async captureMicrophone(){
+  if(this.roomAudio?.blocked||this.roomAudio?.micNeedsGesture)return null;
+  this.roomAudio?.setType('play-and-record');
   if(this.stream?.getAudioTracks().some(t=>t.readyState==='live'))return this.stream;
   if(this.preparingMic)return this.preparingMic;
   const epoch=this.epoch,attempt=this.micAttempt;
   const promise=navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false}).then(stream=>{
-   if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt){stream.getTracks().forEach(t=>t.stop());return null;}
+   if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt||this.roomAudio?.blocked||this.roomAudio?.micNeedsGesture){stream.getTracks().forEach(t=>t.stop());return null;}
    stream.getAudioTracks().forEach(t=>t.enabled=false);
-   this.stream=stream;return stream;
+   this.stream=stream;if(this.roomAudio?.watchMicrophone(stream)===false)return null;return stream;
   });
   this.preparingMic=promise;try{return await promise;}finally{if(this.preparingMic===promise)this.preparingMic=null;}
  }
  warmMicrophone(){
+  if(this.roomAudio?.blocked||this.roomAudio?.micNeedsGesture)return;
   const key=this.generation;if(this.warmSeat===key||this.micBusy||this.stream||!navigator.permissions?.query)return;
   this.warmSeat=key;const epoch=this.epoch,attempt=this.micAttempt;
   // Querying permission never prompts. Capture only after an existing grant, always disabled.
   void navigator.permissions.query({name:'microphone'}).then(async permission=>{
    const self=this.state?.members.find(p=>p.id===this.state.self);
-   if(permission.state!=='granted'||this.closed||epoch!==this.epoch||attempt!==this.micAttempt||self?.seat==null||self.locked||this.micBusy)return;
+   if(permission.state!=='granted'||this.roomAudio?.blocked||this.roomAudio?.micNeedsGesture||this.closed||epoch!==this.epoch||attempt!==this.micAttempt||self?.seat==null||self.locked||this.micBusy)return;
    this.preparedPublisher ||= this.pc();await this.captureMicrophone();
   }).catch(()=>{/* A browser without permission queries uses the explicit mic button. */});
  }
  toggleMic(){
+  this.micIntentRevision=(this.micIntentRevision||0)+1;
   const active=this.micDesired??(!!this.stream&&!this.state?.members.find(p=>p.id===this.state.self)?.muted);
   this.micDesired=!active;
   if(!this.micDesired)this.setCaptureEnabled(false);
   this.paint();
   if(this.micBusy)return;
-  void this.safe(()=>this.micDesired?this.enableMic():this.mute());
+  void this.safe(()=>this.micDesired?this.enableMic(true):this.mute());
  }
  setCaptureEnabled(enabled){
-  for(const t of this.stream?.getAudioTracks()||[])t.enabled=enabled;
+  enabled=!!enabled&&!this.roomAudio?.blocked&&!this.roomAudio?.micNeedsGesture;
+  for(const stream of new Set([this.stream,this.pendingStream,this.processing?.stream]))for(const t of stream?.getAudioTracks()||[])t.enabled=enabled;
   if(this.micSender?.track)this.micSender.track.enabled=enabled;
  }
  syncMicIntent(){
+  if(this.roomAudio?.blocked||this.roomAudio?.micNeedsGesture)this.micDesired=false;
   if(this.micSync)return this.micSync;
   const epoch=this.epoch,pc=this.publisher,attempt=this.micAttempt;
   const stale=()=>this.closed||epoch!==this.epoch||this.publisher!==pc||attempt!==this.micAttempt;
@@ -438,7 +472,16 @@ class VoiceRoomClient {
   })().catch(e=>{if(!stale()){this.micDesired=false;this.setCaptureEnabled(false);this.micState='failed';this.paint();throw e;}}).finally(()=>{if(this.micSync===pending)this.micSync=null;});
   this.micSync=pending;return pending;
  }
- async enableMic(){
+ async enableMic(userInitiated=false){
+  const intentRevision=this.micIntentRevision||0,attemptBeforePermission=this.micAttempt;
+  if(this.roomAudio&&!await this.roomAudio.allowCapture(userInitiated)){
+   if(intentRevision===(this.micIntentRevision||0)){this.micDesired=false;this.setCaptureEnabled(false);this.paint();}
+   return;
+  }
+  // Both direct clicks and a continuation of an earlier click can yield while
+  // checking the session. Never revive an intent retired during that await.
+  if(intentRevision!==(this.micIntentRevision||0)||attemptBeforePermission!==this.micAttempt||this.roomAudio?.blocked||this.roomAudio?.micNeedsGesture)return;
+  if(userInitiated)this.micDesired=true;
   if(this.micDesired===undefined)this.micDesired=true;
   if(this.micBusy)return;
   if(this.stream&&this.publisher?.connectionState==='connected')return this.syncMicIntent();
@@ -478,6 +521,7 @@ class VoiceRoomClient {
    void Promise.allSettled([this.devices(),this.monitor()]);
   }catch(e){
    if(stale())return;
+   if(e.code==='AUDIO_INTERRUPTED'&&this.roomAudio){this.roomAudio.interrupt('context');return;}
    this.diagnostics?.record('micFailedStageMs',performance.now()-this.micPhaseStarted);
    this.micDesired=false;this.stopMicrophone();this.micState='failed';
    // Block a new attempt until the old publisher reservation is retired.
@@ -489,9 +533,9 @@ class VoiceRoomClient {
 
  async devices(){const devices=await navigator.mediaDevices.enumerateDevices();for(const [selector,kind,label] of [['#voice-input','audioinput','마이크'],['#voice-output','audiooutput','출력']]){const el=$(selector),selected=el.value;el.innerHTML='<option value="">기본 '+label+'</option>'+devices.filter(d=>d.kind===kind&&d.deviceId!=='default').map((d,i)=>`<option value="${esc(d.deviceId)}">${esc(d.label||label+' '+(i+1))}</option>`).join('');el.value=selected;}$('#voice-output').disabled=!('setSinkId' in HTMLMediaElement.prototype);}
  async output(){const id=$('#voice-output').value;if(this.levelContext?.setSinkId)await this.levelContext.setSinkId(id);await Promise.all([...this.audios.values(),...(this.musicAudio?[this.musicAudio]:[])].map(a=>a.setSinkId?a.setSinkId(id):Promise.resolve()));}
- async monitor(){const ticket=this.monitorTicket=(this.monitorTicket||0)+1,old=this.monitorContext;this.monitorContext=null;if(old)await old.close().catch(()=>{});if(ticket!==this.monitorTicket||this.closed||!this.stream||!$('#voice-monitor').checked)return;const ctx=this.monitorContext=new AudioContext();await ctx.resume();if(ticket!==this.monitorTicket||this.closed||!this.stream||!$('#voice-monitor').checked){await ctx.close().catch(()=>{});return;}ctx.createMediaStreamSource(this.processing?.stream||this.stream).connect(ctx.destination);}
- stopMicrophone(){this.monitorTicket=(this.monitorTicket||0)+1;this.micSync=null;this.preparedPublisher?.close();this.preparedPublisher=null;this.preparingMic=null;this.pendingStream?.getTracks().forEach(t=>t.stop());this.pendingStream=null;if(this.micSender?.track)this.micSender.track.onended=null;this.processing?.close();this.processing=null;this.micSender=null;if(this.stream){this.stream.getTracks().forEach(t=>{t.onended=null;t.stop();});this.stream=null;}this.publisher?.close();this.publisher=null;this.monitorContext?.close().catch(()=>{});this.monitorContext=null;}
- async mute(){this.micDesired=false;this.setCaptureEnabled(false);if(this.publisher?.connectionState==='connected'&&this.micSender?.track)return this.syncMicIntent();this.micState='muted';this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.stopMicrophone();const state=await this.command('mute');this.acceptState(state);this.paint();}
+ async monitor(){if(this.roomAudio?.blocked)return;const ticket=this.monitorTicket=(this.monitorTicket||0)+1,old=this.monitorContext;this.monitorContext=null;if(old)await old.close().catch(()=>{});if(ticket!==this.monitorTicket||this.closed||!this.stream||!$('#voice-monitor').checked)return;const ctx=this.monitorContext=new AudioContext();await ctx.resume();if(ticket!==this.monitorTicket||this.closed||!this.stream||!$('#voice-monitor').checked){await ctx.close().catch(()=>{});return;}ctx.createMediaStreamSource(this.processing?.stream||this.stream).connect(ctx.destination);}
+ stopMicrophone(){this.monitorTicket=(this.monitorTicket||0)+1;this.micSync=null;this.preparedPublisher?.close();this.preparedPublisher=null;this.preparingMic=null;this.pendingStream?.getTracks().forEach(t=>t.stop());this.pendingStream=null;if(this.micSender?.track)this.micSender.track.onended=null;this.processing?.close();this.processing=null;this.micSender=null;if(this.stream){this.stream.getTracks().forEach(t=>{t.onended=null;t.stop();});this.stream=null;}this.publisher?.close();this.publisher=null;this.monitorContext?.close().catch(()=>{});this.monitorContext=null;this.roomAudio?.updateType();}
+ async mute(){this.micIntentRevision=(this.micIntentRevision||0)+1;this.micDesired=false;this.setCaptureEnabled(false);if(this.publisher?.connectionState==='connected'&&this.micSender?.track)return this.syncMicIntent();this.micState='muted';this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.stopMicrophone();const state=await this.command('mute');this.acceptState(state);this.paint();}
  receive(){
   const members=this.state?.members||[],key=members.filter(p=>p.id!==this.state?.self&&p.publishing).map(p=>p.id+':'+p.mediaKey).sort().join('|');
   if(key===this.receiveKey||this.closed)return this.mediaQueue;this.receiveKey=key;const version=this.receiveVersion=(this.receiveVersion||0)+1;
@@ -503,7 +547,7 @@ class VoiceRoomClient {
    pc.ontrack=e=>{
     if(stale()||version!==this.receiveVersion||this.receiver!==pc)return;const id=mapping.find(t=>t.mid===e.transceiver.mid)?.user_id;if(!id)return;
     const previous=this.audios.get(id);if(previous)this.releaseRemote(previous);this.meters.get(id)?.source.disconnect();
-    const a=new Audio();a.autoplay=true;a.srcObject=new MediaStream([e.track]);a.volume=(this.volumes.get(id)??1)*this.preferences.voice;this.audios.set(id,a);this.applyListenVolumes();this.meterTrack(id,e.track);this.startLevels();
+    const a=new Audio();a.muted=!!this.roomAudio?.blocked;a.autoplay=true;a.srcObject=new MediaStream([e.track]);a.volume=(this.volumes.get(id)??1)*this.preferences.voice;this.audios.set(id,a);this.applyListenVolumes();this.meterTrack(id,e.track);this.startLevels();
     if('jitterBufferTarget' in e.receiver)try{e.receiver.jitterBufferTarget=100;}catch{}
     this.playRemote(a);
    };
@@ -522,7 +566,7 @@ class VoiceRoomClient {
  scheduleReconnect(){if(this.reconnectTimer||this.closed)return;this.reconnectTimer=setTimeout(()=>{this.reconnectTimer=null;this.reconnect();},Math.min(30000,1000*2**Math.min(this.retries++,5)));}
  async reconnect(){if(this.closed||this.reconnecting)return;const reconnectStarted=performance.now();this.reconnecting=true;this.status('연결이 끊겼어요. 다시 연결하는 중…');try{await this.join();}catch(e){this.status(e.message);if([401,403,404,409].includes(e.status))this.leave(false);else this.scheduleReconnect();}finally{this.reconnecting=false;this.diagnostics?.record('reconnectMs',performance.now()-reconnectStarted);}}
  stopMedia(){this.micDesired=false;this.micState='disconnected';this.warmSeat=null;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.pendingStream?.getTracks().forEach(t=>t.stop());this.pendingStream=null;this.stopMicrophone();this.clearRemoteMeters();this.receiver?.close();this.receiver=null;for(const a of this.audios.values())this.releaseRemote(a);this.audios.clear();this.receiveKey=null;}
- leave(send=true){if(this.closed)return;this.chatEditor?.destroy();document.documentElement?.style.removeProperty('--room-toast-bottom');this.roomLayoutEvents?.abort();this.roomResizeObserver?.disconnect();if(this.roomLayoutFrame)cancelAnimationFrame(this.roomLayoutFrame);clearTimeout(this.micNoticeTimer);document.querySelector?.('#main')?.style?.removeProperty('--voice-top');clearInterval(this.roomClock);this.roomDM?.destroy();this.roomDMUnreadStop?.();document.documentElement?.removeAttribute('data-room-popup');this.roomTitleObserver?.disconnect();this.talkViewEvents?.abort();this.controlEvents?.abort();this.roomShareAbort?.abort();clearTimeout(this.roomShareTimer);this.releaseRoomExternal?.();const leaving=send&&this.joined?fetch('/api/voice/'+this.path('leave'),{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({generation:this.generation}),signal:AbortSignal.timeout(8000)}).catch(()=>{}):Promise.resolve();this.closed=true;this.talkGiftQueue.length=0;this.finishTalkGift();setVoiceFocus(false);this.joined=false;this.stopMicTest?.();this.diagnostics?.stop();clearInterval(this.levelTimer);clearInterval(this.musicTimer);clearTimeout(this.volumeTimer);clearTimeout(this.searchTimer);this.searchAbort?.abort();window.removeEventListener('resize',this.onViewport);clearTimeout(this.receiveRetry);clearTimeout(this.seatInviteTimer);this.musicAudio?.pause();if(this.musicAudio){this.musicAudio.removeAttribute('src');this.musicAudio.load();}this.levelContext?.close().catch(()=>{});this.levelContext=null;clearInterval(this.heartbeat);clearTimeout(this.socketRetry);clearTimeout(this.reconnectTimer);clearTimeout(this.animationTimer);this.ws?.close();this.stopMedia();if(this.host?.isConnected){$('#voice-content').hidden=true;$('#voice-entry').hidden=false;}window.removeEventListener('online',this.onOnline);window.removeEventListener('pagehide',this.onPageHide);document.removeEventListener('visibilitychange',this.onVisibility);window.removeEventListener('pageshow',this.onVisibility);window.removeEventListener('focus',this.onVisibility);window.visualViewport?.removeEventListener('resize',this.onViewport);window.visualViewport?.removeEventListener('scroll',this.onViewport);return leaving;}
+ leave(send=true){if(this.closed)return;this.chatEditor?.destroy();document.documentElement?.style.removeProperty('--room-toast-bottom');this.roomLayoutEvents?.abort();this.roomResizeObserver?.disconnect();if(this.roomLayoutFrame)cancelAnimationFrame(this.roomLayoutFrame);clearTimeout(this.micNoticeTimer);document.querySelector?.('#main')?.style?.removeProperty('--voice-top');clearInterval(this.roomClock);this.roomDM?.destroy();this.roomDMUnreadStop?.();document.documentElement?.removeAttribute('data-room-popup');this.roomTitleObserver?.disconnect();this.talkViewEvents?.abort();this.controlEvents?.abort();this.roomShareAbort?.abort();clearTimeout(this.roomShareTimer);this.releaseRoomExternal?.();const leaving=send&&this.joined?fetch('/api/voice/'+this.path('leave'),{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({generation:this.generation}),signal:AbortSignal.timeout(8000)}).catch(()=>{}):Promise.resolve();this.closed=true;this.talkGiftQueue.length=0;this.finishTalkGift();setVoiceFocus(false);this.joined=false;this.stopMicTest?.();this.diagnostics?.stop();clearInterval(this.levelTimer);clearInterval(this.musicTimer);clearTimeout(this.volumeTimer);clearTimeout(this.searchTimer);this.searchAbort?.abort();window.removeEventListener('resize',this.onViewport);clearTimeout(this.receiveRetry);clearTimeout(this.seatInviteTimer);this.musicAudio?.pause();if(this.musicAudio){this.musicAudio.removeAttribute('src');this.musicAudio.load();}this.levelContext?.close().catch(()=>{});this.levelContext=null;clearInterval(this.heartbeat);clearTimeout(this.socketRetry);clearTimeout(this.reconnectTimer);clearTimeout(this.animationTimer);this.ws?.close();this.stopMedia();this.roomAudio?.dispose();if(this.host?.isConnected){$('#voice-content').hidden=true;$('#voice-entry').hidden=false;}window.removeEventListener('online',this.onOnline);window.removeEventListener('pagehide',this.onPageHide);document.removeEventListener('visibilitychange',this.onVisibility);window.removeEventListener('pageshow',this.onVisibility);window.removeEventListener('focus',this.onVisibility);window.visualViewport?.removeEventListener('resize',this.onViewport);window.visualViewport?.removeEventListener('scroll',this.onViewport);return leaving;}
  animateGift(event){
   if(this.closed||!event.gift?.id||this.seenGifts.has(event.gift.id))return;
   this.seenGifts.add(event.gift.id);

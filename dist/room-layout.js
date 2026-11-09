@@ -2,10 +2,22 @@
 function bindRoomViewport(client){
  client.roomLayoutEvents?.abort();client.roomResizeObserver?.disconnect();
  const events=client.roomLayoutEvents=new AbortController(),options={signal:events.signal};
- const back=()=>{if(client.closed)return false;if(client.talkPopup?.open)client.closeRoomPopup();else client.safe(()=>client.action('leave'));return true;};
+ const back=()=>{
+  if(client.closed)return false;
+  if(client.talkPopup?.open)client.closeRoomPopup();
+  else if(client.host.querySelector('#voice-emoji-picker')?.open)client.toggleEmojiPicker(false,true);
+  else client.safe(()=>client.action('leave'));
+  return true;
+ };
  window.aifectRoomBack=back;
  events.signal.addEventListener('abort',()=>{if(window.aifectRoomBack===back)delete window.aifectRoomBack;},{once:true});
- const room=client.host,main=document.querySelector('#main'),composer=room.querySelector('#voice-chat-form');
+ const room=client.host,main=document.querySelector('#main'),composer=room.querySelector('#voice-chat-form'),transcript=room.querySelector('#voice-chat'),picker=room.querySelector('#voice-emoji-picker');
+ client.roomChatAtEnd=true;
+ transcript?.addEventListener?.('scroll',()=>{
+  // A keyboard resize must not be mistaken for the reader scrolling history.
+  if(client.roomChatHeight===transcript.clientHeight)client.roomChatAtEnd=transcript.scrollHeight-transcript.scrollTop-transcript.clientHeight<60;
+  client.roomChatHeight=transcript.clientHeight;
+ },{...options,passive:true});
  for(const button of room.querySelectorAll('#voice-chat-form > button,.room-dm-composer > button')){
   const gift=button.matches('[data-voice=gift],[data-room-dm-gift]');
   if(gift||button.type==='submit')button.innerHTML=roomFilledIcon(gift?'gift':'send');
@@ -15,6 +27,11 @@ function bindRoomViewport(client){
  const measure=()=>{
   client.roomLayoutFrame=0;if(client.closed||!room.isConnected)return;
   const vv=window.visualViewport,top=vv?.offsetTop||0,bottom=top+(vv?.height||innerHeight),mobile=innerWidth<=800;
+  const focused=!!document.activeElement?.closest?.('#voice-chat-form'),keyboard=mobile&&focused&&!!(window.AifectMobileInput?.measure?.().keyboard||document.documentElement?.hasAttribute?.('data-mobile-keyboard'));
+  const stickers=!!picker?.open&&!picker.hidden;
+  room.toggleAttribute?.('data-room-keyboard',keyboard);
+  room.toggleAttribute?.('data-room-chat-active',mobile&&(keyboard||stickers));
+  room.toggleAttribute?.('data-room-stickers',stickers);
   if(client.roomMobile!==mobile){client.roomMobile=mobile;setVoiceFocus(client.joined&&!client.closed);}
   let start=top,end=bottom;
   for(const el of shell){
@@ -36,6 +53,10 @@ function bindRoomViewport(client){
   // Expose measured geometry for diagnostics and keep reads before writes next frame.
   client.roomBounds={top:start,bottom:end,width:box.width,visualHeight:bottom-top};
   positionRoomPopup(client);
+  if(Number.isFinite(transcript?.scrollHeight)){
+   if(client.roomChatAtEnd)transcript.scrollTop=transcript.scrollHeight;
+   client.roomChatHeight=transcript.clientHeight;
+  }
  };
  client.onViewport=()=>{if(!client.roomLayoutFrame)client.roomLayoutFrame=requestAnimationFrame(measure);};
  for(const type of ['resize','aifect:topbar-layout','aifect:input-viewport'])window.addEventListener(type,client.onViewport,options);
@@ -43,7 +64,7 @@ function bindRoomViewport(client){
  window.visualViewport?.addEventListener('scroll',client.onViewport,options);
  if(typeof ResizeObserver!=='undefined'){
   client.roomResizeObserver=new ResizeObserver(client.onViewport);
-  for(const el of new Set([main,room,composer,...shell].filter(Boolean)))client.roomResizeObserver.observe(el);
+  for(const el of new Set([main,room,composer,transcript,picker,...shell].filter(Boolean)))client.roomResizeObserver.observe(el);
  }
  measure();
 }

@@ -105,3 +105,23 @@ dialog.profile-preview .profile-preview-card {
 
 html.profile-embed,html.profile-embed body {background:transparent;min-width:0}
 .profile-embed body> :not(dialog):not(#toast) {display:none!important}
+/* The existing profile share action sends an internal message to selected follows. */
+.profile-share-panel{min-width:0}
+.profile-share-summary{color:var(--ds-body);margin:8px 0 16px;overflow-wrap:anywhere}
+.profile-share-search{display:flex;align-items:center;gap:8px;padding:0 12px;border-radius:var(--ds-radius-input);background:var(--ds-bg);border:1px solid var(--ds-line)}
+.profile-share-search>svg{width:20px;height:20px;flex:none}
+#dialog .profile-share-search input{width:100%;min-width:0;min-height:44px;border:0;box-shadow:none;background:none;padding:8px 0;font-size:16px}
+.profile-share-people{display:grid;align-content:start;gap:4px;max-height:min(360px,42dvh);overflow:auto;overscroll-behavior:contain;margin:12px 0}
+.profile-share-person{display:flex;align-items:center;gap:10px;min-height:52px;min-width:0;padding:6px 8px;border-radius:var(--ds-radius-sm);color:var(--ds-text)}
+.profile-share-person:has(:checked){background:color-mix(in srgb,var(--ds-accent-lavender) 14%,var(--ds-panel))}
+#dialog .profile-share-person input{width:18px;height:18px;min-height:0;flex:none;accent-color:var(--ds-accent-lavender)}
+.profile-share-person>img{width:36px;height:36px;object-fit:cover;border-radius:50%;flex:none}
+.profile-share-person>span{min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.profile-share-person small{display:block;color:var(--ds-muted);font-size:12px}
+.profile-share-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.profile-share-actions>span{color:var(--ds-body);font-size:13px}
+.profile-share-result{color:var(--ds-body);font-size:13px;line-height:1.5}
+.profile-share-result:empty{display:none}
+.profile-share-panel :is(button,input):focus-visible{outline:2px solid var(--ds-accent-lavender);outline-offset:2px}
+.dm-profile-share{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;padding:10px 12px;border-radius:var(--ds-radius-sm);background:color-mix(in srgb,var(--ds-panel) 75%,transparent);color:var(--ds-text);text-decoration:none;white-space:normal;min-height:44px}
+.dm-profile-share:after{content:'›';font-size:20px;line-height:1}

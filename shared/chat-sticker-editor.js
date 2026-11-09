@@ -186,7 +186,7 @@ export function createStickerEditor(element, {fragment, token, spacing, limit, o
     return true;
   }
   function revealSticker(img) {
-    if (dm && img instanceof HTMLImageElement && element.contains(img) && element.scrollHeight > element.clientHeight) {
+    if (img instanceof HTMLImageElement && element.contains(img) && element.scrollHeight > element.clientHeight) {
       const viewportTop = element.getBoundingClientRect().top + element.clientTop;
       const padding = getComputedStyle(element);
       const top = viewportTop + parseFloat(padding.paddingTop);
@@ -264,9 +264,10 @@ export function createStickerEditor(element, {fragment, token, spacing, limit, o
       if (type === 'cut') insert('', true);
     }, options);
   }
-  return {get:() => composing && dm ? accepted : read(element), set, insertSticker:key => insert(token(key),false,true), remember,
+  return {get:() => composing ? accepted : read(element), set, insertSticker:key => insert(token(key),false,true), remember,
     insertionWarning:()=>notice || lengthWarning,
-    canSend() {if (!dm) return true; if (composing) return false; const {warning}=dmBodyStats(read(element)); if (warning) onWarning(warning); return !warning;},
+    isComposing:() => composing,
+    canSend() {if (composing) return false; if (!dm) return true; const {warning}=dmBodyStats(read(element)); if (warning) onWarning(warning); return !warning;},
     focus() {
       element.focus({preventScroll:true});
       if (!caret) return;

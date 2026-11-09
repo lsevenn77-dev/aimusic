@@ -73,18 +73,22 @@ function bindMemberHeader(profile){
  const trigger=header.querySelector('[data-mp-settings]'),menu=header.querySelector('.mp-settings-menu');
  if(!trigger||!menu)return;
  const events=new AbortController();
- const setOpen=open=>{menu.hidden=!open;trigger.setAttribute('aria-expanded',String(open));};
+ const setOpen=open=>{
+  if(open){const anchor=trigger.getBoundingClientRect(),bounds=header.getBoundingClientRect();menu.style.top=(anchor.bottom-bounds.top+4)+'px';menu.style.right=Math.max(0,bounds.right-anchor.right)+'px';}
+  menu.hidden=!open;trigger.setAttribute('aria-expanded',String(open));
+ };
  trigger.onclick=()=>{
   setOpen(menu.hidden);
   if(!menu.hidden)menu.querySelector('a').focus({preventScroll:true});
  };
  document.addEventListener('click',e=>{
-  if(menu.hidden||trigger.contains(e.target))return;
-  if(!menu.contains(e.target)||e.target.closest('a,button')){
-   if(menu.contains(e.target))trigger.focus({preventScroll:true});
-   setOpen(false);
-  }
+  if(!menu.hidden&&!trigger.contains(e.target)&&!menu.contains(e.target))setOpen(false);
  },{capture:true,signal:events.signal});
+ menu.addEventListener('click',e=>{
+  const link=e.target.closest('a[href^="#"]');
+  if(link){e.preventDefault();const href=link.getAttribute('href');setOpen(false);if(location.hash===href)void render();else location.hash=href;}
+  else if(e.target.closest('button'))queueMicrotask(()=>setOpen(false));
+ },{signal:events.signal});
  document.addEventListener('focusin',e=>{
   if(!menu.hidden&&!menu.contains(e.target)&&e.target!==trigger)setOpen(false);
  },{signal:events.signal});
@@ -281,7 +285,10 @@ function bindProfileWorks(s){
 }
 
 function mySegment(active){return `<div class="mp-segment" role="tablist" aria-label="마이페이지" data-active="${active}"><span class="mp-segment-slide" aria-hidden="true"></span>${[['works','내 작품'],['library','내 보관함'],['activity','내 활동']].map(([key,label])=>`<button type="button" role="tab" id="mp-tab-${key}" aria-controls="mp-content" aria-selected="${active===key}" tabindex="${active===key?0:-1}" data-mp-tab="${key}">${label}</button>`).join('')}</div>`;}
-function myWorksBanner(){return `<div class="mp-works-banner">${icon('sparkles',16)}<span>음악의 시작부터 완성까지, <span class="mp-works-banner-accent">나의 모든 작품을 한눈에.</span></span></div>`;}
+function myWorksBanner(tab='works'){
+ const copy={works:['음악의 시작부터 완성까지, ','나의 모든 작품을 한눈에.'],library:['좋아하는 음악과 다시 듣고 싶은 순간을 ','한곳에.'],activity:['아이팩트에서 함께한 ','활동과 기록을 한눈에.']}[tab]||['',''];
+ return `<div class="mp-works-banner">${icon('sparkles',16)}<span>${copy[0]}<span class="mp-works-banner-accent">${copy[1]}</span></span></div>`;
+}
 async function myPageView(base,param,raw,readApi=api){
  if(base==='member'){
   const {profile}=await readApi('/api/members/'+encodeURIComponent(param));
@@ -303,9 +310,9 @@ async function myPageView(base,param,raw,readApi=api){
  const collection=own&&tab==='library'?await myLibraryView(raw,readApi):own&&tab==='works'&&['covers','originals'].includes(q.get('section'))?await browseView('library',q.get('section'),raw,true,readApi):null;
  const state={d,own,tab,account:me?.id||'',activity:null};
  return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],
-  html:`<div class="mypage-layout mp-member-page mp-dashboard ${own?'mp-own':''}">${myProfileHeader(d)}
+  html:`<div class="mypage-layout mp-member-page mp-dashboard ${own?'mp-own':''}" data-mp-view="${tab}">${myProfileHeader(d)}
    <div class="mp-profile-collections">${myMoments(d)}${myArtists(d)}</div>
-   ${own?mySegment(tab)+myWorksBanner():''}<div class="mp-main"><div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d,own?'main':'all'):myLoading()}</div></div>
+   ${own?mySegment(tab)+myWorksBanner(tab):''}<div class="mp-main"><div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d,own?'main':'all'):myLoading()}</div></div>
    ${own?`<aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():myWorksHTML(d,'aside'))}</div>${myStudioBanner()}</aside>`:''}
    </div>`};
 }
@@ -330,13 +337,13 @@ function myActivityAside(d,a){
  const rows=items=>`<div class="mp-activity-rows">${items.join('')}</div>`;
  return mySection('내 크루',c?`<a class="mp-my-crew" href="#crew/${esc(c.id)}">${crewPicture(c,'crew-circle')}<span><strong>${crewNameHTML(c)}</strong><small>크루 멤버 ${number(c.members)}명</small></span>${icon('chevron')}</a><p class="mp-muted">${esc(c.description||'음악을 함께 나누는 우리 크루')}</p>`:myEmpty('현재 소속된 크루가 없어요.'),myAll(c?'#crew/'+c.id:'#community/crews?browse=1'))+
  mySection('받은 선물',myError(a.activity)||(received.length?rows(received.slice(0,3).map(g=>`<a href="${g.sender_profile_id?'#producer/'+esc(g.sender_profile_id):'#notifications?filter=gifts'}"><span class="mp-mini-avatar">${avatarImage({id:g.sender_profile_id,name:g.sender_name,image_version:g.image_version})}</span><span><strong>${userNickname(g.sender_name,{profileId:g.sender_profile_id,userId:g.sender_id})}</strong><small>${esc(g.gift_name||'선물')} × ${g.quantity}</small></span><time>${myDate(g.created)}</time></a>`)):myEmpty('아직 받은 선물이 없어요.')),myAll('#notifications?filter=gifts'))+
- mySection('보낸 선물 내역',`<a class="mp-all" href="#gold/history">받은 대상 · 선물 · 수량 · 보낸 날짜 ${icon('chevron')}</a>`)+
  mySection('계정 관리',`<nav class="mp-account-links"><a href="#membership">${icon('ticket')} 구독 · 이용권 관리 ${icon('chevron')}</a><a href="#payouts">${icon('wallet')} 정산 내역 ${icon('chevron')}</a></nav>`);
 }
 async function mySelectTab(tab,updateURL=true,readApi=api){
  const s=myPageState;if(!s?.own||s.account!==me?.id)return;
  if(updateURL){location.hash=myTabHref(tab);return;}
  s.tab=tab;const request=s.request=(s.request||0)+1;
+ const page=$('.mp-dashboard');if(page){page.dataset.mpView=tab;const banner=page.querySelector('.mp-works-banner');if(banner)banner.outerHTML=myWorksBanner(tab);}
  const segment=$('.mp-segment');segment.dataset.active=tab;segment.querySelectorAll('[role="tab"]').forEach(b=>{const active=b.dataset.mpTab===tab;b.setAttribute('aria-selected',active);b.tabIndex=active?0:-1;});
  const content=$('#mp-content'),aside=$('#mp-aside-content');content.setAttribute('aria-labelledby','mp-tab-'+tab);content.removeAttribute('aria-busy');
  if(tab==='works'){content.innerHTML=myWorksHTML(s.d,'main');aside.innerHTML=myWorksHTML(s.d,'aside');routeTracks=remember([...(s.d.tracks||[]),...(s.d.covers||[])]);icons();paintInteractions();bindProfileWorkJoins(document.querySelector('.mp-dashboard'),s.d);syncSongCoverPlayback();return;}

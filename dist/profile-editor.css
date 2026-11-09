@@ -10,6 +10,13 @@
 .profile-edit-avatar.profile-frame-canvas {display:grid;place-items:center;width:120px;height:120px;align-self:start;}
 .profile-edit-avatar>.profile-avatar-image {width:calc(100% / var(--profile-frame-layout));height:auto;aspect-ratio:1;object-fit:cover;border-radius:50%;}
 .profile-edit-fields {min-width:0;}
+.profile-edit-banner {display:grid;gap:8px;margin-top:16px;}
+.profile-edit-label {font-size:14px;color:var(--ds-body);}
+.profile-edit-banner-preview {position:relative;height:110px;overflow:hidden;display:grid;place-items:center;border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-muted);}
+.profile-edit-banner-preview img {width:100%;height:100%;object-fit:cover;}
+.profile-edit-banner-preview>span {font-size:13px;}
+.profile-edit-banner-actions {display:flex;gap:8px;flex-wrap:wrap;}
+.profile-edit-banner .field-help {margin:0;font-size:12px;line-height:1.5;}
 :is(#dialog,dialog).profile-edit-dialog .profile-edit-photo-actions {display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
 :is(#dialog,dialog).profile-edit-dialog.compact-popup .profile-edit-fields .form-field {margin:0;gap:4px;}
 :is(#dialog,dialog).profile-edit-dialog.compact-popup .profile-edit-fields .field-help {margin:4px 0 0;}

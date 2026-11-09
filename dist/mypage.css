@@ -115,6 +115,8 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  max-width:none;object-fit:cover;object-position:50% 42%;filter:blur(8px);
 }
 .mp-header-background:after{content:'';position:absolute;inset:0;background:color-mix(in srgb,var(--ds-bg) 52%,transparent)}
+.mp-header-background:empty{background:transparent}
+.mp-header-background:empty:after{content:none}
 #main .mp-profile .mp-avatar-space{
  display:grid;place-items:start center;align-self:start;width:max(var(--mp-photo-size),var(--frame-span,0px));
  min-height:var(--frame-height,var(--mp-photo-size));
@@ -131,9 +133,9 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
 .mp-profile .mp-header-tools .fan-icon{display:grid;place-items:center;width:44px;height:44px;padding:0;color:var(--ds-text);border:0;border-radius:0;background:none;box-shadow:none;list-style:none}
 .mp-profile .mp-header-tools .fan-icon svg{width:20px;height:20px;stroke-width:1.8}
 .mp-profile .mp-header-tools .fan-icon:hover{color:var(--mp-mint)}
-.mp-profile :is(.mp-header-tools,.mp-settings-menu) :is(button,a):focus-visible{outline:2px solid var(--mp-mint);outline-offset:2px}
+.mp-profile :is(.mp-header-tools,.mp-settings-menu) :is(button,a):focus-visible{outline:2px solid var(--ds-accent-lavender);outline-offset:2px}
 .mp-profile .mp-settings-menu.fan-settings-menu{
- top:calc(44px + 4px);width:12.5rem;max-width:100%;padding:4px;
+ position:absolute;top:calc(44px + 4px);right:0;width:12.5rem;max-width:100%;padding:4px;
 }
 .mp-profile .mp-settings-menu.fan-settings-menu :is(a,button){
  min-height:44px;gap:10px;padding:6px 10px;line-height:1.4
@@ -208,8 +210,9 @@ main .social-profile-identity h2>.mp-public-id{display:block;font-size:13px;font
  }
  #main .mp-member-page .mp-profile .mp-identity{display:contents}
  .mp-member-page .mp-identity::before{content:none}
- /* In the narrow layout the open menu gets its own row below the identity. */
- .mp-member-page .mp-profile .mp-settings-menu{position:static;grid-column:1/-1;justify-self:end}
+ /* Keep the settings overlay outside the identity grid flow. */
+ .mp-member-page .mp-profile .mp-settings-menu{position:absolute}
+ #main .mp-dashboard.mp-own[data-mp-view]:not([data-mp-view="works"]) .mp-artists-card{display:none}
  .mp-member-page .mp-avatar-space,.mp-member-page .mp-byline{grid-row:1}
  .mp-member-page .mp-byline{
   grid-column:2;display:grid;grid-template-columns:minmax(0,1fr) auto;
