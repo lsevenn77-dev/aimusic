@@ -5,9 +5,16 @@
 #home-release.home-promo-carousel .home-feature-stage{height:100%;min-width:0;overflow:hidden}
 #home-release.home-promo-carousel .home-promo-link{--ui-space-scale:1;--ui-type-scale:1;display:block;position:relative;padding:0;width:100%;height:100%;color:var(--ds-text);text-decoration:none;user-select:none;-webkit-user-select:none;background:var(--home-promo-bg,var(--ds-bg))}
 #home-release.home-promo-carousel .home-promo-picture{display:block;position:relative;z-index:0;width:100%;height:100%;overflow:hidden}
-/* The extended PC photograph is a single continuous scene. Keep its subject
-   anchor during responsive cropping without duplicating or fading the photo. */
+/* Original mobile photographs are also the only portrait layer on desktop. */
 #home-release.home-promo-carousel .home-promo-original{display:block;width:100%;height:100%;object-fit:cover;object-position:var(--home-promo-focus,71% 20%);border:0;border-radius:0}
+#home-release.home-promo-carousel .home-promo-scenery{display:none}
+@media(min-width:801px){
+ #home-release.home-promo-carousel .home-promo-scenery{display:block;position:absolute;inset:0 calc(var(--home-feature-height,272px) * 2 - 1px) 0 0;background-image:var(--home-promo-scenery);background-size:cover;background-position:right center;pointer-events:none}
+ /* Outpaint begins exactly at the original's left edge. The source photo
+    stays completely opaque, including all people, clothing, hands and props. */
+ #home-release.home-promo-carousel .home-promo-picture{position:absolute;inset:0 0 0 auto;width:auto;max-width:none;height:100%;aspect-ratio:2/1}
+ #home-release.home-promo-carousel .home-promo-original{max-width:none;object-fit:contain;object-position:center}
+}
 /* Gently shade and soften the scenery behind the words. Both effects diminish
    continuously from the left edge, leaving the faces and actions sharp. */
 #home-release.home-promo-carousel .home-promo-link::before{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;background:color-mix(in srgb,var(--ds-bg) 44%,transparent);backdrop-filter:blur(1.75px);-webkit-backdrop-filter:blur(1.75px);mask-image:linear-gradient(90deg,#000 0%,#000d calc(var(--home-promo-shade-end,62%) * .3),#0006 calc(var(--home-promo-shade-end,62%) * .65),transparent var(--home-promo-shade-end,62%));-webkit-mask-image:linear-gradient(90deg,#000 0%,#000d calc(var(--home-promo-shade-end,62%) * .3),#0006 calc(var(--home-promo-shade-end,62%) * .65),transparent var(--home-promo-shade-end,62%))}
@@ -36,13 +43,6 @@
 #home-release.home-promo-carousel .home-promo-cta{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-height:44px;padding:8px 24px;border:0;border-radius:999px;background:linear-gradient(100deg,var(--ds-mint),var(--ds-lavender),var(--ds-lilac));color:var(--ds-ink);font-size:16px;line-height:1.4;font-weight:750;text-shadow:none;white-space:nowrap;box-shadow:none}
 #home-release.home-promo-carousel .home-promo-cta svg{width:20px;height:20px;flex:none}
 #home-release.home-promo-carousel .home-promo-link:focus-visible .home-promo-cta{outline:2px solid var(--ds-text);outline-offset:3px}
-/* Compact desktop frames use the same complete group photographs with enough
-   vertical room for all three people and their hands. */
-@media(min-width:801px) and (max-width:1150px){
- #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-focus:50% 50%}
- #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-focus:100% 50%}
- #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-focus:80% 20%}
-}
 .home-participation-options{display:grid;gap:12px;margin-top:20px}
 .home-participation-options .small-button{display:flex;justify-content:space-between;min-height:48px;text-decoration:none}
 @container(max-width:790px){
