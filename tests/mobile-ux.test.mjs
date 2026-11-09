@@ -59,12 +59,11 @@ test('clear does not refresh a switched account or allow an inbox-wide target',a
   assert.equal(f.renders,0);assert.equal(f.notices.length,0);
   const all=clearContext();all.button.dataset.dmClear='all';await all.click();assert.equal(all.calls.length,0);assert.equal(all.confirmations.length,0);
 });
-test('bubble/time pairs share a row while failed image actions occupy a separate row',()=>{
+test('failed image actions sit above the timestamp outside the message bubble',()=>{
   const c=chatContext();c.chatImageHTML=()=>'<img alt="사진">';
   const html=c.chatHTML([{id:'one',sender_id:'other',created:1,body:'<hello>'},{id:'pending:two',sender_id:'self',created:2,image_id:'photo',delivery:'failed'}],{id:'peer',name:'Peer'});
   assert.equal((html.match(/class="dm-message-line"/g)||[]).length,2);
   assert.match(html,/&lt;hello>/);assert.match(html,/chat-retry/);assert.match(html,/<img alt="사진">/);
   assert.match(html,/<\/span><\/div><div class="chat-message-meta"><time>/);
-  assert.match(html,/<\/time><\/div><\/div><div class="chat-failed-actions"/);
-  assert.match(html,/data-chat-discard="pending:two"/);
+  assert.match(html,/<\/span><\/div><div class="chat-message-meta"><div class="chat-failed-actions"[^>]*><button[^>]*data-chat-discard="pending:two"[^>]*>[\s\S]*?<\/button><button[^>]*data-chat-retry="pending:two"[^>]*>[\s\S]*?<\/button><\/div><time>/);
 });
