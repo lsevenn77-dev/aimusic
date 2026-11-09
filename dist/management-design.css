@@ -1,14 +1,14 @@
-/* Account, membership, gold and creator payouts share the existing AIFECT tokens.
+/* Account, membership, gold, studio and creator payouts share the existing AIFECT tokens.
    The outer frame remains owned by main-layout.css. */
-.page-wrap:has(> #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"])) {
+.page-wrap:has(> #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"])) {
   background:var(--ds-bg);
 }
-.page-wrap:has(> #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]))::before,
-#main[data-route]:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"])::before {
+.page-wrap:has(> #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]))::before,
+#main[data-route]:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"])::before {
   display:none;
   content:none;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) {
   --ui-control-height:44px;
   color:var(--ds-body);
   font-size:var(--pc-font-body,15px);
@@ -16,7 +16,7 @@
   background:transparent;
   box-shadow:none;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .page-heading {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .page-heading {
   display:block;
   min-height:0;
   margin:0 0 calc(24px);
@@ -26,40 +26,40 @@
   border-radius:0;
   box-shadow:none;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .page-heading h1 {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .page-heading h1 {
   margin:0;
   font-size:var(--pc-font-page,23px);
   line-height:1.4;
   letter-spacing:-.035em;
   text-shadow:none;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .page-heading p {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .page-heading p {
   margin:calc(8px) 0 0;
   color:var(--ds-muted);
   font-size:var(--pc-font-body,14px);
   line-height:1.7;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .surface {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .surface {
   min-width:0;
   background:var(--ds-panel);
   border:1px solid var(--ds-line);
   border-radius:var(--ds-radius-card);
   box-shadow:none;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) :is(h2,h3) {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) :is(h2,h3) {
   color:var(--ds-text);
   line-height:1.5;
   letter-spacing:-.025em;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .section-heading {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .section-heading {
   margin:calc(28px) 0 calc(14px);
   gap:calc(12px);
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .section-heading h2 {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .section-heading h2 {
   margin:0;
   font-size:var(--pc-font-section,19px);
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) :is(.primary-button,.small-button,.secondary-button) {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) :is(.primary-button,.small-button,.secondary-button) {
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -75,31 +75,31 @@
   box-shadow:none;
   white-space:normal;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .primary-button:not(:disabled) {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .primary-button:not(:disabled) {
   background:var(--ds-gradient);
   color:var(--ds-ink);
   border-color:transparent;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) :is(.small-button,.secondary-button):not(:disabled) {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) :is(.small-button,.secondary-button):not(:disabled) {
   background:var(--ds-soft);
   color:var(--ds-text);
   border-color:var(--ds-line);
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) :is(.small-button,.secondary-button):not(:disabled):hover {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) :is(.small-button,.secondary-button):not(:disabled):hover {
   border-color:var(--ds-lavender);
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) button.text-link {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) button.text-link {
   appearance:none;
   background:transparent;
   border:0;
   border-radius:var(--ds-radius-input);
   cursor:pointer;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) :is(button,a,input,select,textarea,summary):focus-visible {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) :is(button,a,input,select,textarea,summary):focus-visible {
   outline:2px solid var(--ds-selected);
   outline-offset:3px;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .form-field {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .form-field {
   min-width:0;
   margin:0 0 calc(16px);
   gap:calc(8px);
@@ -107,7 +107,7 @@
   font-size:var(--pc-font-control,14px);
   line-height:1.5;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .form-field :is(input,select,textarea) {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .form-field :is(input,select,textarea) {
   box-sizing:border-box;
   width:100%;
   min-width:0;
@@ -121,31 +121,31 @@
   box-shadow:none;
   line-height:1.5;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .form-field input[readonly] {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .form-field input[readonly] {
   color:var(--ds-muted);
   background:transparent;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .form-field :is(input,select,textarea)[aria-invalid="true"] {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .form-field :is(input,select,textarea)[aria-invalid="true"] {
   border-color:var(--ds-error);
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) :is(.field-help,.empty-note) {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) :is(.field-help,.empty-note) {
   color:var(--ds-muted);
   font-size:var(--pc-font-body,14px);
   line-height:1.7;
   overflow-wrap:anywhere;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) :is(.form-error,.field-help):empty {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) :is(.form-error,.field-help):empty {
   display:none;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .form-error {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .form-error {
   color:var(--ds-error);
   line-height:1.6;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .inline-actions {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .inline-actions {
   flex-wrap:wrap;
   gap:calc(10px);
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) summary {
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) summary {
   min-height:44px;
   padding-block:calc(10px);
   color:var(--ds-text);
@@ -154,6 +154,6 @@
   line-height:1.6;
 }
 @media(max-width:800px) {
-  #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .page-heading {margin-bottom:calc(20px)}
-  #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"]) .form-field :is(input,select,textarea) {font-size:16px!important}
+  #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .page-heading {margin-bottom:calc(20px)}
+  #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="studio"],[data-route^="studio?"]) .form-field :is(input,select,textarea) {font-size:16px!important}
 }
