@@ -221,3 +221,16 @@
   }
 }
 /* CHART_PC_TYPE_20261104_END */
+
+/* Keep chart navigation larger than the shared control text on each viewport. */
+#main > .charts-final .chart-tabs {
+  --chart-tab-label-size: 17px;
+}
+#main > .charts-final .chart-tabs > .tab {
+  font-size: var(--chart-tab-label-size) !important;
+}
+@media (min-width: 801px) {
+  #main > .charts-final .chart-tabs {
+    --chart-tab-label-size: 20px;
+  }
+}
