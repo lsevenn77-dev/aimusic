@@ -1,0 +1,159 @@
+/* Account, membership and creator payouts share the existing AIFECT tokens.
+   The outer frame remains owned by main-layout.css. */
+.page-wrap:has(> #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"])) {
+  background:var(--ds-bg);
+}
+.page-wrap:has(> #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]))::before,
+#main[data-route]:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"])::before {
+  display:none;
+  content:none;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) {
+  --ui-control-height:44px;
+  color:var(--ds-body);
+  font-size:var(--pc-font-body,15px);
+  line-height:1.6;
+  background:transparent;
+  box-shadow:none;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .page-heading {
+  display:block;
+  min-height:0;
+  margin:0 0 calc(24px);
+  padding:0;
+  background:none;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .page-heading h1 {
+  margin:0;
+  font-size:var(--pc-font-page,23px);
+  line-height:1.4;
+  letter-spacing:-.035em;
+  text-shadow:none;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .page-heading p {
+  margin:calc(8px) 0 0;
+  color:var(--ds-muted);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.7;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .surface {
+  min-width:0;
+  background:var(--ds-panel);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);
+  box-shadow:none;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) :is(h2,h3) {
+  color:var(--ds-text);
+  line-height:1.5;
+  letter-spacing:-.025em;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .section-heading {
+  margin:calc(28px) 0 calc(14px);
+  gap:calc(12px);
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .section-heading h2 {
+  margin:0;
+  font-size:var(--pc-font-section,19px);
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) :is(.primary-button,.small-button,.secondary-button) {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:44px;
+  max-width:100%;
+  padding:calc(10px) calc(16px);
+  gap:calc(8px);
+  border-radius:var(--ds-radius-input);
+  font-size:var(--pc-font-control,14px);
+  font-weight:500;
+  line-height:1.5;
+  text-align:center;
+  box-shadow:none;
+  white-space:normal;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .primary-button:not(:disabled) {
+  background:var(--ds-gradient);
+  color:var(--ds-ink);
+  border-color:transparent;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) :is(.small-button,.secondary-button):not(:disabled) {
+  background:var(--ds-soft);
+  color:var(--ds-text);
+  border-color:var(--ds-line);
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) :is(.small-button,.secondary-button):not(:disabled):hover {
+  border-color:var(--ds-lavender);
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) button.text-link {
+  appearance:none;
+  background:transparent;
+  border:0;
+  border-radius:var(--ds-radius-input);
+  cursor:pointer;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) :is(button,a,input,select,textarea,summary):focus-visible {
+  outline:2px solid var(--ds-selected);
+  outline-offset:3px;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .form-field {
+  min-width:0;
+  margin:0 0 calc(16px);
+  gap:calc(8px);
+  color:var(--ds-body);
+  font-size:var(--pc-font-control,14px);
+  line-height:1.5;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .form-field :is(input,select,textarea) {
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  max-width:100%;
+  min-height:44px;
+  padding:calc(11px) calc(12px);
+  color:var(--ds-text);
+  background:var(--ds-bg);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  box-shadow:none;
+  line-height:1.5;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .form-field input[readonly] {
+  color:var(--ds-muted);
+  background:transparent;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .form-field :is(input,select,textarea)[aria-invalid="true"] {
+  border-color:var(--ds-error);
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) :is(.field-help,.empty-note) {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.7;
+  overflow-wrap:anywhere;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) :is(.form-error,.field-help):empty {
+  display:none;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .form-error {
+  color:var(--ds-error);
+  line-height:1.6;
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .inline-actions {
+  flex-wrap:wrap;
+  gap:calc(10px);
+}
+#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) summary {
+  min-height:44px;
+  padding-block:calc(10px);
+  color:var(--ds-text);
+  cursor:pointer;
+  font-size:var(--pc-font-control,14px);
+  line-height:1.6;
+}
+@media(max-width:800px) {
+  #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .page-heading {margin-bottom:calc(20px)}
+  #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"]) .form-field :is(input,select,textarea) {font-size:16px!important}
+}
