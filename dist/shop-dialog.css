@@ -101,3 +101,54 @@
  #dialog.shop-dialog .gift-dialog--compact .gift-recipient{max-width:58%}
  #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid{gap:6px}
 }
+/* Purchase flow only: keep shared gift scaling out of the compact checkout. */
+#dialog.shop-dialog:has(> #dialog-content > .shop-checkout){--gift-ui-scale:1;--ui-space-scale:1;--ui-type-scale:1;--ui-icon-scale:1;width:min(432px,calc(100vw - 24px));padding:20px;border-radius:var(--ds-radius-card)}
+#dialog.shop-dialog .shop-checkout h2{margin:0 40px 12px 0;line-height:1.4;font-weight:600}
+#dialog.shop-dialog .shop-checkout .shop-product-summary{gap:14px;margin:0 0 14px;padding:4px 0;min-width:0}
+#dialog.shop-dialog .shop-checkout .shop-product-summary>img{width:76px;height:76px;object-fit:contain}
+#dialog.shop-dialog .shop-checkout .shop-product-summary>div{min-width:0}
+#dialog.shop-dialog .shop-checkout .shop-product-summary h3{margin:0;font-size:var(--pc-font-card,16px);line-height:1.4;font-weight:600}
+#dialog.shop-dialog .shop-checkout .shop-product-summary p{margin:4px 0 0;font-size:var(--pc-font-caption,13px);line-height:1.5;color:var(--ds-body)}
+#dialog.shop-dialog .shop-checkout.is-duration .shop-product-summary{flex-direction:column;gap:8px;text-align:center}
+#dialog.shop-dialog .shop-checkout.is-duration .shop-product-summary>:is(img,.frame-detail-layers){width:132px;height:132px;margin:0}
+#dialog.shop-dialog .shop-checkout :is(.shop-field,.shop-periods legend){margin:0 0 8px;font-size:var(--pc-font-caption,13px);line-height:1.4;font-weight:500;color:var(--ds-body)}
+#dialog.shop-dialog .shop-checkout .shop-money{display:grid;gap:8px;margin:0 0 14px;padding:12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-panel)}
+#dialog.shop-dialog .shop-checkout .shop-money>p{margin:0;min-width:0;line-height:1.4}
+#dialog.shop-dialog .shop-checkout .shop-money>p:not(.shop-insufficient){display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:8px}
+#dialog.shop-dialog .shop-checkout .shop-money>p>span{font-size:var(--pc-font-caption,13px);color:var(--ds-body)}
+#dialog.shop-dialog .shop-checkout .shop-money strong{min-width:0;font-size:var(--pc-font-section,20px);line-height:1.3;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;color:var(--ds-text)}
+#dialog.shop-dialog .shop-checkout .shop-money .shop-wallet-line strong{font-size:var(--pc-font-body,14px);font-weight:500;color:var(--ds-body)}
+#dialog.shop-dialog .shop-checkout .shop-money .shop-wallet-line .shop-coin{width:16px;height:16px}
+#dialog.shop-dialog .shop-checkout .shop-money .shop-insufficient{display:flex;flex-wrap:wrap;gap:4px 8px;padding-top:8px;border-top:1px solid var(--ds-line);font-size:var(--pc-font-caption,13px);color:var(--ds-social)}
+#dialog.shop-dialog .shop-checkout .shop-quantity{display:grid;grid-template-columns:44px minmax(0,1fr) 44px;gap:8px;margin:0}
+#dialog.shop-dialog .shop-checkout .shop-quantity button{width:44px;height:44px;min-height:44px;margin:0;padding:0;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-text);line-height:1}
+#dialog.shop-dialog .shop-checkout .shop-quantity button:not(:disabled):hover{border-color:var(--ds-selected);background:var(--ds-soft)}
+#dialog.shop-dialog .shop-checkout .shop-quantity button:disabled{color:var(--ds-disabled)}
+#dialog.shop-dialog .shop-checkout .shop-quantity input{box-sizing:border-box;width:100%;min-width:0;height:44px;min-height:44px;margin:0;padding:8px 10px;border-radius:var(--ds-radius-input);font-size:16px;line-height:1.4;font-variant-numeric:tabular-nums;text-align:center}
+#dialog.shop-dialog .shop-checkout .shop-periods{gap:8px;margin:0;padding:0;min-width:0}
+#dialog.shop-dialog .shop-checkout .shop-periods label>span{box-sizing:border-box;min-height:68px;gap:6px;padding:10px 6px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-panel);font-size:var(--pc-font-body,14px);line-height:1.3;color:var(--ds-text)}
+#dialog.shop-dialog .shop-checkout .shop-periods label:hover>input:not(:disabled)+span{border-color:var(--ds-selected)}
+#dialog.shop-dialog .shop-checkout .shop-periods input:checked+span{border-color:var(--ds-selected);background:var(--ds-soft)}
+#dialog.shop-dialog .shop-checkout .shop-periods input:disabled+span{color:var(--ds-disabled);opacity:.5;cursor:not-allowed}
+/* Legacy period rules target every span; only the outer card may carry card sizing. */
+#dialog.shop-dialog .shop-checkout .shop-periods label>span span{width:auto;height:auto;min-height:0;margin:0;padding:0;font-size:inherit;line-height:inherit}
+#dialog.shop-dialog .shop-checkout .shop-periods small{font-size:var(--pc-font-caption,13px);line-height:1.3;color:inherit}
+#dialog.shop-dialog .shop-checkout .shop-periods .shop-currency-amount{display:inline-flex;align-items:center;gap:4px}
+#dialog.shop-dialog .shop-checkout .shop-periods .shop-currency-amount>span{display:inline}
+#dialog.shop-dialog .shop-checkout .shop-periods .shop-coin{width:17px;height:17px}
+/* Hidden radios stay hidden while the purchase request disables form controls. */
+#dialog.shop-dialog .shop-checkout .shop-periods input[type=radio]{position:absolute;width:1px;height:1px;min-height:0;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%)}
+#dialog.shop-dialog .shop-checkout .shop-periods input:focus-visible+span{outline:2px solid var(--ds-selected);outline-offset:2px}
+#dialog.shop-dialog .shop-checkout .shop-checkout-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:10px;margin-top:16px}
+#dialog.shop-dialog .shop-checkout .shop-checkout-actions>*{height:auto;min-height:44px;margin:0;padding:10px 12px;border-radius:var(--ds-radius-input);font-size:var(--pc-font-control,14px);font-weight:600;line-height:1.4;white-space:normal}
+#dialog.shop-dialog .shop-checkout .shop-checkout-actions>:only-child{grid-column:1/-1}
+#dialog.shop-dialog .shop-checkout .shop-checkout-actions>.small-button:not(:disabled){border-color:var(--ds-line);background:var(--ds-panel);color:var(--ds-body)}
+#dialog.shop-dialog .shop-checkout .shop-checkout-actions>.small-button:not(:disabled):hover{border-color:var(--ds-selected);background:var(--ds-soft);color:var(--ds-text)}
+#dialog.shop-dialog .shop-checkout .shop-checkout-actions>.primary-button:not(:disabled){border-color:var(--ds-selected);background:var(--shop-purple);box-shadow:none;color:var(--ds-ink)}
+@media(max-width:767px){
+ #dialog.shop-dialog:has(> #dialog-content > .shop-checkout){padding:16px 16px calc(16px + env(safe-area-inset-bottom))}
+ #dialog.shop-dialog .shop-checkout .shop-product-summary{gap:12px}
+ #dialog.shop-dialog .shop-checkout .shop-product-summary>img{width:68px;height:68px}
+ #dialog.shop-dialog .shop-checkout.is-duration .shop-product-summary>:is(img,.frame-detail-layers){width:120px;height:120px}
+ #dialog.shop-dialog .shop-checkout .shop-periods label>span{padding-inline:4px}
+}

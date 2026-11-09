@@ -61,14 +61,15 @@
 .shop-page .shop-balance>span{white-space:nowrap}
 .shop-page .shop-balance b{color:var(--ds-text);font-size:var(--pc-font-body,15px);font-weight:600;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .shop-coin{display:inline-block;width:20px;height:20px;flex:none;object-fit:contain;vertical-align:middle}
-.shop-page .shop-toolbar{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);align-items:center;gap:24px;margin-bottom:24px}
-.shop-page .shop-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));min-height:48px;min-width:0;border:0;border-bottom:1px solid var(--shop-outline);border-radius:0;background:transparent}
+.shop-page .shop-toolbar{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,280px);align-items:center;gap:24px;margin-bottom:24px}
+.shop-page .shop-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;max-width:460px;min-height:48px;min-width:0;border:0;border-bottom:1px solid var(--shop-outline);border-radius:0;background:transparent}
 .shop-page .shop-tabs button{display:flex;align-items:center;justify-content:center;gap:8px;min-width:0;min-height:48px;margin:0;padding:10px 8px;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;color:var(--ds-muted);font:inherit;font-size:var(--pc-font-control,14px);font-weight:600;white-space:nowrap;cursor:pointer;transition:background .16s,color .16s}
 .shop-page .shop-tabs button[aria-selected=true]{border-bottom-color:var(--ds-selected);color:var(--ds-selected);box-shadow:none}
 .shop-page .shop-tabs svg{width:22px;height:22px;stroke-width:1.6;flex:none}
-.shop-page .shop-item-search{display:flex;align-items:center;gap:12px;height:48px;min-width:0;padding:0 16px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-muted);box-sizing:border-box}
-.shop-page .shop-item-search>svg{width:20px;height:20px;flex:none;stroke-width:1.6}
-#main .shop-page .shop-item-search input{display:block;flex:1;width:100%;min-width:0;height:46px;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ds-text);font:inherit;font-size:16px;outline:none}
+.shop-page .shop-item-search{display:flex;align-items:center;justify-self:end;gap:8px;width:100%;max-width:280px;height:44px;min-width:0;padding:0 12px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-muted);box-sizing:border-box}
+.shop-page .shop-item-search>svg{width:18px;height:18px;flex:none;stroke-width:1.6}
+/* The label keeps the 44px target; the shared PC input minimum must fit inside its border. */
+#main .shop-page .shop-item-search input{--ui-control-height:0px;display:block;flex:1;width:100%;min-width:0;height:42px;min-height:0;margin:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--ds-text);font:inherit;font-size:var(--pc-font-control,14px);outline:none}
 .shop-page .shop-item-search input::placeholder{color:var(--ds-muted);opacity:1}
 .shop-page .shop-item-search:focus-within{border-color:var(--ds-selected);outline:1px solid var(--ds-selected);outline-offset:0}
 .shop-page .shop-products{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));align-items:stretch;gap:16px 12px;min-width:0}
@@ -96,7 +97,7 @@
 @media(min-width:1280px){.shop-page .shop-products{grid-template-columns:repeat(8,minmax(0,1fr))}}
 @media(min-width:768px) and (max-width:1000px){.shop-page .shop-products{grid-template-columns:repeat(5,minmax(0,1fr))}}
 @media(min-width:768px) and (max-width:1279px){.shop-page .shop-heading{flex-wrap:wrap}.shop-page .shop-balances{margin-left:auto}.shop-page .shop-actions a{padding-inline:9px}.shop-page .shop-toolbar{gap:14px}}
-@container(max-width:680px){.shop-page .shop-toolbar{grid-template-columns:minmax(0,1fr);gap:12px}.shop-page .shop-card-buy svg{display:none}}
+@container(max-width:680px){.shop-page .shop-toolbar{grid-template-columns:minmax(0,1fr);gap:12px}.shop-page .shop-item-search{max-width:240px}.shop-page .shop-card-buy svg{display:none}}
 @media(max-width:800px){#main:has(>.shop-page){--main-frame-top:0px;padding-bottom:calc(24px + env(safe-area-inset-bottom))}}
 @media(max-width:767px){
  .shop-page .shop-heading{display:grid;grid-template-columns:auto minmax(0,1fr);gap:12px 8px;margin:16px 0}
@@ -114,7 +115,7 @@
  .shop-page .shop-tabs{min-height:44px}
  .shop-page .shop-tabs button{min-height:44px;padding:8px 4px;font-size:14px;gap:8px}
  .shop-page .shop-tabs svg{width:20px;height:20px}
- .shop-page .shop-item-search{height:44px;padding-inline:12px}
+ .shop-page .shop-item-search{max-width:240px;height:44px;padding-inline:12px}
  #main .shop-page .shop-item-search input{height:42px;font-size:16px}
  .shop-page .shop-products{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 6px}
  .shop-page .shop-card{padding:8px 4px;border-radius:var(--ds-radius-sm)}
