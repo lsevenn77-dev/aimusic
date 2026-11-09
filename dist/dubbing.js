@@ -22,7 +22,7 @@ function dubbingBeforeRoute(raw){
  dubbingEditor=null;return true;
 }
 window.addEventListener('beforeunload',e=>{if(dubbingEditor?.dirty){e.preventDefault();e.returnValue='';}});
-function dubbingShell(content){return `<div class="dubbing-page">${dubbingModeNav()}${content}</div>`;}
+function dubbingShell(content,showModeNav=true){return `<div class="dubbing-page">${showModeNav?dubbingModeNav():''}${content}</div>`;}
 function dubbingEmpty(title,description,action=true){return `<div class="dubbing-empty">${icon('mic')}<h3>${title}</h3><p>${description}</p>${action?'<a class="primary-button" href="#dubbing/new?mode=manual">첫 대본 만들기</a>':''}</div>`;}
 function dubbingCard(p,i){
  const open=p.reusable||['recruiting','recording'].includes(p.state)&&p.participants<p.roleCount;
@@ -47,7 +47,7 @@ function dubbingQuotaHTML(q){
 }
 function dubbingOptionsHTML(config,mode,genre=''){
  const D=AifectDubbing;
- return `<div class="dubbing-create-page"><a class="dubbing-back" href="#dubbing">← 더빙 스튜디오</a><header class="dubbing-heading"><h1>${mode==='ai'?'새 더빙 만들기':'직접 대본 만들기'}</h1><p>이야기의 분위기와 배역을 정하고, 각자의 목소리로 채울 준비를 해보세요.</p></header>
+ return `<div class="dubbing-create-page"><header class="dubbing-heading"><a class="dubbing-create-back" href="#dubbing" aria-label="더빙으로 돌아가기">${icon('chevron-left')}</a><h1>${mode==='ai'?'새 더빙 만들기':'직접 대본 만들기'}</h1><p>이야기의 분위기와 배역을 정하고, 각자의 목소리로 채울 준비를 해보세요.</p></header>
  <div class="dubbing-create-layout"><form id="dubbing-options-form" class="dubbing-panel">
  <fieldset><legend><b class="dubbing-step-number" aria-hidden="true">01</b><span>이야기의 장르</span><small>최대 2개</small></legend><div class="dubbing-chips">${D.DUBBING_GENRES.map(g=>`<label><input type="checkbox" name="genres" value="${g}" ${g===(genre||'일상')?'checked':''}><span>${g}</span></label>`).join('')}</div></fieldset>
  <fieldset><legend><b class="dubbing-step-number" aria-hidden="true">02</b><span>인원과 대본 시간</span></legend><div class="dubbing-form-grid"><label>참여 인원<select name="roleCount">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===2?'selected':''}>${n}명</option>`).join('')}</select></label><label>대본 시간<select name="minutes">${D.DUBBING_LENGTHS.map(n=>`<option value="${n}" ${n===1?'selected':''}>${dubbingLengthLabel(n)}</option>`).join('')}</select></label></div><small class="dubbing-muted">30초부터 5분까지, 30초 단위로 선택해요.</small></fieldset>
@@ -66,7 +66,7 @@ async function dubbingView(base,param,raw,readApi=api){
  if(param==='new'){
   const mode=new URLSearchParams(raw.split('?')[1]).get('mode')==='manual'?'manual':'ai';
   const requestedGenre=new URLSearchParams(raw.split('?')[1]).get('genre'),genre=AifectDubbing.DUBBING_GENRES.includes(requestedGenre)?requestedGenre:'';
-  return {html:dubbingShell(dubbingOptionsHTML(config,mode,genre)),dubbing:true,dubbingCreate:true,config,route:raw};
+  return {html:dubbingShell(dubbingOptionsHTML(config,mode,genre),false),dubbing:true,dubbingCreate:true,config,route:raw};
  }
  if(param){
   const {project:p}=await readApi('/api/dubbing/projects/'+encodeURIComponent(param));
