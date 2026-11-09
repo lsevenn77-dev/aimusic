@@ -18,6 +18,12 @@
     remains fully opaque. All layers share the same scale and top alignment. */
  #home-release.home-promo-carousel .home-promo-picture{position:absolute;inset:0 var(--home-promo-inset) auto auto;width:auto;max-width:none;height:var(--home-promo-photo-height);aspect-ratio:2/1;mask-image:linear-gradient(90deg,transparent,#000 8%,#000);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000)}
  #home-release.home-promo-carousel .home-promo-original{max-width:none;object-fit:contain;object-position:center}
+ /* Desktop object corrections extend into the empty left side of the original
+    photograph. Their transparent masks exclude every portrait; mobile keeps
+    its approved source without any overlay. */
+ #home-release.home-promo-carousel :is([data-home-banner=play],[data-home-banner=talking]) .home-promo-picture::after{content:"";position:absolute;inset:0;background-image:var(--home-promo-detail);background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}
+ #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-detail:url('/assets/home-banners/detail-20261109/play-background-overlay-1536.webp')}
+ #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-detail:url('/assets/home-banners/detail-20261109/talking-background-overlay-1536.webp')}
  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-photo-scale:1.25;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1.2;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
  /* Revised scenery holds exactly 154 source pixels beyond its 2211px anchor.

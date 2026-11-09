@@ -752,7 +752,7 @@
         {
           "side": "left",
           "filename": "play-left-2365.webp",
-          "url": "/assets/home-banners/repair-20261109/play-left-2365.webp",
+          "url": "/assets/home-banners/detail-20261109/play-left-2365.webp",
           "width": 2365,
           "height": 768,
           "format": "WEBP",
@@ -771,8 +771,13 @@
           },
           "display_overlap_formula": "photoHeight * 154 / 768",
           "display_overlap_at_272": 54.54166666666667,
-          "bytes": 11706,
-          "sha256": "1e46a7cf380d4bda13ca1007bac9d7193b4ea137e95d2b39636a6de3a791392a"
+          "bytes": 234510,
+          "sha256": "f4e612398f2bedc013f5e7086aef77e1f0371d1b8a827ae96652fc08070be6b8",
+          "encoding": {
+            "format": "webp",
+            "lossless": true
+          },
+          "detail_revision": "detail-20261109"
         },
         {
           "filename": "play-right-768.webp",
@@ -889,7 +894,9 @@
             "height": 1088,
             "relative_filename": "play-final-detail.png"
           }
-        ]
+        ],
+        "detail_revision": "detail-20261109",
+        "detail_fix": "One coherent perforation grid across the entire visible metal tray."
       },
       "original_left_anchor_x": 2211,
       "context_width": 154
@@ -2253,10 +2260,10 @@
       "outputs": [
         {
           "filename": "talking-left-2365.webp",
-          "url": "/assets/home-banners/repair-20261109/talking-left-2365.webp",
+          "url": "/assets/home-banners/detail-20261109/talking-left-2365.webp",
           "side": "left",
-          "sha256": "0ec3aaa13a15a22ffba0619bd984f73966cc5213763948d45e8636c956a2b029",
-          "bytes": 44474,
+          "sha256": "64f156985eac31cde3c2f6972f7eef565ef24fd3251204b2383e658d8db9a268",
+          "bytes": 644558,
           "format": "WEBP",
           "width": 2365,
           "height": 768,
@@ -2344,7 +2351,12 @@
           },
           "source_url": "/assets/home-banners/mobile-20261109/talking-1536.webp",
           "source_sha256": "6e3e3884274287ec347226d2fd8735b42b875aff997cdea496cd4757f3db0504",
-          "mime_type": "image/webp"
+          "mime_type": "image/webp",
+          "encoding": {
+            "format": "webp",
+            "lossless": true
+          },
+          "detail_revision": "detail-20261109"
         },
         {
           "filename": "talking-right-768.webp",
@@ -2491,7 +2503,9 @@
           "height": 272,
           "format": "PNG",
           "method": "Reference simulation of existing52% mask,1.75px backdrop blur and44% ds-bg shade; not a browser screenshot. No product asset changes."
-        }
+        },
+        "detail_revision": "detail-20261109",
+        "detail_fix": "One rear plant and continuous curved sofa; remove duplicated foreground foliage."
       },
       "original_sha256_verified_unchanged": true
     },
