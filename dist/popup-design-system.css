@@ -1,0 +1,453 @@
+/* Shared popup appearance. Layout, focus ownership and open/close behaviour stay
+   with each existing dialog. Product, profile, room and media layers follow this
+   file; their grids, artwork, transport controls and dock geometry remain local. */
+:where(dialog, .directory-discard[role="alertdialog"], .aifect-dropdown-menu,
+       .chart-track-popover, .cat-picker, .expanded-song-lyrics, .fan-settings-menu) {
+  --popup-surface:var(--ds-surface,linear-gradient(130deg,#19222f,#111922 75%));
+  --popup-panel:var(--ds-panel,#131b26);
+  --popup-bg:var(--ds-bg,#0c121b);
+  --popup-text:var(--ds-text,#F8FAFC);
+  --popup-body:var(--ds-body,#BEC1C9);
+  --popup-muted:var(--ds-muted,#9CA3AF);
+  --popup-disabled:var(--ds-disabled,#6B7280);
+  --popup-ink:var(--ds-ink,#101722);
+  --popup-line:var(--ds-line,rgba(183,182,255,.16));
+  --popup-border:var(--ds-border,#3a3a48);
+  --popup-selected:var(--ds-selected,#D3BAFF);
+  --popup-social:var(--ds-social,#F4A8CE);
+  --popup-progress:var(--ds-progress,#AFE5E3);
+  --popup-error:var(--ds-error,#f87171);
+  --popup-soft:var(--ds-soft,rgba(183,182,255,.10));
+  --popup-gradient:var(--ds-gradient,linear-gradient(105deg,#d6baff,#b7b6ff 48%,#aeebdf));
+  --popup-radius:var(--ds-radius-feature,20px);
+  --popup-input-radius:var(--ds-radius-input,12px);
+  --popup-title-size:var(--pc-font-section,20px);
+  --popup-control-size:var(--pc-font-control,14px);
+  --popup-caption-size:var(--pc-font-caption,13px);
+  --popup-shadow:0 12px 36px color-mix(in srgb,var(--popup-bg) 60%,transparent);
+  color-scheme:dark;
+}
+
+/* These declarations deliberately omit width, inset, padding and overflow.
+   Fullscreen photo/game hosts retain their own transparent or media surface. */
+dialog:where(:not(.photo-lightbox,.jump-wide-dialog)) {
+  border-color:var(--popup-line);
+  border-radius:var(--popup-radius);
+  background:var(--popup-surface);
+  color:var(--popup-text);
+  font-family:"DM Sans","Noto Sans KR",sans-serif;
+  font-size:var(--pc-font-body,15px);
+  line-height:1.6;
+  box-shadow:var(--popup-shadow);
+}
+dialog:where(:not(.photo-lightbox,.jump-wide-dialog,.profile-edit-dialog))::backdrop {
+  background:color-mix(in srgb,var(--ds-bg,#0c121b) 74%,transparent);
+  backdrop-filter:blur(6px);
+}
+/* The queue is a player workspace; only its outer surface shares this layer. */
+dialog:has(.queue-panel) {
+  border-color:var(--popup-line);
+  background:var(--popup-surface);
+  color:var(--popup-text);
+  box-shadow:var(--popup-shadow);
+}
+
+/* Only ordinary compact forms use the shared 44px control rhythm. The existing
+   compact-popup layout reads these variables without changing its fit-content
+   sizing or its viewport/safe-area limits. */
+:is(#dialog,dialog).compact-popup:where(:not(
+  .voice-sheet,.voice-panel-docked,.gift-sheet,.shop-dialog,.profile-edit-dialog,.crew-action-dialog,
+  .photo-crop-dialog,.duet-editor-dialog,.record-settings-dialog,
+  .recording-settings-dialog,.jump-dialog,.cgl-store-dialog,.arc-store-dialog,
+  #sing-exit-dialog,#recording-mode-dialog
+)):where(:not(:has(
+  .queue-panel,.track-options,.studio-settings,.recording-settings,.dubbing-page,
+  .fan-lightbox,.profile-share-panel,.mp-dub-dialog
+))) {
+  --popup-button-height:44px;
+  --popup-body-size:var(--pc-font-body,15px);
+  --ui-control-height:44px;
+}
+
+/* Title sizes do not reach lyric text, card titles or profile names. Keep the
+   existing close gutter, heading margins and sticky headers. */
+:is(#dialog,dialog).compact-popup:where(:not(
+  .voice-sheet,.profile-edit-dialog,.crew-action-dialog,.duet-editor-dialog,.record-settings-dialog,
+  .recording-settings-dialog,.jump-dialog,.cgl-store-dialog,.arc-store-dialog,
+  #sing-exit-dialog,#recording-mode-dialog
+)) > h2,
+:is(#dialog,dialog).compact-popup:where(:not(
+  .voice-sheet,.profile-edit-dialog,.crew-action-dialog,.jump-dialog,.cgl-store-dialog,.arc-store-dialog
+)) > header > h2,
+#dialog.compact-popup #dialog-content > h2,
+#dialog.compact-popup #dialog-content > :is(.mypage-dialog,.home-participation,
+  .chart-playlist-dialog,.dm-new-popup) > h2,
+#admin-dialog #admin-dialog-content > h2 {
+  color:var(--popup-text);
+  font-size:var(--popup-title-size)!important;
+  font-weight:600;
+  line-height:1.4;
+  letter-spacing:-.02em;
+}
+:is(#dialog,dialog).compact-popup .popup-prompt {
+  color:var(--popup-text);
+  font-size:var(--pc-font-body,15px);
+  font-weight:500;
+  line-height:1.6;
+}
+:is(#dialog,dialog).compact-popup .form-field:where(:not(
+  .voice-sheet *,.profile-edit-dialog *,.crew-action-dialog *,.duet-editor-dialog *,
+  .record-settings-dialog *,.recording-settings-dialog *,.dubbing-page *
+)) {
+  color:var(--popup-body);
+  font-size:var(--popup-control-size);
+  font-weight:500;
+  line-height:1.5;
+}
+:is(#dialog,dialog).compact-popup :is(.field-help,.quiet,.optional,.image-selection,
+  .gallery-upload-status) {
+  color:var(--popup-muted);
+  font-size:var(--popup-caption-size)!important;
+  line-height:1.5;
+}
+:is(#dialog,dialog) .form-error,
+:is(#dialog,dialog).compact-popup .form-error {
+  color:var(--popup-error);
+  font-size:var(--popup-caption-size)!important;
+  line-height:1.5;
+}
+
+/* Match the already approved primary action. Product category accents and
+   semantic room buttons have more specific rules in their own popup layer. */
+dialog .primary-button:where(:not(.danger-button)) {
+  border-color:color-mix(in srgb,var(--popup-selected) 35%,transparent);
+  background:var(--popup-gradient);
+  color:var(--popup-ink);
+  font-weight:600;
+  box-shadow:none;
+}
+dialog .primary-button:where(:not(.danger-button,:disabled,[aria-disabled="true"])):hover {
+  background:var(--popup-gradient);
+  color:var(--popup-ink);
+  filter:brightness(1.04);
+}
+dialog .primary-button:where(:not(.danger-button,:disabled,[aria-disabled="true"])):active {
+  filter:brightness(.96);
+}
+dialog .primary-button.danger-button {
+  border-color:color-mix(in srgb,var(--popup-social) 40%,transparent);
+  background:var(--popup-social);
+  color:var(--popup-ink);
+  box-shadow:none;
+}
+
+/* Ordinary labelled actions only. The exclusions are real popup/row families;
+   close buttons, image tools, games and transport buttons keep their targets. */
+:is(#dialog,dialog).compact-popup :is(.primary-button,.small-button,
+  .secondary-button,.outline-button):where(:not(
+  .dialog-close,.voice-dialog-close,.profile-preview-close,.icon-button,.list-action,
+  .voice-sheet *,.voice-panel-docked *,.gift-sheet *,.shop-dialog *,
+  .profile-edit-dialog *,.crew-action-dialog *,.photo-crop-dialog *,.duet-editor-dialog *,
+  .record-settings-dialog *,.recording-settings-dialog *,
+  .jump-dialog *,.cgl-store-dialog *,.arc-store-dialog *,
+  .queue-panel *,.track-options *,.studio-settings *,.recording-settings *,
+  .dubbing-page *,.fan-lightbox *,.profile-share-panel *,.mp-dub-dialog *,
+  .directory-editor-pin-row *,#sing-exit-dialog *,#recording-mode-dialog *
+)) {
+  min-height:44px;
+  height:auto;
+  padding:10px 16px;
+  border-radius:var(--popup-input-radius);
+  font-family:inherit;
+  font-size:var(--popup-control-size);
+  line-height:1.4;
+}
+:is(#dialog,dialog).compact-popup :is(.small-button,.secondary-button,
+  .outline-button):where(:not(
+  .dialog-close,.voice-dialog-close,.profile-preview-close,.icon-button,.list-action,
+  .voice-sheet *,.voice-panel-docked *,.gift-sheet *,.shop-dialog *,
+  .profile-edit-dialog *,.crew-action-dialog *,.photo-crop-dialog *,.duet-editor-dialog *,
+  .record-settings-dialog *,.recording-settings-dialog *,
+  .jump-dialog *,.cgl-store-dialog *,.arc-store-dialog *,
+  .queue-panel *,.track-options *,.studio-settings *,.recording-settings *,
+  .dubbing-page *,.fan-lightbox *,.profile-share-panel *,.mp-dub-dialog *,
+  .directory-editor-pin-row *,#sing-exit-dialog *,#recording-mode-dialog *
+)) {
+  border:1px solid var(--popup-border);
+  background:var(--popup-panel);
+  color:var(--popup-body);
+  font-weight:500;
+  box-shadow:none;
+}
+:is(#dialog,dialog).compact-popup :is(.small-button,.secondary-button,
+  .outline-button):where(:not(
+  :disabled,[aria-disabled="true"],.dialog-close,.voice-dialog-close,
+  .profile-preview-close,.icon-button,.list-action,
+  .voice-sheet *,.voice-panel-docked *,.gift-sheet *,.shop-dialog *,
+  .profile-edit-dialog *,.crew-action-dialog *,.photo-crop-dialog *,.duet-editor-dialog *,
+  .record-settings-dialog *,.recording-settings-dialog *,
+  .jump-dialog *,.cgl-store-dialog *,.arc-store-dialog *,
+  .queue-panel *,.track-options *,.studio-settings *,.recording-settings *,
+  .dubbing-page *,.fan-lightbox *,.profile-share-panel *,.mp-dub-dialog *,
+  .directory-editor-pin-row *,#sing-exit-dialog *,#recording-mode-dialog *
+)):hover {
+  border-color:color-mix(in srgb,var(--popup-selected) 45%,var(--popup-border));
+  background:var(--popup-soft);
+  color:var(--popup-text);
+}
+
+/* Text fields only: native radio/checkbox state, slider tracks, file pickers,
+   image controls and compound search wrappers remain intact. */
+:is(#dialog,dialog).compact-popup :is(
+  .form-field input:where(:not([type="checkbox"],[type="radio"],[type="range"],
+    [type="color"],[type="file"],[type="hidden"],[type="button"],[type="submit"],
+    [type="reset"],[type="image"])),
+  .form-field select,.form-field textarea,
+  :where(#reply-form) > textarea,:where(#picker-search) > input
+):where(:not(
+  .voice-sheet *,.voice-panel-docked *,.gift-sheet *,.shop-dialog *,
+  .profile-edit-dialog *,.crew-action-dialog *,.photo-crop-dialog *,.duet-editor-dialog *,
+  .record-settings-dialog *,.recording-settings-dialog *,.studio-settings *,
+  .recording-settings *,.dubbing-page *,.jump-dialog *,.cgl-store-dialog *,
+  .arc-store-dialog *
+)) {
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+  padding:10px 12px;
+  border:1px solid var(--popup-border);
+  border-radius:var(--popup-input-radius);
+  background:var(--popup-panel);
+  color:var(--popup-text);
+  font-family:inherit;
+  font-size:var(--popup-control-size);
+  font-weight:400;
+  line-height:1.5;
+  box-shadow:none;
+}
+:is(#dialog,dialog).compact-popup .form-field :is(input,select):where(:not(
+  [type="checkbox"],[type="radio"],[type="range"],[type="color"],[type="file"],
+  [type="hidden"],[type="button"],[type="submit"],[type="reset"],[type="image"],
+  .voice-sheet *,.voice-panel-docked *,.gift-sheet *,.shop-dialog *,
+  .profile-edit-dialog *,.crew-action-dialog *,.duet-editor-dialog *,.record-settings-dialog *,
+  .recording-settings-dialog *,.studio-settings *,.recording-settings *,
+  .dubbing-page *,.jump-dialog *,.cgl-store-dialog *,.arc-store-dialog *
+)) {
+  min-height:44px;
+}
+dialog :is(input,textarea)::placeholder {
+  color:var(--popup-muted);
+  opacity:1;
+}
+dialog :is(input,select,textarea)[aria-invalid="true"],
+:is(#dialog,dialog).compact-popup :is(input,select,textarea)[aria-invalid="true"]:where(:not(
+  .voice-sheet *,.voice-panel-docked *,.gift-sheet *,.shop-dialog *,
+  .profile-edit-dialog *,.crew-action-dialog *,.photo-crop-dialog *,.duet-editor-dialog *,
+  .record-settings-dialog *,.recording-settings-dialog *,.studio-settings *,
+  .recording-settings *,.dubbing-page *,.jump-dialog *,.cgl-store-dialog *,
+  .arc-store-dialog *
+)) {
+  border-color:var(--popup-error);
+  outline-color:var(--popup-error);
+}
+dialog .form-field :is(input,select,textarea):disabled,
+:is(#dialog,dialog).compact-popup .form-field :is(input,select,textarea):disabled:where(:not(
+  .voice-sheet *,.voice-panel-docked *,.gift-sheet *,.shop-dialog *,
+  .profile-edit-dialog *,.crew-action-dialog *,.photo-crop-dialog *,.duet-editor-dialog *,
+  .record-settings-dialog *,.recording-settings-dialog *,.studio-settings *,
+  .recording-settings *,.dubbing-page *,.jump-dialog *,.cgl-store-dialog *,
+  .arc-store-dialog *
+)) {
+  border-color:var(--popup-line);
+  background-color:var(--popup-panel);
+  color:var(--popup-disabled);
+  cursor:not-allowed;
+}
+dialog .primary-button:disabled,
+dialog .primary-button[aria-disabled="true"] {
+  border-color:var(--popup-border);
+  background:var(--ds-secondary,#2a2a35);
+  color:var(--popup-disabled);
+  box-shadow:none;
+  filter:none;
+  cursor:not-allowed;
+}
+:is(#dialog,dialog).compact-popup :is(.small-button,.secondary-button,
+  .outline-button):disabled:where(:not(
+  .voice-sheet *,.voice-panel-docked *,.gift-sheet *,.shop-dialog *,
+  .profile-edit-dialog *,.crew-action-dialog *,.photo-crop-dialog *,.duet-editor-dialog *,
+  .record-settings-dialog *,.recording-settings-dialog *,
+  .jump-dialog *,.cgl-store-dialog *,.arc-store-dialog *,
+  .queue-panel *,.studio-settings *,.recording-settings *,.dubbing-page *
+)) {
+  border-color:var(--popup-line);
+  background:var(--popup-panel);
+  color:var(--popup-disabled);
+  box-shadow:none;
+  filter:none;
+  cursor:not-allowed;
+}
+
+/* A visible keyboard ring is shared; this does not manufacture selected states
+   from aria-pressed on transport, gift cards or other specialised controls. */
+:where(dialog,.directory-discard[role="alertdialog"],.aifect-dropdown-menu,
+  .chart-track-popover,.cat-picker,.fan-settings-menu) :is(button,a,input,select,textarea,summary,
+  [tabindex]):focus-visible {
+  outline:2px solid var(--popup-selected);
+  outline-offset:2px;
+}
+:is(#dialog,dialog).compact-popup :is(.checkbox-line,.genre-field) input:where(
+  [type="checkbox"],[type="radio"]
+) {
+  accent-color:var(--popup-selected);
+}
+
+/* Settings, lightweight confirmations and comment actions retain their existing
+   row structure, header/footer positioning, and single close control. */
+#activity-preferences {
+  --pref-label:14px;
+  --pref-note:13px;
+  border-color:var(--popup-line);
+  background:var(--popup-surface);
+}
+#activity-preferences legend {
+  color:var(--popup-body);
+  font-size:var(--popup-control-size);
+  font-weight:600;
+}
+#activity-preferences input[type="checkbox"] {
+  accent-color:var(--popup-selected);
+}
+#activity-preferences footer button[type="submit"]:not(:disabled) {
+  border-color:color-mix(in srgb,var(--popup-selected) 35%,transparent);
+  background:var(--popup-gradient);
+  color:var(--popup-ink);
+  font-weight:600;
+}
+#directory-editor .directory-discard {
+  border-color:var(--popup-line);
+  background:var(--popup-panel);
+  color:var(--popup-body);
+  font-size:var(--popup-control-size);
+  line-height:1.6;
+}
+.comment-context-dialog .comment-context-sheet header > strong {
+  color:var(--popup-text);
+  font-size:var(--popup-title-size);
+  font-weight:600;
+  line-height:1.4;
+}
+.comment-context-dialog .comment-context-options button {
+  border:1px solid var(--popup-line);
+  border-radius:var(--popup-input-radius);
+  background:var(--popup-panel);
+  color:var(--popup-body);
+  font-size:var(--popup-control-size);
+  line-height:1.5;
+}
+.comment-context-dialog .comment-context-options button:enabled:hover {
+  background:var(--popup-soft);
+  color:var(--popup-text);
+}
+.comment-context-dialog .comment-context-options [data-menu-action="delete"] {
+  color:var(--popup-social);
+}
+
+/* These are the actual anchored popup surfaces, not their page-level triggers.
+   The JS continues to measure and position each menu inside the viewport. */
+.aifect-dropdown-menu {
+  --dropdown-surface:var(--popup-panel);
+  --dropdown-border:var(--popup-line);
+  border-radius:var(--popup-input-radius);
+  color:var(--popup-text);
+  font-size:var(--popup-control-size);
+  line-height:1.5;
+}
+.aifect-dropdown-menu [role="option"] {
+  min-height:44px;
+  border-radius:var(--ds-radius-sm,8px);
+  color:var(--popup-body);
+}
+.aifect-dropdown-menu [aria-selected="true"] {
+  background:var(--popup-soft);
+  color:var(--popup-selected);
+}
+.aifect-dropdown-menu [data-active="true"]:not([aria-selected="true"]) {
+  background:color-mix(in srgb,var(--popup-text) 6%,transparent);
+  color:var(--popup-text);
+}
+.aifect-dropdown-menu [aria-disabled="true"] {
+  color:var(--popup-disabled);
+}
+#chart-track-menu {
+  border-color:var(--popup-line);
+  border-radius:var(--popup-input-radius);
+  background:var(--popup-panel);
+  color:var(--popup-text);
+}
+#chart-track-menu .track-option:is(:hover,:focus-visible) {
+  background:var(--popup-soft);
+}
+#chart-track-menu .track-option-delete {
+  color:var(--popup-social);
+}
+:is(.artist-fanpage,.mp-profile,.crew-settings-anchor) .fan-settings-menu {
+  border-color:var(--popup-line);
+  border-radius:var(--popup-input-radius);
+  background:var(--popup-panel);
+  color:var(--popup-text);
+}
+
+/* Mini-emoji art/grid sizing and per-room placement are intentionally untouched. */
+#main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker {
+  --cat-edge:var(--popup-line);
+  border-color:var(--popup-line);
+  color:var(--popup-text);
+  box-shadow:0 8px 24px color-mix(in srgb,var(--popup-bg) 60%,transparent)!important;
+}
+#main :is(#dm-emoji-picker,#voice-emoji-picker) .cat-tabs [aria-pressed="true"] {
+  border-color:var(--popup-line);
+  background:var(--popup-soft);
+  color:var(--popup-selected);
+}
+#main .cat-picker :is(.cat-status,.cat-picker-scroll h3) {
+  color:var(--popup-muted);
+  font-size:var(--popup-caption-size)!important;
+}
+
+@media(max-width:800px) {
+  :where(dialog,.directory-discard[role="alertdialog"],.cat-picker) {
+    --popup-title-size:18px;
+  }
+  :is(#dialog,dialog).compact-popup:where(:not(
+    .voice-sheet,.profile-edit-dialog,.crew-action-dialog,.duet-editor-dialog,.record-settings-dialog,
+    .recording-settings-dialog,.jump-dialog,.cgl-store-dialog,.arc-store-dialog
+  )) {
+    --popup-body-size:14px;
+  }
+  /* Editable mobile fields stay at 16px without enlarging sliders, artwork,
+     checkboxes, radios or hidden custom-select source controls. */
+  :is(#dialog,dialog) :is(input,select,textarea):where(:not(
+    [type="checkbox"],[type="radio"],[type="range"],[type="color"],[type="file"],
+    [type="hidden"],[type="button"],[type="submit"],[type="reset"],[type="image"],
+    .aifect-dropdown-source
+  )) {
+    font-size:16px!important;
+  }
+}
+
+@media(forced-colors:active) {
+  dialog:where(:not(.photo-lightbox,.jump-wide-dialog)),
+  .aifect-dropdown-menu,#chart-track-menu,
+  #main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker {
+    border-color:CanvasText;
+  }
+  :where(dialog,.directory-discard[role="alertdialog"],.aifect-dropdown-menu,
+    .chart-track-popover,.cat-picker,.fan-settings-menu) :focus-visible {
+    outline-color:Highlight!important;
+  }
+  .aifect-dropdown-menu [aria-selected="true"] {
+    color:HighlightText;
+    background:Highlight;
+  }
+}
