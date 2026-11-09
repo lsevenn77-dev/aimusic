@@ -34,15 +34,28 @@
 #home-release.home-promo-carousel .home-promo-cta{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-height:44px;padding:8px 24px;border:0;border-radius:999px;background:linear-gradient(100deg,var(--ds-mint),var(--ds-lavender),var(--ds-lilac));color:var(--ds-ink);font-size:16px;line-height:1.4;font-weight:750;text-shadow:none;white-space:nowrap;box-shadow:none}
 #home-release.home-promo-carousel .home-promo-cta svg{width:20px;height:20px;flex:none}
 #home-release.home-promo-carousel .home-promo-link:focus-visible .home-promo-cta{outline:2px solid var(--ds-text);outline-offset:3px}
-/* Preserve the approved head-to-waist framing inside Play's shallow PC frame.
-   The same photograph supplies the soft scenery at the left; only its edge is
-   feathered, so faces, hands and instruments remain sharp and uncropped. */
+/* Keep the approved photo and upper-body action in Play's shallow PC frame.
+   On wide screens, align each face/group rather than the photo's right edge.
+   Studio gets a closer crop while retaining the working hands and mixer knobs. */
 @media(min-width:801px){
  #home-release.home-promo-carousel .home-promo-picture::before{content:"";position:absolute;inset:-8px;background:var(--home-promo-photo) center/cover no-repeat;filter:blur(8px);pointer-events:none}
  #home-release.home-promo-carousel .home-promo-original{position:absolute;inset:0 0 0 auto;width:min(100%,calc(var(--home-feature-height,272px) * 3));height:100%;max-width:none;object-fit:contain;object-position:right center;transform:none;mask-image:linear-gradient(90deg,transparent,#000 12%);-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%)}
  @container(max-width:816px){
   #home-release.home-promo-carousel .home-promo-picture::before{background-position:left center;background-size:300% 100%}
   #home-release.home-promo-carousel .home-promo-original{top:50%;bottom:auto;height:auto;transform:translateY(-50%);mask-image:linear-gradient(180deg,transparent,#000 4%,#000 96%,transparent);-webkit-mask-image:linear-gradient(180deg,transparent,#000 4%,#000 96%,transparent)}
+ }
+ @container(min-width:817px){
+  #home-release.home-promo-carousel .home-promo-link{--home-promo-person-anchor:.76;--home-promo-photo-scale:1;--home-promo-photo-width:calc(var(--home-feature-height,272px) * 3 * var(--home-promo-photo-scale))}
+  #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-person-anchor:.71;--home-promo-photo-scale:1.25}
+  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-person-anchor:.78}
+  #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-person-anchor:.74}
+  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-person-anchor:.77}
+  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-person-anchor:.79}
+  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-person-anchor:.69}
+  #home-release.home-promo-carousel .home-promo-picture::before{background-position:left center;background-size:300% auto}
+  #home-release.home-promo-carousel .home-promo-original{left:calc(71cqi - var(--home-promo-photo-width) * var(--home-promo-person-anchor));right:auto;width:var(--home-promo-photo-width);height:calc(var(--home-feature-height,272px) * var(--home-promo-photo-scale));mask-image:linear-gradient(90deg,transparent,#000 10%,#000 96%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 96%,transparent)}
+  #home-release.home-promo-carousel [data-home-banner=studio] .home-promo-original{top:calc(var(--home-feature-height,272px) * -.1)}
+  #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-original{mask-image:linear-gradient(90deg,transparent,#000 10%,#000 98.5%,transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 10%,#000 98.5%,transparent)}
  }
 }
 .home-participation-options{display:grid;gap:12px;margin-top:20px}
