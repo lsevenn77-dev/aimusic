@@ -101,9 +101,47 @@ let socialCleanup=null;
 // Only unsent work lives here; server history is always read from the API.
 let chatWorkAccount=null;
 const chatWork=new Map();
+function chatPendingStoragePrefix(uid,path){return 'aifect:chat-pending:v1:'+JSON.stringify([uid,path])+':';}
+function chatPendingRecord(message,uid){
+ if(!message||!uid||typeof message.request_id!=='string'||!message.request_id||message.request_id.length>128||message.id!=='pending:'+message.request_id)return null;
+ if(message.user_id!==uid&&message.sender_id!==uid)return null;
+ if(typeof message.body!=='string'||!Number.isFinite(message.created)||message.created<0||!['sending','failed'].includes(message.delivery))return null;
+ const record={id:message.id,request_id:message.request_id,body:message.body,created:message.created,user_id:uid,sender_id:uid,delivery:'failed'};
+ for(const field of ['name','profile_id','role','image_id'])if(typeof message[field]==='string')record[field]=message[field];
+ if(Number.isFinite(message.image_expires))record.image_expires=message.image_expires;
+ return record;
+}
+function restoreChatPending(uid,path){
+ const pending=new Map();if(!uid)return pending;
+ try{const prefix=chatPendingStoragePrefix(uid,path);
+  for(let i=0;i<localStorage.length;i++){
+   const key=localStorage.key(i);if(!key?.startsWith(prefix))continue;
+   try{const message=chatPendingRecord(JSON.parse(localStorage.getItem(key)),uid);
+    if(message&&key===prefix+message.request_id)pending.set(message.id,message);
+   }catch{}
+  }
+ }catch{}
+ return pending;
+}
+function saveChatPending(uid,path,message){
+ // Each request has its own key so another tab or a late POST cannot replace a room's outbox.
+ // The durable copy is retryable: an old document's in-flight request cannot resume after reload.
+ const record=chatPendingRecord(message,uid);if(!record)return false;
+ try{localStorage.setItem(chatPendingStoragePrefix(uid,path)+record.request_id,JSON.stringify(record));return true;}catch{return false;}
+}
+function removeChatPending(uid,path,id){
+ if(!uid||typeof id!=='string'||!id.startsWith('pending:'))return;
+ try{localStorage.removeItem(chatPendingStoragePrefix(uid,path)+id.slice(8));}catch{}
+}
+function clearChatPending(uid,path){
+ if(!uid)return;
+ try{const prefix=chatPendingStoragePrefix(uid,path);
+  for(let i=localStorage.length-1;i>=0;i--){const key=localStorage.key(i);if(key?.startsWith(prefix))localStorage.removeItem(key);}
+ }catch{}
+}
 function chatUnsent(uid,path){
  if(chatWorkAccount!==uid){chatWork.clear();chatWorkAccount=uid;}
- if(!chatWork.has(path))chatWork.set(path,{draft:'',pending:new Map(),sending:false});
+ if(!chatWork.has(path))chatWork.set(path,{draft:'',pending:restoreChatPending(uid,path),sending:false});
  return chatWork.get(path);
 }
 function patchChatLog(log,html){
@@ -219,12 +257,12 @@ function bindSocialChat(view){
   if(current())readThrough=Math.max(readThrough,sequence);
  };
  const sorted=()=>[...messages.values()].sort((a,b)=>(a.sequence||Number.MAX_SAFE_INTEGER)-(b.sequence||Number.MAX_SAFE_INTEGER)||a.created-b.created);
- const merge=incoming=>incoming.forEach(m=>{if(m.request_id&&(m.user_id===uid||m.sender_id===uid)){messages.delete('pending:'+m.request_id);unsent.pending.delete('pending:'+m.request_id);}messages.set(m.id,m);});
+ const merge=incoming=>incoming.forEach(m=>{if(m.request_id&&(m.user_id===uid||m.sender_id===uid)){const id='pending:'+m.request_id;messages.delete(id);unsent.pending.delete(id);removeChatPending(uid,path,id);}messages.set(m.id,m);});
  merge(initial?.messages||[]);
  const mobileChat=()=>window.AifectMobileInput?.isMobile()??innerWidth<=800;
  const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;patchChatLog(log,html);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
- const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;unsent.pending.clear();setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
- if(initial)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
+ const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;unsent.pending.clear();clearChatPending(uid,path);setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
+ if(initial||unsent.pending.size)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
   if(!current()||denied)return;if(fetching){if(!older)again=true;else earlier.disabled=false;return;}fetching=true;
   try{do{again=false;const list=sorted().filter(m=>m.sequence),cursor=older?list[0]?.sequence:latestSequence;
@@ -256,11 +294,12 @@ function bindSocialChat(view){
  const send=async pending=>{
   const generation=chatGeneration;
   if(sending||unsent.sending||denied||!current())return;sending=true;unsent.sending=true;sendButton.disabled=true;pending.delivery='sending';unsent.pending.set(pending.id,pending);messages.set(pending.id,pending);paint(false,true);$('#chat-error').textContent='';
-  try{const result=await api(path,'POST',{body:pending.body,request_id:pending.request_id,...(pending.image_id?{image_id:pending.image_id}:{})});unsent.pending.delete(pending.id);if(!current()||generation!==chatGeneration)return;
+  const persisted=saveChatPending(uid,path,pending);
+  try{const result=await api(path,'POST',{body:pending.body,request_id:pending.request_id,...(pending.image_id?{image_id:pending.image_id}:{})});unsent.pending.delete(pending.id);removeChatPending(uid,path,pending.id);if(!current()||generation!==chatGeneration)return;
    if(result.message){messages.delete(pending.id);merge([result.message]);paint(false,true);}else await load();
   }catch(e){if(unsent.pending.has(pending.id))pending.delivery='failed';if(current()){
    // A stream may confirm the same request before the POST response is lost.
-   if(messages.has(pending.id)){pending.delivery='failed';paint();$('#chat-error').textContent=e.message;}
+   if(messages.has(pending.id)){pending.delivery='failed';paint();$('#chat-error').textContent=e.message;if(!persisted&&typeof toast==='function')toast('전송 실패 메시지를 이 기기에 저장하지 못했어요. 창을 닫기 전에 내용을 복사해주세요.');}
    if([401,403].includes(e.status))deny();
   }}finally{sending=false;unsent.sending=false;if(current())sendButton.disabled=denied;}
  };
@@ -273,7 +312,7 @@ function bindSocialChat(view){
   if(typeof id!=='string'||!id.startsWith('pending:')||!pending||pending.delivery!=='failed'||messages.get(id)!==pending||(pending.sender_id!==uid&&pending.user_id!==uid))return;
   event.preventDefault?.();
   if(button.dataset.chatDiscard!==undefined){
-   unsent.pending.delete(id);messages.delete(id);paint();
+   unsent.pending.delete(id);removeChatPending(uid,path,id);messages.delete(id);paint();
    if(!denied&&![...unsent.pending.values()].some(m=>m.delivery==='failed'))$('#chat-error').textContent='';
   }else void send(pending);
  });
