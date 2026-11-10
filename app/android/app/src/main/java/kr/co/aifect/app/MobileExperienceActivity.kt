@@ -188,8 +188,31 @@ internal fun mobileExperienceScript(route:String):String {
  .sidebar,.topbar,html body .page-footer,.mobile-navigation,#menu-backdrop,body>.player{display:none!important}
  body.voice-room-open .page-wrap,.page-wrap:has(.voice-room){width:100%!important;margin:0!important;min-height:0!important}
  #main:has(>.voice-room){width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
- /* Mobile karaoke themes use the same approved mobile artwork as talking rooms. */
- .voice-room.live-karaoke-room[data-paid-theme]{
+ /* The site's #main .voice-room surface rule is more specific than its free-theme rules.
+    Override that opaque surface in the Android karaoke WebView, without changing the website. */
+ #main .voice-room.live-karaoke-room[data-background="navy"]:not([data-paid-theme]){
+   background:
+     radial-gradient(ellipse at 72% 10%,rgb(123 63 228 / 62%),transparent 48%),
+     radial-gradient(ellipse at 7% 80%,rgb(65 54 128 / 62%),transparent 55%),
+     radial-gradient(ellipse at 94% 92%,rgb(50 168 164 / 37%),transparent 42%),
+     linear-gradient(130deg,#23134c,#121631 60%,#0e2936)!important;
+ }
+ #main .voice-room.live-karaoke-room[data-background="sunset"]:not([data-paid-theme]){
+   background:
+     radial-gradient(ellipse 125% 12% at 58% 43%,rgb(245 135 116 / 75%),transparent 65%),
+     radial-gradient(ellipse 100% 18% at 51% 41%,rgb(183 56 115 / 65%),transparent 72%),
+     radial-gradient(ellipse at 14% 8%,rgb(101 60 161 / 56%),transparent 62%),
+     linear-gradient(160deg,#18132f,#2e1945 51%,#11162c)!important;
+ }
+ #main .voice-room.live-karaoke-room[data-background="night"]:not([data-paid-theme]){
+   background:
+     radial-gradient(circle,#d8e4ff9c 1px,transparent 2px) 6px 12px / 91px 117px repeat,
+     radial-gradient(circle,#b8ccff6b 1px,transparent 2px) 42px 61px / 163px 143px repeat,
+     radial-gradient(ellipse at 68% 17%,rgb(67 107 202 / 49%),transparent 56%),
+     linear-gradient(140deg,#080d26,#142b56 65%,#071128)!important;
+ }
+ #main .voice-room.live-karaoke-room[data-paid-theme]{
+   background-color:#0c121b!important;
    background-image:linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),var(--decoration-mobile)!important;
    background-position:center center!important;
    background-repeat:no-repeat!important;
