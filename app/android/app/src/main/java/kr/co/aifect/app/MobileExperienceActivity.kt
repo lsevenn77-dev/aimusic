@@ -188,6 +188,32 @@ internal fun mobileExperienceScript(route:String):String {
  .sidebar,.topbar,html body .page-footer,.mobile-navigation,#menu-backdrop,body>.player{display:none!important}
  body.voice-room-open .page-wrap,.page-wrap:has(.voice-room){width:100%!important;margin:0!important;min-height:0!important}
  #main:has(>.voice-room){width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+ /* Mobile karaoke themes use the same approved mobile artwork as talking rooms. */
+ .voice-room.live-karaoke-room[data-paid-theme]{
+   background-image:linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),var(--decoration-mobile)!important;
+   background-position:center center!important;
+   background-repeat:no-repeat!important;
+   background-size:cover!important;
+ }
+ /* The key selector is available for an active singer, never the idle room. */
+ .voice-room.live-karaoke-room:not([data-live-phase]) .room-key,
+ .voice-room.live-karaoke-room[data-live-phase="idle"] .room-key{display:none!important}
  """.trimIndent()
- return "(()=>{let s=document.getElementById('aifect-mobile-experience');if(!s){s=document.createElement('style');s.id='aifect-mobile-experience';document.head.append(s)}s.textContent="+JSONObject.quote(if(live)roomCss else css)+";let v=document.querySelector('meta[name=viewport]');if(v)v.content='width=device-width, initial-scale=1, viewport-fit=cover';window.dispatchEvent(new Event('resize'));})()"
+ val roomBehavior="""
+ (() => {
+   if (window.__aifectMobileRoomThemeFormData) return;
+   window.__aifectMobileRoomThemeFormData = true;
+   document.addEventListener('formdata', event => {
+     if (event.target?.id !== 'voice-settings-form') return;
+     if (!document.querySelector('.voice-room.live-karaoke-room')) return;
+     const selected = event.target.querySelector('input[name="background"]:checked');
+     if (!selected?.value) return;
+     const sku = selected.value;
+     event.formData.set('theme_sku', sku);
+     event.formData.set('background', sku.startsWith('theme_') ? 'navy' : sku);
+   }, true);
+ })();
+ """.trimIndent()
+ val layout="(()=>{let s=document.getElementById('aifect-mobile-experience');if(!s){s=document.createElement('style');s.id='aifect-mobile-experience';document.head.append(s)}s.textContent="+JSONObject.quote(if(live)roomCss else css)+";let v=document.querySelector('meta[name=viewport]');if(v)v.content='width=device-width, initial-scale=1, viewport-fit=cover';window.dispatchEvent(new Event('resize'));})()"
+ return if(live)layout+";"+roomBehavior else layout
 }
