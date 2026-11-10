@@ -55,11 +55,14 @@ import java.net.URLEncoder
  val sheetScroll=rememberScrollState()
  val roomId=room.optString("id")
  val themeRevision=room.optInt("settings_revision")
- val themeSku=room.optString("theme_sku").ifBlank{room.optString("background","navy")}
+ val themeSku=RoomThemeSync.selectedSku(room)
  var resolvedTheme by remember(roomId,themeRevision,themeSku){mutableStateOf<JSONObject?>(null)}
  LaunchedEffect(roomId,themeRevision,themeSku){
-  if(roomId.isNotBlank()&&room.optJSONObject("theme")?.let{it.optJSONObject("assets")!=null||it.optJSONObject("assetPaths")!=null}!=true){
-   try{resolvedTheme=engine.api.call("/api/voice/rooms/"+URLEncoder.encode(roomId,"UTF-8")+"/theme",fresh=true).optJSONObject("theme")}
+  if(roomId.isNotBlank()){
+   try{
+    val candidate=engine.api.call("/api/voice/rooms/"+URLEncoder.encode(roomId,"UTF-8")+"/theme",fresh=true).optJSONObject("theme")
+    if(candidate!=null&&RoomThemeSync.matches(themeSku,candidate.optString("sku"),candidate.optLong("expires_at"),candidate.optLong("server_now")))resolvedTheme=candidate
+   }
    catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e}
   }
  }
@@ -74,7 +77,7 @@ import java.net.URLEncoder
    catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;engine.error.value=e.message}finally{sending=false}}
  }
  Box(Modifier.fillMaxSize()){
- VoiceRoomBackdrop(room.optString("background","navy"),room.optJSONObject("theme")?.takeIf{it.optJSONObject("assets")!=null||it.optJSONObject("assetPaths")!=null}?:resolvedTheme?:room.optJSONObject("theme"),Modifier.matchParentSize())
+ VoiceRoomBackdrop(themeSku,RoomThemeSync.current(room,resolvedTheme),Modifier.matchParentSize())
  Column(Modifier.fillMaxSize().testTag("native-voice-room")){
   VoiceSeatAlert(state,host){panel="seats"}
   BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal=10.dp)){

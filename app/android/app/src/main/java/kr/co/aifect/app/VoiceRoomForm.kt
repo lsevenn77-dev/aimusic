@@ -60,7 +60,7 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
     drawRect(Brush.radialGradient(listOf(color,Color.Transparent),Offset(size.width*x,size.height*y),size.maxDimension*radius))
    }
    // Picker tiles show each free theme at full colour, as in the approved creation screen.
-   if(preview&&sku in setOf("navy","sunset","night"))when(sku){
+   if(sku in setOf("navy","sunset","night"))when(sku){
     "sunset"->{
      drawRect(Brush.verticalGradient(listOf(Color(0xFF1B1233),Color(0xFF2A1A44),Color(0xFF1A1532))))
      wash(Color(0x884C2A80),.15f,.10f,.60f)
@@ -90,11 +90,14 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
      wash(Color(0x55347F91),.98f,.88f,.40f)
     }
    }
+   // Preserve the selected free theme's distinguishing colours and stars in-room.
+   // The picker remains full-colour; the listening surface is gently dimmed.
+   if(!preview&&sku in setOf("navy","sunset","night"))drawRect(Color(0xFF080D1B).copy(alpha=.32f))
   }
   if(image!=null){
    // A picker tile shows the theme's own colours; inside a room the art stays dimmed behind people and chat.
-   AsyncImage(image,null,Modifier.matchParentSize().alpha(if(preview)1f else .68f).testTag("voice-background-image"),contentScale=ContentScale.Crop)
-   Box(Modifier.matchParentSize().background(Brush.verticalGradient(if(preview)listOf(Color.Transparent,Ink.copy(alpha=.22f))else listOf(Ink.copy(alpha=.40f),Ink.copy(alpha=.72f)))))
+   AsyncImage(image,null,Modifier.matchParentSize().alpha(if(preview)1f else .88f).testTag("voice-background-image"),contentScale=ContentScale.Crop)
+   Box(Modifier.matchParentSize().background(Brush.verticalGradient(if(preview)listOf(Color.Transparent,Ink.copy(alpha=.22f))else listOf(Ink.copy(alpha=.25f),Ink.copy(alpha=.56f)))))
   }
  }
 }

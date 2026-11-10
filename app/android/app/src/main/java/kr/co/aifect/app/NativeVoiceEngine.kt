@@ -137,7 +137,7 @@ internal class NativeVoiceEngine(private val context:Context,val roomId:String,p
   giftsInitialized=true;while(seenGifts.size>200)seenGifts.remove(seenGifts.first())
   // Socket snapshots contain voice state only; keep the HTTP-validated room artwork.
   val nextRoom=next.optJSONObject("room");val previousRoom=state.value.optJSONObject("room")
-  if(nextRoom!=null&&!nextRoom.has("theme")&&nextRoom.optString("host_id")==previousRoom?.optString("host_id"))previousRoom.optJSONObject("theme")?.let{nextRoom.put("theme",it)}
+  if(nextRoom!=null)RoomThemeSync.carry(previousRoom,nextRoom)?.let{nextRoom.put("theme",it)}
   // Realtime snapshots carry transport/presence data only. Keep decoration
   // fields validated by the Site until the next HTTP heartbeat replaces them
   // (including explicit nulls when equipment expires or is removed).
