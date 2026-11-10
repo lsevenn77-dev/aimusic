@@ -135,7 +135,7 @@ private val RoomFieldFill=Panel.copy(alpha=.72f)
  var capacity by rememberSaveable(identity){mutableIntStateOf(initial.optInt("max_members",30).coerceIn(2,30))}
  var announcement by rememberSaveable(identity){mutableStateOf(initial.optString("announcement"))}
  var crew by rememberSaveable(identity){mutableStateOf(initial.optString("crew_id"))}
- var selectedTheme by rememberSaveable(identity){mutableStateOf(initial.optJSONObject("theme")?.optString("sku").orEmpty().ifBlank{initial.optString("background","navy")})}
+ var selectedTheme by rememberSaveable(identity){mutableStateOf(initial.optJSONObject("theme")?.optString("sku").orEmpty().ifBlank{initial.optString("theme_sku")}.ifBlank{initial.optString("background","navy")})}
  var initialThemeChosen by rememberSaveable(identity){mutableStateOf(identity!="new")}
  var themes by remember{mutableStateOf<List<JSONObject>>(emptyList())}
  var crews by remember{mutableStateOf<List<JSONObject>>(emptyList())}
@@ -249,7 +249,7 @@ private val RoomFieldFill=Panel.copy(alpha=.72f)
    BrandButton(onClick={
     focus.clearFocus()
     submit(payload("mode" to mode,"title" to title.trim(),"visibility" to visibility,"seating_mode" to seating,"max_members" to capacity,
-     "announcement" to announcement.trim(),"background" to if(selected?.optBoolean("paid")==false)selectedTheme else "navy",
+     "announcement" to announcement.trim(),"background" to selectedTheme,
      "theme_sku" to selectedTheme,"crew_id" to crew.takeIf{visibility=="crew"}))
    },enabled=valid,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp).testTag("room-submit"),shape=RoundedCornerShape(28.dp)){
     if(busy)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Muted)

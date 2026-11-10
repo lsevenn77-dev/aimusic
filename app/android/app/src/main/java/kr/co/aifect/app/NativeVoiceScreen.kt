@@ -53,6 +53,16 @@ import java.net.URLEncoder
  val chats=(state.optJSONArray("chat").objects()+state.optJSONArray("notices").objects()).sortedBy{it.optLong("sequence")}
  val chatList=rememberLazyListState()
  val sheetScroll=rememberScrollState()
+ val roomId=room.optString("id")
+ val themeRevision=room.optInt("settings_revision")
+ val themeSku=room.optString("theme_sku").ifBlank{room.optString("background","navy")}
+ var resolvedTheme by remember(roomId,themeRevision,themeSku){mutableStateOf<JSONObject?>(null)}
+ LaunchedEffect(roomId,themeRevision,themeSku){
+  if(roomId.isNotBlank()&&room.optJSONObject("theme")?.let{it.optJSONObject("assets")!=null||it.optJSONObject("assetPaths")!=null}!=true){
+   try{resolvedTheme=engine.api.call("/api/voice/rooms/"+URLEncoder.encode(roomId,"UTF-8")+"/theme",fresh=true).optJSONObject("theme")}
+   catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e}
+  }
+ }
  LaunchedEffect(panel){sheetScroll.scrollTo(0)}
  LaunchedEffect(chats.lastOrNull()?.optString("id")){
   if(chats.isNotEmpty()&&!chatList.isScrollInProgress&&(chatList.layoutInfo.visibleItemsInfo.lastOrNull()?.index?:0)>=chats.lastIndex-3)chatList.animateScrollToItem(chats.lastIndex)
@@ -64,7 +74,7 @@ import java.net.URLEncoder
    catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;engine.error.value=e.message}finally{sending=false}}
  }
  Box(Modifier.fillMaxSize()){
- VoiceRoomBackdrop(room.optString("background","navy"),room.optJSONObject("theme"),Modifier.matchParentSize())
+ VoiceRoomBackdrop(room.optString("background","navy"),room.optJSONObject("theme")?.takeIf{it.optJSONObject("assets")!=null||it.optJSONObject("assetPaths")!=null}?:resolvedTheme?:room.optJSONObject("theme"),Modifier.matchParentSize())
  Column(Modifier.fillMaxSize().testTag("native-voice-room")){
   VoiceSeatAlert(state,host){panel="seats"}
   BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal=10.dp)){
