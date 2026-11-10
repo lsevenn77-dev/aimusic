@@ -159,6 +159,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var likes by mutableStateOf<List<Song>>(emptyList())
  var playlists by mutableStateOf<List<JSONObject>>(emptyList())
  var follows by mutableStateOf<List<JSONObject>>(emptyList())
+ // Server-confirmed follower counts for AI artist directory tiles after follow changes.
+ internal val artistFollowerCounts=mutableStateMapOf<String,Int>()
  private var followRevision=0
  private var followPending=false
  var karaokeChart by mutableStateOf(false)
@@ -587,6 +589,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   }
  }
  fun followPerson(id:String)=toggleFollow("producer",id)
+ fun followArtist(id:String)=toggleFollow("artist",id)
  private fun toggleFollow(kind:String,id:String){
   if(!authenticated()||busy)return
   action {
@@ -596,7 +599,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    if(profile?.optString("id")==id)profileFollowers=(oldCount+if(following)-1 else 1).coerceAtLeast(0)
    try{
     val d=api.call("/api/${kind}s/$id/follow",if(following)"DELETE" else "PUT")
-    if(sameAccount(scope)){d.optJSONObject("profile")?.let{p->follows=follows.map{if(it.optString("target_id")==id&&it.optString("kind")==kind)JSONObject(p.toString()).put("kind",kind).put("target_id",id)else it}};if(profile?.optString("id")==id&&d.has("followers"))profileFollowers=d.optInt("followers")}
+    if(sameAccount(scope)){d.optJSONObject("profile")?.let{p->follows=follows.map{if(it.optString("target_id")==id&&it.optString("kind")==kind)JSONObject(p.toString()).put("kind",kind).put("target_id",id)else it}};if(profile?.optString("id")==id&&d.has("followers"))profileFollowers=d.optInt("followers");if(kind=="artist"&&d.has("followers"))artistFollowerCounts[id]=d.optInt("followers")}
    }catch(e:Exception){if(sameAccount(scope)){follows=old;if(profile?.optString("id")==id)profileFollowers=oldCount};throw e}finally{if(sameAccount(scope)){followPending=false;followRevision++}}
   }
  }

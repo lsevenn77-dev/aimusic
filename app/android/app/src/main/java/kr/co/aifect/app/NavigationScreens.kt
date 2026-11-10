@@ -56,15 +56,16 @@ import org.json.JSONObject
  var retry by remember{mutableIntStateOf(0)}
  LaunchedEffect(artists,retry){busy=true;try{
   val data=m.api.call(if(artists)"/api/catalog" else "/api/playlists",fresh=true)
+  if(artists)m.artistFollowerCounts.clear()
   entries=data.optJSONArray(if(artists)"artists" else "playlists").objects();error=null
  }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
- LazyColumn(Modifier.fillMaxSize().testTag("music-directory"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  item{Heading(if(artists)"AI 아티스트" else "공개 플레이리스트");if(busy)LinearProgressIndicator(Modifier.fillMaxWidth());error?.let{Text(it);TextButton(onClick={retry++}){Text("다시 불러오기")}}}
-  items(entries,key={it.getString("id")}){p->
-   if(artists)Row(Modifier.fillMaxWidth().clickable{m.openProfile(p.getString("id"),"artist")}.padding(12.dp),verticalAlignment=Alignment.CenterVertically){
-    Avatar(p.optString("name"),JSONObject(p.toString()).put("profile_kind","artist"),56);Column(Modifier.weight(1f).padding(start=14.dp)){Text(p.optString("name"));Text(p.optString("genre"),color=Muted,fontSize=12.sp)};Icon(Icons.Outlined.ChevronRight,null)
-   }else PlaylistRow(p,m)
+ if(artists){
+  AIArtistDirectoryGrid(entries,m,busy,error){retry++}
+ }else{
+  LazyColumn(Modifier.fillMaxSize().testTag("music-directory"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   item{Heading("공개 플레이리스트");if(busy)LinearProgressIndicator(Modifier.fillMaxWidth());error?.let{Text(it);TextButton(onClick={retry++}){Text("다시 불러오기")}}}
+   items(entries,key={it.getString("id")}){p->PlaylistRow(p,m)}
+   if(!busy&&error==null&&entries.isEmpty())item{Text("아직 공개된 항목이 없어요.",color=Muted)}
   }
-  if(!busy&&error==null&&entries.isEmpty())item{Text("아직 공개된 항목이 없어요.",color=Muted)}
  }
 }
