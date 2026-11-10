@@ -201,17 +201,79 @@ internal fun mobileExperienceScript(route:String):String {
  """.trimIndent()
  val roomBehavior="""
  (() => {
-   if (window.__aifectMobileRoomThemeFormData) return;
-   window.__aifectMobileRoomThemeFormData = true;
-   document.addEventListener('formdata', event => {
-     if (event.target?.id !== 'voice-settings-form') return;
-     if (!document.querySelector('.voice-room.live-karaoke-room')) return;
-     const selected = event.target.querySelector('input[name="background"]:checked');
-     if (!selected?.value) return;
-     const sku = selected.value;
-     event.formData.set('theme_sku', sku);
-     event.formData.set('background', sku.startsWith('theme_') ? 'navy' : sku);
-   }, true);
+   if (window.__aifectMobileRoomThemeSync) {
+     window.__aifectMobileRoomThemeSync.refresh();
+     return;
+   }
+   const state = {root:null, roomId:'', theme:null, pending:null, serial:0};
+   function roomNode() {
+     return document.querySelector('.voice-room.live-karaoke-room[data-voice-room]');
+   }
+   function apply(theme) {
+     const root=roomNode();
+     if (!root || !theme || typeof theme.sku!=='string') return;
+     const sku=theme.sku;
+     if (!['navy','sunset','night'].includes(sku) && !/^theme_[a-z0-9_]+$/.test(sku)) return;
+     const asset=theme.assets?.roomMobile;
+     const safe=typeof asset==='string' && asset.startsWith('/assets/themes/') && asset.endsWith('.webp') && !asset.includes('..');
+     const valid=safe && !(Number(theme.expires_at)>0 && Number(theme.expires_at)<=Number(theme.server_now || Date.now()/1000));
+     root.dataset.background=sku;
+     root.dataset.themeSku=sku;
+     if (valid) {
+       root.dataset.paidTheme=sku;
+       root.style.setProperty('--decoration-mobile','url("'+asset+'")');
+       root.style.setProperty('background-image','linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),url("'+asset+'")','important');
+       root.style.setProperty('background-position','center center','important');
+       root.style.setProperty('background-size','cover','important');
+     } else {
+       delete root.dataset.paidTheme;
+       root.style.removeProperty('--decoration-mobile');
+       root.style.removeProperty('background-image');
+       root.style.removeProperty('background-position');
+       root.style.removeProperty('background-size');
+     }
+     root.dataset.mobileThemeApplied=valid ? sku : sku;
+   }
+   async function readTheme() {
+     const root=roomNode(), id=root?.dataset.voiceRoom;
+     if (!id || !/^[a-zA-Z0-9_-]{1,64}$/.test(id)) return;
+     const serial=++state.serial;
+     try {
+       const response=await fetch('/api/voice/rooms/'+encodeURIComponent(id)+'/theme',{credentials:'same-origin',cache:'no-store'});
+       if (!response.ok) throw Error('theme '+response.status);
+       const data=await response.json();
+       if (serial!==state.serial || roomNode()?.dataset.voiceRoom!==id || !data?.theme) return;
+       state.roomId=id;
+       state.theme=data.theme;
+       apply(data.theme);
+     } catch (error) {
+       console.warn('AIFECT_MOBILE_THEME_READ_FAILED',error.message);
+     }
+   }
+   function refresh(delay) {
+     clearTimeout(state.pending);
+     state.pending=setTimeout(readTheme,delay || 0);
+   }
+   const observer=new MutationObserver(() => {
+     const root=roomNode();
+     if (!root || (root===state.root && state.roomId===root.dataset.voiceRoom)) return;
+     state.root=root;
+     if (state.theme && state.roomId===root.dataset.voiceRoom) apply(state.theme);
+     refresh(90);
+   });
+   observer.observe(document.documentElement,{childList:true,subtree:true});
+   window.addEventListener('aifect:room-theme',event => {
+     const active=roomNode();
+     if (!active || event.detail?.room?.id!==active.dataset.voiceRoom) return;
+     if (event.detail.room.theme) apply(event.detail.room.theme);
+     refresh(120);
+   });
+   document.addEventListener('visibilitychange',() => {
+     if (!document.hidden && roomNode()) refresh(200);
+   });
+   setInterval(() => {if (!document.hidden && roomNode())refresh(100);},30000);
+   window.__aifectMobileRoomThemeSync={refresh};
+   refresh(0);
  })();
  """.trimIndent()
  val layout="(()=>{let s=document.getElementById('aifect-mobile-experience');if(!s){s=document.createElement('style');s.id='aifect-mobile-experience';document.head.append(s)}s.textContent="+JSONObject.quote(if(live)roomCss else css)+";let v=document.querySelector('meta[name=viewport]');if(v)v.content='width=device-width, initial-scale=1, viewport-fit=cover';window.dispatchEvent(new Event('resize'));})()"

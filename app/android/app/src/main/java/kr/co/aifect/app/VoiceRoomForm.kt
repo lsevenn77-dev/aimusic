@@ -249,7 +249,7 @@ private val RoomFieldFill=Panel.copy(alpha=.72f)
    BrandButton(onClick={
     focus.clearFocus()
     submit(payload("mode" to mode,"title" to title.trim(),"visibility" to visibility,"seating_mode" to seating,"max_members" to capacity,
-     "announcement" to announcement.trim(),"background" to if(selected?.optBoolean("paid")==false)selectedTheme else "navy",
+     "announcement" to announcement.trim(),"background" to selectedTheme,
      "theme_sku" to selectedTheme,"crew_id" to crew.takeIf{visibility=="crew"}))
    },enabled=valid,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp).testTag("room-submit"),shape=RoundedCornerShape(28.dp)){
     if(busy)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Muted)
