@@ -86,7 +86,7 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
      }
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
       TextButton(onClick={m.openProfile(song.producerId,showCovers=true)}){Text("가수 보기",fontSize=12.sp)}
-      TextButton(onClick={m.openSong(song)}){Icon(Icons.Rounded.ChatBubbleOutline,null,Modifier.size(14.dp));Text(" ${song.comments}",fontSize=12.sp)}
+      TextButton(onClick={m.openSong(song)}){Icon(Icons.Rounded.ChatBubbleOutline,null,Modifier.size(14.dp));Text(" ${verifiedSongCommentCount(song,m)}",fontSize=12.sp)}
       TextButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"커버 좋아요",Modifier.size(15.dp));Text(" ${song.likes}",fontSize=12.sp)}
      }
      HorizontalDivider(color=Stroke.copy(alpha=.55f))
@@ -108,6 +108,7 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
 
 /** A ranked cover is three lines; profile and reactions stay inline. */
 @Composable private fun KaraokeChartRow(song:Song,m:MusicModel,selected:String){
+ val verifiedComments=verifiedSongCommentCount(song,m)
  val measure=rememberTextMeasurer()
  val titleHeight=measure.measure("가",style=LocalTextStyle.current.copy(fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold),maxLines=1).size.height
  val creditHeight=measure.measure("가",style=LocalTextStyle.current.copy(fontSize=13.sp,lineHeight=18.sp),maxLines=1).size.height
@@ -136,9 +137,9 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
        Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,null,tint=if(liked)Pink else Muted,modifier=Modifier.size(13.dp));Text(rankingCount(song.likes),fontSize=11.sp,lineHeight=16.sp,color=Muted,maxLines=1)
       }
      }
-     Box(Modifier.widthIn(min=44.dp).height(24.dp).clickable(role=Role.Button){m.openSong(song)}.semantics{contentDescription="${song.title} 댓글 ${song.comments}개 보기"}.testTag("karaoke-comments-${song.id}"),contentAlignment=Alignment.Center){
+     Box(Modifier.widthIn(min=44.dp).height(24.dp).clickable(role=Role.Button){m.openSong(song)}.semantics{contentDescription="${song.title} 댓글 ${verifiedComments}개 보기"}.testTag("karaoke-comments-${song.id}"),contentAlignment=Alignment.Center){
       Row(Modifier.padding(horizontal=3.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
-       Icon(Icons.Rounded.ChatBubbleOutline,null,tint=Muted,modifier=Modifier.size(13.dp));Text(rankingCount(song.comments),fontSize=11.sp,lineHeight=16.sp,color=Muted,maxLines=1)
+       Icon(Icons.Rounded.ChatBubbleOutline,null,tint=Muted,modifier=Modifier.size(13.dp));Text(rankingCount(verifiedComments),fontSize=11.sp,lineHeight=16.sp,color=Muted,maxLines=1)
       }
      }
     }

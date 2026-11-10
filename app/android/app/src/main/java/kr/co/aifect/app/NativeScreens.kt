@@ -226,7 +226,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
   Column(Modifier.weight(1f).padding(horizontal=13.dp)){
    Text(song.title,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
    Text(song.credit,fontSize=13.sp,color=Muted,maxLines=1,modifier=Modifier.padding(top=5.dp))
-   Text("재생 ${song.plays} · 좋아요 ${song.likes} · 댓글 ${song.comments}",fontSize=10.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
+   Text("재생 ${song.plays} · 좋아요 ${song.likes} · 댓글 ${verifiedSongCommentCount(song,m)}",fontSize=10.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
   }
   if(trailing!=null)trailing() else IconButton(onClick={m.play(song,queue)}){Icon(Icons.Rounded.PlayCircle,"${song.title} 재생",tint=Pink,modifier=Modifier.size(30.dp))}
   TrackActionsMenu(song,m)
@@ -470,7 +470,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
 
     ReferenceLyrics(m,song)
     if(!song.cover&&(song.raw.optInt("covers")>0||song.raw.optInt("accepts_covers")==1))SongCoverTabs(m,song,sing)
-    HorizontalDivider(color=Stroke);Section("댓글 ${song.comments}")
+    HorizontalDivider(color=Stroke);Section("댓글 ${verifiedSongCommentCount(song,m)}")
     if(m.detailBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
     if(m.user==null)TextButton(onClick={m.showLogin=true}){Text("로그인하고 첫 감상을 남겨보세요")}
     else {

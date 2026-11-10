@@ -69,7 +69,7 @@ import coil.compose.AsyncImage
     }
    }
    HorizontalDivider(Modifier.padding(top=8.dp),color=Stroke)
-   Text("${song.plays}회 감상 · 댓글 ${song.comments}",fontSize=10.sp,lineHeight=15.sp,color=SoftText,modifier=Modifier.padding(top=10.dp))
+   Text("${song.plays}회 감상 · 댓글 ${verifiedSongCommentCount(song,m)}",fontSize=10.sp,lineHeight=15.sp,color=SoftText,modifier=Modifier.padding(top=10.dp))
    TextButton(details,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp).padding(bottom=4.dp).testTag("song-details-jump"),contentPadding=PaddingValues(vertical=4.dp)){
     Column(Modifier.fillMaxWidth(),horizontalAlignment=Alignment.CenterHorizontally){Icon(Icons.Rounded.KeyboardArrowDown,null,Modifier.size(18.dp),tint=SoftText);Text("곡 이야기 더 보기",fontSize=10.sp,lineHeight=15.sp,color=SoftText,maxLines=1,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.fillMaxWidth().testTag("song-details-jump-label"))}
    }

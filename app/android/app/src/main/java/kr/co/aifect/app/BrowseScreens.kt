@@ -149,7 +149,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
     Row(Modifier.fillMaxWidth().testTag("home-song-meta-${song.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
      Text(song.credit,fontSize=13.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f).testTag("home-song-artist-${song.id}"))
      Row(Modifier.testTag("home-song-stats-${song.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-      listOf(Triple(Icons.Rounded.PlayArrow,"재생",song.plays),Triple(Icons.Rounded.FavoriteBorder,"좋아요",song.likes),Triple(Icons.Rounded.ChatBubbleOutline,"댓글",song.comments)).forEach{(icon,label,count)->
+      listOf(Triple(Icons.Rounded.PlayArrow,"재생",song.plays),Triple(Icons.Rounded.FavoriteBorder,"좋아요",song.likes),Triple(Icons.Rounded.ChatBubbleOutline,"댓글",verifiedSongCommentCount(song,m))).forEach{(icon,label,count)->
        Row(Modifier.clearAndSetSemantics{contentDescription="$label $count"},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
         Icon(icon,null,tint=Muted,modifier=Modifier.size(12.dp));Text(homeCount(count),fontSize=11.sp,lineHeight=16.sp,color=Muted,maxLines=1)
        }
@@ -175,7 +175,7 @@ private val PagePadding=PaddingValues(start=14.dp,end=14.dp,bottom=24.dp)
     Column(Modifier.padding(top=3.dp).testTag("home-song-meta-${song.id}")){
      Text(song.credit,fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("home-song-artist-${song.id}"))
      Row(Modifier.padding(top=3.dp).testTag("home-song-stats-${song.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
-      listOf(Triple(Icons.Rounded.PlayArrow,"재생",song.plays),Triple(Icons.Rounded.FavoriteBorder,"좋아요",song.likes),Triple(Icons.Rounded.ChatBubbleOutline,"댓글",song.comments)).forEach{(icon,label,count)->
+      listOf(Triple(Icons.Rounded.PlayArrow,"재생",song.plays),Triple(Icons.Rounded.FavoriteBorder,"좋아요",song.likes),Triple(Icons.Rounded.ChatBubbleOutline,"댓글",verifiedSongCommentCount(song,m))).forEach{(icon,label,count)->
        Row(Modifier.clearAndSetSemantics{contentDescription="$label $count"},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
         Icon(icon,null,tint=SoftText,modifier=Modifier.size(11.dp));Text(homeCount(count),fontSize=10.sp,lineHeight=14.sp,color=SoftText,maxLines=1)
        }
