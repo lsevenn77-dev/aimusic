@@ -31,27 +31,28 @@ import org.json.JSONObject
 import kotlin.math.sin
 
 internal val SeatRequestGreen=androidx.compose.ui.graphics.Color(0xFF8EDDD2)
-internal fun voiceGiftImage(type:String):String? {
- val known=setOf("lollipop","balloon","clover","heart","cheer-star","coffee","microphone","crown","superstar","moon","note")
- return if(type in known)Endpoint.url("/assets/gifts/$type.${if(type=="lollipop")"png" else "webp"}") else null
+/** Gift artwork follows the current server catalogue, never an APK-baked ID list. */
+internal fun voiceGiftImage(gift:JSONObject,catalog:Map<String,JSONObject>):String? {
+ val type=gift.optString("type").ifBlank{gift.optString("gift_type")}.ifBlank{gift.optString("id")}
+ return CatalogAssets.giftImage(gift) ?: CatalogAssets.giftImage(catalog[type])
 }
-@Composable internal fun VoiceGiftArt(gift:JSONObject,size:Int=48){
- val image=voiceGiftImage(gift.optString("type"))
+@Composable internal fun VoiceGiftArt(gift:JSONObject,size:Int=48,catalog:Map<String,JSONObject> = emptyMap()){
+ val image=voiceGiftImage(gift,catalog)
  if(image==null)Icon(Icons.Outlined.CardGiftcard,gift.optString("name"),Modifier.size(size.dp),tint=Pink)
  else SubcomposeAsyncImage(image,gift.optString("name"),Modifier.size(size.dp),contentScale=ContentScale.Fit,
   loading={Icon(Icons.Outlined.CardGiftcard,null,Modifier.padding(10.dp),tint=Pink)},error={Icon(Icons.Outlined.CardGiftcard,null,Modifier.padding(10.dp),tint=Pink)})
 }
-@Composable internal fun VoiceGiftMessage(chat:JSONObject){
+@Composable internal fun VoiceGiftMessage(chat:JSONObject,catalog:Map<String,JSONObject> = emptyMap()){
  val gift=chat.optJSONObject("gift")?:JSONObject()
  Row(Modifier.fillMaxWidth().background(Pink.copy(alpha=.07f),RoundedCornerShape(12.dp)).padding(10.dp).testTag("voice-gift-${chat.optString("id")}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  VoiceGiftArt(gift)
+  VoiceGiftArt(gift,catalog=catalog)
   Column(Modifier.weight(1f)){
    Text("${chat.optString("name")} → ${chat.optString("recipient_name")}",fontSize=12.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
    Text("${gift.optString("name")} ×${gift.optInt("quantity",1)} 보냈어요",fontSize=14.sp,color=SoftText,fontWeight=FontWeight.Medium)
   }
  }
 }
-@Composable internal fun VoiceGiftAnimation(engine:NativeVoiceEngine,modifier:Modifier=Modifier){
+@Composable internal fun VoiceGiftAnimation(engine:NativeVoiceEngine,modifier:Modifier=Modifier,catalog:Map<String,JSONObject> = emptyMap()){
  var chat by remember(engine){mutableStateOf<JSONObject?>(null)}
  val progress=remember{Animatable(0f)}
  val context=LocalContext.current
@@ -63,7 +64,7 @@ internal fun voiceGiftImage(type:String):String? {
  }}
  chat?.let{c->val p=progress.value;val scale=when{p<.18f->.2f+p/.18f*.8f;p>.8f->((1f-p)/.2f).coerceAtLeast(0f);else->1f}
   Column(modifier.testTag("voice-gift-animation").graphicsLayer{scaleX=scale;scaleY=scale;rotationZ=if(p in .2f.. .7f)sin((p-.2f)*60f)*9f else 0f;alpha=if(p>.8f)((1f-p)/.2f)else(p/.12f).coerceAtMost(1f)},horizontalAlignment=Alignment.CenterHorizontally){
-   VoiceGiftArt(c.optJSONObject("gift")?:JSONObject(),112)
+   VoiceGiftArt(c.optJSONObject("gift")?:JSONObject(),112,catalog)
    Text("${c.optJSONObject("gift")?.optString("name")} ×${c.optJSONObject("gift")?.optInt("quantity",1)}",color=SoftText,fontWeight=FontWeight.Bold,modifier=Modifier.background(Panel.copy(alpha=.94f),RoundedCornerShape(12.dp)).padding(horizontal=12.dp,vertical=6.dp))
   }
  }

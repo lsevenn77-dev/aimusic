@@ -52,7 +52,7 @@ import java.util.UUID
  var confirm by remember{mutableStateOf(false)}
  var giftInfo by remember{mutableStateOf(false)}
  suspend fun refresh(){
-  wallet=m.api.call("/api/gold")
+  wallet=m.api.call("/api/gold",fresh=true)
   if(giftPath!=null)ranking=m.api.call(giftPath)
  }
  LaunchedEffect(targetKey,m.user?.optString("id")){
@@ -89,7 +89,7 @@ import java.util.UUID
     item{Row(verticalAlignment=Alignment.CenterVertically){Text(section,fontSize=21.sp,fontWeight=FontWeight.Bold,color=if(section=="실버 선물")Violet else Pink,modifier=Modifier.weight(1f));TextButton(onClick={giftInfo=true}){Text("선물 안내",fontSize=12.sp)}}}
     items(sectionCatalog.chunked(giftColumns)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
      row.forEach{gift->val gid=gift.optString("id");Surface(onClick={if(!working){selected=gid;requestId=UUID.randomUUID().toString();success=null;error=null}},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),color=if(selected==gid)Stroke else Ink,border=BorderStroke(1.dp,if(selected==gid)Pink else Stroke)){
-      Column(Modifier.background(Brush.verticalGradient(listOf(Raised.copy(alpha=.45f),Panel))).padding(vertical=10.dp),horizontalAlignment=Alignment.CenterHorizontally){val path=gift.optString("image");if(path.startsWith("/assets/gifts/"))AsyncImage(Endpoint.url(path),null,Modifier.size(76.dp));Text(gift.optString("name"),fontSize=14.sp);Text(if(gift.optBoolean("free"))"${gift.optInt("silver")} S" else "${gift.optInt("gold")} G",color=if(gift.optBoolean("free"))Violet else Pink,fontSize=13.sp)}
+      Column(Modifier.background(Brush.verticalGradient(listOf(Raised.copy(alpha=.45f),Panel))).padding(vertical=10.dp),horizontalAlignment=Alignment.CenterHorizontally){GiftItemImage(gift.optString("image"),Modifier.size(76.dp));Text(gift.optString("name"),fontSize=14.sp);Text(if(gift.optBoolean("free"))"${gift.optInt("silver")} S" else "${gift.optInt("gold")} G",color=if(gift.optBoolean("free"))Violet else Pink,fontSize=13.sp)}
      }};repeat(giftColumns-row.size){Spacer(Modifier.weight(1f))}
     }}
     }

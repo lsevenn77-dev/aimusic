@@ -49,9 +49,7 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
 /** The picker and the room use the same painting and the same mobile theme asset. */
 @Composable internal fun VoiceRoomBackdrop(background:String,theme:JSONObject?=null,modifier:Modifier=Modifier,preview:Boolean=false){
  val sku=theme?.optString("sku").orEmpty().ifBlank{background}.ifBlank{"navy"}
- val asset=theme?.optJSONObject("assets")?.optString("roomMobile").orEmpty()
-  .ifBlank{theme?.optJSONObject("assetPaths")?.optString("roomMobile").orEmpty()}
- val image=profileMediaUrl(asset)
+ val image=CatalogAssets.roomMobile(theme)
  Box(modifier.testTag("voice-background-$sku")){
   Canvas(Modifier.matchParentSize()){
    val base=when(sku){"sunset"->Color(0xFF0C1422);"night"->Color(0xFF050E1C);else->Color(0xFF07111F)}
@@ -147,22 +145,29 @@ private val RoomFieldFill=Panel.copy(alpha=.72f)
  var retry by remember{mutableIntStateOf(0)}
  var panel by rememberSaveable{mutableStateOf("")}
  val focus=LocalFocusManager.current
- LaunchedEffect(retry){
-  optionsLoading=true;optionsError=null
-  try{
-   val options=api.call("/api/voice/options?mode=$mode&exclude="+java.net.URLEncoder.encode(title,"UTF-8"),fresh=true)
-   crews=options.optJSONArray("crews").objects()
-   suggestions=options.optJSONObject("suggested_titles")?:JSONObject()
-   if((title.isBlank()||retry>0)&&identity=="new")title=suggestions.optString(mode,title)
-   themes=options.optJSONArray("themes").objects().filter{it.optBoolean("selectable")}
-   if(!initialThemeChosen){
-    val preferred=options.optString("preferred_theme").takeIf{key->themes.any{it.optString("sku")==key}}
-    selectedTheme=preferred?:themes.firstOrNull()?.optString("sku")?:"navy"
-    initialThemeChosen=true
-   }
-   if(themes.none{it.optString("sku")==selectedTheme})selectedTheme=themes.firstOrNull()?.optString("sku").orEmpty()
-  }catch(e:Exception){if(e is CancellationException)throw e;optionsError=e.message?:"설정을 불러오지 못했어요."}
-  finally{optionsLoading=false}
+ LaunchedEffect(retry,mode){
+  var initial=true
+  while(true){
+   if(initial){optionsLoading=true;optionsError=null}
+   try{
+    // Each fresh read includes any new themes activated or published on the Site.
+    val options=api.call("/api/voice/options?mode=$mode&exclude="+java.net.URLEncoder.encode(title,"UTF-8"),fresh=true)
+    crews=options.optJSONArray("crews").objects()
+    suggestions=options.optJSONObject("suggested_titles")?:JSONObject()
+    if((title.isBlank()||retry>0)&&identity=="new"&&initial)title=suggestions.optString(mode,title)
+    themes=options.optJSONArray("themes").objects().filter{it.optBoolean("selectable")}
+    if(!initialThemeChosen){
+     val preferred=options.optString("preferred_theme").takeIf{key->themes.any{it.optString("sku")==key}}
+     selectedTheme=preferred?:themes.firstOrNull()?.optString("sku")?:"navy"
+     initialThemeChosen=true
+    }
+    if(themes.none{it.optString("sku")==selectedTheme})selectedTheme=themes.firstOrNull()?.optString("sku").orEmpty()
+    optionsError=null
+   }catch(e:Exception){if(e is CancellationException)throw e;optionsError=e.message?:"설정을 불러오지 못했어요."}
+   finally{optionsLoading=false}
+   initial=false
+   kotlinx.coroutines.delay(60000L)
+  }
  }
  val allThemes=themes
  val selected=allThemes.find{it.optString("sku")==selectedTheme}

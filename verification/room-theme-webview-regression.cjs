@@ -19,7 +19,7 @@ const window={addEventListener(){}},document={documentElement:{},hidden:false,
  querySelector:s=>s==='.voice-room[data-voice-room]'?root:null,addEventListener(){}};
 const sandbox={window,document,MutationObserver:class{constructor(fn){observer=fn}observe(){}},
  fetch:async(url,opts)=>{assert.equal(url,'/api/voice/rooms/room_42/theme');assert.equal(opts.cache,'no-store');count++;return {ok:true,json:async()=>({theme})}},
- console:{warn:()=>{}},setTimeout,clearTimeout,setInterval:()=>1,Date};
+ console:{warn:()=>{}},setTimeout,clearTimeout,setInterval:()=>1,Date,URL,location:{origin:'https://aifect.co.kr'}};
 vm.runInNewContext(js,sandbox);
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 (async()=>{
@@ -38,5 +38,15 @@ const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  await pause(35);
  assert.equal(root.dataset.paidTheme,undefined);
  assert.equal(styles.get('background-image'),undefined);
- console.log('PASS: room selector, paid image, change to free theme, expired theme cleanup');
+ // A future CDN image and an as-yet-unknown product ID need no APK changes.
+ theme={sku:'theme_future_2027',assetPaths:{roomMobile:'https://cdn.aifect.example/themes/new-2027.webp?v=42'},expires_at:4010000000,server_now:1794243600};
+ window.__aifectMobileRoomThemeSync.refresh(0);
+ await pause(35);
+ assert.equal(root.dataset.paidTheme,'theme_future_2027');
+ assert.ok(styles.get('background-image').includes('https://cdn.aifect.example/themes/new-2027.webp?v=42'));
+ theme={sku:'theme_future_2027',assets:{roomMobile:'http://unsafe.example.com/evil.png'},expires_at:4010000000,server_now:1794243600};
+ window.__aifectMobileRoomThemeSync.refresh(0);
+ await pause(35);
+ assert.equal(root.dataset.paidTheme,undefined);
+ console.log('PASS: server-driven room images (including new CDN paths), free switching and safety');
 })().catch(e=>{console.error(e);process.exitCode=1});

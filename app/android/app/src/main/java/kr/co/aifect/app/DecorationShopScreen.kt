@@ -21,10 +21,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
 
-internal fun decorationImage(product:JSONObject):String?{
- val assets=product.optJSONObject("assetPaths")?:return null
- return profileMediaUrl(listOf("thumbnail","roomCard","overlay","roomMobile").map{assets.optString(it)}.firstOrNull{it.isNotBlank()}.orEmpty())
-}
+internal fun decorationImage(product:JSONObject):String?=CatalogAssets.decorationImage(product)
 @Composable internal fun DecorationShopPanel(m:MusicModel,category:String,balance:Long,working:Boolean,setWorking:(Boolean)->Unit,refreshWallet:suspend ()->Unit){
  val account=m.user?.optString("id");val scope=rememberCoroutineScope()
  var data by remember(account){mutableStateOf<JSONObject?>(null)};var error by remember{mutableStateOf<String?>(null)}
@@ -32,7 +29,13 @@ internal fun decorationImage(product:JSONObject):String?{
  var selected by rememberSaveable{mutableStateOf<String?>(null)};var period by rememberSaveable{mutableStateOf("P7D")}
  var request by rememberSaveable{mutableStateOf(UUID.randomUUID().toString())}
  val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
- LaunchedEffect(account,retry){lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){try{val result=m.api.call("/api/decorations",fresh=true);if(account==m.user?.optString("id")){data=result;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}}
+ LaunchedEffect(account,retry){lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){
+  while(true){
+   try{val result=m.api.call("/api/decorations",fresh=true);if(account==m.user?.optString("id")){data=result;error=null}}
+   catch(e:Exception){if(e is CancellationException)throw e;error=e.message}
+   kotlinx.coroutines.delay(60000L)
+  }
+ }}
  val products=data?.optJSONArray("products").objects().filter{it.optString("kind")==if(category=="frames")"PROFILE_FRAME" else "TALKING_ROOM_THEME"}
  val choice=data?.optJSONArray("products").objects().find{it.optString("sku")==selected}
  val periods=data?.optJSONObject("periods")?:JSONObject()

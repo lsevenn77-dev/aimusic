@@ -57,7 +57,17 @@ import java.net.URLEncoder
  val themeRevision=room.optInt("settings_revision")
  val themeSku=RoomThemeSync.selectedSku(room)
  val themeHost=room.optString("host_id")
+ var giftCatalog by remember(engine.roomId){mutableStateOf<Map<String,JSONObject>>(emptyMap())}
  var resolvedTheme by remember(roomId,themeHost,themeRevision,themeSku){mutableStateOf<JSONObject?>(null)}
+ LaunchedEffect(engine.roomId){
+  while(true){
+   try{
+    // Refresh in-room gift artwork from the server while the listener is present.
+    giftCatalog=CatalogAssets.giftCatalog(engine.api.call("/api/gifts/catalog",fresh=true))
+   }catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e}
+   kotlinx.coroutines.delay(60000L)
+  }
+ }
  LaunchedEffect(roomId,themeHost,themeRevision,themeSku){
   if(roomId.isNotBlank()){
    var nextCheck=2000L
@@ -146,14 +156,14 @@ import java.net.URLEncoder
   LazyColumn(Modifier.fillMaxSize().testTag("native-voice-conversation"),state=chatList,contentPadding=PaddingValues(horizontal=2.dp,vertical=5.dp),verticalArrangement=Arrangement.spacedBy(4.dp)){
    itemsIndexed(chats,key={index,chat->chat.optString("id").ifBlank{"notice-${chat.optLong("sequence")}-${index}"}}){_,chat->
     if(chat.optString("kind")=="system")Text(chat.optString("body"),color=Muted,fontSize=12.sp)
-    else if(chat.optString("kind")=="gift")VoiceGiftMessage(chat)
+    else if(chat.optString("kind")=="gift")VoiceGiftMessage(chat,giftCatalog)
     else {
      val author=members.find{it.optString("id")==chat.optString("user_id")}?:JSONObject(chat.toString()).put("id",chat.optString("user_id"))
      RoomChatBubble(author,chat.optString("name").ifBlank{author.optString("name")},chat.optString("body"),chat.optString("user_id")==state.optString("self")){target=author;panel="person"}
     }
    }
   }
-  VoiceGiftAnimation(engine,Modifier.align(Alignment.Center))
+  VoiceGiftAnimation(engine,Modifier.align(Alignment.Center),giftCatalog)
   }
   Row(Modifier.fillMaxWidth().padding(horizontal=10.dp,vertical=6.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){
    Row(Modifier.weight(1f).roomGlass(24).heightIn(min=44.dp).padding(start=12.dp),verticalAlignment=Alignment.CenterVertically){
@@ -208,7 +218,7 @@ import java.net.URLEncoder
  val frame=p.optString("profile_frame")
  val artwork=p.optString("profile_frame_artwork")
  val display=frameDisplay(p)
- val decorated=frame=="crew-outline"||profileMediaUrl(display?.optString("overlay").orEmpty().ifBlank{artwork})!=null
+ val decorated=frame=="crew-outline"||CatalogAssets.url(display?.optString("overlay").orEmpty().ifBlank{artwork})!=null
  val scale=display?.optDouble("scale",1.26)?.toFloat()?.coerceIn(1f,1.6f)?:1.26f
  val photoSize=if(decorated)size/scale else size.toFloat()
  Box(Modifier.size(size.dp).testTag("voice-member-avatar-$id"),contentAlignment=Alignment.Center){
@@ -259,7 +269,12 @@ import java.net.URLEncoder
  var wallet by remember{mutableStateOf(JSONObject())};var selected by remember{mutableStateOf<JSONObject?>(null)};var quantity by remember{mutableIntStateOf(1)};var request by remember{mutableStateOf(requestIdentity())};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};var confirm by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
  LaunchedEffect(Unit){try{wallet=e.api.call("/api/gold",fresh=true)}catch(x:Exception){error=x.message}}
  Text("${target.optString("name")}님에게 선물",fontSize=20.sp);Text("보유 ${wallet.optInt("balance")} G",color=Aqua)
- wallet.optJSONArray("gifts").objects().forEach{g->FilterChip(selected?.optString("id")==g.getString("id"),{selected=g;request=requestIdentity()},label={Text("${g.optString("name")} · ${g.optInt("gold")} G")})}
+ wallet.optJSONArray("gifts").objects().forEach{g->FilterChip(selected?.optString("id")==g.getString("id"),{selected=g;request=requestIdentity()},label={
+  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
+   GiftItemImage(g.optString("image"),Modifier.size(32.dp))
+   Column{Text(g.optString("name"),fontSize=12.sp);Text("${g.optInt("gold")} G",fontSize=11.sp,color=Muted)}
+  }
+ })}
  Row{OutlinedButton({quantity--;request=requestIdentity()},enabled=quantity>1&&!busy){Text("−")};Text(" $quantity ",Modifier.padding(14.dp));OutlinedButton({quantity++;request=requestIdentity()},enabled=quantity<100&&!busy){Text("+")}}
  val total=(selected?.optInt("gold")?:0).toLong()*quantity
  Button({confirm=true},enabled=!busy&&selected!=null&&total in 1..minOf(100000,wallet.optInt("balance")).toLong()){Text("${total} G 선물하기")};error?.let{Text(it,color=Pink)}

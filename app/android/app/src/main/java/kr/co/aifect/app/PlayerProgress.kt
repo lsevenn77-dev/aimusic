@@ -41,10 +41,10 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  val framePath=display?.optString("overlay").orEmpty().ifBlank{p.optString("profile_frame_artwork")}
  val scale=display?.optDouble("scale",1.26)?.toFloat()?.coerceIn(1f,1.6f)?:1.26f
  val frameModifier=Modifier.matchParentSize().graphicsLayer(scaleX=scale,scaleY=scale)
- val image=profileMediaUrl(framePath)
+ val image=CatalogAssets.url(framePath)
  if(image!=null)AsyncImage(image,contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
  else if(p.optString("profile_frame")=="crew-outline")Image(painterResource(R.drawable.player_frame_clan_aether),contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
- val effect=profileMediaUrl(display?.optString("effect").orEmpty())
+ val effect=CatalogAssets.url(display?.optString("effect").orEmpty())
  if(image!=null&&effect!=null)AsyncImage(effect,null,frameModifier,contentScale=ContentScale.Fit)
  if(size>=80&&(!p.isNull("player_xp")||p.has("player_level"))){
   val level=p.optInt("player_level",playerLevel(p.optInt("player_xp"))).coerceIn(1,100).toString()
@@ -92,7 +92,7 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  var giftError by remember(account){mutableStateOf<String?>(null)}
  var gift by remember(account){mutableStateOf<JSONObject?>(null)}
  var decoration by remember(account){mutableStateOf<JSONObject?>(null)}
- LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/player");if(m.user?.optString("id")==account){data=d;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
+ LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/player",fresh=true);if(m.user?.optString("id")==account){data=d;error=null}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  LaunchedEffect(account,retry){try{val d=m.api.call("/api/me/gift-inventory",fresh=true);if(m.user?.optString("id")==account){gifts=d.optJSONArray("items").objects();giftError=null}}catch(e:Exception){if(e is CancellationException)throw e;giftError=e.message}}
  AppPage(title="인벤토리",onDismissRequest=close,containerColor=Ink){
   LazyColumn(Modifier.fillMaxSize().testTag("owned-inventory"),contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){

@@ -29,7 +29,8 @@ import java.util.UUID
 @Composable internal fun GiftItemImage(path:String,modifier:Modifier=Modifier){
  var failed by remember(path){mutableStateOf(false)}
  Box(modifier,contentAlignment=Alignment.Center){
-  if(!failed&&Regex("/assets/gifts/[A-Za-z0-9_-]+\\.(webp|png)").matches(path))AsyncImage(Endpoint.url(path),null,Modifier.fillMaxSize(),onError={failed=true})
+  val image=CatalogAssets.url(path)
+  if(!failed&&image!=null)AsyncImage(image,null,Modifier.fillMaxSize(),onError={failed=true})
   else Icon(Icons.Rounded.CardGiftcard,null,tint=Muted,modifier=Modifier.size(30.dp))
  }
 }
@@ -50,13 +51,19 @@ import java.util.UUID
  var working by remember{mutableStateOf(false)}
  var orderError by remember{mutableStateOf<String?>(null)}
  var retry by remember{mutableIntStateOf(0)}
- suspend fun refresh(){
-  loading=true
+ suspend fun refresh(silent:Boolean=false){
+  if(!silent)loading=true
   try{val result=m.api.call("/api/gold",fresh=true);if(account==m.user?.optString("id")){wallet=result;error=null}}
-  catch(e:Exception){if(e is CancellationException)throw e;error=e.message;wallet=null}
-  finally{loading=false}
+  catch(e:Exception){if(e is CancellationException)throw e;error=e.message;if(!silent)wallet=null}
+  finally{if(!silent)loading=false}
  }
- LaunchedEffect(account,retry,m.showBilling){if(!m.showBilling)refresh()}
+ LaunchedEffect(account,retry,m.showBilling){
+  if(!m.showBilling){
+   refresh()
+   // New gifts appear without an app release while this shop stays open.
+   while(true){kotlinx.coroutines.delay(60000L);refresh(silent=true)}
+  }
+ }
  val gold=wallet?.optJSONArray("gifts").objects()
  val silver=wallet?.optJSONArray("silver_gifts").objects()
  val catalog=if(currency=="gold")gold else silver

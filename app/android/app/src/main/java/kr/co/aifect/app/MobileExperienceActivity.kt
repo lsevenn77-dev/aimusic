@@ -255,18 +255,27 @@ internal fun mobileExperienceScript(route:String):String {
      if (!root || !theme || typeof theme.sku!=='string') return;
      const sku=theme.sku;
      if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(sku)) return;
-     const asset=theme.assets?.roomMobile || theme.assetPaths?.roomMobile;
-     const safe=typeof asset==='string' && asset.startsWith('/assets/themes/') && asset.endsWith('.webp') && !asset.includes('..');
+     // The server provides theme artwork; new SKUs and CDN paths require no APK update.
+     const asset=theme.assets?.roomMobile || theme.assetPaths?.roomMobile || theme.image;
+     let imageUrl=null;
+     try {
+       if (typeof asset==='string' && asset.length<=2048 &&
+           !asset.includes('..') && !asset.includes('\\') &&
+           ((asset.startsWith('/') && !asset.startsWith('//')) || /^https:\/\//i.test(asset))) {
+         const candidate=new URL(asset,location.origin);
+         if(candidate.protocol==='https:' && !candidate.username && !candidate.password && !candidate.hash) imageUrl=candidate.href;
+       }
+     } catch (_) {}
      const now=Number(theme.server_now)>0 ? Number(theme.server_now) : Date.now()/1000;
      const active=!sku.startsWith('theme_') || Number(theme.expires_at)>now;
-     const valid=safe && active;
+     const valid=!!imageUrl && active;
      // Paid themes keep the Site's fallback background and use its own image.
      if (['navy','sunset','night'].includes(sku)) root.dataset.background=sku;
      root.dataset.themeSku=sku;
      if (valid) {
        root.dataset.paidTheme=sku;
-       root.style.setProperty('--decoration-mobile','url("'+asset+'")');
-       root.style.setProperty('background-image','linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),url("'+asset+'")','important');
+       root.style.setProperty('--decoration-mobile','url("'+imageUrl+'")');
+       root.style.setProperty('background-image','linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),url("'+imageUrl+'")','important');
        root.style.setProperty('background-position','center center','important');
        root.style.setProperty('background-size','cover','important');
      } else {
