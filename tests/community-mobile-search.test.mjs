@@ -9,13 +9,20 @@ function directory({hash='#community',saved=null,viewer='viewer',revision=0,now=
  let focused=null,responder=response;
  class Clock extends Date {static now(){return now;}}
  class Element extends EventTarget {
-  constructor(){super();this.dataset={};this.attributes=new Map();this.value='';this.hidden=false;this.scrollTop=0;this.children=[];this.isConnected=true;this.textContent='';this.style={setProperty(){},removeProperty(){}};this._html='';}
+  constructor(){super();this.dataset={};this.attributes=new Map();this.value='';this.hidden=false;this.scrollTop=0;this.children=[];this.isConnected=true;this._text='';this.writes=0;this.style={setProperty(){},removeProperty(){}};}
   setAttribute(k,v){this.attributes.set(k,String(v));}
+  getAttribute(k){return this.attributes.get(k)??null;}
   focus(){focused=this;} blur(){if(focused===this)focused=null;}
-  get innerHTML(){return this._html;}
-  set innerHTML(value){this._html=value;this.children=[...value.matchAll(/data-talk-id="([^"]+)"/g)].map(match=>{const child=new Element();child.dataset.talkId=match[1];return child;});}
-  replaceChildren(){this.innerHTML='';} insertAdjacentHTML(_position,html){this.innerHTML+=html;}
-  contains(){return false;} closest(){return null;} querySelectorAll(){return [];}
+  get textContent(){return this._text;} set textContent(text){this._text=text;this.writes++;}
+  get innerHTML(){return this.children.map(el=>typeof el==='string'?el:'<a data-talk-id="'+el.dataset.talkId+'">'+el.innerHTML+'</a>').join('');}
+  get firstElementChild(){return this.children[0]??null;}
+  get childNodes(){return this.children;}
+  get nextElementSibling(){const siblings=this.parent?.children||[];return siblings[siblings.indexOf(this)+1]??null;}
+  remove(){if(this.parent){const list=this.parent.children;list.splice(list.indexOf(this),1);this.parent=null;}}
+  insertBefore(el,ref){el.remove();el.parent=this;this.children.splice(ref?this.children.indexOf(ref):this.children.length,0,el);this.writes++;}
+  append(el){this.insertBefore(el,null);}
+  replaceChildren(...nodes){this.children=nodes;this.writes++;}
+  contains(el){return el===this||!!el&&this.children.includes(el);} closest(){return null;} querySelectorAll(){return [];}
   getBoundingClientRect(){return {top:0,bottom:500,height:500};}
   scrollTo({top}){this.scrollTop=top;}
  }
@@ -27,6 +34,13 @@ function directory({hash='#community',saved=null,viewer='viewer',revision=0,now=
  const timers=new Map(),frames=new Map(),intervals=new Map(),requests=[],cleanups=[],observed=[],windowScrolls=[];let seq=0;
  const window=new EventTarget();window.scrollTo=options=>windowScrolls.push(options);
  const document=new EventTarget();document.hidden=false;document.querySelector=()=>null;Object.defineProperty(document,'activeElement',{get:()=>focused});
+ document.createElement=tag=>{
+  assert.equal(tag,'template');
+  return {content:{},set innerHTML(html){
+   const [,id,text]=html.match(/^<a data-talk-id="([^"]+)">(.*)<\/a>$/);
+   const card=new Element();card.dataset.talkId=id;card.children=[text];this.content.firstElementChild=card;
+  }};
+ };
  const c=nicknameContext({
   me:viewer?{id:viewer}:null,apiRevision:revision,location:{hash},talkingRoomReturn:saved,talkingRoomCard:room=>`<a data-talk-id="${room.id}">${room.followed_profiles?.length||0}</a>`,liveRoomLabels:{karaoke:'노래방',talk:'토킹룸'},
   URLSearchParams,AbortController,Date:Clock,Map,requestAnimationFrame:fn=>{const id=++seq;frames.set(id,fn);return id;},cancelAnimationFrame:id=>frames.delete(id),ResizeObserver:class{observe(node){observed.push(node);}disconnect(){}},IntersectionObserver:class{observe(){}unobserve(){}disconnect(){}},
@@ -41,6 +55,7 @@ function directory({hash='#community',saved=null,viewer='viewer',revision=0,now=
  const flush=async()=>{await settle();for(const [id,timer] of [...timers])if(timer.ms===220){timers.delete(id);await timer.fn();}for(const [id,fn] of [...frames]){frames.delete(id);fn();}await settle();};
  return {root,get,filters,requests,flush,navigation,observed,windowScrolls,context:c,focused:()=>focused,snapshot:()=>c.talkingRoomReturn,
   advance:ms=>{now+=ms;},setResponse:fn=>{responder=fn;},poll:()=>[...intervals.values()].find(timer=>timer.ms===20000)?.fn(),
+  fireTimeout:ms=>{for(const [id,timer] of timers)if(timer.ms===ms){timers.delete(id);timer.fn();}},
   clickRoom:()=>{const event=new Event('click');Object.assign(event,{button:0});Object.defineProperty(event,'target',{value:{closest:()=>({})}});get('.v3-room-grid').dispatchEvent(event);},
   dispose:()=>{cleanups.splice(0).forEach(fn=>fn());root.isConnected=false;}};
 }
@@ -101,6 +116,66 @@ test('matching banner snapshots and ordinary routes retain the existing search r
 });
 
 const roomPage=()=>({enabled:true,rooms:[{id:'room-one',mode:'talk',followed_profiles:[{profile_id:'friend'}]}],next_cursor:null});
+const emptyPage=()=>({enabled:true,rooms:[],next_cursor:null});
+function deferred(){
+ let resolve,reject;
+ const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
+ return {promise,resolve,reject};
+}
+
+test('initial loading settles once and repeated, failed and resumed empty reads leave the view intact',async()=>{
+ const initial=deferred(),d=directory({response:()=>initial.promise});
+ const status=d.get('.talk-status'),caption=d.get('span'),art=d.get('.live-empty-art'),grid=d.get('.v3-room-grid');
+ d.fireTimeout(450);assert.equal(status.dataset.state,'loading');assert.equal(art.getAttribute('src'),null);
+ initial.resolve(emptyPage());await d.flush();
+ const expected=[caption.textContent,caption.writes,grid.writes,art.getAttribute('src')];
+ assert.equal(expected[0],'아직 열린 공개방이 없어요.');assert.equal(expected[3],'/assets/aifect-empty-all.webp');
+ const check=()=>{
+  assert.equal(status.hidden,false);assert.equal(status.dataset.state,'empty');
+  assert.deepEqual([caption.textContent,caption.writes,grid.writes,art.getAttribute('src')],expected);
+ };
+ for(const fail of [false,true,false]){
+  const channel=deferred();d.setResponse(()=>channel.promise);
+  const pending=d.poll();check();await d.poll(); // coalesce while in flight
+  if(fail)channel.reject(Error('offline'));else channel.resolve(emptyPage());
+  await pending;check();
+ }
+ const count=d.requests.length;d.context.document.hidden=true;
+ d.context.document.dispatchEvent(new Event('visibilitychange'));await d.poll();
+ assert.equal(d.requests.length,count);
+ const resumed=deferred();d.setResponse(()=>resumed.promise);d.context.document.hidden=false;
+ d.context.document.dispatchEvent(new Event('visibilitychange'));assert.equal(d.requests.length,count+1);check();
+ resumed.resolve(roomPage());await d.flush();
+ assert.equal(status.hidden,true);assert.equal(grid.firstElementChild.dataset.talkId,'room-one');d.dispose();
+});
+
+test('room arrivals, changes and closures update only the affected cards after a confirmed read',async()=>{
+ const d=directory({response:async()=>emptyPage()});await d.flush();
+ const grid=d.get('.v3-room-grid'),status=d.get('.talk-status');
+ d.setResponse(async()=>roomPage());await d.poll();
+ const first=grid.firstElementChild,writes=grid.writes;assert.equal(status.hidden,true);
+ d.setResponse(async()=>roomPage());await d.poll();
+ assert.equal(grid.firstElementChild,first);assert.equal(grid.writes,writes);assert.equal(first.writes,0);
+ const added={id:'new',mode:'talk',followed_profiles:[]};
+ d.setResponse(async()=>({...roomPage(),rooms:[added,...roomPage().rooms]}));await d.poll();
+ assert.equal(grid.children[1],first);
+ d.setResponse(async()=>({...roomPage(),rooms:[{...roomPage().rooms[0],followed_profiles:[]}]}));await d.poll();
+ assert.equal(grid.firstElementChild,first);assert.equal(first.innerHTML,'0');
+ // The last focused card disappeared from its ID lookup, but a full lookup may still find another room.
+ first.focus();const confirm=deferred();d.setResponse(p=>p.has('ids')?emptyPage():confirm.promise);
+ const closing=d.poll();await d.flush();assert.equal(grid.firstElementChild,first);assert.equal(status.hidden,true);
+ confirm.resolve(emptyPage());await closing;
+ assert.equal(grid.children.length,0);assert.equal(status.dataset.state,'empty');d.dispose();
+});
+
+test('an intermediate empty cursor page cannot hide an existing room or announce an empty list',async()=>{
+ const d=directory({response:async()=>roomPage()});await d.flush();
+ const grid=d.get('.v3-room-grid'),first=grid.firstElementChild,second=deferred();
+ d.setResponse(p=>p.has('cursor')?second.promise:{...emptyPage(),next_cursor:'next'});
+ const changing=d.poll();await d.flush();assert.equal(grid.firstElementChild,first);
+ assert.equal(d.get('.talk-status').hidden,true);second.resolve(roomPage());await changing;
+ assert.equal(grid.firstElementChild,first);d.dispose();
+});
 
 test('tab cleanup captures the mounted route and restores directory aliases without a fresh request or window scroll',async()=>{
  const d=directory({hash:'#community',now:100000,response:async()=>({...roomPage(),next_cursor:'next-page'})});await d.flush();

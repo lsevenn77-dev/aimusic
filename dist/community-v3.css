@@ -283,15 +283,13 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
 @media (max-height:570px) {
  .live-directory .talk-status[data-state="empty"] {--empty-shift:-20px}
 }
-.live-directory .talk-status[data-state="empty"]::before {
- content:"";width:min(100%,clamp(165px,48.4vw,242px),max(0px,calc(100cqh - 40px - var(--empty-bottom-space))));
- aspect-ratio:1;flex:none;background:var(--live-empty-art) center / contain no-repeat;
+.live-directory .live-empty-art {display:none}
+.live-directory .talk-status[data-state="empty"] > .live-empty-art {
+ display:block;width:min(100%,clamp(165px,48.4vw,242px),max(0px,calc(100cqh - 40px - var(--empty-bottom-space))));
+ height:auto;aspect-ratio:1;flex:none;object-fit:contain;
  filter:brightness(.9);
  opacity:.5;
 }
-.talk-directory[data-filter="all"] {--live-empty-art:url("/assets/aifect-empty-all.webp")}
-.talk-directory[data-filter="karaoke"] {--live-empty-art:url("/assets/aifect-empty-karaoke.webp")}
-.talk-directory[data-filter="talk"] {--live-empty-art:url("/assets/aifect-empty-talk.webp")}
 
 /* Other community tabs retain their content scaling. */
 #main:is([data-route="community"], [data-route^="community/"], [data-route^="community?"]) {

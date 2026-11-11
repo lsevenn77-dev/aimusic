@@ -33,7 +33,7 @@ function liveDirectoryHTML(defaultMode){
    <button type="button" data-live-reset aria-label="전체 방 보기" title="전체 방 보기"><span aria-hidden="true" class="live-home-icon"></span></button></div>
    <button type="button" class="primary-button" id="v3-create-room" aria-label="방 만들기" disabled>${icon('plus')}<span class="live-create-label">방 만들기</span></button></div></div>
   <div class="live-list-space"><div class="talk-scroll" role="region" aria-label="라이브 방 목록" tabindex="0"><div class="v3-room-grid"></div>
-   <div class="talk-status" role="status" hidden><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
+   <div class="talk-status" role="status" hidden><img class="live-empty-art" width="242" height="242" alt=""><span></span> <button type="button" class="small-button" hidden>다시 시도</button></div>
    <div class="talk-sentinel" aria-hidden="true"></div></div></div>
   <dialog id="v3-room-create" class="voice-sheet compact-popup" aria-labelledby="v3-create-title"><header class="voice-sheet-heading"><h2 id="v3-create-title">방 만들기</h2>
    <button type="button" id="v3-close-create" aria-label="닫기">${voiceGlyph('close')}</button></header>${voiceSettingsFormHTML('create',true)}</dialog></section></div>`;
@@ -46,6 +46,7 @@ function liveDirectoryAlias(raw){
 function bindTalkingDirectory(root){
  const grid=root.querySelector('.v3-room-grid'),search=root.querySelector('#v3-room-search'),create=root.querySelector('#v3-create-room');
  const status=root.querySelector('.talk-status'),message=status.querySelector('span'),retry=status.querySelector('button'),sentinel=root.querySelector('.talk-sentinel');
+ const artwork=status.querySelector('.live-empty-art'),cardMarkup=new WeakMap();
  const pane=root.querySelector('.talk-scroll');
  const tools=root.querySelector('.live-tools'),openSearch=root.querySelector('[data-live-search-open]'),closeSearch=root.querySelector('[data-live-search-close]'),clearSearch=root.querySelector('[data-live-search-clear]');
  const route=location.hash,viewer=me?.id||'',revision=typeof apiRevision==='number'?apiRevision:0;
@@ -104,8 +105,45 @@ function bindTalkingDirectory(root){
   if(on)observer.observe(sentinel);else observer.unobserve(sentinel);
  }
  function notice(text='',state=''){
-  status.dataset.state=state;
-  message.textContent=text;retry.hidden=state!=='error';status.hidden=!text;
+  if(state==='empty'){
+   const src='/assets/aifect-empty-'+mode+'.webp';
+   if(artwork.getAttribute('src')!==src)artwork.setAttribute('src',src);
+  }
+  if(status.dataset.state!==state)status.dataset.state=state;
+  if(message.textContent!==text)message.textContent=text;
+  if(retry.hidden!==(state!=='error'))retry.hidden=state!=='error';
+  if(status.hidden!==!text)status.hidden=!text;
+ }
+ function roomCard(room,card){
+  const html=talkingRoomCard(room);
+  if(card&&cardMarkup.get(card)===html)return card;
+  const template=document.createElement('template');
+  template.innerHTML=html;
+  const next=template.content.firstElementChild;
+  if(card){
+   card.href=next.href;card.dataset.roomMode=next.dataset.roomMode;
+   card.replaceChildren(...next.childNodes);
+  }else card=next;
+  cardMarkup.set(card,html);
+  return card;
+ }
+ function reconcileFirstPage(latest){
+  const previous=new Map([...grid.children].map(card=>[card.dataset.talkId,card]));
+  for(const [id,card] of previous)if(!latest.has(id))card.remove();
+  let position=grid.firstElementChild;
+  for(const [id,room] of latest){
+   const card=roomCard(room,previous.get(id));
+   if(card!==position)grid.insertBefore(card,position);
+   position=card.nextElementSibling;
+  }
+ }
+ function setAvailability(enabled){
+  if(root.dataset.enabled!==String(enabled))root.dataset.enabled=String(enabled);
+  if(!create.dataset.opening&&create.disabled!==!enabled)create.disabled=!enabled;
+ }
+ function serviceUnavailable(){
+  items.clear();if(grid.firstElementChild)grid.replaceChildren();
+  cursor=null;done=true;ready();rememberRead();
  }
  function rememberRead(){
   snapshotReady=true;readFailed=false;fetchedAt=Date.now();displayUntil=fetchedAt+120000;
@@ -124,27 +162,28 @@ function bindTalkingDirectory(root){
   for(const room of items.values()){
    if(!room.themeUntil)continue;
    if(room.themeUntil<=Date.now()){
-    grid.querySelector('[data-talk-id="'+CSS.escape(room.id)+'"] .talk-cover')?.remove();
+    const card=grid.querySelector('[data-talk-id="'+CSS.escape(room.id)+'"]');
+    card?.querySelector('.talk-cover')?.remove();if(card)cardMarkup.delete(card);
     room.themeUntil=0;room.theme={sku:'navy'};room.background='navy';
    }else next=Math.min(next,room.themeUntil);
   }
   if(Number.isFinite(next))expiry=setTimeout(expireCovers,Math.min(next-Date.now()+50,2147483647));
  }
  function ready(){
-  sentinel.hidden=done;
-  if(root.dataset.enabled==='false'){watchEnd(false);return;}
-  if(!items.size&&done&&!composing){
+  if(sentinel.hidden!==done)sentinel.hidden=done;
+  watchEnd(!done);
+  if(root.dataset.enabled==='false')notice('라이브 서비스 연결을 준비하고 있어요.');
+  else if(!items.size&&done&&!composing){
    if(search.value.trim())notice('검색 결과가 없어요.');
    else notice('아직 열린 공개방이 없어요.','empty');
-  }
-  if(!done)watchEnd(true);
+  }else notice();
  }
  async function load(){
   if(disposed||controller||done||composing||!currentViewer())return;
   refreshController?.abort();
   watchEnd(false);const active=controller=new AbortController(),requestRevision=currentRevision();
-  notice();grid.setAttribute('aria-busy','true');
-  const pendingNotice=setTimeout(()=>{
+  grid.setAttribute('aria-busy','true');
+  const pendingNotice=!snapshotReady&&setTimeout(()=>{
    if(controller===active&&!disposed)notice('라이브 목록을 불러오는 중이에요.','loading');
   },450);
   try{
@@ -152,17 +191,15 @@ function bindTalkingDirectory(root){
    if(query)params.set('q',query);if(cursor)params.set('cursor',cursor);
    const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
    if(active.signal.aborted||disposed||!currentViewer()||requestRevision!==currentRevision())return;
-   root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
-   if(page.enabled===false){items.clear();grid.replaceChildren();cursor=null;done=true;sentinel.hidden=true;notice('라이브 서비스 연결을 준비하고 있어요.');rememberRead();return;}
-   const added=[];
+   setAvailability(page.enabled!==false);
+   if(page.enabled===false){serviceUnavailable();return;}
    for(const room of page.rooms){
     if(items.has(room.id))continue;
     if(room.theme?.expires_at)room.themeUntil=Date.now()+(room.theme.expires_at-room.theme.server_now)*1000;
-    items.set(room.id,room);added.push(talkingRoomCard(room));
+    items.set(room.id,room);grid.append(roomCard(room));
    }
-   grid.insertAdjacentHTML('beforeend',added.join(''));
    done=!page.next_cursor||page.next_cursor===cursor;cursor=page.next_cursor;
-   notice();expireCovers();ready();rememberRead();
+   expireCovers();ready();rememberRead();
   }catch(e){if(!active.signal.aborted&&!disposed&&currentViewer()){readFailed=true;notice('라이브 목록을 불러오지 못했어요.','error');}}
   finally{clearTimeout(pendingNotice);if(controller===active){controller=null;grid.setAttribute('aria-busy','false');}}
  }
@@ -175,7 +212,8 @@ function bindTalkingDirectory(root){
   debounce=setTimeout(load,220);
  }
  async function refresh(){
-  if(document.hidden||disposed||composing||controller||refreshController||!currentViewer()||!done&&!items.size||root.querySelector('dialog[open]'))return;
+  if(document.hidden||disposed||composing||controller||refreshController||!currentViewer()||root.querySelector('dialog[open]'))return;
+  if(!snapshotReady){if(readFailed)await load();return;}
   const atTop=()=>pane.scrollTop<2;
   const refreshTop=atTop()&&!grid.contains(document.activeElement);
   const viewport=pane.getBoundingClientRect();
@@ -184,38 +222,45 @@ function bindTalkingDirectory(root){
   }).slice(0,24);
   if(!refreshTop&&!visible.length)return;
   const active=refreshController=new AbortController(),requestRevision=currentRevision();
-  if(status.dataset.state==='empty')notice();
   const params=new URLSearchParams({limit:'24',mode,q:search.value.trim()});
   if(!refreshTop)params.set('ids',visible.map(el=>el.dataset.talkId).join(','));
+  const current=()=>!active.signal.aborted&&!disposed&&!controller&&currentViewer()&&requestRevision===currentRevision();
+  const read=()=>voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
   try{
-   const page=await voiceRequest('public-rooms?'+params,undefined,'GET',active.signal);
-   if(active.signal.aborted||disposed||controller||!currentViewer()||requestRevision!==currentRevision())return;
+   let page=await read();
+   if(!current())return;
+   // An ID-only response cannot tell whether a new room replaced the last card.
+   if(!refreshTop&&page.enabled!==false&&!page.rooms.length&&visible.length===items.size){
+    params.delete('ids');page=await read();if(!current())return;
+   }
+   // A filtered page may be empty even though a later page contains a room.
+   // Keep the last confirmed view until we have a card or reach the end.
+   const fullPage=!params.has('ids');
+   while(fullPage&&page.enabled!==false&&!page.rooms.length&&page.next_cursor){
+    if(page.next_cursor===params.get('cursor')){page.next_cursor=null;break;}
+    params.set('cursor',page.next_cursor);page=await read();if(!current())return;
+   }
    if(refreshTop&&(!atTop()||grid.contains(document.activeElement)))return;
-   root.dataset.enabled=String(page.enabled!==false);if(!create.dataset.opening)create.disabled=page.enabled===false;
-   if(page.enabled===false){watchEnd(false);items.clear();grid.replaceChildren();cursor=null;done=true;sentinel.hidden=true;notice('라이브 서비스 연결을 준비하고 있어요.');rememberRead();return;}
+   setAvailability(page.enabled!==false);
+   if(page.enabled===false){serviceUnavailable();return;}
    const latest=new Map(page.rooms.map(room=>{
     if(room.theme?.expires_at)room.themeUntil=Date.now()+(room.theme.expires_at-room.theme.server_now)*1000;
     return [room.id,room];
    }));
-   if(refreshTop){
-    watchEnd(false);items=latest;cursor=page.next_cursor;done=!cursor;
-    grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');
+   if(fullPage){
+    reconcileFirstPage(latest);items=latest;cursor=page.next_cursor;done=!cursor;
    }else for(const el of visible){
     const id=el.dataset.talkId,room=latest.get(id);
     if(!room){items.delete(id);el.remove();continue;}
     items.set(id,room);
-    const next=document.createElement('template');next.innerHTML=talkingRoomCard(room);
-    el.replaceChildren(...next.content.firstElementChild.childNodes);
+    roomCard(room,el);
    }
-   // An ID-only refresh can remove the last visible card without checking new rooms.
-   if(!refreshTop&&!items.size){reset();return;}
-   notice();expireCovers();ready();rememberRead();
+   expireCovers();ready();rememberRead();
   }catch{
-   if(!active.signal.aborted&&!disposed&&currentViewer()){
+   if(current()){
     readFailed=true;
-    if(!items.size)notice('라이브 목록을 불러오지 못했어요.','error');
     for(const room of items.values())room.followed_profiles=[];
-    grid.querySelectorAll('.talk-follows').forEach(group=>group.remove());
+    grid.querySelectorAll('.talk-follows').forEach(group=>{cardMarkup.delete(group.closest('[data-talk-id]'));group.remove();});
    }
   }
   finally{if(refreshController===active)refreshController=null;}
@@ -244,8 +289,8 @@ function bindTalkingDirectory(root){
  if(saved){
   // Returning from a room may predate a leave or unfollow, even inside the read TTL.
   if(saved.fromRoom)for(const room of items.values())room.followed_profiles=[];
-  search.value=saved.query;syncSearch();root.dataset.enabled=String(saved.enabled!==false);create.disabled=saved.enabled===false;
-  grid.innerHTML=[...items.values()].map(talkingRoomCard).join('');notice(saved.status?.text||'',saved.status?.state||'');expireCovers();
+  search.value=saved.query;syncSearch();setAvailability(saved.enabled!==false);
+  reconcileFirstPage(items);notice(saved.status?.text||'',saved.status?.state||'');expireCovers();
   requestAnimationFrame(()=>{if(!disposed){pane.scrollTo({top:saved.scroll,behavior:'instant'});if(saved.status?.state!=='error')ready();if(saved.fromRoom||readFailed||!fetchedAt||Date.now()-fetchedAt>=20000)void refresh();}});
  }else void load();
 }
