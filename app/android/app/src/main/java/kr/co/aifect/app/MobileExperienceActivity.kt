@@ -185,7 +185,7 @@ internal fun mobileExperienceScript(route:String):String {
  val roomCss="""
  :root{color-scheme:dark;--sidebar:0px}
  html,body{margin:0;max-width:100%;overscroll-behavior:none;background-color:#0c121b}
- .sidebar,.topbar,html body .page-footer,.mobile-navigation,#menu-backdrop,body>.player{display:none!important}
+ .sidebar,.topbar,html body .page-footer,.mobile-navigation,#menu-backdrop,#player,body>.player{display:none!important}
  body.voice-room-open .page-wrap,.page-wrap:has(.voice-room){width:100%!important;margin:0!important;min-height:0!important}
  #main:has(>.voice-room){width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
  /* Restore the server-selected room background for either room mode when the
@@ -217,6 +217,24 @@ internal fun mobileExperienceScript(route:String):String {
    background-position:center center!important;
    background-repeat:no-repeat!important;
    background-size:cover!important;
+ }
+ /* On Android the Activity has already inset the WebView above system bars.
+    The website reserves room for mobile bottom navigation, which is hidden in
+    this Activity. Keep the composer 8px from the actual WebView edge, without
+    overriding the site's live keyboard/IME layout when it is raised. */
+ @media(max-width:800px){
+  #main[data-room-focus] > .voice-room[data-voice-room]:not([data-room-keyboard]),
+  #main[data-room-entered] > .voice-room[data-voice-room]:not([data-room-keyboard]){
+    --voice-viewport:100dvh!important;
+    --room-height:100dvh!important;
+    --room-pad-end:8px!important;
+    height:100dvh!important;
+    padding-bottom:8px!important;
+  }
+  #main[data-room-focus] > .voice-room[data-voice-room]:not([data-room-keyboard]) #voice-content .voice-chat-panel,
+  #main[data-room-entered] > .voice-room[data-voice-room]:not([data-room-keyboard]) #voice-content .voice-chat-panel{
+    padding-bottom:0!important;
+  }
  }
  /* The key selector is available for an active singer, never the idle room. */
  .voice-room.live-karaoke-room:not([data-live-phase]) .room-key,
