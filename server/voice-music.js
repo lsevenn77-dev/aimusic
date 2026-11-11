@@ -1,3 +1,4 @@
+import {hash} from './auth.js';
 import {artworkURL} from './track-artwork.js';
 import {one,rows,run,json,fail,now} from './db.js';
 import {VISIBLE,trackList,published} from './catalog.js';
@@ -36,7 +37,14 @@ export async function voiceMusicRoute(req,env,user,room,action,b,call){
  }
  if(action==='music'){
   if(req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');
+  // The room coordinator already deduplicates identical commands atomically.
+  // Two host tabs adding the same song at this queue revision share that key.
+  if(b.operation==='enqueue'&&state.music?.queue?.some(t=>t.id===b.track_id))return json(state);
   const track=b.operation==='enqueue'?await roomTrack(env,b.track_id):undefined;
+  if(track&&b.queue_revision!==undefined){
+   if(b.queue_revision!==state.music.revision)fail(409,'재생목록이 변경됐어요. 곡을 다시 선택해주세요.');
+   b.request_id=await hash(JSON.stringify([room,generation,b.queue_revision,track.id]));
+  }
   return json(await call('music',{...b,track}));
  }
  if(!['GET','HEAD'].includes(req.method))fail(405,'허용되지 않는 요청이에요.');

@@ -107,6 +107,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   await saveRoomTheme(env,actor,data.room,selected);return json(await decorateRoomResult(env,data));
  }
  if(action==='invite') {
+  const note=String(b.note??'').trim();if(note.length>200)fail(400,'함께 보낼 메시지는 200자까지 입력해주세요.');
   const target=await one(env,"SELECT id,user_id,name FROM producers WHERE id=? AND user_id IN (SELECT id FROM users WHERE provider!='deleted')",identifier(b.profile_id));if(!target)fail(404,'회원이 없어요.');
   await assertUnblocked(env,user,target.user_id);if(!followed.some(p=>p.user_id===target.user_id))fail(403,'팔로우한 회원에게만 방 초대를 보낼 수 있어요.');const rid=requestId(b.request_id);
   const [targetCrews,targetFollows,targetBlocks]=await Promise.all([
@@ -116,7 +117,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   ]);
   const {room:info}=await result(await voiceCall(env,actor,room,'invite',{generation:b.generation,target_id:target.user_id,target_crews:targetCrews.map(c=>c.crew_id),target_followed_hosts:targetFollows.map(p=>p.user_id),target_blocks:targetBlocks.map(p=>p.id)}));
   const dmPath='/api/dm/'+target.id;
-  const response=await socialRoute(new Request(new URL(dmPath,req.url),{method:'POST',body:JSON.stringify({request_id:await hash('voice-invite:'+room+':'+rid),body:`「${info.title}」 ${info.mode==='karaoke'?'라이브 노래방':'토킹룸'}에 초대해요.\nhttps://aifect.co.kr/#${info.mode==='karaoke'?'live':'voice'}/${room}`})}),env,dmPath,user);
+  const response=await socialRoute(new Request(new URL(dmPath,req.url),{method:'POST',body:JSON.stringify({request_id:await hash('voice-invite:'+room+':'+rid),body:`「${info.title}」 ${info.mode==='karaoke'?'라이브 노래방':'토킹룸'}에 초대해요.\nhttps://aifect.co.kr/#${info.mode==='karaoke'?'live':'voice'}/${room}${note?'\n'+note:''}`})}),env,dmPath,user);
   if(response.ok&&ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));return response;
  }
  if(action==='gifts') {

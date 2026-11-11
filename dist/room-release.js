@@ -1,10 +1,11 @@
 function roomRelationButton(member,self,compact=false){
  if(!member?.profile_id||member.id===self||typeof member.following!=='boolean')return '';
- if(member.following){
-  if(compact||!member.follows_viewer)return '';
-  return `<span class="room-mutual" aria-label="맞팔">${voiceGlyph('person')}<svg width="5" height="5" viewBox="0 0 10 10" aria-hidden="true"><path fill="currentColor" d="M5 9 1 5C-1 1 3-1 5 2c2-3 6-1 4 3Z"/></svg></span>`;
- }
- return `<button type="button" class="${compact?'room-follow-add':'room-follow'}" data-voice="room-follow" data-target="${esc(member.id)}" aria-label="${esc(member.name)} 팔로우">${compact?voiceGlyph('plus'):`${voiceGlyph('person')}<small>+</small>`}</button>`;
+ const mutual=member.following&&member.follows_viewer;
+ const state=mutual?'맞팔':member.following?'팔로우 중':'팔로우 가능';
+ const symbol=mutual?'M14.5 14.5h7m-2-2 2 2-2 2M21.5 19.5h-7m2 2-2-2 2-2':member.following?'M14.5 17.3l2.4 2.5 4.5-5':'M18 13.5v7M14.5 17h7';
+ const svg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="6.5" r="3.3"/><path d="M2.8 20v-2.2c0-3.4 2.7-5.9 6.2-5.9 3.1 0 5.1 1.7 5.7 4.4"/><path d="'+symbol+'"/></svg>';
+ if(member.following)return compact?'':'<span class="room-relation" role="img" title="'+state+'" aria-label="'+state+'">'+svg+'</span>';
+ return '<button type="button" class="'+(compact?'room-follow-add':'room-follow')+'" data-voice="room-follow" data-target="'+esc(member.id)+'" title="'+state+'" aria-label="'+esc(member.name)+' 팔로우">'+svg+'</button>';
 }
 function roomInviteButtons(invitation){
  const isSong=invitation.kind==='reservation',prefix=isSong?'reservation':'seat';
@@ -61,12 +62,12 @@ Object.assign(VoiceRoomClient.prototype,{
   const sound=room.querySelector('#voice-sound'),noise=room.querySelector('#voice-noise').closest('section'),extra=sound.querySelector('.voice-audio-extra');
   const preset=room.querySelector('#voice-preset'),strength=room.querySelector('#voice-reverb');
   const group=document.createElement('div');group.className='room-echo-buttons';group.setAttribute('role','group');group.setAttribute('aria-label','에코 스타일');
-  const echoLabels={none:'없음',studio:'스튜디오',hall:'홀',karaoke:'노래방'};
+  const echoLabels={studio:'스튜디오',hall:'홀',karaoke:'노래방'};
   for(const [value,label] of Object.entries(echoLabels)){
    const btn=document.createElement('button');btn.type='button';btn.dataset.echo=value;btn.textContent=label;group.append(btn);
   }
   preset.closest('label').after(group);preset.closest('label').hidden=true;
-  sound.append(noise);extra.hidden=true;
+  extra.append(noise);extra.hidden=false;
   const paint=()=>{
    for(const b of group.children)b.setAttribute('aria-pressed',String(b.dataset.echo===(this.roomEchoOff?'none':preset.value)));
    strength.closest('label').hidden=!!this.roomEchoOff;
@@ -91,14 +92,22 @@ Object.assign(VoiceRoomClient.prototype,{
   }
   if(action==='room-follow'){
    const p=s.members.find(m=>m.id===target);if(!p?.profile_id||p.following)return true;
-   await api('/api/producers/'+encodeURIComponent(p.profile_id)+'/follow','PUT');
+   this.pendingRoomFollows??=new Set();
+   if(this.pendingRoomFollows.has(target))return true;
+   this.pendingRoomFollows.add(target);
+   try{
+    const saved=await api('/api/producers/'+encodeURIComponent(p.profile_id)+'/follow','PUT');
+    const current=this.state?.members.find(member=>member.id===target);
+    if(current){current.following=!!saved.following;current.follows_viewer=!!saved.follows_viewer;this.paint();}
+   }finally{this.pendingRoomFollows.delete(target);}
    window.dispatchEvent(new CustomEvent('aifect:follow-saved',{detail:{kind:'producer',id:p.profile_id,following:true}}));
    await this.refresh();return true;
   }
   if(action==='member-back'){this.closeMemberTools(true);return true;}
   if(['ask-transfer','ask-ban-day'].includes(action)){
    if(!this.canManageMember(target))return true;
-   const box=this.host.querySelector('#voice-member-tools .voice-member-tools'),p=s.members.find(m=>m.id===target);
+   const box=this.actionTrigger?.closest('.voice-member-tools')||this.host.querySelector('#voice-member-tools .voice-member-tools'),p=s.members.find(m=>m.id===target);
+   if(!box||!p)return true;
    box.innerHTML=`<p>${esc(p.name)}님${action==='ask-transfer'?'에게 방장을 넘길까요?':'을 하루 동안 추방할까요?'}</p><button type="button" data-voice="member-back">취소</button><button type="button" data-voice="${action==='ask-transfer'?'transfer-host':'ban-day'}" data-target="${esc(target)}">확인</button>`;
    return true;
   }
@@ -212,7 +221,7 @@ function roomMessages(client,sheet){
   void merge(d.messages).catch(report);
   stream=watchSocialChat('?peer='+encodeURIComponent(id),()=>reload().catch(report),()=>{},()=>{if(current(t))inbox().catch(report);});
  }
- return {inbox,destroy};
+ return {inbox,thread,destroy};
 }
 function bindRoomGiftWallet(form){
  const gift=form.closest('.gift-dialog'),content=gift.parentElement,modal=form.closest('dialog');

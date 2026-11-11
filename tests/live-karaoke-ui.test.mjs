@@ -96,8 +96,8 @@ test('current and queued singers keep the host crown by the nickname and mute on
  const current=nodes.get('#live-current').innerHTML,queue=nodes.get('#live-queue').innerHTML;
  assert.match(current,/<span class="room-member-photo is-muted">/);assert.match(current,/class="room-muted-mark"/);
  assert.match(current,/<strong><span class="room-host-crown"[^>]*>[\s\S]*?<\/span><span>/);
- assert.equal((queue.match(/class="room-host-crown"/g)||[]).length,1);
- assert.equal((queue.match(/class="room-member-photo is-muted"/g)||[]).length,2);
+ assert.equal((queue.match(/class="room-host-crown"/g)||[]).length,0);assert.match(queue,/data-target="guest"/);
+ assert.equal((queue.match(/class="room-member-photo is-muted"/g)||[]).length,1);
  assert.doesNotMatch(current+queue,/<strong[^>]*is-muted/);
 });
 
@@ -289,7 +289,7 @@ test('microphone preparation shows its own clock and disables expired start whil
  let now=100000;const {c,host,nodes}=context({Date:{now:()=>now}});
  c.client={closed:false,host,musicClock:500,liveTrack:'song',liveAudio:{readyState:2,paused:true},liveWords:[{e:1,w:[]}],state:{self:'self',room:{mode:'karaoke'},members:[{id:'self',role:'host',publishing:true,muted:false}],karaoke:{phase:'ready',readyExpiresAt:now+15500,active:{user_id:'self',invitation_id:'nonce',track:{id:'song',title:'곡',artist:'가수',duration:90}},queue:[]}}};
  vm.runInContext('paintLiveKaraoke(client)',c);assert.equal(nodes.get('#live-phase').textContent,'마이크 준비 · 15초');assert.equal(nodes.get('[data-voice="karaoke-begin"]').disabled,false);
- assert.match(nodes.get('#live-actions').innerHTML,/내려가기/);assert.doesNotMatch(nodes.get('#live-actions').innerHTML,/노래 종료/);
+ assert.match(nodes.get('#live-actions').innerHTML,/aria-label="그만 부르기"/);assert.doesNotMatch(nodes.get('#live-actions').innerHTML,/노래 종료/);
  now+=15000;vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('[data-voice="karaoke-begin"]').disabled,true);assert.equal(nodes.get('#live-phase').textContent,'다음 예약자로 이동 중');
 });
 

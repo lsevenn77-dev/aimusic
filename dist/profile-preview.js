@@ -116,6 +116,8 @@ function profilePreviewHTML(d){
 }
 async function openProfilePreview(id,origin){
  closeProfilePreview();const serial=profilePreviewSerial,route=location.hash;
+ const originRoom=typeof voiceController!=='undefined'&&voiceController?.joined?voiceController:null;
+ const roomTicket=originRoom?.settingsTicket;
  await accountReady;const uid=me?.id,revision=followRevision;
  try{
   let d;
@@ -128,7 +130,7 @@ async function openProfilePreview(id,origin){
   if(!d&&id.startsWith('public:')){const member=await api('/api/members/'+encodeURIComponent(id.slice(7)));id='member:'+member.profile.user_id;}
   if(!d&&id.startsWith('member:'))d=await api('/api/member-preview/'+encodeURIComponent(id.slice(7)));
   if(!d)d=await api('/api/producers/'+encodeURIComponent(id)+'/preview');
-  if(serial!==profilePreviewSerial||route!==location.hash||uid!==me?.id)return;
+  if(serial!==profilePreviewSerial||route!==location.hash||uid!==me?.id||originRoom&&(originRoom.closed||originRoom.settingsTicket!==roomTicket))return;
   // A page follow may finish while this preview is loading. Read its new state
   // before allowing an older response to replace the shared follow state.
   if(revision!==followRevision)return openProfilePreview(id,origin);
@@ -154,6 +156,11 @@ async function openProfilePreview(id,origin){
   panel.addEventListener('click',async event=>{
    const target=event.target;
    if(target===panel){const r=panel.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)closeProfilePreview('dismiss');return;}
+   if(room?.joined&&target.closest('[data-preview-message]')&&d.profile.id){
+    event.preventDefault();closeProfilePreview(undefined,false);
+    const sheet=room.host.querySelector('#room-inbox');room.showSheet('room-inbox');room.roomDM?.destroy();
+    room.roomDM=roomMessages(room,sheet);await room.safe(()=>room.roomDM.thread(d.profile.id));return;
+   }
    if(target.closest('[data-preview-close]'))return closeProfilePreview('dismiss');
    const gift=target.closest('[data-preview-gift]');if(gift){closeProfilePreview();await (d.artist?profileGiftDialog(d.profile.producer_id,{artistId:d.profile.id}):profileGiftDialog(gift.dataset.previewGift));return;}
    if(target.closest('[data-preview-report]')){closeProfilePreview();if(!me)return askLogin();toast('사용자 프로필 신고는 아직 연결되지 않았어요. 신고가 접수되지 않았습니다.');return;}

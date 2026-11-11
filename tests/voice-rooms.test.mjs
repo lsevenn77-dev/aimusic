@@ -373,7 +373,7 @@ test('voice gift retries debit once and invitations reuse the DM ledger',async t
  assert.equal('target_id' in a.body.gift,false);
  f.sql.exec("INSERT INTO follows VALUES('owner','producer','other-profile',0)");
  assert.equal((await f.call('/api/voice/rooms/test-room/gifts','POST',{...b,quantity:4})).status,409);
- const invite={profile_id:'other-profile',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room/);
+ const invite={profile_id:'other-profile',note:'함께 들어요',request_id:crypto.randomUUID()};assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',{...invite,note:'a'.repeat(201)})).status,400);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal((await f.call('/api/voice/rooms/test-room/invite','POST',invite)).status,201);assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,1);assert.match(f.sql.prepare('SELECT body FROM direct_messages').get().body,/#voice\/test-room\n함께 들어요$/);
  const list=()=>f.call('/api/notifications?filter=gifts','GET',null,'other');
  let item=(await list()).body.items[0];
  assert.deepEqual([item.source_type,item.source_id,item.gift_source_title,item.href],['talking_room','test-room','Gift room','']);

@@ -31,7 +31,7 @@ function talkGiftPeople(from,to){
 }
 function voiceChatMessageHTML(m,liveMode=false){
  const time='';
- if(m.kind==='system')return `<article class="voice-chat-system"><p>${esc(m.body)}</p>${time}</article>`;
+ if(m.kind==='system')return `<article class="voice-chat-system"><p>${esc(m.body).replace(/라이브 노래방|토킹룸|방 설정/g,word=>'<strong>'+word+'</strong>')}</p>${time}</article>`;
  if(m.kind==='gift'){
   const gift=AifectGifts.giftById(m.gift?.type);
   if(!liveMode){
@@ -166,6 +166,7 @@ class VoiceRoomClient {
   const requests=s.members.filter(p=>p.requested&&(self.role==='host'||(!this.liveMode&&p.id===self.id)));
   const log=$('#voice-chat'),near=log.scrollHeight-log.scrollTop-log.clientHeight<60;
   const entries=messages.map(m=>({key:m.id,html:voiceChatMessageHTML(m,this.liveMode).replace('class="voice-chat-message"','class="voice-chat-message'+(m.user_id===s.self?' is-self':'')+'"')}));
+  if(this.liveMode)entries.unshift({key:'earphone-guide',html:voiceChatMessageHTML({kind:'system',body:'이어폰을 사용하면 반주가 마이크에 섞이지 않아요.'})});
   entries.push(...requests.map(p=>({key:'request:'+p.id,html:voiceChatMessageHTML({kind:'system',body:p.name+'님이 좌석 참여를 신청했어요.'})})));
   patchRoomChildren(log,entries);if(near)log.scrollTop=log.scrollHeight;
   const select=$('#voice-gift-target'),previous=select.value;select.innerHTML=s.members.filter(p=>p.id!==self.id&&p.profile_id).map(p=>`<option value="${esc(p.profile_id)}">${esc(p.name)}</option>`).join('');if([...select.options].some(o=>o.value===previous))select.value=previous;
@@ -194,7 +195,7 @@ class VoiceRoomClient {
   if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt||sender!==this.micSender){raw.getTracks().forEach(t=>t.stop());return;}
   this.pendingStream=raw;if(this.roomAudio?.watchMicrophone(raw)===false){this.pendingStream=null;return;}
   let graph;
-  try{graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);graph.setReverb(this.preferences.reverb);}
+  try{graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveVocalMix);graph.setReverb(this.preferences.reverb);}
   catch(error){raw.getTracks().forEach(t=>t.stop());if(this.pendingStream===raw)this.pendingStream=null;if(error.code==='AUDIO_INTERRUPTED')this.roomAudio?.interrupt('context');throw error;}
   if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt||sender!==this.micSender){graph.close();raw.getTracks().forEach(t=>t.stop());return;}
   try{const enabled=sender.track?.enabled!==false&&!this.roomAudio?.blocked&&!this.roomAudio?.micNeedsGesture;raw.getAudioTracks().forEach(t=>t.enabled=enabled);graph.stream.getAudioTracks()[0].enabled=enabled;await sender.replaceTrack(graph.stream.getAudioTracks()[0]);}catch(e){graph.close();raw.getTracks().forEach(t=>t.stop());throw e;}
@@ -218,6 +219,7 @@ class VoiceRoomClient {
   if(action==='dismiss'){for(const sheet of this.host.querySelectorAll('dialog[open]'))sheet.close();return true;}
   if(action==='copy-link'){await navigator.clipboard.writeText(location.origin+'/#voice/'+this.id);toast('초대 링크를 복사했어요.');return true;}
   if(action==='music-picker'){this.showSheet('voice-music-sheet');return true;}
+  if(action==='music-add-selected'){await this.addSelectedRoomSongs();return true;}
   if(await this.finalAction(action,target))return true;
   if(action.startsWith('music-')){const operation=action.slice(6);await this.musicCommand(operation,operation==='remove'?{index:Number(target)}:operation==='up'?{index:Number(target),to:Number(target)-1}:{});return true;}
   return false;
@@ -231,8 +233,57 @@ class VoiceRoomClient {
   $('#voice-music-search').onsubmit=e=>{e.preventDefault();clearTimeout(this.searchTimer);this.safe(()=>this.searchMusic());};
   $('#voice-music-query').oninput=e=>{clearTimeout(this.searchTimer);this.searchSerial=(this.searchSerial||0)+1;this.searchAbort?.abort();if(!e.isComposing)this.searchTimer=setTimeout(()=>this.safe(()=>this.searchMusic()),220);};
   $('#voice-music-query').oncompositionend=()=>{clearTimeout(this.searchTimer);this.searchTimer=setTimeout(()=>this.safe(()=>this.searchMusic()),220);};
-  $('#voice-music-results').onclick=e=>{const b=e.target.closest('[data-music-track]');if(b&&!b.disabled)this.safe(async()=>{b.disabled=true;try{if(b.dataset.consent==='true'){const checkbox=b.closest('article').querySelector('input[type=checkbox]');if(!checkbox?.checked)throw Error('공동 감상 권리 확인에 동의해주세요.');await this.command('music-consent',{track_id:b.dataset.musicTrack,accept:true});b.dataset.consent='false';b.closest('article').querySelector('.voice-consent')?.remove();this.searchCache?.clear();}await this.musicCommand('enqueue',{track_id:b.dataset.musicTrack});toast('재생목록에 추가했어요. 재생 버튼을 눌러 시작하세요.');}finally{b.disabled=false;}});};
+  this.musicSelection=new Map();
+  $('#voice-music-results').onclick=e=>{
+   const button=e.target.closest('[data-music-track]');if(!button||button.disabled)return;
+   const id=button.dataset.musicTrack;
+   if(this.musicSelection.has(id))this.musicSelection.delete(id);
+   else{
+    const consent=button.closest('article').querySelector('input[type=checkbox]');
+    if(consent&&!consent.checked){consent.focus();toast('공동 감상 권리 확인에 동의해주세요.');return;}
+    this.musicSelection.set(id,!!consent);
+   }
+   this.paintMusicSelection();
+  };
+  $('#voice-music-results').onchange=e=>{
+   if(e.target.type==='checkbox'&&!e.target.checked){
+    const id=e.target.closest('article').querySelector('[data-music-track]').dataset.musicTrack;
+    this.musicSelection.delete(id);this.paintMusicSelection();
+   }
+  };
+  $('#voice-music-sheet').onclose=()=>{
+   if(!$('#voice-music-sheet').open&&!this.addingRoomSongs){this.musicSelection.clear();this.paintMusicSelection();}
+  };
   clearInterval(this.musicTimer);this.musicTimer=setInterval(()=>this.syncMusic(),1500);
+ }
+ paintMusicSelection(){
+  if(!this.musicSelection)return;
+  const queue=new Set((this.state?.music?.queue||[]).map(t=>t.id));
+  const owner=this.state?.self===this.state?.room?.host_id;
+  for(const id of queue)this.musicSelection.delete(id);
+  for(const button of this.host.querySelectorAll('[data-music-track]')){
+   const id=button.dataset.musicTrack,already=queue.has(id),selected=this.musicSelection.has(id);
+   button.disabled=!owner||already||!!this.addingRoomSongs;
+   button.setAttribute('aria-pressed',String(selected));button.textContent=already?'추가됨':selected?'선택됨':'선택';
+  }
+  const footer=this.host.querySelector('#room-playlist-actions');if(!footer)return;
+  footer.hidden=!owner;const add=footer.querySelector('[data-voice="music-add-selected"]');
+  add.disabled=!owner||!this.musicSelection.size||!!this.addingRoomSongs;
+  add.textContent=this.addingRoomSongs?'추가 중…':this.musicSelection.size?this.musicSelection.size+'곡 추가하기':'추가하기';
+ }
+ async addSelectedRoomSongs(){
+  if(this.addingRoomSongs||this.state.self!==this.state.room.host_id||!this.musicSelection.size)return;
+  const sheet=this.host.querySelector('#voice-music-sheet'),epoch=this.epoch;
+  this.addingRoomSongs=true;this.paintMusicSelection();
+  try{
+   for(const [id,needsConsent] of [...this.musicSelection]){
+    if(this.closed||this.epoch!==epoch||this.liveMode||!sheet.open)return;
+    if(needsConsent){await this.command('music-consent',{track_id:id,accept:true});this.searchCache?.clear();this.musicSelection.set(id,false);}
+    if(!this.state.music.queue.some(t=>t.id===id))await this.musicCommand('enqueue',{track_id:id,queue_revision:this.state.music.revision});
+    this.musicSelection.delete(id);
+   }
+   if(sheet.open&&this.talkPopup===sheet){sheet.close();toast('방 플레이리스트에 추가했어요.');}
+  }finally{this.addingRoomSongs=false;if(!sheet.open)this.musicSelection.clear();if(this.host.isConnected)this.paintMusicSelection();}
  }
  async searchMusic(){
   const query=$('#voice-music-query').value.trim(),epoch=this.epoch;
@@ -247,13 +298,14 @@ class VoiceRoomClient {
   if(this.closed||epoch!==this.epoch||serial!==this.searchSerial)return;
   this.diagnostics?.record('musicSearchMs',performance.now()-started);this.searchCache.set(query,{at:Date.now(),data});if(this.searchCache.size>20)this.searchCache.delete(this.searchCache.keys().next().value);
   $('#voice-music-results').dataset.state=data.tracks.length?'results':'empty';$('#voice-results-heading').hidden=false;$('#voice-search-count').textContent='검색 결과 '+data.tracks.length+'개';
-  $('#voice-music-results').innerHTML=data.tracks.map(t=>'<article class="voice-music-result"><img alt="" src="'+esc(trackArtworkPath(t))+'"><div><strong>'+esc(t.title)+'</strong><small>'+trackNickname(t)+'</small></div>'+(!t.room_allowed?'<label class="voice-consent"><input type="checkbox">'+esc(data.consent)+'</label>':'')+'<time>'+time(t.duration)+'</time><button aria-label="'+esc(t.title)+' 추가" class="small-button" data-music-track="'+esc(t.id)+'" data-consent="'+!t.room_allowed+'">'+voiceGlyph('plus')+'</button></article>').join('')||'<p class="quiet">공동 감상이 허용된 곡이 없어요. 본인이 올린 원곡은 검색 후 권리를 확인하고 허용할 수 있어요.</p>';
+  $('#voice-music-results').innerHTML=data.tracks.map(t=>'<article class="voice-music-result"><img alt="" src="'+esc(t.cover||trackArtworkPath(t))+'"><div><strong>'+esc(t.title)+'</strong><small>'+esc(roomTrackCredit(t))+'</small></div>'+(!t.room_allowed?'<label class="voice-consent"><input type="checkbox">'+esc(data.consent)+'</label>':'')+'<time>'+time(t.duration)+'</time><button aria-label="'+esc(t.title)+' 추가" class="small-button" data-music-track="'+esc(t.id)+'" data-consent="'+!t.room_allowed+'">'+voiceGlyph('plus')+'</button></article>').join('')||'<p class="quiet">공동 감상이 허용된 곡이 없어요. 본인이 올린 원곡은 검색 후 권리를 확인하고 허용할 수 있어요.</p>';
+  this.paintMusicSelection();
  }
  async musicCommand(operation,input={}){
   if(this.state?.members.find(m=>m.id===this.state.self)?.role!=='host')throw Error('방장만 음악을 관리할 수 있어요.');
   const epoch=this.epoch,music=this.state.music,command={operation:operation==='up'?'move':operation,...input,request_id:crypto.randomUUID()};
   if(operation==='ended')command.revision=music.revision;
-  const state=await this.command('music',command);if(this.closed||epoch!==this.epoch||state.revision<(this.state?.revision??-1))return;this.state=state;this.paint();if(operation==='clear')$('#voice-music-sheet').scrollTop=0;
+  const state=await this.command('music',command);if(this.closed||epoch!==this.epoch||state.revision<(this.state?.revision??-1))return;this.acceptState(state);if(operation==='clear')$('#voice-music-sheet').scrollTop=0;
  }
  paintMusic(){
   this.paintFinalMusic();this.syncMusic();this.applyListenVolumes();
@@ -374,7 +426,7 @@ class VoiceRoomClient {
   }
  }
  giftSummary(){const form=$('#voice-gift-form');if(!form)return;const g=AifectGifts.GIFT_CATALOG.find(g=>g.id===form.elements.gift_type.value);$('#voice-gift-summary').textContent=`총 ${number((g?.gold||0)*Number(form.elements.quantity.value))} G · 보낸 선물은 취소할 수 없어요.`;}
- async action(action,target,button){this.actionTrigger=button;if(action==='dismiss'&&button){button.closest('dialog')?.close();return;}if(action==='resume-audio'){this.resumeSound(true);return;}if(await this.roomUIAction(action,target))return;if(action==='leave'){if(!this.joined){this.leave(false);location.hash='#voice';return;}this.showSheet('talk-leave');return;}if(action==='confirm-leave'){const destination=this.pendingRoomNavigation||new URL(this.liveMode?'#live':'#voice',location.href).href;void this.leave();voiceController=null;location.href=destination;return;}if(action==='leave'){await this.leave();location.hash='#voice';return;}if(action==='close'){await this.command('close');this.leave(false);location.hash='#voice';return;}if(action==='enable-mic'){this.micIntentRevision=(this.micIntentRevision||0)+1;this.micDesired=true;return this.enableMic(true);}if(action==='mute')return this.mute();if(!this.liveMode&&['request-mic','cancel-mic','approve-mic','reject-mic'].includes(action))return this.talkSeatAction(action,target,button);
+ async action(action,target,button){this.actionTrigger=button;if(action==='dismiss'&&button){button.closest('dialog')?.close();return;}if(action==='resume-audio'){this.resumeSound(true);return;}if(await this.roomUIAction(action,target))return;if(action==='leave'){if(!this.joined){this.leave(false);location.hash='#voice';return;}const isProfile=this.pendingRoomNavigation&&/^#(?:producer|member|artist)\//.test(new URL(this.pendingRoomNavigation).hash);$('#talk-leave-title').textContent=isProfile?'방에서 나가 프로필 페이지로 이동할까요?':'방에서 나갈까요?';this.showSheet('talk-leave');return;}if(action==='confirm-leave'){const destination=this.pendingRoomNavigation||new URL(this.liveMode?'#live':'#voice',location.href).href;await this.leave();if(voiceController===this)voiceController=null;location.href=destination;return;}if(action==='close'){await this.command('close');this.leave(false);location.hash='#voice';return;}if(action==='enable-mic'){this.micIntentRevision=(this.micIntentRevision||0)+1;this.micDesired=true;return this.enableMic(true);}if(action==='mute')return this.mute();if(!this.liveMode&&['request-mic','cancel-mic','approve-mic','reject-mic'].includes(action))return this.talkSeatAction(action,target,button);
   if(action==='request-mic'&&this.state.members.find(p=>p.id===this.state.self)?.role==='host'){this.openSeatPicker(Number(target));return;}if(action==='release-mic'){
    if(this.seatReleasePending)return;this.seatReleasePending=true;
    this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.stopMicrophone();
@@ -501,7 +553,7 @@ class VoiceRoomClient {
    if(stale()||!stream)return;
    this.microphoneSettings=stream.getAudioTracks()[0].getSettings?.()||{};
    stage=this.setMicPhase('processing',stage);this.pendingStream=stream;
-   const processing=await VoiceAudio.microphone(stream,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);if(this.pendingStream===stream)this.pendingStream=null;
+   const processing=await VoiceAudio.microphone(stream,this.preferences.preset,this.preferences.input,this.liveVocalMix);if(this.pendingStream===stream)this.pendingStream=null;
    processing.setReverb(this.preferences.reverb);if(stale()){processing.close();stream.getTracks().forEach(t=>t.stop());return;}
    this.stream=stream;this.processing=processing;
    const pc=this.publisher=this.preparedPublisher||this.pc();this.preparedPublisher=null;const track=processing.stream.getAudioTracks()[0];track.enabled=false;

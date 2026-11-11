@@ -1,4 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
+import {defaultVocalMix,presetMix} from '../shared/vocal-effects.js';
 const source=readFileSync(new URL('../dist/voice-audio.js',import.meta.url),'utf8');
 function fixture(fail=false,workletMode='ready'){
  const nodes=[],contexts=[],modules=[];
@@ -41,7 +42,7 @@ function fixture(fail=false,workletMode='ready'){
    return n;
   }
  }
- const c=vm.createContext({window:fail==='unsupported'?{}:{AudioContext:Context},AudioWorkletNode:Worklet,Uint8Array,
+ const c=vm.createContext({AifectKaraoke:{defaultVocalMix,presetMix},window:fail==='unsupported'?{}:{AudioContext:Context},AudioWorkletNode:Worklet,Uint8Array,
   setTimeout:(fn,delay)=>setTimeout(fn,workletMode==='timeout'&&delay===2000||fail==='resume-timeout'&&delay===500?5:delay),clearTimeout});
  vm.runInContext(source+';this.audio=VoiceAudio;',c);
  return {audio:c.audio,nodes,raw,track,outputTrack,contexts,modules,finishModule:()=>finishModule?.()};

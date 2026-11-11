@@ -4,18 +4,18 @@ import {liveFixture} from './live-karaoke-fixture.mjs';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
-test('room sheets align to the chat start line and width with a 500px maximum',()=>{
+test('room sheets sit inside the visible chat and above the composer',()=>{
  const c=vm.createContext({document:{addEventListener(){}},window:{addEventListener(){}}});
  vm.runInContext(readFileSync(new URL('../dist/room-layout.js',import.meta.url),'utf8'),c);
  const bounds={left:260,right:1360,top:8,bottom:760};
  const settings=c.roomPopupPlacement({left:940,top:184,right:1340,bottom:734},bounds);
- assert.equal(settings.width,400);assert.equal(settings.left,940);assert.equal(settings.top,184);assert.equal(settings.maxHeight,500);
+ assert.equal(settings.width,372);assert.equal(settings.left,954);assert.equal(settings.top,196);assert.equal(settings.maxHeight,528);
  const short=c.roomPopupPlacement({left:940,top:184,right:1340,bottom:440},bounds);
- assert.equal(short.top,184);assert.equal(short.maxHeight,256,'short chat columns constrain the popup, not the other way round');
+ assert.equal(short.top,196);assert.equal(short.maxHeight,234,'short chat columns constrain the popup, not the other way round');
  const clipped=c.roomPopupPlacement({left:940,top:184,right:1340,bottom:900},{...bounds,bottom:480});
- assert.equal(clipped.top,184);assert.equal(clipped.maxHeight,296,'the player and viewport are also hard limits');
+ assert.equal(clipped.top,196);assert.equal(clipped.maxHeight,274,'the player and viewport are also hard limits');
  const offscreen=c.roomPopupPlacement({left:940,top:20,right:1460,bottom:900},{...bounds,top:64});
- assert.equal(offscreen.top,64);assert.equal(offscreen.width,420);assert.equal(offscreen.maxHeight,500);
+ assert.equal(offscreen.top,76);assert.equal(offscreen.width,392);assert.equal(offscreen.maxHeight,560);
  const collapsed=c.roomPopupPlacement({left:940,top:480,right:1340,bottom:480},{...bounds,bottom:480});
  assert.equal(collapsed.maxHeight,0);assert.ok(collapsed.top+collapsed.maxHeight<=480);
 });
@@ -31,11 +31,11 @@ test('settings, people, search, profile and gift use one desktop chat anchor and
  const client={host,talkPopup:sheet,roomBounds:{bottom:760}};
  for(const id of ['voice-room-settings','voice-members','voice-sound','voice-invite-sheet','talk-leave','live-search-sheet','profile-preview','dialog']){
   sheet.id=id;c.positionRoomPopup(client);assert.equal(attrs.has('data-room-anchored'),true,id);
-  assert.equal(values.get('--room-popup-left'),'940px',id);assert.equal(values.get('--room-popup-top'),'184px',id);
-  assert.equal(values.get('--room-popup-width'),'400px',id);assert.equal(values.get('--room-popup-max'),'500px',id);
+  assert.equal(values.get('--room-popup-left'),'954px',id);assert.equal(values.get('--room-popup-top'),'196px',id);
+  assert.equal(values.get('--room-popup-width'),'372px',id);assert.equal(values.get('--room-popup-max'),'528px',id);
  }
  chat={left:850,top:160,right:1210,bottom:460};c.positionRoomPopup(client);
- assert.equal(values.get('--room-popup-left'),'850px');assert.equal(values.get('--room-popup-width'),'360px');assert.equal(values.get('--room-popup-max'),'300px');
+ assert.equal(values.get('--room-popup-left'),'864px');assert.equal(values.get('--room-popup-width'),'332px');assert.equal(values.get('--room-popup-max'),'278px');
  c.innerWidth=390;c.positionRoomPopup(client);assert.equal(attrs.has('data-room-anchored'),false,'the existing mobile CSS retains ownership');
  c.innerWidth=1440;sheet.classList.contains=name=>name==='room-emoji-dock';c.positionRoomPopup(client);
  assert.equal(attrs.has('data-room-anchored'),false,'the inline sticker tray remains part of the composer');

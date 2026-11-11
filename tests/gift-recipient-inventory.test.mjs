@@ -101,13 +101,13 @@ test('room gifts stay on the supplied gold transport and finish without rerender
  await b.c.profileGiftDialog('friend',{id:'heart',quantity:2,roomGift});
  assert.ok(!calls.some(value=>value.path.includes('gift-inventory')));assert.ok(!b.html.includes('data-gift-type="silver-letter"'));
  for(const key of ['frames','themes','inventory'])assert.match(b.html,new RegExp('data-gift-category="'+key+'" aria-pressed="false" disabled'));
- assert.match(b.nodes['#gift-detail'].textContent,/토킹룸에서는 골드/);await b.submit();
+ assert.match(b.nodes['#gift-detail'].textContent,/토킹룸에서는 골드/);await b.submit();assert.equal(sends.length,0);await b.submit();
  assert.equal(sends.length,1);assert.equal(sends[0].profile_id,'friend');assert.equal(sends[0].gift_type,'heart');assert.equal(sends[0].quantity,2);assert.match(sends[0].request_id,/^[a-f0-9-]{36}$/);
  assert.equal(calls.filter(value=>value.method==='POST').length,0);assert.equal(b.renders,0);assert.equal(b.nodes['#dialog'].open,false);
 });
 test('room failures reuse the same request and unavailable recipients never open a direct gift route',async t=>{
  const {b,calls}=await setup(t),sends=[],roomGift={recipients:[{id:'friend',name:'친구'}],async send(payload){sends.push(payload);if(sends.length===1)throw Error('방 연결을 다시 확인해주세요.');return {balance:350,gift:{type:'heart'}};}};
- await b.c.profileGiftDialog('friend',{id:'heart',roomGift});await b.submit();assert.match(b.form.error.textContent,/방 연결/);assert.equal(b.renders,0);await b.submit();assert.deepEqual(sends[0],sends[1]);
+ await b.c.profileGiftDialog('friend',{id:'heart',roomGift});await b.submit();assert.equal(sends.length,0);await b.submit();assert.match(b.form.error.textContent,/방 연결/);assert.equal(b.renders,0);await b.submit();assert.deepEqual(sends[0],sends[1]);
  const before=calls.length;await b.c.profileGiftDialog('outside-room',{id:'heart',roomGift});assert.equal(calls.length,before);assert.equal(b.renders,0);
 });
 test('inventory read failure is explicit and purchases stay usable; guests never fetch private inventory',async()=>{

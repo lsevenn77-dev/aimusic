@@ -7,9 +7,11 @@ function messageInputHTML({rich=false,id='',limit=2000,placeholder='메시지를
  const input=rich?'<div id="'+esc(id)+'" contenteditable="true" enterkeyhint="send" role="textbox" aria-multiline="true" aria-label="메시지" aria-placeholder="'+esc(placeholder)+'" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈" data-dm-editor data-limit="'+limit+'"></div>':'<textarea id="'+id+'" name="body" aria-label="메시지" aria-description="Enter로 보내기, Shift+Enter로 줄바꿈" placeholder="'+esc(placeholder)+'" maxlength="'+limit+'" rows="1" enterkeyhint="send" required></textarea>';
  return '<div class="chat-ui-field talk-message-field">'+input+emoji+'</div>';
 }
-function chatComposerHTML({id,rich=false,inputId='',limit=2000,emojiAttributes='',sendAttributes='',giftAttributes='',placeholder,className='',leadingHTML=''}={}){
+function chatComposerHTML({id,rich=false,inputId='',limit=2000,emojiAttributes='',sendAttributes='',giftAttributes='',room=false,placeholder,className='',leadingHTML=''}={}){
  const emoji=emojiAttributes?chatIconButton('smile','이모티콘','type="button" aria-haspopup="dialog" aria-expanded="false" '+emojiAttributes):'';
- return '<form id="'+id+'" class="chat-ui-composer '+className+'">'+leadingHTML+messageInputHTML({rich,id:inputId,limit,placeholder,emoji})+chatIconButton('send','메시지 보내기','type="submit" '+sendAttributes,'surface')+(giftAttributes?chatIconButton('present','선물 보내기','type="button" '+giftAttributes,'surface'):'')+'<p class="form-error" role="alert"></p></form>';
+ const send=chatIconButton('send','메시지 보내기','type="submit" '+sendAttributes,'surface');
+ const field=messageInputHTML({rich,id:inputId,limit,placeholder,emoji:room?emoji+send:emoji});
+ return '<form id="'+id+'" class="chat-ui-composer '+className+'">'+leadingHTML+field+(room?'':send)+(giftAttributes?chatIconButton('present','선물 보내기','type="button" '+giftAttributes,'surface'):'')+'<p class="form-error" role="alert"></p></form>';
 }
 function resizeChatInput(input){
  // Rich editors grow intrinsically; textareas need their scroll height measured.

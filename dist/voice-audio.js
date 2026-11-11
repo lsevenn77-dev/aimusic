@@ -61,6 +61,6 @@ const VoiceAudio=(()=>{
   }
  }
  function rms(analyser){const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);let energy=0;for(const n of data)energy+=((n-128)/128)**2;return Math.min(1,Math.max(0,Math.sqrt(energy/data.length)-.012)*5);}
- function echoMix(style,intensity){const n=Math.max(0,Math.min(1,intensity)),p={studio:{room:.35,echo:.08,size:.25},hall:{room:.9,echo:.2,size:.85},karaoke:{room:.5,echo:.65,size:.5}}[style]||{room:0,echo:0,size:.5};return {room:p.room*n,echo:p.echo*n,size:p.size,tone:0,noise:2};}
+ function echoMix(style,intensity){return AifectKaraoke.presetMix(AifectKaraoke.defaultVocalMix(),style==='none'?'original':style,intensity);}
  return {presets,microphone,rms,echoMix};
 })();

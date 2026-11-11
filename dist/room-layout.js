@@ -72,12 +72,13 @@ function bindRoomViewport(client){
  }
  measure();
 }
-// Every desktop sheet shares the chat column's start line and width. Content and
-// trigger position must not move the sheet or increase the room's layout height.
-function roomPopupPlacement(chat,bounds){
+// Keep the desktop overlay inside the visible transcript, clear of its composer.
+function roomPopupPlacement(chat,bounds,composerTop=chat.bottom){
  const left=Math.max(bounds.left,chat.left),right=Math.min(bounds.right,chat.right);
- const top=Math.max(bounds.top,chat.top),bottom=Math.min(bounds.bottom,chat.bottom);
- return {left,top,width:Math.max(0,right-left),maxHeight:Math.max(0,Math.min(500,bottom-top))};
+ const bottom=Math.min(bounds.bottom,chat.bottom,composerTop);
+ const top=Math.min(bottom,Math.max(bounds.top,chat.top)+12);
+ const inset=Math.min(14,Math.max(0,(right-left)/2));
+ return {left:left+inset,top,width:Math.max(0,right-left-2*inset),maxHeight:Math.max(0,Math.min(560,bottom-top-10))};
 }
 function positionRoomPopup(client){
  const sheet=client.talkPopup;if(!sheet?.open)return;
@@ -85,7 +86,7 @@ function positionRoomPopup(client){
  const chat=client.host.querySelector('.voice-chat-panel');if(!chat)return;
  const vv=window.visualViewport,room=client.host.getBoundingClientRect(),top=vv?.offsetTop||0,left=vv?.offsetLeft||0;
  const bounds={left:Math.max(left,room.left),right:Math.min(left+(vv?.width||innerWidth),room.right),top,bottom:Math.min(top+(vv?.height||innerHeight),client.roomBounds?.bottom??room.bottom)};
- const placed=roomPopupPlacement(chat.getBoundingClientRect(),bounds);
+ const placed=roomPopupPlacement(chat.getBoundingClientRect(),bounds,client.host.querySelector('#voice-chat-form')?.getBoundingClientRect().top);
  sheet.setAttribute('data-room-anchored','');
  const write=(key,value)=>{const next=value+'px';if(sheet.style.getPropertyValue(key)!==next)sheet.style.setProperty(key,next);};
  write('--room-popup-width',placed.width);write('--room-popup-max',placed.maxHeight);
@@ -130,6 +131,7 @@ function retainRoomRoute(raw){
 document.addEventListener('click',event=>{
  if(event.defaultPrevented||event.button!==0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
  const link=event.target.closest?.('a[href]');
+ if(link?.hasAttribute('data-preview-message')&&link.closest('.voice-room'))return;
  if(!link||link.hasAttribute('download')||(link.target&&link.target!=='_self'))return;
  const url=new URL(link.href,location.href);
  if(url.origin!==location.origin||url.hash==='#main')return;
