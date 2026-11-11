@@ -126,10 +126,10 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "zz_no_such_song_9417")).firstMatch.waitForExistence(timeout: 15))
         let cancel = app.buttons["취소"]; if cancel.exists { cancel.tap() }
         app.buttons["main-tab-2"].tap()
-        XCTAssertTrue(app.staticTexts["목소리를 발견하는 곳"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["노래"].waitForExistence(timeout: 5))
         app.buttons["main-tab-1"].tap()
-        XCTAssertTrue(app.buttons["추천"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["팔로잉"].exists)
+        XCTAssertTrue(app.buttons["라이브"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["랭킹"].exists)
         let messages = app.buttons["main-tab-3"]
         messages.tap()
         if !messages.isSelected { messages.tap() }
@@ -296,6 +296,7 @@ final class AIFECTUITests: XCTestCase {
         app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
         XCTAssertTrue(app.buttons["main-tab-4"].waitForExistence(timeout: 15)); app.buttons["main-tab-4"].tap()
+        app.buttons["인벤토리"].tap()
         let wallet = app.buttons["my-diamonds"]
         for _ in 0..<4 { if wallet.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
         XCTAssertTrue(wallet.isHittable); wallet.tap()
@@ -311,7 +312,7 @@ final class AIFECTUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         for _ in 0..<4 { if app.buttons["my-inventory"].isHittable { break }; app.scrollViews.firstMatch.swipeDown() }
         let gold = app.staticTexts["my-gold-balance"]
-        XCTAssertEqual(gold.label, "1,750개")
+        XCTAssertEqual(gold.label, "1,750 G")
         app.buttons["my-inventory"].tap()
         XCTAssertTrue(app.buttons["해제하기"].waitForExistence(timeout: 8)); app.buttons["해제하기"].tap()
         XCTAssertTrue(app.buttons["장착하기"].waitForExistence(timeout: 8))
@@ -330,9 +331,10 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(app.buttons["main-tab-4"].waitForExistence(timeout: 15)); app.buttons["main-tab-4"].tap()
         let edit = app.buttons["edit-my-profile"]
         XCTAssertTrue(edit.waitForExistence(timeout: 10))
+        app.buttons["인벤토리"].tap()
         XCTAssertTrue(app.staticTexts["my-gold-balance"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["my-gold-balance"].label, "1,250개")
-        XCTAssertEqual(app.staticTexts["my-star-balance"].label, "3개")
+        XCTAssertEqual(app.staticTexts["my-gold-balance"].label, "1,250 G")
+        XCTAssertEqual(app.staticTexts["my-star-balance"].label, "3 S")
         XCTAssertLessThan(abs(edit.frame.midY - app.staticTexts["my-profile-name"].frame.midY), 24)
         edit.tap()
         let name = app.textFields["profile-name"]

@@ -220,7 +220,7 @@ struct AppMenuView: View {
             NavigationLink("인벤토리") { PlayerInventoryView() }
             NavigationLink("오늘의 실버") { RewardsView() }
             NavigationLink("다이아 · 내 정산") { DiamondWalletView() }
-        }.navigationTitle("전체 메뉴")
+        }.accessibilityIdentifier("all-destinations").contentMargins(.bottom, 70, for: .scrollContent).navigationTitle("전체 메뉴")
     }
 }
 

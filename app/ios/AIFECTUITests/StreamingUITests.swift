@@ -39,10 +39,17 @@ final class StreamingUITests: XCTestCase {
         for (i, name) in menu.enumerated() {
             app.buttons["main-tab-0"].tap()
             app.buttons["전체 메뉴"].firstMatch.tap()
-            let item = app.buttons[name].firstMatch
-            for _ in 0..<5 where !item.isHittable { app.swipeUp() }
+            let list = app.descendants(matching: .any)["all-destinations"].firstMatch
+            let item = list.buttons[name].firstMatch
+            for _ in 0..<7 {
+                let mini = app.buttons["재생 화면 열기"].firstMatch
+                let lower = mini.exists ? mini.frame.minY - 8 : app.buttons["main-tab-0"].frame.minY - 8
+                if item.isHittable && item.frame.midY < lower && item.frame.midY > 110 { break }
+                list.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.65)).press(forDuration: 0.05, thenDragTo: list.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.23)))
+            }
             XCTAssertTrue(item.isHittable, name)
             item.tap()
+            if ![0,1,2,4,6].contains(i) { XCTAssertTrue(app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 6), name) }
             capture(app, "menu-\(i)-" + name)
             if ![0,1,2,4,6].contains(i) { back(app); app.buttons["main-tab-0"].tap() }
         }
@@ -128,6 +135,12 @@ final class StreamingUITests: XCTestCase {
         let app = launch(["-streaming-guest", "-streaming-error"])
         app.buttons["main-tab-4"].tap()
         XCTAssertTrue(app.buttons["로그인"].waitForExistence(timeout: 5)); capture(app, "13-signed-out")
+        app.buttons["로그인"].tap()
+        for provider in ["auth.kakao", "auth.apple", "auth.google"] {
+            XCTAssertTrue(app.buttons[provider].waitForExistence(timeout: 8), provider)
+        }
+        capture(app, "13b-provider-choices")
+        app.buttons["닫기"].tap()
         app.buttons["main-tab-2"].tap()
         app.buttons["듀엣참여"].tap()
         XCTAssertTrue(app.buttons["다시 시도"].waitForExistence(timeout: 8))
