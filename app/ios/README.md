@@ -1,5 +1,7 @@
 # AIFECT iPhone 네이티브 앱
 
+[Android 2.5.97 (110) 기준 아이폰 이관 및 Mac 실행 안내](./ANDROID-2.5.97-HANDOFF.md)
+
 **2026-10-19 iOS 1.0.5 (14) 디자인 반영·심사 제출 완료:** `codex/aifect-streaming-first`의 `44abee8`까지 pull하고 [`IOS-HANDOFF-20261018.md`](../design/IOS-HANDOFF-20261018.md)와 [Android 실행 화면](../design/streaming-20261018/index.html)을 SwiftUI에 반영했다. 홈·커뮤니티·부르기·메시지·마이의 상단 바, 카드 비율, 2열 바로가기, 레벨 바, 선택 색상과 미니플레이어를 실행 캡처로 비교·수정했다. 출시 소스는 `fb82833`이며 Apple 업로드와 00:25 KST 최종 심사 제출을 완료하고 **심사 대기 중** 상태를 확인했다. 이 버전의 실제 iPhone 설치는 아직 하지 않았다.
 
 - 홈 4탭, 공통 보관함/좋아요/최근 감상/플레이리스트, 서버 순위 변동 표시, 듀엣 초대와 원곡·파트 ID, 메시지 검색·필터·페이지 복귀를 연결했다. 녹음·인증·StoreKit 엔진을 새 UI 때문에 교체하지 않았다.

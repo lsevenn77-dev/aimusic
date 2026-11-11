@@ -179,7 +179,12 @@ struct GiftWalletView: View {
                         HStack(spacing: 10) {
                             ForEach(wallet.data.objects("gifts"), id: \.selfID) { gift in
                                 Button { choose(gift) } label: {
-                                    VStack(spacing: 5) { Image(systemName: "gift.fill").font(.title2); Text(gift.string("name")).font(.caption); Text("\(gift.int("gold")) G").font(.caption2).foregroundStyle(.secondary) }
+                                    VStack(spacing: 5) {
+                                        RemoteArtwork(url: CatalogArtwork.giftURL(gift), catalog: true) { $0.resizable().scaledToFit() } placeholder: { Image(systemName: "gift.fill").font(.title2) }
+                                            .frame(width: 32, height: 32).accessibilityHidden(true)
+                                        Text(gift.string("name")).font(.caption)
+                                        Text("\(gift.int("gold")) G").font(.caption2).foregroundStyle(.secondary)
+                                    }
                                         .frame(width: 86, height: 82).background(Brand.card, in: RoundedRectangle(cornerRadius: 14))
                                 }.disabled(wallet.busy || !wallet.remaining.isEmpty || wallet.data.int("balance") < gift.int("gold"))
                             }

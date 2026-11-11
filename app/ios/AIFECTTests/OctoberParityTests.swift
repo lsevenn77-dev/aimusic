@@ -15,6 +15,27 @@ final class OctoberParityTests: XCTestCase {
         if let stream = request.httpBodyStream { stream.open(); defer { stream.close() }; var buffer = [UInt8](repeating: 0, count: 4096); while stream.hasBytesAvailable { let count = stream.read(&buffer, maxLength: buffer.count); if count <= 0 { break }; data.append(buffer, count: count) } }
         return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
     }
+    func testCatalogUsesServerGiftArtworkAndRejectsInvalidLocations() {
+        let gift: [String: Any] = ["assetPaths": ["image": "http://example.org/old.png"], "assets": ["thumbnail": "/media/gifts/new.webp?v=2"]]
+        XCTAssertEqual(CatalogArtwork.giftURL(gift)?.absoluteString, "https://aifect.co.kr/media/gifts/new.webp?v=2")
+        XCTAssertEqual(CatalogArtwork.url("https://cdn.example.org/new.webp")?.host, "cdn.example.org")
+        for raw in ["//example.org/a", "relative.gif", "data:image/png,test", "/assets/%2e%2e/private", "https://user@cdn.example.org/file", "/art#section"] {
+            XCTAssertNil(CatalogArtwork.url(raw), raw)
+        }
+    }
+    func testFrameAcceptsNewAndLegacyProfileFormats() {
+        let display: [String: Any] = ["overlay": "/media/frame.webp", "effect": "/media/spark.webp", "scale": 1.9]
+        let frame = CatalogFrame(person: ["profile_frame_display": display, "profile_frame_artwork": "/assets/old.png"])
+        XCTAssertEqual(frame.overlay?.path, "/media/frame.webp")
+        XCTAssertEqual(frame.effect?.path, "/media/spark.webp")
+        XCTAssertEqual(frame.scale, 1.6, accuracy: 0.001)
+        let stored = CatalogFrame(person: ["profile_frame_display": #"{"overlay":"/media/frame.webp","scale":1.1}"#])
+        XCTAssertEqual(stored.overlay, frame.overlay)
+        XCTAssertEqual(stored.scale, 1.1, accuracy: 0.001)
+        let legacy = CatalogFrame(person: ["profile_frame_artwork": "/assets/old.png"])
+        XCTAssertEqual(legacy.overlay?.path, "/assets/old.png")
+        XCTAssertEqual(legacy.scale, 1.26, accuracy: 0.001)
+    }
     func testHistoryCannotResurrectClearedOrPreMembershipMessages() {
         let old: [[String: Any]] = [["id": "cleared", "sequence": 4], ["id": "keep", "sequence": 9, "body": "old"]]
         let incoming: [[String: Any]] = [["id": "cleared", "sequence": 4], ["id": "keep", "sequence": 9, "body": "updated"], ["id": "new", "sequence": 11]]

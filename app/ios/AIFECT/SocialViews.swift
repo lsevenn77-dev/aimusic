@@ -458,11 +458,6 @@ struct ProfilePhoto: View {
     var kind = "producer"
     var size: CGFloat = 64
     var showsLevel = true
-    private var frameURL: URL? {
-        let path = person.string("profile_frame_artwork")
-        guard path.hasPrefix("/assets/"), !path.contains("..") else { return nil }
-        return try? Endpoint.url(path)
-    }
     private var url: URL? {
         let id = person.string("id", fallback: person.string("profile_id"))
         guard !id.isEmpty, !person.string("image_version").isEmpty else { return nil }
@@ -475,13 +470,20 @@ struct ProfilePhoto: View {
         }
         .frame(width: size, height: size).background(AifectDesign.raised).clipShape(Circle())
         .overlay {
-            if kind == "producer" && !person.string("profile_frame").isEmpty {
-                if let frameURL {
-                    RemoteArtwork(url: frameURL) { $0.resizable().scaledToFit() } placeholder: { Color.clear }
-                        .frame(width: size * 1.26, height: size * 1.26).allowsHitTesting(false).accessibilityHidden(true)
-                } else if person.string("profile_frame") == "crew-outline" {
-                    Image("ClanAetherFrame").resizable().scaledToFit().frame(width: size * 1.26, height: size * 1.26).allowsHitTesting(false).accessibilityHidden(true)
+            if kind == "producer" {
+                let frame = CatalogFrame(person: person)
+                ZStack {
+                    if let url = frame.overlay {
+                        RemoteArtwork(url: url, catalog: true) { $0.resizable().scaledToFit() } placeholder: { Color.clear }
+                        if let effect = frame.effect {
+                            RemoteArtwork(url: effect, catalog: true) { $0.resizable().scaledToFit() } placeholder: { Color.clear }
+                        }
+                    } else if person.string("profile_frame") == "crew-outline" {
+                        Image("ClanAetherFrame").resizable().scaledToFit()
+                    }
                 }
+                .frame(width: size * frame.scale, height: size * frame.scale)
+                .allowsHitTesting(false).accessibilityHidden(true)
             }
         }
         .overlay(alignment: .bottomLeading) {
