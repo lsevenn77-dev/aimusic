@@ -111,3 +111,26 @@ struct FullLyricsView: View {
         }.navigationTitle("가사").task { do { let track = try await API.shared.call("/api/tracks/\(Endpoint.pathID(song.id))").object("track"); access = track.string("lyrics_access"); lyrics = LyricsDisplay.plainText(track.string("lyrics")) } catch { self.error = error.localizedDescription } }
     }
 }
+
+struct CatalogDirectory: View {
+    let artists: Bool
+    @State private var rows: [[String: Any]] = []
+    @State private var error: String?
+    @State private var reload = 0
+    var body: some View {
+        List {
+            ForEach(rows, id: \.selfID) { row in
+                if artists {
+                    NavigationLink { ProfilePage(id: row.selfID, kind: "artist") } label: { PersonRow(person: row) }
+                } else { NavigationLink(row.string("name")) { PlaylistView(id: row.selfID, title: row.string("name")) } }
+            }
+            if let error { RetryCard(message: error) { reload += 1 } }
+        }.navigationTitle(artists ? "AI 아티스트" : "공개 플레이리스트")
+            .task(id: reload) {
+                do {
+                    let data = try await API.shared.call(artists ? "/api/catalog" : "/api/playlists")
+                    rows = data.objects(artists ? "artists" : "playlists"); error = nil
+                } catch { self.error = error.localizedDescription }
+            }
+    }
+}

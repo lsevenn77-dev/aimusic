@@ -113,7 +113,7 @@ struct StreamingSongRow: View {
                     }.frame(maxWidth: .infinity, alignment: .leading)
                 }.contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("\(song.title) 상세")
-            Button { model.player.play(song, queue: queue) } label: { Image(systemName: "play.circle.fill").font(.title2).frame(width: 44, height: 44) }.buttonStyle(.plain).foregroundStyle(Color(aifectHex: 0xC3C5F1)).accessibilityLabel("\(song.title) 재생")
+            ArtworkPlayButton(diameter: 32, label: "\(song.title) 재생") { model.player.play(song, queue: queue) }
             if sing { SingSongButton(song: song, title: "부르기", color: AifectDesign.violet, compact: true) }
             else { NavigationLink { SongMenuView(song: song).streamingPage() } label: { Image(systemName: "ellipsis").foregroundStyle(AifectDesign.muted).frame(width: 44, height: 44) }.accessibilityLabel("\(song.title) 더보기") }
         }.padding(.leading, 8).padding(.vertical, 6).background(StreamStyle.panel, in: RoundedRectangle(cornerRadius: 12))
@@ -200,27 +200,26 @@ struct OriginalSongPage: View {
 }
 
 struct AppMenuView: View {
+    @EnvironmentObject private var model: AppModel
     var body: some View {
         List {
-            Section("음악") {
-                NavigationLink("음악 검색") { SearchView() }
-                NavigationLink("인기 차트") { PopularChartView() }
-                NavigationLink("장르 · 아티스트 · 공개 플레이리스트") { ExploreView() }
-                NavigationLink("내 보관함") { LibraryView(initialSelection: 3) }
-            }
-            Section("함께 부르기") {
-                NavigationLink("부를 곡 찾기") { SingCatalogView() }
-                NavigationLink("듀엣 참여하기") { DuetInvitationsView() }
-                NavigationLink("내 초안") { RecordingDraftsView() }
-                NavigationLink("크루") { CrewsView() }
-            }
-            Section("내 활동") {
-                NavigationLink("내 작업 · 스튜디오") { CreatorWorkView() }
-                NavigationLink("알림 기록") { ActivityHistoryView() }
-                NavigationLink("골드 · 실버") { GiftWalletView() }
-                NavigationLink("다이아 · 정산") { DiamondWalletView() }
-                NavigationLink("계정 · 설정") { AccountView() }
-            }
+            Button("홈") { model.selectTab(0) }
+            Button("플레이") { model.selectTab(2) }
+            Button("커뮤니티") { model.selectTab(1) }
+            NavigationLink("선물함") { GiftWalletView() }
+            Button("메시지") { model.selectTab(3) }
+            NavigationLink("알림 기록") { ActivityHistoryView() }
+            Button("마이") { model.selectTab(4) }
+            NavigationLink("내 보관함") { LibraryView(initialSelection: 3) }
+            NavigationLink("스튜디오") { CreatorWorkView() }
+            NavigationLink("인기 차트") { PopularChartView() }
+            NavigationLink("기분 · 장르별 발견") { SearchView() }
+            NavigationLink("공개 플레이리스트") { CatalogDirectory(artists: false) }
+            NavigationLink("AI 아티스트") { CatalogDirectory(artists: true) }
+            NavigationLink("팔로우") { FollowingListView() }
+            NavigationLink("인벤토리") { PlayerInventoryView() }
+            NavigationLink("오늘의 실버") { RewardsView() }
+            NavigationLink("다이아 · 내 정산") { DiamondWalletView() }
         }.navigationTitle("전체 메뉴")
     }
 }

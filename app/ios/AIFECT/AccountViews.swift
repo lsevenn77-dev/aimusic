@@ -1,3 +1,4 @@
+import KakaoSDKUser
 import SwiftUI
 import AuthenticationServices
 
@@ -34,14 +35,25 @@ struct LoginView: View {
                 }
                 if !model.providers.isEmpty {
                     Section {
-                        Button {
-                            error = nil
-                            Task {
-                                do { try await model.browserLogin() }
-                                catch let failure as ASWebAuthenticationSessionError where failure.code == .canceledLogin {}
-                                catch { self.error = error.localizedDescription }
+                        if model.providers.contains("kakao") {
+                            let hasTalk = UserApi.isKakaoTalkLoginAvailable()
+                            Button(hasTalk ? "카카오톡으로 로그인" : "카카오계정으로 로그인 (웹 인증)") {
+                                authenticate { try await model.kakaoLogin(usingTalk: hasTalk) }
                             }
-                        } label: { Label("Apple · Google · 카카오로 로그인", systemImage: "person.crop.circle.badge.checkmark") }.disabled(model.authBusy)
+                            .accessibilityIdentifier("auth.kakao")
+                        }
+                        if model.providers.contains("apple") {
+                            Button("Apple로 로그인 (시스템 인증 창)") {
+                                authenticate { try await model.browserLogin(provider: "apple") }
+                            }
+                            .accessibilityIdentifier("auth.apple")
+                        }
+                        if model.providers.contains("google") {
+                            Button("Google 로그인 (브라우저)") {
+                                authenticate { try await model.browserLogin() }
+                            }
+                            .accessibilityIdentifier("auth.google")
+                        }
                         #if DEBUG
                         if ProcessInfo.processInfo.isiOSAppOnMac {
                             Button("Mac 개발 테스트: 브라우저로 로그인") {
@@ -59,8 +71,9 @@ struct LoginView: View {
                             }
                         }
                         #endif
-                        Text("안전한 시스템 인증 창에서 계정을 선택합니다.").font(.caption).foregroundStyle(.secondary)
+
                     }
+                    .disabled(model.authBusy)
                 }
                 if model.authBusy { ProgressView("로그인 중") }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
@@ -74,6 +87,15 @@ struct LoginView: View {
                     loadingMethods = true; defer { loadingMethods = false }
                     do { try await model.loadMe() } catch { self.error = error.localizedDescription }
                 }
+        }
+    }
+    private func authenticate(_ action: @escaping @MainActor () async throws -> Void) {
+        error = nil
+        Task {
+            do { try await action() }
+            catch is CancellationError {}
+            catch let failure as ASWebAuthenticationSessionError where failure.code == .canceledLogin {}
+            catch { self.error = error.localizedDescription }
         }
     }
 }

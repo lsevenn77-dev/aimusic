@@ -468,3 +468,141 @@ struct RecordingDraftsView: View {
     }
     private func reload() { drafts = model.userID.map { RecordingDraft.list(owner: $0) } ?? [] }
 }
+
+struct MobilePlayView: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var mode = "노래"
+    @State private var section = "추천곡"
+    @State private var kind = "all"
+    @State private var query = ""
+    @State private var rows: [[String: Any]] = []
+    @State private var next: Int?
+    @State private var error: String?
+    @State private var busy = true
+    @State private var retry = 0
+    @State private var space: SiteWorkspace?
+    private var sections: [String] {
+        switch mode {
+        case "더빙": return ["작품찾기", "더빙참여", "내 작업"]
+        case "둘러보기": return ["추천", "팔로잉", "인기", "최신"]
+        default: return ["추천곡", "듀엣참여", "최신곡", "내 초안"]
+        }
+    }
+    private var path: String {
+        if mode == "더빙" { return section == "더빙참여" ? "/api/play/participate" : "/api/dubbing/projects?tab=" + (section == "내 작업" ? "mine" : "open") }
+        if mode == "둘러보기" {
+            let tab = ["추천":"recommended","팔로잉":"following","인기":"popular","최신":"latest"][section] ?? "recommended"
+            return "/api/play/works?tab=" + tab + "&type=" + kind
+        }
+        return ["듀엣참여":"/api/duets","최신곡":"/api/community?kind=cover"][section] ?? "/api/karaoke"
+    }
+    private var gated: Bool { model.user == nil && ["내 초안","내 작업","팔로잉"].contains(section) }
+    private var visible: [[String: Any]] {
+        rows.filter { row in
+            let song = Song(row)
+            if section == "듀엣참여" && (song.duetOpen != true || (model.userID != nil && model.userID == song.ownerID)) { return false }
+            if section == "최신곡" && !song.isCover { return false }
+            return query.isEmpty || ["title","name","artist","producer","ownerName","owner_name"].contains { row.string($0).localizedCaseInsensitiveContains(query) }
+        }
+    }
+    var body: some View {
+        VStack(spacing: 0) {
+            CatalogHeader(title: "플레이")
+            CatalogTabs(names: ["노래","더빙","둘러보기"], selection: $mode)
+            HStack(spacing: 6) {
+                ForEach(sections, id: \.self) { name in
+                    Button { section = name } label: {
+                        VStack(spacing: 5) {
+                            Image(systemName: ["추천곡":"sparkles","듀엣참여":"person.2","최신곡":"clock","내 초안":"square.and.pencil","작품찾기":"magnifyingglass","더빙참여":"mic","내 작업":"folder","추천":"sparkles","팔로잉":"person.2","인기":"chart.bar","최신":"clock"][name] ?? "music.note")
+                            Text(name).font(.caption)
+                        }.frame(maxWidth: .infinity, minHeight: 60)
+                            .background(section == name ? AifectDesign.violet.opacity(0.14) : Brand.card, in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(section == name ? AifectDesign.violet : AifectDesign.stroke))
+                    }.buttonStyle(.plain)
+                }
+            }.padding(.horizontal, 16).padding(.vertical, 8)
+            if gated { LoginPrompt(title: "로그인하고 내 작업을 이어가세요."); Spacer() }
+            else if section == "내 초안" { RecordingDraftsView() }
+            else {
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 16) {
+                        if mode == "더빙" {
+                            Button("더빙 만들기", systemImage: "plus") {
+                                if model.user == nil { model.showLogin = true }
+                                else { space = SiteWorkspace(area: "dubbing", key: "new", title: "더빙 만들기") }
+                            }.buttonStyle(ParityPill(filled: true))
+                        }
+                        TextField(mode == "노래" ? "곡 · 아티스트 · 제작자 검색" : "작품 · 창작자 검색", text: $query)
+                            .textFieldStyle(.roundedBorder)
+                        if mode == "둘러보기" {
+                            Picker("작품 유형", selection: $kind) {
+                                Text("전체").tag("all"); Text("솔로").tag("solo"); Text("듀엣").tag("duet"); Text("더빙").tag("dubbing")
+                            }.pickerStyle(.menu)
+                        }
+                        if let error { RetryCard(message: error) { retry += 1 } }
+                        let list = visible
+                        LazyVGrid(columns: [GridItem(.flexible()),GridItem(.flexible())], alignment: .leading, spacing: 16) {
+                            ForEach(list, id: \.selfID) { row in
+                                card(row, queue: list.filter { !isDubbing($0) }.map(Song.init))
+                            }
+                        }
+                        if busy { ProgressView() }
+                        else if list.isEmpty && error == nil { Text(query.isEmpty ? "아직 표시할 작품이 없어요" : "검색 결과가 없어요") }
+                        if let next { Button("더 보기") { Task { await fetch(offset: next) } }.disabled(busy) }
+                    }.padding(16)
+                }.scrollDismissesKeyboard(.interactively)
+            }
+        }.onChange(of: mode) { _, _ in section = sections[0]; query = "" }
+            .onChange(of: section) { _, _ in query = "" }
+            .task(id: "\(model.userID ?? "guest")|\(mode)|\(section)|\(kind)|\(retry)") {
+                rows = []; next = nil; error = nil
+                if !gated && section != "내 초안" { await fetch(offset: 0) }
+            }.navigationDestination(item: $space) { WorkspacePage(space: $0) }
+    }
+    private func isDubbing(_ row: [String: Any]) -> Bool {
+        mode == "더빙" || row.string("type") == "dubbing" || row.string("kind") == "dubbing"
+    }
+    @ViewBuilder private func card(_ row: [String: Any], queue: [Song]) -> some View {
+        let song = Song(row)
+        if isDubbing(row) {
+            Button { space = SiteWorkspace(area: "dubbing", key: row.string("id"), title: row.string("title")) } label: {
+                VStack(alignment: .leading) {
+                    let genres = (row["genres"] as? [String]) ?? (row.object("options")["genres"] as? [String]) ?? []
+                    let slug = ["SF":"sf","이세계물":"isekai","판타지":"fantasy","사극":"historical","로맨스":"romance","액션":"action","코미디":"comedy","첩보":"spy","공포":"horror","스릴러":"thriller","미스터리":"mystery","일상":"daily","감동":"moving"][genres.first ?? ""] ?? "daily"
+                    Color.clear.aspectRatio(1, contentMode: .fit).overlay {
+                        RemoteArtwork(url: URL(string: "/assets/dubbing-genres/\(slug).webp", relativeTo: Endpoint.origin)?.absoluteURL) { $0.resizable().scaledToFill() } placeholder: { Image(systemName: "waveform") }
+                    }.clipShape(RoundedRectangle(cornerRadius: 12))
+                    Text(row.string("title")).font(.headline).lineLimit(2)
+                    Text(row.string("owner_name", fallback: row.string("ownerName"))).font(.caption)
+                }
+            }.buttonStyle(.plain)
+        } else {
+            VStack(alignment: .leading, spacing: 5) {
+                ZStack(alignment: .bottomTrailing) {
+                    NavigationLink(value: song) { AlbumArtwork(song: song).aspectRatio(1, contentMode: .fit) }
+                    ArtworkPlayButton(diameter: 32, label: song.title + " 먼저 듣기") { model.player.play(song, queue: queue) }
+                }
+                NavigationLink(value: song) { Text(song.title).font(.headline).lineLimit(2) }
+                Text(song.credit).font(.caption).foregroundStyle(AifectDesign.muted)
+                if mode == "노래" { SingSongButton(song: song, title: section == "듀엣참여" ? "듀엣 참여" : "노래하기", compact: true) }
+            }.buttonStyle(.plain)
+        }
+    }
+    @MainActor private func fetch(offset: Int) async {
+        let target = path, account = model.userID
+        busy = true
+        do {
+            let data = try await API.shared.call(target + (target.contains("?") ? "&" : "?") + "offset=\(offset)")
+            try Task.checkCancellation()
+            guard path == target, account == model.userID else { return }
+            let incoming = data.objects(mode == "더빙" ? "projects" : mode == "둘러보기" ? "works" : "tracks")
+            var seen = Set<String>()
+            rows = ((offset == 0 ? [] : rows) + incoming).filter { !$0.selfID.isEmpty && seen.insert($0.selfID).inserted }
+            next = data["nextOffset"] as? Int
+            error = nil; busy = false
+        } catch {
+            guard !Task.isCancelled, path == target, account == model.userID else { return }
+            self.error = error.localizedDescription; busy = false
+        }
+    }
+}

@@ -1,3 +1,5 @@
+import KakaoSDKUser
+import KakaoSDKAuth
 import SwiftUI
 import AuthenticationServices
 import CryptoKit
@@ -223,7 +225,27 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         if (error as? APIError)?.status == 401 { API.shared.clearSession(); clearPrivate(); user = nil; showLogin = true }
         notice = error.localizedDescription
     }
-    func browserLogin(useExternalBrowser: Bool = false) async throws {
+    func kakaoLogin(usingTalk: Bool) async throws {
+        guard !authBusy else { return }
+        authBusy = true
+        defer { authBusy = false }
+        let accessToken: String = try await withCheckedThrowingContinuation { continuation in
+            let completion: (OAuthToken?, Error?) -> Void = { token, error in
+                if let token { continuation.resume(returning: token.accessToken) }
+                else { continuation.resume(throwing: error ?? CancellationError()) }
+            }
+            if usingTalk {
+                UserApi.shared.loginWithKakaoTalk(completion: completion)
+            } else {
+                UserApi.shared.loginWithKakaoAccount(completion: completion)
+            }
+        }
+        _ = try await API.shared.call("/api/auth/kakao/token", method: "POST", body: ["accessToken": accessToken])
+        try await loadMe()
+        await loadLibrary()
+        showLogin = false
+    }
+    func browserLogin(provider: String? = nil, useExternalBrowser: Bool = false) async throws {
         guard !authBusy else { return }
         var bytes = [UInt8](repeating: 0, count: 32)
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { throw APIError(status: 0, message: "로그인을 시작하지 못했습니다.") }
@@ -231,7 +253,11 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         let challenge = SHA256.hash(data: Data(verifier.utf8)).map { String(format: "%02x", $0) }.joined()
         authBusy = true; defer { authBusy = false }
         let start = try await API.shared.call("/api/auth/mobile/start", method: "POST", body: ["challenge": challenge])
-        guard let url = URL(string: start.string("url")), url.scheme == "https", url.host == "aifect.co.kr" else { throw URLError(.badURL) }
+        guard var parts = URLComponents(string: start.string("url")), parts.scheme == "https", parts.host == "aifect.co.kr",
+              parts.path == "/api/auth/mobile/browser", !start.string("ticket").isEmpty,
+              parts.queryItems?.first(where: { $0.name == "ticket" })?.value == start.string("ticket") else { throw URLError(.badURL) }
+        if provider == "apple" { parts.queryItems?.append(URLQueryItem(name: "provider", value: "apple")) }
+        guard let url = parts.url else { throw URLError(.badURL) }
         let callback: URL
         #if DEBUG
         if useExternalBrowser && ProcessInfo.processInfo.isiOSAppOnMac {

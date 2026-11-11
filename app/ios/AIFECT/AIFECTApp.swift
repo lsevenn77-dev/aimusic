@@ -1,9 +1,25 @@
 import SwiftUI
+import KakaoSDKCommon
+import KakaoSDKAuth
 
 @main
 struct AIFECTApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
+    init() {
+        if let key = Bundle.main.object(forInfoDictionaryKey: "KakaoNativeAppKey") as? String {
+            KakaoSDK.initSDK(appKey: key)
+        }
+    }
+    private func handleURL(_ url: URL) {
+        if AuthApi.isKakaoTalkLoginUrl(url) {
+            _ = AuthController.handleOpenUrl(url: url)
+            return
+        }
+        #if DEBUG
+        model.macBrowserCallback(url)
+        #endif
+    }
     var body: some Scene {
         WindowGroup {
             #if DEBUG
@@ -15,10 +31,11 @@ struct AIFECTApp: App {
                 AdIntegrationTestView()
             } else {
                 RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua)
-                    .onOpenURL { model.macBrowserCallback($0) }
+                    .onOpenURL(perform: handleURL)
             }
             #else
             RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua)
+                .onOpenURL(perform: handleURL)
             #endif
         }
     }
@@ -27,22 +44,22 @@ struct AIFECTApp: App {
 /// Android parity values from NativeScreens.kt. This is an importable UI foundation,
 /// not a replacement for the iOS project's navigation, audio or account services.
 enum AifectDesign {
-    static let background = Color(aifectHex: 0x0C121B)
-    static let surface = Color(aifectHex: 0x131B26)
-    static let raised = Color(aifectHex: 0x1C2738)
-    static let stroke = Color(aifectHex: 0x354568)
+    static let background = Color(aifectHex: 0x0B1024)
+    static let surface = Color(aifectHex: 0x1B2136)
+    static let raised = Color(aifectHex: 0x1F1F26)
+    static let stroke = Color(aifectHex: 0xB7B6FF).opacity(0.32)
     static let text = Color(aifectHex: 0xF3F6F8)
     static let secondaryText = Color(aifectHex: 0xCDD2DC)
     static let muted = Color(aifectHex: 0xA9B0C1)
-    static let pink = Color(aifectHex: 0xF397DC)
+    static let pink = Color(aifectHex: 0xD6BAFF)
     static let mint = Color(aifectHex: 0xAEEBDF)
-    static let violet = Color(aifectHex: 0xD6BAFF)
+    static let violet = Color(aifectHex: 0xB7B6FF)
     static let iconBackground = Color(aifectHex: 0x0F1117)
     static let gutter: CGFloat = 20
     static let cardRadius: CGFloat = 22
     static let artworkRadius: CGFloat = 16
     static let touchTarget: CGFloat = 48
-    static let mainTabs = ["홈", "커뮤니티", "부르기", "메시지", "마이"]
+    static let mainTabs = ["홈", "커뮤니티", "플레이", "메시지", "마이"]
     static let communityTabs = ["추천", "커버", "듀엣", "크루", "팔로잉"]
 }
 
@@ -61,7 +78,7 @@ struct AifectWordmark: View {
             .renderingMode(.original)
             .resizable()
             .scaledToFit()
-            .frame(width: 112, height: 30).padding(.vertical, 8)
+            .frame(width: 120, height: 29).padding(.vertical, 8)
             .accessibilityLabel("AIFECT")
     }
 }
@@ -109,8 +126,8 @@ struct RootView: View {
         NavigationStack(path: $model.navigationPath) {
             TabView(selection: $model.selectedTab) {
                 page { ListenView() }.tag(0)
-                page { CommunityView() }.tag(1)
-                page { SingView() }.tag(2)
+                page { LiveCommunity() }.tag(1)
+                page { MobilePlayView() }.tag(2)
                 page { MessagesView() }.tag(3)
                 page { MyMusicView() }.tag(4)
             }
@@ -138,6 +155,9 @@ struct RootView: View {
                     MainBottomBar(selection: $model.selectedTab)
                 }.background(Brand.background)
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIScene.didEnterBackgroundNotification)) { _ in
+            UIApplication.shared.ignoreSnapshotOnNextApplicationLaunch()
         }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
@@ -167,7 +187,7 @@ struct RootView: View {
         VStack(spacing: 0) {
             if model.selectedTab == 0 || model.selectedTab == 4 { StreamingRootHeader(account: $account) }
             content().id(model.userID ?? "guest")
-        }.scrollContentBackground(.hidden).background(Brand.background)
+        }.scrollContentBackground(.hidden).background { CatalogBackdrop() }
     }
 }
 

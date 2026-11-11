@@ -270,21 +270,22 @@ private struct CommunityPlayControl: View {
 struct MainBottomBar: View {
     @EnvironmentObject private var model: AppModel
     @Binding var selection: Int
-    private let icons = ["house", "person.2", "mic", "bubble.left", "person"]
+    private let icons = ["house", "person.2", "play", "bubble.left", "person"]
     var body: some View {
         HStack(spacing: 0) {
             ForEach(0..<5) { index in
                 Button { model.selectTab(index) } label: {
                     VStack(spacing: 4) {
-                        Image(systemName: icons[index]).font(.system(size: 20)).frame(width: 58, height: 30)
+                        Image(systemName: icons[index] + (selection == index && index != 2 ? ".fill" : "")).font(.system(size: 21)).frame(width: 30, height: 30)
+                            .background(index == 2 ? AifectDesign.secondaryText.opacity(0.12) : .clear, in: Circle())
                             .foregroundStyle(selection == index ? StreamStyle.purple : AifectDesign.muted)
-                            .shadow(color: selection == index ? StreamStyle.purple.opacity(0.7) : .clear, radius: 7)
+
                             .overlay(alignment: .topTrailing) { if index == 3 && model.inboxUnread > 0 { Text(model.inboxUnread > 99 ? "99+" : "\(model.inboxUnread)").font(.system(size: 10, weight: .bold)).foregroundStyle(Brand.background).padding(3).background(StreamStyle.purple, in: Capsule()).offset(x: 2, y: -3) } }
-                        Text(AifectDesign.mainTabs[index]).font(.system(size: 12, weight: .semibold)).foregroundStyle(selection == index ? AifectDesign.violet : AifectDesign.muted)
+                        Text(AifectDesign.mainTabs[index]).font(.system(size: 11, weight: selection == index ? .bold : .regular)).foregroundStyle(selection == index ? AifectDesign.violet : AifectDesign.muted)
                     }.frame(maxWidth: .infinity).frame(height: 62).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("main-tab-\(index)").accessibilityLabel(AifectDesign.mainTabs[index]).accessibilityAddTraits(selection == index ? .isSelected : [])
             }
-        }.padding(.horizontal, 10).background(Brand.background)
+        }.frame(minHeight: 66).background(LinearGradient(colors: [Color(aifectHex: 0x181B34), Brand.background, Color(aifectHex: 0x20213B)], startPoint: .leading, endPoint: .trailing), in: UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24))
     }
 }
 
@@ -293,18 +294,20 @@ struct StreamingRootHeader: View {
     @Binding var account: Bool
     var body: some View {
         HStack(spacing: 0) {
-            if model.selectedTab == 0 { AifectWordmark() }
-            else { Text("마이").font(.title2.bold()).foregroundStyle(AifectDesign.text) }
+            if model.selectedTab == 0 {
+                NavigationLink(value: AppRoute.menu) { AifectWordmark() }.accessibilityLabel("전체 메뉴")
+            } else { AifectWordmark() }
             Spacer(minLength: 8)
             if model.selectedTab == 0 {
                 NavigationLink { ActivityHistoryView().streamingPage() } label: { Image(systemName: "bell").frame(width: 44, height: 44) }.accessibilityLabel("알림 기록")
                 NavigationLink { SearchView().navigationTitle("검색").streamingPage() } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }.accessibilityLabel("검색")
-                NavigationLink(value: AppRoute.menu) { Image(systemName: "line.3.horizontal").frame(width: 44, height: 44) }.accessibilityLabel("전체 메뉴")
+
             } else {
-                Button { account = true } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("계정 설정")
+                NavigationLink { ActivityHistoryView().streamingPage() } label: { Image(systemName: "bell").frame(width: 44, height: 44) }.accessibilityLabel("알림 기록")
+                Button { account = true } label: { Image(systemName: "line.3.horizontal").frame(width: 44, height: 44) }.accessibilityLabel("계정 설정")
             }
         }.font(.system(size: 21)).foregroundStyle(AifectDesign.secondaryText).buttonStyle(.plain)
-            .padding(.leading, 14).padding(.trailing, 4).frame(minHeight: 52).background(Brand.background)
+            .padding(.leading, 14).padding(.trailing, 4).frame(minHeight: 52)
     }
 }
 

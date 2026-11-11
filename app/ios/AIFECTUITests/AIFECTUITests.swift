@@ -200,10 +200,12 @@ final class AIFECTUITests: XCTestCase {
         let giftShot = XCTAttachment(screenshot: app.screenshot()); giftShot.name = "Feedback gift sheet depleted balance"; giftShot.lifetime = .keepAlways; add(giftShot)
         app.buttons["닫기"].tap()
         app.buttons["main-tab-4"].tap()
-        let balance = app.staticTexts["my-star-balance"]
-        XCTAssertTrue(balance.waitForExistence(timeout: 5))
-        let depleted = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "0개"), object: balance)
-        XCTAssertEqual(XCTWaiter.wait(for: [depleted], timeout: 5), .completed)
+        app.buttons["인벤토리"].tap()
+        let silverValue = app.descendants(matching: .any).matching(NSPredicate(
+            format: "(identifier == %@ AND label == %@) OR (label CONTAINS %@ AND label CONTAINS %@)",
+            "my-star-balance", "0 S", "실버", "0 S"
+        )).firstMatch
+        XCTAssertTrue(silverValue.waitForExistence(timeout: 8))
         app.buttons["feedback-menu"].tap(); app.buttons["녹음 편집 검증"].tap()
         let description = app.textFields["이 녹음에 대한 소개"]
         for _ in 0..<10 { if description.exists && description.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }

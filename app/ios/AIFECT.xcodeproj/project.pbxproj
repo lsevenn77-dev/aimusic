@@ -49,6 +49,7 @@
 		BA5882EC3DA5C72592E86AC2 /* RecordingStudio.swift in Sources */ = {isa = PBXBuildFile; fileRef = 854C65D04DBD75D2E6E5FE40 /* RecordingStudio.swift */; };
 		BA7D76FF4E55E3B7D9BB0DEC /* StudioViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3678DFEB2FBF4FBEC41F2CD9 /* StudioViews.swift */; };
 		BB8BDE3FE50CCA8B75226450 /* SDWebImageWebPCoder in Frameworks */ = {isa = PBXBuildFile; productRef = 42EF6E17CB7F23DE16E688B2 /* SDWebImageWebPCoder */; };
+		7A21B001C017000000000001 /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = 7A21B001C017000000000002 /* KakaoSDKUser */; };
 		BD35FA45162E081A9D06B361 /* AIFECTTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A801C0AB73F938B3871397A /* AIFECTTests.swift */; };
 		C02F06460CA1A202A0291F7F /* AIFECTTesting.storekit in Resources */ = {isa = PBXBuildFile; fileRef = A1315480CDA512E7BA60E766 /* AIFECTTesting.storekit */; };
 		C11A28E35F7A3F6101495802 /* DiamondWallet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FBEDBAA3A5EDBAB499CB10B /* DiamondWallet.swift */; };
@@ -58,6 +59,8 @@
 		E2D56A056209E55C424EB29C /* SocialViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A348F7A00237063BB365A0 /* SocialViews.swift */; };
 		E5FC76EF2F29117983FBC45D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B76FEEC38A029273DA5D2BC3 /* Assets.xcassets */; };
 		F60205F847AC10A2E84791C7 /* ListenDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34CD4F1B3B984E2E9ACFFEFA /* ListenDesign.swift */; };
+		784E74927F94AFA96E723427 /* LiveCommunity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8001A70DFAEFC308165BFA0 /* LiveCommunity.swift */; };
+		9E5F7B619236C823E748011A /* PlatformControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8711381D64AE8959EF6909DB /* PlatformControls.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -97,6 +100,8 @@
 		2B84E44B9057A8D8AD61A7C6 /* ParityComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ParityComponents.swift; sourceTree = "<group>"; };
 		2E3A2C5B55D64F223A38422D /* StreamingUIFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingUIFixture.swift; sourceTree = "<group>"; };
 		34CD4F1B3B984E2E9ACFFEFA /* ListenDesign.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListenDesign.swift; sourceTree = "<group>"; };
+		C8001A70DFAEFC308165BFA0 /* LiveCommunity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveCommunity.swift; sourceTree = "<group>"; };
+		8711381D64AE8959EF6909DB /* PlatformControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlatformControls.swift; sourceTree = "<group>"; };
 		36460A9A3FD421535F6747F8 /* AIFECTUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFECTUITests.swift; sourceTree = "<group>"; };
 		3678DFEB2FBF4FBEC41F2CD9 /* StudioViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioViews.swift; sourceTree = "<group>"; };
 		38A348F7A00237063BB365A0 /* SocialViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialViews.swift; sourceTree = "<group>"; };
@@ -146,6 +151,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BB8BDE3FE50CCA8B75226450 /* SDWebImageWebPCoder in Frameworks */,
+				7A21B001C017000000000001 /* KakaoSDKUser in Frameworks */,
 				19C6B4BD4CEBB40BFA1BE57E /* FirebaseMessaging in Frameworks */,
 				5E522CFDC3F0FA17190B1A05 /* GoogleMobileAds in Frameworks */,
 			);
@@ -198,6 +204,8 @@
 				EC4204A2EA4BE158F9C71043 /* GoogleService-Info.plist */,
 				FB308431F1DB03578D7A7044 /* Info.plist */,
 				34CD4F1B3B984E2E9ACFFEFA /* ListenDesign.swift */,
+				C8001A70DFAEFC308165BFA0 /* LiveCommunity.swift */,
+				8711381D64AE8959EF6909DB /* PlatformControls.swift */,
 				8487E4C5C14C8B80EEEC6BD0 /* ListeningAds.swift */,
 				E45F3CA0D63EDAD91C3B20D5 /* MusicPlayer.swift */,
 				13C3FCF203F10E41046C6DB3 /* MusicSurface.swift */,
@@ -297,6 +305,7 @@
 			name = AIFECT;
 			packageProductDependencies = (
 				42EF6E17CB7F23DE16E688B2 /* SDWebImageWebPCoder */,
+				7A21B001C017000000000002 /* KakaoSDKUser */,
 				0517E330F0CED31371C594F7 /* FirebaseMessaging */,
 				4CBE70788E01E9BCF5C5A74B /* GoogleMobileAds */,
 			);
@@ -382,6 +391,7 @@
 				0542988E5EF3603D4688E343 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				906F7661AEDB793E78137631 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				2E2C27029AE291B4630B23F6 /* XCRemoteSwiftPackageReference "SDWebImageWebPCoder" */,
+				7A21B001C017000000000003 /* XCRemoteSwiftPackageReference "KakaoSDKUser" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = DB6D8A09EB49C709C939E808 /* Products */;
@@ -461,6 +471,8 @@
 				22DCD36FFDF1B4C261739162 /* FeedbackUIFixture.swift in Sources */,
 				2C464FB3EFD6D8C908ED8BCF /* GiftViews.swift in Sources */,
 				F60205F847AC10A2E84791C7 /* ListenDesign.swift in Sources */,
+				784E74927F94AFA96E723427 /* LiveCommunity.swift in Sources */,
+				9E5F7B619236C823E748011A /* PlatformControls.swift in Sources */,
 				2DA1D0FE5EFB478ABA9A4024 /* ListeningAds.swift in Sources */,
 				561D0633BA2C1F3834D5F425 /* MusicPlayer.swift in Sources */,
 				B57E59EDB3D6462C253295E4 /* MusicSurface.swift in Sources */,
@@ -546,7 +558,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 3KJFQS7Q83;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -693,7 +705,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 3KJFQS7Q83;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -845,6 +857,14 @@
 				minimumVersion = 0.15.0;
 			};
 		};
+		7A21B001C017000000000003 /* XCRemoteSwiftPackageReference "KakaoSDKUser" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kakao/kakao-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.25.0;
+			};
+		};
 		906F7661AEDB793E78137631 /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
@@ -865,6 +885,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2E2C27029AE291B4630B23F6 /* XCRemoteSwiftPackageReference "SDWebImageWebPCoder" */;
 			productName = SDWebImageWebPCoder;
+		};
+		7A21B001C017000000000002 /* KakaoSDKUser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7A21B001C017000000000003 /* XCRemoteSwiftPackageReference "KakaoSDKUser" */;
+			productName = KakaoSDKUser;
 		};
 		4CBE70788E01E9BCF5C5A74B /* GoogleMobileAds */ = {
 			isa = XCSwiftPackageProductDependency;

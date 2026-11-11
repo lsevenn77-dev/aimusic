@@ -20,6 +20,11 @@ enum StreamingUIFixture {
         case "/api/me": result = ["user": args.contains("-streaming-guest") ? NSNull() : ["id": "fixture-user", "name": "검증 계정"], "providers": ["google", "apple", "kakao"]]
         case "/api/catalog": result = ["tracks": [original], "chart": ["comparison": ["available": true]]]
         case "/api/community": result = ["tracks": [cover, original]]
+        case "/api/voice/status": result = ["enabled": true]
+        case "/api/voice/public-rooms": result = ["rooms": [["id":"fixture-talk","mode":"talk","title":"테스트 토킹룸"]]]
+        case "/api/community/rankings": result = ["rows": []]
+        case "/api/dubbing/projects", "/api/play/participate": result = ["projects": [["id":"fixture-project","title":"더빙 연습"]]]
+        case "/api/play/works": result = ["works": [original, cover]]
         case "/api/karaoke": result = ["tracks": [original]]
         case "/api/duets":
             if args.contains("-streaming-error") { status = 503; result = ["error": "듀엣 목록을 불러오지 못했어요."] }
