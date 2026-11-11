@@ -56,4 +56,4 @@ xcodebuild -project app/ios/AIFECT.xcodeproj -scheme AIFECT -configuration Debug
 | 프로필·상점 | `CatalogAssets.kt`, `PlayerProgress.kt`, `GiftScreens.kt` | 카탈로그 이미지, 선물 목록·잔액, 프로필 액자와 방 배경 |
 | 녹음·게시 | `karaoke/KaraokeActivity.java` | 녹음 효과, 재시작, 기존 초안 복원, 편집 후 게시 진입 |
 
-기준 커밋에서 Android Debug 단위 검사 27개 클래스의 112개 테스트가 모두 통과했다(실패·오류·건너뜀 0). iOS 스킴과 패키지 잠금 파일을 읽고, 수정한 Swift 파일 4개가 해당 Xcode 타깃의 소스에 포함된 것을 확인했다. Xcode 빌드·XCTest 실행과 Mac 설치본의 업데이트·실행은 남아 있다.
+기준 커밋에서 Android Debug 단위 검사 27개 클래스의 112개 테스트가 모두 통과했다(실패·오류·건너뜀 0). iOS 스킴과 패키지 잠금 파일을 읽고, 수정한 Swift 파일 4개가 해당 Xcode 타깃의 소스에 포함된 것을 확인했다. 이후 iPhone 17 Pro 시뮬레이터에 1.0.5 (15)를 설치해 실행했고 단위 검사 64개를 통과했다. 화면별 구현 차이와 캡처는 [화면 대조](ANDROID-IOS-SCREEN-AUDIT.md)에 기록했다. 실물 iPhone 로그인·오디오·구매 검증은 남아 있다.
