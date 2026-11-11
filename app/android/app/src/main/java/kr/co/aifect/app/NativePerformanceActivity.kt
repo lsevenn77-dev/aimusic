@@ -57,7 +57,7 @@ class NativePerformanceActivity:ComponentActivity(){
       val id=route.substringAfter('/')
       LaunchedEffect(id){try{ContextCompat.startForegroundService(this@NativePerformanceActivity,Intent(this@NativePerformanceActivity,NativeVoiceService::class.java).putExtra("room",id))}catch(e:Exception){error=e.message}}
       BackHandler{leave()}
-      if(engine?.roomId==id)NativeVoiceScreen(engine!!,::leave)else{NativeAudioHeader("토킹룸",::leave);Text(error?:voiceError?:"대화에 연결하는 중…",Modifier.padding(20.dp))}
+      if(engine?.roomId==id)NativeVoiceScreen(engine!!,::leave){target->stopService(Intent(this@NativePerformanceActivity,NativeVoiceService::class.java));route=target}else{NativeAudioHeader("토킹룸",::leave);Text(error?:voiceError?:"대화에 연결하는 중…",Modifier.padding(20.dp))}
      }
      else->NativeDubbingScreen(api,route,{route=it},{finish()})
     }

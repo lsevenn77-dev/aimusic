@@ -229,6 +229,13 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
     IconButton({menu=true}){Icon(Icons.Outlined.MoreHoriz,"더빙 메뉴")}
     DropdownMenu(menu,{menu=false},containerColor=Panel){
      DropdownMenuItem(text={Text("새로고침")},onClick={menu=false;task{reload()}})
+     project?.takeIf{p->sound.optString("state")=="ready"&&p.optJSONArray("roles").objects().size in 2..6&&(p.optString("visibility")=="public"||p.optBoolean("isOwner"))}?.let{p->
+      // A live room for this work: everyone takes a role and records their own lines in turn.
+      DropdownMenuItem(text={Text("실시간 더빙방 열기")},onClick={menu=false;task{
+       val created=api.call("/api/voice/rooms","POST",payload("request_id" to requestIdentity(),"title" to "","visibility" to "public","mode" to "dubbing","max_members" to p.optJSONArray("roles").objects().size,"background" to "night"))
+       val roomId=created.getJSONObject("room").getString("id");DubbingRoomLaunch.pending[roomId]=id;navigate("voice/$roomId")
+      }},modifier=Modifier.testTag("dubbing-open-live-room"))
+     }
      project?.takeIf{it.optBoolean("isOwner")}?.let{p->
       if(p.optBoolean("canEdit"))DropdownMenuItem(text={Text("대본 수정")},onClick={menu=false;editing=true})
       DropdownMenuItem(text={Text(if(p.optString("visibility")=="private")"배역 모집 시작" else "모집 중지")},onClick={menu=false;confirm=if(p.optString("visibility")=="private")"publish" else "unpublish"})

@@ -98,7 +98,8 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
   playerError?.let{error(it)};background.pause();background.seekTo(position);awaitReady()
  }
  @SuppressLint("MissingPermission")
- fun record(url:String,line:JSONObject,drafts:DubbingDrafts,complete:(JSONObject)->Unit,failure:(String)->Unit){
+ /** [lineStartAt] = wall-clock ms when the line begins (a live dubbing room's shared cue); null counts in from now. */
+ fun record(url:String,line:JSONObject,drafts:DubbingDrafts,complete:(JSONObject)->Unit,failure:(String)->Unit,lineStartAt:Long?=null){
   if(running.value)return
   stop();running.value=true;stopRequested=false;elapsed.value=0.0
   job=scope.launch{
@@ -110,13 +111,15 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
     check(input.state==AudioRecord.STATE_INITIALIZED){"마이크를 연결하지 못했어요."}
     // 3 · 2 · 1 runs over the sound just before the line, so the effects lead into the take.
     // When the line starts too early for three seconds of sound, the missing part is counted in silence.
-    val silent=max(0.0,DUBBING_COUNT_IN-(window.start-from));val begin=System.nanoTime();var playing=false
-    withTimeout(((window.start-from+silent)*1000+15000).toLong()){
+    val lead=window.start-from
+    val target=lineStartAt?:(System.currentTimeMillis()+(max(DUBBING_COUNT_IN,lead)*1000).toLong());var playing=false
+    check(target-System.currentTimeMillis()>-1000){"신호를 늦게 받았어요. 이 대사를 다시 시작해주세요."}
+    withTimeout((max(0L,target-System.currentTimeMillis())+15000)){
      while(true){
       playerError?.let{error(it)}
-      val waited=(System.nanoTime()-begin)/1e9
-      if(!playing&&waited>=silent){background.play();playing=true}
-      val remaining=if(playing)window.start-background.currentPosition/1000.0 else silent-waited+(window.start-from)
+      val untilLine=(target-System.currentTimeMillis())/1000.0
+      if(!playing&&untilLine<=lead){if(untilLine<lead-.05)background.seekTo(((window.start-untilLine.coerceAtLeast(0.0))*1000).toLong());background.play();playing=true}
+      val remaining=if(playing)window.start-background.currentPosition/1000.0 else untilLine
       if(remaining<=.015)break
       countdown.value=if(remaining<=DUBBING_COUNT_IN)ceil(remaining).toInt().coerceAtLeast(1) else 0
       status.value=if(countdown.value>0)"시작 준비" else "효과음 듣는 중 · 곧 3 · 2 · 1이 시작돼요"
@@ -133,6 +136,23 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
     playerError?.let{error(it)};take.put("duration",samples/48000.0);drafts.commit(line.getString("id"),take);accepted=true;status.value="녹음 완료 · 임시 저장으로 한 번에 올릴 수 있어요";complete(take)
    }catch(e:Exception){if(e is CancellationException)status.value="녹음이 중단됐어요. 완료한 대사는 그대로 남아 있어요." else{status.value="녹음 실패";failure(e.message?:"녹음을 확인해주세요.")}}
    finally{if(!closed)background.pause();recorder?.run{runCatching{stop()};release()};recorder=null;running.value=false;capturing.value=false;countdown.value=0;level.value=0f;if(!accepted)output.delete()}
+  }
+ }
+ /** A listener in a live dubbing room hears the same effects under someone else's line. */
+ fun playLine(url:String,line:JSONObject,lineStartAt:Long){
+  if(running.value)return
+  stop()
+  job=scope.launch{
+   try{
+    val window=dubbingWindow(line);val from=dubbingLeadIn(window);ready(url,(from*1000).toLong())
+    val startAt=lineStartAt-((window.start-from)*1000).toLong()
+    delay((startAt-System.currentTimeMillis()).coerceAtLeast(0))
+    val late=(System.currentTimeMillis()-startAt).coerceAtLeast(0)
+    if(late>0)background.seekTo((from*1000).toLong()+late)
+    background.play()
+    while(isActive&&background.currentPosition<(window.end*1000).toLong()){playerError?.let{error(it)};delay(50)}
+   }catch(e:Exception){if(e !is CancellationException)status.value=e.message?:"효과음을 재생하지 못했어요."}
+   finally{if(!closed)background.pause()}
   }
  }
  fun finishLine(){stopRequested=true;if(!capturing.value)stop()}
