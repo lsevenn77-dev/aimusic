@@ -325,7 +325,7 @@ function decorationInventorySectionsHTML(d){
 }
 function fillRoomThemeChoices(form,options,selected='navy'){
  if(!options.themes)return;
- form.querySelector('.voice-backgrounds').innerHTML=options.themes.filter(t=>t.selectable).map(t=>`<label data-background="${esc(t.paid?'navy':t.sku)}" class="${t.paid?'decoration-theme-choice':''} ${t.selectable?'':'is-locked'}">${t.paid?`<img src="${esc(t.assetPaths.roomCard)}" alt="">`:''}<input type="radio" name="background" value="${esc(t.sku)}" ${t.sku===selected?'checked':''} ${t.selectable?'':'disabled'}><span>${esc(t.name)}${t.paid?'<small>'+(t.selectable?'보유 중':'잠김 · 미보유/만료')+'</small>':''}</span></label>`).join('');
+ form.querySelector('.voice-backgrounds').innerHTML=options.themes.filter(t=>t.selectable).map(t=>`<label data-background="${esc(t.paid?'navy':t.sku)}" class="${t.assetPaths?.roomCard?'decoration-theme-choice':''} ${t.selectable?'':'is-locked'}">${t.assetPaths?.roomCard?`<img src="${esc(t.assetPaths.roomCard)}" alt="">`:''}<input type="radio" name="background" value="${esc(t.sku)}" ${t.sku===selected?'checked':''} ${t.selectable?'':'disabled'}><span>${esc(t.name)}${t.paid?'<small>'+(t.selectable?'보유 중':'잠김 · 미보유/만료')+'</small>':''}</span></label>`).join('');
  if(!options.themes.some(t=>t.sku===selected&&t.selectable))form.elements.background.value='navy';
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-decoration]');if(!b)return;e.preventDefault();void decorationDialog(b.dataset.decoration,b.closest('[data-decoration-card]')?.querySelector('[data-decoration-period]')?.value||'P7D');});

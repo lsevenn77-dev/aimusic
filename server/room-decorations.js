@@ -1,5 +1,5 @@
 import {one,rows,run,now,fail} from './db.js';
-import {DECORATIONS,FREE_ROOM_THEMES,DEFAULT_ROOM_THEME} from '../shared/decorations.js';
+import {DECORATIONS,FREE_ROOM_THEMES,DEFAULT_ROOM_THEME,roomUIMode} from '../shared/decorations.js';
 import {activeDecorationSQL} from './decorations.js';
 import {playerColumnsSQL} from './player.js';
 export async function roomThemeChoices(env,uid){
@@ -7,7 +7,7 @@ export async function roomThemeChoices(env,uid){
  // activated, still-valid paid theme, then offer the free backgrounds.
  const owned=await rows(env,`SELECT item_key,expires_at,(SELECT max(created) FROM decoration_redemptions dr WHERE dr.active_inventory_id=pi.id) activated,(SELECT max(rowid) FROM decoration_redemptions dr WHERE dr.active_inventory_id=pi.id) activation_order FROM player_inventory pi WHERE user_id=? AND ${activeDecorationSQL('pi')} ORDER BY COALESCE(activated,pi.granted_at) DESC,COALESCE(activation_order,0) DESC,pi.id`,uid);
  const paid=Object.values(DECORATIONS).filter(p=>p.kind==='TALKING_ROOM_THEME'&&owned.some(i=>i.item_key===p.sku)).sort((a,b)=>owned.findIndex(i=>i.item_key===a.sku)-owned.findIndex(i=>i.item_key===b.sku)).map(p=>({...p,paid:true,selectable:true,expires_at:owned.find(i=>i.item_key===p.sku).expires_at}));
- return [...paid,...FREE_ROOM_THEMES.map(p=>({...p,selectable:true,paid:false}))];
+ return [...paid,...FREE_ROOM_THEMES.map(p=>({...p,uiMode:roomUIMode(p),selectable:true,paid:false}))];
 }
 export async function assertRoomTheme(env,uid,sku){
  if(FREE_ROOM_THEMES.some(t=>t.sku===sku))return sku;
@@ -27,13 +27,13 @@ export async function resolveRoomDecoration(env,room){
  const current=setting&&(!room.theme_sku||setting.revision===(room.settings_revision||0));
  const sku=(current&&setting.sku)||room.theme_sku||room.background||DEFAULT_ROOM_THEME;
  const free=FREE_ROOM_THEMES.find(t=>t.sku===sku);
- if(free)return {sku,assets:free.assetPaths||null,expires_at:0,server_now:now()};
+ if(free)return {sku,uiMode:roomUIMode(free),assets:free.assetPaths||null,expires_at:0,server_now:now()};
  const product=Object.hasOwn(DECORATIONS,sku)?DECORATIONS[sku]:null;
  const entitlement=product?.kind==='TALKING_ROOM_THEME'?await one(env,`SELECT expires_at FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')}`,room.host_id,sku):null;
- if(entitlement)return {sku,assets:product.assetPaths,expires_at:entitlement.expires_at,server_now:now()};
+ if(entitlement)return {sku,uiMode:roomUIMode(product),assets:product.assetPaths,expires_at:entitlement.expires_at,server_now:now()};
  // Persist fallback, so a later renewal does not silently re-equip an expired theme.
  if(current)await run(env,`UPDATE room_decorations SET sku=?,updated=? WHERE room_id=? AND host_id=? AND revision=? AND sku=? AND NOT EXISTS(SELECT 1 FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')})`,DEFAULT_ROOM_THEME,now(),room.id,room.host_id,setting.revision,sku,room.host_id,sku);
- return {sku:DEFAULT_ROOM_THEME,assets:null,expires_at:0,server_now:now()};
+ return {sku:DEFAULT_ROOM_THEME,uiMode:'dark',assets:null,expires_at:0,server_now:now()};
 }
 export async function decorateRoomResult(env,data){
  if(data.room)data={...data,room:{...data.room,theme:await resolveRoomDecoration(env,data.room)}};
@@ -66,8 +66,9 @@ export async function directoryRoomThemes(env,rooms){
  for(const {id,host_id,revision,sku,expires_at} of settings){
   const paid=Object.hasOwn(DECORATIONS,sku)&&DECORATIONS[sku].kind==='TALKING_ROOM_THEME';
   const active=paid&&expires_at>server_now;
-  themes.set(id,{sku:active||FREE_ROOM_THEMES.some(t=>t.sku===sku)?sku:DEFAULT_ROOM_THEME,
-   assets:active?DECORATIONS[sku].assetPaths:(FREE_ROOM_THEMES.find(t=>t.sku===sku)?.assetPaths||null),expires_at:active?expires_at:0,server_now});
+  const product=active?DECORATIONS[sku]:FREE_ROOM_THEMES.find(theme=>theme.sku===sku);
+  themes.set(id,{sku:product?.sku||DEFAULT_ROOM_THEME,uiMode:roomUIMode(product),
+   assets:product?.assetPaths||null,expires_at:active?expires_at:0,server_now});
   if(paid&&revision!=null&&!active)expired.push([id,host_id,revision,sku]);
  }
  // Match the current host and settings revision, including concurrent handoffs.

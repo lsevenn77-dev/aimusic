@@ -1,6 +1,7 @@
 /* Entered rooms only. Geometry and light treatments follow the approved 360×800
    and 1120×740 references. The room uses the actual visible viewport. */
 #main:has(> .voice-room) { background-color:#0c121b; }
+#main:not([data-room-entered]) .voice-room[data-voice-room] { max-width:1120px; }
 
 #main .voice-room[data-voice-room],
 #main[data-room-focus] .voice-room[data-voice-room] {
@@ -32,7 +33,6 @@
   display:flex;
   flex-direction:column;
   width:100%;
-  max-width:1120px;
   min-width:0;
   height:var(--room-height);
   min-height:0;
@@ -579,7 +579,7 @@
 #main .voice-room .room-popup {overscroll-behavior:contain}
 @media(min-width:801px){
  #main[data-room-entered] {padding-top:12px;padding-bottom:12px;min-height:0}
- #main[data-room-entered] .voice-room[data-voice-room] {--room-height:var(--voice-viewport,calc(100dvh - 180px));height:var(--room-height);width:100%;max-width:none;margin:0}
+ #main[data-room-entered] .voice-room[data-voice-room] {--room-height:var(--voice-viewport,calc(100dvh - 180px))}
 }
 @media(max-width:800px){
  :root[data-room-mobile],:root[data-room-mobile] body {overflow:hidden;overscroll-behavior:none}

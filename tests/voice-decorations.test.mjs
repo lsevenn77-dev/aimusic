@@ -1,7 +1,39 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DECORATIONS} from '../shared/decorations.js';
+import {DECORATIONS,FREE_ROOM_THEMES,roomUIMode} from '../shared/decorations.js';
+import sharp from 'sharp';
 import {decorationsFixture} from './decorations-fixture.mjs';
+
+test('basic room skins provide four valid WebP variants and legacy or unknown modes default to dark',async()=>{
+ for(const [sku,mode] of [['basic_dark','dark'],['basic_light','light']]){
+  const skin=FREE_ROOM_THEMES.find(t=>t.sku===sku);
+  assert.equal(roomUIMode(skin),mode);
+  for(const [key,size] of Object.entries({roomCard:[1200,1600],roomDesktop:[2560,1440],roomMobile:[1440,2560],roomMobileTall:[1440,3120]})){
+   const image=await sharp('dist'+skin.assetPaths[key]).metadata();
+   assert.equal(image.format,'webp');assert.deepEqual([image.width,image.height],size);
+  }
+ }
+ assert.equal(roomUIMode({}), 'dark');assert.equal(roomUIMode({uiMode:'sepia'}),'dark');
+});
+
+test('room mode and catalog artwork survive settings, listener entry and directory resolution',async t=>{
+ const f=await decorationsFixture(t,{voice:true});
+ const created=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'두 가지 스킨',visibility:'public',theme_sku:'basic_light'});
+ assert.equal(created.status,201);const id=created.body.room.id,root='/api/voice/rooms/'+id+'/';
+ const owner=(await f.call(root+'join','POST',{request_id:crypto.randomUUID()})).body;
+ const guest=(await f.call(root+'join','POST',{request_id:crypto.randomUUID()},'other')).body;
+ assert.equal(guest.room.theme.uiMode,'light');assert.equal(guest.room.theme.expires_at,0);
+ const catalog=FREE_ROOM_THEMES.find(t=>t.sku==='basic_light');
+ assert.deepEqual(guest.room.theme.assets,catalog.assetPaths);
+ const listing=(await f.call('/api/voice/public-rooms')).body.rooms.find(room=>room.id===id);
+ assert.equal(listing.theme.uiMode,'light');assert.equal(listing.theme.assets.roomCard,catalog.assetPaths.roomCard);
+ const save=(body,session,user='owner')=>f.call(root+'settings','POST',{generation:session.generation,revision:session.room.settings_revision||0,...body},user);
+ assert.equal((await save({theme_sku:'basic_dark'},guest,'other')).status,403);
+ const switched=await save({mode:'karaoke'},owner);assert.equal(switched.status,200);
+ assert.equal(switched.body.room.theme.uiMode,'light');assert.equal(switched.body.room.id,id);
+ const dark=await save({theme_sku:'basic_dark'},{...owner,room:switched.body.room});assert.equal(dark.status,200);
+ assert.equal((await f.call(root+'theme','GET',null,'other')).body.theme.uiMode,'dark');
+});
 
 test('new room defaults to the latest active paid theme, keeps paid choices first, and preserves an explicit free choice',async t=>{
  const f=await decorationsFixture(t,{voice:true});
@@ -12,7 +44,7 @@ test('new room defaults to the latest active paid theme, keeps paid choices firs
  await f.buyUse('theme_starlight_lounge');await f.use(aurora.body.order.inventory_id);
  options=(await f.call('/api/voice/options')).body;
  assert.equal(options.preferred_theme,'theme_aurora_night');
- assert.deepEqual(options.themes.map(p=>p.sku),['theme_aurora_night','theme_starlight_lounge','navy','sunset','night']);
+ assert.deepEqual(options.themes.map(p=>p.sku),['theme_aurora_night','theme_starlight_lounge','basic_dark','basic_light','navy','sunset','night']);
  assert.ok(options.themes.slice(0,2).every(p=>p.paid&&p.selectable));
  const created=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'활성 배경 기본값',visibility:'public'});
  assert.equal(created.status,201,JSON.stringify(created.body));assert.equal(created.body.room.theme.sku,'theme_aurora_night');

@@ -10,8 +10,8 @@ test('theme options exclude expired, stored and other-owner grants; active owner
  await f.buyUse('theme_starlight_lounge');await f.buy('theme_cherry_blossom');await f.buyUse('theme_aurora_night');
  f.sql.exec("UPDATE player_inventory SET expires_at=unixepoch()-1 WHERE item_key='theme_aurora_night' AND source='decoration'");
  const a=(await f.call('/api/voice/options')).body.themes;
- assert.deepEqual(a.map(t=>t.sku),['theme_starlight_lounge','navy','sunset','night']);
- assert.deepEqual((await f.call('/api/voice/options','GET',null,'other')).body.themes.map(t=>t.sku),['navy','sunset','night']);
+ assert.deepEqual(a.map(t=>t.sku),['theme_starlight_lounge','basic_dark','basic_light','navy','sunset','night']);
+ assert.deepEqual((await f.call('/api/voice/options','GET',null,'other')).body.themes.map(t=>t.sku),['basic_dark','basic_light','navy','sunset','night']);
 });
 test('room membership preserves the shell on mobile and desktop and route-only entry does not focus',()=>{
  const elements=[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}],attrs=new Map();

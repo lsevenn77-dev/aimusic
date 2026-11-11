@@ -437,7 +437,7 @@
  --talk-line: var(--ds-line, #344256);
  --talk-mint: #8eddd2;
  --talk-panel: color-mix(in srgb,var(--ds-panel) 83%,transparent);
- width:100%; max-width:1180px; margin-inline:auto; border:0; border-radius:14px;
+ width:100%; margin-inline:auto; border:0; border-radius:14px;
  display:grid; grid-template-columns:minmax(0,552fr) minmax(0,376fr);
  grid-template-rows:auto minmax(0,1fr); gap:0 16px;
  height:clamp(590px,min(calc(100dvh - 165px),60cqw),720px); min-height:0; padding:0;
@@ -647,7 +647,7 @@
  .talking-room .talk-header>div {display:contents}
  .talking-room .talk-header nav {grid-area:1 / 2}
  .talking-room .talk-header p {grid-column:1 / -1;margin:0}
- .talking-room[data-paid-theme] {background-image:linear-gradient(#0c121b8f,#0c121baa),var(--decoration-mobile)}
+ :where(#main:not([data-room-entered])) .talking-room[data-paid-theme] {background-image:linear-gradient(#0c121b8f,#0c121baa),var(--decoration-mobile)}
  .talking-room .talk-central:has(.voice-unlock-audio:not([hidden])) {gap:3px;padding-inline-start:5px}
  .talking-room .talk-central:has(#talk-request button)>.voice-unlock-audio {font-size:0;padding:0;width:44px;flex:none}
  .talking-room .talk-central:has(#talk-request button)>.voice-unlock-audio::before {content:'듣기';font-size:13px}
@@ -655,7 +655,7 @@
 /* Both columns sit on the room's one entitled background. */
 .voice-room.talking-room {
  position:relative; isolation:isolate; box-sizing:border-box;
- max-width:1180px; grid-template-columns:minmax(0,3fr) minmax(0,2fr); gap:0;
+ grid-template-columns:minmax(0,3fr) minmax(0,2fr); gap:0;
  --talk-line:rgb(199 193 244 / 34%);
  --talk-glass:linear-gradient(145deg,rgb(85 84 138 / 32%),rgb(18 22 49 / 52%) 48%,rgb(40 43 81 / 45%));
  --talk-sheen:inset 0 1px 0 rgb(255 251 255 / 21%),inset 0 -1px 1px rgb(8 9 28 / 34%),0 4px 10px rgb(4 6 25 / 24%);
@@ -841,7 +841,7 @@
 }
 
 
-.talking-room[data-paid-theme] {
+:where(#main:not([data-room-entered])) .talking-room[data-paid-theme] {
  background-image:linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),var(--decoration-desktop);
 }
 .talking-room #talk-dock .voice-member-row {
@@ -891,7 +891,7 @@
 .talking-room #voice-content .voice-dialog-close {background:none;border:0;border-radius:0;box-shadow:none}
 .talking-room .talk-header .talk-leave {width:44px}
 @media(max-width:800px){
- .talking-room[data-paid-theme] {background-image:linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),var(--decoration-mobile)}
+ :where(#main:not([data-room-entered])) .talking-room[data-paid-theme] {background-image:linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),var(--decoration-mobile)}
  .talking-room #voice-content .voice-sheet[open] {
   position:fixed;inset:auto 0 0;width:100%;max-height:min(85dvh,var(--voice-viewport,85dvh));margin:0 auto;
   padding:18px 14px max(18px,env(safe-area-inset-bottom));background:var(--talk-dialog);border:1px solid var(--talk-line);border-radius:18px 18px 0 0;

@@ -81,19 +81,36 @@ function profileFrameCanvasArtwork(path){
  }
  function paintTheme(el,t,card=false){
   if(!t)return;
-  const active=t.assets&&!expired(t,Date.now()/1000+(t.offset||0))&&Object.values(t.assets).every(usableAsset);
+  const assets=t.assets;
+  const small=matchMedia('(max-width:800px)').matches;
+  const tall=small&&matchMedia('(max-aspect-ratio: 1/2)').matches;
+  const visible=card?assets?.roomCard:small?(tall&&assets?.roomMobileTall||assets?.roomMobile||assets?.roomDesktop):assets?.roomDesktop;
+  const active=visible&&!expired(t,Date.now()/1000+(t.offset||0))&&usableAsset(visible);
   const sku=active?t.sku:t.assets?'navy':t.sku;
   if(card)el.dataset.theme=sku;else el.dataset.background=sku;
   el.dataset.themeSku=sku;
-  if(active){el.dataset.paidTheme=sku;for(const [key,value] of Object.entries({card:t.assets.roomCard,desktop:t.assets.roomDesktop,mobile:t.assets.roomMobile}))if(validAsset(value))el.style.setProperty('--decoration-'+key,`url("${value}")`);}
-  else{delete el.dataset.paidTheme;for(const key of ['card','desktop','mobile'])el.style.removeProperty('--decoration-'+key);}
+  if(!card)el.dataset.uiMode=(!t.assets||active)&&t.uiMode==='light'?'light':'dark';
+  if(active&&t.expires_at>0)el.dataset.paidTheme=sku;else delete el.dataset.paidTheme;
+  const artKeys=['card','desktop','mobile','mobile-tall'];
+  if(active)el.dataset.roomArtwork='';else delete el.dataset.roomArtwork;
+  const paths=[assets?.roomCard,assets?.roomDesktop,assets?.roomMobile,assets?.roomMobileTall];
+  artKeys.forEach((key,index)=>{
+   const value=paths[index];
+   if(active&&validAsset(value))el.style.setProperty('--decoration-'+key,`url("${value}")`);
+   else el.style.removeProperty('--decoration-'+key);
+  });
  }
  function paintThemes(){
   for(const card of document.querySelectorAll('[data-decoration-room]'))paintTheme(card,themes.get(card.dataset.decorationRoom),true);
   const room=document.querySelector('[data-voice-room]');if(room)paintTheme(room,themes.get(room.dataset.voiceRoom));
  }
  let roomThemeVersion=0;
- const remember=(id,theme)=>{if(theme)themes.set(id,{...theme,offset:theme.server_now-Date.now()/1000});};
+ const remember=(id,theme)=>{
+  if(!theme)return;
+  const mode=theme.uiMode;
+  if(mode!=null&&mode!=='light'&&mode!=='dark'&&['localhost','127.0.0.1'].includes(location.hostname))console.debug('Invalid room uiMode',mode);
+  themes.set(id,{...theme,uiMode:mode==='light'?'light':'dark',offset:theme.server_now-Date.now()/1000});
+ };
  async function refresh(force=false){
   if(busy){queued=true;return;}busy=true;
   try{
@@ -134,10 +151,12 @@ function profileFrameCanvasArtwork(path){
   const room=e.detail?.room,version=++roomThemeVersion;
   if(!room){themes.clear();void refresh(true);return;}
   if(room.theme){remember(room.id,room.theme);paintThemes();return;}
-  // Socket snapshots carry the chosen SKU. Free themes need no asset lookup.
+  // A socket snapshot carries the SKU. Preserve its resolved art and mode across heartbeats.
   const sku=room.theme_sku||room.background||'navy';
-  remember(room.id,{sku:sku.startsWith('theme_')?'navy':sku,server_now:Date.now()/1000});paintThemes();
-  if(!room.theme_sku||sku.startsWith('theme_'))void voiceRequest('rooms/'+encodeURIComponent(room.id)+'/theme').then(d=>{
+  if(themes.get(room.id)?.sku===sku){paintThemes();return;}
+  const needsTheme=!room.theme_sku||sku.startsWith('theme_')||sku.startsWith('basic_');
+  if(!needsTheme){remember(room.id,{sku,uiMode:'dark',server_now:Date.now()/1000});paintThemes();return;}
+  void voiceRequest('rooms/'+encodeURIComponent(room.id)+'/theme').then(d=>{
    if(version===roomThemeVersion){remember(room.id,d.theme);paintThemes();}
   }).catch(()=>{});
  });

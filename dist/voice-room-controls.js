@@ -41,7 +41,11 @@ Object.assign(VoiceRoomClient.prototype,{
  closeMemberTools(focus=false){const id=this.memberTarget;for(const box of this.host.querySelectorAll('#voice-member-tools,#talk-dock-member-tools')){box.hidden=true;box.innerHTML='';}this.memberTarget=null;for(const b of this.host.querySelectorAll('.voice-member-more,.talk-strip-person[data-voice="member-menu"]')){b.setAttribute('aria-expanded','false');if(focus&&b.dataset.target===id)b.focus();}},
  paintFinalControls(){
   const s=this.state,self=s.members.find(m=>m.id===s.self),host=s.room.host_id===self.id;
-  if(this.liveMode)this.host.dataset.background=s.room.background||'navy';
+  const themeKey=JSON.stringify([s.room.id,s.room.host_id,s.room.settings_revision||0,s.room.theme_sku||s.room.background]);
+  if(themeKey!==this.roomThemeKey||s.room.theme&&this.lastDecoratedTheme!==s.room.theme.sku){
+   this.roomThemeKey=themeKey;this.lastDecoratedTheme=s.room.theme?.sku;
+   window.dispatchEvent(new CustomEvent('aifect:room-theme',{detail:{room:s.room,key:themeKey}}));
+  }
   const announcement=$('#voice-announcement');$('#voice-announcement-text').textContent=s.room.announcement||'';announcement.hidden=!s.room.announcement;
   const queue=s.karaoke?.queue||[];
   const singer=s.karaoke?.active?.user_id;
@@ -109,11 +113,7 @@ Object.assign(VoiceRoomClient.prototype,{
   const down=this.host.querySelector('.talk-central [data-voice=release-mic]');if(down){down.hidden=!seated;down.disabled=!!this.seatReleasePending;}
   mic.setAttribute('aria-pressed',String(micOn));mic.setAttribute('aria-label',micOn?'내 마이크 끄기':'내 마이크 켜기');
   mic.setAttribute('aria-busy',String(!!this.micBusy));
-  const themeKey=JSON.stringify([s.room.id,s.room.host_id,s.room.settings_revision||0]);
-  if(themeKey!==this.talkThemeKey||s.room.theme&&this.lastDecoratedTheme!==s.room.theme.sku){
-   this.talkThemeKey=themeKey;this.lastDecoratedTheme=s.room.theme?.sku;
-   window.dispatchEvent(new CustomEvent('aifect:room-theme',{detail:{room:s.room,key:themeKey}}));
-  }
+
 
  },
  showMicEnabledNotice(){

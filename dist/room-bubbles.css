@@ -5,12 +5,11 @@
  --room-bubble-shadow:none;
  --room-font-add:0px; --room-title:25px; --room-caption:12px; --room-body:14px; --room-button:14px;
  --room-lyric:22px; --room-lyric-active:24px; --room-name:13px; --room-queue-name:12px;
- width:min(100%,1298px);max-width:1298px;margin-inline:auto;transform:none;
+ transform:none;
  height:var(--room-height);max-height:none;min-height:0;overflow:visible;
  border:0;border-radius:0;box-shadow:none;isolation:isolate;
  --room-x:26px;--room-pad-end:18px;--room-seat:70px;--room-singer:70px;--room-queue-photo:40px;--room-reserve:70px;
  padding:18px var(--room-x) var(--room-pad-end);
- &[data-paid-theme] {background-image:linear-gradient(#0c121b55,#0c121b77),var(--decoration-desktop);background-size:cover;background-position:center;}
  & #voice-content {flex:1 1 0;min-height:0;}
  & .voice-columns,&.talking-room .voice-columns {width:100%;grid-template-columns:minmax(0,64fr) minmax(320px,36fr);grid-template-rows:minmax(0,1fr);gap:22px;}
  & .voice-columns > .voice-stage {container-type:inline-size;flex:none;min-height:0;height:100%;max-height:none;overflow:auto;}
@@ -52,7 +51,7 @@
  & #voice-chat .voice-chat-system {flex:none;min-height:0;padding:3px 6px;margin:0;line-height:1.3;border:0;background:none;box-shadow:none;}
  & #voice-chat .voice-chat-system p {background:none;border:0;box-shadow:none;padding:0;font-size:var(--room-caption);line-height:1.3;margin:0;}
  & #voice-chat .voice-chat-system + .voice-chat-system {margin-top:-4px;}
- & :is(.live-stage-main,#voice-seats,.talk-central,#voice-music-player,.talk-message-field,#voice-chat-form > button,#live-actions button,.live-start-popup,.live-countdown) {
+ & :is(.talk-central,#voice-music-player,.talk-message-field,#voice-chat-form > button,#live-actions button,.live-start-popup,.live-countdown) {
   background:var(--room-bubble);border:1px solid var(--ds-line);border-radius:16px;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;
  }
  & :is(.live-stage-main,#voice-seats,.talk-central,#voice-music-player,.talk-message-field)::before,& :is(.live-stage-main,#voice-seats,.talk-central,#voice-music-player,.talk-message-field)::after {content:none;}
@@ -143,7 +142,6 @@
   --room-lyric:calc(13.4px + var(--room-font-add));--room-lyric-active:calc(14.2px + var(--room-font-add));
   --room-seat:13cqw;--room-singer:14cqw;--room-reserve:48px;--room-queue-photo:24px;
   width:100%;height:var(--voice-viewport)!important;margin:0;padding:6px var(--room-x) var(--room-pad-end);border:0;border-radius:0;box-shadow:none;
-  &[data-paid-theme] {background-image:linear-gradient(#0c121b55,#0c121b77),var(--decoration-mobile,var(--decoration-desktop));}
   & .room-header {display:grid;grid-template-columns:minmax(0,1fr);gap:0;min-height:0;margin-bottom:6px;padding:0 2px;}
   & .room-heading {display:contents;}
   & .room-heading h1 {grid-row:1;grid-column:1/-1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow:hidden;text-overflow:ellipsis;overflow-wrap:anywhere;max-height:2.5em;}
@@ -212,12 +210,9 @@
 }
 @media(min-width:801px){
  #main[data-room-entered] .voice-room[data-voice-room] {
-  height:auto!important;max-height:none;--room-pad-end:20px;padding-bottom:20px;
+  --room-pad-end:20px;
   --room-title:24px;--room-body:15px;--room-button:15px;--room-caption:13px;--room-name:15px;--room-queue-name:15px;
-  & #voice-content {flex:none;height:auto;}
-  & .voice-columns,&.talking-room .voice-columns {height:auto;grid-template-rows:auto;align-items:stretch;}
-  & .voice-columns > .voice-stage {height:auto;overflow:visible;}
-  & #voice-content .voice-chat-panel {height:auto;contain:size;align-self:stretch;}
+  & #voice-content .voice-chat-panel {contain:size;}
   & .room-header h1 {font-size:24px;line-height:1.3;}
   & .room-heading small {font-size:13px;}
   & .room-header nav {gap:4px;}

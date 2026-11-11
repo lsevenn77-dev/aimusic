@@ -4,7 +4,7 @@ export const DECORATION_PRICES_GOLD=Object.freeze({
  PROFILE_FRAME:Object.freeze({P7D:50,P1M:150,P3M:390}),
  TALKING_ROOM_THEME:Object.freeze({P7D:100,P1M:300,P3M:790})
 });
-const theme=(sku,name,prefix)=>Object.freeze({sku,name,kind:'TALKING_ROOM_THEME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.TALKING_ROOM_THEME,assetPaths:Object.freeze({roomDesktop:`/assets/themes/v20261027/${sku}/background-pc.webp`,roomMobile:`/assets/themes/${sku==='theme_aurora_night'?'v20261028':'v20261027'}/${sku}/background-mobile.webp`,roomCard:`/assets/themes/v20261027/${sku}/cover.webp`})});
+const theme=(sku,name,uiMode='dark')=>Object.freeze({sku,name,uiMode,kind:'TALKING_ROOM_THEME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.TALKING_ROOM_THEME,assetPaths:Object.freeze({roomDesktop:`/assets/themes/v20261027/${sku}/background-pc.webp`,roomMobile:`/assets/themes/${sku==='theme_aurora_night'?'v20261028':'v20261027'}/${sku}/background-mobile.webp`,roomCard:`/assets/themes/v20261027/${sku}/cover.webp`})});
 const frameDir='/assets/products/bunnies-v1/';
 const bunny=(sku,name,file,multiplier=1,fx=null)=>{
  const overlay=frameDir+file,prices=DECORATION_PRICES_GOLD.PROFILE_FRAME;
@@ -20,11 +20,28 @@ export const BUNNY_FRAMES=Object.freeze([
 export const DECORATIONS=Object.freeze({
  frame_aurora_ring:Object.freeze({sku:'frame_aurora_ring',name:'오로라 링',kind:'PROFILE_FRAME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.PROFILE_FRAME,assetPaths:Object.freeze({overlay:'/assets/products/aurora_ring_frame.png',thumbnail:'/assets/previews/aurora_ring_thumbnail.webp'})}),
  ...Object.fromEntries(BUNNY_FRAMES.map(p=>[p.sku,p])),
- theme_starlight_lounge:theme('theme_starlight_lounge','별빛 라운지','starlight_lounge'),
- theme_cherry_blossom:theme('theme_cherry_blossom','벚꽃 멜로디 라운지','cherry_blossom_lounge'),
- theme_aurora_night:theme('theme_aurora_night','오로라 나이트 라운지','aurora_night_lounge')
+ theme_starlight_lounge:theme('theme_starlight_lounge','별빛 라운지'),
+ theme_cherry_blossom:theme('theme_cherry_blossom','벚꽃 멜로디 라운지'),
+ theme_aurora_night:theme('theme_aurora_night','오로라 나이트 라운지')
 });
-export const FREE_ROOM_THEMES=Object.freeze([{sku:'navy',name:'차분한 다크'},{sku:'sunset',name:'차분한 노을'},{sku:'night',name:'밤하늘'}]);
+function basicRoomTheme(sku,name,uiMode) {
+ const base='/assets/themes/v20261112/'+sku+'/'+uiMode+'-';
+ return Object.freeze({sku,name,uiMode,assetPaths:Object.freeze({
+  roomDesktop:base+'pc-2560x1440.webp',roomMobile:base+'mobile-1440x2560.webp',
+  roomMobileTall:base+'mobile-tall-1440x3120.webp',roomCard:base+'card-1200x1600.webp'
+ })});
+}
+export function roomUIMode(theme) {
+ const mode=theme?.uiMode;
+ if(mode==null||mode==='dark')return 'dark';
+ if(mode==='light')return 'light';
+ if(typeof process!=='undefined'&&process.env?.NODE_ENV==='development')console.warn('Invalid room uiMode',mode);
+ return 'dark';
+}
+export const FREE_ROOM_THEMES=Object.freeze([
+ basicRoomTheme('basic_dark','턴테이블','dark'),basicRoomTheme('basic_light','헤드폰','light'),
+ {sku:'navy',name:'차분한 다크'},{sku:'sunset',name:'차분한 노을'},{sku:'night',name:'밤하늘'}
+]);
 export const DEFAULT_ROOM_THEME='navy';
 export function quoteDecoration(sku,period){
  if(!Object.hasOwn(DECORATIONS,sku)||!Object.hasOwn(PERIOD_LABELS,period))throw new RangeError('상품과 이용 기간을 확인해주세요.');

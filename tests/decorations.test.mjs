@@ -89,7 +89,7 @@ test('only host with own active theme can create/update; unknown SKU and stale s
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'night',revision:0})).status,200);
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'navy',revision:0})).status,409);
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'night');
- const options=await f.call('/api/voice/options');assert.deepEqual(options.body.themes.slice(0,3).map(t=>t.sku),['navy','sunset','night']);assert.equal(options.body.themes.length,3);
+ const options=await f.call('/api/voice/options');assert.deepEqual(options.body.themes.map(t=>t.sku),['basic_dark','basic_light','navy','sunset','night']);assert.ok(options.body.themes.every(theme=>theme.selectable&&!theme.paid));
 });
 test('stored item never expires before use; transfer retains the full period without a second gold charge',async t=>{
  const f=await decorationsFixture(t),b=await f.buy('frame_aurora_ring','P1M'),iid=b.body.order.inventory_id,key=crypto.randomUUID();
