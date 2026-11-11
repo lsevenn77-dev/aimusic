@@ -67,7 +67,9 @@ internal class NativeVoiceEngine(private val context:Context,val roomId:String,p
  private var track:AudioTrack?=null
  private var micSequence=0L
  private var musicId=""
- private var clockOffset=0L
+ /** Server time minus this phone's clock, measured on join; live dubbing cues use it. */
+ var clockOffset=0L
+  private set
  @Volatile var inputGain=1f
  @Volatile var preset="radio"
  @Volatile var reverb=.06f
