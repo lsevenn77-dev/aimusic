@@ -1,9 +1,17 @@
 package kr.co.aifect.app
 
+import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
 class RoomThemeSyncTest {
+ private fun paid()=JSONObject().put("sku","theme_aurora_night")
+  .put("assets",JSONObject().put("roomMobile","/assets/themes/v20261028/theme_aurora_night/background-mobile.webp"))
+  .put("expires_at",1700000200L).put("server_now",1700000000L)
+ private fun room(revision:Int=4,sku:String="navy")=JSONObject()
+  .put("id","room1").put("host_id","host1").put("settings_revision",revision)
+  .put("theme_sku",sku).put("background","navy")
+
  @Test fun sameRoomAndRevisionPreserveVerifiedArtBetweenTransportSnapshots(){
   assertTrue(RoomThemeSync.canCarry("room1","room1","host1","host1",4,4,"theme_aurora_night","theme_aurora_night"))
  }
@@ -22,5 +30,41 @@ class RoomThemeSyncTest {
   assertFalse(RoomThemeSync.matches("theme_aurora_night","night",0,1700000000))
   assertFalse(RoomThemeSync.matches("theme_aurora_night","theme_aurora_night",1699999999,1700000000))
   assertFalse(RoomThemeSync.matches("theme_aurora_night","theme_aurora_night",0,1700000000))
+ }
+ @Test fun serverDecoratedThemeOverridesLegacyTransportBackground(){
+  val room=room().put("theme",paid())
+  assertEquals("theme_aurora_night",RoomThemeSync.selectedSku(room))
+  assertEquals("theme_aurora_night",RoomThemeSync.shownSku(room,null))
+ }
+ @Test fun themeEndpointTakesPriorityOverStaleRoomSku(){
+  val room=room()
+  assertEquals("navy",RoomThemeSync.selectedSku(room))
+  assertEquals("theme_aurora_night",RoomThemeSync.shownSku(room,paid()))
+  assertEquals("theme_aurora_night",RoomThemeSync.current(room,paid())?.optString("sku"))
+ }
+ @Test fun realtimeHeartbeatCannotResetActiveDecorationToNavy(){
+  val previous=room().put("theme",paid())
+  val incoming=room()
+  val carried=RoomThemeSync.carry(previous,incoming)
+  assertNotNull(carried)
+  incoming.put("theme",carried)
+  assertEquals("theme_aurora_night",RoomThemeSync.shownSku(incoming,null))
+ }
+ @Test fun oldTransportMayOmitThemeSkuButMustKeepRoomAndRevision(){
+  val previous=room().put("theme",paid())
+  val incoming=room().apply{remove("theme_sku")}
+  assertNotNull(RoomThemeSync.carry(previous,incoming))
+  val changed=room(revision=5).apply{remove("theme_sku")}
+  assertNull(RoomThemeSync.carry(previous,changed))
+  val anotherHost=room().apply{remove("theme_sku");put("host_id","host2")}
+  assertNull(RoomThemeSync.carry(previous,anotherHost))
+ }
+ @Test fun settingsChangeMustDiscardOldThemeAndExpiredArt(){
+  val previous=room().put("theme",paid())
+  assertNull(RoomThemeSync.carry(previous,room(revision=5,sku="night")))
+  assertNull(RoomThemeSync.carry(previous,room(sku="theme_cherry_blossom")))
+  val expired=paid().put("expires_at",1699999999L)
+  assertFalse(RoomThemeSync.validTheme(expired))
+  assertEquals("navy",RoomThemeSync.shownSku(room(),expired))
  }
 }

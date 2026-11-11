@@ -117,7 +117,7 @@ internal fun currentDubbingImage(p:JSONObject):String {
  val id=room.optString("id")
  Column(Modifier.fillMaxWidth().clickable{if(CurrentNavigation.safeID(id))m.openCurrentWorkspace((if(room.optString("mode")=="karaoke")"live/" else "voice/")+id,room.optString("title","토킹룸"))}.testTag("voice-room-$id")){
   Box(Modifier.fillMaxWidth().height(112.dp).clip(RoundedCornerShape(12.dp))){
-   VoiceRoomBackdrop(room.optString("background","navy"),room.optJSONObject("theme"),Modifier.matchParentSize())
+   VoiceRoomBackdrop(RoomThemeSync.shownSku(room,null),RoomThemeSync.current(room,null),Modifier.matchParentSize())
    Text(if(room.optString("mode")=="karaoke")"♫ 노래방" else "● 토킹룸",fontSize=10.sp,color=Color(0xFF8EDDD2),modifier=Modifier.padding(10.dp).clip(RoundedCornerShape(6.dp)).background(Ink.copy(alpha=.9f)).padding(horizontal=7.dp,vertical=4.dp))
    Row(Modifier.align(Alignment.BottomEnd).padding(10.dp).clip(RoundedCornerShape(6.dp)).background(Ink.copy(alpha=.9f)).padding(horizontal=7.dp,vertical=4.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Rounded.PeopleOutline,null,Modifier.size(13.dp),tint=SoftText);Text(" ${room.optInt("member_count")}명",fontSize=11.sp,color=SoftText)}
   }

@@ -3,19 +3,31 @@ package kr.co.aifect.app
 import org.json.JSONObject
 
 /**
- * Native talking rooms receive realtime snapshots from the voice transport and
- * verified theme assets from the website API. Never reuse theme art across a
- * changed SKU, host, room or settings revision.
+ * The Site's decorated room/theme response is the source of truth.
+ * Transport snapshots can still contain an older fallback background ("navy")
+ * while a paid SKU lives in room_decorations on the server.
  */
 internal object RoomThemeSync {
+ private val freeSkus=setOf("navy","sunset","night")
  private fun clean(value:String?):String = value.orEmpty().trim().takeUnless{it=="null"}.orEmpty()
 
+ private fun declaredSku(room:JSONObject):String {
+  return clean(room.optString("theme_sku"))
+   .ifEmpty{clean(room.optString("background"))}
+   .ifEmpty{"navy"}
+ }
+
+ fun validTheme(theme:JSONObject?):Boolean {
+  if(theme==null)return false
+  val sku=clean(theme.optString("sku"))
+  return sku.isNotEmpty() && matches(sku,sku,theme.optLong("expires_at"),theme.optLong("server_now"))
+ }
+
  fun selectedSku(room:JSONObject):String {
-  val saved=clean(room.optString("theme_sku"))
-  if(saved.isNotEmpty())return saved
-  val resolved=clean(room.optJSONObject("theme")?.optString("sku"))
-  if(resolved.isNotEmpty())return resolved
-  return clean(room.optString("background")).ifEmpty{"navy"}
+  // A decorated HTTP room has already been entitlement-checked by the Site.
+  val decorated=room.optJSONObject("theme")
+  if(validTheme(decorated))return decorated!!.optString("sku")
+  return declaredSku(room)
  }
 
  fun canCarry(
@@ -27,31 +39,42 @@ internal object RoomThemeSync {
 
  fun matches(selected:String,themeSku:String,expiresAt:Long,serverNow:Long):Boolean {
   if(selected.isBlank()||selected!=themeSku)return false
-  // Paid themes must carry an active entitlement; free themes expire_at is 0.
+  // Free themes need no expiry. Paid themes require an active entitlement.
   if(themeSku.startsWith("theme_")&&expiresAt<=0L)return false
   val now=if(serverNow>0L)serverNow else System.currentTimeMillis()/1000L
   return expiresAt<=0L||expiresAt>now
  }
 
- private fun usable(room:JSONObject,theme:JSONObject?):Boolean {
-  if(theme==null)return false
-  return matches(selectedSku(room),clean(theme.optString("sku")),theme.optLong("expires_at"),theme.optLong("server_now"))
+ fun current(room:JSONObject,verified:JSONObject?):JSONObject? {
+  // /api/voice/rooms/:id/theme is authoritative, even when the realtime
+  // room.theme_sku is the legacy 'navy' fallback for a paid room theme.
+  if(validTheme(verified))return verified
+  return room.optJSONObject("theme")?.takeIf(::validTheme)
  }
 
- fun current(room:JSONObject,verified:JSONObject?):JSONObject? = when {
-  usable(room,verified)->verified
-  usable(room,room.optJSONObject("theme"))->room.optJSONObject("theme")
-  else->null
- }
+ fun shownSku(room:JSONObject,verified:JSONObject?):String =
+  current(room,verified)?.optString("sku").orEmpty()
+   .ifBlank{selectedSku(room).takeIf{it in freeSkus}?:"navy"}
 
  fun carry(previous:JSONObject?,incoming:JSONObject):JSONObject? {
   if(previous==null||incoming.has("theme"))return null
+  val prior=previous.optJSONObject("theme")?.takeIf(::validTheme)?:return null
+  val oldDeclared=declaredSku(previous)
+  val newDeclared=declaredSku(incoming)
+  // Old voice transport revisions may omit theme_sku but keep background=navy.
+  // Preserve a verified image only for the same room, host, settings revision
+  // and unchanged declared selection. Changes drop the old image immediately.
+  val selectionUnchanged=oldDeclared==newDeclared ||
+   (!incoming.has("theme_sku") &&
+    clean(previous.optString("background"))==clean(incoming.optString("background")))
+  if(!selectionUnchanged)return null
+  val paid=prior.optString("sku")
   if(!canCarry(
     previous.optString("id"),incoming.optString("id"),
     previous.optString("host_id"),incoming.optString("host_id"),
     previous.optInt("settings_revision"),incoming.optInt("settings_revision"),
-    selectedSku(previous),selectedSku(incoming)
+    paid,paid
    ))return null
-  return previous.optJSONObject("theme")?.takeIf{usable(incoming,it)}
+  return prior
  }
 }

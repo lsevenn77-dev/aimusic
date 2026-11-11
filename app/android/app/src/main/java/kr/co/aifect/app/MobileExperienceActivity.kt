@@ -188,30 +188,30 @@ internal fun mobileExperienceScript(route:String):String {
  .sidebar,.topbar,html body .page-footer,.mobile-navigation,#menu-backdrop,body>.player{display:none!important}
  body.voice-room-open .page-wrap,.page-wrap:has(.voice-room){width:100%!important;margin:0!important;min-height:0!important}
  #main:has(>.voice-room){width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
- /* The site's #main .voice-room surface rule is more specific than its free-theme rules.
-    Override that opaque surface in the Android karaoke WebView, without changing the website. */
- #main .voice-room.live-karaoke-room[data-background="navy"]:not([data-paid-theme]){
+ /* Restore the server-selected room background for either room mode when the
+    website's more-specific #main .voice-room rule hides the free backdrop. */
+ #main .voice-room[data-voice-room][data-background="navy"]:not([data-paid-theme]){
    background:
      radial-gradient(ellipse at 72% 10%,rgb(123 63 228 / 62%),transparent 48%),
      radial-gradient(ellipse at 7% 80%,rgb(65 54 128 / 62%),transparent 55%),
      radial-gradient(ellipse at 94% 92%,rgb(50 168 164 / 37%),transparent 42%),
      linear-gradient(130deg,#23134c,#121631 60%,#0e2936)!important;
  }
- #main .voice-room.live-karaoke-room[data-background="sunset"]:not([data-paid-theme]){
+ #main .voice-room[data-voice-room][data-background="sunset"]:not([data-paid-theme]){
    background:
      radial-gradient(ellipse 125% 12% at 58% 43%,rgb(245 135 116 / 75%),transparent 65%),
      radial-gradient(ellipse 100% 18% at 51% 41%,rgb(183 56 115 / 65%),transparent 72%),
      radial-gradient(ellipse at 14% 8%,rgb(101 60 161 / 56%),transparent 62%),
      linear-gradient(160deg,#18132f,#2e1945 51%,#11162c)!important;
  }
- #main .voice-room.live-karaoke-room[data-background="night"]:not([data-paid-theme]){
+ #main .voice-room[data-voice-room][data-background="night"]:not([data-paid-theme]){
    background:
      radial-gradient(circle,#d8e4ff9c 1px,transparent 2px) 6px 12px / 91px 117px repeat,
      radial-gradient(circle,#b8ccff6b 1px,transparent 2px) 42px 61px / 163px 143px repeat,
      radial-gradient(ellipse at 68% 17%,rgb(67 107 202 / 49%),transparent 56%),
      linear-gradient(140deg,#080d26,#142b56 65%,#071128)!important;
  }
- #main .voice-room.live-karaoke-room[data-paid-theme]{
+ #main .voice-room[data-voice-room][data-paid-theme]{
    background-color:#0c121b!important;
    background-image:linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),var(--decoration-mobile)!important;
    background-position:center center!important;
@@ -230,17 +230,20 @@ internal fun mobileExperienceScript(route:String):String {
    }
    const state = {root:null, roomId:'', theme:null, pending:null, serial:0};
    function roomNode() {
-     return document.querySelector('.voice-room.live-karaoke-room[data-voice-room]');
+     return document.querySelector('.voice-room[data-voice-room]');
    }
    function apply(theme) {
      const root=roomNode();
      if (!root || !theme || typeof theme.sku!=='string') return;
      const sku=theme.sku;
-     if (!['navy','sunset','night'].includes(sku) && !/^theme_[a-z0-9_]+$/.test(sku)) return;
-     const asset=theme.assets?.roomMobile;
+     if (!/^[a-z0-9][a-z0-9_-]{0,63}$/.test(sku)) return;
+     const asset=theme.assets?.roomMobile || theme.assetPaths?.roomMobile;
      const safe=typeof asset==='string' && asset.startsWith('/assets/themes/') && asset.endsWith('.webp') && !asset.includes('..');
-     const valid=safe && !(Number(theme.expires_at)>0 && Number(theme.expires_at)<=Number(theme.server_now || Date.now()/1000));
-     root.dataset.background=sku;
+     const now=Number(theme.server_now)>0 ? Number(theme.server_now) : Date.now()/1000;
+     const active=!sku.startsWith('theme_') || Number(theme.expires_at)>now;
+     const valid=safe && active;
+     // Paid themes keep the Site's fallback background and use its own image.
+     if (['navy','sunset','night'].includes(sku)) root.dataset.background=sku;
      root.dataset.themeSku=sku;
      if (valid) {
        root.dataset.paidTheme=sku;
@@ -255,7 +258,7 @@ internal fun mobileExperienceScript(route:String):String {
        root.style.removeProperty('background-position');
        root.style.removeProperty('background-size');
      }
-     root.dataset.mobileThemeApplied=valid ? sku : sku;
+     root.dataset.mobileThemeApplied=sku;
    }
    async function readTheme() {
      const root=roomNode(), id=root?.dataset.voiceRoom;
@@ -277,18 +280,39 @@ internal fun mobileExperienceScript(route:String):String {
      clearTimeout(state.pending);
      state.pending=setTimeout(readTheme,delay || 0);
    }
-   const observer=new MutationObserver(() => {
+   const observer=new MutationObserver(changes => {
      const root=roomNode();
-     if (!root || (root===state.root && state.roomId===root.dataset.voiceRoom)) return;
-     state.root=root;
-     if (state.theme && state.roomId===root.dataset.voiceRoom) apply(state.theme);
-     refresh(90);
+     if (!root) {state.root=null;return;}
+     const id=root.dataset.voiceRoom;
+     if (root!==state.root || state.roomId!==id) {
+       state.root=root;
+       if (state.theme && state.roomId===id) apply(state.theme);
+       refresh(90);
+       return;
+     }
+     if (!state.theme) return;
+     // Room settings can change in-place without replacing the root node.
+     const updated=changes.some(change=>change.type==='attributes' && change.target===root);
+     if (!updated) return;
+     const current=state.theme.sku;
+     if (root.dataset.themeSku!==current ||
+         (!current.startsWith('theme_') && root.dataset.background!==current)) {
+       refresh(120);
+     } else if (current.startsWith('theme_') && root.dataset.paidTheme!==current) {
+       apply(state.theme);
+     }
    });
-   observer.observe(document.documentElement,{childList:true,subtree:true});
+   observer.observe(document.documentElement,{
+     childList:true,subtree:true,attributes:true,
+     attributeFilter:['data-background','data-theme-sku','data-paid-theme']
+   });
    window.addEventListener('aifect:room-theme',event => {
      const active=roomNode();
      if (!active || event.detail?.room?.id!==active.dataset.voiceRoom) return;
-     if (event.detail.room.theme) apply(event.detail.room.theme);
+     if (event.detail.room.theme) {
+       state.theme=event.detail.room.theme;
+       apply(state.theme);
+     }
      refresh(120);
    });
    document.addEventListener('visibilitychange',() => {

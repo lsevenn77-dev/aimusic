@@ -56,14 +56,23 @@ import java.net.URLEncoder
  val roomId=room.optString("id")
  val themeRevision=room.optInt("settings_revision")
  val themeSku=RoomThemeSync.selectedSku(room)
- var resolvedTheme by remember(roomId,themeRevision,themeSku){mutableStateOf<JSONObject?>(null)}
- LaunchedEffect(roomId,themeRevision,themeSku){
+ val themeHost=room.optString("host_id")
+ var resolvedTheme by remember(roomId,themeHost,themeRevision,themeSku){mutableStateOf<JSONObject?>(null)}
+ LaunchedEffect(roomId,themeHost,themeRevision,themeSku){
   if(roomId.isNotBlank()){
-   try{
-    val candidate=engine.api.call("/api/voice/rooms/"+URLEncoder.encode(roomId,"UTF-8")+"/theme",fresh=true).optJSONObject("theme")
-    if(candidate!=null&&RoomThemeSync.matches(themeSku,candidate.optString("sku"),candidate.optLong("expires_at"),candidate.optLong("server_now")))resolvedTheme=candidate
+   var nextCheck=2000L
+   while(true){
+    try{
+     // The website's decoration endpoint is authoritative for both modes.
+     val candidate=engine.api.call("/api/voice/rooms/"+URLEncoder.encode(roomId,"UTF-8")+"/theme",fresh=true).optJSONObject("theme")
+     resolvedTheme=candidate?.takeIf(RoomThemeSync::validTheme)
+     nextCheck=if(resolvedTheme!=null)45000L else 4000L
+    }catch(e:Exception){
+     if(e is kotlinx.coroutines.CancellationException)throw e
+     nextCheck=(nextCheck*2).coerceAtMost(45000L)
+    }
+    kotlinx.coroutines.delay(nextCheck)
    }
-   catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e}
   }
  }
  LaunchedEffect(panel){sheetScroll.scrollTo(0)}
@@ -77,7 +86,7 @@ import java.net.URLEncoder
    catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;engine.error.value=e.message}finally{sending=false}}
  }
  Box(Modifier.fillMaxSize()){
- VoiceRoomBackdrop(themeSku,RoomThemeSync.current(room,resolvedTheme),Modifier.matchParentSize())
+ VoiceRoomBackdrop(RoomThemeSync.shownSku(room,resolvedTheme),RoomThemeSync.current(room,resolvedTheme),Modifier.matchParentSize())
  Column(Modifier.fillMaxSize().testTag("native-voice-room")){
   VoiceSeatAlert(state,host){panel="seats"}
   BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal=10.dp)){
