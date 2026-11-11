@@ -108,7 +108,7 @@ final class FeedbackURLProtocol: URLProtocol {
         else if path == "/api/studio/payout-account" { data = ["account": NSNull(), "can_register": false, "banks": ["테스트 은행"], "statements": []] }
         else if path == "/api/me/player" { data = Self.playerData }
         else if path == "/api/me/player/equipment" { Self.equipped = requestBody()["frame_inventory_id"] is String; data = Self.playerData }
-        else if path == "/api/gold" { data = ["balance": Self.gold, "free": ["balance": Self.stars], "gifts": []] }
+        else if path == "/api/gold" { data = ["balance": Self.gold, "free": ["balance": Self.stars], "diamonds": ["balance": Self.diamonds], "gifts": []] }
         else if path.hasSuffix("/gifts") { Self.stars = max(0, Self.stars - 1); data = ["free_balance": Self.stars] }
         else if path == "/api/me/profile" {
             if request.httpMethod == "PUT" { Self.profileName = requestBody().string("name") }
@@ -181,7 +181,7 @@ struct FeedbackUITestView: View {
                 }.padding().accessibilityIdentifier("feedback-menu") }
             }
             .sheet(isPresented: $gift) { NavigationStack { GiftWalletView(song: FeedbackUIFixture.song, compact: true).environmentObject(model) }.presentationDetents([.fraction(0.48)]) }
-            .sheet(isPresented: $track) { NavigationStack { TrackDetailView(song: FeedbackUIFixture.song).environmentObject(model) } }
+            .sheet(isPresented: $track) { NavigationStack { TrackDetailView(song: FeedbackUIFixture.song) }.environmentObject(model) }
             .sheet(isPresented: $narrowLayout) { FeedbackNarrowLayout().environmentObject(model).preferredColorScheme(.dark) }
             .fullScreenCover(item: $studio) { selection in StudioView(studio: selection.studio).environmentObject(model).preferredColorScheme(.dark) }
     }

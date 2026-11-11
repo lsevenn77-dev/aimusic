@@ -566,7 +566,11 @@ struct MyMusicView: View {
                         Text("소속 아티스트").font(.headline)
                         ForEach(music.objects("artists"), id: \.selfID) { item in NavigationLink(item.string("name")) { ProfilePage(id: item.selfID, kind: "artist").streamingPage() } }
                     } else if section == "내 보관함" {
-                        MusicLibraryShortcuts()
+                        VStack(spacing: 12) {
+                            libraryEntry("좋아요", icon: "heart", selection: 1, count: "\(model.likes.count)곡")
+                            libraryEntry("최근 감상", icon: "clock", selection: 2, count: "\(model.history.count)곡")
+                            libraryEntry("플레이리스트", icon: "music.note.list", selection: 0, count: "\(model.playlists.count)개")
+                        }.task(id: model.userID) { await model.loadLibrary() }
                         HStack(spacing: 8) {
                             NavigationLink { CreatorWorkView().streamingPage() } label: { StreamingActionTile(title: "내 작업", caption: "창작자 스튜디오", icon: "mic.fill") }.buttonStyle(.plain)
                             NavigationLink { RecordingDraftsView().streamingPage() } label: { StreamingActionTile(title: "내 초안", caption: "녹음 이어 하기", icon: "pencil", color: StreamStyle.cyan) }.buttonStyle(.plain)
@@ -577,12 +581,13 @@ struct MyMusicView: View {
                         if let error = model.libraryError { RetryCard(message: error) { Task { await model.loadLibrary() } } }
                         if !model.history.isEmpty { StreamingHeading(title: "최근 감상") { LibraryView(initialSelection: 2) }; ForEach(model.history.prefix(3)) { StreamingSongRow(song: $0, queue: model.history) } }
                     } else {
-                        NavigationLink { PlayerInventoryView().streamingPage() } label: { StreamingLevelStrip(xp: profile.int("player_xp")) }.buttonStyle(.plain).accessibilityIdentifier("my-inventory")
                         MyWalletSummary()
+                        NavigationLink { PlayerInventoryView().streamingPage() } label: {
+                            StreamingEntry(title: "프레임 · 배경", caption: "보유 아이템과 장착 상태 보기", icon: "square.stack.3d.up")
+                        }.buttonStyle(.plain).accessibilityIdentifier("my-inventory")
                         if !profile.string("id").isEmpty { NavigationLink { ProfileGiftRankingView(profileID: profile.string("id")).streamingPage() } label: { Label("받은 선물", systemImage: "gift").frame(minHeight: 44) } }
                         NavigationLink { ActivityHistoryView().streamingPage() } label: { StreamingEntry(title: "알림 기록", caption: "커버 · 듀엣 참여와 받은 선물", icon: "bell") }.buttonStyle(.plain)
                         HStack(spacing: 8) {
-                            NavigationLink { DiamondWalletView().streamingPage() } label: { StreamingEntry(title: "다이아 · 정산", caption: "수익과 정산 내역", icon: "diamond", color: StreamStyle.cyan) }.buttonStyle(.plain).accessibilityIdentifier("my-diamonds")
                             NavigationLink { RecordingDraftsView().streamingPage() } label: { StreamingEntry(title: "내 초안", caption: "녹음 이어 하기", icon: "pencil") }.buttonStyle(.plain)
                         }
                         NavigationLink { CreatorWorkView().streamingPage() } label: { StreamingEntry(title: "내 작업 · 스튜디오", caption: "원곡 업로드와 내 음악 관리", icon: "slider.horizontal.3") }.buttonStyle(.plain)
@@ -604,6 +609,11 @@ struct MyMusicView: View {
             }.padding(14).padding(.bottom, 16)
         }.task(id: "\(model.userID ?? "guest"):\(model.profileRevision)") { await load() }.refreshable { await load(); await model.loadLibrary(); model.walletRevision += 1 }
             .navigationDestination(isPresented: $account) { AccountView() }
+    }
+    private func libraryEntry(_ title: String, icon: String, selection: Int, count: String) -> some View {
+        NavigationLink { LibraryView(initialSelection: selection).navigationTitle(title).streamingPage() } label: {
+            StreamingEntry(title: title, caption: model.libraryLoaded ? count : model.libraryError == nil ? "불러오는 중" : "다시 불러오기", icon: icon, color: Brand.pink)
+        }.buttonStyle(.plain).accessibilityIdentifier("music-shortcut-\(selection)")
     }
     private var profileCard: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -27,6 +27,7 @@ struct CatalogTabs: View {
                         .overlay(alignment: .bottom) {
                             if selection == name { Capsule().fill(Brand.gradient).frame(height: 3) }
                         }
+                        .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityAddTraits(selection == name ? .isSelected : [])
             }
         }.padding(.horizontal, 20).overlay(alignment: .bottom) { Divider() }

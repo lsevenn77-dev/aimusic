@@ -23,7 +23,9 @@ enum StreamingUIFixture {
         case "/api/voice/status": result = ["enabled": true]
         case "/api/voice/public-rooms": result = ["rooms": [["id":"fixture-talk","mode":"talk","title":"테스트 토킹룸"]]]
         case "/api/community/rankings": result = ["rows": []]
-        case "/api/dubbing/projects", "/api/play/participate": result = ["projects": [["id":"fixture-project","title":"더빙 연습"]]]
+        case "/api/dubbing/projects", "/api/play/participate": result = ["projects": [["id":"fixture-project","title":"더빙 연습","roleCount":2,"participants":1,"state":"recruiting"]]]
+        case "/api/playlists": result = ["playlists": [playlist]]
+        case "/api/discovery/profiles": result = ["profiles": [["id":"fixture-artist","name":"검증 아티스트","image_version":"fixture","followers":3]]]
         case "/api/play/works": result = ["works": [original, cover]]
         case "/api/karaoke": result = ["tracks": [original]]
         case "/api/duets":

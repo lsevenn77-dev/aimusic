@@ -99,29 +99,40 @@ struct MyWalletSummary: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var wallet = GiftWallet()
-    private var loaded: Bool { !wallet.data.isEmpty && wallet.error == nil }
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private func amount(_ source: [String: Any], unit: String) -> String {
+        guard wallet.error == nil, let number = source["balance"] as? NSNumber else { return "—" }
+        return number.doubleValue.formatted(.number.precision(.fractionLength(0...3))) + " " + unit
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 12) {
+            Text("내 재화").font(.headline)
+            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
+            layout {
                 NavigationLink { PaymentStoreView() } label: {
-                    balance("보유 골드", value: loaded ? "\(wallet.data.int("balance").formatted()) G" : "—", icon: "g.circle.fill", color: .yellow, id: "my-gold-balance")
-                }.buttonStyle(.plain)
-                Divider().frame(height: 32)
+                    balance("골드", value: amount(wallet.data, unit: "G"), icon: "g.circle.fill", color: Brand.pink, id: "my-gold-balance")
+                }
                 NavigationLink { RewardsView() } label: {
-                    balance("실버", value: loaded ? "\(wallet.stars.formatted()) S" : "—", icon: "star.fill", color: Brand.pink, id: "my-star-balance")
-                }.buttonStyle(.plain)
-            }
+                    balance("실버", value: amount(wallet.data.object("free"), unit: "S"), icon: "star.fill", color: AifectDesign.violet, id: "my-star-balance")
+                }
+                NavigationLink { DiamondWalletView().streamingPage() } label: {
+                    balance("다이아", value: amount(wallet.data.object("diamonds"), unit: "◇"), icon: "diamond", color: Brand.aqua, id: "my-diamond-balance")
+                }.accessibilityIdentifier("my-diamonds")
+            }.buttonStyle(.plain)
             if wallet.error != nil {
                 Button("잔액 다시 불러오기") { Task { await reload() } }.font(.caption).foregroundStyle(AifectDesign.muted)
             }
-        }.padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 20))
+        }
             .task(id: "\(model.userID ?? "guest"):\(model.walletRevision):\(scenePhase == .active)") { if scenePhase == .active { await reload() } }
     }
     private func balance(_ title: String, value: String, icon: String, color: Color, id: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(title, systemImage: icon).font(.system(size: 12)).foregroundStyle(color)
             Text(value).font(.system(size: 18, weight: .bold)).monospacedDigit().foregroundStyle(AifectDesign.text).accessibilityIdentifier(id)
-        }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
+        }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).padding(9)
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke))
+            .contentShape(Rectangle())
     }
     private func reload() async {
         wallet.bind(owner: model.userID, path: nil)

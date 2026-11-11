@@ -8,7 +8,7 @@ struct ListenView: View {
     var body: some View {
         VStack(spacing: 0) {
             if page != "추천" { homeTabs.padding(.horizontal, 14) }
-            if page == "발견" { SearchView() }
+            if page == "발견" { SearchView(discovery: true, onPopularChart: { page = "차트" }) }
             else if page == "차트" { PopularChartView() }
             else {
                 ScrollView {
@@ -17,7 +17,11 @@ struct ListenView: View {
                         if page == "추천" { recommended }
                         else {
                             Text("새롭게 도착한 음악").font(.title2.bold()).padding(.top, 12)
-                            Button("전체 재생", systemImage: "play.fill") { if let song = model.latest.first { model.player.play(song, queue: model.latest) } }.buttonStyle(ParityPill(filled: true)).disabled(model.latest.isEmpty)
+                            Text("최근 공개된 제작곡을 차례로 들어보세요").font(.subheadline).foregroundStyle(AifectDesign.muted)
+                            HStack(spacing: 10) {
+                                latestPlaybackButton(shuffle: false)
+                                latestPlaybackButton(shuffle: true)
+                            }.disabled(model.latest.isEmpty)
                             ForEach(model.latest) { StreamingSongRow(song: $0, queue: model.latest) }
                         }
                         if model.loading && model.latest.isEmpty { ProgressView("음악을 불러오는 중").frame(maxWidth: .infinity).padding(44) }
@@ -35,6 +39,19 @@ struct ListenView: View {
                 }.allowsHitTesting(false)
             }
         }.navigationDestination(item: $detail) { TrackDetailView(song: $0) }
+    }
+    private func latestPlaybackButton(shuffle: Bool) -> some View {
+        Button {
+            let songs = model.latest
+            guard let first = shuffle ? songs.randomElement() : songs.first else { return }
+            model.player.shuffled = shuffle
+            model.player.play(first, queue: songs)
+        } label: {
+            Label(shuffle ? "셔플" : "전체 재생", systemImage: shuffle ? "shuffle" : "play.fill")
+                .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44)
+                .background(shuffle ? Color.clear : Brand.aqua.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke))
+        }.buttonStyle(.plain)
     }
     private var homeTabs: some View {
         HStack(spacing: 0) {

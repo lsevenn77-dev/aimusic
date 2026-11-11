@@ -527,10 +527,15 @@ struct MobilePlayView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 16) {
                         if mode == "더빙" {
-                            Button("더빙 만들기", systemImage: "plus") {
+                            Button {
                                 if model.user == nil { model.showLogin = true }
                                 else { space = SiteWorkspace(area: "dubbing", key: "new", title: "더빙 만들기") }
-                            }.buttonStyle(ParityPill(filled: true))
+                            } label: {
+                                Label("더빙 만들기", systemImage: "plus")
+                                    .font(.subheadline.bold()).foregroundStyle(Brand.background)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
+                                    .background(Brand.gradient, in: RoundedRectangle(cornerRadius: 12))
+                            }.buttonStyle(.plain)
                         }
                         TextField(mode == "노래" ? "곡 · 아티스트 · 제작자 검색" : "작품 · 창작자 검색", text: $query)
                             .textFieldStyle(.roundedBorder)
@@ -574,6 +579,14 @@ struct MobilePlayView: View {
                     }.clipShape(RoundedRectangle(cornerRadius: 12))
                     Text(row.string("title")).font(.headline).lineLimit(2)
                     Text(row.string("owner_name", fallback: row.string("ownerName"))).font(.caption)
+                    if mode == "더빙" {
+                        let status = ["script_ready":"초안", "recruiting":"배역 모집 중", "recording":"녹음 중", "in_progress":"녹음 중", "mixing":"믹싱 중", "complete":"완료"][row.string("state")] ?? "제작 중"
+                        Text(section == "작품찾기" ? "극본 · \(row.int("roleCount"))개 배역" : "\(status) · \(row.int("participants")) / \(row.int("roleCount"))명")
+                            .font(.caption).foregroundStyle(AifectDesign.muted)
+                        Text(section == "더빙참여" ? "배역 보기" : section == "내 작업" ? "작업 이어가기" : "극본 보기")
+                            .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44)
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke))
+                    }
                 }
             }.buttonStyle(.plain)
         } else {

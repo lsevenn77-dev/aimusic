@@ -117,20 +117,48 @@ struct CatalogDirectory: View {
     @State private var rows: [[String: Any]] = []
     @State private var error: String?
     @State private var reload = 0
+    @State private var loading = true
     var body: some View {
-        List {
-            ForEach(rows, id: \.selfID) { row in
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                if loading { ProgressView().frame(maxWidth: .infinity) }
+                else if let error { RetryCard(message: error) { reload += 1 } }
+                else if rows.isEmpty { Text(artists ? "아직 공개된 AI 아티스트가 없어요." : "아직 공개된 플레이리스트가 없어요.").foregroundStyle(AifectDesign.muted) }
                 if artists {
-                    NavigationLink { ProfilePage(id: row.selfID, kind: "artist") } label: { PersonRow(person: row) }
-                } else { NavigationLink(row.string("name")) { PlaylistView(id: row.selfID, title: row.string("name")) } }
-            }
-            if let error { RetryCard(message: error) { reload += 1 } }
-        }.navigationTitle(artists ? "AI 아티스트" : "공개 플레이리스트")
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                        ForEach(rows, id: \.selfID) { row in
+                            NavigationLink { ProfilePage(id: row.selfID, kind: "artist") } label: {
+                                Color.clear.aspectRatio(1, contentMode: .fit).overlay {
+                                    let version = row.string("image_version")
+                                    let url = version.isEmpty || version == "0" ? nil : try? Endpoint.url("/media/artist/\(Endpoint.pathID(row.selfID))?v=\(Endpoint.query(version))")
+                                    RemoteArtwork(url: url) { $0.resizable().scaledToFill() } placeholder: { ZStack { Brand.card; Image(systemName: "person.fill") } }
+                                }.overlay(alignment: .bottomLeading) {
+                                    VStack(alignment: .leading) {
+                                        Text(row.displayName()).font(.headline).lineLimit(1)
+                                        Text("팔로워 \(row.int("followers"))명").font(.caption)
+                                    }.frame(maxWidth: .infinity, alignment: .leading).padding(9)
+                                        .background(LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom))
+                                }.clipShape(RoundedRectangle(cornerRadius: 16))
+                            }.buttonStyle(.plain)
+                        }
+                    }
+                } else {
+                    ForEach(rows, id: \.selfID) { row in StreamingPlaylistRow(list: row) }
+                }
+            }.padding(16)
+        }.background(Brand.background).navigationTitle(artists ? "AI 아티스트" : "공개 플레이리스트")
             .task(id: reload) {
+                loading = true
                 do {
-                    let data = try await API.shared.call(artists ? "/api/catalog" : "/api/playlists")
-                    rows = data.objects(artists ? "artists" : "playlists"); error = nil
-                } catch { self.error = error.localizedDescription }
+                    let data = try await API.shared.call(artists ? "/api/discovery/profiles?kind=artist&sort=popular" : "/api/playlists?sort=popular")
+                    try Task.checkCancellation()
+                    rows = data.objects(artists ? "profiles" : "playlists")
+                    error = nil
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    self.error = error.localizedDescription
+                }
+                loading = false
             }
     }
 }

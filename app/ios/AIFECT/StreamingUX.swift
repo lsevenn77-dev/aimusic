@@ -213,14 +213,16 @@ struct AppMenuView: View {
             NavigationLink("내 보관함") { LibraryView(initialSelection: 3) }
             NavigationLink("스튜디오") { CreatorWorkView() }
             NavigationLink("인기 차트") { PopularChartView() }
-            NavigationLink("기분 · 장르별 발견") { SearchView() }
+            NavigationLink("기분 · 장르별 발견") { SearchView(discovery: true) }
             NavigationLink("공개 플레이리스트") { CatalogDirectory(artists: false) }
             NavigationLink("AI 아티스트") { CatalogDirectory(artists: true) }
             NavigationLink("팔로우") { FollowingListView() }
             NavigationLink("인벤토리") { PlayerInventoryView() }
             NavigationLink("오늘의 실버") { RewardsView() }
             NavigationLink("다이아 · 내 정산") { DiamondWalletView() }
-        }.accessibilityIdentifier("all-destinations").contentMargins(.bottom, 70, for: .scrollContent).navigationTitle("전체 메뉴")
+            Color.clear.frame(height: 120).listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                .listRowSeparator(.hidden).accessibilityHidden(true)
+        }.accessibilityIdentifier("all-destinations").navigationTitle("전체 메뉴")
     }
 }
 

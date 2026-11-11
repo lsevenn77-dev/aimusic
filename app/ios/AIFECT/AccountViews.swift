@@ -309,9 +309,14 @@ struct TrackDetailView: View {
         Group {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    HStack(spacing: 20) { CoverArt(song: song, size: 110); VStack(alignment: .leading, spacing: 8) { Text(song.title).font(.title2.bold()); Text(song.credit).foregroundStyle(.secondary); Text(song.genreLabel).font(.caption).foregroundStyle(Brand.aqua) } }
+                    VStack(spacing: 10) {
+                        AlbumArtwork(song: song).frame(maxWidth: 300)
+                        Text(song.title).font(.title2.bold()).multilineTextAlignment(.center)
+                        Text(song.credit).font(.subheadline).foregroundStyle(AifectDesign.secondaryText)
+                        if !song.genreLabel.isEmpty { Text(song.genreLabel).font(.caption).foregroundStyle(Brand.aqua) }
+                    }.frame(maxWidth: .infinity)
+                    SongPlaybackControls(song: song, player: model.player)
                     HStack {
-                        Button { model.player.play(song, queue: [song]) } label: { Label("재생", systemImage: "play.fill") }.buttonStyle(.borderedProminent)
                         Button { Task { busy = true; await model.toggleLike(song); busy = false } } label: { Label("좋아요", systemImage: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart") }.buttonStyle(.bordered).disabled(busy)
                         if model.user != nil {
                             SaveMusicButton(song: song, compact: true)

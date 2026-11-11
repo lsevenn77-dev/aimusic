@@ -33,6 +33,44 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["인기 차트"].firstMatch.waitForExistence(timeout: 15))
         capture(app, "cold-launch")
     }
+    @MainActor func testAndroidLatestDiscoveryDubbingAndLibrary() {
+        let app = launch()
+        app.buttons["최신곡"].firstMatch.tap()
+        let play = app.buttons["전체 재생"].firstMatch
+        let shuffle = app.buttons["셔플"].firstMatch
+        XCTAssertTrue(shuffle.waitForExistence(timeout: 8))
+        XCTAssertLessThan(abs(play.frame.midY - shuffle.frame.midY), 3)
+        capture(app, "resume-latest")
+        shuffle.tap()
+        app.buttons["발견"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["기분과 순간"].waitForExistence(timeout: 8))
+        capture(app, "resume-discover")
+        app.buttons["discovery-chart"].tap()
+        XCTAssertTrue(app.buttons["이번 주"].waitForExistence(timeout: 8))
+        app.buttons["main-tab-2"].tap()
+        app.buttons["더빙"].firstMatch.tap()
+        let create = app.buttons["더빙 만들기"].firstMatch
+        XCTAssertTrue(create.waitForExistence(timeout: 8))
+        XCTAssertGreaterThan(create.frame.width, app.frame.width * 0.8)
+        XCTAssertTrue(app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "극본 보기")).firstMatch.waitForExistence(timeout: 8))
+        capture(app, "resume-dubbing")
+        app.buttons["main-tab-4"].tap()
+        app.buttons["내 보관함"].firstMatch.tap()
+        let likes = app.buttons["music-shortcut-1"]
+        let history = app.buttons["music-shortcut-2"]
+        let lists = app.buttons["music-shortcut-0"]
+        XCTAssertTrue(lists.waitForExistence(timeout: 8))
+        XCTAssertLessThan(likes.frame.midY, history.frame.midY)
+        XCTAssertLessThan(history.frame.midY, lists.frame.midY)
+        capture(app, "resume-library")
+        likes.tap()
+        XCTAssertTrue(app.segmentedControls.buttons["좋아요"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.segmentedControls.buttons["좋아요"].isSelected)
+        back(app)
+        app.buttons["인벤토리"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["my-diamonds"].waitForExistence(timeout: 8))
+        capture(app, "resume-inventory")
+    }
     @MainActor func testOpenEveryMenuDestination() {
         let app = launch()
         let menu = ["홈","플레이","커뮤니티","선물함","메시지","알림 기록","마이","내 보관함","스튜디오","인기 차트","기분 · 장르별 발견","공개 플레이리스트","AI 아티스트","팔로우","인벤토리","오늘의 실버","다이아 · 내 정산"]
@@ -50,6 +88,7 @@ final class StreamingUITests: XCTestCase {
             XCTAssertTrue(item.isHittable, name)
             item.tap()
             if ![0,1,2,4,6].contains(i) { XCTAssertTrue(app.navigationBars.buttons.firstMatch.waitForExistence(timeout: 6), name) }
+            if i == menu.count - 1 { XCTAssertTrue(app.navigationBars["다이아 · 내 정산"].waitForExistence(timeout: 8)) }
             capture(app, "menu-\(i)-" + name)
             if ![0,1,2,4,6].contains(i) { back(app); app.buttons["main-tab-0"].tap() }
         }

@@ -223,6 +223,11 @@ final class AIFECTUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
         app.buttons["feedback-menu"].tap(); app.buttons["음원 상세 검증"].tap()
+        XCTAssertTrue(app.buttons["셔플"].waitForExistence(timeout: 5))
+        let detailScreenshot = XCTAttachment(screenshot: app.screenshot())
+        detailScreenshot.name = "resume-track"
+        detailScreenshot.lifetime = .keepAlways
+        add(detailScreenshot)
         XCTAssertTrue(app.buttons["창작자 프로필"].waitForExistence(timeout: 5))
         app.buttons["창작자 프로필"].tap()
         XCTAssertTrue(app.staticTexts["프로필 검증 창작자"].firstMatch.waitForExistence(timeout: 10))
