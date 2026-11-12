@@ -507,6 +507,35 @@ class DesignCaptureTest {
   }finally{instrumentation.removeMonitor(monitor)}
   assertFalse(requestUrls.any{it.contains("category=relationship")});assertFalse(requestBodies.keys.any{it.startsWith("/api/voice/")})
  }
+ @Test fun crewOwnerSeesTransferRequirementAndEmptyNotices(){
+  responses["/api/crews?summary=1"]=payload("mine" to "design-crew","crews" to arr(crew))
+  member.put("role","owner")
+  responses["/api/crews/design-crew/notices"]=payload("items" to arr())
+  ui.onNodeWithTag("main-tab-3").performClick();ui.onNodeWithTag("community-main-crews").performClick()
+  text("크루 관리");ui.onNodeWithText("크루 관리").performClick();text("크루장")
+  ui.onNodeWithTag("crew-membership-leave").assertIsNotEnabled()
+  text("크루장을 위임한 후 탈퇴할 수 있어요.")
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithText("공지").performClick()
+  text("등록된 공지가 없어요")
+ }
+ @Test fun crewHomeOpensNoticesAndManagesOwnMembership(){
+  val summary="/api/crews?summary=1"
+  val leave="/api/crews/design-crew/leave"
+  responses[summary]=payload("mine" to "design-crew","crews" to arr(crew))
+  member.put("joined",1704067200)
+  responses["/api/crews/design-crew/notices"]=payload("items" to arr(payload("id" to "n1","title" to "이번 주 모임","body" to "금요일 저녁에 만나요.")))
+  ui.onNodeWithTag("main-tab-3").performClick();ui.onNodeWithTag("community-main-crews").performClick()
+  ready("native-crew-home");text("크루 관리")
+  ui.onNodeWithText("공지 · 채팅 · 크루 관리").assertDoesNotExist()
+  ui.onNodeWithText("공지").performClick();text("이번 주 모임");text("금요일 저녁에 만나요.")
+  assertNull(model.workspace)
+  Espresso.pressBack();text("크루 관리");ui.onNodeWithText("크루 관리").performClick()
+  text("2024.01.01");text("크루원");ui.onNodeWithTag("crew-membership-leave").performClick()
+  ui.onNodeWithText("취소").performClick();assertFalse(requestUrls.contains(leave))
+  responses[summary]=payload("mine" to JSONObject.NULL,"crews" to arr(crew))
+  ui.onNodeWithTag("crew-membership-leave").performClick();ui.onNodeWithText("탈퇴").performClick()
+  ready("crew-directory-scroll");assertEquals(1,requestUrls.count{it==leave})
+ }
  @Test fun crewDiscoveryUsesPhotosAndFiltersAndOpensDetails(){
   val other=payload("id" to "other-crew","name" to "새벽 라디오","description" to "감성적인 목소리가 모이는 곳","image_version" to "sample-ocean","level" to 2,"xp" to 700,"members" to 8,"capacity" to 20,"recruiting" to 0,"interests" to "Jazz","created" to now)
   responses["/api/crews?summary=1"]=payload("mine" to "design-crew","crews" to arr(crew,other),"rankings" to arr(crew,other))

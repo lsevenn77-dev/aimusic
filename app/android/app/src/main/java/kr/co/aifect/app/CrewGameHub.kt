@@ -80,6 +80,7 @@ import kotlinx.coroutines.delay
  val mine=directory.data?.optString("mine").orEmpty().takeIf{CurrentNavigation.safeID(it)&&it!="null"}.orEmpty()
  var browsing by rememberSaveable{mutableStateOf(false)}
  var tab by rememberSaveable{mutableStateOf("works")}
+ var page by rememberSaveable(mine,m.user?.optString("id")){mutableStateOf<String?>(null)}
  val today=rememberCrewKstDate()
  if(browsing||(!directory.loading&&mine.isEmpty())){
   Column{if(browsing&&mine.isNotEmpty())TextButton({browsing=false}){Text("‹ 내 크루로 돌아가기")};CurrentCrewDirectory(m)};return
@@ -99,7 +100,15 @@ import kotlinx.coroutines.delay
     Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("Lv.${crew.optInt("level")}  ${crew.optLong("xp")} XP",fontSize=13.sp,color=Pink);Text(if(crew.isNull("next_xp"))"최고 레벨" else "다음 레벨까지 ${(crew.optLong("next_xp")-crew.optLong("xp")).coerceAtLeast(0)} XP",fontSize=11.sp,color=Muted)}
     LinearProgressIndicator(progress={crew.optDouble("progress",0.0).toFloat().coerceIn(0f,1f)},modifier=Modifier.fillMaxWidth().height(5.dp).clip(RoundedCornerShape(4.dp)),color=Aqua,trackColor=Raised)
    }}
-   item{CurrentTabs(listOf("works" to "작품","members" to "멤버","about" to "소개"),tab,"crew-home-tabs"){tab=it};Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){TextButton({m.openCurrentWorkspace("crew/$mine",crew.optString("name"))}){Text("공지 · 채팅 · 크루 관리")};TextButton({browsing=true}){Text("크루 찾기")}}}
+   item{
+    CurrentTabs(listOf("works" to "작품","members" to "멤버","about" to "소개"),tab,"crew-home-tabs"){tab=it}
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+     TextButton({page="notice"}){Text("공지")}
+     TextButton({page="membership"}){Text("크루 관리")}
+     Spacer(Modifier.weight(1f))
+     TextButton({browsing=true}){Text("크루 찾기")}
+    }
+   }
    when(tab){
     "members"->items(data.optJSONArray("members").objects(),key={it.optString("id")}){p->Row(Modifier.fillMaxWidth().heightIn(min=68.dp).clickable{m.openProfile(p.optString("id"))},verticalAlignment=Alignment.CenterVertically){Avatar(p.optString("name"),p,46);Column(Modifier.padding(start=12.dp)){Text(p.optString("name"),fontWeight=FontWeight.SemiBold);Text(CrewRoles[p.optString("role")]?:"크루원",color=Muted,fontSize=12.sp)}}}
     "about"->item{Text(crew.optString("description").ifBlank{"아직 등록된 소개가 없어요."},fontSize=15.sp,lineHeight=23.sp);TextButton({m.openCurrentWorkspace("crew/$mine",crew.optString("name"))}){Text("크루 자세히 보기")}}
@@ -116,5 +125,91 @@ import kotlinx.coroutines.delay
     }
    }
   }
+ }
+
+ when(page){
+  "notice"->CrewNotices(m,mine){page=null}
+  "membership"->CrewMembershipPage(m,mine,read,{page=null}){
+   page=null
+   tab="works"
+   directory.data=JSONObject(directory.data.toString()).put("mine",JSONObject.NULL)
+   directory.retry()
+  }
+ }
+}
+
+@Composable private fun CrewNotices(m:MusicModel,crewId:String,onBack:()->Unit){
+ val feed=currentRead(m,"/api/crews/$crewId/notices")
+ var editing by rememberSaveable(crewId){mutableStateOf(false)}
+ LaunchedEffect(m.workspace,editing){
+  if(editing&&m.workspace==null){editing=false;feed.retry()}
+ }
+ AppPage("크루 공지",onBack){
+  LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(18.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+   if(feed.loading||feed.error!=null)item{ReadStatus(feed)}
+   feed.data?.let{data->
+    if(data.optBoolean("can_manage"))item{
+     TextButton({m.openCurrentWorkspace("crew/$crewId?tab=notice","공지 관리");editing=true}){Text("공지 관리")}
+    }
+    val notices=data.optJSONArray("items").objects()
+    if(notices.isEmpty())item{CurrentEmpty("등록된 공지가 없어요","새 공지가 올라오면 여기에 표시돼요.")}
+    items(notices){notice->
+     Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Panel).padding(16.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
+      if(notice.optBoolean("is_pinned")||notice.optInt("is_pinned")==1)Text("고정 공지",color=Pink,fontSize=12.sp)
+      Text(notice.optString("title"),fontSize=18.sp,fontWeight=FontWeight.Bold)
+      val created=notice.optLong("created")
+      Text(listOfNotNull(notice.optString("author_name").takeIf{it.isNotBlank()},if(created>0)activityDate(created) else null).joinToString(" · "),fontSize=12.sp,color=Muted)
+      val body=notice.optString("body")
+      if(body.isNotBlank())Text(body,fontSize=15.sp,lineHeight=22.sp)
+      notice.optJSONArray("images").objects().forEach{photo->
+       profileMediaUrl(photo.optString("url"))?.let{url->
+        AsyncImage(url,"공지 첨부 이미지",Modifier.fillMaxWidth(),contentScale=ContentScale.FillWidth)
+       }
+      }
+     }
+    }
+   }
+  }
+ }
+}
+
+@Composable private fun CrewMembershipPage(m:MusicModel,crewId:String,read:CurrentRead,onBack:()->Unit,onLeft:()->Unit){
+ var confirming by rememberSaveable(crewId){mutableStateOf(false)}
+ val crew=read.data?.optJSONObject("crew")
+ val member=read.data?.optJSONObject("membership")
+ val role=member?.optString("role")
+ val account=m.user?.optString("id")
+ AppPage("크루 관리",onBack){
+  Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   if(read.loading||read.error!=null)ReadStatus(read)
+   if(member!=null){
+    Text(crew?.optString("name").orEmpty(),fontSize=22.sp,fontWeight=FontWeight.Bold)
+    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Panel).padding(16.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+     val joined=member.optLong("joined")
+     for((label,value) in listOf("내 역할" to (CrewRoles[role]?:"확인할 수 없음"),"가입일" to if(joined>0)activityDate(joined).substringBefore(' ') else "확인할 수 없음")){
+      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text(label,color=Muted);Text(value)}
+     }
+    }
+    if(role=="owner")Text("크루장을 위임한 후 탈퇴할 수 있어요.",color=Muted)
+    OutlinedButton({confirming=true},enabled=role!=null&&role!="owner"&&!m.busy,modifier=Modifier.testTag("crew-membership-leave")){Text("크루 탈퇴")}
+   }else if(!read.loading&&read.error==null){Text("가입 정보를 확인할 수 없어요.");TextButton({read.retry()}){Text("다시 시도")}}
+  }
+  if(confirming)AlertDialog(
+   onDismissRequest={confirming=false},title={Text("크루를 탈퇴할까요?")},text={Text("${crew?.optString("name").orEmpty()}에서 탈퇴합니다.")},
+   dismissButton={TextButton({confirming=false}){Text("취소")}},
+   confirmButton={TextButton({
+    confirming=false
+    m.action{
+     m.api.call("/api/crews/$crewId/leave","POST")
+     if(m.user?.optString("id")==account){
+      m.invalidateCrewPreviews()
+      if(m.lastKnownCrewId==crewId)m.lastKnownCrewId=null
+      if(m.inboxCrew?.optString("id")==crewId)m.inboxCrew=null
+      onLeft()
+      m.notice="크루에서 탈퇴했어요."
+     }
+    }
+   },enabled=!m.busy){Text("탈퇴")}}
+  )
  }
 }
