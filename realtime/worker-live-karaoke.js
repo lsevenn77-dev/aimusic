@@ -1,3 +1,4 @@
+import {emptyRoomMusic,changeRoomMusic} from '../shared/voice-music.js';
 import {talkingDirectory,talkingDirectoryCard} from './talking-directory.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -77,115 +78,6 @@ function roomSettings(input, actor, previous = {}) {
   return { seating_mode, title, visibility, max_members, background, announcement, crew_id };
 }
 __name(roomSettings, "roomSettings");
-
-// ../shared/voice-music.js
-var emptyRoomMusic = /* @__PURE__ */ __name(() => ({ queue: [], index: -1, playing: false, position: 0, updated: Date.now(), volume: 0.7, balance: 0.7, repeat: "off", revision: 0, starts: 0 }), "emptyRoomMusic");
-function roomMusicPosition(m, now = Date.now()) {
-  const duration = m.queue[m.index]?.duration || 0;
-  return Math.max(0, Math.min(duration, m.position + (m.playing ? Math.max(0, now - m.updated) / 1e3 : 0)));
-}
-__name(roomMusicPosition, "roomMusicPosition");
-function changeRoomMusic(prior, command, track, now = Date.now()) {
-  const m = structuredClone(prior || emptyRoomMusic());
-  m.position = roomMusicPosition(m, now);
-  m.updated = now;
-  const start = /* @__PURE__ */ __name((i) => {
-    m.index = i;
-    m.position = 0;
-    m.playing = i >= 0;
-    if (i >= 0) m.starts++;
-  }, "start");
-  switch (command.operation) {
-    case "enqueue":
-      if (!track || m.queue.length >= 50) throw Error("\uC7AC\uC0DD\uBAA9\uB85D\uC740 \uCD5C\uB300 50\uACE1\uC774\uC5D0\uC694.");
-      m.queue.push(track);
-      if (m.index < 0) {
-        m.index = m.queue.length - 1;
-        m.position = 0;
-        m.playing = false;
-      }
-      break;
-    case "play":
-      if (m.index < 0 && m.queue.length) start(0);
-      else if (m.index >= 0) {
-        if (m.position >= m.queue[m.index].duration) start(m.index);
-        else if (!m.playing && m.position === 0) m.starts++;
-        m.playing = true;
-      }
-      break;
-    case "stop":
-      m.playing = false;
-      m.position = 0;
-      m.index = -1;
-      break;
-    case "seek": {
-      const value = Number(command.position);
-      if (m.index < 0 || !Number.isFinite(value) || value < 0 || value > m.queue[m.index].duration) throw Error("\uC7AC\uC0DD \uC704\uCE58\uB97C \uD655\uC778\uD574\uC8FC\uC138\uC694.");
-      m.position = value;
-      break;
-    }
-    case "pause":
-      m.playing = false;
-      break;
-    case "restart":
-      if (m.index >= 0) start(m.index);
-      break;
-    case "previous":
-      start(m.index > 0 ? m.index - 1 : m.queue.length ? 0 : -1);
-      break;
-    case "next":
-      start(m.index + 1 < m.queue.length ? m.index + 1 : m.repeat === "all" && m.queue.length ? 0 : -1);
-      break;
-    case "repeat":
-      if (!["off", "all", "one"].includes(command.mode)) throw Error("\uBC18\uBCF5 \uC124\uC815\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.");
-      m.repeat = command.mode;
-      break;
-    case "clear":
-      m.queue = [];
-      start(-1);
-      break;
-    case "ended":
-      if (!m.playing || command.revision !== m.revision) return prior;
-      if (m.position + 0.5 < (m.queue[m.index]?.duration || Infinity)) return prior;
-      start(m.repeat === "one" ? m.index : m.index + 1 < m.queue.length ? m.index + 1 : m.repeat === "all" ? 0 : -1);
-      break;
-    case "remove": {
-      const i = command.index;
-      if (!Number.isInteger(i) || i < 0 || i >= m.queue.length) throw Error("\uB300\uAE30\uC5F4\uC744 \uB2E4\uC2DC \uD655\uC778\uD574\uC8FC\uC138\uC694.");
-      const wasPlaying = m.playing;
-      m.queue.splice(i, 1);
-      if (i < m.index) m.index--;
-      else if (i === m.index) {
-        m.index = i < m.queue.length ? i : -1;
-        m.position = 0;
-        m.playing = wasPlaying && m.index >= 0;
-        if (m.playing) m.starts++;
-      }
-      break;
-    }
-    case "move": {
-      const { index, to } = command;
-      if (!Number.isInteger(index) || !Number.isInteger(to) || index < 0 || to < 0 || index >= m.queue.length || to >= m.queue.length) throw Error("\uACE1 \uC21C\uC11C\uB97C \uD655\uC778\uD574\uC8FC\uC138\uC694.");
-      const current = m.queue[m.index];
-      m.queue.splice(to, 0, m.queue.splice(index, 1)[0]);
-      m.index = current ? m.queue.indexOf(current) : -1;
-      break;
-    }
-    case "volume":
-    case "balance": {
-      const key2 = command.operation, value = Number(command.value);
-      if (!Number.isFinite(value) || value < 0 || value > 1) throw Error("\uC74C\uB7C9\uC740 0~100%\uB85C \uC124\uC815\uD574\uC8FC\uC138\uC694.");
-      m[key2] = value;
-      if (key2 === "balance") m.volume = value;
-      break;
-    }
-    default:
-      throw Error("\uC9C0\uC6D0\uD558\uC9C0 \uC54A\uB294 \uC74C\uC545 \uBA85\uB839\uC774\uC5D0\uC694.");
-  }
-  m.revision++;
-  return m;
-}
-__name(changeRoomMusic, "changeRoomMusic");
 
 // sfu.js
 var Sfu = class {
@@ -460,6 +352,7 @@ var VoiceRoom = class {
       this.data.hostReconnectUntil = Date.now() + 3e5;
       this.data.hostReconnectGeneration = p.generation;
     }
+    if (wasHost && talk && this.data.music?.pendingStart != null) this.data.music = changeRoomMusic(this.data.music, { operation: "ready", start_revision: this.data.music.pendingStart });
     if (wasHost && !talk && this.data.music?.playing) this.data.music = changeRoomMusic(this.data.music, { operation: "pause" });
     this.notice(p, p.name + "\uB2D8\uC774 \uD1F4\uC7A5\uD588\uC5B4\uC694.");
     delete this.data.members[p.id];
@@ -505,7 +398,7 @@ var VoiceRoom = class {
     let guard = 0;
     while (music?.playing && music.index >= 0 && guard++ < 50 && music.position + Math.max(0, Date.now() - music.updated) / 1e3 >= music.queue[music.index].duration) {
       const endedAt = music.updated + (music.queue[music.index].duration - music.position) * 1e3;
-      Object.assign(music, changeRoomMusic(music, { operation: "ended", revision: music.revision }, void 0, endedAt));
+      Object.assign(music, changeRoomMusic(music, { operation: "ended", revision: music.revision, wait_for_audio: music.waitForAudio && !!this.data.members[this.data.config.host_id] }, void 0, endedAt));
       this.data.revision++;
       this.notify();
     }

@@ -349,7 +349,7 @@ function paintLiveKaraoke(c){
  for(const button of c.host.querySelectorAll('[data-voice="karaoke-search-open"],#live-results [data-voice="karaoke-request"]'))button.disabled=!!c.liveCommandPending||isSinger;
  c.host.querySelector('#live-queue-count').textContent=(k?.queue?.length||0)+'명 대기';
  const visible=k?.queue||[];
- const queueHTML=Array.from({length:6},(_,i)=>{
+ const queueHTML=Array.from({length:Math.max(6,visible.length)},(_,i)=>{
   const q=visible[i];
   if(!q)return `<li><span class="room-empty-order">${i+1}</span><strong>순서</strong></li>`;
   const person=s.members.find(p=>p.id===q.user_id),name=person?.name||q.name;

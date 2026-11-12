@@ -373,3 +373,14 @@ for(const action of ['karaoke-begin','karaoke-accept']){
   assert.equal(h.captures,1);assert.equal(h.client.roomAudio.micNeedsGesture,false);
  });
 }
+
+test('the reservation panel retains entries beyond the sixth slot in FIFO order',()=>{
+ const {c,host,nodes}=context();
+ const queue=Array.from({length:12},(_,i)=>({user_id:'guest-'+i,name:'예약자 '+i,track:{title:'곡 '+i},now:i===0}));
+ c.client={closed:false,host,state:{self:'self',room:{mode:'karaoke'},members:[{id:'self',role:'host'}],karaoke:{active:null,queue,phase:'idle'}}};
+ vm.runInContext('paintLiveKaraoke(client)',c);
+ const items=nodes.get('#live-queue').innerHTML.split('<li').slice(1);
+ assert.equal(items.length,queue.length);
+ items.forEach((item,i)=>assert.ok(item.includes('data-target="guest-'+i+'"')));
+ assert.match(items[0],/aria-current="true"/);
+});

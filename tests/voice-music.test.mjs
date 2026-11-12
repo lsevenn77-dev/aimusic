@@ -69,3 +69,68 @@ test('repeat button cycles off to one to all to off and track endings obey each 
   assert.equal(m.index,index);assert.equal(m.playing,playingAfter);
  }
 });
+
+test('room time starts at host readiness, and stale or cancelled starts cannot play a later selection',()=>{
+ let state=emptyRoomMusic();
+ const command=(operation,now,options={},track)=>{state=changeRoomMusic(state,{operation,...options},track,now);return state;};
+ command('enqueue',1000,{},song('one'));command('enqueue',1000,{},song('two'));
+ const first=command('play',1000,{wait_for_audio:true}).pendingStart;
+ assert.ok(Number.isInteger(first));assert.equal(roomMusicPosition(state,4500),0);assert.equal(state.playing,false);
+ command('repeat',4500,{mode:'all'});assert.equal(state.pendingStart,first);
+ command('ready',5000,{start_revision:first});assert.equal(state.playing,true);
+ assert.equal(state.updated,5000);assert.equal(roomMusicPosition(state,5500),.5);
+ const next=command('next',6000,{wait_for_audio:true}).pendingStart;
+ assert.notEqual(first,next);assert.equal(state.queue[state.index].id,'two');
+ const pending=state;assert.equal(command('ready',7100,{start_revision:first}),pending);
+ command('pause',7200);command('ready',8000,{start_revision:next});
+ assert.equal(state.playing,false);assert.equal(state.pendingStart,null);
+ const restart=command('play',10000,{wait_for_audio:true}).pendingStart;
+ command('seek',11000,{position:12});command('ready',12000,{start_revision:restart});
+ assert.equal(roomMusicPosition(state,12500),12.5);
+ command('stop',13000);assert.equal(state.index,-1);assert.equal(state.queue.length,2);
+});
+
+test('cold media and repeated paints never step over the intro or seek during a stall',async()=>{
+ const c=clientFixture(),a=c.musicAudio;let position=0,plays=0,finishPlay;
+ const seeks=[];Object.defineProperty(a,'currentTime',{get:()=>position,set:v=>{seeks.push(v);position=v;}});
+ a.play=()=>{plays++;return new Promise(resolve=>{finishPlay=()=>{a.paused=false;resolve();};});};
+ let m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'));
+ c.state={music:m};a.readyState=0;c.syncMusic();
+ m=playing(m,Date.now()-3200);c.state.music=m;c.syncMusic();a.readyState=1;c.syncMusic();
+ assert.equal(plays,0);assert.deepEqual(seeks,[]);
+ a.readyState=3;for(let i=0;i<12;i++)c.syncMusic();
+ assert.equal(plays,1);finishPlay();await Promise.resolve();c.musicAudible=true;
+ position=1;a.readyState=2;for(let i=0;i<15;i++)c.syncMusic();assert.deepEqual(seeks,[]);
+ a.readyState=4;c.musicAudible=true;c.syncMusic();assert.ok(a.playbackRate<=1.04);
+ c.setMusicClock(1010,1000,1020);c.setMusicClock(5010,5000,8050);assert.equal(c.musicClock,0);
+ m=changeRoomMusic(m,{operation:'seek',position:.25});c.state.music=m;c.syncMusic();c.syncMusic();
+ assert.deepEqual(seeks,[.25]);assert.equal(plays,1);
+});
+
+test('one hour of advancing room snapshots and delayed clock samples causes no transport seeks',()=>{
+ const c=clientFixture(),a=c.musicAudio;
+ const track={...song('long'),duration:4000},start=Date.now()-3600000;
+ let m=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},track,start);
+ c.state={music:m};c.syncMusic();m=playing(m,start);c.state.music=m;
+ let position=0;const seeks=[];
+ Object.defineProperty(a,'currentTime',{get:()=>position,set:v=>{seeks.push(v);position=v;}});
+ a.readyState=4;a.paused=false;c.syncMusic();c.musicAudible=true;
+ for(let i=1;i<=3600;i++){
+  position=i;c.musicClock=start+i*1000-Date.now();
+  if(i%20===0){m=changeRoomMusic(m,{operation:'repeat',mode:'off'},null,start+i*1000);c.state.music=m;}
+  c.syncMusic();
+ }
+ assert.deepEqual(seeks,[]);assert.equal(a.currentTime,3600);
+});
+
+test('a host using a suspended output graph acknowledges the buffered start once after resume',()=>{
+ const c=clientFixture(),queued=changeRoomMusic(emptyRoomMusic(),{operation:'enqueue'},song('one'));
+ const m=changeRoomMusic(queued,{operation:'play',wait_for_audio:true});
+ c.state={self:'host',room:{host_id:'host'},music:m};
+ c.levelContext={state:'suspended'};c.musicAudio.voiceGain={};c.playbackGain=()=>{};
+ c.musicAudio.readyState=4;const acknowledgments=[];
+ c.musicCommand=async (operation,input)=>{acknowledgments.push([operation,input.start_revision]);};
+ c.syncMusic();assert.deepEqual(acknowledgments,[]);
+ c.levelContext.state='running';c.syncMusic();c.syncMusic();
+ assert.deepEqual(acknowledgments,[['ready',m.pendingStart]]);
+});

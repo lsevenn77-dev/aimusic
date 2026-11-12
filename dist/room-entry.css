@@ -50,7 +50,7 @@
 #main .voice-room :is(.voice-person strong,.voice-member-info strong)>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 #main .voice-room .room-member-photo{position:relative;display:block;flex:0 0 var(--voice-avatar);width:var(--voice-avatar);height:var(--voice-avatar)}
 #main .voice-room .room-member-photo :is(img:not([aria-hidden]),.avatar-fallback){width:100%;height:100%;min-width:0;display:block;object-fit:cover;border-radius:50%;border:1px solid var(--room-control-line);padding:0;box-shadow:none}
-#main .voice-room .room-member-photo.is-muted> :is(img,.avatar-fallback,.profile-frame-canvas){filter:brightness(.4)}
+#main .voice-room .room-member-photo.is-muted :is(.profile-avatar-image,.avatar-fallback){opacity:1;filter:brightness(.68)}
 #main .voice-room .room-muted-mark{position:absolute;inset:0;display:grid;place-items:center;color:var(--room-text);pointer-events:none;filter:none}
 #main .voice-room .room-muted-mark svg{width:22px;height:22px}
 #main .voice-room .room-host-crown{display:inline-flex;flex:none;color:var(--room-active);filter:none;opacity:1}
@@ -76,8 +76,8 @@
 #main .voice-room #voice-chat-form button svg{width:20px;height:20px}
 #main .voice-room #voice-chat-form [data-voice=emoji]{position:absolute;inset:1px 1px auto auto;border:0;background:transparent}
 #main .voice-room #voice-chat-form .talk-send{border-color:transparent}
-/* Nonmodal chat overlays: no backdrop, fixed positioning or transparent surface. */
-#main .voice-room .room-popup,#main .voice-room :is(#voice-sound,#voice-music-sheet,#dialog).room-popup{position:absolute!important;inset:auto 0 0!important;transform:none!important;translate:none!important;width:100%!important;min-width:0!important;max-width:100%!important;height:fit-content;min-height:0;max-height:100%!important;margin:0!important;padding:16px!important;border:1px solid var(--room-control-line);border-radius:12px 12px 0 0;background:var(--room-popup)!important;background-image:none!important;color:var(--room-text);box-shadow:none!important;backdrop-filter:none!important;overflow:auto;overscroll-behavior:contain;z-index:30;isolation:isolate;font-size:15px;scrollbar-width:thin;scrollbar-color:var(--room-control-line) transparent}
+/* Base positioning for nonmodal chat overlays. */
+#main .voice-room .room-popup,#main .voice-room :is(#voice-sound,#voice-music-sheet,#dialog).room-popup{position:absolute!important;inset:auto 0 0!important;transform:none!important;translate:none!important;width:100%!important;min-width:0!important;max-width:100%!important;height:fit-content;min-height:0;max-height:100%!important;margin:0!important;padding:16px!important;border:1px solid var(--room-control-line);border-radius:12px 12px 0 0;background:var(--room-popup)!important;background-image:none!important;color:var(--room-text);box-shadow:none!important;overflow:auto;overscroll-behavior:contain;z-index:30;isolation:isolate;font-size:15px;scrollbar-width:thin;scrollbar-color:var(--room-control-line) transparent}
 #main .voice-room .room-popup::backdrop{background:transparent;backdrop-filter:none}
 #main .voice-room .room-popup::before,#main .voice-room .room-popup::after{display:none}
 #main .voice-room .room-popup:not([open]){display:none}

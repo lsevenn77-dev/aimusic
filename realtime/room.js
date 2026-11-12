@@ -112,6 +112,7 @@ export class VoiceRoom {
   if(wasHost){this.clearRequests();this.data.seatInvites={};}
   delete this.data.seatInvites[p.id];
   if(temporary&&wasHost){this.data.hostReconnectUntil=Date.now()+300000;this.data.hostReconnectGeneration=p.generation;}
+  if(wasHost&&talk&&this.data.music?.pendingStart!=null)this.data.music=changeRoomMusic(this.data.music,{operation:'ready',start_revision:this.data.music.pendingStart});
   if(wasHost&&!talk&&this.data.music?.playing)this.data.music=changeRoomMusic(this.data.music,{operation:'pause'});
   this.notice(p,p.name+'님이 퇴장했어요.');delete this.data.members[p.id];this.queueRetire(p.pub);this.queueRetire(p.sub);
   if(wasHost&&!temporary&&!this.data.config.closed)this.electHost(Date.now());
@@ -139,7 +140,7 @@ export class VoiceRoom {
   const music=this.data.music;let guard=0;
   while(music?.playing&&music.index>=0&&guard++<50&&music.position+Math.max(0,Date.now()-music.updated)/1000>=music.queue[music.index].duration){
    const endedAt=music.updated+(music.queue[music.index].duration-music.position)*1000;
-   Object.assign(music,changeRoomMusic(music,{operation:'ended',revision:music.revision},undefined,endedAt));this.data.revision++;this.notify();
+   Object.assign(music,changeRoomMusic(music,{operation:'ended',revision:music.revision,wait_for_audio:music.waitForAudio&&!!this.data.members[this.data.config.host_id]},undefined,endedAt));this.data.revision++;this.notify();
   }
   await this.syncDirectory();
  }

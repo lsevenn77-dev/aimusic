@@ -108,7 +108,7 @@ Object.assign(VoiceRoomClient.prototype,{
    else request.textContent=this.micNoticeUntil>Date.now()?'마이크가 켜졌어요.':self.locked?'마이크 사용 제한':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':seated?(micOn?'대화 중이에요.':'마이크를 켜고 대화해보세요.'):'좌석을 눌러 참여해보세요.';
   }
   const mic=this.host.querySelector('.talk-central [data-voice=toggle-mic]');
-  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff')+'<span>'+(micOn?'끄기':'켜기')+'</span>';}
+  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMicOff':'talkMic')+'<span>'+(micOn?'끄기':'켜기')+'</span>';}
   mic.hidden=!seated;mic.disabled=self.locked||!seated||!!this.micBusy;
   const down=this.host.querySelector('.talk-central [data-voice=release-mic]');if(down){down.hidden=!seated;down.disabled=!!this.seatReleasePending;}
   mic.setAttribute('aria-pressed',String(micOn));mic.setAttribute('aria-label',micOn?'내 마이크 끄기':'내 마이크 켜기');
@@ -244,6 +244,7 @@ Object.assign(VoiceRoomClient.prototype,{
   for(const b of this.host?.querySelectorAll?.('[data-voice=personal-mute]')||[])b.setAttribute('aria-pressed',String(this.preferences.music===0));try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}}for(const id of ['voice-music-volume','voice-listen-volume','live-mr-volume','voice-playlist-volume','voice-mini-volume','voice-personal-volume']){const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}}},
  paintFinalMusic(){
   const m=this.state.music;if(!m)return;const host=this.state.members.find(p=>p.id===this.state.self)?.role==='host',track=m.queue[m.index],hasQueue=!!m.queue.length;
+  const playRequested=m.playing||m.pendingStart!=null;
   $('#voice-host-audio').hidden=!host||!this.liveMode;$('#voice-room-volume').value=m.volume*100;$('#voice-balance').value=m.balance*100;
   $('#voice-sound-current').innerHTML=track?'현재 곡: '+esc(track.title)+' · '+trackNickname(track):'선택된 음악이 없어요.';
   $('#voice-music-search').hidden=!host;$('#voice-music-results').hidden=!host;$('#voice-queue-area').hidden=!hasQueue;$('#voice-playlist-empty').hidden=hasQueue||!!$('#voice-music-query').value.trim();
@@ -259,7 +260,7 @@ Object.assign(VoiceRoomClient.prototype,{
     if(mini.dataset.roomOwner!==String(host)){
      mini.dataset.roomOwner=String(host);mini.classList.toggle('talk-host-player',host);
      const transport=host?button('previous','이전 곡',voiceGlyph('previous'))+button('play','재생',voiceGlyph('talkPlay'))+button('pause','일시정지',voiceGlyph('talkPause'))+button('next','다음 곡',voiceGlyph('next')):'';
-     mini.innerHTML='<button type="button" class="talk-track-picker" data-voice="music-picker" aria-label="'+(host?'방 플레이리스트에 곡 추가':'방 플레이리스트 보기')+'"><span class="talk-cover" hidden><img alt=""></span><span class="talk-track"><strong></strong><small></small></span></button><div>'+transport+'<button type="button" data-voice="personal-volume" aria-label="개인 듣기 볼륨">'+voiceGlyph('talkVolume')+'</button><input id="voice-mini-volume" type="range" min="0" max="100" aria-label="개인 음악 볼륨"></div>';
+     mini.innerHTML='<button type="button" class="talk-track-picker" data-voice="music-picker" aria-label="'+(host?'방 플레이리스트에 곡 추가':'방 플레이리스트 보기')+'"><span class="talk-cover" hidden><img alt=""></span><span class="talk-track"><strong></strong><small></small><small class="talk-music-status" role="status" hidden></small></span></button><div>'+transport+'<button type="button" data-voice="personal-volume" aria-label="개인 듣기 볼륨">'+voiceGlyph('talkVolume')+'</button><input id="voice-mini-volume" type="range" min="0" max="100" aria-label="개인 음악 볼륨"></div>';
     }
     const art=mini.querySelector('.talk-cover'),credit=roomTrackCredit(track);
     art.hidden=!track;
@@ -268,7 +269,7 @@ Object.assign(VoiceRoomClient.prototype,{
     title.textContent=track?.title||'선택된 곡이 없어요';subtitle.textContent=credit;
     mini.querySelector('.talk-track').title=[track?.title,credit].filter(Boolean).join(' · ');
     for(const b of mini.querySelectorAll('[data-voice^="music-"]:not([data-voice="music-picker"])')){
-     b.disabled=!hasQueue;b.hidden=b.dataset.voice===(m.playing?'music-play':'music-pause');
+     b.disabled=!hasQueue;b.hidden=b.dataset.voice===(playRequested?'music-play':'music-pause');
     }
     mini.querySelector('#voice-mini-volume').value=this.preferences.music*100;
    }else $('#voice-music-player').innerHTML=(track?`<img src="${esc(track.cover)}" alt=""><span><strong>${esc(track.title)}</strong><small>${trackNickname(track)}</small></span>`:'<span><strong>함께 들을 음악을 선택해보세요</strong></span>')+`<div>${host?button('previous','이전 곡',voiceGlyph('previous'),!hasQueue)+button(m.playing?'pause':'play',m.playing?'일시정지':'재생',(m.playing?icon('pause'):icon('audio-play')),!hasQueue)+button('next','다음 곡',voiceGlyph('next'),!hasQueue)+button('repeat','반복',voiceGlyph('repeat'),!hasQueue):''}<label class="voice-mini-volume">${icon('volume')}<input id="voice-mini-volume" type="range" min="0" max="100" value="${this.preferences.music*100}" aria-label="개인 음악 볼륨"></label>${button('picker','플레이리스트',voiceGlyph('playlist'))}</div>`;
@@ -276,8 +277,8 @@ Object.assign(VoiceRoomClient.prototype,{
    $('#voice-music-queue').innerHTML=m.queue.map((t,i)=>`<article class="voice-queue-row ${i===m.index?'is-current':''}" ${i===m.index?'aria-current="true"':''}><span class="voice-queue-number">${i===m.index&&m.playing?voiceGlyph('wave'):i+1}</span><img src="${esc(t.cover)}" alt=""><span class="voice-queue-info"><strong>${esc(t.title)}</strong><small>${trackNickname(t)}</small></span><time>${time(t.duration)}</time>${host?`<button type="button" data-voice="music-up" data-target="${i}" aria-label="${esc(t.title)} 위로 이동" ${i===0?'disabled':''}>↑</button><button type="button" data-voice="music-down" data-target="${i}" aria-label="${esc(t.title)} 아래로 이동" ${i===m.queue.length-1?'disabled':''}>↓</button><button type="button" data-voice="music-remove" data-target="${i}" aria-label="${esc(t.title)} 삭제">${voiceGlyph('trash')}</button>`:''}</article>`).join('');
   }
   for(const b of this.host.querySelectorAll('[data-voice="music-repeat"]')){const label='반복 '+({off:'끔',all:'전체',one:'한 곡'}[m.repeat||'off']);b.innerHTML=voiceGlyph('repeat')+(m.repeat==='one'?'<sup>1</sup>':'');b.setAttribute('aria-label',label);b.title=label;b.setAttribute('aria-pressed',String(m.repeat&&m.repeat!=='off'));}
-  for(const b of this.host.querySelectorAll('.voice-music-transport [data-voice="music-play"]'))b.hidden=!!m.playing;
-  for(const b of this.host.querySelectorAll('.voice-music-transport [data-voice="music-pause"]'))b.hidden=!m.playing;
+  for(const b of this.host.querySelectorAll('.voice-music-transport [data-voice="music-play"]'))b.hidden=!!playRequested;
+  for(const b of this.host.querySelectorAll('.voice-music-transport [data-voice="music-pause"]'))b.hidden=!playRequested;
   for(const el of this.host.querySelectorAll('input[type=range]'))this.updateDesignField(el);
  },
  async startMicTest(){
