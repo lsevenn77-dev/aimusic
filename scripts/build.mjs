@@ -1,7 +1,7 @@
 import {buildPublicImageAssets} from './public-image-assets.mjs';
 import {buildOrigin} from '../ops/cafe24/build-origin.mjs';
 import {builtinModules} from 'node:module';
-import { build } from 'esbuild';
+import { build, transform } from 'esbuild';
 import { mkdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
 import {resolve,sep} from 'node:path';
 import {businessFooterHTML} from '../shared/site-info.js';
@@ -51,6 +51,10 @@ await cp('dist/popup-layout.css','dist/client/popup-layout.css');
 for(const file of ['popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/room-create.css','dist/client/room-create.css');
 await cp('dist/room-interior.css','dist/client/room-interior.css');
+// Android WebView 124 can discard later nested rules after a vendor slider selector.
+const talkingRoomStyle = await readFile('dist/talking-room.css', 'utf8');
+const {code: flatTalkingRoomStyle} = await transform(talkingRoomStyle, {loader: 'css', supported: {nesting: false}});
+await writeFile('dist/client/talking-room.css', flatTalkingRoomStyle);
 for(const file of ['user-nickname.js','profile-editor.js','profile-editor.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/uiux-space.css','dist/client/uiux-space.css');
 await cp('dist/main-layout.css','dist/client/main-layout.css');

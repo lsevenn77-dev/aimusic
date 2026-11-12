@@ -14,6 +14,36 @@ function roomInviteButtons(invitation){
 Object.assign(VoiceRoomClient.prototype,{
  bindRoomRelease(){
   const options={signal:this.talkViewEvents.signal},room=this.host,uid=me?.id;
+  const more = room.querySelector('details.room-more');
+  if (more?.tagName === 'DETAILS') {
+   const nav = more.parentElement, menu = more.querySelector('.room-more-actions');
+   const secondary = ['sound','share','settings'].map(key => nav.querySelector(`[data-voice="${key}"]`));
+   const leave = nav.querySelector('[data-voice="leave"]');
+   const compact = window.matchMedia('(max-width: 349px)');
+   const arrange = () => {
+    more.open = false;
+    more.hidden = !compact.matches;
+    nav.insertBefore(more, leave);
+    for (const button of secondary) {
+     if (compact.matches) menu.append(button);
+     else nav.insertBefore(button, more);
+    }
+   };
+   arrange();
+   compact.addEventListener('change', arrange, options);
+   document.addEventListener('pointerdown', event => {
+    if (more.open && !more.contains(event.target)) more.open = false;
+   }, options);
+   more.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && more.open) {
+     event.preventDefault();
+     event.stopPropagation();
+     more.open = false;
+     more.querySelector('summary').focus();
+    }
+   }, options);
+   menu.addEventListener('click', () => { more.open = false; }, options);
+  }
   this.roomDMUnreadStop?.();
   let unreadLoading=false,unreadAgain=false,unreadStopped=false,unreadVersion=0;
   const unreadCurrent=()=>!!uid&&uid===me?.id&&!unreadStopped&&!this.closed&&!options.signal.aborted;

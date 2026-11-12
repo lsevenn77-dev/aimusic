@@ -1,0 +1,184 @@
+/* The room shell supplies the measured viewport, safe areas, theme and chat scroll owner. */
+#main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
+  --talk-ring: linear-gradient(105deg, #65e9dd, #a4a1f5 55%, #c37ae8);
+  --talk-ring-center: #191e2c;
+  --talk-inactive-track: #444754;
+  --talk-play-size: 44px;
+  --talk-player-height: 60px;
+  --room-seat: clamp(64px, 5.1vw, 72px);
+  &[data-ui-mode="light"] { --talk-ring-center: #f1eef7; --talk-inactive-track: #c7c6d3; }
+
+  & .room-heading { display: flex; align-items: center; min-width: 0; gap: clamp(8px, 1vw, 16px); }
+  & .room-heading h1 { display: block; max-height: none; line-height: 1.25; white-space: nowrap; }
+  & .room-meta { display: inline-flex; flex: none; align-items: center; white-space: nowrap; }
+  & .room-meta small {
+    display: inline-flex; align-items: center; gap: 5px; padding-inline: clamp(8px, 1vw, 14px);
+    line-height: 1.3; font-size: 15px; font-variant-numeric: tabular-nums; color: var(--room-muted);
+  }
+  & .room-meta small:last-child { padding-right: 0; }
+  & .room-meta svg { width: 1em; height: 1em; }
+  & .room-header nav { flex-wrap: nowrap; }
+  & .room-more { position: relative; }
+  & .room-more summary { display: grid; place-items: center; width: 40px; height: 44px; list-style: none; cursor: pointer; }
+  & .room-more summary::-webkit-details-marker { display: none; }
+  & .room-more summary svg { width: 20px; height: 20px; }
+  & .room-more-actions {
+    position: absolute; z-index: 5; top: 100%; right: 0; padding: 4px; border: 1px solid var(--room-stroke);
+    border-radius: 12px; background: var(--room-popup-fill);
+  }
+  & .room-more-actions > button { display: flex; align-items: center; gap: 8px; width: max-content; min-width: 110px; padding: 0 10px; }
+  & .room-more-actions > button::after { content: attr(title); font-size: 13px; }
+
+  & .voice-stage > #voice-music-player {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+    box-sizing: border-box; flex: 0 0 var(--talk-player-height);
+    height: var(--talk-player-height); min-height: var(--talk-player-height); max-height: none;
+    gap: 8px; margin: 0; padding: 5px clamp(8px, 1.2vw, 18px);
+  }
+  & #voice-music-player > div { display: flex; align-items: center; justify-content: flex-end; width: auto; gap: clamp(2px, .5vw, 9px); flex-wrap: nowrap; }
+  & .voice-stage > #voice-music-player.talk-host-player { grid-template-columns: minmax(0, 1fr) minmax(min-content, 52%); }
+  & #voice-music-player.talk-host-player > div { justify-content: space-between; }
+  & #voice-music-player .talk-track { flex: 1; width: auto; min-width: 0; }
+  & #voice-music-player .talk-track strong,
+  & #voice-music-player .talk-track.is-overflowing strong {
+    width: auto; max-width: 100%; font-size: 16px; line-height: 1.3; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; animation: none; transform: none;
+  }
+  & #voice-music-player > div > button { display: grid; place-items: center; width: 36px; min-width: 0; height: 44px; min-height: 0; padding: 0; }
+  & #voice-music-player > div > button svg { width: 20px; height: 20px; }
+  & #voice-music-player > div > :is([data-voice="music-play"], [data-voice="music-pause"]) {
+    box-sizing: border-box; width: var(--talk-play-size); height: var(--talk-play-size); aspect-ratio: 1;
+    border: 2px solid transparent; border-radius: 50%;
+    background: linear-gradient(var(--talk-ring-center), var(--talk-ring-center)) padding-box, var(--talk-ring) border-box;
+    box-shadow: none; outline-offset: 1px;
+  }
+  & #voice-music-player > div > :is([data-voice="music-play"], [data-voice="music-pause"]):disabled { opacity: 1; }
+  & #voice-music-player button:disabled svg { opacity: .53; }
+  & #voice-music-player button:focus-visible, & #voice-mini-volume:focus-visible, & .room-more summary:focus-visible { outline: 2px solid var(--room-text); }
+  & #voice-music-player #voice-mini-volume {
+    appearance: none; box-sizing: border-box; width: clamp(58px, 7.8vw, 126px); max-width: none; min-width: 0;
+    height: 36px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  }
+  & #voice-music-player #voice-mini-volume::-webkit-slider-runnable-track {
+    height: 6px; border: 0; border-radius: 999px;
+    background: var(--talk-ring) left / var(--range-fill, 0%) 100% no-repeat, var(--talk-inactive-track);
+  }
+  & #voice-music-player #voice-mini-volume::-moz-range-track { height: 6px; border-radius: 999px; background: var(--talk-inactive-track); }
+  & #voice-music-player #voice-mini-volume::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--talk-ring); }
+  & #voice-music-player #voice-mini-volume::-webkit-slider-thumb {
+    appearance: none; width: 16px; height: 16px; margin-top: -5px; border: 1px solid #a8a8b1;
+    border-radius: 50%; background: #fafaff; box-shadow: none;
+  }
+  & #voice-music-player #voice-mini-volume::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid #a8a8b1; border-radius: 50%; background: #fafaff; }
+
+  & #voice-seats {
+    --seat-caption: 22px;
+    grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr));
+    align-items: center; gap: 0; padding: 0 5%; margin: 0;
+  }
+  & #voice-seats .voice-seat { display: grid; grid-template: auto / minmax(0, 1fr); place-items: center; align-content: center; }
+  & #voice-seats .voice-seat-occupant, & #voice-seats .voice-seat-empty {
+    position: relative; inset: auto; align-self: center; width: 100%; height: calc(var(--room-seat) + var(--seat-caption)); max-height: none; margin: 0;
+  }
+  & #voice-seats .voice-person, & #voice-seats .voice-seat-empty {
+    display: grid; grid-template-rows: var(--room-seat) var(--seat-caption); place-items: center;
+    align-content: start; gap: 0; width: 100%; min-width: 0; padding: 0;
+  }
+  & #voice-seats .room-member-photo, & #voice-seats .voice-seat-empty svg {
+    box-sizing: border-box; width: var(--room-seat); height: var(--room-seat); aspect-ratio: 1; margin: 0; border-radius: 50%;
+  }
+  & #voice-seats .voice-seat-empty svg { padding: calc((var(--room-seat) - 24px) / 2); }
+  & #voice-seats .voice-person strong { display: flex; margin: 0; align-self: center; min-width: 0; min-height: 0; height: auto; line-height: 1.25; }
+  & #voice-seats .voice-person strong > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  & #voice-seats .room-follow-add { top: calc(var(--room-seat) - 15px); left: calc(50% + var(--room-seat) / 2 - 10px); }
+  & .talk-central { flex-shrink: 0; }
+
+  /* The photograph is a separate layer on the stage of the free dark talking room. */
+  &[data-theme-sku="basic_dark"] {
+    --talk-photo: url("/assets/talking-room/turntable-desktop.webp");
+    --talk-photo-position: center calc(100% + 23cqw - clamp(50px, 5.9vh, 68px) - 10px);
+    --talk-photo-top: calc(100% - 53.84cqw - clamp(50px, 5.9vh, 68px) - 10px);
+    --room-page: #080c14;
+  }
+  &[data-theme-sku="basic_dark"]::before { content: none; display: none!important; }
+  &[data-theme-sku="basic_dark"] .voice-stage {
+    isolation: isolate; background: transparent;
+  }
+  &[data-theme-sku="basic_dark"] .voice-stage::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: #030407 var(--talk-photo) var(--talk-photo-position) / 100% auto no-repeat;
+    mask-image: linear-gradient(90deg, transparent, black 2.5%, black 98%, transparent),
+      linear-gradient(transparent max(0%, var(--talk-photo-top)), black max(9%, calc(var(--talk-photo-top) + 5cqw)), black 94%, transparent);
+    mask-composite: intersect;
+  }
+}
+@media (min-width: 801px) {
+  #main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
+    --room-column: clamp(230px, 36.5%, 540px); --room-gap: clamp(14px, 1.5vw, 26px);
+    padding: clamp(10px, 2.2vh, 24px) max(1.3%, calc((100% - 1540px) / 2))
+      clamp(12px, 8vh, 96px) max(2.8%, calc((100% - 1540px) / 2));
+    & .room-header { min-height: 44px; margin-bottom: clamp(7px, 1.5vh, 16px); }
+    & .room-heading h1 { font-size: clamp(24px, 1.7vw, 26px); }
+    & .room-header nav button { min-width: 0; }
+    & .room-header nav button svg { width: 21px; height: 21px; }
+    & #voice-chat .voice-chat-message :is(b, p) { font-size: 15px; line-height: 1.4; }
+    & #voice-chat .voice-chat-system p { font-size: 14px; }
+    & .voice-stage { min-height: 0; }
+  }
+}
+@media (max-width: 800px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  #main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
+    --talk-player-height: 52px; --talk-play-size: 38px; --room-seat: clamp(44px, 12vw, 56px);
+    &[data-theme-sku="basic_dark"] {
+      --talk-photo: url("/assets/talking-room/turntable-mobile.webp");
+      --talk-photo-position: center calc(100% + 8cqw - 44px);
+      --talk-photo-top: calc(100% - 69.17cqw - 44px);
+    }
+    & .room-header {
+      display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto;
+      align-items: start; gap: 2px 4px; min-height: 46px; padding: 0 2px; margin: 0 0 6px;
+    }
+    & .room-heading { display: contents; }
+    & .room-heading h1 { grid-area: 1 / 1; align-self: end; font-size: 18px; }
+    & .room-meta { grid-area: 2 / 1 / 3 / -1; align-self: start; width: max-content; }
+    & .room-meta small { font-size: 12px; border: 0; padding: 0; gap: 3px; }
+    & .room-meta small + small { margin-left: 6px; padding-left: 6px; border-left: 1px solid var(--room-stroke); }
+    & .room-header nav { grid-area: 1 / 2 / 3 / 3; align-self: start; justify-self: end; width: auto; gap: 0; }
+    & .room-header nav > button { flex: none; width: clamp(34px, 9vw, 44px); min-width: 0; height: 44px; margin: 0; padding: 0; }
+    & .room-header nav svg { width: 19px; height: 19px; }
+    & .room-header:has(details[open]) { z-index: 5; }
+    & .voice-columns { grid-template-rows: minmax(0, min(355px, 50%)) minmax(0, 1fr); }
+    &[data-room-chat-active] .voice-columns { grid-template-rows: minmax(0, 24%) minmax(0, 1fr); }
+    & .voice-stage > #voice-music-player { gap: 4px; padding-inline: 8px; }
+    & .voice-stage > #voice-music-player.talk-host-player { grid-template-columns: minmax(0, 1fr) minmax(min-content, 62%); }
+    & #voice-music-player > div { gap: 0; }
+    & #voice-music-player > div > button { width: clamp(26px, 8vw, 38px); height: 40px; }
+    & #voice-music-player .talk-track strong { font-size: 14px; }
+    & #voice-music-player #voice-mini-volume { width: clamp(40px, 18vw, 84px); }
+    & #voice-seats { --seat-caption: 19px; flex: 1 0 auto; min-height: calc(2 * (var(--room-seat) + var(--seat-caption))); height: auto; padding: 0 1%; }
+    & #voice-seats .voice-seat-empty svg { padding: calc((var(--room-seat) - 20px) / 2); }
+    & .talk-central { margin-top: 0; }
+    & #voice-chat-form #voice-message { font-size: 16px!important; }
+  }
+}
+
+/* A rotated phone has enough width for separate panes and little height for stacked panes. */
+@media (pointer: coarse) and (orientation: landscape) and (min-width: 560px) and (max-height: 500px) {
+  #main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
+    --room-seat: clamp(40px, 11vh, 46px);
+    --talk-player-height: 48px; --talk-play-size: 36px;
+    padding-block: max(4px, env(safe-area-inset-top)) max(5px, env(safe-area-inset-bottom));
+    & .room-header { margin-bottom: 4px; }
+    & #voice-content .voice-columns {
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr); gap: 8px;
+    }
+    & .voice-columns > .voice-stage {
+      display: flex; flex-direction: column; height: 100%; min-height: 0; overflow-y: auto;
+    }
+    & #voice-content .voice-chat-panel { height: 100%; min-height: 0; align-self: stretch; }
+    & #voice-seats { --seat-caption: 17px; min-height: calc(2 * (var(--room-seat) + var(--seat-caption))); }
+    & #voice-music-player #voice-mini-volume { width: clamp(40px, 6vw, 62px); }
+    & .talk-central { height: 44px; min-height: 44px; }
+  }
+}

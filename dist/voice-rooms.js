@@ -144,6 +144,8 @@ class VoiceRoomClient {
   try{return await this.refreshTask;}finally{this.refreshTask=null;}
  }
  paint(){if(!this.host?.isConnected||!this.state)return;const s=this.state,self=s.members.find(p=>p.id===s.self);if(!self){this.leave(false);return;}$('#voice-entry').hidden=true;$('#voice-content').hidden=false;$('#voice-title').textContent=s.room.title;$('#voice-title').title=s.room.title;
+  const occupancy=this.host.querySelector('[data-room-occupancy]');
+  if(occupancy)occupancy.textContent=s.members.length+' / '+(s.room.max_members??'–');
   const micOn=!!this.micSender?.track?.enabled&&!self.muted;
   const seatHTML=Array.from({length:8},(_,i)=>{const p=s.members.find(p=>(this.optimisticSeat&&p.id===s.self?this.optimisticSeat.seat:p.seat)===i);return '<div class="voice-seat">'+(p?`<div class="voice-seat-occupant"><button type="button" class="voice-person" data-voice="talk-profile" data-target="${esc(p.id)}" data-level-user="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p)}<strong title="${esc(p.name)}">${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></strong></button>${roomRelationButton(p,s.self,true)}</div>`:'<button type="button" class="voice-seat-empty" data-voice="request-mic" data-target="'+i+'" aria-label="'+(i+1)+'번 좌석 참여 신청">'+voiceGlyph('plus')+'</button>')+'</div>';}).join('');
   if(this.seatHTML!==seatHTML){const template=document.createElement('template');template.innerHTML=seatHTML;patchRoomChildren($('#voice-seats'),[...template.content.children].map((node,i)=>({key:String(i),html:node.outerHTML})));this.seatHTML=seatHTML;this.positionTalkGift();}
