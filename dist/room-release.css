@@ -77,8 +77,8 @@
   &.live-karaoke-room #voice-seat-invitation button {
     min-width:42px; min-height:32px; padding:2px 8px; border-radius:12px;
   }
-  & .room-connection:has([data-connected]) { display:none; }
-  & .room-connection { min-height:0; margin:2px 6px; font-size:11px; order:2; }
+  /* Keep automatic reconnect active, but never render transient connection status text in either room. */
+  & .room-connection { display:none!important; }
 
   /* Light falls off toward the centre; the masked edge is thinner than a CSS pixel. */
   & :is(.live-stage-main,#voice-seats,#voice-music-player,.talk-central,.talk-message-field),

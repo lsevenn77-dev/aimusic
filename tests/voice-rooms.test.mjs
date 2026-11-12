@@ -14,6 +14,17 @@ import {Sfu} from '../realtime/sfu.js';
 import vm from 'node:vm';
 import siteWorker from '../server/index.js';
 import * as AifectGifts from '../shared/gifts.js';
+
+test('transient connection labels stay hidden in talking rooms and karaoke while recovery remains active',()=>{
+ const css=readFileSync(new URL('../dist/room-release.css',import.meta.url),'utf8');
+ const markup=readFileSync(new URL('../dist/voice-room-template.js',import.meta.url),'utf8');
+ const client=readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8');
+ assert.match(css,/#main \.voice-room\[data-voice-room\]/);
+ assert.match(css,/& \.room-connection \{\s*display:none!important;\s*\}/);
+ assert.match(markup,/class="room-connection"/);
+ assert.match(client,/async reconnect\(\)/);
+});
+
 const secret='test-only-bridge-secret-not-production-0001';
 const actor=(id,crews=[])=>({id,name:id,profile_id:id+'-profile',crews});
 const offer={type:'offer',sdp:'v=0\r\nm=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=mid:0\r\na=sendonly\r\n'};
