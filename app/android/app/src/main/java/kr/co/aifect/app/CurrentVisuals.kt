@@ -110,7 +110,7 @@ internal fun currentDubbingImage(p:JSONObject):String {
 }
 
 @Composable internal fun CurrentMySwitch(selected:String,onSelect:(String)->Unit){
- CurrentTabs(listOf("works" to "내 작품","library" to "내 보관함","inventory" to "인벤토리"),selected,"my-section",onSelect)
+ CurrentTabs(listOf("works" to "내 작품","library" to "내 보관함","inventory" to "인벤토리"),selected,"my-section",onSelect=onSelect)
 }
 
 @Composable internal fun CurrentRoomCard(room:JSONObject,m:MusicModel){

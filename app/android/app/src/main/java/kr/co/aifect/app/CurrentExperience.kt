@@ -59,22 +59,35 @@ internal class CurrentRead {
  if(read.loading)LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical=8.dp),color=Pink,trackColor=Stroke)
  read.error?.let{Column(Modifier.fillMaxWidth().padding(vertical=12.dp)){Text(it,color=Muted,fontSize=14.sp);TextButton(onClick=read::retry){Text("다시 불러오기")}}}
 }
-@Composable internal fun CurrentTabs(items:List<Pair<String,String>>,selected:String,tag:String,onSelect:(String)->Unit){
+@Composable internal fun CurrentTabs(
+ items:List<Pair<String,String>>,selected:String,tag:String,
+ actions:(@Composable RowScope.()->Unit)?=null,onSelect:(String)->Unit
+){
  val equalWidth=tag in setOf("community-main","play-main","my-section","inbox-filter")
  Column(Modifier.fillMaxWidth()){
- Row(Modifier.fillMaxWidth().then(if(equalWidth)Modifier else Modifier.horizontalScroll(rememberScrollState())).padding(horizontal=if(tag.startsWith("my-"))0.dp else 20.dp).testTag(tag),horizontalArrangement=Arrangement.spacedBy(if(equalWidth)0.dp else 20.dp)){
-  items.forEach{(key,label)->
-   Column((if(equalWidth)Modifier.weight(1f)else Modifier.width(IntrinsicSize.Max)).selectable(selected==key,role=Role.Tab,onClick={onSelect(key)}).testTag("$tag-$key").heightIn(min=48.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
-    Text(label,color=if(selected==key)Pink else Muted,fontWeight=if(selected==key)FontWeight.SemiBold else FontWeight.Medium,fontSize=13.sp,lineHeight=18.sp,modifier=Modifier.padding(vertical=11.dp))
-    Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).then(if(selected==key)Modifier.background(BrandGradient)else Modifier))
+  Row(Modifier.fillMaxWidth().padding(horizontal=if(actions!=null)4.dp else 0.dp),verticalAlignment=Alignment.CenterVertically){
+   BoxWithConstraints(Modifier.weight(1f)) {
+    val minSlot=48.dp*androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val fit=equalWidth && (actions==null || maxWidth>=minSlot*items.size)
+    Row(Modifier.fillMaxWidth().then(if(fit)Modifier else Modifier.horizontalScroll(rememberScrollState()))
+     .padding(horizontal=if(actions!=null || tag.startsWith("my-"))0.dp else 20.dp).testTag(tag),
+     horizontalArrangement=Arrangement.spacedBy(if(equalWidth)0.dp else 20.dp)){
+     items.forEach{(key,label)->
+      val slot=if(fit)Modifier.weight(1f) else if(equalWidth)Modifier.widthIn(min=minSlot) else Modifier.width(IntrinsicSize.Max)
+      Column(slot.selectable(selected==key,role=Role.Tab,onClick={onSelect(key)}).testTag("$tag-$key").heightIn(min=48.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+       Text(label,color=if(selected==key)Pink else Muted,fontWeight=if(selected==key)FontWeight.SemiBold else FontWeight.Medium,fontSize=13.sp,lineHeight=18.sp,maxLines=1,modifier=Modifier.padding(vertical=11.dp))
+       Box(Modifier.then(if(fit)Modifier.fillMaxWidth() else Modifier.width(30.dp)).height(3.dp).clip(RoundedCornerShape(2.dp)).then(if(selected==key)Modifier.background(BrandGradient)else Modifier))
+      }
+     }
+    }
    }
+   if(actions!=null) actions()
   }
- }
- HorizontalDivider(color=Stroke)
+  HorizontalDivider(color=Stroke)
  }
 }
-@Composable private fun CurrentHeader(title:String,menu:()->Unit){
- Row(Modifier.fillMaxWidth().padding(start=20.dp,end=8.dp).heightIn(min=56.dp),verticalAlignment=Alignment.CenterVertically){Text(title,fontSize=24.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick=menu){Icon(Icons.Rounded.Menu,"전체 메뉴",tint=SoftText)}}
+@Composable private fun MainMenuButton(menu:()->Unit){
+ IconButton(onClick=menu){Icon(Icons.Rounded.Menu,"전체 메뉴",tint=SoftText)}
 }
 
 @Composable internal fun CurrentPlayScreen(m:MusicModel,sing:(Song)->Unit,resumeDraft:(JSONObject)->Unit,menu:()->Unit){
@@ -100,8 +113,7 @@ internal class CurrentRead {
   match&&(mode!="song"||section!="duets"||Song(r).openDuetFor(m.user?.optString("id")))&&(mode!="song"||section!="latest"||Song(r).cover)
  }
  Column(Modifier.fillMaxSize().testTag("current-play")){
-  CurrentHeader("플레이",menu)
-  CurrentTabs(listOf("song" to "노래","dubbing" to "더빙","browse" to "둘러보기"),mode,"play-main"){m.playMode=it;m.playSection=if(it=="dubbing")"discover" else "recommended"}
+  CurrentTabs(listOf("song" to "노래","dubbing" to "더빙","browse" to "둘러보기"),mode,"play-main",actions={MainMenuButton(menu)}){m.playMode=it;m.playSection=if(it=="dubbing")"discover" else "recommended"}
   PlaySections(sections,section){m.playSection=it}
   if(mode=="song"&&section=="drafts"){
    if(gated)SignInEntry(m)else RecordingDraftsContent(m,resumeDraft)
@@ -186,8 +198,7 @@ private val NoneDescription:String?=null
  val read=currentRead(m,"/api/voice/public-rooms",m.communityMode=="voice"&&status.data?.optBoolean("enabled")==true,poll=20000)
  val rooms=read.data?.optJSONArray("rooms").objects().filter{query.isBlank()||(it.optString("title")+" "+it.optString("host_name")).contains(query.trim(),true)}
  Column(Modifier.fillMaxSize().testTag("current-community")){
-  CurrentHeader("커뮤니티",menu)
-  CurrentTabs(listOf("voice" to "라이브","crews" to "크루","rankings" to "랭킹"),m.communityMode,"community-main"){m.communityMode=it}
+  CurrentTabs(listOf("voice" to "라이브","crews" to "크루","rankings" to "랭킹"),m.communityMode,"community-main",actions={MainMenuButton(menu)}){m.communityMode=it}
   when(m.communityMode){
    "crews"->NativeCrewHome(m)
    "rankings"->CurrentRankings(m)

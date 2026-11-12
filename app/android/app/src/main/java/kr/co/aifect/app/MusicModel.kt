@@ -457,7 +457,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
       async{val path=communityPath(feedFilter);update(path){if(communityPath(feedFilter)==path){feed=it.tracks();displayedFeedPath=path}}},
       async{update("/api/playlists?sort=popular"){publicLists=it.optJSONArray("playlists").objects()}},
       async{update("/api/catalog?section=producers&limit=20"){people=it.optJSONArray("producers").objects()}},
-      async{update("/api/discovery/profiles?kind=artist&sort=popular"){aiArtists=it.optJSONArray("profiles").objects()}}
+      async{update("/api/catalog?section=artists"){aiArtists=it.optJSONArray("artists").objects()}}
      ).awaitAll()
     }
    }finally{loading=false;refreshing=false}
@@ -484,7 +484,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   api.peek("/api/duets")?.let{duetInvitations=it.tracks()}
   api.peek("/api/playlists?sort=popular")?.let{publicLists=it.optJSONArray("playlists").objects()}
   api.peek("/api/catalog?section=producers&limit=20")?.let{people=it.optJSONArray("producers").objects()}
-  api.peek("/api/discovery/profiles?kind=artist&sort=popular")?.let{aiArtists=it.optJSONArray("profiles").objects()}
+  api.peek("/api/catalog?section=artists")?.let{aiArtists=it.optJSONArray("artists").objects()}
  }
  suspend fun loadMe(loadPrivate:Boolean=true,loadGallery:Boolean=true){
   val generation=accountGeneration

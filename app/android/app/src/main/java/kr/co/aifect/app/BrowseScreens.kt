@@ -181,7 +181,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
        }
        HomeSection.Artists -> {
         Section("지금 뜨는 AI 아티스트",action="더보기",onAction={m.directoryKind="artists";m.selectTab(8)})
-        HomeArtistShelf(m.aiArtists.take(12),m)
+        HomeArtistShelf(m.aiArtists.sortedByDescending(m::artistFollowers).take(12),m)
        }
        HomeSection.People -> {
         Section("음악 뒤의 사람들")

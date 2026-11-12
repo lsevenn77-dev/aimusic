@@ -35,14 +35,12 @@ import java.net.URLEncoder
  val matching=conversations.filter{p->(filter!="안 읽음"||p.optInt("unread")>0)&&(filter!="공지"||p.optBoolean("is_notice"))&&(search.isBlank()||p.optString("name").contains(search,true)||p.optString("last_message").contains(search,true))}
  val crew=m.inboxCrew?.takeIf{c->(filter!="안 읽음"||c.optInt("unread")>0)&&(search.isBlank()||c.optString("name").contains(search,true))}
  Column(modifier.testTag("message-inbox")){
-  Row(Modifier.fillMaxWidth().padding(start=18.dp,end=5.dp).heightIn(min=56.dp),verticalAlignment=Alignment.CenterVertically){
-   Text("메시지",fontSize=23.sp,lineHeight=30.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+  CurrentTabs(listOf("전체","안 읽음","크루","공지").map{it to it},filter,"inbox-filter",actions={
    IconButton(onClick={searching=!searching;if(!searching)search=""},modifier=Modifier.testTag("inbox-search-toggle")){Icon(if(searching)Icons.Rounded.Close else Icons.Rounded.Search,"대화 검색",Modifier.size(22.dp),tint=SoftText)}
    IconButton(onClick={compose=true},modifier=Modifier.testTag("inbox-compose")){Icon(Icons.Rounded.PersonAddAlt,"새 대화",Modifier.size(22.dp),tint=SoftText)}
    IconButton(onClick={management=true},modifier=Modifier.testTag("inbox-management")){Icon(Icons.Rounded.Menu,"메시지 관리",Modifier.size(21.dp),tint=Muted)}
-  }
+  }){filter=it}
   if(searching)OutlinedTextField(search,{search=it},placeholder={Text("이름이나 메시지 검색",fontSize=13.sp)},singleLine=true,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth().padding(horizontal=14.dp).testTag("inbox-search"))
-  CurrentTabs(listOf("전체","안 읽음","크루","공지").map{it to it},filter,"inbox-filter"){filter=it}
   LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag("inbox-list"),contentPadding=PaddingValues(horizontal=14.dp,vertical=3.dp)){
    if(filter!="공지"&&crew!=null)item(key="pinned-crew"){
     Surface(onClick={m.openCrewMessages(crew.getString("id"))},color=Color.Transparent,modifier=Modifier.fillMaxWidth().testTag("inbox-crew")){
