@@ -307,7 +307,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
   }
  }
 }
-@Composable private fun HomePlaybackButton(song:Song,m:MusicModel,queue:List<Song>){
+@Composable internal fun HomePlaybackButton(song:Song,m:MusicModel,queue:List<Song>){
  val active=m.current?.id==song.id&&m.playing
  IconButton({if(m.current?.id==song.id)m.toggle()else m.play(song,queue)},modifier=Modifier.size(48.dp).testTag("stream-play-${song.id}")){
   Box(Modifier.size(32.dp).clip(CircleShape).then(if(active)Modifier.background(BrandGradient)else Modifier.background(Ink.copy(alpha=.7f))).border(1.dp,BrandGradient,CircleShape),contentAlignment=Alignment.Center){

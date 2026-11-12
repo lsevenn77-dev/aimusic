@@ -462,7 +462,7 @@ class DesignCaptureTest {
   ui.onAllNodesWithTag("voice-room-design-room").assertCountEquals(0)
   Espresso.closeSoftKeyboard();ui.onNodeWithTag("community-main-rankings").performClick();ready("community-rank-work-design-cover")
   ui.waitUntil(15000){requestUrls.contains("/api/tracks/design-cover")};text("하루 · 솔로")
-  ui.onNodeWithTag("ranking-category-relationship").assertDoesNotExist();ui.onNodeWithText("47점").assertDoesNotExist();ui.onNodeWithText("35점").assertDoesNotExist()
+  ui.onNodeWithTag("ranking-category-relationship").assertDoesNotExist();text("47.8점");text("35점")
   ui.onNodeWithTag("community-movement-work-design-cover",useUnmergedTree=true).assertTextEquals("▲2")
   ui.onNodeWithTag("community-movement-work-design-ocean",useUnmergedTree=true).assertTextEquals("—")
   ui.onNodeWithContentDescription("이전 순위 기록 없음",useUnmergedTree=true).assertExists()
@@ -473,16 +473,18 @@ class DesignCaptureTest {
   ui.onNodeWithTag("ranking-art-design-cover",useUnmergedTree=true).assertExists()
   ui.waitUntil(15000){requestUrls.any{it=="/media/producer/design-peer?v=sample"}&&ui.onAllNodesWithTag("default-profile-artwork",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}
   assertFalse("A cover without a profile photo must not use the original album",requestUrls.any{it.startsWith("/media/rank-ocean/cover")})
+  ui.onNodeWithTag("stream-play-design-cover").performClick();ui.waitUntil(15000){model.playing&&model.current?.id=="design-cover"}
+  ui.onNodeWithTag("mini-player").assertDoesNotExist()
   capture("community-261-work")
   ui.onNodeWithTag("community-rank-work-design-cover").performClick();ui.waitUntil(15000){model.detail?.id=="design-cover"};Espresso.pressBack();ready("ranking-period")
   ui.onNodeWithTag("ranking-period").performClick();ui.onNodeWithTag("ranking-period-month").performClick()
   ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/community/rankings?")&&it.contains("period=month")}}
   ui.waitUntil(10000){ui.onAllNodesWithText("▼1").fetchSemanticsNodes().isNotEmpty()}
   ui.onNodeWithTag("ranking-category-aiArtist").performClick();ready("community-rank-aiArtist-design-artist")
-  ui.onNodeWithTag("community-photo-artist-design-artist",useUnmergedTree=true).assertExists();ui.onNodeWithText("72점").assertDoesNotExist();capture("community-261-artists")
+  ui.onNodeWithTag("community-photo-artist-design-artist",useUnmergedTree=true).assertExists();text("72점");capture("community-261-artists")
   ui.onNodeWithTag("community-rank-aiArtist-design-artist").performClick();ui.waitUntil(15000){model.profile?.optString("id")=="design-artist"};Espresso.pressBack();ready("ranking-category-crew")
   ui.onNodeWithTag("ranking-category-crew").performClick();ready("community-rank-crew-design-crew")
-  ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};ui.onNodeWithContentDescription("밤산책 사진",useUnmergedTree=true).assertExists();ui.onNodeWithText("99점").assertDoesNotExist()
+  ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};ui.onNodeWithContentDescription("밤산책 사진",useUnmergedTree=true).assertExists();text("99점")
   val first=ui.onNodeWithTag("community-rank-crew-design-crew").fetchSemanticsNode().boundsInRoot
   val second=ui.onNodeWithTag("community-rank-crew-crew-zero").fetchSemanticsNode().boundsInRoot
   val third=ui.onNodeWithTag("community-rank-crew-crew-eclipse").fetchSemanticsNode().boundsInRoot
@@ -494,6 +496,15 @@ class DesignCaptureTest {
   ui.onNodeWithTag("community-rankings-scroll").performScrollToNode(hasTestTag("crew-rank-podium"))
   ui.onNodeWithTag("community-rank-crew-design-crew").performClick();ui.waitUntil(15000){model.workspace?.route=="crew/design-crew"};act{it.workspace=null};ready("ranking-category-dubbing")
   ui.onNodeWithTag("ranking-category-dubbing").performClick();text("아직 집계된 순위가 없어요.")
+  responses["/api/community/rankings?category=dubbing&period=week&workKind=solo"]=payload("rows" to arr(payload("id" to "design-dub","name" to "목소리 여행","score" to 118,"detail" to "완성 더빙")))
+  ui.onNodeWithTag("ranking-period").performClick();ui.onNodeWithTag("ranking-period-week").performClick();ready("community-rank-dubbing-design-dub");text("118점")
+  val monitor=instrumentation.addMonitor(NativePerformanceActivity::class.java.name,null,false)
+  try{
+   ui.onNodeWithTag("community-rank-dubbing-design-dub").performClick()
+   val activity=instrumentation.waitForMonitorWithTimeout(monitor,10000)
+   assertNotNull(activity);assertEquals("dubbing/design-dub",activity.intent.getStringExtra("route"))
+   instrumentation.runOnMainSync{activity.finish()}
+  }finally{instrumentation.removeMonitor(monitor)}
   assertFalse(requestUrls.any{it.contains("category=relationship")});assertFalse(requestBodies.keys.any{it.startsWith("/api/voice/")})
  }
  @Test fun crewDiscoveryUsesPhotosAndFiltersAndOpensDetails(){

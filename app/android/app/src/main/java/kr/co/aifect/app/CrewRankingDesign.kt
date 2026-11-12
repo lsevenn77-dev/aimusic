@@ -51,37 +51,21 @@ private fun JSONObject.crewText(key:String)=optString(key).takeUnless{it.isBlank
  }
 }
 
-@Composable private fun RankCrown(rank:Int){
- val color=when(rank){1->Color(0xFFE7C483);2->Violet;else->Color(0xFFC3A1AA)}
- Column(horizontalAlignment=Alignment.CenterHorizontally){
-  Canvas(Modifier.size(30.dp,17.dp)){
-   val w=size.width;val h=size.height
-   val crown=Path().apply{moveTo(w*.12f,h*.2f);lineTo(w*.32f,h*.5f);lineTo(w*.5f,0f);lineTo(w*.68f,h*.5f);lineTo(w*.88f,h*.2f);lineTo(w*.78f,h*.88f);lineTo(w*.22f,h*.88f);close()}
-   drawPath(crown,Brush.verticalGradient(listOf(color,color.copy(alpha=.35f))))
-   drawLine(color,Offset(w*.23f,h),Offset(w*.77f,h),2.dp.toPx())
-  }
-  Text("$rank",fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.Bold,color=color)
- }
-}
-
-@Composable internal fun CrewRankPodium(rows:List<JSONObject>,crews:Map<String,JSONObject>,open:(JSONObject)->Unit){
+@Composable internal fun CommunityPodium(rows:List<JSONObject>,category:String,card:@Composable (JSONObject,Int,Modifier)->Unit){
  val top=rows.take(3)
- val ordered=if(top.size>=2)listOf(top[1],top[0])+top.drop(2)else top
- Box(Modifier.fillMaxWidth().testTag("crew-rank-podium").padding(bottom=14.dp)){
-  Canvas(Modifier.matchParentSize()){
-   drawRect(Brush.radialGradient(listOf(Violet.copy(alpha=.20f),Color.Transparent),Offset(size.width*.5f,size.height*.72f),size.width*.6f))
-   repeat(21){i->val x=size.width*((i*47%101)/100f);val y=size.height*((i*23%71)/100f);drawCircle(Violet.copy(alpha=if(i%3==0).5f else .18f),if(i%3==0)1.2.dp.toPx()else .7.dp.toPx(),Offset(x,y))}
-   drawLine(Brush.horizontalGradient(listOf(Color.Transparent,Pink,Aqua,Color.Transparent)),Offset(0f,size.height-3.dp.toPx()),Offset(size.width,size.height-3.dp.toPx()),1.dp.toPx())
+ val order=if(top.size>1)listOf(1,0)+top.indices.drop(2) else top.indices.toList()
+ Column(Modifier.fillMaxWidth().testTag(if(category=="crew")"crew-rank-podium" else "ranking-podium-$category")){
+  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.Bottom){
+   order.forEach{i->
+    val width=if(top.size==1)Modifier.width(150.dp)else Modifier.weight(if(i==0)1.14f else 1f)
+    card(top[i],i+1,width.height(if(i==0)208.dp else 177.dp))
+   }
   }
-  Row(Modifier.fillMaxWidth().padding(top=8.dp,bottom=8.dp),horizontalArrangement=Arrangement.spacedBy(8.dp,Alignment.CenterHorizontally),verticalAlignment=Alignment.Bottom){
-   ordered.forEach{row->val position=top.indexOf(row)+1;val rank=row.optInt("rank",position).takeIf{it>0}?:position;val winner=rank==1;val crew=crews[row.crewText("id")];val movement=communityRankChange(row,rank)
-    Column((if(top.size==1)Modifier.width(148.dp)else Modifier.weight(if(winner)1.15f else 1f)).height(if(winner)244.dp else 218.dp).clip(RoundedCornerShape(15.dp)).background(Brush.verticalGradient(listOf(if(winner)Color(0xFF353453)else Color(0xFF21283D),Panel.copy(alpha=.88f)))).border(1.dp,if(winner)BrandGradient else Brush.verticalGradient(listOf(Violet.copy(alpha=.7f),Aqua.copy(alpha=.22f))),RoundedCornerShape(15.dp)).clickable{open(row)}.testTag("community-rank-crew-${row.crewText("id")}").padding(horizontal=6.dp,vertical=10.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(7.dp)){
-     RankCrown(rank)
-     RankCrewPhoto(row,crew,Modifier.size(if(winner)66.dp else 54.dp))
-     Text(row.crewText("name"),fontSize=if(winner)14.sp else 12.sp,lineHeight=18.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth())
-     crew?.let{Text("LV.${it.optInt("level",1)}",fontSize=10.sp,lineHeight=14.sp,color=SoftText,modifier=Modifier.background(Violet.copy(alpha=.15f),CircleShape).padding(horizontal=8.dp,vertical=3.dp))}
-     Text(movement.first,fontSize=11.sp,lineHeight=15.sp,color=if(movement.first.startsWith("▼"))Aqua else if(movement.first=="—")Muted else Pink,modifier=Modifier.testTag("community-movement-crew-${row.crewText("id")}").semantics{contentDescription=movement.second})
-    }
+  Canvas(Modifier.fillMaxWidth().height(18.dp)){
+   val w=size.width;val h=size.height
+   repeat(4){i->
+    val path=Path().apply{moveTo(0f,h*.29f+i);cubicTo(w*.22f,h*1.35f,w*.32f,-h*.35f,w*.51f,h*.50f+i);cubicTo(w*.69f,h*1.25f,w*.87f,0f,w,h*.34f+i)}
+    drawPath(path,Brush.horizontalGradient(listOf(Color.Transparent,Pink.copy(alpha=.22f),Aqua.copy(alpha=.35f),Color.Transparent)),style=Stroke(1.dp.toPx()))
    }
   }
  }

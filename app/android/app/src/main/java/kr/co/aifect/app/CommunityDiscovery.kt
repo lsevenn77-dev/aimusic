@@ -193,14 +193,14 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
  LazyColumn(Modifier.fillMaxSize().testTag("community-rankings-scroll"),contentPadding=PaddingValues(16.dp,16.dp,16.dp,28.dp)){
   item{
    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).testTag("ranking-category"),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    categories.forEach{(key,label,icon)->val active=category==key;Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(13.dp)).background(if(active)Violet.copy(alpha=.13f)else Panel).border(1.dp,if(active)Violet else Stroke,RoundedCornerShape(13.dp)).selectable(active,role=Role.Tab){category=key}.testTag("ranking-category-$key").padding(vertical=12.dp),horizontalAlignment=Alignment.CenterHorizontally){
+    categories.forEach{(key,label,icon)->val active=category==key;Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(13.dp)).background(if(active)Violet.copy(alpha=.13f)else Panel).border(1.dp,if(active)Violet else Stroke,RoundedCornerShape(13.dp)).selectable(active,role=Role.Tab){category=key}.testTag("ranking-category-$key").padding(vertical=7.dp),horizontalAlignment=Alignment.CenterHorizontally){
      Icon(icon,null,Modifier.size(22.dp),tint=if(active)Pink else Muted)
      Spacer(Modifier.height(7.dp))
      Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal=1.dp),contentAlignment=Alignment.Center){Text(if(key=="aiArtist")"AI\n아티스트" else label,fontSize=12.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,color=if(active)Pink else SoftText,maxLines=2,modifier=Modifier.fillMaxWidth().testTag("ranking-label-$key"),textAlign=androidx.compose.ui.text.style.TextAlign.Center)}
     }
     }
    }
-   Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=16.dp).testTag("ranking-toolbar"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   Row(Modifier.fillMaxWidth().padding(top=8.dp,bottom=6.dp).testTag("ranking-toolbar"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
     if(category=="work")Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
      listOf("solo" to "솔로","duet" to "듀엣").forEach{(key,label)->val active=kind==key;Box(Modifier.clip(RoundedCornerShape(10.dp)).background(if(active)BrandGradient else Brush.linearGradient(listOf(Panel,Panel))).selectable(active,role=Role.Tab){kind=key}.testTag("ranking-kind-$key").heightIn(min=44.dp).padding(horizontal=15.dp),contentAlignment=Alignment.Center){Text(label,fontSize=13.sp,color=if(active)Ink else SoftText,fontWeight=FontWeight.Medium)}}
     }else Text(categories.first{it.first==category}.second+" 랭킹",fontSize=15.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
@@ -209,15 +209,18 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
    ReadStatus(read)
   }
   val rows=read.data?.optJSONArray("rows").objects()
-  val podium=category=="crew"
-  if(podium&&rows.isNotEmpty()){
-   item{CrewRankPodium(rows,crewPhotos){r->val id=r.clean("id");if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("crew/$id",r.clean("name"))}}
+  if(rows.isNotEmpty())item{
+   CommunityPodium(rows,category){row,position,modifier->
+    CommunityRankRow(row,position,category,crewPhotos[row.clean("id")],m,modifier)
+   }
+  }
+  if(category=="crew"){
    val mine=crews.data?.clean("mine").orEmpty()
    val myIndex=rows.indexOfFirst{it.clean("id")==mine}
    if(mine.isNotBlank()&&myIndex>=0)item{val row=rows[myIndex];MyCrewRank(row,row.optInt("rank",myIndex+1),crewPhotos[mine]){m.openCurrentWorkspace("crew/$mine",row.clean("name"))}}
   }
-  itemsIndexed(if(podium)rows.drop(3)else rows,key={i,r->"$category-${r.clean("id").ifBlank{r.clean("href").ifBlank{i.toString()}}}"}){index,r->
-   CommunityRankRow(r,index+1+(if(podium)3 else 0),category,crewPhotos[r.clean("id")],m)
+  itemsIndexed(rows.drop(3),key={i,r->"$category-${r.clean("id").ifBlank{r.clean("href").ifBlank{i.toString()}}}"}){index,r->
+   CommunityRankRow(r,index+4,category,crewPhotos[r.clean("id")],m)
   }
   if(rows.isNotEmpty())item{Text("이전 순위 기록이 없는 항목은 —로 표시해요.",fontSize=11.sp,lineHeight=17.sp,color=Muted,modifier=Modifier.padding(top=16.dp))}
   if(rows.isEmpty()&&!read.loading&&read.error==null)item{CurrentEmpty("아직 집계된 순위가 없어요.",read.data?.optString("message").orEmpty())}
@@ -231,30 +234,70 @@ internal fun communityRankChange(row:JSONObject,rank:Int):Pair<String,String>{
  val delta=when{row.has("rank_change")&&!row.isNull("rank_change")->row.optInt("rank_change");row.optInt("previous_rank")>0->row.optInt("previous_rank")-rank;else->return "—" to "이전 순위 기록 없음"}
  return when{delta>0->"▲$delta" to "${delta}계단 상승";delta<0->"▼${-delta}" to "${-delta}계단 하락";else->"—" to "순위 변동 없음"}
 }
-@Composable private fun CommunityRankRow(row:JSONObject,position:Int,category:String,crew:JSONObject?,m:MusicModel){
+@Composable private fun RankingArtwork(row:JSONObject,id:String,name:String,category:String,crew:JSONObject?,track:JSONObject?,modifier:Modifier){
+ when(category){
+  "aiArtist"->CommunityPhoto(id,name,row.clean("image_version"),"artist",modifier)
+  "crew"->CommunityPhoto(id,name,crew?.clean("image_version").orEmpty().ifBlank{row.clean("image_version")},"crew",modifier)
+  "work"->Artwork(Song(track?:payload("id" to id,"title" to name)),modifier.testTag("ranking-art-$id"),8.dp)
+  else->Box(modifier.clip(RoundedCornerShape(8.dp)).background(Raised).testTag("ranking-art-$id"),contentAlignment=Alignment.Center){
+   Icon(Icons.Rounded.RecordVoiceOver,"$name 더빙",tint=Pink)
+   AsyncImage(currentDubbingImage(row),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+  }
+ }
+}
+
+@Composable private fun RankScore(row:JSONObject,accent:Color){
+ val value=row.clean("score").toBigDecimalOrNull()?:return
+ val score=remember(value){java.text.DecimalFormat("#,##0.##",java.text.DecimalFormatSymbols(java.util.Locale.KOREA)).format(value)}
+ Row(Modifier.background(accent.copy(alpha=.19f),CircleShape).padding(horizontal=6.dp,vertical=2.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+  Icon(Icons.Rounded.Diamond,null,Modifier.size(12.dp),tint=accent)
+  Text("${score}점",fontSize=11.sp,lineHeight=15.sp,fontWeight=FontWeight.SemiBold,color=Color.White,maxLines=1,overflow=TextOverflow.Ellipsis)
+ }
+}
+
+@Composable private fun RankMovement(change:Pair<String,String>,category:String,id:String){
+ Text(change.first,fontSize=10.sp,lineHeight=14.sp,fontWeight=FontWeight.SemiBold,color=if(change.first.startsWith("▼"))Aqua else if(change.first=="—")SoftText else Pink,modifier=Modifier.testTag("community-movement-$category-$id").semantics{contentDescription=change.second})
+}
+
+@Composable private fun CommunityRankRow(row:JSONObject,position:Int,category:String,crew:JSONObject?,m:MusicModel,podium:Modifier?=null){
  val id=row.clean("id").ifBlank{row.clean("href").substringAfterLast('/')}
  val name=row.clean("name")
  val rank=row.optInt("rank",position).takeIf{it>0}?:position
  val account=m.user?.optString("id")
- var track by remember(id,account){mutableStateOf(m.api.peek("/api/tracks/$id")?.optJSONObject("track"))}
+ var track by remember(id,account,category){mutableStateOf(if(category=="work")m.api.peek("/api/tracks/$id")?.optJSONObject("track")else null)}
  LaunchedEffect(id,account,category){if(category=="work"&&CurrentNavigation.safeID(id)&&track==null)try{track=m.api.call("/api/tracks/$id").optJSONObject("track")}catch(e:Exception){if(e is CancellationException)throw e}}
+ val song=remember(track){track?.let(::Song)}
+ val detail=listOfNotNull(song?.credit?.takeIf{it.isNotBlank()},row.clean("detail").takeIf{it.isNotBlank()}).joinToString(" · ")
  val change=communityRankChange(row,rank)
- fun open(){if(CurrentNavigation.safeID(id))when(category){"work"->m.openCurrentSong(id);"aiArtist"->m.openProfile(id,"artist");"crew"->m.openCurrentWorkspace("crew/$id",name);"dubbing"->m.openCurrentWorkspace("dubbing/$id",name)}}
- Row(Modifier.fillMaxWidth().clickable(onClick=::open).testTag("community-rank-$category-$id").padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  Text("$rank",fontSize=17.sp,fontWeight=FontWeight.Bold,color=if(rank<=3)Pink else SoftText,modifier=Modifier.width(25.dp))
-  when(category){
-   "aiArtist"->CommunityPhoto(id,name,row.clean("image_version"),"artist",Modifier.size(56.dp),true)
-   "crew"->CommunityPhoto(id,name,crew?.clean("image_version").orEmpty().ifBlank{row.clean("image_version")},"crew",Modifier.size(56.dp))
-   // Cover works use the uploader's profile photo, including its default avatar.
-   "work"->Artwork(Song(track?:payload("id" to id,"title" to name)),Modifier.size(56.dp).testTag("ranking-art-$id"),10.dp)
-   else->Box(Modifier.size(56.dp).clip(RoundedCornerShape(10.dp)).background(Raised).testTag("ranking-art-$id"),contentAlignment=Alignment.Center){Icon(Icons.Rounded.RecordVoiceOver,"$name 더빙",tint=Pink);AsyncImage(currentDubbingImage(row),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
+ val open={if(CurrentNavigation.safeID(id))when(category){"work"->m.openCurrentSong(id);"aiArtist"->m.openProfile(id,"artist");"crew"->m.openCurrentWorkspace("crew/$id",name);"dubbing"->m.openCurrentWorkspace("dubbing/$id",name);else->Unit}}
+ val tag="community-rank-$category-$id"
+ val shape=RoundedCornerShape(14.dp)
+ val accent=when(rank){1->Aqua;2->Violet;else->Pink}
+ if(podium!=null){
+  Box(podium.clip(shape).background(Panel).clickable(onClick=open).testTag(tag).border(if(rank==1)2.dp else 1.dp,Brush.verticalGradient(listOf(accent,accent.copy(alpha=.32f))),shape)){
+   RankingArtwork(row,id,name,category,crew,track,Modifier.fillMaxSize())
+   Spacer(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha=.18f),Color.Transparent,Ink.copy(alpha=.80f),Ink))))
+   Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(7.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+    Text("${rank}위",fontSize=12.sp,lineHeight=17.sp,fontWeight=FontWeight.Bold,color=Ink,modifier=Modifier.background(accent,RoundedCornerShape(6.dp)).padding(horizontal=6.dp,vertical=2.dp))
+    Box(Modifier.background(Ink.copy(alpha=.76f),CircleShape).padding(horizontal=4.dp)){RankMovement(change,category,id)}
+   }
+   Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal=6.dp,vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally){
+    if(song!=null)Box(Modifier.align(Alignment.End)){HomePlaybackButton(song,m,listOf(song))}
+    Text(name,fontSize=if(rank==1)15.sp else 13.sp,lineHeight=18.sp,fontWeight=FontWeight.Bold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+    if(detail.isNotBlank())Text(detail,fontSize=10.sp,lineHeight=13.sp,color=SoftText,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+    Spacer(Modifier.height(5.dp));RankScore(row,accent)
+   }
   }
-  Column(Modifier.weight(1f)){
-   Text(name,fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-   val detail=if(category=="work"&&track!=null)Song(track!!).credit+" · "+row.clean("detail") else row.clean("detail")
-   Text(detail,fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
+ }else{
+  Row(Modifier.fillMaxWidth().padding(bottom=5.dp).clip(shape).background(Brush.horizontalGradient(listOf(Panel,Ink))).border(.8.dp,Stroke,shape).clickable(onClick=open).testTag(tag).padding(horizontal=8.dp,vertical=6.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)){
+   Text("$rank",fontSize=18.sp,fontWeight=FontWeight.Bold,color=Violet,modifier=Modifier.widthIn(min=22.dp))
+   RankingArtwork(row,id,name,category,crew,track,Modifier.size(51.dp))
+   Column(Modifier.weight(1f)){
+    Text(name,fontSize=14.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+    if(detail.isNotBlank())Text(detail,fontSize=11.sp,lineHeight=15.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){RankScore(row,Violet);RankMovement(change,category,id)}
+   }
+   if(song!=null)HomePlaybackButton(song,m,listOf(song)) else Icon(Icons.Rounded.ChevronRight,null,Modifier.size(19.dp),tint=Muted)
   }
-  Text(change.first,fontSize=11.sp,fontWeight=FontWeight.SemiBold,color=if(change.first.startsWith("▲")||change.first=="NEW")Pink else if(change.first.startsWith("▼"))Aqua else Muted,modifier=Modifier.widthIn(min=30.dp).testTag("community-movement-$category-$id").semantics{contentDescription=change.second},textAlign=androidx.compose.ui.text.style.TextAlign.End)
  }
- HorizontalDivider(color=Stroke)
 }

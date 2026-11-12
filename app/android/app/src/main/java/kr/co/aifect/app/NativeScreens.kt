@@ -95,7 +95,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   AppPageScope(pageStack){
   Scaffold(containerColor=Ink,snackbarHost={SnackbarHost(snack)},bottomBar={
    if(!keyboardVisible&&!m.studioEditing)Column {
-    AnimatedVisibility(m.current!=null&&m.visibleChatCount==0&&!m.fullPlayer&&m.detail==null){m.current?.let {MiniPlayer(m,it)}}
+    AnimatedVisibility(!(m.tab==3&&m.communityMode=="rankings")&&m.current!=null&&m.visibleChatCount==0&&!m.fullPlayer&&m.detail==null){m.current?.let {MiniPlayer(m,it)}}
     HorizontalDivider(color=Stroke,thickness=.5.dp)
     Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart=24.dp,topEnd=24.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF181B34),Ink,Color(0xFF20213B)))).navigationBarsPadding().heightIn(min=52.dp),verticalAlignment=Alignment.CenterVertically){
      listOf(Triple(0,"홈",Icons.Outlined.Home),Triple(3,"커뮤니티",Icons.Outlined.PeopleOutline),Triple(2,"플레이",Icons.Outlined.PlayArrow),Triple(5,"메시지",Icons.Outlined.ChatBubbleOutline),Triple(6,"마이",Icons.Outlined.PersonOutline)).forEach{(i,name,icon)->
