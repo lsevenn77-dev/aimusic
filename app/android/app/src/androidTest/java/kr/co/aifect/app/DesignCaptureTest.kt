@@ -835,6 +835,25 @@ class DesignCaptureTest {
    instrumentation.runOnMainSync{room.finish()}
   }finally{instrumentation.removeMonitor(monitor)}
  }
+ @Test fun noticesStackByPostAndOpenTheSelectedBody(){
+  val official=payload("id" to "design-official","is_notice" to true,"name" to "운영팀","updated" to now,"unread" to 0)
+  responses.getValue("/api/dm").getJSONArray("conversations").put(official)
+  fun post(id:String,body:String,created:Long,sequence:Int)=payload("id" to id,"body" to body,"created" to created,"sequence" to sequence,"recipient_id" to "design-user")
+  val newest=post("b","서비스 업데이트\n새로운 기능을 확인해보세요.\n공지 전문 마지막 줄",now,20)
+  val older=post("a","이벤트 공지\n참여 방법이에요.",now-100,18)
+  val sent=post("r","개인 답장",now-50,19).put("recipient_id","admin")
+  responses["/api/dm/design-official"]=payload("messages" to arr(sent,newest),"has_more" to true)
+  responses["/api/dm/design-official?before=19"]=payload("messages" to arr(older),"has_more" to false)
+  act{it.selectTab(5)};ready("inbox-filter-공지");ui.onNodeWithTag("inbox-filter-공지").performClick()
+  val recent=ui.onNodeWithTag("notice-item-design-official/b")
+  ready("notice-item-design-official/b");ui.onNodeWithText("이전 공지 더 보기").performClick()
+  ready("notice-item-design-official/a")
+  assertTrue(recent.fetchSemanticsNode().boundsInRoot.top<ui.onNodeWithTag("notice-item-design-official/a").fetchSemanticsNode().boundsInRoot.top)
+  ui.onNodeWithTag("notice-item-design-official/r").assertDoesNotExist()
+  recent.performClick();ui.onNodeWithTag("notice-full-body").assertTextEquals(newest.getString("body"))
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("notice-item-design-official/a").performClick()
+  ui.onNodeWithTag("notice-full-body").assertTextEquals(older.getString("body"));assertNull(model.messagePeer)
+ }
  @Test fun welcomeIsANoticeFromBothInboxTabs(){
   val endpoint="/api/notices/welcome"
   val inbox=responses.getValue("/api/dm").getJSONArray("conversations")

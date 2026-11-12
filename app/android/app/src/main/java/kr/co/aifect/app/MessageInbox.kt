@@ -66,9 +66,13 @@ import java.net.URLEncoder
    if(crew!=null)item(key="pinned-crew"){
     InboxCard(crew,true,{m.openCrewMessages(crew.getString("id"))},openProfile)
    }
-   items(matching,key={"dm-"+it.optString("id")}){p->InboxCard(p,false,{if(p.isWelcomeGuide())welcome=true else m.messagePeer=p.getString("id")},openProfile)}
+   items(matching,key={"dm-"+it.optString("id")}){p->
+    if(p.isInboxNotice())NoticeBanner(InboxNotice(p,null),"dm-conversation-"+p.optString("id")){if(p.isWelcomeGuide())welcome=true else filter="공지"}
+    else InboxCard(p,false,{m.messagePeer=p.getString("id")},openProfile)
+   }
   }
   if(alerts)ActivityFeed(m,embedded=true,query=search)
+  else if(notices)NoticeArchive(m,conversations.filter{it.isInboxNotice()},synced,search,{welcome=true},refreshInbox)
   else LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag("inbox-list"),contentPadding=PaddingValues(12.dp,12.dp,12.dp,20.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
    rows()
    if(matching.isEmpty()&&crew==null)item{
@@ -128,6 +132,106 @@ import java.net.URLEncoder
 
 private fun JSONObject.isInboxNotice()=optBoolean("is_notice")||optInt("is_notice")==1
 private fun JSONObject.isWelcomeGuide()=isInboxNotice()&&optString("notice_type")=="welcome"&&(optBoolean("read_only")||optInt("read_only")==1)
+
+private data class InboxNotice(val channel:JSONObject,val message:JSONObject?){
+ val channelId=channel.optString("id")
+ val id=if(message==null)channelId else channelId+"/"+message.optString("id")
+ val date=message?.optLong("created")?:channel.optLong("updated")
+ val body=message?.optString("body")?:channel.optString("last_message")
+ val title=if(message==null)channel.optString("name") else message.optString("title").ifBlank{
+  body.trim().lineSequence().firstOrNull{it.isNotBlank()}?:channel.optString("name")
+ }
+ val preview=if(message==null||message.optString("title").isNotBlank())body else body.trim().substringAfter('\n',"").trim().ifBlank{channel.optString("name")}
+}
+
+@Composable private fun NoticeArchive(m:MusicModel,channels:List<JSONObject>,synced:Boolean,search:String,openWelcome:()->Unit,onRead:suspend ()->Unit){
+ val account=m.user?.optString("id")
+ var selected by rememberSaveable(account){mutableStateOf<String?>(null)}
+ var depth by rememberSaveable(account){mutableIntStateOf(1)}
+ val notices=mutableListOf<InboxNotice>()
+ val reads=mutableListOf<CurrentRead>()
+ var hasOlder=false
+ channels.forEach{channel->key(channel.optString("id")){
+  val cid=channel.optString("id")
+  if(channel.isWelcomeGuide())notices.add(InboxNotice(channel,null))
+  else if(CurrentNavigation.safeID(cid)){
+   var cursor=0L
+   for(page in 0 until depth){
+    val path="/api/dm/$cid"+if(cursor>0)"?before=$cursor" else ""
+    val read=currentRead(m,path)
+    reads.add(read)
+    // Re-read the newest page when a live inbox update announces a new message.
+    if(page==0){
+     val updated=channel.optLong("updated")
+     val signature=channel.optString("last_message")+updated
+     var previous by remember(cid){mutableStateOf(signature)}
+     LaunchedEffect(signature){if(previous!=signature){previous=signature;read.retry()}}
+    }
+    val history=read.data?:break
+    val messages=history.optJSONArray("messages").objects()
+    messages.filter{it.optString("recipient_id")==account}.forEach{notices.add(InboxNotice(channel,it))}
+    val before=messages.map{it.optLong("sequence")}.filter{it>0}.minOrNull()
+    if(!history.optBoolean("has_more")||before==null||(cursor>0&&before>=cursor))break
+    cursor=before
+    if(page==depth-1)hasOlder=true
+   }
+  }
+ }}
+ val ordered=notices.distinctBy{it.id}.sortedWith(compareByDescending<InboxNotice>{it.date}.thenByDescending{it.message?.optLong("sequence")?:0L})
+ val visible=ordered.filter{search.isBlank()||it.title.contains(search,true)||it.body.contains(search,true)||it.channel.optString("name").contains(search,true)}
+ LazyColumn(Modifier.fillMaxSize().testTag("notice-archive"),contentPadding=PaddingValues(12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
+  items(visible,key={it.id}){entry->
+   val tag=if(entry.message==null)"dm-conversation-"+entry.channelId else "notice-item-"+entry.id
+   NoticeBanner(entry,tag){if(entry.message==null)openWelcome() else selected=entry.id}
+  }
+  reads.filter{it.error!=null}.forEach{failed->item{ReadStatus(failed)}}
+  if(!synced||reads.any{it.loading})item{LinearProgressIndicator(Modifier.fillMaxWidth())}
+  else if(visible.isEmpty()&&reads.none{it.error!=null})item{Text(if(search.isBlank())"등록된 공지가 없어요" else "검색 결과가 없어요",color=Muted,modifier=Modifier.padding(12.dp))}
+  if(hasOlder)item{TextButton({depth++},modifier=Modifier.fillMaxWidth()){Text("이전 공지 더 보기")}}
+ }
+ ordered.firstOrNull{it.id==selected}?.let{entry->
+  AppPage("공지",{selected=null}){
+   val message=entry.message
+   var failed by remember{mutableStateOf(false)}
+   var attempt by remember{mutableIntStateOf(0)}
+   val refresh by rememberUpdatedState(onRead)
+   LaunchedEffect(entry.id,attempt){
+    if(entry.channel.optInt("unread")>0&&message?.optLong("read_at")==0L)try{
+     m.api.call("/api/dm/${entry.channelId}","PATCH");refresh();failed=false
+    }catch(e:CancellationException){throw e}catch(e:Exception){failed=true}
+   }
+   Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+    val shape=RoundedCornerShape(18.dp)
+    Column(Modifier.fillMaxWidth().background(Panel,shape).border(1.dp,Stroke,shape).padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+     Text(entry.channel.optString("name"),color=Aqua,fontSize=14.sp)
+     if(entry.date>0)Text(activityDate(entry.date),color=Muted,fontSize=12.sp)
+     val explicitTitle=message?.optString("title").orEmpty()
+     if(explicitTitle.isNotBlank())Text(explicitTitle,fontSize=19.sp,fontWeight=FontWeight.Bold)
+     Text(entry.body,fontSize=16.sp,lineHeight=25.sp,modifier=Modifier.testTag("notice-full-body"))
+     if(message!=null&&!message.isNull("image_id")&&message.optString("image_id").isNotBlank())ChatImage(m,message,false)
+    }
+    if(failed)TextButton({attempt++}){Text("읽음 상태 다시 반영하기")}
+   }
+  }
+ }
+}
+
+@Composable private fun NoticeBanner(entry:InboxNotice,tag:String,open:()->Unit){
+ val shape=RoundedCornerShape(14.dp)
+ Surface(onClick=open,shape=shape,color=Panel,modifier=Modifier.fillMaxWidth().border(1.dp,Stroke,shape).testTag(tag)){
+  Row(Modifier.fillMaxWidth().heightIn(min=60.dp).padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
+   Icon(Icons.Rounded.Campaign,null,Modifier.size(22.dp),tint=Aqua)
+   Column(Modifier.weight(1f)){
+    Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
+     Text(entry.title,Modifier.weight(1f),fontSize=15.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
+     if(entry.date>0)Text(activityDate(entry.date).substringBefore(' '),fontSize=10.sp,color=Muted)
+    }
+    if(entry.preview.isNotBlank())Text(entry.preview,fontSize=12.sp,lineHeight=17.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
+   }
+   Icon(Icons.Rounded.ChevronRight,"공지 전문 보기",Modifier.size(17.dp),tint=Muted)
+  }
+ }
+}
 
 @Composable private fun WelcomeNotice(m:MusicModel,onBack:()->Unit,onRead:suspend ()->Unit){
  AppPage("아이팩트 안내",onBack){
