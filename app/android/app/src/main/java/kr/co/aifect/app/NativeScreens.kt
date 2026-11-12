@@ -287,23 +287,6 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
       }
      }
     }
-    IconButton(onClick=m::closePlayer,modifier=Modifier.size(44.dp,40.dp).testTag("mini-player-close")){
-     Icon(Icons.Rounded.Close,"재생 종료",Modifier.size(21.dp),tint=SoftText)
-    }
-   }
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-    Column(Modifier.weight(1f).padding(start=3.dp,end=6.dp)){
-     Box(Modifier.fillMaxWidth().testTag("mini-player-lyrics")){
-      Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=10.sp,lineHeight=12.sp,color=Pink,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
-     }
-     val duration=m.duration.coerceAtLeast(1).toFloat()
-     Slider(value=(seek?:m.position.toFloat()).coerceIn(0f,duration),onValueChange={seek=it},onValueChangeFinished={seek?.let{m.controller?.seekTo(it.toLong())};seek=null},enabled=m.duration>0,valueRange=0f..duration,
-      modifier=Modifier.fillMaxWidth().height(9.dp).testTag("mini-player-seek"),thumb={Box(Modifier.size(7.dp).background(Color.White,CircleShape).border(1.dp,Pink,CircleShape))},track={slider->
-       Box(Modifier.fillMaxWidth().height(2.dp).clip(CircleShape).background(SoftText.copy(alpha=.28f))){
-        Box(Modifier.fillMaxWidth((slider.value/duration).coerceIn(0f,1f)).fillMaxHeight().background(Pink))
-       }
-      })
-    }
     Row(Modifier.testTag("mini-player-controls"),verticalAlignment=Alignment.CenterVertically){
      IconButton(onClick={m.controller?.seekToPreviousMediaItem()},enabled=m.controller?.hasPreviousMediaItem()==true,modifier=actionSize){
       Icon(Icons.Rounded.SkipPrevious,"이전 곡",Modifier.size(22.dp))
@@ -317,6 +300,25 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
      IconButton(onClick={m.controller?.seekToNextMediaItem()},enabled=m.controller?.hasNextMediaItem()==true,modifier=actionSize){
       Icon(Icons.Rounded.SkipNext,"다음 곡",Modifier.size(22.dp))
      }
+    }
+    IconButton(onClick=m::closePlayer,modifier=Modifier.size(44.dp,40.dp).testTag("mini-player-close")){
+     Icon(Icons.Rounded.Close,"재생 종료",Modifier.size(21.dp),tint=SoftText)
+    }
+   }
+   Box(Modifier.fillMaxWidth().padding(horizontal=3.dp).clip(androidx.compose.ui.graphics.RectangleShape)){
+    val duration=m.duration.coerceAtLeast(1).toFloat()
+    Slider(value=(seek?:m.position.toFloat()).coerceIn(0f,duration),onValueChange={seek=it},onValueChangeFinished={seek?.let{m.controller?.seekTo(it.toLong())};seek=null},enabled=m.duration>0,valueRange=0f..duration,
+     modifier=Modifier.fillMaxWidth().height(9.dp).testTag("mini-player-seek"),thumb={Box(Modifier.size(7.dp).background(Color.White,CircleShape).border(1.dp,Pink,CircleShape))},track={slider->
+      Box(Modifier.fillMaxWidth().height(2.dp).clip(CircleShape).background(SoftText.copy(alpha=.28f))){
+       Box(Modifier.fillMaxWidth((slider.value/duration).coerceIn(0f,1f)).fillMaxHeight().background(Pink))
+      }
+     })
+   }
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    Box(Modifier.weight(1f).padding(start=5.dp,end=7.dp).testTag("mini-player-lyrics")){
+     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=12.sp,lineHeight=15.sp,color=Pink,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+    }
+    Row(Modifier.testTag("mini-player-library-controls"),verticalAlignment=Alignment.CenterVertically){
      IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=actionSize){
       Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(22.dp),tint=if(liked)Pink else Color.White)
      }
