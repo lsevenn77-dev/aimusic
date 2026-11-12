@@ -8,13 +8,15 @@ import org.json.JSONObject
  * while a paid SKU lives in room_decorations on the server.
  */
 internal object RoomThemeSync {
- private val freeSkus=setOf("navy","sunset","night")
+ const val DEFAULT_SKU="basic_dark"
+ private val freeSkus=setOf(DEFAULT_SKU,"basic_light")
+ fun isRetired(sku:String)=sku=="navy"||sku=="sunset"||sku=="night"
  private fun clean(value:String?):String = value.orEmpty().trim().takeUnless{it=="null"}.orEmpty()
 
  private fun declaredSku(room:JSONObject):String {
   return clean(room.optString("theme_sku"))
    .ifEmpty{clean(room.optString("background"))}
-   .ifEmpty{"navy"}
+   .takeUnless{it.isEmpty()||isRetired(it)}?:DEFAULT_SKU
  }
 
  fun validTheme(theme:JSONObject?):Boolean {
@@ -38,7 +40,7 @@ internal object RoomThemeSync {
   oldRevision==newRevision && oldSku.isNotBlank() && oldSku==newSku
 
  fun matches(selected:String,themeSku:String,expiresAt:Long,serverNow:Long):Boolean {
-  if(selected.isBlank()||selected!=themeSku)return false
+  if(selected.isBlank()||selected!=themeSku||isRetired(themeSku))return false
   // Free themes need no expiry. Paid themes require an active entitlement.
   if(themeSku.startsWith("theme_")&&expiresAt<=0L)return false
   val now=if(serverNow>0L)serverNow else System.currentTimeMillis()/1000L
@@ -54,7 +56,7 @@ internal object RoomThemeSync {
 
  fun shownSku(room:JSONObject,verified:JSONObject?):String =
   current(room,verified)?.optString("sku").orEmpty()
-   .ifBlank{selectedSku(room).takeIf{it in freeSkus}?:"navy"}
+   .ifBlank{selectedSku(room).takeIf{it in freeSkus}?:DEFAULT_SKU}
 
  fun carry(previous:JSONObject?,incoming:JSONObject):JSONObject? {
   if(previous==null||incoming.has("theme"))return null
@@ -64,9 +66,8 @@ internal object RoomThemeSync {
   // Old voice transport revisions may omit theme_sku but keep background=navy.
   // Preserve a verified image only for the same room, host, settings revision
   // and unchanged declared selection. Changes drop the old image immediately.
-  val selectionUnchanged=oldDeclared==newDeclared ||
-   (!incoming.has("theme_sku") &&
-    clean(previous.optString("background"))==clean(incoming.optString("background")))
+  val selectionUnchanged=oldDeclared==newDeclared || (!incoming.has("theme_sku") &&
+   (newDeclared==DEFAULT_SKU || clean(previous.optString("background"))==clean(incoming.optString("background"))))
   if(!selectionUnchanged)return null
   val paid=prior.optString("sku")
   if(!canCarry(

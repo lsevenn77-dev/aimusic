@@ -39,6 +39,51 @@ class MobileExperienceDeviceTest {
   }
  }
  private fun capture(name:String){val f=File(context.getExternalFilesDir("mobile-qa"),"$name.png");f.parentFile?.mkdirs();ins.uiAutomation.takeScreenshot().let{bmp->f.outputStream().use{bmp.compress(Bitmap.CompressFormat.PNG,100,it)};bmp.recycle()}}
+ @Test fun roomWebViewKeepsSiteArtworkWhenSwitchingFromPaidToEitherFreeTheme() {
+  for (route in listOf("voice/qa-room","live/qa-room")) {
+   lateinit var view:WebView
+   ins.runOnMainSync {
+    view=WebView(context)
+    view.settings.javaScriptEnabled=true
+    view.webViewClient=object:android.webkit.WebViewClient() {
+     override fun shouldInterceptRequest(view:WebView,request:android.webkit.WebResourceRequest)=
+      android.webkit.WebResourceResponse("image/webp","binary",java.io.ByteArrayInputStream(byteArrayOf()))
+    }
+    view.loadDataWithBaseURL("https://room.invalid/", """
+     <html><head><style>.voice-room::before{content:'';background-image:var(--decoration-mobile)}</style></head>
+     <body><div id="main"><section class="voice-room" data-voice-room="qa-room"></section></div><script>
+     const room=document.querySelector('.voice-room');
+     function selectTheme(sku){
+      const paid=sku.startsWith('theme_');
+      window.selected={sku,assets:{roomMobile:'/art/'+sku+'.webp'},expires_at:paid?2000:0,server_now:1000};
+      room.dataset.background=room.dataset.themeSku=sku;
+      room.dataset.uiMode=sku==='basic_light'?'light':'dark';
+      if(paid)room.dataset.paidTheme=sku;else delete room.dataset.paidTheme;
+      room.style.setProperty('--decoration-mobile','url("/art/'+sku+'.webp")');
+      dispatchEvent(new CustomEvent('aifect:room-theme',{detail:{room:{id:'qa-room',theme:window.selected}}}));
+     }
+     window.fetch=async()=>({ok:true,json:async()=>({theme:window.selected})});
+     selectTheme('basic_dark');
+     </script></body></html>
+    """.trimIndent(),"text/html","utf-8",null)
+   }
+   try {
+    waitJs(view,"typeof selectTheme==='function'")
+    js(view,mobileExperienceScript(route))
+    for (sku in listOf("basic_dark","theme_owned","basic_light","basic_dark")) {
+     js(view,"selectTheme("+JSONObject.quote(sku)+")")
+     waitJs(view,"room.dataset.mobileThemeApplied==="+JSONObject.quote(sku))
+     if (sku=="theme_owned") {
+      assertEquals(route,"true",js(view,"room.style.getPropertyPriority('background-image')==='important' && room.style.backgroundImage.includes('theme_owned.webp')"))
+     } else {
+      val mode=if(sku=="basic_light")"light" else "dark"
+      assertEquals(route,"true",js(view,"!room.style.backgroundImage && !room.hasAttribute('data-paid-theme') && room.dataset.uiMode==="+JSONObject.quote(mode)+" && getComputedStyle(room,'::before').backgroundImage.includes("+JSONObject.quote(sku+".webp")+")"))
+     }
+    }
+   } finally { ins.runOnMainSync { view.destroy() } }
+  }
+ }
+
  /** Start tests/preview-live-karaoke.mjs locally, reverse its port, and pass its generated room id. */
  @Test fun karaokeReservationInputStaysAboveSystemKeyboard(){
   val args=InstrumentationRegistry.getArguments();val origin=args.getString("karaokeFixtureOrigin");val id=args.getString("karaokeFixtureRoom")

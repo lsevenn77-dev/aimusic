@@ -53,7 +53,7 @@ class NativePerformanceTest{
   responses["/api/dubbing/config"]=payload("aiAvailable" to true,"quota" to payload("remaining" to 3))
   responses[path]=payload("project" to project)
   responses["$path/comments"]=payload("comments" to JSONArray())
-  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(payload("sku" to "navy","name" to "차분한 다크","paid" to false,"selectable" to true)))
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(payload("sku" to "basic_dark","name" to "턴테이블","paid" to false,"selectable" to true)))
   state=payload("generation" to "native-generation","self" to me,"revision" to 1,"serverNow" to System.currentTimeMillis(),"room" to payload("id" to "native-room","title" to "밤하늘 음악 이야기","host_id" to "host","max_members" to 30,"visibility" to "public"),"members" to arr(payload("id" to "host","profile_id" to "host-profile","name" to "지유","role" to "host","seat" to 0,"muted" to true,"publishing" to false),payload("id" to me,"profile_id" to "mine","name" to "하린","role" to "listener","seat" to null,"muted" to true,"publishing" to false)),"chat" to JSONArray(),"seat_invites" to JSONArray(),"music" to payload("queue" to JSONArray(),"index" to -1))
   val genreImage=ins.context.assets.open("design/dubbing-daily.webp").use{it.readBytes()}
   val giftImage=ins.context.assets.open("design/gifts/lollipop.png").use{it.readBytes()}
@@ -104,7 +104,7 @@ class NativePerformanceTest{
  @Test fun roomCreationUsesSelectedBackgroundAndKeepsPrimaryActionVisible(){
   responses["/api/voice/options"]=payload(
    "crews" to arr(payload("id" to "crew-one","name" to "밤산책")),
-   "themes" to JSONArray(listOf("navy","sunset","night").map{sku->payload("sku" to sku,"name" to sku,"paid" to false,"selectable" to true)})
+   "themes" to JSONArray(listOf("basic_dark","basic_light").map{sku->payload("sku" to sku,"name" to sku,"paid" to false,"selectable" to true)})
   )
   launch("voice");visible("voice-room-form")
   ui.onNodeWithTag("room-submit").assertIsDisplayed().assertIsNotEnabled()
@@ -112,7 +112,7 @@ class NativePerformanceTest{
   ui.onNodeWithTag("room-title").performTextInput("오늘의 음악 이야기")
   androidx.test.espresso.Espresso.closeSoftKeyboard()
   ui.onNodeWithText("허락 후 착석").assertIsSelected()
-  ui.onNodeWithTag("room-theme-night").performScrollTo().performClick().assertIsSelected()
+  ui.onNodeWithTag("room-theme-basic_light").performScrollTo().performClick().assertIsSelected()
   ui.onNodeWithTag("room-submit").assertIsDisplayed().assertIsEnabled()
   capture("room-269-create")
   ui.onNodeWithTag("room-capacity-minus").performScrollTo()
@@ -129,10 +129,10 @@ class NativePerformanceTest{
   val submitted=JSONObject(requests.single{it.first=="POST /api/voice/rooms"}.second.toString(Charsets.UTF_8))
   assertEquals("talk",submitted.getString("mode"))
   assertEquals("오늘의 음악 이야기",submitted.getString("title"));assertEquals(12,submitted.getInt("max_members"))
-  assertEquals("night",submitted.getString("background"));assertEquals("night",submitted.getString("theme_sku"))
+  assertEquals("basic_light",submitted.getString("background"));assertEquals("basic_light",submitted.getString("theme_sku"))
   assertEquals("free",submitted.getString("seating_mode"));assertEquals("crew-one",submitted.getString("crew_id"))
   assertEquals("편하게 음악 이야기 나눠요",submitted.getString("announcement"))
-  ui.onNodeWithTag("voice-background-night",useUnmergedTree=true).assertIsDisplayed();capture("room-269-applied")
+  ui.onNodeWithTag("voice-background-basic_light",useUnmergedTree=true).assertIsDisplayed();capture("room-269-applied")
  }
  @Test fun roomCreationUsesOwnedThemeAndPreservesDraftOnRecreation(){
   val image="/assets/dubbing-genres/daily.webp"
@@ -149,17 +149,17 @@ class NativePerformanceTest{
   ui.onNodeWithTag("room-theme-theme-owned").performScrollTo().assertIsSelected()
   ui.onNodeWithTag("room-submit").performClick();visible("native-voice-room")
   val submitted=JSONObject(requests.single{it.first=="POST /api/voice/rooms"}.second.toString(Charsets.UTF_8))
-  assertEquals("theme-owned",submitted.getString("theme_sku"));assertEquals("navy",submitted.getString("background"))
+  assertEquals("theme-owned",submitted.getString("theme_sku"));assertEquals("theme-owned",submitted.getString("background"))
   ui.onNodeWithTag("voice-background-theme-owned",useUnmergedTree=true).assertIsDisplayed()
   ui.onNodeWithTag("voice-background-image",useUnmergedTree=true).assertIsDisplayed();capture("room-269-owned-applied")
  }
  @Test fun roomCreationPrefersActivePaidThemesAndKeepsExplicitFreeChoiceOnRefresh(){
   val paid=payload("sku" to "theme-aurora","name" to "활성 오로라 라운지","paid" to true,"selectable" to true,"assetPaths" to payload("roomMobile" to "/assets/dubbing-genres/daily.webp"))
   val second=payload("sku" to "theme-starlight","name" to "활성 별빛 라운지","paid" to true,"selectable" to true)
-  val navy=payload("sku" to "navy","name" to "차분한 다크","paid" to false,"selectable" to true)
-  val night=payload("sku" to "night","name" to "밤하늘","paid" to false,"selectable" to true)
+  val turntable=payload("sku" to "basic_dark","name" to "턴테이블","paid" to false,"selectable" to true)
+  val headphones=payload("sku" to "basic_light","name" to "헤드폰","paid" to false,"selectable" to true)
   val locked=payload("sku" to "theme-stock-only","name" to "미사용 보관 테마","paid" to true,"selectable" to false)
-  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(paid,second,navy,night,locked),"preferred_theme" to "theme-aurora")
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(paid,second,turntable,headphones,locked),"preferred_theme" to "theme-aurora")
   launch("voice");visible("room-theme-theme-aurora");ui.onNodeWithText("토킹룸").performScrollTo().performClick()
   ui.onNodeWithTag("room-theme-theme-aurora").performScrollTo().assertIsSelected()
   ui.onNodeWithTag("room-title").performScrollTo().performTextInput("선택을 유지하는 방")
@@ -167,21 +167,22 @@ class NativePerformanceTest{
   ui.onNodeWithText("전체 보기").performScrollTo().performClick();visible("room-theme-picker")
   fun option(sku:String)=ui.onNode(hasTestTag("room-theme-$sku") and hasAnyAncestor(hasTestTag("room-theme-picker")))
   option("theme-aurora").assertIsSelected();option("theme-stock-only").assertDoesNotExist()
+  for(sku in listOf("navy","sunset","night"))option(sku).assertDoesNotExist()
   val paidBounds=option("theme-aurora").fetchSemanticsNode().boundsInRoot
-  val freeBounds=option("navy").fetchSemanticsNode().boundsInRoot
+  val freeBounds=option("basic_dark").fetchSemanticsNode().boundsInRoot
   assertTrue("Active paid choices precede free backgrounds",paidBounds.top<freeBounds.top)
   capture("room-paid-default")
-  option("night").performScrollTo().performClick()
-  ui.onNodeWithTag("room-theme-night").performScrollTo().assertIsSelected()
+  option("basic_light").performScrollTo().performClick()
+  ui.onNodeWithTag("room-theme-basic_light").performScrollTo().assertIsSelected()
   val before=requests.count{it.first.substringBefore('?')=="GET /api/voice/options"}
-  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(second,paid,navy,night),"preferred_theme" to "theme-starlight")
+  responses["/api/voice/options"]=payload("crews" to JSONArray(),"themes" to arr(second,paid,turntable,headphones),"preferred_theme" to "theme-starlight")
   activity!!.recreate();visible("voice-room-form")
   ui.waitUntil(10000){requests.count{it.first.substringBefore('?')=="GET /api/voice/options"}>before}
   ui.onNodeWithTag("room-title").assertTextContains("선택을 유지하는 방")
-  ui.onNodeWithTag("room-theme-night").performScrollTo().assertIsSelected()
+  ui.onNodeWithTag("room-theme-basic_light").performScrollTo().assertIsSelected()
   ui.onNodeWithTag("room-submit").performClick();visible("native-voice-room")
   val submitted=JSONObject(requests.single{it.first=="POST /api/voice/rooms"}.second.toString(Charsets.UTF_8))
-  assertEquals("night",submitted.getString("theme_sku"));assertEquals("night",submitted.getString("background"))
+  assertEquals("basic_light",submitted.getString("theme_sku"));assertEquals("basic_light",submitted.getString("background"))
  }
  @Test fun roomFramesSurviveTransportOnlySnapshotsAndClearAfterValidation(){
   val frame="/assets/products/qa-voice-frame.png"

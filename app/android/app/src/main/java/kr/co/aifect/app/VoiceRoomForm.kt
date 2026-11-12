@@ -26,7 +26,6 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
@@ -44,53 +43,19 @@ import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 
-private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을","night" to "밤하늘")
-
 /** The picker and the room use the same painting and the same mobile theme asset. */
 @Composable internal fun VoiceRoomBackdrop(background:String,theme:JSONObject?=null,modifier:Modifier=Modifier,preview:Boolean=false){
- val sku=theme?.optString("sku").orEmpty().ifBlank{background}.ifBlank{"navy"}
+ val sku=theme?.optString("sku").orEmpty().ifBlank{background}.ifBlank{RoomThemeSync.DEFAULT_SKU}
  val image=CatalogAssets.roomMobile(theme)
  Box(modifier.testTag("voice-background-$sku")){
   Canvas(Modifier.matchParentSize()){
-   val base=when(sku){"sunset"->Color(0xFF0C1422);"night"->Color(0xFF050E1C);else->Color(0xFF07111F)}
-   drawRect(base)
+   drawRect(Color(0xFF0C1025))
    fun wash(color:Color,x:Float,y:Float,radius:Float){
     drawRect(Brush.radialGradient(listOf(color,Color.Transparent),Offset(size.width*x,size.height*y),size.maxDimension*radius))
    }
-   // Picker tiles show each free theme at full colour, as in the approved creation screen.
-   if(sku in setOf("navy","sunset","night"))when(sku){
-    "sunset"->{
-     drawRect(Brush.verticalGradient(listOf(Color(0xFF1B1233),Color(0xFF2A1A44),Color(0xFF1A1532))))
-     wash(Color(0x884C2A80),.15f,.10f,.60f)
-     // A long, tilted glow band like a sunset streak rather than a round spot.
-     val mid=Offset(size.width*.52f,size.height*.50f)
-     withTransform({rotate(-14f,mid);scale(2.6f,.42f,mid)}){
-      drawCircle(Brush.radialGradient(listOf(Color(0xDDF08A78),Color(0x99D0508C),Color.Transparent),mid,size.height*.55f),size.height*.55f,mid)
-     }
-    }
-    "night"->{
-     drawRect(Brush.linearGradient(listOf(Color(0xFF070C26),Color(0xFF0C1C4A),Color(0xFF081233)),Offset.Zero,Offset(size.width,size.height)))
-     wash(Color(0x664A78E0),.62f,.48f,.48f);wash(Color(0x443A5BC0),.30f,.70f,.40f)
-     val stars=java.util.Random(7)
-     repeat(60){drawCircle(Color.White.copy(alpha=.25f+stars.nextFloat()*.55f),(.25f+stars.nextFloat()*.55f)*density,Offset(stars.nextFloat()*size.width,stars.nextFloat()*size.height))}
-    }
-    else->{
-     drawRect(Brush.linearGradient(listOf(Color(0xFF241250),Color(0xFF151538),Color(0xFF0E3240)),Offset.Zero,Offset(size.width,size.height)))
-     wash(Color(0xCC7B3FE4),.58f,.18f,.55f);wash(Color(0x887A4BF0),.20f,.85f,.40f);wash(Color(0x8840B8B0),.98f,.98f,.40f)
-    }
-   }else when(sku){
-    "sunset"->{wash(Color(0x7770435A),.35f,.15f,.65f);wash(Color(0x66242954),.5f,1f,.65f)}
-    "night"->{wash(Color(0x77233D74),.70f,.10f,.48f);wash(Color(0x5539295B),.20f,.80f,.45f)}
-    else->{
-     drawRect(Color(0xFF0C1025))
-     wash(Color(0x884C317B),.88f,.03f,.48f)
-     wash(Color(0x663D316C),.18f,.68f,.52f)
-     wash(Color(0x55347F91),.98f,.88f,.40f)
-    }
-   }
-   // Preserve the selected free theme's distinguishing colours and stars in-room.
-   // The picker remains full-colour; the listening surface is gently dimmed.
-   if(!preview&&sku in setOf("navy","sunset","night"))drawRect(Color(0xFF080D1B).copy(alpha=.32f))
+   wash(Color(0x884C317B),.88f,.03f,.48f)
+   wash(Color(0x663D316C),.18f,.68f,.52f)
+   wash(Color(0x55347F91),.98f,.88f,.40f)
   }
   if(image!=null){
    // A picker tile shows the theme's own colours; inside a room the art stays dimmed behind people and chat.
@@ -136,7 +101,7 @@ private val RoomFieldFill=Panel.copy(alpha=.72f)
  var capacity by rememberSaveable(identity){mutableIntStateOf(initial.optInt("max_members",30).coerceIn(2,30))}
  var announcement by rememberSaveable(identity){mutableStateOf(initial.optString("announcement"))}
  var crew by rememberSaveable(identity){mutableStateOf(initial.optString("crew_id"))}
- var selectedTheme by rememberSaveable(identity){mutableStateOf(initial.optJSONObject("theme")?.optString("sku").orEmpty().ifBlank{initial.optString("theme_sku")}.ifBlank{initial.optString("background","navy")})}
+ var selectedTheme by rememberSaveable(identity){mutableStateOf(RoomThemeSync.selectedSku(initial))}
  var initialThemeChosen by rememberSaveable(identity){mutableStateOf(identity!="new")}
  var themes by remember{mutableStateOf<List<JSONObject>>(emptyList())}
  var crews by remember{mutableStateOf<List<JSONObject>>(emptyList())}
@@ -155,13 +120,15 @@ private val RoomFieldFill=Panel.copy(alpha=.72f)
     crews=options.optJSONArray("crews").objects()
     suggestions=options.optJSONObject("suggested_titles")?:JSONObject()
     if((title.isBlank()||retry>0)&&identity=="new"&&initial)title=suggestions.optString(mode,title)
-    themes=options.optJSONArray("themes").objects().filter{it.optBoolean("selectable")}
+    themes=options.optJSONArray("themes").objects().filter{it.optBoolean("selectable")&&!RoomThemeSync.isRetired(it.optString("sku"))}
     if(!initialThemeChosen){
      val preferred=options.optString("preferred_theme").takeIf{key->themes.any{it.optString("sku")==key}}
-     selectedTheme=preferred?:themes.firstOrNull()?.optString("sku")?:"navy"
+     selectedTheme=preferred?:themes.firstOrNull()?.optString("sku").orEmpty()
      initialThemeChosen=true
     }
-    if(themes.none{it.optString("sku")==selectedTheme})selectedTheme=themes.firstOrNull()?.optString("sku").orEmpty()
+    if(themes.none{it.optString("sku")==selectedTheme}){
+     selectedTheme=(themes.find{it.optString("sku")==RoomThemeSync.DEFAULT_SKU}?:themes.firstOrNull())?.optString("sku").orEmpty()
+    }
     optionsError=null
    }catch(e:Exception){if(e is CancellationException)throw e;optionsError=e.message?:"설정을 불러오지 못했어요."}
    finally{optionsLoading=false}
@@ -219,6 +186,7 @@ private val RoomFieldFill=Panel.copy(alpha=.72f)
     }
     Row(Modifier.fillMaxWidth().padding(top=4.dp).selectableGroup(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
      previewThemes.forEach{theme->RoomThemeTile(theme,selectedTheme==theme.optString("sku"),Modifier.weight(1f),!busy){focus.clearFocus();selectedTheme=theme.optString("sku");initialThemeChosen=true}}
+     repeat(3-previewThemes.size){Spacer(Modifier.weight(1f))}
     }
    }
    Column{
@@ -257,7 +225,7 @@ private val RoomFieldFill=Panel.copy(alpha=.72f)
    BrandButton(onClick={
     focus.clearFocus()
     submit(payload("mode" to mode,"title" to title.trim(),"visibility" to visibility,"seating_mode" to seating,"max_members" to capacity,
-     "announcement" to announcement.trim(),"background" to selectedTheme.takeIf{it in setOf("navy","sunset","night")} .orEmpty().ifBlank{"navy"},
+     "announcement" to announcement.trim(),"background" to selectedTheme,
      "theme_sku" to selectedTheme,"crew_id" to crew.takeIf{visibility=="crew"}))
    },enabled=valid,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp).testTag("room-submit"),shape=RoundedCornerShape(28.dp)){
     if(busy)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Muted)

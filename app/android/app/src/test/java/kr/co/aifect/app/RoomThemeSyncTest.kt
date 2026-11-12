@@ -25,7 +25,11 @@ class RoomThemeSyncTest {
   assertFalse(RoomThemeSync.canCarry("room1","room2","host1","host1",4,4,"theme_aurora_night","theme_aurora_night"))
  }
  @Test fun onlyMatchingUnexpiredThemeMayRender(){
-  assertTrue(RoomThemeSync.matches("night","night",0,1700000000))
+  for(sku in listOf("basic_dark","basic_light"))assertTrue(RoomThemeSync.matches(sku,sku,0,1700000000))
+  for(sku in listOf("navy","sunset","night")){
+   assertFalse(RoomThemeSync.matches(sku,sku,0,1700000000))
+   assertEquals("basic_dark",RoomThemeSync.selectedSku(room(sku=sku)))
+  }
   assertTrue(RoomThemeSync.matches("theme_aurora_night","theme_aurora_night",1700000020,1700000000))
   assertFalse(RoomThemeSync.matches("theme_aurora_night","night",0,1700000000))
   assertFalse(RoomThemeSync.matches("theme_aurora_night","theme_aurora_night",1699999999,1700000000))
@@ -38,7 +42,7 @@ class RoomThemeSyncTest {
  }
  @Test fun themeEndpointTakesPriorityOverStaleRoomSku(){
   val room=room()
-  assertEquals("navy",RoomThemeSync.selectedSku(room))
+  assertEquals("basic_dark",RoomThemeSync.selectedSku(room))
   assertEquals("theme_aurora_night",RoomThemeSync.shownSku(room,paid()))
   assertEquals("theme_aurora_night",RoomThemeSync.current(room,paid())?.optString("sku"))
  }
@@ -59,12 +63,18 @@ class RoomThemeSyncTest {
   val anotherHost=room().apply{remove("theme_sku");put("host_id","host2")}
   assertNull(RoomThemeSync.carry(previous,anotherHost))
  }
+ @Test fun canonicalPaidHttpRoomSurvivesAnOldSocketWithoutThemeSku(){
+  val paidRoom=room(sku="theme_aurora_night").put("background","theme_aurora_night").put("theme",paid())
+  val paletteOnly=room().apply{remove("theme_sku");put("background","basic_dark")}
+  assertEquals("theme_aurora_night",RoomThemeSync.carry(paidRoom,paletteOnly)?.optString("sku"))
+  assertNull(RoomThemeSync.carry(paidRoom,paletteOnly.put("settings_revision",5)))
+ }
  @Test fun settingsChangeMustDiscardOldThemeAndExpiredArt(){
   val previous=room().put("theme",paid())
   assertNull(RoomThemeSync.carry(previous,room(revision=5,sku="night")))
   assertNull(RoomThemeSync.carry(previous,room(sku="theme_cherry_blossom")))
   val expired=paid().put("expires_at",1699999999L)
   assertFalse(RoomThemeSync.validTheme(expired))
-  assertEquals("navy",RoomThemeSync.shownSku(room(),expired))
+  assertEquals("basic_dark",RoomThemeSync.shownSku(room(),expired))
  }
 }
