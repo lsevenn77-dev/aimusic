@@ -22,7 +22,7 @@ final class AIFECTUITests: XCTestCase {
     @MainActor func testRedesignCrewNavigationDraftDeletionAndMiniPlayer() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-feedback-ui-test", "-redesign-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launchArguments = ["-feedback-ui-test", "-redesign-ui-test", "-streaming-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
         let collapse = app.buttons["mini-player-collapse"]
         XCTAssertTrue(collapse.waitForExistence(timeout: 15)); collapse.tap()
@@ -31,6 +31,7 @@ final class AIFECTUITests: XCTestCase {
         collapse.tap(); XCTAssertTrue(app.buttons["다음 곡"].exists)
 
         app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
+        if app.buttons["크루 찾기"].waitForExistence(timeout: 5) { app.buttons["크루 찾기"].tap() }
         let crew = app.buttons["crew-card-fixture-crew"]
         XCTAssertTrue(crew.waitForExistence(timeout: 8)); crew.tap()
         let entry = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "크루 채팅방")).firstMatch
@@ -44,11 +45,11 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(app.textFields["chat-input"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["mini-player-collapse"].exists)
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.staticTexts["내 크루 · 고정"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["inbox-crew"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["main-tab-3"].isSelected)
 
         app.buttons["main-tab-2"].tap()
-        XCTAssertTrue(app.buttons["초안"].waitForExistence(timeout: 5)); app.buttons["초안"].tap()
+        XCTAssertTrue(app.buttons["내 초안"].waitForExistence(timeout: 5)); app.buttons["내 초안"].tap()
         XCTAssertTrue(app.buttons["이어 편집"].waitForExistence(timeout: 5))
         app.buttons["삭제"].firstMatch.tap()
         XCTAssertTrue(app.buttons["초안 삭제"].waitForExistence(timeout: 5))
@@ -59,16 +60,13 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(app.buttons["이어 편집"].exists)
         app.buttons["삭제"].firstMatch.tap(); app.buttons["초안 삭제"].tap()
         XCTAssertTrue(app.staticTexts["저장한 초안이 없어요"].waitForExistence(timeout: 5))
+        app.buttons["둘러보기"].tap()
+        app.buttons["최신"].tap()
+        let newCover = app.buttons["함께 부르는 검증용 멜로디"].firstMatch
+        XCTAssertTrue(newCover.waitForExistence(timeout: 8)); newCover.tap()
+        XCTAssertTrue(app.navigationBars["곡 상세"].waitForExistence(timeout: 8))
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        let more = app.buttons["더보기"]
-        for _ in 0..<16 {
-            if more.isHittable && more.frame.maxY < collapse.frame.minY { break }
-            app.scrollViews.firstMatch.swipeUp()
-        }
-        XCTAssertTrue(more.isHittable); more.tap()
-        XCTAssertTrue(app.navigationBars["새로 올라온 목소리"].waitForExistence(timeout: 5))
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(more.isHittable)
+        XCTAssertTrue(newCover.isHittable)
         let capture = XCTAttachment(screenshot: app.screenshot()); capture.name = "Redesign singing navigation"; capture.lifetime = .keepAlways; add(capture)
     }
     @MainActor func testListeningDoesNotShowVideoAds() throws {
@@ -281,11 +279,11 @@ final class AIFECTUITests: XCTestCase {
     @MainActor func testCreatorProfileFromPlayerDetail() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launchArguments = ["-feedback-ui-test", "-redesign-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
-        XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
-        app.buttons["feedback-menu"].tap(); app.buttons["재생창 프로필 검증"].tap()
-        app.buttons["재생 화면 열기"].tap()
+        let player = app.buttons["재생 화면 열기"]
+        XCTAssertTrue(player.waitForExistence(timeout: 15))
+        player.tap()
         let comments = app.buttons["댓글"]
         for _ in 0..<3 { if comments.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
         XCTAssertTrue(comments.isHittable); comments.tap()
@@ -352,12 +350,20 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 8), .completed)
         let myShot = XCTAttachment(screenshot: app.screenshot()); myShot.name = "My profile settings and balances"; myShot.lifetime = .keepAlways; add(myShot)
         app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
+        if app.buttons["크루 찾기"].waitForExistence(timeout: 5) { app.buttons["크루 찾기"].tap() }
         XCTAssertTrue(app.buttons["crew-card-fixture-crew"].waitForExistence(timeout: 10)); app.buttons["crew-card-fixture-crew"].tap()
         XCTAssertTrue(app.staticTexts["crew-detail-name"].waitForExistence(timeout: 10))
         let crewShot = XCTAttachment(screenshot: app.screenshot()); crewShot.name = "Crew hero and experience"; crewShot.lifetime = .keepAlways; add(crewShot)
-        let about = app.buttons["소개"]
-        for _ in 0..<4 { if about.isHittable { break }; app.scrollViews["crew-content"].swipeUp() }
+        let content = app.scrollViews["crew-content"]
+        let about = content.buttons["소개"]
+        let mini = app.buttons["mini-player-collapse"]
+        for _ in 0..<6 {
+            let bottom = mini.exists ? mini.frame.minY : app.buttons["main-tab-1"].frame.minY
+            if about.isHittable && about.frame.midY > 100 && about.frame.maxY < bottom - 8 { break }
+            content.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.65)).press(forDuration: 0.05, thenDragTo: content.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.29)))
+        }
         XCTAssertTrue(about.isHittable); about.tap()
+        XCTAssertTrue(about.isSelected)
         for _ in 0..<4 { if app.staticTexts["함께 성장하는 방법"].isHittable { break }; app.scrollViews["crew-content"].swipeUp() }
         XCTAssertTrue(app.staticTexts["함께 성장하는 방법"].exists)
         XCTAssertTrue(app.staticTexts["+10 XP"].exists)

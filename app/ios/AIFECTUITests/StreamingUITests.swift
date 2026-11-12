@@ -13,6 +13,113 @@ final class StreamingUITests: XCTestCase {
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
     @MainActor private func back(_ app: XCUIApplication) { app.navigationBars.buttons.element(boundBy: 0).tap() }
+    @MainActor private func reveal(_ element: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, towardTop: Bool = false) {
+        let mini = app.buttons["mini-player-collapse"]
+        let bottomTab = app.buttons["main-tab-0"]
+        for _ in 0..<10 {
+            let bottom = mini.exists ? mini.frame.minY : bottomTab.exists ? bottomTab.frame.minY : app.frame.maxY - 25
+            if element.exists && element.isHittable && element.frame.midY > 130 && element.frame.midY < bottom - 12 { return }
+            let a = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.57, dy: towardTop ? 0.32 : 0.67))
+            let b = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.57, dy: towardTop ? 0.67 : 0.32))
+            a.press(forDuration: 0.05, thenDragTo: b)
+        }
+        XCTFail("화면에서 누를 수 없는 항목: " + element.description)
+    }
+    @MainActor func testCrewMemberHomeDirectoryAndRankings() {
+        let app = launch(["-crew-parity"])
+        app.buttons["main-tab-1"].tap()
+        app.buttons["크루"].firstMatch.tap()
+        XCTAssertTrue(app.staticTexts["크루 작품  2"].waitForExistence(timeout: 10))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        let weekday = calendar.component(.weekday, from: Date())
+        let game = app.buttons["crew-weekly-game-banner"]
+        if (2...6).contains(weekday) {
+            XCTAssertTrue(game.waitForExistence(timeout: 8))
+            capture(app, "crew-home")
+            game.tap()
+            let gameTitle = ["점프러시", "월척헌터", "비트콤보", "터보레이스"].first { app.navigationBars[$0].exists }
+            XCTAssertNotNil(gameTitle)
+            back(app)
+        } else { XCTAssertFalse(game.exists); capture(app, "crew-home") }
+        app.buttons["멤버"].tap()
+        XCTAssertTrue(app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "크루장")).firstMatch.exists)
+        app.buttons["소개"].tap()
+        XCTAssertTrue(app.buttons["크루 자세히 보기"].waitForExistence(timeout: 5))
+        app.buttons["크루 찾기"].tap()
+        XCTAssertTrue(app.textFields["crew-search"].waitForExistence(timeout: 8))
+        app.buttons["‹ 내 크루로 돌아가기"].tap()
+        app.buttons["공지 · 채팅 · 크루 관리"].tap()
+        XCTAssertTrue(app.staticTexts["crew-detail-name"].waitForExistence(timeout: 8))
+        back(app)
+        app.buttons["랭킹"].tap()
+        app.buttons["ranking-category-크루"].tap()
+        let first = app.buttons["crew-podium-crew-tide"]
+        let second = app.buttons["crew-podium-crew-summer"]
+        let third = app.buttons["crew-podium-crew-star"]
+        XCTAssertTrue(first.waitForExistence(timeout: 10))
+        XCTAssertLessThan(second.frame.midX, first.frame.midX)
+        XCTAssertLessThan(first.frame.midX, third.frame.midX)
+        XCTAssertLessThan(first.frame.minY, second.frame.minY)
+        let mine = app.buttons["my-crew-ranking"]
+        XCTAssertTrue(mine.label.contains("4위"))
+        capture(app, "crew-rankings")
+        reveal(mine, in: app.scrollViews.firstMatch, app: app)
+        mine.tap()
+        XCTAssertTrue(app.staticTexts["crew-detail-name"].waitForExistence(timeout: 8))
+    }
+    @MainActor func testDubbingScriptReaderAndRoleSelection() {
+        let app = launch()
+        app.buttons["main-tab-2"].tap()
+        app.buttons["더빙"].firstMatch.tap()
+        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "극본 보기")).firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["더빙 스튜디오"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["mini-player-collapse"].exists)
+        XCTAssertFalse(app.buttons["main-tab-2"].exists)
+        let claim = app.buttons["claim-role-guide"]
+        XCTAssertTrue(claim.waitForExistence(timeout: 8))
+        capture(app, "dubbing-project-info")
+        let more = app.buttons["전체 대본 펼쳐보기"]
+        let scroll = app.scrollViews["dubbing-project-scroll"]
+        reveal(more, in: scroll, app: app)
+        more.tap()
+        let last = app.staticTexts["예시 대사 6"]
+        reveal(last, in: scroll, app: app)
+        XCTAssertTrue(last.exists)
+        XCTAssertTrue(app.staticTexts["0:20"].exists)
+        capture(app, "dubbing-script-lines")
+        reveal(claim, in: scroll, app: app, towardTop: true)
+        claim.tap()
+        XCTAssertTrue(app.navigationBars["더빙 연습"].waitForExistence(timeout: 8))
+        back(app)
+        XCTAssertTrue(app.staticTexts["내 배역"].waitForExistence(timeout: 8))
+        XCTAssertFalse(claim.exists)
+        back(app)
+        XCTAssertTrue(app.buttons["main-tab-2"].waitForExistence(timeout: 8))
+    }
+    @MainActor func testAndroidMyProfileActions() {
+        let app = launch()
+        app.buttons["main-tab-4"].tap()
+        let gifts = app.buttons["my-gift-ranking"]
+        XCTAssertTrue(gifts.waitForExistence(timeout: 10))
+        let edit = app.buttons["프로필 수정"]
+        let studio = app.buttons["스튜디오 바로가기"]
+        XCTAssertGreaterThan(studio.frame.width, edit.frame.width)
+        XCTAssertEqual(studio.frame.midY, edit.frame.midY, accuracy: 2)
+        capture(app, "my-profile-actions")
+        gifts.tap()
+        XCTAssertTrue(app.navigationBars["선물 랭킹 TOP 50"].waitForExistence(timeout: 8))
+        back(app)
+        app.buttons["계정 관리"].tap()
+        XCTAssertTrue(app.navigationBars["계정"].waitForExistence(timeout: 8))
+    }
+    @MainActor func testCrewDirectoryForNonmember() {
+        let app = launch(["-crew-parity", "-crew-nonmember"])
+        app.buttons["main-tab-1"].tap()
+        app.buttons["크루"].tap()
+        XCTAssertTrue(app.textFields["crew-search"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["‹ 내 크루로 돌아가기"].exists)
+    }
     @MainActor func testComparePrimaryAndSecondaryScreens() {
         let app = launch()
         for tab in ["인기 차트","최신곡","발견","추천"] {

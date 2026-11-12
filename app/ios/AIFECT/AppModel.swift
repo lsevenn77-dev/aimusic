@@ -35,6 +35,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var error: String?
     @Published var notice: String?
     @Published var visibleChats: Set<UUID> = []
+    @Published var visibleWorkspaces: Set<UUID> = []
     @Published var selectedTab = 0
     @Published var navigationPath = NavigationPath()
     @Published var playerPageVisible = false

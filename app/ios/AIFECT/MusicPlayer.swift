@@ -2,6 +2,25 @@ import AVFoundation
 import MediaPlayer
 import Combine
 
+enum PlaybackRepeat {
+    case off, all, one
+
+    func nextMode(inFullPlayer: Bool) -> Self {
+        switch self {
+        case .off: return .all
+        case .all: return inFullPlayer ? .one : .off
+        case .one: return .off
+        }
+    }
+
+    func nextIndex(current: Int, count: Int, automatic: Bool) -> Int? {
+        guard (0..<count).contains(current) else { return nil }
+        if self == .one && automatic { return current }
+        if current + 1 < count { return current + 1 }
+        return self == .all ? 0 : nil
+    }
+}
+
 @MainActor
 final class MusicPlayer: ObservableObject {
     @Published var current: Song?
@@ -12,8 +31,12 @@ final class MusicPlayer: ObservableObject {
     @Published var preview = false
     @Published var lyric = ""
     @Published var error: String?
-    @Published var repeatOne = false
-    @Published var shuffled = false
+    @Published var repeatMode: PlaybackRepeat = .off
+    @Published var shuffled = false {
+        didSet { if oldValue != shuffled { updateShuffleOrder() } }
+    }
+    private var shuffleOrder: [Song] = []
+    private var pendingAutoplay = false
     let player = AVPlayer()
     @Published private(set) var queue: [Song] = []
     private var observation: NSKeyValueObservation?
@@ -37,7 +60,7 @@ final class MusicPlayer: ObservableObject {
         notifications.append(NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main) { [weak self] note in
             Task { @MainActor in
                 guard let self, note.object as? AVPlayerItem === self.player.currentItem else { return }
-                if self.repeatOne, let song = self.current { self.play(song, queue: self.queue) } else { self.next() }
+                self.advance(automatic: true)
             }
         })
         notifications.append(NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] _ in
@@ -62,8 +85,13 @@ final class MusicPlayer: ObservableObject {
         ListeningAds.shared.trackFinished(heard: heard, duration: duration, preview: preview)
         loadTask?.cancel(); player.pause(); revision += 1
         let version = revision
-        queue = songs.isEmpty ? [song] : songs
-        current = song; loading = true; error = nil; lyric = ""; position = 0; duration = 0
+        let newQueue = songs.isEmpty ? [song] : songs
+        let changed = newQueue != queue
+        queue = newQueue
+        current = song
+        if shuffled && (changed || shuffleOrder.isEmpty) { updateShuffleOrder() }
+        pendingAutoplay = true
+        loading = true; error = nil; lyric = ""; position = 0; duration = 0
         listenID = ""; heard = 0; lastReport = 0; nextLyric = 0
         player.replaceCurrentItem(with: nil)
         loadTask = Task {
@@ -89,12 +117,15 @@ final class MusicPlayer: ObservableObject {
                         if item.status == .failed { self.error = "음원을 재생하지 못했습니다. 다시 시도해주세요."; self.loading = false }
                     }
                 }
-                player.replaceCurrentItem(with: item); player.play(); nowPlaying()
+                player.replaceCurrentItem(with: item)
+                if pendingAutoplay { player.play() }
+                nowPlaying()
             } catch is CancellationError {} catch { if revision == version { self.error = error.localizedDescription } }
         }
     }
-    func pause() { player.pause() }
+    func pause() { pendingAutoplay = false; player.pause() }
     func resume() {
+        pendingAutoplay = true
         guard current != nil, player.currentItem != nil else { return }
         do { try AVAudioSession.sharedInstance().setCategory(.playback); try AVAudioSession.sharedInstance().setActive(true); player.play() }
         catch { self.error = error.localizedDescription }
@@ -105,26 +136,38 @@ final class MusicPlayer: ObservableObject {
         player.seek(to: CMTime(seconds: min(max(value, 0), duration), preferredTimescale: 600))
         nowPlaying()
     }
-    func next() {
-        guard let current, let index = queue.firstIndex(where: { $0.id == current.id }) else { return }
-        let candidate = shuffled ? queue.filter { $0.id != current.id }.randomElement() : (index + 1 < queue.count ? queue[index + 1] : nil)
-        if let candidate { play(candidate, queue: queue) } else {
+    private var playbackOrder: [Song] { shuffled ? shuffleOrder : queue }
+    private func updateShuffleOrder() {
+        guard shuffled, let current else { shuffleOrder = []; return }
+        shuffleOrder = [current] + queue.filter { $0.id != current.id }.shuffled()
+    }
+    private func advance(automatic: Bool) {
+        let order = playbackOrder
+        guard let current, let index = order.firstIndex(where: { $0.id == current.id }) else { return }
+        if let next = repeatMode.nextIndex(current: index, count: order.count, automatic: automatic) {
+            play(order[next], queue: queue)
+        } else if automatic {
             pause(); ListeningAds.shared.trackFinished(heard: heard, duration: duration, preview: preview); heard = 0
             Task { await ListeningAds.shared.breakIfNeeded() }
         }
     }
+    func next() { advance(automatic: false) }
     func previous() {
-        guard position < 3, let current, let index = queue.firstIndex(where: { $0.id == current.id }), index > 0 else { seek(0); return }
-        play(queue[index - 1], queue: queue)
+        let order = playbackOrder
+        guard position < 3, let current, let index = order.firstIndex(where: { $0.id == current.id }) else { seek(0); return }
+        if index > 0 { play(order[index - 1], queue: queue) }
+        else if repeatMode == .all, let last = order.last { play(last, queue: queue) }
+        else { seek(0) }
     }
     func removeQueue(at offsets: IndexSet) {
         queue.remove(atOffsets: offsets)
+        shuffleOrder.removeAll { item in !queue.contains(where: { $0.id == item.id }) }
         if let current, !queue.contains(where: { $0.id == current.id }) { if let next = queue.first { play(next, queue: queue) } else { close() } }
     }
     func moveQueue(from offsets: IndexSet, to destination: Int) { queue.move(fromOffsets: offsets, toOffset: destination) }
     func close() {
         revision += 1; loadTask?.cancel(); player.pause(); player.replaceCurrentItem(with: nil)
-        current = nil; lyric = ""; queue = []; listenID = ""; playing = false; loading = false
+        current = nil; lyric = ""; queue = []; shuffleOrder = []; pendingAutoplay = false; listenID = ""; playing = false; loading = false
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     private func tick(_ value: Double) {

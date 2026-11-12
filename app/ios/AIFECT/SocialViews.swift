@@ -531,10 +531,20 @@ struct MyMusicView: View {
                 if model.user == nil { LoginPrompt(title: "로그인하고 내 작업을 이어가세요.") }
                 else {
                     profileCard
-                    HStack {
-                        NavigationLink("프로필 수정") { ProfileEditorView().streamingPage() }.buttonStyle(ParityPill(filled: true))
-                        NavigationLink("스튜디오 바로가기") { CreatorWorkView().streamingPage() }.buttonStyle(ParityPill(filled: false))
-                    }
+                    GeometryReader { bounds in
+                        HStack(spacing: 8) {
+                            NavigationLink { ProfileEditorView().streamingPage() } label: {
+                                Text("프로필 수정").font(.subheadline.bold()).foregroundStyle(Brand.background)
+                                    .frame(width: (bounds.size.width - 8) * 0.42, height: 48)
+                                    .background(Brand.gradient, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            NavigationLink { CreatorWorkView().streamingPage() } label: {
+                                HStack(spacing: 6) { Image(systemName: "point.3.connected.trianglepath.dotted"); Text("스튜디오 바로가기"); Image(systemName: "chevron.right") }
+                                    .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 48)
+                                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(Brand.pink.opacity(0.7)))
+                            }
+                        }.buttonStyle(.plain)
+                    }.frame(height: 48)
                     CatalogTabs(names: ["내 작품", "내 보관함", "인벤토리"], selection: $section)
                     if section == "내 작품" {
                         let pid = profile.string("id")
@@ -616,37 +626,58 @@ struct MyMusicView: View {
         }.buttonStyle(.plain).accessibilityIdentifier("music-shortcut-\(selection)")
     }
     private var profileCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let pid = profile.string("id")
+        let crew = music.object("crew")
+        let crewID = crew.string("id")
+        let codes = [music.string("public_id"), profile.string("public_id"), model.user?.string("public_id") ?? ""]
+        let publicID = codes.first { $0.count == 7 && $0.range(of: "^[A-Z]{3}[0-9]{4}$", options: .regularExpression) != nil }
+        return VStack(alignment: .leading, spacing: 12) {
             (typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 12))) {
-                ProfilePhoto(person: profile, size: 96)
+                NavigationLink { ProfilePage(id: pid).streamingPage() } label: { ProfilePhoto(person: profile, size: 96) }
+                    .buttonStyle(.plain).disabled(pid.isEmpty).accessibilityLabel("프로필 보기")
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 0) {
-                        Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필")).font(.headline).fixedSize(horizontal: false, vertical: true).accessibilityIdentifier("my-profile-name")
+                        Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필"))
+                            .font(.system(size: 23, weight: .bold)).lineLimit(2).accessibilityIdentifier("my-profile-name")
                         NavigationLink { ProfileEditorView().streamingPage() } label: {
-                            Image(systemName: "slider.horizontal.3").font(.system(size: 14)).foregroundStyle(AifectDesign.violet).frame(width: 44, height: 44)
+                            Image(systemName: "pencil").font(.caption).foregroundStyle(AifectDesign.violet).frame(width: 32, height: 44)
                         }.buttonStyle(.plain).accessibilityLabel("아이디 · 프로필 변경").accessibilityIdentifier("edit-my-profile")
                     }
-                    let publicID = music.string("public_id", fallback: profile.string("public_id", fallback: model.user?.string("public_id") ?? ""))
-                    if publicID.isEmpty { Text("ID 발급 확인 중").font(.caption2) }
-                    else { Button("ID " + publicID + "  ⧉") { UIPasteboard.general.string = publicID }.font(.caption2) }
-                    Text(music.object("crew").string("name", fallback: "소속 크루 없음")).font(.caption2).foregroundStyle(AifectDesign.muted)
+                    if let publicID {
+                        Button("ID " + publicID + "  ⧉") {
+                            UIPasteboard.general.string = publicID; model.notice = "ID를 복사했어요."
+                        }.font(.caption2).frame(minHeight: 26)
+                    } else { Text("ID 발급 확인 중").font(.caption2).foregroundStyle(AifectDesign.muted) }
+                    if SiteWorkspace.validKey(crewID) {
+                        NavigationLink(crew.string("name")) { CrewPage(id: crewID).streamingPage() }.font(.caption)
+                    } else { NavigationLink("소속 크루 없음") { CrewsView().streamingPage() }.font(.caption) }
                     PartnerBadge(person: profile)
                 }.frame(maxWidth: .infinity, alignment: .leading)
-                if !profile.string("id").isEmpty {
-                    NavigationLink { ProfilePage(id: profile.string("id")).streamingPage() } label: {
-                        Text("프로필 보기").font(.caption.bold()).foregroundStyle(AifectDesign.violet).padding(.horizontal, 9).padding(.vertical, 8).overlay(Capsule().stroke(AifectDesign.violet.opacity(0.5), lineWidth: 1)).frame(minHeight: 44)
-                    }.buttonStyle(.plain)
-                }
+                VStack(alignment: .trailing, spacing: 2) {
+                    Button { account = true } label: { Image(systemName: "gearshape").font(.title3).frame(width: 44, height: 44) }
+                        .accessibilityLabel("계정 관리")
+                    NavigationLink { ProfileGiftRankingView(profileID: pid).streamingPage() } label: {
+                        Label("선물 랭킹", systemImage: "star").font(.caption2).frame(minHeight: 44)
+                    }.disabled(pid.isEmpty).accessibilityIdentifier("my-gift-ranking")
+                }.buttonStyle(.plain)
             }
             HStack(spacing: 0) {
-                NavigationLink { FollowingListView(followers: true).streamingPage() } label: { streamingStat("팔로워", data.int("follower_count")) }
-                NavigationLink { FollowingListView().streamingPage() } label: { streamingStat("팔로잉", data.int("following_count")) }
-                Button { section = "내 작품" } label: { streamingStat("공개곡", allSongs.count) }
+                NavigationLink { FollowingListView(followers: true).streamingPage() } label: {
+                    streamingStat("팔로워", (music["followers"] as? NSNumber)?.intValue ?? data.int("follower_count"))
+                }
+                Divider().frame(height: 28)
+                NavigationLink { FollowingListView().streamingPage() } label: {
+                    streamingStat("팔로잉", (music["following_count"] as? NSNumber)?.intValue ?? data.int("following_count"))
+                }
+                Divider().frame(height: 28)
+                Button { section = "내 작품" } label: {
+                    streamingStat("공개곡", (music["public_track_count"] as? NSNumber)?.intValue ?? allSongs.count)
+                }
             }.buttonStyle(.plain)
         }.padding(.top, 4).padding(.bottom, 2)
     }
     private func streamingStat(_ title: String, _ count: Int) -> some View {
-        VStack(spacing: 6) { Text("\(count)").font(.headline); Text(title).font(.caption).foregroundStyle(AifectDesign.muted) }
+        VStack(spacing: 3) { Text("\(count)").font(.system(size: 21, weight: .semibold)); Text(title).font(.caption).foregroundStyle(AifectDesign.muted) }
             .frame(maxWidth: .infinity, minHeight: 50).foregroundStyle(AifectDesign.text)
     }
     private func profileStat(_ label: String, _ count: Int, active: Bool = false) -> some View {

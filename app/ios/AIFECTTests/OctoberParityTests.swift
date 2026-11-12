@@ -15,6 +15,52 @@ final class OctoberParityTests: XCTestCase {
         if let stream = request.httpBodyStream { stream.open(); defer { stream.close() }; var buffer = [UInt8](repeating: 0, count: 4096); while stream.hasBytesAvailable { let count = stream.read(&buffer, maxLength: buffer.count); if count <= 0 { break }; data.append(buffer, count: count) } }
         return try JSONSerialization.jsonObject(with: data) as? [String: Any] ?? [:]
     }
+    func testAndroidPlayerRepeatTransitionsAndQueueBoundary() {
+        XCTAssertEqual(PlaybackRepeat.off.nextMode(inFullPlayer: false), .all)
+        XCTAssertEqual(PlaybackRepeat.all.nextMode(inFullPlayer: false), .off)
+        XCTAssertEqual(PlaybackRepeat.all.nextMode(inFullPlayer: true), .one)
+        XCTAssertEqual(PlaybackRepeat.one.nextMode(inFullPlayer: true), .off)
+        XCTAssertEqual(PlaybackRepeat.all.nextIndex(current: 2, count: 3, automatic: true), 0)
+        XCTAssertNil(PlaybackRepeat.off.nextIndex(current: 2, count: 3, automatic: true))
+        XCTAssertEqual(PlaybackRepeat.one.nextIndex(current: 0, count: 3, automatic: true), 0)
+        XCTAssertEqual(PlaybackRepeat.one.nextIndex(current: 0, count: 3, automatic: false), 1)
+    }
+    func testCrewGameMatchesKoreanWeekAndAndroidHash() throws {
+        let format = ISO8601DateFormatter()
+        func active(_ time: String, _ catalog: [String: Any] = [:]) throws -> CrewGame? {
+            CrewGame.active(at: try XCTUnwrap(format.date(from: time)), catalog: catalog)
+        }
+        let server = ["week_start": "2026-11-09", "active_game_id": "fishing"]
+        XCTAssertNil(try active("2026-11-08T14:59:59Z", server))
+        XCTAssertEqual(try active("2026-11-08T15:00:00Z", server), .fishing)
+        XCTAssertEqual(try active("2026-11-13T14:59:59Z"), .racing)
+        XCTAssertNil(try active("2026-11-13T15:00:00Z", server))
+        XCTAssertEqual(try active("2026-11-15T15:00:00Z", server), .jump)
+    }
+    func testDubbingLineStartsRespectOrderAndPauses() {
+        let rows: [[String: Any]] = [["id":"two", "order":2, "durationSeconds":4, "gapSeconds":-1],
+                                     ["id":"one", "order":1, "durationSeconds":2.5, "gapSeconds":1],
+                                     ["id":"three", "order":3]]
+        let lines = DubbingScriptLine.timeline(rows)
+        XCTAssertEqual(lines.map(\.id), ["one","two","three"])
+        XCTAssertEqual(lines.map(\.start), [0,3.5,7.5])
+    }
+    func testGameRoutesMatchAndroidAndRequireCurrentCrew() {
+        for game in CrewGame.allCases {
+            let route = "game/\(game.rawValue)/crew_4"
+            let space = SiteWorkspace(game: game, crew: "crew_4", route: route)
+            XCTAssertEqual(space?.path, game == .jump ? "/#crew-jump/crew_4" : "/crew-\(game.rawValue)/?crew=crew_4&from=crew")
+            XCTAssertNil(SiteWorkspace(game: game, crew: "other", route: route))
+            XCTAssertNil(SiteWorkspace(game: game, crew: "a?b", route: "game/\(game.rawValue)/a?b"))
+            XCTAssertNotNil(UIImage(named: "crew-weekly-" + game.rawValue))
+        }
+    }
+    func testRankMovementUsesOnlyReportedHistory() {
+        XCTAssertEqual(RankMovement(row: ["rank_change": NSNull()], rank: 8).change.label, "이전 순위 기록 없음")
+        XCTAssertEqual(RankMovement(row: ["previous_rank": 6], rank: 8).change.text, "▼2")
+        XCTAssertEqual(RankMovement(row: ["rank_change": 0, "previous_rank": 6], rank: 8).change.label, "순위 변동 없음")
+        XCTAssertEqual(RankMovement(row: ["chart_movement": "new"], rank: 8).change.text, "NEW")
+    }
     func testCatalogUsesServerGiftArtworkAndRejectsInvalidLocations() {
         let gift: [String: Any] = ["assetPaths": ["image": "http://example.org/old.png"], "assets": ["thumbnail": "/media/gifts/new.webp?v=2"]]
         XCTAssertEqual(CatalogArtwork.giftURL(gift)?.absoluteString, "https://aifect.co.kr/media/gifts/new.webp?v=2")

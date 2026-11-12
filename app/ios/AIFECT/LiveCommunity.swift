@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct LiveCommunity: View {
+    @EnvironmentObject private var model: AppModel
     @State private var tab = "라이브"
     @State private var space: SiteWorkspace?
     var body: some View {
@@ -8,7 +9,7 @@ struct LiveCommunity: View {
             CatalogHeader(title: "커뮤니티")
             CatalogTabs(names: ["라이브","크루","랭킹"], selection: $tab)
             switch tab {
-            case "크루": CrewsView()
+            case "크루": CrewHome(space: $space).id(model.userID)
             case "랭킹": CommunityRankings(space: $space)
             default: LiveLobby(space: $space)
             }
@@ -164,6 +165,9 @@ private struct RoomCreation: View {
 
 private struct CommunityRankings: View {
     @Binding var space: SiteWorkspace?
+    @EnvironmentObject private var model: AppModel
+    @State private var crews: [String: [String: Any]] = [:]
+    @State private var mine = ""
     @State private var category = "작품"
     @State private var period = "week"
     @State private var kind = "solo"
@@ -185,6 +189,7 @@ private struct CommunityRankings: View {
                                 .frame(maxWidth: .infinity, minHeight: 68).background(Brand.card, in: RoundedRectangle(cornerRadius: 13))
                                 .overlay(RoundedRectangle(cornerRadius: 13).stroke(category == name ? AifectDesign.violet : AifectDesign.stroke))
                         }.buttonStyle(.plain)
+                            .accessibilityIdentifier("ranking-category-" + name)
                     }
                 }
                 HStack {
@@ -196,14 +201,48 @@ private struct CommunityRankings: View {
                 if let error { RetryCard(message: error) { Task { await load() } } }
                 else if loading { ProgressView() }
                 else if rows.isEmpty { Text("아직 집계된 순위가 없어요.").foregroundStyle(AifectDesign.muted) }
-                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                if category == "크루", !rows.isEmpty {
+                    CrewRankPodium(rows: rows, crews: crews)
+                    if !mine.isEmpty, let index = rows.firstIndex(where: { $0.string("id") == mine }) {
+                        let row = rows[index]
+                        NavigationLink { CrewPage(id: row.selfID).streamingPage() } label: {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("내 크루 순위").font(.caption).foregroundStyle(Brand.pink)
+                                HStack {
+                                    Text("\(rankPosition(row, at: index))위").font(.title3.bold())
+                                    RankCrewPhoto(row: row, crew: crews[mine], size: 40)
+                                    VStack(alignment: .leading) {
+                                        Text(row.string("name")).font(.subheadline.bold())
+                                        if let crew = crews[mine] {
+                                            Text("LV.\(crew.int("level")) · \(crew.int("members"))명").font(.caption)
+                                        }
+                                    }
+                                    Spacer()
+                                    RankMovement(row: row, rank: rankPosition(row, at: index))
+                                    Image(systemName: "chevron.right").font(.caption)
+                                }
+                            }.padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 14))
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Brand.gradient))
+                                .contentShape(Rectangle())
+                        }.buttonStyle(.plain).accessibilityIdentifier("my-crew-ranking")
+                    }
+                }
+                ForEach(rows.indices.dropFirst(category == "크루" ? 3 : 0), id: \.self) { index in
+                    let row = rows[index]
                     let id = row.string("id")
                     let label = HStack(spacing: 10) {
                         Text("\(row.int("rank") > 0 ? row.int("rank") : index + 1)").bold().foregroundStyle(Brand.pink).frame(width: 26)
-                        RemoteArtwork(url: CatalogArtwork.url(row["image_url"] as? String), catalog: true) { $0.resizable().scaledToFill() } placeholder: { Image(systemName: category == "작품" ? "music.note" : "person.2").foregroundStyle(Brand.pink) }
-                            .frame(width: 52, height: 52).background(Brand.card).clipShape(RoundedRectangle(cornerRadius: 10))
+                        if category == "크루" {
+                            RankCrewPhoto(row: row, crew: crews[id], size: 52)
+                        } else if category == "AI 아티스트" {
+                            ProfilePhoto(person: row, kind: "artist", size: 52)
+                        } else {
+                            RemoteArtwork(url: CatalogArtwork.url(row["image_url"] as? String), catalog: true) { $0.resizable().scaledToFill() } placeholder: { Image(systemName: category == "작품" ? "music.note" : "waveform").foregroundStyle(Brand.pink) }
+                                .frame(width: 52, height: 52).background(Brand.card).clipShape(RoundedRectangle(cornerRadius: 10))
+                        }
                         VStack(alignment: .leading, spacing: 4) { Text(row.string("name")).font(.subheadline.bold()); Text(row.string("detail")).font(.caption).foregroundStyle(AifectDesign.muted) }
                         Spacer()
+                        RankMovement(row: row, rank: rankPosition(row, at: index))
                     }.contentShape(Rectangle())
                     Group {
                         switch category {
@@ -216,12 +255,24 @@ private struct CommunityRankings: View {
                     Divider()
                 }
             }.padding(16)
-        }.task(id: path) { await load() }
+        }.task(id: path + "|" + (model.userID ?? "")) { await load() }
     }
     private func load() async {
         let requested = path
-        loading = true; rows = []; error = nil
-        do { let data = try await API.shared.call(requested); try Task.checkCancellation(); guard requested == path else { return }; rows = data.objects("rows"); loading = false }
+        let account = model.userID
+        loading = true; rows = []; error = nil; crews = [:]; mine = ""
+        do {
+            let result = try await API.shared.call(requested)
+            try Task.checkCancellation()
+            var summary: [String: Any] = [:]
+            if category == "크루" { summary = (try? await API.shared.call("/api/crews?summary=1")) ?? [:] }
+            try Task.checkCancellation()
+            guard requested == path, account == model.userID else { return }
+            for crew in summary.objects("crews") { crews[crew.string("id")] = crew }
+            mine = account == nil ? "" : summary.string("mine")
+            rows = result.objects("rows")
+            loading = false
+        }
         catch { if !Task.isCancelled && requested == path { self.error = error.localizedDescription; loading = false } }
     }
 }
@@ -237,5 +288,77 @@ private struct RankingSongDetail: View {
     private func load() async {
         do { let data = try await API.shared.call("/api/tracks/" + Endpoint.pathID(id)); try Task.checkCancellation(); song = Song(data.object("track")); error = nil }
         catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+    }
+}
+
+private func rankPosition(_ row: [String: Any], at index: Int) -> Int {
+    row.int("rank") > 0 ? row.int("rank") : index + 1
+}
+
+struct RankMovement: View {
+    let row: [String: Any]
+    let rank: Int
+    var change: (text: String, label: String) {
+        let movement = row.string("chart_movement")
+        if (movement.isEmpty ? row.string("rank_movement") : movement) == "new" { return ("NEW", "새로 진입") }
+        let previous = row.int("previous_rank")
+        guard let delta = (row["rank_change"] as? NSNumber)?.intValue ?? (previous > 0 ? previous - rank : nil) else {
+            return ("—", "이전 순위 기록 없음")
+        }
+        if delta > 0 { return ("▲\(delta)", "\(delta)계단 상승") }
+        if delta < 0 { return ("▼\(delta.magnitude)", "\(delta.magnitude)계단 하락") }
+        return ("—", "순위 변동 없음")
+    }
+    var body: some View {
+        Text(change.text).font(.caption.bold())
+            .foregroundStyle(change.text == "—" ? AifectDesign.muted : change.text.hasPrefix("▼") ? Brand.aqua : Brand.pink)
+            .accessibilityLabel(change.label)
+    }
+}
+
+private struct RankCrewPhoto: View {
+    let row: [String: Any]
+    let crew: [String: Any]?
+    let size: CGFloat
+    var body: some View {
+        let version = crew?.string("image_version") ?? ""
+        let data = row.merging(["image_version": version.isEmpty ? row.string("image_version") : version]) { _, value in value }
+        Color.clear.frame(width: size, height: size).overlay { CrewArtwork(crew: data) }
+            .clipShape(Circle()).overlay(Circle().stroke(Brand.gradient, lineWidth: 1))
+    }
+}
+
+private struct CrewRankPodium: View {
+    let rows: [[String: Any]]
+    let crews: [String: [String: Any]]
+    private var order: [Int] { rows.count == 1 ? [0] : rows.count == 2 ? [1, 0] : [1, 0, 2] }
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 8) {
+            ForEach(order, id: \.self) { index in
+                let row = rows[index]
+                let rank = rankPosition(row, at: index)
+                let id = row.string("id")
+                let winner = rank == 1
+                let tint = winner ? Color(aifectHex: 0xE7C483) : rank == 2 ? AifectDesign.violet : Color(aifectHex: 0xC3A1AA)
+                NavigationLink { CrewPage(id: id).streamingPage() } label: {
+                    VStack(spacing: 7) {
+                        Image(systemName: "crown.fill").foregroundStyle(tint)
+                        Text("\(rank)").font(.headline).foregroundStyle(tint)
+                        RankCrewPhoto(row: row, crew: crews[id], size: winner ? 66 : 54)
+                        Text(row.string("name")).font(.system(size: winner ? 14 : 12, weight: .bold)).lineLimit(1)
+                        if let crew = crews[id] {
+                            Text("LV.\(crew.int("level"))").font(.caption2)
+                                .padding(.horizontal, 8).padding(.vertical, 3).background(AifectDesign.violet.opacity(0.18), in: Capsule())
+                        }
+                        RankMovement(row: row, rank: rank)
+                    }.padding(.horizontal, 5).padding(.vertical, 10)
+                        .frame(maxWidth: order.count == 1 ? 148 : .infinity, alignment: .top)
+                        .frame(height: winner ? 244 : 218, alignment: .top)
+                        .background(LinearGradient(colors: [Color(aifectHex: winner ? 0x353453 : 0x21283D), Brand.card],
+                                                   startPoint: .top, endPoint: .bottom), in: RoundedRectangle(cornerRadius: 15))
+                        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Brand.gradient.opacity(winner ? 1 : 0.45)))
+                }.buttonStyle(.plain).accessibilityIdentifier("crew-podium-" + id)
+            }
+        }.frame(maxWidth: .infinity).padding(.vertical, 8)
     }
 }

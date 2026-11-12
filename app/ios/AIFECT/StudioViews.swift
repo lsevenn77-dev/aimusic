@@ -572,11 +572,8 @@ struct MobilePlayView: View {
         if isDubbing(row) {
             Button { space = SiteWorkspace(area: "dubbing", key: row.string("id"), title: row.string("title")) } label: {
                 VStack(alignment: .leading) {
-                    let genres = (row["genres"] as? [String]) ?? (row.object("options")["genres"] as? [String]) ?? []
-                    let slug = ["SF":"sf","이세계물":"isekai","판타지":"fantasy","사극":"historical","로맨스":"romance","액션":"action","코미디":"comedy","첩보":"spy","공포":"horror","스릴러":"thriller","미스터리":"mystery","일상":"daily","감동":"moving"][genres.first ?? ""] ?? "daily"
-                    Color.clear.aspectRatio(1, contentMode: .fit).overlay {
-                        RemoteArtwork(url: URL(string: "/assets/dubbing-genres/\(slug).webp", relativeTo: Endpoint.origin)?.absoluteURL) { $0.resizable().scaledToFill() } placeholder: { Image(systemName: "waveform") }
-                    }.clipShape(RoundedRectangle(cornerRadius: 12))
+                    Color.clear.aspectRatio(1, contentMode: .fit).overlay { DubbingCover(row: row) }
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
                     Text(row.string("title")).font(.headline).lineLimit(2)
                     Text(row.string("owner_name", fallback: row.string("ownerName"))).font(.caption)
                     if mode == "더빙" {

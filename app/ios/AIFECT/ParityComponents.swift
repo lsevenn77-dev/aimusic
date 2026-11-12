@@ -45,7 +45,7 @@ struct ParityChips: View {
                         Text(item).font(.subheadline).padding(.horizontal, 14).frame(minHeight: 32)
                             .foregroundStyle(selection == item ? (filled ? Brand.background : accent) : AifectDesign.muted)
                             .background(selection == item ? accent.opacity(filled ? 1 : 0.22) : .clear, in: Capsule())
-                            .overlay(Capsule().stroke(selection == item ? accent : AifectDesign.stroke, lineWidth: 1)).frame(minHeight: 44)
+                            .overlay(Capsule().stroke(selection == item ? accent : AifectDesign.stroke, lineWidth: 1)).frame(minHeight: 44).contentShape(Rectangle())
                     }.buttonStyle(.plain).accessibilityAddTraits(selection == item ? .isSelected : [])
                 }
             }

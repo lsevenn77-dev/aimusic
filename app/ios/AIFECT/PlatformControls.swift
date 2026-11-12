@@ -62,14 +62,53 @@ struct SiteWorkspace: Identifiable, Hashable {
     let key: String
     let title: String
     var id: String { area + "/" + key }
+    var path: String {
+        if area == "game/jump" { return "/#crew-jump/" + key }
+        if area.hasPrefix("game/") { return "/crew-" + area.dropFirst(5) + "/?crew=" + key + "&from=crew" }
+        return "/#" + id
+    }
+    init?(game: CrewGame, crew: String, route: String) {
+        guard route == "game/" + game.rawValue + "/" + crew, Self.validKey(crew) else { return nil }
+        self.area = "game/" + game.rawValue
+        self.key = crew
+        self.title = game.title
+    }
+    static func validKey(_ key: String) -> Bool {
+        !key.isEmpty && key.count <= 120 && key.utf8.allSatisfy {
+            (65...90).contains($0) || (97...122).contains($0) || (48...57).contains($0) || $0 == 45 || $0 == 95
+        }
+    }
     init?(area: String, key: String, title: String) {
         guard ["voice", "live", "dubbing"].contains(area),
-              key.range(of: "^[A-Za-z0-9_-]{1,120}$", options: .regularExpression) != nil else { return nil }
+              Self.validKey(key) else { return nil }
         self.area = area; self.key = key; self.title = title
     }
 }
 
+struct FullScreenWorkspace: ViewModifier {
+    @EnvironmentObject private var model: AppModel
+    @State private var token = UUID()
+
+    func body(content: Content) -> some View {
+        content.streamingPage()
+            .onAppear { model.visibleWorkspaces.insert(token) }
+            .onDisappear { model.visibleWorkspaces.remove(token) }
+    }
+}
+
 struct WorkspacePage: View {
+    @EnvironmentObject private var model: AppModel
+    let space: SiteWorkspace
+    var body: some View {
+        if space.area == "dubbing", space.key != "new" {
+            DubbingProjectPage(space: space).id(model.userID)
+        } else {
+            WebWorkspacePage(space: space)
+        }
+    }
+}
+
+struct WebWorkspacePage: View {
     let space: SiteWorkspace
     @EnvironmentObject private var model: AppModel
     @State private var error: String?
@@ -78,7 +117,7 @@ struct WorkspacePage: View {
         Group {
             if let error { RetryCard(message: error) { self.error = nil; attempt += 1 } }
             else { WorkspaceBrowser(space: space, error: $error).id("\(model.userID ?? "guest")-\(space.id)-\(attempt)") }
-        }.navigationTitle(space.title).navigationBarTitleDisplayMode(.inline)
+        }.navigationTitle(space.title).modifier(FullScreenWorkspace())
     }
 }
 
@@ -90,12 +129,36 @@ private struct WorkspaceBrowser: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.allowsInlineMediaPlayback = true
+        if space.area.hasPrefix("game/") {
+            let style = """
+                if (location.origin === '\(Endpoint.origin.absoluteString)' &&
+                    (location.pathname + location.search + location.hash) === '\(space.path)') {
+                    const css = document.createElement('style');
+                    css.textContent = `
+                        :root { color-scheme:dark; --sidebar:0px }
+                        html,body { margin:0; max-width:100%; overscroll-behavior:none }
+                        .sidebar,.topbar,.page-footer,.mobile-navigation,#menu-backdrop,body>.player { display:none!important }
+                        .page-wrap,#main { margin:0!important; width:100%!important; max-width:none!important; min-height:0!important }
+                        #main { padding:12px!important; box-sizing:border-box }
+                        .cgl-nav { flex-wrap:wrap }
+                        button,a,input,select { touch-action:manipulation }
+                        canvas,[data-jump],.lane,.touch-controls,.race-controls { touch-action:none!important; -webkit-user-select:none }
+                        @media(max-width:600px) { .cgl-layout { grid-template-columns:minmax(0,1fr)!important } .cgl-start { min-height:48px } }
+                    `;
+                    document.head.append(css);
+                    const viewport = document.querySelector('meta[name=viewport]');
+                    if (viewport) viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+                    window.dispatchEvent(new Event('resize'));
+                }
+                """
+            config.userContentController.addUserScript(WKUserScript(source: style, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
+        }
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         view.isOpaque = false
         view.backgroundColor = UIColor(Brand.background)
         let cookies = API.shared.mediaCookies()
-        let url = Endpoint.origin.absoluteString + "/#" + space.id
+        let url = Endpoint.origin.absoluteString + space.path
         context.coordinator.start = Task { @MainActor in
             for cookie in cookies {
                 var properties = cookie.properties ?? [:]

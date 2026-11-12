@@ -149,7 +149,7 @@ struct RootView: View {
             .navigationDestination(isPresented: $account) { AccountView().streamingPage() }
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if !keyboardVisible && !model.chatOpen {
+            if !keyboardVisible && !model.chatOpen && model.visibleWorkspaces.isEmpty {
                 VStack(spacing: 0) {
                     if !model.playerPageVisible { MiniPlayer(player: model.player) }
                     MainBottomBar(selection: $model.selectedTab)
@@ -378,6 +378,7 @@ struct MiniPlayer: View {
 struct SongPlaybackControls: View {
     let song: Song
     @ObservedObject var player: MusicPlayer
+    var inFullPlayer = false
     private var active: Bool { player.current?.id == song.id }
     private var duration: Double { active && player.duration > 0 ? player.duration : song.duration }
     private var position: Double { active ? player.position : 0 }
@@ -406,8 +407,8 @@ struct SongPlaybackControls: View {
                 }.accessibilityLabel(isPlaying ? "일시정지" : "재생")
                 Button { player.next() } label: { Image(systemName: "forward.end.fill").frame(maxWidth: .infinity, minHeight: 44) }
                     .disabled(!active).accessibilityLabel("다음 곡")
-                Button { player.repeatOne.toggle() } label: { Image(systemName: player.repeatOne ? "repeat.1" : "repeat").foregroundStyle(active && player.repeatOne ? Brand.aqua : AifectDesign.muted).frame(maxWidth: .infinity, minHeight: 44) }
-                    .disabled(!active).accessibilityLabel("한 곡 반복")
+                Button { player.repeatMode = player.repeatMode.nextMode(inFullPlayer: inFullPlayer) } label: { Image(systemName: player.repeatMode == .one ? "repeat.1" : "repeat").foregroundStyle(active && player.repeatMode != .off ? Brand.aqua : AifectDesign.muted).frame(maxWidth: .infinity, minHeight: 44) }
+                    .disabled(!active).accessibilityLabel("반복").accessibilityValue(player.repeatMode == .off ? "끔" : player.repeatMode == .all ? "전체 반복" : "한 곡 반복")
             }.buttonStyle(.plain).padding(.vertical, 4)
         }
     }
@@ -431,7 +432,7 @@ struct PlayerView: View {
                             Button { Task { await model.toggleLike(song) } } label: { Image(systemName: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart").foregroundStyle(Brand.pink).frame(width: 44, height: 44) }.accessibilityLabel("좋아요")
                         }.padding(.top, 4)
                         if player.preview { Text("60초 미리 듣기").font(.system(size: 12)).foregroundStyle(Brand.aqua) }
-                        SongPlaybackControls(song: song, player: player)
+                        SongPlaybackControls(song: song, player: player, inFullPlayer: true)
                         if let error = player.error { RetryCard(message: error) { player.play(song, queue: [song]) } }
                         HStack {
                             SaveMusicButton(song: song, compact: true)
