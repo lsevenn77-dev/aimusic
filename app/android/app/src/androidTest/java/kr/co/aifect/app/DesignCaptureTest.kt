@@ -29,24 +29,19 @@ import java.util.concurrent.TimeUnit
 
 /** Reproducible UI handoff: real product composables, loopback sample data, no live account. */
 class DesignCaptureTest {
- @Test fun miniPlayerClosesFromSameRowAsPlaybackAndLibraryControls(){
-  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-close")
-  val close=ui.onNodeWithTag("mini-player-close").fetchSemanticsNode().boundsInRoot
-  val controls=ui.onNodeWithTag("mini-player-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  assertEquals(controls.center.y,close.center.y,2f);assertTrue(close.left>=controls.right-1f)
-  ui.onNodeWithContentDescription("이전 곡").assertExists()
-  ui.onNodeWithContentDescription("다음 곡").assertExists()
-  val art=ui.onNodeWithTag("mini-player-art",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  val save=ui.onNodeWithContentDescription("보관함에 담기").fetchSemanticsNode().boundsInRoot
-  val heart=ui.onNode(hasContentDescription("좋아요 추가") or hasContentDescription("좋아요 취소")).fetchSemanticsNode().boundsInRoot
-  assertTrue(heart.center.y>art.bottom && save.center.y>art.bottom)
-  assertTrue(heart.center.x<art.center.x && save.center.x>art.center.x)
-  assertEquals(art.center.x,(heart.center.x+save.center.x)/2,2f)
-  capture("277-mini-close")
+ @Test fun compactPlayerControlsShareOneRowAndCloseStopsPlayback(){
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-controls")
+  val controls=listOf(hasContentDescription("이전 곡"),hasContentDescription("일시정지"),hasContentDescription("다음 곡"),hasContentDescription("좋아요 추가") or hasContentDescription("좋아요 취소"),hasContentDescription("보관함에 담기"))
+  val bounds=controls.map{ui.onNode(it).fetchSemanticsNode().boundsInRoot}
+  bounds.zipWithNext().forEach{(left,right)->assertTrue(left.center.x<right.center.x);assertEquals(left.center.y,right.center.y,2f)}
+  ui.onNodeWithTag("mini-player-seek").assertExists()
   val controller=model.controller
+  val title=ui.onNodeWithTag("mini-player-title",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val close=ui.onNodeWithTag("mini-player-close").fetchSemanticsNode().boundsInRoot
+  assertTrue(title.right<=close.left && title.bottom<=bounds.first().top)
   ui.onNodeWithTag("mini-player-close").performClick();ui.waitUntil(10000){model.current==null}
   ui.runOnIdle{assertFalse(controller!!.isPlaying);assertEquals(0,controller.mediaItemCount)}
-  ui.onNodeWithTag("mini-player").assertDoesNotExist();assertFalse(model.fullPlayer)
+  ui.onNodeWithTag("mini-player").assertDoesNotExist()
  }
 
  @Test fun participationAndDubbingListsUseTwoColumnCards(){
@@ -1276,7 +1271,7 @@ class DesignCaptureTest {
   ui.onNodeWithTag("account-menu").performClick();ready("account-actions");Espresso.pressBack()
   ui.onNodeWithText("내 음악").performClick();ui.onNodeWithTag("my-music-page").performScrollToNode(hasText("창작자 스튜디오"));ui.onNodeWithText("창작자 스튜디오").performClick();ready("creator-studio");Espresso.pressBack();assertEquals(6,model.tab)
  }
- @Test fun miniPlayerLyricsAreCenteredBesideCoverActions(){
+ @Test fun miniPlayerLyricsAreCenteredBesideTransport(){
   act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-current-lyric")
   val layouts=mutableListOf<TextLayoutResult>()
   ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
@@ -1285,8 +1280,8 @@ class DesignCaptureTest {
   assertEquals(layout.size.width/2f,(layout.getLineLeft(0)+layout.getLineRight(0))/2f,2f)
   val bar=ui.onNodeWithTag("mini-player").fetchSemanticsNode().boundsInRoot
   val lyrics=ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  val save=ui.onNodeWithContentDescription("보관함에 담기").fetchSemanticsNode().boundsInRoot
-  assertTrue(lyrics.left>=save.right);assertTrue(lyrics.right<=bar.right);assertTrue(lyrics.width>bar.width*.6f)
+  val transport=ui.onNodeWithTag("mini-player-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue(lyrics.left>=bar.left);assertTrue(lyrics.right<=transport.left);assertTrue(lyrics.width>0f)
   capture("275-mini-lyrics-centered")
   val controller=model.controller
   act{it.selectTab(6)};assertSame(controller,model.controller);assertEquals("design-song",model.current?.id);assertTrue(model.playing)

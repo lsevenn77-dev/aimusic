@@ -106,6 +106,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
         BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString(),fontSize=9.sp)}}){Icon(navIcon,name,Modifier.size(22.dp),tint=if(selected)StreamPurple else Muted)}
        }
        Text(if(compactNavLabels&&i==3)"커뮤" else name,fontSize=11.sp,lineHeight=15.sp,fontWeight=if(selected)FontWeight.Bold else FontWeight.Normal,color=if(selected)Pink else Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
+       Spacer(Modifier.padding(top=1.dp).size(28.dp,2.dp).background(if(selected)Pink else Color.Transparent,CircleShape))
       }
      }
     }
@@ -265,56 +266,66 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  }
 }
 @Composable private fun MiniPlayer(m:MusicModel,song:Song){
- val shape=RoundedCornerShape(topStart=9.dp,topEnd=9.dp)
- Column(Modifier.fillMaxWidth().testTag("mini-player").clip(shape).background(Brush.horizontalGradient(listOf(Color(0xFF252D43),Panel,Color(0xFF1B2B38)))).border(.7.dp,Stroke,shape)){
-  val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
-  val liked=m.likes.any{it.id==song.id}
-  val coverColumnWidth=72.dp
-  BoxWithConstraints(Modifier.fillMaxWidth()){
-   val actionSize=Modifier.width(if(maxWidth<360.dp)40.dp else if(maxWidth<400.dp)44.dp else 48.dp).height(48.dp)
+ val shape=RoundedCornerShape(22.dp)
+ val liked=m.likes.any{it.id==song.id}
+ val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
+ var seek by remember(song.id){mutableStateOf<Float?>(null)}
+ BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal=3.dp,vertical=3.dp).testTag("mini-player")
+  .clip(shape).background(Brush.linearGradient(listOf(Color(0xFF292541),Color(0xFF141529),Color(0xFF1C2537))))
+  .border(1.dp,Brush.horizontalGradient(listOf(Color(0xFFDB9AFF),Violet,Aqua)),shape)){
+  val actionWidth=(maxWidth*.12f).coerceIn(36.dp,48.dp)
+  val actionSize=Modifier.width(actionWidth).height(44.dp)
+  Column(Modifier.fillMaxWidth().padding(horizontal=9.dp,vertical=2.dp)){
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-    Row(Modifier.weight(1f).testTag("mini-player-open").clickable{m.fullPlayer=true}.heightIn(min=48.dp).padding(end=2.dp),verticalAlignment=Alignment.CenterVertically){
-     Box(Modifier.width(coverColumnWidth),contentAlignment=Alignment.Center){
-      Artwork(song,Modifier.size(44.dp).testTag("mini-player-art"),corner=6.dp)
+    Row(Modifier.weight(1f).heightIn(min=40.dp).testTag("mini-player-open").clickable{m.fullPlayer=true},verticalAlignment=Alignment.CenterVertically){
+     Artwork(song,Modifier.size(35.dp).testTag("mini-player-art"),corner=7.dp)
+     Column(Modifier.weight(1f).padding(horizontal=8.dp)){
+      Text(song.title,Modifier.fillMaxWidth().testTag("mini-player-title").basicMarquee(iterations=Int.MAX_VALUE),maxLines=1,softWrap=false,fontSize=14.sp,lineHeight=17.sp,fontWeight=FontWeight.SemiBold)
+      Row(verticalAlignment=Alignment.CenterVertically){
+       Text(song.credit,Modifier.weight(1f,fill=false),maxLines=1,fontSize=10.sp,lineHeight=13.sp,color=Muted,overflow=TextOverflow.Ellipsis)
+       if(m.playing)Icon(Icons.Rounded.Equalizer,null,Modifier.padding(start=3.dp).size(11.dp),tint=Pink)
+      }
      }
-     Column(Modifier.weight(1f).padding(start=6.dp)){
-      Text(song.title,maxLines=1,fontSize=13.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
-      Text(song.credit,maxLines=1,fontSize=11.sp,lineHeight=14.sp,color=Muted,overflow=TextOverflow.Ellipsis)
+    }
+    IconButton(onClick=m::closePlayer,modifier=Modifier.size(44.dp,40.dp).testTag("mini-player-close")){
+     Icon(Icons.Rounded.Close,"재생 종료",Modifier.size(21.dp),tint=SoftText)
+    }
+   }
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    Column(Modifier.weight(1f).padding(start=3.dp,end=6.dp)){
+     Box(Modifier.fillMaxWidth().testTag("mini-player-lyrics")){
+      Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=10.sp,lineHeight=12.sp,color=Pink,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
      }
+     val duration=m.duration.coerceAtLeast(1).toFloat()
+     Slider(value=(seek?:m.position.toFloat()).coerceIn(0f,duration),onValueChange={seek=it},onValueChangeFinished={seek?.let{m.controller?.seekTo(it.toLong())};seek=null},enabled=m.duration>0,valueRange=0f..duration,
+      modifier=Modifier.fillMaxWidth().height(9.dp).testTag("mini-player-seek"),thumb={Box(Modifier.size(7.dp).background(Color.White,CircleShape).border(1.dp,Pink,CircleShape))},track={slider->
+       Box(Modifier.fillMaxWidth().height(2.dp).clip(CircleShape).background(SoftText.copy(alpha=.28f))){
+        Box(Modifier.fillMaxWidth((slider.value/duration).coerceIn(0f,1f)).fillMaxHeight().background(Pink))
+       }
+      })
     }
     Row(Modifier.testTag("mini-player-controls"),verticalAlignment=Alignment.CenterVertically){
      IconButton(onClick={m.controller?.seekToPreviousMediaItem()},enabled=m.controller?.hasPreviousMediaItem()==true,modifier=actionSize){
       Icon(Icons.Rounded.SkipPrevious,"이전 곡",Modifier.size(22.dp))
      }
      IconButton(onClick=m::toggle,modifier=actionSize){
-      Box(Modifier.size(30.dp).background(BrandGradient,CircleShape),contentAlignment=Alignment.Center){
-       if(m.buffering)CircularProgressIndicator(Modifier.size(17.dp),strokeWidth=2.dp,color=Ink)
+      Box(Modifier.size(31.dp).background(BrandGradient,CircleShape),contentAlignment=Alignment.Center){
+       if(m.buffering)CircularProgressIndicator(Modifier.size(15.dp),strokeWidth=2.dp,color=Ink)
        else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",Modifier.size(21.dp),tint=Ink)
       }
      }
      IconButton(onClick={m.controller?.seekToNextMediaItem()},enabled=m.controller?.hasNextMediaItem()==true,modifier=actionSize){
       Icon(Icons.Rounded.SkipNext,"다음 곡",Modifier.size(22.dp))
      }
-    }
-    IconButton(onClick=m::closePlayer,modifier=actionSize.testTag("mini-player-close")){
-     Icon(Icons.Rounded.Close,"재생 종료",Modifier.size(17.dp),tint=Muted)
+     IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=actionSize){
+      Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(22.dp),tint=if(liked)Pink else Color.White)
+     }
+     IconButton(onClick={m.pickPlaylist(song)},modifier=actionSize){
+      Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,"보관함에 담기",Modifier.size(24.dp))
+     }
     }
    }
   }
-  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-   Row(Modifier.width(coverColumnWidth),verticalAlignment=Alignment.CenterVertically){
-    IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=Modifier.weight(1f).height(36.dp)){
-     Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(18.dp),tint=if(liked)Pink else SoftText)
-    }
-    IconButton(onClick={m.pickPlaylist(song)},modifier=Modifier.weight(1f).height(36.dp)){
-     Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,"보관함에 담기",Modifier.size(20.dp),tint=SoftText)
-    }
-   }
-   Box(Modifier.weight(1f).clickable{m.fullPlayer=true}.padding(start=6.dp,end=8.dp).testTag("mini-player-lyrics")){
-    Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=11.sp,lineHeight=15.sp,color=SoftText,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
-   }
-  }
-  LinearProgressIndicator(progress={if(m.duration>0)(m.position.toFloat()/m.duration).coerceIn(0f,1f)else 0f},modifier=Modifier.fillMaxWidth().height(2.dp),color=StreamPurple,trackColor=StreamBorder,drawStopIndicator={})
  }
 }
 @Composable private fun PlayerSheet(m:MusicModel,song:Song,save:(Song)->Unit,sing:(Song)->Unit){
