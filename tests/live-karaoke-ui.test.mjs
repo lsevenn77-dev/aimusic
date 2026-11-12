@@ -163,6 +163,14 @@ test('mute, changed device, turn handoff and capture fallback cannot leave an ol
  client.state.karaoke.phase='idle';sync();assert.equal(client.liveMonitorTap,null);
 });
 
+test('both room templates hide the entire connection row and retain the manual re-entry control',()=>{
+ const {c}=context();
+ for(const html of [c.voiceRoomHTML('room'),c.liveKaraokeRoomHTML('room')]){
+  assert.match(html,/<p class="room-connection" hidden><span id="voice-status"/);
+  assert.match(html,/<div id="voice-entry" hidden><button id="voice-join"/);
+ }
+});
+
 test('live room wraps the current template while preserving chat, gifts, settings and participants',()=>{
  const {c}=context(),html=vm.runInContext('liveKaraokeRoomHTML("live-room")',c);
  for(const id of ['live-lyrics','live-search','voice-chat','voice-gift-form','voice-settings-form','voice-members'])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);

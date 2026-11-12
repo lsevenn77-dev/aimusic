@@ -14,6 +14,22 @@ function clientHarness(extra={}){
  vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+';this.Client=VoiceRoomClient;',context);
  return {client:Object.create(context.Client.prototype),timers};
 }
+test('automatic retries stay quiet and a terminal join failure is reported once',async()=>{
+ const notices=[],status={};
+ const {client,timers}=clientHarness({$:()=>status,toast:message=>notices.push(message),performance});
+ let error=Object.assign(new Error('temporary outage'),{status:503});
+ const leaves=[];
+ Object.assign(client,{retries:0,async join(){throw error;},leave(send){leaves.push(send);}});
+ await client.reconnect();
+ assert.deepEqual(notices,[]);
+ assert.equal(status.textContent,'temporary outage');
+ assert.equal(timers.length,1);
+ error=Object.assign(new Error('room access denied'),{status:403});
+ await client.reconnect();
+ assert.deepEqual(notices,['room access denied']);
+ assert.deepEqual(leaves,[false]);
+});
+
 test('failed receive transport retries listening without resetting the live microphone',()=>{
  const {client,timers}=clientHarness();let rejoined=0,received=0;
  Object.assign(client,{epoch:3,closed:false,publisher:{connectionState:'connected'},reconnect(){rejoined++;},receive(){received++;},receiveKey:'speaker'});
