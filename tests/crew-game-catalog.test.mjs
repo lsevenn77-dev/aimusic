@@ -59,7 +59,10 @@ test('the app and web share one pick across crews, from KST Monday until Saturda
   const menu=await crewGameCatalog({CREW_GAME_VISIBLE_IDS:id},'team',monday);
   assert.equal(menu.active_game_id,id);
   const [game]=menu.games;
-  assert.ok(ctx.crewGameMenuHTML(menu,monday).includes(game.href));
+  const html=ctx.crewGameMenuHTML(menu,monday);
+  assert.ok(html.includes(game.href));
+  assert.ok(html.includes('aria-label="이번 주 크루 경쟁 게임: '+game.banner_title+'. 플레이"'));
+  assert.doesNotMatch(html,/테스트 중/);
   const art=readFileSync(new URL('../dist'+game.banner_art,import.meta.url));assert.equal(art.toString('ascii',8,12),'WEBP');
  }
 });

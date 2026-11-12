@@ -12,8 +12,10 @@ function crewHeroHTML(c,m){
  const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}" data-banner-ends="${Number(m.game_catalog?.banner_ends_at)||0}" data-week-ends="${Number(m.game_catalog?.ends_at)||0}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
  const next=c.next_xp==null?'최고 레벨':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
  return `<header class="crew-detail-header crew-frame-${frame}">
-   <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${settings}</div>
-   ${game}
+   <div class="crew-detail-top">
+    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${settings}</div>
+    ${game}
+   </div>
    <div class="crew-detail-xp"><div><span><strong>Lv.${number(c.level)}</strong> ${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div><progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>
  </header>`;
 }
@@ -57,12 +59,25 @@ function crewRankingSidebarHTML(rankings){
  return '<section class="social-side-card crew-ranking-card"><div class="section-heading"><h2>크루 랭킹</h2><span class="crew-ranking-label">TOP 5</span></div><p class="crew-ranking-rule">레벨순 · 같은 레벨은 누적 XP순</p>'+(items.length?'<ol class="community-crew-ranking">'+items.map((c,i)=>'<li><a href="#crew/'+esc(c.id)+'"><span class="crew-rank-position">'+(i+1)+'<span class="sr-only">위</span></span>'+crewPicture(c,'crew-rank-picture')+'<span class="crew-rank-copy"><strong>'+crewNameHTML(c)+'</strong><small>'+number(c.members)+'명</small></span><span class="crew-rank-stats"><b>LV '+number(c.level)+'</b><small>'+number(c.xp)+' XP</small></span></a></li>').join('')+'</ol>':'<p class="field-help">'+(rankings?'아직 등록된 크루가 없어요.':'크루 랭킹을 불러오는 중…')+'</p>')+'</section>';
 }
 
+// The app artwork is flattened on a 1086 × 362 matte. Clip to each plaque's
+// own outline, including the characters that extend above the rhythm and jump plaques.
+const crewBannerCrops={
+ racing:{view:'16 72 1054 222',outline:'M54 72H1032Q1070 72 1070 110V256Q1070 294 1032 294H54Q16 294 16 256V110Q16 72 54 72Z'},
+ fishing:{view:'12 77 1062 217',outline:'M61 77H1024Q1074 77 1074 127V245Q1074 294 1024 294H61Q12 294 12 245V127Q12 77 61 77Z'},
+ jump:{view:'15 23 1056 303',outline:'M63 42H575Q591 22 625 24Q649 24 665 42H758L761 34L778 42H1022Q1071 42 1071 91V277Q1071 326 1022 326H63Q15 326 15 278V91Q15 42 63 42Z'},
+ rhythm:{view:'3 9 1080 318',outline:'M49 35H752Q776 9 824 10Q857 9 890 35H982Q988 24 997 22Q1005 15 1014 24Q1027 23 1034 35H1037Q1083 35 1083 82V280Q1083 327 1037 327L49 324Q3 324 3 278V82Q3 35 49 35Z'}
+};
 function crewGameMenuHTML(catalog,now=Date.now()){
  if(!catalog?.banner_ends_at || now>=catalog.banner_ends_at*1000 ||
     now<Date.parse(catalog.week_start+'T00:00:00+09:00'))return '';
  const game=catalog.games.find(game=>game.id===catalog.active_game_id);
  if(!game)return '<span class="field-help">이번 주 크루 경쟁 게임을 준비 중이에요.</span>';
- return `<a class="crew-game-entry" href="${esc(game.href)}"><img src="${esc(game.banner_art)}" width="900" height="300" alt="이번 주 크루 경쟁 게임: ${esc(game.banner_title)}. 플레이"></a>${catalog.mode==='test'?'<small>테스트 중</small>':''}`;
+ const crop=crewBannerCrops[game.id];
+ if(!crop)return '';
+ const clipId='crew-banner-'+game.id;
+ return `<a class="crew-game-entry" href="${esc(game.href)}" aria-label="이번 주 크루 경쟁 게임: ${esc(game.banner_title)}. 플레이">
+  <svg viewBox="${crop.view}" aria-hidden="true" focusable="false"><defs><clipPath id="${clipId}"><path d="${crop.outline}"/></clipPath></defs>
+   <image href="${esc(game.banner_art)}" width="1086" height="362" clip-path="url(#${clipId})"/></svg></a>`;
 }
 function bindCrewGameMenu(){
  const root=document.querySelector('[data-crew-games]');
