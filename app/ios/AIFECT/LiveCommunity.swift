@@ -119,6 +119,9 @@ private struct RoomCreation: View {
     @State private var busy = false
     @State private var error: String?
     @State private var requestID = UUID().uuidString
+    private var hasSelectedTheme: Bool {
+        !theme.isEmpty && themes.contains { $0.string("sku") == theme }
+    }
     var body: some View {
         Form {
             Picker("방 유형", selection: $mode) { Text("노래방").tag("karaoke"); Text("토킹룸").tag("talk") }.pickerStyle(.segmented)
@@ -133,17 +136,20 @@ private struct RoomCreation: View {
             Stepper("최대 인원 \(capacity)명", value: $capacity, in: 2...30)
             TextField("공지", text: $notice, axis: .vertical)
             if let error { Text(error).foregroundStyle(Brand.pink); Button("설정 다시 읽기") { Task { await options() } } }
-            Button("방 만들기") { Task { await submit() } }.disabled(busy || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || title.count > 60 || theme.isEmpty)
+            Button("방 만들기") { Task { await submit() } }.disabled(busy || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || title.count > 60 || !hasSelectedTheme)
         }.disabled(busy).navigationTitle("방 만들기")
             .toolbar { Button("닫기") { dismiss() } }.task(id: mode) { await options() }
     }
     private func options() async {
         theme = ""
+        themes = []
         do {
             let result = try await API.shared.call("/api/voice/options?mode=" + mode)
             try Task.checkCancellation()
             crews = result.objects("crews"); crew = crews.first?.string("id") ?? ""
-            themes = result.objects("themes").filter { $0.flag("selectable") }
+            themes = result.objects("themes").filter {
+                $0.flag("selectable") && !["navy","sunset","night"].contains($0.string("sku"))
+            }
             let preferred = result.string("preferred_theme")
             theme = themes.contains { $0.string("sku") == preferred } ? preferred : themes.first?.string("sku") ?? ""
             if title.isEmpty { title = result.object("suggested_titles").string(mode) }
@@ -151,9 +157,9 @@ private struct RoomCreation: View {
         } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
     }
     private func submit() async {
-        guard !busy else { return }
+        guard !busy, hasSelectedTheme else { return }
         busy = true; defer { busy = false }
-        var body: [String: Any] = ["mode":mode,"title":title.trimmingCharacters(in: .whitespacesAndNewlines),"visibility":visibility,"seating_mode":seating,"max_members":capacity,"announcement":notice,"theme_sku":theme,"background":["navy","sunset","night"].contains(theme) ? theme : "navy","request_id":requestID]
+        var body: [String: Any] = ["mode":mode,"title":title.trimmingCharacters(in: .whitespacesAndNewlines),"visibility":visibility,"seating_mode":seating,"max_members":capacity,"announcement":notice,"theme_sku":theme,"background":theme,"request_id":requestID]
         if visibility == "crew" { body["crew_id"] = crew }
         do {
             let room = try await API.shared.call("/api/voice/rooms", method: "POST", body: body).object("room")
