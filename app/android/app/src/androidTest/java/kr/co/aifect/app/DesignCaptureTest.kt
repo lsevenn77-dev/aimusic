@@ -835,6 +835,25 @@ class DesignCaptureTest {
    instrumentation.runOnMainSync{room.finish()}
   }finally{instrumentation.removeMonitor(monitor)}
  }
+ @Test fun inboxBadgeCombinesMessagesAndActivities(){
+  val summary="/api/dm/summary"
+  val activity="/api/notifications/summary"
+  responses[summary]=payload("unread" to 3,"crew" to JSONObject(crew.toString()).put("unread",2))
+  responses.getValue("/api/dm").put("unread",3).put("crew",JSONObject(crew.toString()).put("unread",2))
+  responses[activity]=payload("unread" to 1)
+  act{it.selectTab(5)}
+  ready("dm-conversation-design-peer")
+  val badge=hasTestTag("inbox-nav-badge")
+  fun count(value:String){ui.waitUntil(15000){ui.onAllNodes(hasText(value) and (badge or hasAnyAncestor(badge)),useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}}
+  count("4")
+  ui.onNodeWithTag("inbox-filter-알림").performClick();text("손편지 5개를 보냈어요.")
+  responses[activity]=payload("unread" to 0)
+  ui.onNodeWithText("읽음").performClick();count("3")
+  responses[summary]=payload("unread" to 0)
+  responses.getValue("/api/dm").put("unread",0)
+  ui.onNodeWithTag("inbox-management").performClick();ui.onNodeWithText("모두 읽음").performClick()
+  ui.waitUntil(15000){ui.onAllNodes(badge,useUnmergedTree=true).fetchSemanticsNodes().isEmpty()}
+ }
  @Test fun messageBoardFiltersSearchAndStartsRealConversations(){
   responses.getValue("/api/dm").put("crew",JSONObject(crew.toString()).put("unread",2)).put("unread",3)
   act{it.play(Song(song),listOf(Song(song)));it.selectTab(5)}
@@ -844,10 +863,10 @@ class DesignCaptureTest {
   ui.onNodeWithTag("inbox-crew").assertDoesNotExist();ui.onNodeWithTag("dm-conversation-design-peer").performClick();ready("dm-composer")
   ui.onNodeWithTag("dm-input").performTextInput("보관할 초안");Espresso.closeSoftKeyboard();ui.onNodeWithTag("dm-back").performClick()
   ready("inbox-search");ui.onNodeWithTag("inbox-search").assertTextContains("하루");ui.onNodeWithTag("inbox-filter-안 읽음").assertIsSelected()
-  ui.onNodeWithTag("inbox-search-toggle").performClick();ui.onNodeWithTag("inbox-filter-크루").performClick();ready("inbox-crew");ui.onNodeWithTag("dm-conversation-design-peer").assertDoesNotExist();phaseCapture("35-message-crews")
-  ui.onNodeWithTag("inbox-crew").performClick();ready("crew-chat-input");Espresso.pressBack();ready("inbox-filter-크루");ui.onNodeWithTag("inbox-filter-크루").assertIsSelected()
-  ui.onNodeWithTag("inbox-filter-알림").performClick();ui.onNodeWithText("알림 기록").assertIsDisplayed()
-  ui.onNodeWithTag("inbox-compose").performClick();ready("new-conversation-design-peer");phaseCapture("36-message-new")
+  ui.onNodeWithTag("inbox-search-toggle").performClick();ui.onNodeWithTag("inbox-filter-전체").performClick();ready("inbox-crew");ui.onNodeWithTag("inbox-filter-크루").assertDoesNotExist()
+  ui.onNodeWithTag("inbox-crew").performClick();ready("crew-chat-input");Espresso.pressBack();ready("inbox-filter-전체");ui.onNodeWithTag("inbox-filter-전체").assertIsSelected()
+  ui.onNodeWithTag("inbox-filter-알림").performClick();ready("activity-list");text("손편지 5개를 보냈어요.");ui.onNodeWithTag("inbox-crew").assertDoesNotExist()
+  ui.onNodeWithTag("inbox-compose").performClick();ready("new-conversation-search");phaseCapture("36-message-new")
   ui.onNodeWithTag("new-conversation-search").performTextInput("하루");ui.waitUntil(15000){requestUrls.any{it.startsWith("/api/search?q=")}};Espresso.closeSoftKeyboard()
   ui.onNodeWithTag("new-conversation-design-own").assertDoesNotExist();ui.onNodeWithTag("new-conversation-design-peer").performClick();ready("dm-input")
   ui.onNodeWithTag("dm-input").assertTextContains("보관할 초안");assertEquals("design-peer",model.messagePeer);assertEquals("design-song",model.current?.id)

@@ -83,6 +83,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   val keyboardVisible=WindowInsets.isImeVisible
   val navConfiguration=androidx.compose.ui.platform.LocalConfiguration.current
   val compactNavLabels=navConfiguration.screenWidthDp<360||navConfiguration.fontScale>1.2f
+  val inboxUnread=m.unreadMessages+m.unreadActivities
   val chatLifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
   LaunchedEffect(m.user?.optString("id"),m.loading){m.unreadMessages=0;m.inboxCrew=null;if(m.user!=null&&!m.loading)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshMessageSummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(8000)}}}
   LaunchedEffect(m.user?.optString("id"),m.loading){if(m.user!=null&&!m.loading)chatLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){while(true){try{m.refreshActivitySummary()}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e};delay(30000)}}}
@@ -103,7 +104,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
       Column(Modifier.weight(1f).selectable(selected=selected,role=Role.Tab,onClick={pageStack.closeAll();m.selectTab(i)}).testTag("main-tab-$i").heightIn(min=52.dp).padding(vertical=2.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
        Box(Modifier.size(30.dp).then(if(i==2)Modifier.background(Brush.radialGradient(listOf(SoftText.copy(alpha=.16f),Ink)),CircleShape)else Modifier),contentAlignment=Alignment.Center){
         val navIcon=if(selected)when(i){0->Icons.Rounded.Home;3->Icons.Rounded.People;5->Icons.Rounded.ChatBubble;6->Icons.Rounded.Person;else->icon}else icon
-        BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString(),fontSize=9.sp)}}){Icon(navIcon,name,Modifier.size(22.dp),tint=if(selected)StreamPurple else Muted)}
+        BadgedBox(badge={if(i==5&&inboxUnread>0)Badge(modifier=Modifier.testTag("inbox-nav-badge"),containerColor=StreamPurple,contentColor=Ink){Text(if(inboxUnread>99)"99+" else inboxUnread.toString(),fontSize=9.sp)}}){Icon(navIcon,name,Modifier.size(22.dp),tint=if(selected)StreamPurple else Muted)}
        }
        Text(if(compactNavLabels&&i==3)"커뮤" else name,fontSize=11.sp,lineHeight=15.sp,fontWeight=if(selected)FontWeight.Bold else FontWeight.Normal,color=if(selected)Pink else Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
        Spacer(Modifier.padding(top=1.dp).size(28.dp,2.dp).background(if(selected)Pink else Color.Transparent,CircleShape))
