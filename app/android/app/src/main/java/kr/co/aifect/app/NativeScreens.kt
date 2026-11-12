@@ -97,10 +97,10 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
    if(!keyboardVisible&&!m.studioEditing)Column {
     AnimatedVisibility(m.current!=null&&m.visibleChatCount==0&&!m.fullPlayer&&m.detail==null){m.current?.let {MiniPlayer(m,it)}}
     HorizontalDivider(color=Stroke,thickness=.5.dp)
-    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart=24.dp,topEnd=24.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF181B34),Ink,Color(0xFF20213B)))).navigationBarsPadding().heightIn(min=66.dp),verticalAlignment=Alignment.CenterVertically){
+    Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(topStart=24.dp,topEnd=24.dp)).background(Brush.horizontalGradient(listOf(Color(0xFF181B34),Ink,Color(0xFF20213B)))).navigationBarsPadding().heightIn(min=52.dp),verticalAlignment=Alignment.CenterVertically){
      listOf(Triple(0,"홈",Icons.Outlined.Home),Triple(3,"커뮤니티",Icons.Outlined.PeopleOutline),Triple(2,"플레이",Icons.Outlined.PlayArrow),Triple(5,"메시지",Icons.Outlined.ChatBubbleOutline),Triple(6,"마이",Icons.Outlined.PersonOutline)).forEach{(i,name,icon)->
       val selected=m.tab==i||(m.tab==4&&i==m.libraryReturnTab)
-      Column(Modifier.weight(1f).selectable(selected=selected,role=Role.Tab,onClick={pageStack.closeAll();m.selectTab(i)}).testTag("main-tab-$i").heightIn(min=60.dp).padding(vertical=5.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+      Column(Modifier.weight(1f).selectable(selected=selected,role=Role.Tab,onClick={pageStack.closeAll();m.selectTab(i)}).testTag("main-tab-$i").heightIn(min=52.dp).padding(vertical=2.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
        Box(Modifier.size(30.dp).then(if(i==2)Modifier.background(Brush.radialGradient(listOf(SoftText.copy(alpha=.16f),Ink)),CircleShape)else Modifier),contentAlignment=Alignment.Center){
         val navIcon=if(selected)when(i){0->Icons.Rounded.Home;3->Icons.Rounded.People;5->Icons.Rounded.ChatBubble;6->Icons.Rounded.Person;else->icon}else icon
         BadgedBox(badge={if(i==5&&m.unreadMessages>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadMessages>99)"99+" else m.unreadMessages.toString(),fontSize=9.sp)}}){Icon(navIcon,name,Modifier.size(22.dp),tint=if(selected)StreamPurple else Muted)}
@@ -268,17 +268,36 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  val shape=RoundedCornerShape(topStart=9.dp,topEnd=9.dp)
  Column(Modifier.fillMaxWidth().testTag("mini-player").clip(shape).background(Brush.horizontalGradient(listOf(Color(0xFF252D43),Panel,Color(0xFF1B2B38)))).border(.7.dp,Stroke,shape)){
   val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
-  Row(Modifier.fillMaxWidth().testTag("mini-player-open").clickable{m.fullPlayer=true}.heightIn(min=50.dp).padding(start=7.dp,end=1.dp,top=5.dp,bottom=5.dp),verticalAlignment=Alignment.CenterVertically){
-   Artwork(song,Modifier.size(40.dp),corner=7.dp)
-   Column(Modifier.weight(1f).padding(horizontal=9.dp)){
-    Text(song.title,maxLines=1,fontSize=13.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
-    Text(song.credit,maxLines=1,fontSize=11.sp,lineHeight=14.sp,color=Muted,overflow=TextOverflow.Ellipsis)
-   }
-   Box(Modifier.width(140.dp).height(64.dp)){
-    IconButton(onClick=m::closePlayer,modifier=Modifier.align(Alignment.TopEnd).size(44.dp).testTag("mini-player-close")){Icon(Icons.Rounded.Close,"재생 종료",Modifier.size(17.dp),tint=Muted)}
-    Row(Modifier.align(Alignment.BottomStart).testTag("mini-player-controls")){
-     IconButton(onClick=m::toggle){Box(Modifier.size(32.dp).background(BrandGradient,CircleShape).border(.6.dp,Color.White.copy(alpha=.5f),CircleShape),contentAlignment=Alignment.Center){if(m.buffering)CircularProgressIndicator(Modifier.size(18.dp),strokeWidth=2.dp,color=Ink)else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",Modifier.size(23.dp),tint=Ink)}}
-     IconButton(onClick={m.controller?.seekToNextMediaItem()},enabled=m.controller?.hasNextMediaItem()==true){Icon(Icons.Rounded.SkipNext,"다음 곡",Modifier.size(22.dp))}
+  BoxWithConstraints(Modifier.fillMaxWidth()){
+   val actionSize=Modifier.width(if(maxWidth<360.dp)40.dp else if(maxWidth<400.dp)44.dp else 48.dp).height(48.dp)
+   val liked=m.likes.any{it.id==song.id}
+   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    Row(Modifier.weight(1f).testTag("mini-player-open").clickable{m.fullPlayer=true}.heightIn(min=48.dp).padding(start=7.dp,end=2.dp),verticalAlignment=Alignment.CenterVertically){
+     Artwork(song,Modifier.size(36.dp),corner=6.dp)
+     Column(Modifier.weight(1f).padding(start=6.dp)){
+      Text(song.title,maxLines=1,fontSize=13.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
+      Text(song.credit,maxLines=1,fontSize=11.sp,lineHeight=14.sp,color=Muted,overflow=TextOverflow.Ellipsis)
+     }
+    }
+    Row(Modifier.testTag("mini-player-controls"),verticalAlignment=Alignment.CenterVertically){
+     IconButton(onClick={m.controller?.seekToPreviousMediaItem()},enabled=m.controller?.hasPreviousMediaItem()==true,modifier=actionSize){
+      Icon(Icons.Rounded.SkipPrevious,"이전 곡",Modifier.size(22.dp))
+     }
+     IconButton(onClick=m::toggle,modifier=actionSize){
+      Box(Modifier.size(30.dp).background(BrandGradient,CircleShape),contentAlignment=Alignment.Center){
+       if(m.buffering)CircularProgressIndicator(Modifier.size(17.dp),strokeWidth=2.dp,color=Ink)
+       else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",Modifier.size(21.dp),tint=Ink)
+      }
+     }
+     IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=actionSize){
+      Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(21.dp),tint=if(liked)Pink else SoftText)
+     }
+     IconButton(onClick={m.pickPlaylist(song)},modifier=actionSize){
+      Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,"보관함에 담기",Modifier.size(23.dp),tint=SoftText)
+     }
+    }
+    IconButton(onClick=m::closePlayer,modifier=actionSize.testTag("mini-player-close")){
+     Icon(Icons.Rounded.Close,"재생 종료",Modifier.size(17.dp),tint=Muted)
     }
    }
   }

@@ -29,11 +29,14 @@ import java.util.concurrent.TimeUnit
 
 /** Reproducible UI handoff: real product composables, loopback sample data, no live account. */
 class DesignCaptureTest {
- @Test fun miniPlayerClosesFromUpperRightAndKeepsTransportLower(){
+ @Test fun miniPlayerClosesFromSameRowAsPlaybackAndLibraryControls(){
   act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-close")
   val close=ui.onNodeWithTag("mini-player-close").fetchSemanticsNode().boundsInRoot
   val controls=ui.onNodeWithTag("mini-player-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  assertTrue(close.top<controls.top);assertTrue(close.right>controls.right);capture("277-mini-close")
+  assertEquals(controls.center.y,close.center.y,2f);assertTrue(close.left>=controls.right-1f)
+  ui.onNodeWithContentDescription("이전 곡").assertExists()
+  ui.onNodeWithContentDescription("보관함에 담기").assertExists()
+  capture("277-mini-close")
   val controller=model.controller
   ui.onNodeWithTag("mini-player-close").performClick();ui.waitUntil(10000){model.current==null}
   ui.runOnIdle{assertFalse(controller!!.isPlaying);assertEquals(0,controller.mediaItemCount)}
