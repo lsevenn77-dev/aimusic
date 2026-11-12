@@ -123,7 +123,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
    LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"), state=list) {
     itemsIndexed(sections, key={_, section -> section.name}) { index, section ->
      Column(Modifier.fillMaxWidth().then(if(index==sections.lastIndex) Modifier.heightIn(min=bodyHeight) else Modifier)
-      .homeSectionSwipe { direction -> swipe(index, direction) }.padding(bottom=12.dp)) {
+      .sectionSwipe { direction -> swipe(index, direction) }.padding(bottom=12.dp)) {
       when(section) {
        HomeSection.Recommended -> {
         StreamingSection("추천 음악",action="모두 보기",onAction={m.showCollection("추천 음악",m.home,twoLineRows=true)})
@@ -209,7 +209,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
  discoveryPanel?.let{panel->AppPage(if(panel=="genre")"장르별로 발견"else "기분별로 발견",{discoveryPanel=null}){LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp)){item{if(panel=="genre")GenreGrid(m)else MoodShelf(m)}}}}
 }
 
-@Composable private fun Modifier.homeSectionSwipe(onStep:(Int)->Unit):Modifier {
+@Composable internal fun Modifier.sectionSwipe(onStep:(Int)->Unit):Modifier {
  val latestStep by rememberUpdatedState(onStep)
  return pointerInput(Unit) {
   var distance=0f
