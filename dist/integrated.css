@@ -274,32 +274,13 @@ dialog.crew-action-dialog,
  .form-field, .checkbox-line, .form-error { margin: 0; }
 }
 
-.crew-identity:has(.crew-game-entry) {grid-template-columns:auto minmax(0,1fr) auto auto}
-.crew-game-entries {display:flex;gap:8px}
-.crew-game-entries img {border-radius:8px}
-.crew-identity .crew-game-entry {display:inline-flex;align-items:center;gap:10px;min-height:54px;padding:4px 14px 4px 7px;border:1px solid var(--ds-selected);border-radius:14px;text-decoration:none;color:var(--ds-text);background:linear-gradient(115deg,#3a2e55,#192c38);box-shadow:0 2px 12px #aa86ff22}
-.crew-game-entry img {object-fit:contain}
-.crew-game-entry span {display:grid;gap:2px}
-.crew-game-entry small {color:var(--ds-mint);font-size:11px}
-.crew-game-entry strong {font-size:16px}
-.crew-game-entry i {font-style:normal;color:var(--ds-selected)}
-.crew-game-entry:hover,.crew-game-entry:focus-visible {outline:2px solid var(--ds-mint);outline-offset:2px}
-@media(max-width:767px){
- .crew-identity:has(.crew-game-entry) {grid-template-columns:auto minmax(0,1fr) auto}
- .crew-game-entries {grid-column:1/-1;grid-row:2;display:grid;grid-auto-columns:minmax(0,1fr);grid-auto-flow:column}
- .crew-identity .crew-game-entry {min-height:44px;gap:6px;padding-inline:6px}
- .crew-identity .crew-game-entry img {width:36px;height:36px}
- .crew-identity:has(.crew-game-entry) .crew-settings-anchor {grid-column:3;grid-row:1}
+.crew-weekly-games {
+ width:100%; max-width:720px; margin:12px auto 0; min-width:0;
 }
-
-@media(max-width:600px){
- .crew-identity .crew-game-entry {min-width:0;gap:4px;padding-inline:3px;justify-content:center}
- .crew-identity .crew-game-entry img {width:24px;height:24px}
- .crew-game-entry small,.crew-game-entry i {display:none}
- .crew-game-entry strong {font-size:13px;white-space:nowrap}
+.crew-weekly-games:empty {display:none}
+.crew-weekly-games .crew-game-entry {
+ display:block; width:100%; aspect-ratio:3/1; overflow:hidden; border-radius:16px;
 }
-
-.crew-weekly-games{min-width:0;flex:1}.crew-game-heading{display:flex;align-items:center;gap:12px;margin-bottom:8px;font-size:14px}.crew-game-heading small{color:var(--muted);font-size:12px}.crew-weekly-games .crew-game-entries{width:100%}
-@media(max-width:767px){.crew-weekly-games{grid-column:1/-1;grid-row:2}}
-@media(min-width:768px) and (max-width:1100px){.crew-identity:has(.crew-weekly-games){grid-template-columns:auto minmax(0,1fr) auto}.crew-weekly-games{grid-column:1/-1;grid-row:2}.crew-weekly-games .crew-game-entries{display:grid;grid-auto-columns:minmax(0,1fr);grid-auto-flow:column}.crew-identity:has(.crew-weekly-games) .crew-settings-anchor{grid-column:3;grid-row:1}}
-@media(max-width:380px){.crew-weekly-games .crew-game-entries{grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr))}.crew-weekly-games .crew-game-entry:only-child{grid-column:1/-1}}
+.crew-weekly-games .crew-game-entry img {display:block; width:100%; height:100%}
+.crew-weekly-games .crew-game-entry:focus-visible {outline:2px solid var(--ds-mint); outline-offset:3px}
+.crew-weekly-games small {display:block; margin-top:4px; text-align:right; font-size:12px; color:var(--ds-muted)}

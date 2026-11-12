@@ -34,12 +34,13 @@ test('the crew tab resolves current membership on direct entry and reentry',asyn
  assert.deepEqual(calls,[home,home]);
 });
 
-test('crew settings follow live staff roles and legacy management links land on works',()=>{
+test('crew settings follow live staff roles and legacy management links land on works',async t=>{
+ t.mock.timers.enable({apis:['Date'],now:Date.parse('2026-11-09T00:00:00+09:00')});
  const {context:c}=fixture();
  vm.runInContext(readFileSync(new URL('../dist/menu-integration.js',import.meta.url),'utf8'),c);
  assert.equal(c.menuAlias('#crew/crew?tab=manage'),'#crew/crew?tab=music');
  for(const role of ['owner','deputy','manager','operator','member',null]){
-  const view=c.crewDetailView({...detail,membership:role?{role,game_catalog:crewGameCatalog({},'crew')}:null},'crew','manage');
+  const view=c.crewDetailView({...detail,membership:role?{role,game_catalog:await crewGameCatalog({CREW_GAME_VISIBLE_IDS:'jump'},'crew')}:null},'crew','manage');
   assert.equal(view.html.includes('aria-label="크루 설정"'),['owner','deputy','manager','operator'].includes(role));
   assert.match(view.html,/class="work-browser"/);
   const header=view.html.match(/<header class="crew-detail-header[\s\S]*?<\/header>/)[0];

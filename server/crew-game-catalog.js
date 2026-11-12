@@ -7,8 +7,19 @@ const games = [
  {id:'fishing',title:'낚시게임',subtitle:'별물결 낚시터',art:'/crew-fishing/art/shore.svg'}
 ];
 const DAY=86400000,WEEK=7*DAY,KST=9*3600000;
+// This order and seed match the Android client's weekly offline selection.
+const weeklyGames={
+ jump:['점프러시','jump_rush'], fishing:['월척헌터','fishing_hunter'],
+ rhythm:['비트콤보','beat_combo'], racing:['터보레이스','turbo_race']
+};
+async function weeklyPick(selected,week){
+ const eligible=Object.keys(weeklyGames).filter(id=>selected.includes(id));
+ if(eligible.length<2)return eligible[0]??null;
+ const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('aifect-crew-v1:'+week));
+ return eligible[new Uint8Array(digest)[0]%eligible.length];
+}
 const ids=value=>[...new Set(String(value).split(',').map(s=>s.trim()).filter(id=>games.some(g=>g.id===id)))];
-export function crewGameCatalog(env={},crew,ms=Date.now()){
+export async function crewGameCatalog(env={},crew,ms=Date.now()){
  const local=new Date(ms+KST),date=local.toISOString().slice(0,10);
  const monday=Date.parse(date)-(local.getUTCDay()+6)%7*DAY;
  const week=new Date(monday).toISOString().slice(0,10);
@@ -20,7 +31,10 @@ export function crewGameCatalog(env={},crew,ms=Date.now()){
  const index=validAnchor?Math.floor((monday-anchor)/WEEK):-1;
  const selected=env.CREW_GAME_VISIBLE_IDS!==undefined?ids(env.CREW_GAME_VISIBLE_IDS):mode==='test'?games.map(g=>g.id):index>=0&&rotation.length?[rotation[index%rotation.length]]:[];
  const encoded=encodeURIComponent(crew);
- return {title:'이번 주 클랜게임',mode,week,ends_at:(monday-KST+WEEK)/1000,server_now:ms/1000,
-  games:selected.map(id=>({...games.find(g=>g.id===id),route:`game/${id}/${crew}`,
+ const close=monday-KST+5*DAY;
+ return {title:'이번 주 크루 경쟁 게임',mode,week,week_start:week,ends_at:(monday-KST+WEEK)/1000,
+  banner_ends_at:close/1000,active_game_id:ms<close?await weeklyPick(selected,week):null,server_now:ms/1000,
+  games:selected.map(id=>({...games.find(g=>g.id===id),banner_title:weeklyGames[id][0],
+   banner_art:`/assets/crew-weekly/crew_weekly_${weeklyGames[id][1]}.webp`,route:`game/${id}/${crew}`,
    href:id==='jump'?`#crew-jump/${encoded}`:`/crew-${id}/?from=crew&crew=${encoded}`}))};
 }

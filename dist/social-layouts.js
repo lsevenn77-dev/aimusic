@@ -9,10 +9,11 @@ function crewHeroHTML(c,m){
  const frame=c.level>=10?4:c.level>=8?3:c.level>=5?2:c.level>=3?1:0;
  const levelTag=c.level>=7?'<span class="crew-max-badge">'+(c.level===10?'최고 레벨 크루':'함께 성장하는 크루')+'</span>':'';
  const settings=canManageCrew(m)?`<div class="crew-settings-anchor"><button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="menu" aria-expanded="false" aria-controls="crew-settings-menu" title="크루 설정">${icon('settings',22)}</button><div id="crew-settings-menu" class="fan-settings-menu" role="menu" aria-label="크루 관리" hidden></div></div>`:'';
- const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
+ const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}" data-banner-ends="${Number(m.game_catalog?.banner_ends_at)||0}" data-week-ends="${Number(m.game_catalog?.ends_at)||0}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
  const next=c.next_xp==null?'최고 레벨':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
  return `<header class="crew-detail-header crew-frame-${frame}">
-   <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${game}${settings}</div>
+   <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${settings}</div>
+   ${game}
    <div class="crew-detail-xp"><div><span><strong>Lv.${number(c.level)}</strong> ${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div><progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>
  </header>`;
 }
@@ -56,18 +57,45 @@ function crewRankingSidebarHTML(rankings){
  return '<section class="social-side-card crew-ranking-card"><div class="section-heading"><h2>크루 랭킹</h2><span class="crew-ranking-label">TOP 5</span></div><p class="crew-ranking-rule">레벨순 · 같은 레벨은 누적 XP순</p>'+(items.length?'<ol class="community-crew-ranking">'+items.map((c,i)=>'<li><a href="#crew/'+esc(c.id)+'"><span class="crew-rank-position">'+(i+1)+'<span class="sr-only">위</span></span>'+crewPicture(c,'crew-rank-picture')+'<span class="crew-rank-copy"><strong>'+crewNameHTML(c)+'</strong><small>'+number(c.members)+'명</small></span><span class="crew-rank-stats"><b>LV '+number(c.level)+'</b><small>'+number(c.xp)+' XP</small></span></a></li>').join('')+'</ol>':'<p class="field-help">'+(rankings?'아직 등록된 크루가 없어요.':'크루 랭킹을 불러오는 중…')+'</p>')+'</section>';
 }
 
-function crewGameMenuHTML(catalog){
- const games=Array.isArray(catalog?.games)?catalog.games:[];
- return `<div class="crew-game-heading"><strong>이번 주 클랜게임</strong>${catalog?.mode==='test'?'<small>테스트 중</small>':''}</div><nav class="crew-game-entries" aria-label="이번 주 클랜게임">${games.map(g=>`<a class="crew-game-entry" href="${esc(g.href)}"><img src="${esc(g.art)}" width="48" height="48" alt=""><span><small>${esc(g.subtitle)}</small><strong>${esc(g.title)}</strong></span><i aria-hidden="true">›</i></a>`).join('')}</nav>`;
+function crewGameMenuHTML(catalog,now=Date.now()){
+ if(!catalog?.banner_ends_at || now>=catalog.banner_ends_at*1000 ||
+    now<Date.parse(catalog.week_start+'T00:00:00+09:00'))return '';
+ const game=catalog.games.find(game=>game.id===catalog.active_game_id);
+ if(!game)return '<span class="field-help">이번 주 크루 경쟁 게임을 준비 중이에요.</span>';
+ return `<a class="crew-game-entry" href="${esc(game.href)}"><img src="${esc(game.banner_art)}" width="900" height="300" alt="이번 주 크루 경쟁 게임: ${esc(game.banner_title)}. 플레이"></a>${catalog.mode==='test'?'<small>테스트 중</small>':''}`;
 }
 function bindCrewGameMenu(){
- const root=document.querySelector('[data-crew-games]');if(!root||root.dataset.bound)return;
- root.dataset.bound='1';let alive=true,busy=false;const account=me?.id;
- const refresh=async()=>{if(!alive||busy||document.hidden)return;busy=true;
-  try{const data=await api('/api/crews/'+encodeURIComponent(root.dataset.crewGames)+'/games','GET',undefined,{fresh:true});if(alive&&root.isConnected&&account===me?.id)root.innerHTML=crewGameMenuHTML(data);}
-  catch(e){if(alive&&[401,403].includes(e.status))root.replaceChildren();}finally{busy=false;}
- };
- const timer=setInterval(refresh,30000);document.addEventListener('visibilitychange',refresh);
- registerRouteCleanup(()=>{alive=false;clearInterval(timer);document.removeEventListener('visibilitychange',refresh);});
- void refresh();
+ const root=document.querySelector('[data-crew-games]');
+ if(!root||root.dataset.bound)return;
+ root.dataset.bound='1';
+ const account=me?.id;
+ let alive=true,busy=false,boundary,lastMarkup;
+ let close=Number(root.dataset.bannerEnds)*1000,weekEnd=Number(root.dataset.weekEnds)*1000;
+ function expire(){
+  if(close && Date.now()>=close && root.firstChild){root.replaceChildren();lastMarkup='';}
+ }
+ function schedule(){
+  clearTimeout(boundary);
+  const now=Date.now(),next=close>now?close:weekEnd;
+  if(next>now)boundary=setTimeout(refresh,next-now);
+ }
+ async function refresh(){
+  if(!alive)return;
+  expire();
+  if(busy||document.hidden)return;
+  busy=true;
+  try{
+   const data=await api('/api/crews/'+encodeURIComponent(root.dataset.crewGames)+'/games','GET',undefined,{fresh:true});
+   if(!alive||!root.isConnected||account!==me?.id)return;
+   close=data.banner_ends_at*1000;weekEnd=data.ends_at*1000;
+   const markup=crewGameMenuHTML(data);
+   if(markup!==lastMarkup){root.innerHTML=markup;lastMarkup=markup;}
+  }catch(e){
+   if(alive&&[401,403].includes(e.status)){root.replaceChildren();lastMarkup='';}
+  }finally{busy=false;if(alive)schedule();}
+ }
+ const timer=setInterval(refresh,30000);
+ document.addEventListener('visibilitychange',refresh);
+ registerRouteCleanup(()=>{alive=false;clearInterval(timer);clearTimeout(boundary);document.removeEventListener('visibilitychange',refresh);});
+ schedule();void refresh();
 }
