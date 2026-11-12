@@ -268,12 +268,15 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  val shape=RoundedCornerShape(topStart=9.dp,topEnd=9.dp)
  Column(Modifier.fillMaxWidth().testTag("mini-player").clip(shape).background(Brush.horizontalGradient(listOf(Color(0xFF252D43),Panel,Color(0xFF1B2B38)))).border(.7.dp,Stroke,shape)){
   val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
+  val liked=m.likes.any{it.id==song.id}
+  val coverColumnWidth=72.dp
   BoxWithConstraints(Modifier.fillMaxWidth()){
    val actionSize=Modifier.width(if(maxWidth<360.dp)40.dp else if(maxWidth<400.dp)44.dp else 48.dp).height(48.dp)
-   val liked=m.likes.any{it.id==song.id}
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-    Row(Modifier.weight(1f).testTag("mini-player-open").clickable{m.fullPlayer=true}.heightIn(min=48.dp).padding(start=7.dp,end=2.dp),verticalAlignment=Alignment.CenterVertically){
-     Artwork(song,Modifier.size(36.dp),corner=6.dp)
+    Row(Modifier.weight(1f).testTag("mini-player-open").clickable{m.fullPlayer=true}.heightIn(min=48.dp).padding(end=2.dp),verticalAlignment=Alignment.CenterVertically){
+     Box(Modifier.width(coverColumnWidth),contentAlignment=Alignment.Center){
+      Artwork(song,Modifier.size(44.dp).testTag("mini-player-art"),corner=6.dp)
+     }
      Column(Modifier.weight(1f).padding(start=6.dp)){
       Text(song.title,maxLines=1,fontSize=13.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
       Text(song.credit,maxLines=1,fontSize=11.sp,lineHeight=14.sp,color=Muted,overflow=TextOverflow.Ellipsis)
@@ -289,11 +292,8 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
        else Icon(if(m.playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(m.playing)"일시정지" else "재생",Modifier.size(21.dp),tint=Ink)
       }
      }
-     IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=actionSize){
-      Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(21.dp),tint=if(liked)Pink else SoftText)
-     }
-     IconButton(onClick={m.pickPlaylist(song)},modifier=actionSize){
-      Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,"보관함에 담기",Modifier.size(23.dp),tint=SoftText)
+     IconButton(onClick={m.controller?.seekToNextMediaItem()},enabled=m.controller?.hasNextMediaItem()==true,modifier=actionSize){
+      Icon(Icons.Rounded.SkipNext,"다음 곡",Modifier.size(22.dp))
      }
     }
     IconButton(onClick=m::closePlayer,modifier=actionSize.testTag("mini-player-close")){
@@ -301,8 +301,18 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
     }
    }
   }
-  Box(Modifier.fillMaxWidth().clickable{m.fullPlayer=true}.padding(horizontal=12.dp).padding(bottom=4.dp).testTag("mini-player-lyrics")){
-   Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=11.sp,lineHeight=15.sp,color=SoftText,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
+  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+   Row(Modifier.width(coverColumnWidth),verticalAlignment=Alignment.CenterVertically){
+    IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=Modifier.weight(1f).height(36.dp)){
+     Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(18.dp),tint=if(liked)Pink else SoftText)
+    }
+    IconButton(onClick={m.pickPlaylist(song)},modifier=Modifier.weight(1f).height(36.dp)){
+     Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,"보관함에 담기",Modifier.size(20.dp),tint=SoftText)
+    }
+   }
+   Box(Modifier.weight(1f).clickable{m.fullPlayer=true}.padding(start=6.dp,end=8.dp).testTag("mini-player-lyrics")){
+    Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=11.sp,lineHeight=15.sp,color=SoftText,minLines=1,maxLines=1,softWrap=false,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,style=TextStyle(platformStyle=androidx.compose.ui.text.PlatformTextStyle(includeFontPadding=false)))
+   }
   }
   LinearProgressIndicator(progress={if(m.duration>0)(m.position.toFloat()/m.duration).coerceIn(0f,1f)else 0f},modifier=Modifier.fillMaxWidth().height(2.dp),color=StreamPurple,trackColor=StreamBorder,drawStopIndicator={})
  }
