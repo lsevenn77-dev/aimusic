@@ -38,11 +38,16 @@ export function roomUIMode(theme) {
  if(typeof process!=='undefined'&&process.env?.NODE_ENV==='development')console.warn('Invalid room uiMode',mode);
  return 'dark';
 }
-export const FREE_ROOM_THEMES=Object.freeze([
- basicRoomTheme('basic_dark','턴테이블','dark'),basicRoomTheme('basic_light','헤드폰','light'),
- {sku:'navy',name:'차분한 다크'},{sku:'sunset',name:'차분한 노을'},{sku:'night',name:'밤하늘'}
-]);
-export const DEFAULT_ROOM_THEME='navy';
+export const DEFAULT_ROOM_SKIN=basicRoomTheme('basic_dark','턴테이블','dark');
+export const DEFAULT_ROOM_THEME=DEFAULT_ROOM_SKIN.sku;
+export const FREE_ROOM_THEMES=Object.freeze([DEFAULT_ROOM_SKIN,basicRoomTheme('basic_light','헤드폰','light')]);
+export function isRetiredRoomTheme(sku){
+ return sku==='navy'||sku==='sunset'||sku==='night';
+}
+export function roomThemeProduct(sku){
+ const product=Object.hasOwn(DECORATIONS,sku)?DECORATIONS[sku]:null;
+ return product?.kind==='TALKING_ROOM_THEME'?product:FREE_ROOM_THEMES.find(t=>t.sku===sku);
+}
 export function quoteDecoration(sku,period){
  if(!Object.hasOwn(DECORATIONS,sku)||!Object.hasOwn(PERIOD_LABELS,period))throw new RangeError('상품과 이용 기간을 확인해주세요.');
  return {sku,period,gold:DECORATIONS[sku].periodPrices[period],currency:'G'};

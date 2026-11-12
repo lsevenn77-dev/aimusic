@@ -52,7 +52,7 @@ for(let i=0;i<8;i++){
 for(let i=0;i<35;i++){f.addSong('qa-song-'+i);f.sql.prepare('UPDATE tracks SET title=? WHERE id=?').run('검증 노래 '+String(i+1).padStart(2,'0'),'qa-song-'+i);}
 const rooms={};
 for(const mode of ['talk','karaoke']){
- const r=rooms[mode]=await f.create({title:mode==='talk'?'함께 이야기하는 밤':'함께 부르는 밤',mode,seating_mode:'free',background:'night',announcement:'로컬 검증 데이터 · 운영 서비스와 분리되어 있습니다.'});
+ const r=rooms[mode]=await f.create({title:mode==='talk'?'함께 이야기하는 밤':'함께 부르는 밤',mode,seating_mode:'free',background:'basic_dark',announcement:'로컬 검증 데이터 · 운영 서비스와 분리되어 있습니다.'});
  r.guests=[];
  const peers=new Set();sockets.set(r.state.room.id,peers);r.room.ctx.getWebSockets=()=>[...peers];r.room.notify=VoiceRoom.prototype.notify;
  const command=r.room.command,notify=r.room.notify;let timing;
@@ -89,7 +89,7 @@ async function scenario(mode,name){
    if(name==='singing'){d.karaoke.phase='singing';d.karaoke.startsAt=Date.now()+3000;d.karaoke.inviteExpiresAt=0;}
   }
  }
- if(['light','dark','base'].includes(name)){d.config.theme_sku=name==='base'?'navy':name==='dark'?'theme_aurora_night':'theme_cherry_blossom';d.config.background='navy';d.config.settings_revision=(d.config.settings_revision||0)+1;}
+ if(['light','dark','base'].includes(name)){d.config.theme_sku=name==='base'?'basic_dark':name==='dark'?'theme_aurora_night':'theme_cherry_blossom';d.config.background=d.config.theme_sku;d.config.settings_revision=(d.config.settings_revision||0)+1;}
  d.revision++;r.room.notify();return r;
 }
 const wss=new WebSocketServer({noServer:true});
@@ -136,6 +136,9 @@ const server=createServer(async(req,res)=>{
 server.on('upgrade',(req,socket,head)=>{
  const u=new URL(req.url,'http://'+(req.headers.host||'127.0.0.1:'+port)),id=u.pathname.match(/rooms\/([^/]+)\/socket$/)?.[1],r=f.rooms.get(id),generation=u.searchParams.get('generation'),user=qaUser(u.searchParams.get('qa_user')),p=Object.values(r?.data.members||{}).find(p=>p.id===user&&p.generation===generation);
  if(!p){socket.destroy();return;}
+ if(!sockets.has(id)){
+  const peers=new Set();sockets.set(id,peers);r.ctx.getWebSockets=()=>[...peers];r.notify=VoiceRoom.prototype.notify;
+ }
  wss.handleUpgrade(req,socket,head,ws=>{ws.deserializeAttachment=()=>({id:p.id,generation});sockets.get(id).add(ws);ws.on('close',()=>sockets.get(id).delete(ws));ws.send(JSON.stringify({type:'state',state:r.snapshot(p)}));});
 });
 const presence=setInterval(()=>{for(const r of Object.values(rooms))for(const {uid,state} of r.guests)void f.call(r.root+'heartbeat','POST',{generation:state.generation},uid);},10000);

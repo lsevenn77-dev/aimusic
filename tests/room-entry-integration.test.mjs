@@ -53,7 +53,7 @@ for(const mode of ['talk','karaoke'])test(mode+' settings and shares use authent
  r.room.data.members.third={...r.room.data.members.other,id:'third',name:'Third',seat:null,generation:'third'};
  assert.equal((await settings({max_members:2})).status,409);
  delete r.room.data.members.third;
- const saved=await settings({title:'저장한 방 제목',announcement:'저장한 공지',visibility:'public',max_members:8,background:'night'});
+ const saved=await settings({title:'저장한 방 제목',announcement:'저장한 공지',visibility:'public',max_members:8,background:'basic_light'});
  assert.equal(saved.status,200,JSON.stringify(saved.body));assert.equal(saved.body.room.title,'저장한 방 제목');assert.equal(saved.body.room.max_members,8);assert.equal(saved.body.room.announcement,'저장한 공지');
  const state=await f.call(r.root+'state','GET',undefined,'other');assert.equal(state.body.room.title,'저장한 방 제목');
  assert.equal((await settings({max_members:31})).status,400);

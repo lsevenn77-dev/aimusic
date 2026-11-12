@@ -41,8 +41,8 @@ test('talking directory returns only followed current members, public rooms and 
  await f.call('/api/producers/profile-1/follow','DELETE');
  assert.equal((await read()).rooms[0].followed_count,3);
  f.sql.exec("UPDATE player_inventory SET revoked=1 WHERE id='theme'");
- assert.equal((await read()).rooms[0].theme.sku,'navy');
- assert.equal(f.sql.prepare('SELECT sku FROM room_decorations WHERE room_id=?').get(card.id).sku,'navy');
+ assert.equal((await read()).rooms[0].theme.sku,'basic_dark');
+ assert.equal(f.sql.prepare('SELECT sku FROM room_decorations WHERE room_id=?').get(card.id).sku,'basic_dark');
 });
 
 test('cursor remains stable across ties and newer rooms, and search beyond the old cap skips unrelated presence',async t=>{

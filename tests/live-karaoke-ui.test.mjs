@@ -1,4 +1,5 @@
 import {nicknameContext} from './nickname-context.mjs';
+import * as AifectPlayer from '../shared/player.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -20,7 +21,7 @@ function context(overrides={}){
  const host={isConnected:true,dataset:{},querySelector:sel=>{if(!nodes.has(sel))nodes.set(sel,node());return nodes.get(sel);},querySelectorAll:()=>[]};
  const c=nicknameContext({
   icon:()=>'<svg></svg>',esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:x=>String(x),time:x=>String(x),avatarImage:()=>'<img>',
-  AifectGifts:{GIFT_CATALOG:[]},URL,URLSearchParams,AbortController,crypto,Date,
+  AifectPlayer,AifectGifts:{GIFT_CATALOG:[]},URL,URLSearchParams,AbortController,crypto,Date,
   voiceView:async()=>({html:'regular room'}),communityNavigation:()=>'<nav class="tabs"><a href="#community">토킹룸</a><a href="#community/crews">크루</a><a href="#community/rankings">랭킹</a></nav>',
   bindVoice:()=>calls.push(['base-bind']),cleanupVoiceRoute:()=>calls.push(['base-cleanup']),voiceController:null,voiceEntryAudio:null,
   setVoiceFocus:value=>calls.push(['focus',value]),prepareVoiceListening:id=>calls.push(['listen',id]),
@@ -183,7 +184,8 @@ test('unified directory links each real type to its original room and exposes th
  assert.match(sing,/live-type-karaoke/);assert.match(talk,/live-type-talk/);
  assert.doesNotMatch(talk,/talk-follows|>LIVE</);
  const html=vm.runInContext("liveDirectoryHTML('karaoke')",c);
- for(const field of ['background','announcement','mode','visibility','max_members','crew_id','title'])
+ assert.match(html,/<div class="voice-backgrounds"><\/div>/);
+ for(const field of ['announcement','mode','visibility','max_members','crew_id','title'])
   assert.match(html,new RegExp('name="'+field+'"'));
  for(const selector of ['data-live-reset','data-auto-title','data-room-filter="all"','data-room-filter="talk"','data-room-filter="karaoke"'])
   assert.ok(html.includes(selector),selector);

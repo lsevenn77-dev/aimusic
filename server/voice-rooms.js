@@ -12,6 +12,7 @@ import {voiceCall,voiceConfigured} from './voice-bridge.js';
 export {voiceCall,voiceConfigured} from './voice-bridge.js';
 import {identifier,requestId} from '../realtime/protocol.js';
 import {giftById} from '../shared/gifts.js';
+import {DEFAULT_ROOM_THEME} from '../shared/decorations.js';
 
 const roomTitles={
  talk:['자유토크방','음악과 수다','편하게 이야기해요','잠깐 쉬어가는 수다방','오늘 하루 어땠어요?','음악 들으며 이야기해요','소소한 이야기','지금은 수다 시간','반가워요, 같이 얘기해요','우리 잠깐 수다 떨어요'],
@@ -59,7 +60,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const params=new URL(req.url).searchParams,mode=params.get('mode')==='karaoke'?'karaoke':'talk';
   const exclude=str(params.get('exclude')??'',60,false);
   const suggested_titles=Object.fromEntries(Object.keys(roomTitles).map(type=>[type,suggestedRoomTitle(type,crypto.randomUUID(),type===mode?exclude:'')]));
-  return json({crews,themes,suggested_titles,suggested_title:suggested_titles[mode],preferred_theme:themes.find(t=>t.paid)?.sku||'navy'});
+  return json({crews,themes,suggested_titles,suggested_title:suggested_titles[mode],preferred_theme:themes.find(t=>t.paid)?.sku||DEFAULT_ROOM_THEME});
  }
  if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,actor,'directory','list'))),crews});
  if(path==='/api/voice/rooms'&&req.method==='POST') {
@@ -73,11 +74,13 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
    crew_id=crews[0].id;
    if(b.crew_id&&b.crew_id!==crew_id)fail(409,'소속 크루가 변경됐어요. 방 만들기를 다시 열어주세요.');
   }
-  const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await roomThemeChoices(env,user.id)).find(t=>t.paid)?.sku||'navy');
+  const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await roomThemeChoices(env,user.id)).find(t=>t.paid)?.sku||DEFAULT_ROOM_THEME);
   const roomId=requestId(b.request_id);
   const title=str(b.title??'',60,false)||suggestedRoomTitle(b.mode,roomId);
-  const data=await result(await voiceCall(env,actor,roomId,'create',{title,visibility:b.visibility,crew_id,max_members:b.max_members,theme_sku:selected,background:['navy','sunset','night'].includes(selected)?selected:'navy',announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode}));
-  await saveRoomTheme(env,actor,data.room,selected,{creating:true});return json(await decorateRoomResult(env,data),201);
+  const data=await result(await voiceCall(env,actor,roomId,'create',{title,visibility:b.visibility,crew_id,max_members:b.max_members,theme_sku:selected,announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode}));
+  // A retried creation can return an existing room even if the form selection changed.
+  const applied=data.room.theme_sku===selected?selected:(await resolveRoomDecoration(env,data.room)).sku;
+  await saveRoomTheme(env,actor,data.room,applied,{creating:true});return json(await decorateRoomResult(env,data),201);
  }
  const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'토킹룸을 찾을 수 없어요.');
  const [,room,action]=m;
@@ -102,8 +105,9 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
    if(crews.length!==1)fail(403,'소속 크루가 하나인 회원만 크루 공개를 선택할 수 있어요.');
    b.crew_id=crews[0].id;
   }
-  const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await resolveRoomDecoration(env,current.room)).sku);
-  const data=await result(await voiceCall(env,actor,room,'settings',{...b,theme_sku:selected,background:['navy','sunset','night'].includes(selected)?selected:'navy'}));
+  const {theme_sku,background,...settings}=b;
+  const selected=await assertRoomTheme(env,user.id,theme_sku||background||(await resolveRoomDecoration(env,current.room)).sku);
+  const data=await result(await voiceCall(env,actor,room,'settings',{...settings,theme_sku:selected}));
   await saveRoomTheme(env,actor,data.room,selected);return json(await decorateRoomResult(env,data));
  }
  if(action==='invite') {

@@ -81,16 +81,21 @@ function profileFrameCanvasArtwork(path){
  }
  function paintTheme(el,t,card=false){
   if(!t)return;
-  const assets=t.assets;
+  let assets=t.assets,sku=t.sku,mode=t.uiMode;
   const small=matchMedia('(max-width:800px)').matches;
   const tall=small&&matchMedia('(max-aspect-ratio: 1/2)').matches;
-  const visible=card?assets?.roomCard:small?(tall&&assets?.roomMobileTall||assets?.roomMobile||assets?.roomDesktop):assets?.roomDesktop;
-  const active=visible&&!expired(t,Date.now()/1000+(t.offset||0))&&usableAsset(visible);
-  const sku=active?t.sku:t.assets?'navy':t.sku;
+  const visible=paths=>card?paths?.roomCard:small?(tall&&paths?.roomMobileTall||paths?.roomMobile||paths?.roomDesktop):paths?.roomDesktop;
+  let active=!expired(t,Date.now()/1000+(t.offset||0))&&usableAsset(visible(assets));
+  const paid=active&&t.expires_at>0;
+  if(!active){
+   const fallback=AifectPlayer.DEFAULT_ROOM_SKIN;
+   assets=fallback.assetPaths;sku=fallback.sku;mode=fallback.uiMode;
+   active=usableAsset(visible(assets));
+  }
   if(card)el.dataset.theme=sku;else el.dataset.background=sku;
   el.dataset.themeSku=sku;
-  if(!card)el.dataset.uiMode=(!t.assets||active)&&t.uiMode==='light'?'light':'dark';
-  if(active&&t.expires_at>0)el.dataset.paidTheme=sku;else delete el.dataset.paidTheme;
+  if(!card)el.dataset.uiMode=active&&mode==='light'?'light':'dark';
+  if(paid)el.dataset.paidTheme=sku;else delete el.dataset.paidTheme;
   const artKeys=['card','desktop','mobile','mobile-tall'];
   if(active)el.dataset.roomArtwork='';else delete el.dataset.roomArtwork;
   const paths=[assets?.roomCard,assets?.roomDesktop,assets?.roomMobile,assets?.roomMobileTall];
@@ -152,10 +157,8 @@ function profileFrameCanvasArtwork(path){
   if(!room){themes.clear();void refresh(true);return;}
   if(room.theme){remember(room.id,room.theme);paintThemes();return;}
   // A socket snapshot carries the SKU. Preserve its resolved art and mode across heartbeats.
-  const sku=room.theme_sku||room.background||'navy';
+  const sku=room.theme_sku||room.background;
   if(themes.get(room.id)?.sku===sku){paintThemes();return;}
-  const needsTheme=!room.theme_sku||sku.startsWith('theme_')||sku.startsWith('basic_');
-  if(!needsTheme){remember(room.id,{sku,uiMode:'dark',server_now:Date.now()/1000});paintThemes();return;}
   void voiceRequest('rooms/'+encodeURIComponent(room.id)+'/theme').then(d=>{
    if(version===roomThemeVersion){remember(room.id,d.theme);paintThemes();}
   }).catch(()=>{});

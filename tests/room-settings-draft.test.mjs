@@ -23,7 +23,7 @@ function settingsForm(){
   return controls;
  };
  radios('mode',['karaoke','talk']);field('title');const visibility=radios('visibility',['public','private','crew','followers']);
- field('crew_id','','hidden');field('max_members','30','number');field('announcement');radios('background',['navy','night']);
+ field('crew_id','','hidden');field('max_members','30','number');field('announcement');radios('background',['basic_dark','basic_light']);
  const dismiss=field('','','button'),submit=field('','','submit');dismiss.dataset.voice='dismiss';
  const error={textContent:''},crew={textContent:'',hidden:false},backgrounds={textContent:''},output={textContent:''};
  const nodes={'[data-voice=dismiss]':dismiss,'[type=submit]':submit,'.form-error':error,'.voice-crew-setting':crew,'.voice-backgrounds':backgrounds,'output':output,'[name=visibility][value=crew]':visibility.find(c=>c.value==='crew')};
@@ -37,7 +37,7 @@ class SuccessfulFormData{
 
 function harness({mode='karaoke',owner=true,room={},options}={}){
  const form=settingsForm(),requests=[],commands=[],accepted=[],events=[],toasts=[],sheets=new Map();
- const standardOptions={crews:[{id:'current-crew',name:'현재 크루'}],themes:[{sku:'navy',selectable:true},{sku:'night',selectable:true}]};
+ const standardOptions={crews:[{id:'current-crew',name:'현재 크루'}],themes:[{sku:'basic_dark',selectable:true},{sku:'basic_light',selectable:true}]};
  let nextOptions=options||(()=>Promise.resolve(standardOptions)),commandReply,client;
  function makeSheet(id){
   const sheet={id,open:false,isConnected:true,closedCount:0,classList:{contains:()=>false},
@@ -50,12 +50,12 @@ function harness({mode='karaoke',owner=true,room={},options}={}){
   VoiceRoomClient:class{},Event,CustomEvent,FormData:SuccessfulFormData,
   $:selector=>selector==='#voice-settings-form'?form:sheets.get(selector.slice(1)),
   voiceRequest:path=>{requests.push(path);return nextOptions(path);},
-  fillRoomThemeChoices:(target,data,selected)=>{target.elements.background.value=data.themes?.some(t=>t.sku===selected&&t.selectable)?selected:'navy';},
+  fillRoomThemeChoices:(target,data,selected)=>{target.elements.background.value=data.themes?.some(t=>t.sku===selected&&t.selectable)?selected:'basic_dark';},
   busyForm:(_form,work)=>work,
   window:{dispatchEvent:event=>events.push(event)},toast:message=>toasts.push(message)
  });
  vm.runInContext(source,context);client=new context.VoiceRoomClient();
- client.state={self:owner?'owner':'other',members:[{id:'owner',role:'host'},{id:'other',role:'listener'}],room:{id:'same-room',host_id:'owner',mode,title:'유지할 방 제목',visibility:'crew',crew_id:'original-crew',max_members:30,announcement:'유지할 공지',background:'navy',theme:{sku:'expired-theme'},settings_revision:7,...room}};
+ client.state={self:owner?'owner':'other',members:[{id:'owner',role:'host'},{id:'other',role:'listener'}],room:{id:'same-room',host_id:'owner',mode,title:'유지할 방 제목',visibility:'crew',crew_id:'original-crew',max_members:30,announcement:'유지할 공지',background:'basic_dark',theme:{sku:'expired-theme'},settings_revision:7,...room}};
  client.liveMode=mode==='karaoke';client.closed=false;
  client.host={querySelector:selector=>sheets.get(selector.slice(1))};
  client.showSheet=id=>{client.talkPopup?.close();client.settingsTicket=(client.settingsTicket||0)+1;client.talkPopup=sheets.get(id);client.talkPopup.show();};
@@ -81,7 +81,7 @@ for(const mode of ['talk','karaoke'])test(mode+' settings open from server state
 
 test('type-only save sends only mode and revision, preserving option fallbacks and common room fields',async()=>{
  const h=harness();await h.client.openSettings();
- assert.equal(h.form.elements.background.value,'navy','unavailable theme falls back only inside the rendered form');
+ assert.equal(h.form.elements.background.value,'basic_dark','unavailable theme falls back only inside the rendered form');
  h.form.elements.mode.value='talk';
  await h.form.onsubmit();
  assert.deepEqual(h.commands,[{action:'settings',body:{mode:'talk',revision:7}}]);
@@ -93,9 +93,9 @@ test('type-only save sends only mode and revision, preserving option fallbacks a
 test('explicit field edits are saved as changes with numeric capacity; an unchanged form performs no request',async()=>{
  const h=harness();await h.client.openSettings();await h.client.saveTalkSettings(h.form);
  assert.equal(h.commands.length,0);assert.equal(h.sheet.open,false);
- await h.client.openSettings();h.form.elements.title.value='직접 바꾼 제목';h.form.elements.max_members.value='15';h.form.elements.background.value='night';
+ await h.client.openSettings();h.form.elements.title.value='직접 바꾼 제목';h.form.elements.max_members.value='15';h.form.elements.background.value='basic_light';
  await h.client.saveTalkSettings(h.form);
- assert.deepEqual(h.commands,[{action:'settings',body:{title:'직접 바꾼 제목',max_members:15,background:'night',revision:7}}]);
+ assert.deepEqual(h.commands,[{action:'settings',body:{title:'직접 바꾼 제목',max_members:15,background:'basic_light',revision:7}}]);
 });
 
 test('non-host or a host who lost ownership cannot submit settings',async()=>{
@@ -113,7 +113,7 @@ test('a dismissed options request cannot overwrite a newer settings draft',async
  h.client.closeRoomPopup();h.setOptions(()=>fresh.promise);const reopened=h.client.openSettings();
  fresh.resolve(h.standardOptions);await reopened;h.form.elements.mode.value='talk';
  const draft=h.client.settingsDraft,ticket=h.client.settingsTicket;
- old.resolve({crews:[],themes:[{sku:'night',selectable:true}]});await pending;
+ old.resolve({crews:[],themes:[{sku:'basic_light',selectable:true}]});await pending;
  assert.equal(h.client.settingsTicket,ticket);assert.equal(h.client.settingsDraft,draft);assert.equal(h.form.elements.mode.value,'talk');assert.equal(h.client.settingsLoading,false);
  await h.client.saveTalkSettings(h.form);assert.deepEqual(h.commands[0].body,{mode:'talk',revision:7});
 });

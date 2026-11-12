@@ -76,20 +76,20 @@ test('all paid themes persist in create/settings; list/card/desktop/mobile resol
   assert.equal(state.body.theme.sku,sku);assert.deepEqual(state.body.theme.assets,DECORATIONS[sku].assetPaths);assert.deepEqual(list.body.rooms[0].theme,state.body.theme);
  }
  f.sql.exec("UPDATE player_inventory SET expires_at=unixepoch()-1 WHERE item_key='theme_aurora_night'");
- assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'navy');assert.equal((await f.call('/api/voice/public-rooms','GET',null,null)).body.rooms[0].theme.sku,'navy');
+ assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'basic_dark');assert.equal((await f.call('/api/voice/public-rooms','GET',null,null)).body.rooms[0].theme.sku,'basic_dark');
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'theme_aurora_night',revision:2})).status,403);
 });
 test('only host with own active theme can create/update; unknown SKU and stale settings reject; free themes remain',async t=>{
  const f=await decorationsFixture(t,{voice:true});await f.buyUse('theme_starlight_lounge','P7D',{profile_id:'friend'});
  assert.equal((await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'x',background:'theme_starlight_lounge'})).status,403);
- const r=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'x',background:'sunset'}),rid=r.body.room.id;
+ const r=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'x',background:'basic_dark'}),rid=r.body.room.id;
  await f.call('/api/voice/rooms/'+rid+'/join','POST',{request_id:crypto.randomUUID()},'other');
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'theme_starlight_lounge'},'other')).status,403);
  assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'fake'})).status,400);
- assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'night',revision:0})).status,200);
- assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'navy',revision:0})).status,409);
- assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'night');
- const options=await f.call('/api/voice/options');assert.deepEqual(options.body.themes.map(t=>t.sku),['basic_dark','basic_light','navy','sunset','night']);assert.ok(options.body.themes.every(theme=>theme.selectable&&!theme.paid));
+ assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'basic_light',revision:0})).status,200);
+ assert.equal((await f.call('/api/voice/rooms/'+rid+'/settings','POST',{background:'basic_dark',revision:0})).status,409);
+ assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'basic_light');
+ const options=await f.call('/api/voice/options');assert.deepEqual(options.body.themes.map(t=>t.sku),['basic_dark','basic_light']);assert.ok(options.body.themes.every(theme=>theme.selectable&&!theme.paid));
 });
 test('stored item never expires before use; transfer retains the full period without a second gold charge',async t=>{
  const f=await decorationsFixture(t),b=await f.buy('frame_aurora_ring','P1M'),iid=b.body.order.inventory_id,key=crypto.randomUUID();
@@ -122,8 +122,8 @@ test('stored themes are locked until activated; revocation reverts card and room
  await f.use(b.body.order.inventory_id);
  const r=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'취소 테스트',background:'theme_cherry_blossom'}),rid=r.body.room.id;
  assert.equal(r.status,201);f.sql.exec("UPDATE player_inventory SET revoked=1 WHERE source='decoration'");
- assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'navy');assert.equal((await f.call('/api/voice/public-rooms','GET',null,null)).body.rooms[0].theme.sku,'navy');
- await f.buyUse('theme_cherry_blossom');assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'navy');
+ assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'basic_dark');assert.equal((await f.call('/api/voice/public-rooms','GET',null,null)).body.rooms[0].theme.sku,'basic_dark');
+ await f.buyUse('theme_cherry_blossom');assert.equal((await f.call('/api/voice/rooms/'+rid+'/theme')).body.theme.sku,'basic_dark');
 });
 
 test('FIFO purchase spans existing gold lots and reports the canonical product name',async t=>{

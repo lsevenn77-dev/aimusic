@@ -1,6 +1,6 @@
 import {publicNameSQL,producerNameSQL} from './identity.js';
 import {rows,fail,json} from './db.js';
-import {directoryRoomThemes} from './room-decorations.js';
+import {directoryRoomThemes,withRoomTheme} from './room-decorations.js';
 import {viewerBlockedIds} from './auth.js';
 
 async function directoryHosts(env,rooms){
@@ -48,6 +48,6 @@ export async function talkingRoomPage(env,user,params,readDirectory){
  return json({enabled:true,rooms:visible.map(({member_ids,host_id,...room})=>{
   const people=[...new Set(member_ids)].map(id=>followed.get(id)).filter(Boolean);
   const host=hosts.get(host_id);
-  return {...room,host_name:host?.name||'',host_profile:host||null,theme:themes.get(room.id),followed_profiles:people.slice(0,3),followed_count:people.length};
+  return {...withRoomTheme(room,themes.get(room.id)),host_name:host?.name||'',host_profile:host||null,followed_profiles:people.slice(0,3),followed_count:people.length};
  }),next_cursor:next,crews:[]});
 }

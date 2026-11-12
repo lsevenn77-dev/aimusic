@@ -1,5 +1,6 @@
 import {talkingDirectoryCard} from './talking-directory.js';
-import {roomSettings} from '../shared/voice-settings.js';
+import {roomSettings,upgradeRoomBackground} from '../shared/voice-settings.js';
+import {DEFAULT_ROOM_THEME} from '../shared/decorations.js';
 import {emptyRoomMusic,changeRoomMusic} from '../shared/voice-music.js';
 import {fault,reply,identifier,requestId,text,audioOffer,audioAnswer} from './protocol.js';
 import {Sfu} from './sfu.js';
@@ -13,6 +14,7 @@ export class VoiceRoom {
   this.data=await this.ctx.storage.get('room')||{config:null,members:{},bans:{},invites:{},chat:[],gifts:[],cleanup:[],nonces:{},rates:{},revision:0,chatSequence:0};
   this.data.seatInvites ||= {};this.data.music ||= emptyRoomMusic();this.data.musicRequests ||= [];this.data.notices ||= [];
   if(this.data.config)this.data.config.seating_mode??='approval';
+  if(upgradeRoomBackground(this.data.config))this.data.directoryDirty=true;
   // Older rooms have no reliable per-member history boundary. Start a fresh boundary on upgrade.
   if(!Number.isSafeInteger(this.data.chatSequence)) {
    this.data.chatSequence=0;for(const message of this.data.chat)message.sequence=++this.data.chatSequence;
@@ -100,7 +102,7 @@ export class VoiceRoom {
   d.seatInvites={};this.clearRequests();
   if(!Object.values(d.members).some(m=>m!==next&&m.seat===0))next.seat=0;
   next.role='host';next.locked=false;this.clearRequest(next);delete d.seatInvites[next.id];
-  room.host_id=next.id;room.background='navy';room.theme_sku='navy';
+  room.host_id=next.id;room.background=room.theme_sku=DEFAULT_ROOM_THEME;
   room.settings_revision=(room.settings_revision||0)+1;
   d.hostReconnectUntil=0;delete d.hostReconnectGeneration;d.directoryDirty=true;
   // Admission to a followers room must survive a change of host.
@@ -163,7 +165,7 @@ export class VoiceRoom {
   if(action==='create') {
    if(d.config){if(d.config.host_id===actor.id&&!d.config.closed)return {room:d.config};fault(409,'이미 사용 중인 방이에요.');}
    let settings;try{settings=roomSettings(b,actor);}catch(e){fault(400,e.message);}
-   const config={...settings,id:identifier(roomId),host_id:actor.id,...(b.theme_sku?{theme_sku:b.theme_sku}:{}),created:Date.now(),closed:false,mic_seats:8};
+   const config={...settings,id:identifier(roomId),host_id:actor.id,created:Date.now(),closed:false,mic_seats:8};
    await this.env.ROOM_DB.prepare('INSERT INTO voice_rooms(id,title,host_id,visibility,crew_id,created,max_members,background,announcement) VALUES(?,?,?,?,?,?,?,?,?)').bind(config.id,config.title,actor.id,config.visibility,config.crew_id,config.created,config.max_members,config.background,config.announcement).run();d.config=config;
    // Creation includes the host's listener membership; there is no empty room between create and navigation.
    await this.command('join',actor,{request_id:crypto.randomUUID()},roomId);return {room:config};
@@ -209,7 +211,7 @@ export class VoiceRoom {
    await this.env.ROOM_DB.prepare('UPDATE voice_rooms SET title=?,visibility=?,crew_id=?,max_members=?,background=?,announcement=? WHERE id=?').bind(settings.title,settings.visibility,settings.crew_id,settings.max_members,settings.background,settings.announcement,d.config.id).run();
    if(settings.visibility!==d.config.visibility)for(const member of Object.values(d.members))member.visibilityRetained=true;
    if(settings.seating_mode==='free'&&d.config.seating_mode!=='free')for(const member of Object.values(d.members))this.clearRequest(member);
-   Object.assign(d.config,settings,b.theme_sku?{theme_sku:b.theme_sku}:{},{settings_revision:(d.config.settings_revision||0)+1});this.notice(p,'방 설정이 변경됐어요.');await this.audit(actor,'settings');
+   Object.assign(d.config,settings,{settings_revision:(d.config.settings_revision||0)+1});this.notice(p,'방 설정이 변경됐어요.');await this.audit(actor,'settings');
   }
   else if(action==='seat-invite'){
    this.moderator(actor);const t=d.members[identifier(b.target_id)];if(!t||t.seat!==null)fault(409,'현재 청취 중인 참여자를 선택해주세요.');

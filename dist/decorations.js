@@ -323,10 +323,10 @@ function decorationInventorySectionsHTML(d){
  const items=[...(d.inventory||[]).filter(i=>i.paid).map(i=>({...i,product:{name:i.name,kind:'PROFILE_FRAME',assetPaths:{overlay:i.artwork}}})),...(d.decorations||[])],active=items.filter(i=>i.available),ended=items.filter(i=>!i.available);
  return '<div class="decoration-inventory-sections">'+storedDecorationsHTML(d.stored_decorations)+'<section class="player-owned decoration-inventory-section" aria-labelledby="inventory-active"><h2 id="inventory-active">사용 중인 상품 <span>'+active.length+'</span></h2><p class="field-help">사용을 시작한 상품이에요. 테두리 착용을 해제해도 이용 기간은 계속 진행돼요.</p>'+(active.length?active.map(activeDecorationCardHTML).join(''):'<p class="decoration-empty">사용 중인 상품이 없어요.</p>')+'</section></div>'+(ended.length?'<details class="decoration-ended"><summary>만료·사용 불가 상품 '+ended.length+'</summary>'+ended.map(activeDecorationCardHTML).join('')+'</details>':'');
 }
-function fillRoomThemeChoices(form,options,selected='navy'){
+function fillRoomThemeChoices(form,options,selected=AifectPlayer.DEFAULT_ROOM_SKIN.sku){
  if(!options.themes)return;
- form.querySelector('.voice-backgrounds').innerHTML=options.themes.filter(t=>t.selectable).map(t=>`<label data-background="${esc(t.paid?'navy':t.sku)}" class="${t.assetPaths?.roomCard?'decoration-theme-choice':''} ${t.selectable?'':'is-locked'}">${t.assetPaths?.roomCard?`<img src="${esc(t.assetPaths.roomCard)}" alt="">`:''}<input type="radio" name="background" value="${esc(t.sku)}" ${t.sku===selected?'checked':''} ${t.selectable?'':'disabled'}><span>${esc(t.name)}${t.paid?'<small>'+(t.selectable?'보유 중':'잠김 · 미보유/만료')+'</small>':''}</span></label>`).join('');
- if(!options.themes.some(t=>t.sku===selected&&t.selectable))form.elements.background.value='navy';
+ form.querySelector('.voice-backgrounds').innerHTML=options.themes.filter(t=>t.selectable).map(t=>`<label data-background="${esc(t.sku)}" class="${t.assetPaths?.roomCard?'decoration-theme-choice':''} ${t.selectable?'':'is-locked'}">${t.assetPaths?.roomCard?`<img src="${esc(t.assetPaths.roomCard)}" alt="">`:''}<input type="radio" name="background" value="${esc(t.sku)}" ${t.sku===selected?'checked':''} ${t.selectable?'':'disabled'}><span>${esc(t.name)}${t.paid?'<small>'+(t.selectable?'보유 중':'잠김 · 미보유/만료')+'</small>':''}</span></label>`).join('');
+ if(!options.themes.some(t=>t.sku===selected&&t.selectable))form.elements.background.value=AifectPlayer.DEFAULT_ROOM_SKIN.sku;
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-decoration]');if(!b)return;e.preventDefault();void decorationDialog(b.dataset.decoration,b.closest('[data-decoration-card]')?.querySelector('[data-decoration-period]')?.value||'P7D');});
 

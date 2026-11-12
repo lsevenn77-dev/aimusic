@@ -9,7 +9,7 @@ test('live Site bridge creates karaoke rooms, lists only available consented ori
  const f=await liveFixture(t);
  f.addSong('no-rights',{rights_accepted:0});f.addSong('too-long',{duration:601});f.addSong('zero-length',{duration:0});f.addSong('cover',{kind:'cover',original_id:'one'});
  const r=await f.create(),state=r.state;
- assert.equal(state.room.mode,'karaoke');assert.equal(state.room.theme.sku,'navy');
+ assert.equal(state.room.mode,'karaoke');assert.equal(state.room.theme.sku,'basic_dark');
  const search=await f.search(r,state);assert.equal(search.status,200,JSON.stringify(search.body));
  assert.deepEqual(search.body.tracks.map(x=>x.id),['one']);
  assert.deepEqual((await f.search(r,state,'')).body.tracks,[]);
@@ -19,7 +19,7 @@ test('live Site bridge creates karaoke rooms, lists only available consented ori
  assert.deepEqual([selected.id,selected.title,selected.duration],['one','Live one',120]);
  const bridge=f.calls.findLast(x=>x.path.endsWith('/karaoke')).body;
  assert.equal(bridge.input.track.id,'one');assert.equal(bridge.actor.id,'owner');
- assert.equal(queued.body.room.theme.sku,'navy');
+ assert.equal(queued.body.room.theme.sku,'basic_dark');
  for(const id of ['two','three','hidden','no-rights','too-long','zero-length','cover']){
   assert.equal((await f.command(r,state,'request',{track_id:id})).status,404,id);
  }

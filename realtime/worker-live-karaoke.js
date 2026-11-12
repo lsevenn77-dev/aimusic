@@ -1,4 +1,6 @@
 import {emptyRoomMusic,changeRoomMusic} from '../shared/voice-music.js';
+import {roomSettings as sharedRoomSettings,upgradeRoomBackground} from '../shared/voice-settings.js';
+import {DEFAULT_ROOM_THEME} from '../shared/decorations.js';
 import {talkingDirectory,talkingDirectoryCard} from './talking-directory.js';
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
@@ -63,21 +65,7 @@ function audioAnswer(description, mids) {
 }
 __name(audioAnswer, "audioAnswer");
 
-// ../shared/voice-settings.js
-function roomSettings(input, actor, previous = {}) {
-  const seating_mode = input.seating_mode ?? previous.seating_mode ?? "approval";
-  if (!["approval", "free"].includes(seating_mode)) throw Error("\uC88C\uC11D \uCC38\uC5EC \uBC29\uC2DD\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.");
-  const title = String(input.title ?? previous.title ?? "").trim();
-  const visibility = input.visibility ?? previous.visibility ?? "public";
-  const max_members = Number(input.max_members ?? previous.max_members ?? 30);
-  const background = input.background ?? previous.background ?? "navy";
-  const announcement = String(input.announcement ?? previous.announcement ?? "").trim();
-  const crew_id = visibility === "crew" ? input.crew_id ?? previous.crew_id : null;
-  if (!title || title.length > 60 || !["public", "private", "crew", "followers"].includes(visibility) || !Number.isInteger(max_members) || max_members < 2 || max_members > 30 || !["navy", "sunset", "night"].includes(background) || announcement.length > 200) throw Error("\uBC29 \uC124\uC815 \uB0B4\uC6A9\uC744 \uD655\uC778\uD574\uC8FC\uC138\uC694.");
-  if (visibility === "crew" && (!crew_id || !actor.crews?.includes(crew_id))) throw Error("\uBC29\uC7A5\uC774 \uC18D\uD55C \uD06C\uB8E8\uB97C \uC120\uD0DD\uD574\uC8FC\uC138\uC694.");
-  return { seating_mode, title, visibility, max_members, background, announcement, crew_id };
-}
-__name(roomSettings, "roomSettings");
+let roomSettings = sharedRoomSettings;
 
 // sfu.js
 var Sfu = class {
@@ -165,6 +153,7 @@ var VoiceRoom = class {
     this.data.musicRequests ||= [];
     this.data.notices ||= [];
     if (this.data.config) this.data.config.seating_mode ??= "approval";
+    if (upgradeRoomBackground(this.data.config)) this.data.directoryDirty = true;
     if (!Number.isSafeInteger(this.data.chatSequence)) {
       this.data.chatSequence = 0;
       for (const message of this.data.chat) message.sequence = ++this.data.chatSequence;
@@ -335,8 +324,7 @@ var VoiceRoom = class {
     this.clearRequest(next);
     delete d.seatInvites[next.id];
     room.host_id = next.id;
-    room.background = "navy";
-    room.theme_sku = "navy";
+    room.background = room.theme_sku = DEFAULT_ROOM_THEME;
     room.settings_revision = (room.settings_revision || 0) + 1;
     d.hostReconnectUntil = 0;
     delete d.hostReconnectGeneration;
@@ -455,7 +443,7 @@ var VoiceRoom = class {
       } catch (e) {
         fault(400, e.message);
       }
-      const config = { ...settings, id: identifier(roomId), host_id: actor.id, ...b.theme_sku ? { theme_sku: b.theme_sku } : {}, created: Date.now(), closed: false, mic_seats: 8 };
+      const config = { ...settings, id: identifier(roomId), host_id: actor.id, created: Date.now(), closed: false, mic_seats: 8 };
       await this.env.ROOM_DB.prepare("INSERT INTO voice_rooms(id,title,host_id,visibility,crew_id,created,max_members,background,announcement) VALUES(?,?,?,?,?,?,?,?,?)").bind(config.id, config.title, actor.id, config.visibility, config.crew_id, config.created, config.max_members, config.background, config.announcement).run();
       d.config = config;
       await this.command("join", actor, { request_id: crypto.randomUUID() }, roomId);
@@ -548,7 +536,7 @@ var VoiceRoom = class {
       if (settings.visibility !== d.config.visibility) for (const member of Object.values(d.members)) member.visibilityRetained = true;
       if (settings.seating_mode === "free" && d.config.seating_mode !== "free") for (const member of Object.values(d.members)) this.clearRequest(member);
       if (settings.mode !== (d.config.mode || "talk")) resetLiveRoomMode(this, settings.mode, p);
-      Object.assign(d.config, settings, b.theme_sku ? { theme_sku: b.theme_sku } : {}, { settings_revision: (d.config.settings_revision || 0) + 1 });
+      Object.assign(d.config, settings, { settings_revision: (d.config.settings_revision || 0) + 1 });
       this.notice(p, "\uBC29 \uC124\uC815\uC774 \uBCC0\uACBD\uB410\uC5B4\uC694.");
       await this.audit(actor, "settings");
     } else if (action === "seat-invite") {

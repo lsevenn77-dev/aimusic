@@ -533,7 +533,7 @@ test('seat invitation acceptance is atomic, expires, remains muted and removal k
 
 test('room settings persist and follower eligibility is verified again without invite bypass',async t=>{
  const h=harness(t);await h.create();await h.join(actor('guest'));
- const config={title:'New title',visibility:'followers',background:'night',announcement:'Welcome',max_members:2};
+ const config={title:'New title',visibility:'followers',background:'basic_light',announcement:'Welcome',max_members:2};
  assert.equal((await h.call('settings',actor('host'),config)).status,200);
  const persisted=h.sql.prepare('SELECT * FROM voice_rooms').get();assert.equal(persisted.announcement,'Welcome');assert.equal(persisted.visibility,'followers');
  assert.equal((await h.call('heartbeat',actor('guest'))).status,200,'visibility edits retain existing listeners');
@@ -565,7 +565,7 @@ test('oldest current listener succeeds immediately, retaining music, history and
  assert.equal((await h.call('leave',first,{generation:firstJoin.body.generation})).status,409);
  await h.call('request-mic',last,{seat:4});
  await h.call('approve-mic',actor('host'),{target_id:last.id});
- await h.call('settings',actor('host'),{background:'night',announcement:'Keep this notice'});
+ await h.call('settings',actor('host'),{background:'basic_light',announcement:'Keep this notice'});
  await h.call('music',actor('host'),{operation:'enqueue',track:{id:'song',title:'Song',artist:'Artist',duration:120,cover:'/cover'},request_id:crypto.randomUUID()});
  await h.call('music',actor('host'),{operation:'play',request_id:crypto.randomUUID()});
  await h.call('chat',last,{body:'keep this chat',request_id:crypto.randomUUID()});
@@ -576,7 +576,7 @@ test('oldest current listener succeeds immediately, retaining music, history and
  assert.equal((await h.call('leave')).status,200);
  assert.equal(frames.length,1);const snapshot=frames[0].state;
  assert.deepEqual(snapshot.music,music);assert.deepEqual(snapshot.chat,before.body.chat);
- assert.equal(snapshot.room.host_id,first.id);assert.equal(snapshot.room.background,'navy');assert.equal(snapshot.room.theme_sku,'navy');
+ assert.equal(snapshot.room.host_id,first.id);assert.equal(snapshot.room.background,'basic_dark');assert.equal(snapshot.room.theme_sku,'basic_dark');
  assert.equal(snapshot.room.announcement,'Keep this notice');assert.equal(snapshot.members.length,2);
  assert.equal(snapshot.members.find(m=>m.id===last.id).seat,4);
  assert.equal(snapshot.members.find(m=>m.id===first.id).seat,0);

@@ -40,7 +40,7 @@ test('room title suggestions match each mode and exclude the current title',asyn
   }
  }
  assert.ok(Array.isArray(initial.body.crews));
- assert.deepEqual(initial.body.themes.map(theme=>theme.sku),['basic_dark','basic_light','navy','sunset','night']);
+ assert.deepEqual(initial.body.themes.map(theme=>theme.sku),['basic_dark','basic_light']);
 });
 
 test('karaoke creation can fill an empty title and preserves it on retry',async t=>{

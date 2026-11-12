@@ -426,7 +426,7 @@ Object.assign(VoiceRoomClient.prototype,{
   try{
    const options=await voiceRequest('options?mode='+(this.liveMode?'karaoke':'talk'));
    if(this.closed||!sheet.open||ticket!==this.settingsTicket)return;
-   fillRoomThemeChoices(form,options,room.theme?.sku||room.theme_sku||room.background||'navy');
+   fillRoomThemeChoices(form,options,room.theme?.sku||room.theme_sku||room.background);
    form.elements.crew_id.value=room.crew_id||(options.crews.length===1?options.crews[0].id:'');
    const crew=form.querySelector('.voice-crew-setting');crew.textContent=options.crews.length===1?options.crews[0].name:'소속 크루가 있어야 선택할 수 있어요.';crew.hidden=form.elements.visibility.value!=='crew';
    form.querySelector('[name=visibility][value=crew]').disabled=options.crews.length!==1;

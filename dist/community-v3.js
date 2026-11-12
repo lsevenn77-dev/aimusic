@@ -16,7 +16,7 @@ function talkingRoomCard(room){
  return `<a class="v3-room-card" data-talk-id="${esc(room.id)}" data-room-mode="${mode}" href="#${mode==='karaoke'?'live':'voice'}/${esc(room.id)}">
   <div class="live-card-head"><span class="talk-host">${avatarImage(room.host_profile||{name:host},'producer',false,false)}<span title="${esc(host)}">${userNickname(host,{profileId:room.host_profile?.profile_id||room.host_profile?.id,userId:room.host_profile?.user_id||room.host_id})}</span></span>
    ${Number.isInteger(room.member_count)&&Number.isInteger(room.max_members)?`<span class="v3-room-count" aria-label="${restricted?'입장 제한, ':''}참여 ${room.member_count}명, 정원 ${room.max_members}명">${icon(restricted?'lock':'users')}${room.member_count}/${room.max_members}</span>`:''}
-  </div><div class="v3-room-art" data-theme="${esc(room.theme?.sku||room.background||'navy')}">${art}
+  </div><div class="v3-room-art" data-theme="${esc(room.theme?.sku||room.background||AifectPlayer.DEFAULT_ROOM_SKIN.sku)}">${art}
    ${profiles.length?`<span class="talk-follows" role="group" aria-label="팔로우한 참여자">${profiles.map(p=>avatarImage(p,'producer',false,false)).join('')}</span>`:''}
   </div><div class="v3-room-copy"><h3 title="${esc(room.title)}">${esc(room.title)}</h3><span role="img" aria-label="${liveRoomLabels[mode]}">${liveTypeIcon(mode)}</span></div></a>`;
 }
@@ -163,8 +163,9 @@ function bindTalkingDirectory(root){
    if(!room.themeUntil)continue;
    if(room.themeUntil<=Date.now()){
     const card=grid.querySelector('[data-talk-id="'+CSS.escape(room.id)+'"]');
-    card?.querySelector('.talk-cover')?.remove();if(card)cardMarkup.delete(card);
-    room.themeUntil=0;room.theme={sku:'navy'};room.background='navy';
+    const fallback=AifectPlayer.DEFAULT_ROOM_SKIN;
+    room.themeUntil=0;room.theme={sku:fallback.sku,assets:fallback.assetPaths};room.background=fallback.sku;
+    if(card)roomCard(room,card);
    }else next=Math.min(next,room.themeUntil);
   }
   if(Number.isFinite(next))expiry=setTimeout(expireCovers,Math.min(next-Date.now()+50,2147483647));
@@ -341,7 +342,7 @@ function bindVoiceLobby(){
    form.reset();generate.disabled=false;error.textContent='';
    fields.mode.value=root.dataset.filter==='all'?root.dataset.defaultMode:root.dataset.filter;
    fields.visibility.value='public';fields.max_members.value='30';
-   fillRoomThemeChoices(form,options,'navy');fields.background.value='navy';
+   fillRoomThemeChoices(form,options);
    const crews=options.crews||[];currentCrew=crews.length===1?crews[0]:null;
    crewIssue=crews.length?'크루 소속 정보를 확인해주세요. 새로고침 후 다시 시도할 수 있어요.':'소속 크루가 있어야 크루 방을 만들 수 있어요.';
    crewChoice.disabled=!currentCrew;crewChoice.closest('label').title=currentCrew?'':crewIssue;

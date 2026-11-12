@@ -1,5 +1,5 @@
 import {one,rows,run,now,fail} from './db.js';
-import {DECORATIONS,FREE_ROOM_THEMES,DEFAULT_ROOM_THEME,roomUIMode} from '../shared/decorations.js';
+import {DECORATIONS,FREE_ROOM_THEMES,DEFAULT_ROOM_SKIN,DEFAULT_ROOM_THEME,isRetiredRoomTheme,roomThemeProduct,roomUIMode} from '../shared/decorations.js';
 import {activeDecorationSQL} from './decorations.js';
 import {playerColumnsSQL} from './player.js';
 export async function roomThemeChoices(env,uid){
@@ -10,8 +10,9 @@ export async function roomThemeChoices(env,uid){
  return [...paid,...FREE_ROOM_THEMES.map(p=>({...p,uiMode:roomUIMode(p),selectable:true,paid:false}))];
 }
 export async function assertRoomTheme(env,uid,sku){
- if(FREE_ROOM_THEMES.some(t=>t.sku===sku))return sku;
- if(!Object.hasOwn(DECORATIONS,sku)||DECORATIONS[sku].kind!=='TALKING_ROOM_THEME')fail(400,'테마를 확인해주세요.');
+ const product=roomThemeProduct(sku);
+ if(!product)fail(400,'테마를 확인해주세요.');
+ if(!product.kind)return sku;
  if(!await one(env,`SELECT id FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')}`,uid,sku))fail(403,'보유 중인 유효한 테마만 선택할 수 있어요.');
  return sku;
 }
@@ -21,23 +22,28 @@ export async function saveRoomTheme(env,actor,room,sku,{creating=false}={}){
  // A late response from an earlier settings revision cannot overwrite a later save.
  await run(env,`INSERT INTO room_decorations(room_id,host_id,sku,revision,updated) VALUES(?,?,?,?,?) ON CONFLICT(room_id) ${creating?'DO NOTHING':'DO UPDATE SET host_id=excluded.host_id,sku=excluded.sku,revision=excluded.revision,updated=excluded.updated WHERE room_decorations.revision<excluded.revision'}`,room.id,actor.id,sku,room.settings_revision||0,now());
 }
+function themeResponse(product,expires_at=0,server_now=now()){
+ return {sku:product.sku,uiMode:roomUIMode(product),assets:product.assetPaths,expires_at,server_now};
+}
 export async function resolveRoomDecoration(env,room){
  const setting=await one(env,'SELECT * FROM room_decorations WHERE room_id=? AND host_id=?',room.id,room.host_id);
  // A matching row may hold the persisted fallback for an expired purchase.
  const current=setting&&(!room.theme_sku||setting.revision===(room.settings_revision||0));
  const sku=(current&&setting.sku)||room.theme_sku||room.background||DEFAULT_ROOM_THEME;
- const free=FREE_ROOM_THEMES.find(t=>t.sku===sku);
- if(free)return {sku,uiMode:roomUIMode(free),assets:free.assetPaths||null,expires_at:0,server_now:now()};
- const product=Object.hasOwn(DECORATIONS,sku)?DECORATIONS[sku]:null;
- const entitlement=product?.kind==='TALKING_ROOM_THEME'?await one(env,`SELECT expires_at FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')}`,room.host_id,sku):null;
- if(entitlement)return {sku,uiMode:roomUIMode(product),assets:product.assetPaths,expires_at:entitlement.expires_at,server_now:now()};
+ const product=roomThemeProduct(sku);
+ if(product&&!product.kind)return themeResponse(product);
+ const entitlement=product?await one(env,`SELECT expires_at FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')}`,room.host_id,sku):null;
+ if(entitlement)return themeResponse(product,entitlement.expires_at);
  // Persist fallback, so a later renewal does not silently re-equip an expired theme.
  if(current)await run(env,`UPDATE room_decorations SET sku=?,updated=? WHERE room_id=? AND host_id=? AND revision=? AND sku=? AND NOT EXISTS(SELECT 1 FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')})`,DEFAULT_ROOM_THEME,now(),room.id,room.host_id,setting.revision,sku,room.host_id,sku);
- return {sku:DEFAULT_ROOM_THEME,uiMode:'dark',assets:null,expires_at:0,server_now:now()};
+ return themeResponse(DEFAULT_ROOM_SKIN);
+}
+export function withRoomTheme(room,theme){
+ return {...room,background:theme.sku,theme_sku:theme.sku,theme};
 }
 export async function decorateRoomResult(env,data){
- if(data.room)data={...data,room:{...data.room,theme:await resolveRoomDecoration(env,data.room)}};
- if(data.rooms)data={...data,rooms:await Promise.all(data.rooms.map(async r=>({...r,theme:await resolveRoomDecoration(env,r)})))};
+ if(data.room)data={...data,room:withRoomTheme(data.room,await resolveRoomDecoration(env,data.room))};
+ if(data.rooms)data={...data,rooms:await Promise.all(data.rooms.map(async r=>withRoomTheme(r,await resolveRoomDecoration(env,r))))};
  if(Array.isArray(data.members)&&data.members.length){
   const ids=[...new Set(data.members.map(m=>m.id))];
   // One bounded lookup validates every member's current equipment, including
@@ -64,12 +70,10 @@ export async function directoryRoomThemes(env,rooms){
   AND pi.item_key=themes.sku AND ${activeDecorationSQL('pi')}) expires_at FROM themes`,JSON.stringify(scope));
  const themes=new Map(),expired=[],server_now=now();
  for(const {id,host_id,revision,sku,expires_at} of settings){
-  const paid=Object.hasOwn(DECORATIONS,sku)&&DECORATIONS[sku].kind==='TALKING_ROOM_THEME';
+  const product=roomThemeProduct(sku),paid=product?.kind==='TALKING_ROOM_THEME';
   const active=paid&&expires_at>server_now;
-  const product=active?DECORATIONS[sku]:FREE_ROOM_THEMES.find(theme=>theme.sku===sku);
-  themes.set(id,{sku:product?.sku||DEFAULT_ROOM_THEME,uiMode:roomUIMode(product),
-   assets:product?.assetPaths||null,expires_at:active?expires_at:0,server_now});
-  if(paid&&revision!=null&&!active)expired.push([id,host_id,revision,sku]);
+  themes.set(id,themeResponse(product&&(!paid||active)?product:DEFAULT_ROOM_SKIN,active?expires_at:0,server_now));
+  if(revision!=null&&!active&&(paid||isRetiredRoomTheme(sku)))expired.push([id,host_id,revision,sku]);
  }
  // Match the current host and settings revision, including concurrent handoffs.
  if(expired.length)await run(env,`UPDATE room_decorations SET sku=?,updated=? WHERE (room_id,host_id,revision,sku) IN
