@@ -54,13 +54,20 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
  var open by remember(song.id){mutableStateOf(false)}
  Box{
   IconButton(onClick={open=true},modifier=modifier){Icon(Icons.Rounded.Menu,"${song.title} 더보기",modifier=Modifier.size(18.dp),tint=Muted)}
-  AppMenuPage(title=song.title,expanded=open,onDismissRequest={open=false}){
-   PageMenuItem(text={Text("플레이리스트 담기")},onClick={open=false;m.pickPlaylist(song)})
-   PageMenuItem(text={Text("선물하기")},onClick={open=false;m.openGifts(song)})
-   if(m.ownsTrack(song))PageMenuItem(text={Text("삭제")},onClick={open=false;m.requestTrackDelete(song)})
-   PageMenuItem(text={Text("댓글 보기")},onClick={open=false;m.openSong(song)})
-   if(includeRelated&&song.cover)PageMenuItem(text={Text("원곡 듣기")},onClick={open=false;m.openOriginal(song)})
-   else if(includeRelated&&song.raw.optInt("accepts_covers")==1)PageMenuItem(text={Text("다른 목소리")},onClick={open=false;m.openCovers(song)})
+  DropdownMenu(
+   expanded=open,
+   onDismissRequest={open=false},
+   modifier=Modifier.widthIn(min=154.dp,max=224.dp),
+   shape=RoundedCornerShape(12.dp),
+   containerColor=Panel,
+   border=BorderStroke(1.dp,Stroke)
+  ){
+   DropdownMenuItem(text={Text("플레이리스트 담기")},onClick={open=false;m.pickPlaylist(song)})
+   DropdownMenuItem(text={Text("선물하기")},onClick={open=false;m.openGifts(song)})
+   if(m.ownsTrack(song))DropdownMenuItem(text={Text("삭제")},onClick={open=false;m.requestTrackDelete(song)})
+   DropdownMenuItem(text={Text("댓글 보기")},onClick={open=false;m.openSong(song)})
+   if(includeRelated&&song.cover)DropdownMenuItem(text={Text("원곡 듣기")},onClick={open=false;m.openOriginal(song)})
+   else if(includeRelated&&song.raw.optInt("accepts_covers")==1)DropdownMenuItem(text={Text("다른 목소리")},onClick={open=false;m.openCovers(song)})
   }
  }
 }

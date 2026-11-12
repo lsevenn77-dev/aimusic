@@ -113,6 +113,7 @@ import kotlinx.coroutines.CancellationException
    Column(Modifier.weight(1f).padding(start=10.dp,end=4.dp)){
     Text(song.title,fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
     Text(song.credit,fontSize=12.sp,lineHeight=16.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
+    if(movement) CompactSongStats(song,m)
    }
    IconButton(onClick={m.like(song)},modifier=Modifier.size(44.dp)){
     Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"${song.title} 좋아요",Modifier.size(19.dp),tint=if(m.likes.any{it.id==song.id})Pink else Muted)

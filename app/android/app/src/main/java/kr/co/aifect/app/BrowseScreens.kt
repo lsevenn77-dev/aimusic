@@ -113,7 +113,11 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
  Column(Modifier.fillMaxSize().padding(horizontal=14.dp)) {
   HomePromotionCarousel(m, onBackdrop)
   Spacer(Modifier.height(6.dp))
-  HomeSectionTabs(sections, current, ::go)
+  val tabSections = sections.filterNot { it == HomeSection.Sing }
+  val selectedSection = sections.take(current + 1).last { it != HomeSection.Sing }
+  HomeSectionTabs(tabSections, tabSections.indexOf(selectedSection)) { tab ->
+   go(sections.indexOf(tabSections[tab]))
+  }
   BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
    val bodyHeight = maxHeight
    LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"), state=list) {
@@ -278,26 +282,29 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
  val textStyle=LocalTextStyle.current
  val copyPixels=listOf(15 to 20,12 to 17,10 to 14).sumOf{(font,line)->measurer.measure("가",style=textStyle.copy(fontSize=font.sp,lineHeight=line.sp),maxLines=1).size.height}
  val artSize=with(LocalDensity.current){copyPixels.toDp()+6.dp}.coerceAtLeast(62.dp)
- Column(Modifier.fillMaxWidth().padding(vertical=3.dp).clip(RoundedCornerShape(15.dp)).background(Panel.copy(alpha=.72f)).border(1.dp,Stroke,RoundedCornerShape(15.dp)).padding(horizontal=9.dp).testTag("stream-song-${song.id}")){
+ Column(Modifier.fillMaxWidth().testTag("stream-song-${song.id}")){
   Row(Modifier.fillMaxWidth().padding(vertical=7.dp),verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(artSize).testTag("home-song-art-${song.id}").clickable{m.play(song,queue)}.semantics{contentDescription="${song.title} 앨범 표지 재생"},corner=10.dp)
    Column(Modifier.weight(1f).padding(start=12.dp,end=2.dp).clickable{m.openSong(song)}.testTag("home-song-copy-${song.id}")){
     Text(song.title,fontSize=15.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
     Column(Modifier.padding(top=3.dp).testTag("home-song-meta-${song.id}")){
      Text(song.credit,fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("home-song-artist-${song.id}"))
-     Row(Modifier.padding(top=3.dp).testTag("home-song-stats-${song.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
-      listOf(Triple(Icons.Rounded.PlayArrow,"재생",song.plays),Triple(Icons.Rounded.FavoriteBorder,"좋아요",song.likes),Triple(Icons.Rounded.ChatBubbleOutline,"댓글",verifiedSongCommentCount(song,m))).forEach{(icon,label,count)->
-       Row(Modifier.clearAndSetSemantics{contentDescription="$label $count"},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
-        Icon(icon,null,tint=SoftText,modifier=Modifier.size(11.dp));Text(homeCount(count),fontSize=10.sp,lineHeight=14.sp,color=SoftText,maxLines=1)
-       }
-      }
-     }
+     CompactSongStats(song,m)
     }
    }
    HomePlaybackButton(song,m,queue)
    TrackActionsMenu(song,m,Modifier.width(44.dp).height(48.dp))
   }
   HorizontalDivider(color=Stroke)
+ }
+}
+@Composable internal fun CompactSongStats(song:Song,m:MusicModel){
+ Row(Modifier.padding(top=3.dp).testTag("home-song-stats-${song.id}"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
+  listOf(Triple(Icons.Rounded.PlayArrow,"재생",song.plays),Triple(Icons.Rounded.FavoriteBorder,"좋아요",song.likes),Triple(Icons.Rounded.ChatBubbleOutline,"댓글",verifiedSongCommentCount(song,m))).forEach{(icon,label,count)->
+   Row(Modifier.clearAndSetSemantics{contentDescription="$label $count"},verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+    Icon(icon,null,tint=SoftText,modifier=Modifier.size(11.dp));Text(homeCount(count),fontSize=10.sp,lineHeight=14.sp,color=SoftText,maxLines=1)
+   }
+  }
  }
 }
 @Composable private fun HomePlaybackButton(song:Song,m:MusicModel,queue:List<Song>){
@@ -317,6 +324,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
     Column(Modifier.weight(1f).padding(start=10.dp,end=4.dp)){
      Text(song.title,fontSize=15.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
      Text(song.credit,fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
+     CompactSongStats(song,m)
     }
    }
    HomePlaybackButton(song,m,queue)
