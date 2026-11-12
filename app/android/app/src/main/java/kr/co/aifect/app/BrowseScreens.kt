@@ -384,7 +384,7 @@ private fun HomePromotion.imageUrl():String {
  HorizontalPager(state=pager,pageSpacing=12.dp,modifier=Modifier.fillMaxWidth().padding(bottom=5.dp)
   .testTag("home-carousel").semantics{stateDescription="${current+1} / ${promotions.size}"}) { page ->
   val promotion=promotions[page % promotions.size]
-  Box(Modifier.fillMaxWidth().heightIn(min=142.dp).aspectRatio(2.45f).clip(RoundedCornerShape(18.dp)).background(Panel)
+  Box(Modifier.fillMaxWidth().heightIn(min=142.dp).aspectRatio(2.45f).clip(RoundedCornerShape(6.dp)).background(Panel)
    .clickable {
     when(promotion.id) {
      "studio" -> m.openStudio()

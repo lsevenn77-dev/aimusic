@@ -113,7 +113,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   }){padding->
    AppPageHost(pageStack,Modifier.padding(padding).consumeWindowInsets(padding)){
    Box(Modifier.fillMaxSize().referenceBackdrop())
-   if(m.tab==0&&m.listenPage=="추천")Crossfade(homeBackdrop,animationSpec=tween(500),label="home backdrop",modifier=Modifier.fillMaxWidth().height(450.dp).testTag("home-art-ambience")){art->
+   if(m.tab==0&&m.listenPage=="추천")Crossfade(homeBackdrop,animationSpec=tween(500),label="home backdrop",modifier=Modifier.fillMaxSize().testTag("home-art-ambience")){art->
     Box(Modifier.fillMaxSize()){
      art?.let{AsyncImage(it,null,Modifier.matchParentSize().blur(36.dp).alpha(.5f),contentScale=ContentScale.Crop)}
      Box(Modifier.matchParentSize().background(Brush.verticalGradient(0f to Ink.copy(alpha=.35f),.5f to Ink.copy(alpha=.6f),1f to Ink)))
