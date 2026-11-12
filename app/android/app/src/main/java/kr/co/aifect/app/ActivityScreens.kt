@@ -48,7 +48,7 @@ internal fun activityDate(seconds:Long):String=SimpleDateFormat("yyyy.MM.dd HH:m
  AppPage(title="알림",onDismissRequest={m.showNotifications=false},containerColor=Ink){ActivityFeed(m)}
 }
 
-@Composable internal fun ActivityFeed(m:MusicModel,embedded:Boolean=false,query:String="",hasConversations:Boolean=false,conversations:androidx.compose.foundation.lazy.LazyListScope.()->Unit={}){
+@Composable internal fun ActivityFeed(m:MusicModel,embedded:Boolean=false,query:String=""){
  val account=m.user?.optString("id")
  val scope=rememberCoroutineScope()
  var filter by remember(account){mutableStateOf("all")}
@@ -77,7 +77,6 @@ internal fun activityDate(seconds:Long):String=SimpleDateFormat("yyyy.MM.dd HH:m
    (when(n.optString("kind")){"gift","person_gift"->"받은 선물";"duet"->"듀엣 참여";else->"커버 참여"}).contains(query,true)
  }
   LazyColumn(Modifier.fillMaxWidth().fillMaxHeight().testTag("activity-list"),contentPadding=PaddingValues(18.dp,0.dp,18.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   conversations()
    if(embedded&&(working||error!=null))item{if(working)LinearProgressIndicator(Modifier.fillMaxWidth());error?.let{Text(it,color=Pink);TextButton(onClick={revision++}){Text("다시 불러오기")}}}
    if(!embedded)item{Text("알림 기록",fontSize=25.sp);Text("한국 시간 · 날짜와 함께 모아보는 참여와 선물",fontSize=12.sp,color=Muted)
     Chips(listOf("전체","커버 · 듀엣","받은 선물"),when(filter){"gifts"->"받은 선물";"participation"->"커버 · 듀엣";else->"전체"}){filter=when(it){"받은 선물"->"gifts";"커버 · 듀엣"->"participation";else->"all"}}
@@ -101,7 +100,7 @@ internal fun activityDate(seconds:Long):String=SimpleDateFormat("yyyy.MM.dd HH:m
      }
     }
    }
-   if(visible.isEmpty()&&!hasConversations&&!working&&error==null)item{Empty(if(query.isBlank())"아직 도착한 알림이 없어요" else "검색 결과가 없어요",if(query.isBlank())"내 곡에 참여하거나 선물을 보내면 이곳에 표시돼요." else "다른 이름이나 내용으로 검색해보세요.",Icons.Rounded.NotificationsNone)}
+   if(visible.isEmpty()&&!working&&error==null)item{Empty(if(query.isBlank())"아직 도착한 알림이 없어요" else "검색 결과가 없어요",if(query.isBlank())"내 곡에 참여하거나 선물을 보내면 이곳에 표시돼요." else "다른 이름이나 내용으로 검색해보세요.",Icons.Rounded.NotificationsNone)}
    if(next!=null)item{OutlinedButton(onClick={scope.launch{load(true)}},enabled=!working,modifier=Modifier.fillMaxWidth()){Text("이전 알림 더 보기")}}
   }
 }

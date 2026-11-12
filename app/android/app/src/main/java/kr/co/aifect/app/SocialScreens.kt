@@ -365,7 +365,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   val pid=peerId
   if(!current(pid))return
   if(pid==null){
-   val inbox=m.api.call("/api/dm");val result=inbox.optJSONArray("conversations").objects();if(!current(pid))return
+   val inbox=m.api.call("/api/dm",fresh=true);val result=inbox.optJSONArray("conversations").objects();if(!current(pid))return
    m.inboxCrew=inbox.optJSONObject("crew");m.unreadMessages=inbox.optInt("unread")
    conversations=result;synced=true;NativeChatCache.saveConversations(context,accountId,result);return
   }
@@ -454,7 +454,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    error?.let{Text(it,color=Pink,modifier=Modifier.padding(horizontal=18.dp))}
    if(m.messagePeer==null){
     inboxState.SaveableStateProvider("inbox:$accountId"){
-     MessageInbox(m,conversations,synced,Modifier.fillMaxWidth().weight(1f),readAll={sheetScope.launch{try{m.api.call("/api/dm/read-all","POST");load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},clear={conversations=emptyList();sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},openProfile=::openMessageProfile)
+     MessageInbox(m,conversations,synced,Modifier.fillMaxWidth().weight(1f),readAll={sheetScope.launch{try{m.api.call("/api/dm/read-all","POST");load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},clear={conversations=emptyList();sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},refreshInbox={load()},openProfile=::openMessageProfile)
     }
    }else{
     ChatHistory(m,messages,earlier,historyLoading,{if(!historyLoading){historyLoading=true;sheetScope.launch{try{load(older=true)}catch(e:Exception){if(e is CancellationException)throw e;if(current(peerId))error=e.message}finally{historyLoading=false}}}},m.user?.optString("id"),false,peer=peer?.optString("name")?:"",retry={send(it)},modifier=Modifier.weight(1f).padding(horizontal=8.dp),fill=true,peerPerson=peer,openPeer={peer?.let{openMessageProfile(it)}})

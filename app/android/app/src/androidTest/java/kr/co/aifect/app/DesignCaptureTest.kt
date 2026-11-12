@@ -215,7 +215,7 @@ class DesignCaptureTest {
   act{it.selectTab(2)};ready("current-play");capture("reference-play")
   act{it.selectTab(3)};ready("community-main");capture("reference-community")
   act{it.selectTab(5)};ready("inbox-filter-전체");capture("reference-messages")
-  ui.onNodeWithTag("inbox-filter-안 읽음").performClick();ui.onNodeWithTag("inbox-filter-안 읽음").assertIsSelected()
+  ui.onNodeWithTag("inbox-filter-공지").performClick();ui.onNodeWithTag("inbox-filter-공지").assertIsSelected()
   act{it.selectTab(6)};ready("current-my")
   ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-library"))
   capture("reference-my-works")
@@ -835,6 +835,24 @@ class DesignCaptureTest {
    instrumentation.runOnMainSync{room.finish()}
   }finally{instrumentation.removeMonitor(monitor)}
  }
+ @Test fun welcomeIsANoticeFromBothInboxTabs(){
+  val endpoint="/api/notices/welcome"
+  val inbox=responses.getValue("/api/dm").getJSONArray("conversations")
+  inbox.put(payload("id" to "design-guide","name" to "아이팩트 안내","is_notice" to true,"read_only" to true,"notice_type" to "welcome","last_message" to "가입을 환영해요","unread" to 1))
+  responses[endpoint]=payload("campaign_id" to "welcome-1","created" to now,"read_at" to 0,"guide" to payload("greeting" to "가입을 환영해요","intro" to JSONArray(listOf("아이팩트를 소개할게요.")),"sections" to arr(payload("title" to "노래방","body" to "함께 노래를 불러보세요.")),"closing" to JSONArray(listOf("반가워요!"))))
+  act{it.selectTab(5)}
+  ready("dm-conversation-design-guide");ui.onNodeWithTag("dm-conversation-design-guide").performClick()
+  ready("welcome-notice-banner");text("함께 노래를 불러보세요.");ui.onNodeWithTag("dm-composer").assertDoesNotExist()
+  ui.waitUntil(15000){requestBodies.containsKey(endpoint)}
+  assertEquals("welcome-1",JSONObject(requestBodies.getValue(endpoint)).getString("campaign_id"))
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("inbox-filter-공지").performClick()
+  ui.onNodeWithTag("dm-conversation-design-peer").assertDoesNotExist()
+  ui.onNodeWithTag("dm-list-profile-design-guide").assertDoesNotExist()
+  ui.onNodeWithTag("dm-conversation-design-guide").performClick();ready("welcome-notice-banner")
+  assertFalse(requestUrls.contains("/api/dm/design-guide"))
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("inbox-filter-알림").performClick();ready("activity-list")
+  ui.onNodeWithTag("dm-conversation-design-guide").assertDoesNotExist()
+ }
  @Test fun inboxBadgeCombinesMessagesAndActivities(){
   val summary="/api/dm/summary"
   val activity="/api/notifications/summary"
@@ -858,11 +876,11 @@ class DesignCaptureTest {
   responses.getValue("/api/dm").put("crew",JSONObject(crew.toString()).put("unread",2)).put("unread",3)
   act{it.play(Song(song),listOf(Song(song)));it.selectTab(5)}
   ready("dm-conversation-design-peer");ready("inbox-crew");phaseCapture("34-message-inbox")
-  ui.onNodeWithTag("inbox-filter-안 읽음").performClick();ui.onNodeWithTag("dm-conversation-design-friend").assertDoesNotExist()
+  ui.onNodeWithTag("dm-conversation-design-friend").assertExists()
   ui.onNodeWithTag("inbox-search-toggle").performClick();ui.onNodeWithTag("inbox-search").performTextInput("하루");Espresso.closeSoftKeyboard()
   ui.onNodeWithTag("inbox-crew").assertDoesNotExist();ui.onNodeWithTag("dm-conversation-design-peer").performClick();ready("dm-composer")
   ui.onNodeWithTag("dm-input").performTextInput("보관할 초안");Espresso.closeSoftKeyboard();ui.onNodeWithTag("dm-back").performClick()
-  ready("inbox-search");ui.onNodeWithTag("inbox-search").assertTextContains("하루");ui.onNodeWithTag("inbox-filter-안 읽음").assertIsSelected()
+  ready("inbox-search");ui.onNodeWithTag("inbox-search").assertTextContains("하루");ui.onNodeWithTag("inbox-filter-전체").assertIsSelected()
   ui.onNodeWithTag("inbox-search-toggle").performClick();ui.onNodeWithTag("inbox-filter-전체").performClick();ready("inbox-crew");ui.onNodeWithTag("inbox-filter-크루").assertDoesNotExist()
   ui.onNodeWithTag("inbox-crew").performClick();ready("crew-chat-input");Espresso.pressBack();ready("inbox-filter-전체");ui.onNodeWithTag("inbox-filter-전체").assertIsSelected()
   ui.onNodeWithTag("inbox-filter-알림").performClick();ready("activity-list");text("손편지 5개를 보냈어요.");ui.onNodeWithTag("inbox-crew").assertDoesNotExist()
