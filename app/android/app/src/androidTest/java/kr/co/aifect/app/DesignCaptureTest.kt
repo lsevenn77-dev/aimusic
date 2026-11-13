@@ -45,6 +45,35 @@ class DesignCaptureTest {
   ui.onNodeWithTag("mini-player").assertDoesNotExist()
  }
 
+ @Test fun dubbingPostersAndCompletedEditions(){
+  val nativeWidth=instrumentation.targetContext.resources.configuration.screenWidthDp
+  val cases=listOf(1,2,4,7)
+  for(count in cases){
+   val projects=(1..count).map{i->payload("id" to "poster-$i","title" to "아주 긴 작품 제목이 여러 줄에 걸쳐 보이는 경우 $i","genres" to arr(),"ownerName" to "창작자","roleCount" to 2,"duration" to 270,"beginnerRecommended" to (i==1),"activeCount" to (10-i),"weeklyActiveCount" to (10-i))}
+   responses["/api/dubbing/projects?tab=open&discovery=1&offset=0"]=payload("projects" to arr(*projects.toTypedArray()))
+   act{it.selectTab(2);it.playMode="dubbing"}
+   ready("dub-cover-poster-1")
+   val shown=count.coerceAtMost(6)
+   val grid=(1..shown).map{i->ui.onNodeWithTag("dub-cover-poster-$i").fetchSemanticsNode().boundsInRoot}
+   val first=grid.first()
+   for((index,box) in grid.withIndex()){
+    assertEquals(first.width,box.width,2f);assertEquals(first.height,box.height,2f)
+    assertEquals(0.75f,box.width/box.height,.02f)
+    if(index in 1..2)assertEquals(first.top,box.top,2f)
+    if(index>=3)assertTrue(box.top>first.bottom)
+   }
+   ui.onNodeWithTag("dub-cover-poster-"+(shown+1)).assertDoesNotExist()
+   ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dub-starter-poster-1"))
+   if(count==4)capture("dub-starter-$nativeWidth")
+   act{it.playMode="song"}
+   ready("play-main-song")
+  }
+  val editions=(1..2).map{i->payload("id" to "edition-$i","rootId" to "original","state" to "complete","roleCount" to 2,"title" to "같은 대본","ownerName" to "성우 $i","plays" to i)}
+  responses["/api/dubbing/projects?tab=popular&discovery=1&offset=0"]=payload("projects" to arr(*editions.toTypedArray()))
+  act{it.playMode="dubbing"}
+  ui.onNodeWithTag("dub-mode-done").performClick();ready("dub-cover-edition-1")
+  ui.onNodeWithTag("dub-cover-edition-1").performClick();text("완성 더빙 2개");text("성우 1");text("성우 2");text("재생 2회")
+ }
  @Test fun duetGridAndDubbingDiscoveryUseDistinctLayouts(){
   val duets=(1..3).map{JSONObject(duet.toString()).put("id","grid-duet-$it").put("title","함께 부를 곡 $it")}
   responses["/api/duets"]=payload("tracks" to arr(*duets.toTypedArray()))
@@ -58,7 +87,7 @@ class DesignCaptureTest {
    val id=p.getString("id")
    responses["/api/dubbing/projects/$id"]=payload("project" to JSONObject(p.toString()).put("versions",arr(p)))
   }
-  responses["/api/dubbing/projects?tab=popular&offset=0"]=payload("projects" to arr(),"nextOffset" to JSONObject.NULL)
+  responses["/api/dubbing/projects?tab=popular&discovery=1&offset=0"]=payload("projects" to arr(),"nextOffset" to JSONObject.NULL)
   act{it.playMode="dubbing";it.playSection="discover"}
   ready("dub-cover-grid-dubbing-1")
   pair("dub-cover-grid-dubbing-1","dub-cover-grid-dubbing-2");pair("dub-cover-grid-dubbing-2","dub-cover-grid-dubbing-3")
@@ -70,7 +99,7 @@ class DesignCaptureTest {
   ui.onNodeWithTag("dubbing-project-grid-dubbing-1").assertDoesNotExist()
   Espresso.closeSoftKeyboard();ui.onNodeWithContentDescription("더빙 홈으로").performClick()
   ui.onNodeWithTag("dub-nav-genre").performClick();ui.onNodeWithText("공포").performClick();text("검색 결과가 없어.")
-  ui.onNodeWithText("일상").performClick();ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dubbing-project-grid-dubbing-1"))
+  ui.onNodeWithText("일상").performScrollTo().performClick();ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dubbing-project-grid-dubbing-1"))
   ui.onNodeWithContentDescription("더빙 홈으로").performClick()
   ui.onNodeWithTag("dub-mode-done").performClick();text("아직 공개된 완성작이 없어.")
   assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})

@@ -298,7 +298,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
       Icon(Icons.Outlined.Mic,null,Modifier.size(22.dp));Text("녹음하기",Modifier.padding(start=8.dp),fontSize=17.sp,fontWeight=FontWeight.Bold)
      }
     }
-    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){BrandButton({audio.listen(final.getString("audioUrl"))},modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")};TextButton({audio.stop()}){Text("재생 정지")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
+    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){BrandButton({audio.listen(final.getString("audioUrl"),finalProjectId=id)},modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")};TextButton({audio.stop()}){Text("재생 정지")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
     item{DubbingSectionTitle("대본 미리보기","총 ${lines.size}개 대사")}
     val starts=dubbingLineStarts(lines)
     items(if(scriptOpen)lines else lines.take(4),key={"line-"+it.getString("id")}){l->DubbingLineCard(l,roles,currentRole?.optString("id"),starts[l.getString("id")]?:0.0)}

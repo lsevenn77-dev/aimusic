@@ -75,10 +75,18 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
  private var preparedUrl:String?=null
  private var preparedFile:File?=null
  private var backgroundCall:okhttp3.Call?=null
+ private var pendingFinalId:String?=null
  val previewing=MutableStateFlow(false)
  init{
   background.addListener(object:Player.Listener{override fun onPlayerError(error:androidx.media3.common.PlaybackException){playerError="배경 음향을 불러오지 못했어요. 연결을 확인해주세요."}})
-  preview.addListener(object:Player.Listener{override fun onIsPlayingChanged(isPlaying:Boolean){previewing.value=isPlaying}})
+  preview.addListener(object:Player.Listener{override fun onIsPlayingChanged(isPlaying:Boolean){previewing.value=isPlaying
+   if(isPlaying)pendingFinalId?.let{id->
+    pendingFinalId=null
+    scope.launch{
+     try{api.call("/api/dubbing/projects/$id/plays","POST",payload("requestId" to requestIdentity()))}
+     catch(e:CancellationException){throw e}catch(_:Exception){/* Playback remains available with older servers. */}
+    }
+   }}})
  }
  /** Playback position of the listen-only player, for the background sound bar. */
  fun previewPositionMs():Long=if(closed)0 else preview.currentPosition
@@ -156,8 +164,8 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
   }
  }
  fun finishLine(){stopRequested=true;if(!capturing.value)stop()}
- fun stop(){job?.cancel();job=null;if(!closed){background.pause();preview.pause()}}
- fun listen(url:String,position:Double=0.0){stop();preview.setMediaItem(MediaItem.fromUri(if(url.startsWith('/'))Endpoint.url(url)else url), (position*1000).toLong());preview.prepare();preview.play();status.value="미리 듣는 중"}
+ fun stop(){pendingFinalId=null;job?.cancel();job=null;if(!closed){background.pause();preview.pause()}}
+ fun listen(url:String,position:Double=0.0,finalProjectId:String?=null){stop();pendingFinalId=finalProjectId;preview.setMediaItem(MediaItem.fromUri(if(url.startsWith('/'))Endpoint.url(url)else url), (position*1000).toLong());preview.prepare();preview.play();status.value="미리 듣는 중"}
  fun close(){if(closed)return;stop();closed=true;backgroundCall?.cancel();scope.cancel();background.release();preview.release();preparedFile=null}
 }
 

@@ -10,16 +10,28 @@ import org.json.JSONObject
 import java.util.Calendar
 import java.util.TimeZone
 
+private fun JSONObject.discoveryLabel(key: String, fallback: String): String =
+ (opt(key) as? String)?.takeIf { it.isNotBlank() } ?: optString(fallback)
+
 internal data class DubWork(
  val project:JSONObject, val versions:List<JSONObject>?, val finished:Boolean,
- val weeklyScore:Int, val allRank:Int?, val weeklyRank:Int?
+ val weeklyScore:Int, val allRank:Int?, val weeklyRank:Int?,
+ val editions:List<JSONObject> = emptyList(), val rootId:String=project.getString("id")
 ){
  val id:String=project.getString("id")
- val title:String=project.optString("title")
- val creator:String=project.optString("ownerName")
+ val title:String=project.discoveryLabel("rootTitle", "title")
+ val creator:String=project.discoveryLabel("rootOwnerName", "ownerName")
  val created:Long=project.optLong("created")
+ val beginner:Boolean=project.optBoolean("beginnerRecommended") || project.optJSONObject("options")?.optBoolean("beginnerRecommended")==true
+ val seconds:Int=project.optInt("duration")
+ val preferredBeginner:Boolean=project.optInt("roleCount")==2 && seconds in 240..300
+ val plays:Long? get()=if(finished && editions.isNotEmpty() && editions.all{it.opt("plays") is Number})editions.sumOf{it.getLong("plays")} else null
  val genres=project.optJSONArray("genres").let{arr->List(arr?.length()?:0){arr!!.optString(it)}}
- val count:Int?=versions?.count{if(finished)it.optString("state")=="complete" else it.optString("state") in setOf("recruiting","recording","in_progress","mixing")}
+ val count:Int?=when{
+  finished -> editions.size
+  project.opt("activeCount") is Number -> project.getInt("activeCount")
+  else -> versions?.count{it.optString("state") in setOf("recruiting","recording","in_progress","mixing") && it.optString("id")!=rootId && !it.optBoolean("base")}
+ }
  val badge:String get()=when{
   count==null->if(finished)"완성작" else "참여 가능"
   finished->"완성 더빙 ${count}개"
@@ -54,14 +66,12 @@ private suspend fun NativeApi.collectDubPages(path:String,key:String="projects",
 }
 
 internal suspend fun loadDubCatalogue(api:NativeApi,finished:Boolean,show:(DubCatalogue)->Unit)=coroutineScope{
- val list=async{api.collectDubPages("/api/dubbing/projects?tab="+if(finished)"popular" else "open")}
- val activity=async{if(finished)api.collectDubPages("/api/community/rankings?category=dubbing&period=week","rows","next_offset")
-                     else api.collectDubPages("/api/play/participate")}
+ val list=async{api.collectDubPages("/api/dubbing/projects?tab="+(if(finished)"popular" else "open")+"&discovery=1")}
+ val chartRequest=if(finished)async{api.collectDubPages("/api/community/rankings?category=dubbing&period=week","rows","next_offset")} else null
  val projects=list.await()
- fun plain(p:JSONObject)=DubWork(p,null,finished,0,null,null)
- show(DubCatalogue(projects.map(::plain)))
- if(projects.isEmpty()){activity.cancel();return@coroutineScope}
- val activityRows=activity.await()
+ if(!finished)show(DubCatalogue(projects.map{DubWork(it,null,false,0,null,null)}))
+ if(projects.isEmpty()){chartRequest?.cancel();show(DubCatalogue(emptyList()));return@coroutineScope}
+ val activityRows=chartRequest?.await() ?: if(projects.any{it.opt("weeklyActiveCount") !is Number})api.collectDubPages("/api/play/participate") else emptyList()
  val recent=Calendar.getInstance(TimeZone.getTimeZone("Asia/Seoul")).apply{
   add(Calendar.DAY_OF_MONTH,-((get(Calendar.DAY_OF_WEEK)+5)%7))
   set(Calendar.HOUR_OF_DAY,0);set(Calendar.MINUTE,0);set(Calendar.SECOND,0);set(Calendar.MILLISECOND,0)
@@ -70,17 +80,24 @@ internal suspend fun loadDubCatalogue(api:NativeApi,finished:Boolean,show:(DubCa
  val chart=activityRows.mapIndexed{i,p->p.optString("id").ifBlank{p.optString("href").substringAfterLast('/')} to p.optInt("rank",i+1)}.toMap()
  val slots=Semaphore(3)
  val info=projects.map{p->async{slots.withPermit{
-  try{api.call("/api/dubbing/projects/"+p.getString("id")).optJSONObject("project")}
-  catch(e:CancellationException){throw e}catch(_:Exception){null}
+  val enriched=if(finished)!p.isNull("rootId") else p.opt("activeCount") is Number && p.opt("weeklyActiveCount") is Number
+  if(enriched)null else try{
+   api.call("/api/dubbing/projects/"+p.getString("id")).optJSONObject("project")
+  }catch(e:CancellationException){throw e}catch(_:Exception){null}
  }}}.awaitAll()
- val results=linkedMapOf<String,DubWork>()
- for((index,p) in projects.withIndex()){
+ val entries=projects.mapIndexed{index,p->
   val detail=info[index]
+  val id=p.getString("id")
+  val group=sequenceOf(p,detail).mapNotNull{it?.optString("rootId")}.firstOrNull{CurrentNavigation.safeID(it)&&it!="null"}?:id
   val versions=detail?.optJSONArray("versions")?.objects()
-  val group=if(finished)detail?.optString("rootId").orEmpty().ifBlank{p.getString("id")} else p.getString("id")
-  val ranks=(versions.orEmpty().map{it.optString("id")}+p.getString("id")).mapNotNull(chart::get)
-  val item=DubWork(p,versions,finished,versions.orEmpty().count{it.optString("id") in weeklyActive},index+1,ranks.minOrNull())
-  results.putIfAbsent(group,item)
+  val weekly=if(p.opt("weeklyActiveCount") is Number)p.getInt("weeklyActiveCount")
+             else versions.orEmpty().count{it.optString("id")!=group && it.optString("id") in weeklyActive}
+  DubWork(p,versions,finished,weekly,index+1,chart[id],rootId=group)
  }
- show(DubCatalogue(results.values.toList(),info.any{it?.optJSONArray("versions")==null}))
+ val results=if(finished)entries.groupBy{it.rootId}.values.map{group->
+  val first=group.first()
+  first.copy(editions=group.map{it.project},weeklyRank=group.mapNotNull{it.weeklyRank}.minOrNull())
+ }else entries
+ val incomplete=entries.indices.any{i->if(finished)projects[i].isNull("rootId") && info[i]==null else entries[i].count==null}
+ show(DubCatalogue(results,incomplete))
 }
