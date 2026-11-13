@@ -98,6 +98,14 @@ test('all roles must submit before one final job is queued; worker leases and co
  assert.equal((await f.internal(job.id+'/finish',job,{sampleRate:48000,duration:manifest.duration,peakDb:2})).status,400);
  assert.equal((await f.internal(job.id+'/finish',job,{sampleRate:48000,duration:manifest.duration,peakDb:-2})).status,200);
  assert.equal((await f.call(f.path)).body.project.state,'complete');assert.equal((await f.raw(f.path+'/final')).status,200);
+ const discover=()=>f.call('/api/dubbing/projects?tab=popular&discovery=1');
+ assert.equal((await discover()).body.projects.find(p=>p.id===f.p.id)?.plays,0);
+ const play={requestId:crypto.randomUUID()};
+ const [start,retry]=await Promise.all([f.call(f.path+'/plays','POST',play),f.call(f.path+'/plays','POST',play)]);
+ assert.equal(start.status,200);assert.equal(retry.status,200);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM dubbing_plays WHERE project_id=?').get(f.p.id).n,1);
+ assert.equal((await discover()).body.projects.find(p=>p.id===f.p.id)?.plays,1);
+ assert.equal((await f.call(f.path+'/plays','POST',{requestId:'invalid'})).status,400);
  assert.equal((await f.call('/api/account/delete','POST',{confirmation:'DELETE'},'other')).status,200);
  assert.equal((await f.raw(f.path+'/final')).status,404,'removed participant voice cannot stay publicly playable');
  assert.equal(f.sql.prepare('SELECT state FROM dubbing_final_jobs').get().state,'invalidated');

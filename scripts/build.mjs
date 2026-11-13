@@ -23,7 +23,7 @@ await cp('shared/crew-jump.js','dist/client/crew-jump-core.js');
 for(const name of ['crew-game-lobby.js','crew-game-lobby.css','crew-jump-view.js','crew-jump.css','crew-jump-art','crew-rhythm','crew-racing','crew-fishing'])await cp('dist/'+name,'dist/client/'+name,{recursive:true});
 for(const file of ['artist-fanpage.js','artist-fanpage.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['mobile-input.js','mobile-input.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['decorations.js','decoration-display.js','decorations.css','shop.css','shop-dialog.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['decorations.js','decoration-display.js','decorations.css','shop.css','shop-dialog.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css','dub-discovery.js','dub-discovery.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['image-crop.js','crew-photo.js','crew-heif.js','crew-heif-worker.js','profile-collections.js','crew-integrated.js','crew-settings.js','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/voice-room-template.js','dist/client/voice-room-template.js');
 await cp('dist/account-deletion.js','dist/client/account-deletion.js');

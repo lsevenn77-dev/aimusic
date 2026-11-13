@@ -452,3 +452,10 @@ export const crewFishingCasts = sqliteTable('crew_fishing_casts', {
   index('fishing_collection').on(t.crewId,t.status,t.fish,t.length),
   check('fishing_status',sql`status IN ('active','caught','escaped')`)
 ]);
+
+// A playback UUID identifies one actual start, including client retries of that start.
+export const dubbingPlays=sqliteTable('dubbing_plays',{
+ projectId:text('project_id').notNull().references(()=>dubbingProjects.id,{onDelete:'cascade'}),
+ requestId:text('request_id').notNull(),
+ started:integer('started').notNull()
+},t=>[primaryKey({columns:[t.projectId,t.requestId]})]);

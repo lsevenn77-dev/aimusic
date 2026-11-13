@@ -169,6 +169,7 @@ function playDraftRows(drafts){
 }
 function playResults(view){
  const s=view.play,items=view.items;
+ if(view.discovery)return dubDiscoveryHTML(view);
  if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다려요':'아직 표시할 작품이 없어요',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모여요.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모여요.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
  if(s.mode==='dubbing')return s.tab==='mine'?playProjectRows(items,s.tab):dubbingCastingHTML(view);
  if(s.mode==='song')return `<div class="play-song-unified">${playSongRows(items,s.tab)}</div>`;
@@ -197,7 +198,7 @@ function playListHTML(view){
  if(view.play.mode==='song'&&view.play.tab==='drafts')return playDraftRows(view.drafts||[]);
  return (view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+playResults(view);
 }
-function playToolsHidden(view){return view.gated||view.play.mode==='song'&&view.play.tab==='drafts';}
+function playToolsHidden(view){return view.discovery||view.gated||view.play.mode==='song'&&view.play.tab==='drafts';}
 function playExtraHTML(view){return !view.gated&&view.play.mode==='dubbing'&&view.play.tab==='mine'?castingMineTabs(view.play.kind):'';}
 function playContentHTML(view){
  return `<div data-play-tools ${playToolsHidden(view)?'hidden':''}>${playToolbar(view.play)}</div><div data-play-extra>${playExtraHTML(view)}</div><div id="play-results" aria-live="polite"${view.pending?' aria-busy="true"':''}>${playListHTML(view)}</div><button class="small-button play-more" id="play-more" ${(view.nextOffset==null||view.pending||view.error||view.gated)?'hidden':''}>더 보기</button>`;
@@ -221,9 +222,11 @@ async function playView(base,param,raw,readApi=api){
   else{
    const cached=cachedPlayView(raw);
    if(cached)return {...cached,html:playShell(s,playContentHTML(cached),raw)};
+   if(typeof isDubDiscovery==='function'&&isDubDiscovery(view)){view.discovery=await readDubDiscovery(view,readApi);}else{
    const d=await readApi(playDataPath(s),'GET',undefined,{fresh:true});
    view.items=d.tracks||d.works||d.projects||[];view.nextOffset=d.nextOffset??null;view.dubbingAvailable=d.dubbingAvailable;
    view.tracks=view.items.filter(t=>t.type!=='dubbing'&&s.mode!=='dubbing');
+   }
    cachePlayView(view);
   }
  }catch(e){if(e.name==='AbortError')throw e;view.error=e.message;}
@@ -333,6 +336,8 @@ function bindPlay(view){
   window.addEventListener('scroll',scroll,{passive:true});
   if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{window.removeEventListener('scroll',scroll);root._playListCleanup?.();});
  }
+ root.classList?.toggle('dub-discovery-active',typeof isDubDiscovery==='function'&&isDubDiscovery(view));
+ if(view.discovery){bindDubDiscovery(view,root);return;}
  if(!view.pending&&!view.error&&!view.gated&&view.play.mode==='dubbing'&&view.play.tab!=='mine')bindDubbingCasting(view,root);
  root.querySelectorAll('img.play-dubbing-art').forEach(image=>{if(image instanceof HTMLImageElement&&image.complete&&!image.naturalWidth)playDubbingArtworkError({target:image});});
  const typeFilter=root.querySelector('#play-work-type');

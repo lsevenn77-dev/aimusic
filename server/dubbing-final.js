@@ -47,7 +47,7 @@ export async function dubbingFinalInternalRoute(req,env,path){
   if(!await env.BUCKET.head(output))fail(409,'완성 오디오를 먼저 저장해주세요.');
   const result=await env.DB.batch([
    query(env,`UPDATE dubbing_final_jobs SET state='ready',output_key=?,output_meta=?,lease_until=0,updated=? WHERE id=? AND lease_token=? AND lease_until>? AND state='mixing'
-    AND EXISTS(SELECT 1 FROM dubbing_final_jobs j JOIN dubbing_projects p ON p.id=j.project_id WHERE j.id=dubbing_final_jobs.id AND ${active}) RETURNING id`,output,JSON.stringify(meta),now(),job.id,job.lease_token,now()),
+    AND EXISTS(SELECT 1 FROM dubbing_final_jobs j JOIN dubbing_projects p ON p.id=j.project_id WHERE j.id=dubbing_final_jobs.id AND ${active}) RETURNING id`,output,JSON.stringify({...meta,playTracking:1}),now(),job.id,job.lease_token,now()),
    query(env,"UPDATE dubbing_projects SET state='complete',updated=? WHERE id=? AND EXISTS(SELECT 1 FROM dubbing_final_jobs WHERE id=? AND state='ready' AND lease_token=?)",now(),job.project_id,job.id,job.lease_token)
   ]);if(!result[0].results.length)fail(409,'합성 작업이 만료됐습니다.');return json({ok:true});
  }
