@@ -123,3 +123,27 @@ test('all roles must submit before one final job is queued; worker leases and co
  assert.equal((await f.raw(f.path+'/final')).status,404,'old final remains unavailable during replacement mix');
  assert.deepEqual(f.sql.prepare('PRAGMA foreign_key_check').all(),[]);
 });
+
+test('official producer can record every role in one child edition while other members keep one role',async t=>{
+ const f=await setup(t);
+ const {officialDubbingProducerId:uid}=await import('../shared/dubbing-official.js');
+ f.sql.prepare('INSERT INTO users(id,email,name,created) VALUES(?,?,?,0)').run(uid,'official@example.test','Official');
+ f.sql.prepare('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)').run(await hash(uid),uid,Math.floor(Date.now()/1000)+300);
+ const child=crypto.randomUUID(),path='/api/dubbing/projects/'+child;
+ const call=(suffix,method,body,user=uid)=>f.call(path+suffix,method,body,user);
+ assert.equal((await f.call(f.path+'/performances','POST',{id:child,roleId:'role_1'},uid)).status,201);
+ const p=(await call('')).body.project;
+ assert.equal(p.canRecordMultipleRoles,true);
+ assert.equal((await f.call(f.path+'/claims/role_2','POST',{revision:f.p.revision},'owner')).status,409);
+ const claimed=await call('/claims/role_2','POST',{revision:p.revision});
+ assert.equal(claimed.body.project.roles.filter(r=>r.mine).length,2);
+ for(const [i,role] of ['role_1','role_2'].entries()){
+  const rec='/recording/'+role;
+  assert.equal((await call(rec+'/start','POST',{soundId:p.sound.id})).status,200);
+  const result=await f.raw(path+rec+'/lines/line_'+(i+1)+'?revision=1&take='+crypto.randomUUID(),'PUT',wav(),uid,{'content-type':'audio/wav'});
+  assert.equal(result.status,200);
+  assert.equal((await call(rec+'/submit','POST',{revision:2,rightsAccepted:true,visibility:'public',licenseVersion:'casting-2026-11-01'})).status,200);
+ }
+ assert.equal((await call('')).body.project.recording.final.state,'queued');
+ assert.equal((await f.call(f.path)).body.project.state,'recruiting');
+});

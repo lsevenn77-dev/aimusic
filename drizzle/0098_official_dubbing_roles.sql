@@ -1,0 +1,2 @@
+DROP INDEX `dubbing_one_role_per_user`;--> statement-breakpoint
+CREATE UNIQUE INDEX `dubbing_one_role_per_member` ON `dubbing_role_claims` (`project_id`,`user_id`) WHERE user_id <> 'de9247b5-de49-458b-b048-da61f9b5f75b';

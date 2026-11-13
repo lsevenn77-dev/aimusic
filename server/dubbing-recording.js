@@ -59,8 +59,8 @@ export async function dubbingRecordingRoute(req,env,p,user,action,rest=''){
  }
  requireUser(user);
  if(!recordingEnabled(env))fail(503,'더빙 녹음 기능을 준비하고 있어요.');
- const claim=await one(env,'SELECT role_id FROM dubbing_role_claims WHERE project_id=? AND user_id=?',p.id,user.id);
- if(!claim)fail(403,'먼저 참여할 배역을 선택해주세요.');
+ const claims=await rows(env,'SELECT role_id FROM dubbing_role_claims WHERE project_id=? AND user_id=?',p.id,user.id);
+ if(!claims.length)fail(403,'먼저 참여할 배역을 선택해주세요.');
  if(!rest&&req.method==='GET')return json(await recordingView(env,p,user));
  if(rest==='prepare'&&req.method==='POST'){
   // A claimed participant may prepare silence, but cannot spend the owner's
@@ -86,7 +86,7 @@ export async function dubbingRecordingRoute(req,env,p,user,action,rest=''){
   if(!take||env.AIFECT_BLOCKED?.includes(take.user_id)||(take.user_id!==user.id&&take.state!=='submitted'))fail(404,'녹음 파일을 찾을 수 없습니다.');
   return audioResponse(req,env,take.audio_key);
  }
- if(claim.role_id!==role)fail(403,'내가 선택한 배역만 녹음할 수 있습니다.');
+ if(!claims.some(claim=>claim.role_id===role))fail(403,'내가 선택한 배역만 녹음할 수 있습니다.');
  if(operation==='start'&&req.method==='POST'){
   const body=await req.json(),bg=await one(env,"SELECT id FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready'",p.id,p.script_key);
   if(!bg||body.soundId!==bg.id)fail(409,'완성된 배경 오디오를 확인한 뒤 녹음해주세요.');

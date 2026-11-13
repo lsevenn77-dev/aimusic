@@ -1,6 +1,6 @@
 let dubbingRecorder=null;
-function dubbingRecordingHTML(p,data){
- const mine=p.roles.find(r=>r.mine),record=data.recording.roles.find(r=>r.roleId===mine.id);
+function dubbingRecordingHTML(p,data,mine=p.roles.find(r=>r.mine)){
+ const record=data.recording.roles.find(r=>r.roleId===mine.id);
  return `<a class="dubbing-back" href="#dubbing/${esc(p.id)}">← 대본과 배역</a><header class="dubbing-heading"><span class="eyebrow">VOICE STUDIO · ${esc(mine.name)}</span><h1>${esc(p.title)}</h1><p>내 대사를 한 줄씩 연기하고, 서로의 목소리로 장면을 완성해요.</p></header>
  ${window.AifectMicrophoneCheck?.html()||''}
  <div class="dubbing-record-layout"><section class="dubbing-panel dubbing-record-script"><div class="dubbing-section-heading"><div><span class="eyebrow">SCRIPT & TAKES</span><h2>장면의 대사</h2></div><span class="dubbing-tag">내 배역 · ${esc(mine.name)}</span></div><p class="dubbing-record-script-hint">현재 대사 앞뒤를 함께 보며 준비하세요. 내 대사를 누르면 녹음할 위치를 바꿀 수 있어요.</p><div id="dubbing-record-lines" class="dubbing-record-lines" aria-label="전체 대본과 녹음 위치"></div><p id="dubbing-record-next" class="dubbing-record-next"></p></section>
@@ -143,7 +143,7 @@ async function dubbingSaveRecording(s){
  finally{s.dirty=[...s.takes.values()].some(t=>t.dirty);s.busy=false;dubbingRecordDraw(s);}
 }
 function bindDubbingRecorder(view,root){
- const s={p:view.project,data:view.recordingData,role:view.project.roles.find(r=>r.mine).id,root,route:view.route,buffers:new Map(),takes:new Map(),sources:[],cursor:0,busy:false,dirty:false};
+ const s={p:view.project,data:view.recordingData,role:view.recordingRole||view.project.roles.find(r=>r.mine).id,root,route:view.route,buffers:new Map(),takes:new Map(),sources:[],cursor:0,busy:false,dirty:false};
  if(dubbingRecorder)dubbingReleaseRecorder(dubbingRecorder);dubbingRecorder=s;s.micCheck=window.AifectMicrophoneCheck?.bind(root.querySelector('.microphone-check'));s.line=s.p.script.lines.find(l=>l.roleId===s.role).id;
  root.querySelector('#dubbing-record-start').onclick=()=>dubbingStartRecording(s);
  root.querySelector('#dubbing-record-pause').onclick=()=>dubbingPauseRecording(s);

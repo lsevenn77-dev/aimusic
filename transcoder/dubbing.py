@@ -192,30 +192,41 @@ def render_final(manifest, background, voices, folder, heartbeat=lambda: None):
     lines = manifest['lines']
     if not 1 <= len(lines) <= 120 or len({line['id'] for line in lines}) != len(lines):
         raise ValueError('Invalid recording manifest')
-    args = ['-protocol_whitelist', 'file,pipe', '-i', str(background)]
-    filters = [f'[0:a]aresample=48000,apad,atrim=duration={duration},asetpts=PTS-STARTPTS[bg]']
-    labels = ['[bg]']
+    # Build the non-overlapping voice timeline one take at a time. A large
+    # filter graph with one delayed, normalized input per line exceeds 1 GiB.
+    voice_track = root / 'voice-track.wav'
+    position = 0
     last_end = 0
-    for index, line in enumerate(lines, 1):
-        heartbeat()
-        start = number(line['start'], last_end, duration)
-        end = number(line['end'], start + .1, duration)
-        last_end = end
-        source = voices[line['id']]
-        with wave.open(str(source), 'rb') as audio:
-            if audio.getnchannels() != 1 or audio.getframerate() != 48000 or audio.getsampwidth() != 2:
-                raise ValueError('Invalid voice format')
-            seconds = audio.getnframes() / 48000
-            if not .1 <= seconds <= end - start + 1 / 48000:
-                raise ValueError('Voice crosses next line')
-        args += ['-protocol_whitelist', 'file,pipe', '-i', str(source)]
-        filters.append(f'[{index}:a]atrim=duration={seconds},asetpts=PTS-STARTPTS,highpass=f=65,loudnorm=I=-18:TP=-3:LRA=7,aresample=48000,afade=t=in:d=0.008,afade=t=out:st={max(0,seconds-.015)}:d=0.015,adelay={round(start*1000)}:all=1[v{index}]')
-        labels.append(f'[v{index}]')
-    filters.append(''.join(labels) + f'amix=inputs={len(labels)}:duration=first:normalize=0,alimiter=limit=0.63:level=disabled:latency=1,atrim=duration={duration},aresample=48000[out]')
-    config = root / 'final-mix.txt'
-    config.write_text(';\n'.join(filters), encoding='utf8')
+    with wave.open(str(voice_track), 'wb') as track:
+        track.setparams((1, 2, 48000, 0, 'NONE', 'not compressed'))
+        for line in lines:
+            heartbeat()
+            start = number(line['start'], last_end, duration)
+            end = number(line['end'], start + .1, duration)
+            last_end = end
+            source = voices[line['id']]
+            with wave.open(str(source), 'rb') as audio:
+                if (audio.getnchannels(), audio.getframerate(), audio.getsampwidth()) != (1, 48000, 2):
+                    raise ValueError('Invalid voice format')
+                frames = audio.getnframes()
+                seconds = frames / 48000
+                if not .1 <= seconds <= end - start + 1 / 48000:
+                    raise ValueError('Voice crosses next line')
+            target = round(start * 48000)
+            track.writeframes(b'\x00\x00' * max(0, target - position))
+            shaping = 'highpass=f=65'
+            if seconds >= .4:
+                shaping += ',loudnorm=I=-18:TP=-3:LRA=7'
+            shaping += f',aresample=48000,afade=t=in:d=0.008,afade=t=out:st={max(0,seconds-.015)}:d=0.015'
+            data = command(['-i', str(source), '-af', shaping, '-ar', '48000', '-ac', '1', '-f', 's16le', 'pipe:1']).stdout
+            data = data[:frames * 2]
+            if not data:
+                raise ValueError('Empty processed voice')
+            track.writeframes(data)
+            position = max(target, position) + len(data) // 2
     output = root / 'final.m4a'
-    command(args + [filter_file_option(), str(config), '-map', '[out]', '-t', str(duration), '-ar', '48000', '-ac', '2', '-map_metadata', '-1', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', str(output)])
+    filters = f'[0:a]aresample=48000,apad,atrim=duration={duration}[bg];[bg][1:a]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.63:level=disabled:latency=1[out]'
+    command(['-i', str(background), '-i', str(voice_track), '-filter_complex', filters, '-map', '[out]', '-t', str(duration), '-ar', '48000', '-ac', '2', '-map_metadata', '-1', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', str(output)])
     verify = root / 'final-verify.wav'
     command(['-protocol_whitelist', 'file,pipe', '-i', str(output), '-t', str(duration + 1), '-ar', '48000', '-ac', '2', '-c:a', 'pcm_s16le', str(verify)])
     meta = wave_info(verify)

@@ -2,6 +2,7 @@ import {recordDubbingPlay,dubbingPlayCountSQL} from './dubbing-plays.js';
 import {dubbingDiscoveryCounts,eligibleDubFinal,noBlockedDubCast} from './dubbing-discovery.js';
 import {dubbingSettings} from './dubbing-settings.js';
 import {completedDubbingWorks} from './profile-works.js';
+import {officialDubbingProducerId} from '../shared/dubbing-official.js';
 import {dubbingVersions,startDubbingPerformance,deleteDubbingProject} from './dubbing-performances.js';
 import {dubbingVisibleSQL,dubbingRemoved,assertDubbingCreator} from './dubbing-access.js';
 import {dubbingCommunityStatus,dubbingCommunityRoute} from './dubbing-community.js';
@@ -39,7 +40,7 @@ async function dto(env,p,user){
  const claims=await rows(env,`SELECT c.role_id,c.user_id,${publicNameSQL('u')} name FROM dubbing_role_claims c JOIN users u ON u.id=c.user_id
   WHERE c.project_id=? AND u.provider!='deleted'`,p.id);
  const script=JSON.parse(p.script_json);
- return {removed:!!p.removed,community:await dubbingCommunityStatus(env,p,user),reports:p.owner_id===user?.id?await dubbingOwnerReports(env,p):[],id:p.id,title:p.title,ownerName:p.owner_name,ownerId:p.owner_id,isOwner:p.owner_id===user?.id,options:JSON.parse(p.options_json),script,
+ return {canRecordMultipleRoles:user?.id===officialDubbingProducerId,removed:!!p.removed,community:await dubbingCommunityStatus(env,p,user),reports:p.owner_id===user?.id?await dubbingOwnerReports(env,p):[],id:p.id,title:p.title,ownerName:p.owner_name,ownerId:p.owner_id,isOwner:p.owner_id===user?.id,options:JSON.parse(p.options_json),script,
   source:p.source,rootId:p.root_id||p.id,versions:await dubbingVersions(env,p,user),state:p.state,visibility:p.visibility,revision:p.revision,duration:p.duration,created:p.created,updated:p.updated,
   roles:script.roles.map(r=>{const c=claims.find(c=>c.role_id===r.id);const blocked=c&&env.AIFECT_BLOCKED?.includes(c.user_id);
    return {...r,claimed:!!c,mine:c?.user_id===user?.id,participant:c?(blocked?'참여자':c.name):null,participantUserId:c&&!blocked?c.user_id:null};}),

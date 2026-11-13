@@ -1,5 +1,6 @@
 import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex, check } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
+import {officialDubbingProducerId} from '../shared/dubbing-official.js';
 // Local lyric semantics are independent of uploader metadata and audio classification.
 export const lyricAnalysisJobs=sqliteTable('lyric_analysis_jobs',{
  trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),state:text('state').notNull().default('queued'),version:text('version').notNull().default(''),lyricsHash:text('lyrics_hash').notNull().default(''),analyzedAt:integer('analyzed_at').notNull().default(0),updated:integer('updated').notNull().default(0),attempts:integer('attempts').notNull().default(0),leaseToken:text('lease_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),error:text('error').notNull().default(''),resultJson:text('result_json').notNull().default(''),durationMs:real('duration_ms').notNull().default(0)
@@ -278,7 +279,7 @@ export const dubbingProjects=sqliteTable('dubbing_projects',{lastSubmittedBy:tex
 export const dubbingRoleClaims=sqliteTable('dubbing_role_claims',{
  projectId:text('project_id').notNull().references(()=>dubbingProjects.id,{onDelete:'cascade'}),roleId:text('role_id').notNull(),
  userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),created:integer('created').notNull()
-},t=>[primaryKey({columns:[t.projectId,t.roleId]}),uniqueIndex('dubbing_one_role_per_user').on(t.projectId,t.userId)]);
+},t=>[primaryKey({columns:[t.projectId,t.roleId]}),uniqueIndex('dubbing_one_role_per_member').on(t.projectId,t.userId).where(sql`user_id <> ${sql.raw("'" + officialDubbingProducerId + "'")}`)]);
 export const dubbingGenerations=sqliteTable('dubbing_generations',{
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),inputHash:text('input_hash').notNull(),
  state:text('state').notNull(),resultJson:text('result_json'),usageJson:text('usage_json').notNull().default('{}'),providerId:text('provider_id').notNull().default(''),
