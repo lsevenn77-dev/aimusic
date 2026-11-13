@@ -1,4 +1,3 @@
-import {storeReviewedMaster} from './dubbing-reviewed-master.js';
 import {dubbingPosterSQL,projectPoster} from './dubbing-poster.js';
 import {recordDubbingPlay,dubbingPlayCountSQL} from './dubbing-plays.js';
 import {dubbingDiscoveryCounts,eligibleDubFinal,noBlockedDubCast} from './dubbing-discovery.js';
@@ -151,7 +150,7 @@ export async function dubbingRoute(req,env,path,user){
   }catch(e){await discard(env,key);throw e;}
   return json({project:await dto(env,await project(env,pid,user),user)},201);
  }
- const match=path.match(/^\/api\/dubbing\/projects\/([^/]+)(?:\/(reviewed-master|poster|plays|completed|publish|unpublish|performances|claims|sound|background|recording|final|like|comments|report|appeal)(?:\/(.+))?)?$/);
+ const match=path.match(/^\/api\/dubbing\/projects\/([^/]+)(?:\/(poster|plays|completed|publish|unpublish|performances|claims|sound|background|recording|final|like|comments|report|appeal)(?:\/(.+))?)?$/);
  if(!match)fail(404,'요청을 찾을 수 없습니다.');
  const pid=uuid(match[1]),action=match[2],roleId=match[3],p=await project(env,pid,user);
  const report=await dubbingReportRoute(req,env,p,user,action,roleId);if(report)return report;
@@ -159,7 +158,6 @@ export async function dubbingRoute(req,env,path,user){
  if(p.removed&&(action||method!=='GET'))fail(403,'권리 신고 검토로 이용이 중단된 작품입니다. 이의신청을 이용해주세요.');
  if(action==='plays'&&!roleId)return recordDubbingPlay(req,env,p,user);
  if(!['GET','HEAD','DELETE'].includes(method)&&user)await assertDubbingCreator(env,user.id);
- if(action==='reviewed-master'&&!roleId)return storeReviewedMaster(req,env,p,user);
  if(action==='poster'&&!roleId)return projectPoster(req,env,p,user);
  const managed=await one(env,'SELECT project_id FROM dubbing_combinations WHERE project_id=? UNION ALL SELECT project_id FROM dubbing_casting_drafts WHERE project_id=?',pid,pid);
  if(managed&&['claims','performances'].includes(action)&&method!=='GET')fail(409,'참여 조합의 빈 배역에서 녹음해주세요. 제출된 배역은 변경할 수 없어요.');
