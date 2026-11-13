@@ -316,6 +316,12 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
      })
    }
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=actionSize){
+     Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(22.dp),tint=if(liked)Pink else Color.White)
+    }
+    Box(Modifier.weight(1f).padding(start=5.dp,end=7.dp).testTag("mini-player-lyrics")){
+     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=12.sp,lineHeight=15.sp,color=Pink,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+    }
     val modeIcon=when{
      m.repeat==Player.REPEAT_MODE_ONE->Icons.Rounded.RepeatOne
      m.shuffle->SimpleShuffle
@@ -331,16 +337,8 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
     IconButton(onClick=m::cyclePlaybackMode,enabled=m.controller!=null,modifier=actionSize.testTag("mini-player-mode")){
      Icon(modeIcon,"재생 모드 변경, 현재 $modeName",Modifier.size(22.dp),tint=if(m.shuffle||m.repeat!=Player.REPEAT_MODE_OFF)Aqua else SoftText)
     }
-    Box(Modifier.weight(1f).padding(start=5.dp,end=7.dp).testTag("mini-player-lyrics")){
-     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=12.sp,lineHeight=15.sp,color=Pink,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
-    }
-    Row(Modifier.testTag("mini-player-library-controls"),verticalAlignment=Alignment.CenterVertically){
-     IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=actionSize){
-      Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(22.dp),tint=if(liked)Pink else Color.White)
-     }
-     IconButton(onClick={m.pickPlaylist(song)},modifier=actionSize){
-      Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,"보관함에 담기",Modifier.size(24.dp))
-     }
+    IconButton(onClick={m.pickPlaylist(song)},modifier=actionSize){
+     Icon(Icons.AutoMirrored.Rounded.PlaylistAdd,"보관함에 담기",Modifier.size(24.dp))
     }
    }
   }

@@ -1403,8 +1403,10 @@ class DesignCaptureTest {
   assertEquals(verse.length,layout.getLineEnd(layout.lineCount-1))
   val lyrics=node.fetchSemanticsNode().boundsInRoot
   val transport=ui.onNodeWithTag("mini-player-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  val library=ui.onNodeWithTag("mini-player-library-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  assertTrue(lyrics.top>=transport.bottom && lyrics.right<=library.left)
+  val heart=ui.onNode(hasContentDescription("좋아요",substring=true) and hasAnyAncestor(hasTestTag("mini-player")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val mode=ui.onNodeWithTag("mini-player-mode").fetchSemanticsNode().boundsInRoot
+  val save=ui.onNode(hasContentDescription("보관함에 담기") and hasAnyAncestor(hasTestTag("mini-player")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue(lyrics.top>=transport.bottom && heart.right<=lyrics.left && lyrics.right<=mode.left && mode.right<=save.left)
   capture("275-mini-lyrics-centered")
   val controller=model.controller
   act{it.selectTab(6)};assertSame(controller,model.controller);assertEquals("design-song",model.current?.id);assertTrue(model.playing)
