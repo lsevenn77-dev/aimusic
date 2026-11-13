@@ -835,6 +835,29 @@ class DesignCaptureTest {
    instrumentation.runOnMainSync{room.finish()}
   }finally{instrumentation.removeMonitor(monitor)}
  }
+ @Test fun miniModeCyclesRealPlayerAndPinsNotices(){
+  val incoming=responses.getValue("/api/dm")
+  incoming.put("crew",JSONObject(crew.toString()).put("unread",1))
+  val people=incoming.getJSONArray("conversations")
+  listOf("older" to now-200,"newer" to now-100).forEach{(id,date)->people.put(payload("id" to id,"name" to id,"updated" to date,"last_message" to id,"is_notice" to true))}
+  repeat(20){people.put(payload("id" to "peer-$it","name" to "친구 $it","updated" to now,"last_message" to "대화"))}
+  act{it.play(Song(song),listOf(Song(song),Song(cover)));it.selectTab(5)}
+  ready("mini-player-mode");ready("dm-conversation-newer")
+  val mode=ui.onNodeWithTag("mini-player-mode")
+  mode.performClick()
+  ui.waitUntil(10000){model.repeat==androidx.media3.common.Player.REPEAT_MODE_ONE&&!model.shuffle}
+  act{val c=it.controller!!;assertEquals(c.currentMediaItemIndex,c.currentTimeline.getNextWindowIndex(c.currentMediaItemIndex,c.repeatMode,c.shuffleModeEnabled))}
+  mode.performClick();ui.waitUntil(10000){model.shuffle&&model.repeat==androidx.media3.common.Player.REPEAT_MODE_OFF}
+  act{it.play(Song(cover),listOf(Song(song),Song(cover)))}
+  ui.waitUntil(10000){model.current?.id==cover.getString("id")&&model.shuffle}
+  mode.performClick();ui.waitUntil(10000){!model.shuffle&&model.repeat==androidx.media3.common.Player.REPEAT_MODE_OFF}
+  act{val c=it.controller!!;assertEquals(0,c.previousMediaItemIndex);assertEquals(1,c.currentMediaItemIndex)}
+  fun top(tag:String)=ui.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.top
+  assertTrue(top("dm-conversation-newer")<top("dm-conversation-older"))
+  assertTrue(top("dm-conversation-older")<top("inbox-crew"))
+  ui.onNodeWithTag("inbox-list").performScrollToNode(hasTestTag("dm-conversation-peer-17"))
+  ui.onNodeWithTag("dm-conversation-newer").assertIsDisplayed()
+ }
  @Test fun noticesStackByPostAndOpenTheSelectedBody(){
   val official=payload("id" to "design-official","is_notice" to true,"name" to "운영팀","updated" to now,"unread" to 0)
   responses.getValue("/api/dm").getJSONArray("conversations").put(official)

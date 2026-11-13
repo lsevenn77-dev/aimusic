@@ -62,14 +62,21 @@ import java.net.URLEncoder
    }
   }
   if(searching)OutlinedTextField(search,{search=it},placeholder={Text(when(filter){"공지"->"공지 검색";"알림"->"알림 검색";else->"이름이나 메시지 검색"},fontSize=13.sp)},singleLine=true,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth().padding(horizontal=14.dp).testTag("inbox-search"))
+  val announcements=matching.filter{it.isInboxNotice()}.sortedByDescending{it.optLong("updated")}
+  fun openAnnouncement(p:JSONObject){if(p.isWelcomeGuide())welcome=true else filter="공지"}
+  if(!notices&&!alerts)announcements.firstOrNull()?.let{p->
+   Box(Modifier.fillMaxWidth().padding(start=12.dp,end=12.dp,top=12.dp)){
+    NoticeBanner(InboxNotice(p,null),"dm-conversation-"+p.optString("id")){openAnnouncement(p)}
+   }
+  }
   val rows:LazyListScope.()->Unit={
+   items(announcements.drop(1),key={"dm-"+it.optString("id")}){p->
+    NoticeBanner(InboxNotice(p,null),"dm-conversation-"+p.optString("id")){openAnnouncement(p)}
+   }
    if(crew!=null)item(key="pinned-crew"){
     InboxCard(crew,true,{m.openCrewMessages(crew.getString("id"))},openProfile)
    }
-   items(matching,key={"dm-"+it.optString("id")}){p->
-    if(p.isInboxNotice())NoticeBanner(InboxNotice(p,null),"dm-conversation-"+p.optString("id")){if(p.isWelcomeGuide())welcome=true else filter="공지"}
-    else InboxCard(p,false,{m.messagePeer=p.getString("id")},openProfile)
-   }
+   items(matching.filterNot{it.isInboxNotice()},key={"dm-"+it.optString("id")}){p->InboxCard(p,false,{m.messagePeer=p.getString("id")},openProfile)}
   }
   if(alerts)ActivityFeed(m,embedded=true,query=search)
   else if(notices)NoticeArchive(m,conversations.filter{it.isInboxNotice()},synced,search,{welcome=true},refreshInbox)

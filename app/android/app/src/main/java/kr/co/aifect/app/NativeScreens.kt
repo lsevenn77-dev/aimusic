@@ -316,6 +316,21 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
      })
    }
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+    val modeIcon=when{
+     m.repeat==Player.REPEAT_MODE_ONE->Icons.Rounded.RepeatOne
+     m.shuffle->SimpleShuffle
+     m.repeat==Player.REPEAT_MODE_ALL->Icons.Rounded.Repeat
+     else->Icons.AutoMirrored.Rounded.PlaylistPlay
+    }
+    val modeName=when{
+     m.repeat==Player.REPEAT_MODE_ONE->"한 곡 반복재생"
+     m.shuffle->"랜덤재생"
+     m.repeat==Player.REPEAT_MODE_ALL->"전체 반복재생"
+     else->"순차재생"
+    }
+    IconButton(onClick=m::cyclePlaybackMode,enabled=m.controller!=null,modifier=actionSize.testTag("mini-player-mode")){
+     Icon(modeIcon,"재생 모드 변경, 현재 $modeName",Modifier.size(22.dp),tint=if(m.shuffle||m.repeat!=Player.REPEAT_MODE_OFF)Aqua else SoftText)
+    }
     Box(Modifier.weight(1f).padding(start=5.dp,end=7.dp).testTag("mini-player-lyrics")){
      Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=12.sp,lineHeight=15.sp,color=Pink,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
     }

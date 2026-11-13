@@ -702,7 +702,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  private var playlistPlayRequest=0L
  var playlistPlayLoading by mutableStateOf<String?>(null);private set
  private fun cancelPlaylistPlay(){playlistPlayRequest++;playlistPlayJob?.cancel();playlistPlayJob=null;playlistPlayLoading=null}
- fun play(song:Song,queue:List<Song> = listOf(song),shuffled:Boolean=false){
+ fun play(song:Song,queue:List<Song> = listOf(song),shuffled:Boolean?=null){
   cancelPlaylistPlay()
   val c=controller?:run {notice="플레이어를 준비하고 있어요.";return}
   songs.putAll(queue.associateBy {it.id});songs[song.id]=song
@@ -711,7 +711,28 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   val items=entries.map { t->MediaItem.Builder().setMediaId(t.id).setMediaMetadata(MediaMetadata.Builder().setTitle(t.title)
    .setArtist(t.credit).setArtworkUri(t.art?.let(Uri::parse)).setExtras(android.os.Bundle().apply {putString("song",t.raw.toString())}).build()).build() }
   SongAdBreaks.finishCurrentListen?.invoke()
-  SongAdBreaks.atBoundary({c.pause()}){playerError=null;c.shuffleModeEnabled=shuffled;c.setMediaItems(items,index,0);c.prepare();c.play()}
+  SongAdBreaks.atBoundary({c.pause()}){
+   playerError=null
+   if(shuffled!=null){
+    c.shuffleModeEnabled=shuffled
+    if(shuffled&&c.repeatMode==Player.REPEAT_MODE_ONE)c.repeatMode=Player.REPEAT_MODE_OFF
+   }
+   c.setMediaItems(items,index,0);c.prepare();c.play()
+  }
+ }
+ fun cyclePlaybackMode(){
+  val c=controller?:return
+  when{
+   c.repeatMode==Player.REPEAT_MODE_ONE||(!c.shuffleModeEnabled&&c.repeatMode==Player.REPEAT_MODE_ALL)->{
+    c.repeatMode=Player.REPEAT_MODE_OFF
+    c.shuffleModeEnabled=true
+   }
+   c.shuffleModeEnabled->{
+    c.shuffleModeEnabled=false
+    c.repeatMode=Player.REPEAT_MODE_OFF
+   }
+   else->c.repeatMode=Player.REPEAT_MODE_ONE
+  }
  }
  fun toggle(){cancelPlaylistPlay();controller?.let {c->
   if(c.isPlaying)c.pause()
