@@ -402,7 +402,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   playbackBitrateKbps=if(qualityCurrent)quality.getInt("bitrate_kbps").takeIf{it in listOf(128,256)}?:0 else 0
   playbackPreview=qualityCurrent&&quality.getBoolean("preview")
   playbackHighQualityPending=qualityCurrent&&quality.getBoolean("high_quality_pending")
-  current=if(item==null)null else songs[item.mediaId] ?: item.mediaMetadata.extras?.getString("song")?.let { runCatching { Song(JSONObject(it)) }.getOrNull() } ?: Song(JSONObject().apply{
+  current=if(item==null)null else songs[item.mediaId]?.takeUnless{item.isDubbingEdition()} ?: item.mediaMetadata.extras?.getString("song")?.let { runCatching { Song(JSONObject(it)) }.getOrNull() } ?: Song(JSONObject().apply{
    put("id",item.mediaId);put("title",item.mediaMetadata.title);put("artist",item.mediaMetadata.artist)
   })
  }

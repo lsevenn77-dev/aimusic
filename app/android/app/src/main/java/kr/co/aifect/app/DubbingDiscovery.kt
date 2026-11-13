@@ -181,6 +181,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
  val playing=player?.previewing?.collectAsState()?.value==true
  fun open(w:DubWork){stop();if(w.finished)editionRoot=w.rootId else m.openCurrentWorkspace("dubbing/"+w.id,w.title)}
  fun preview(w:DubWork){
+  if(w.finished && m.current?.dubbing==true && m.current?.id==w.id){m.toggle();return}
   val wasPlaying=previewId==w.id && (playing||previewJob?.isActive==true)
   stop();if(wasPlaying)return
   previewId=w.id
@@ -191,8 +192,13 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
     if(source?.optString("state")!="ready"){previewError=if(w.finished)"아직 완성 음원이 준비되지 않았어." else "아직 미리 들을 배경 음원이 없어.";return@launch}
     val url=source.optString("audioUrl").ifBlank{if(w.finished)"" else "/api/dubbing/projects/"+w.id+"/background"}
     if(url.isBlank()){previewError="재생할 음원이 없어.";return@launch}
-    m.controller?.pause()
-    player=NativeDubbingAudio(context,m.api).also{it.listen(url,finalProjectId=w.id.takeIf{w.finished})}
+    if(w.finished){
+     val controller=m.controller?:error("플레이어를 준비하고 있어요.")
+     controller.playDubbingEdition(detail)
+    }else{
+     m.controller?.pause()
+     player=NativeDubbingAudio(context,m.api).also{it.listen(url)}
+    }
    }catch(e:CancellationException){throw e}catch(e:Exception){previewError=e.message?:"음원을 열 수 없어."}
   }
  }
@@ -239,7 +245,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
     if(page=="home"){
      itemsIndexed(ranks.take(6).chunked(3)){i,row->DubPosterRow(row,i*3+1,::open)}
     }else{
-     items(visibleRanks.take(limit),key={it.id}){w->DubRow(w,ranks.indexOf(w)+1,{open(w)},{preview(w)},playing&&previewId==w.id)}
+     items(visibleRanks.take(limit),key={it.id}){w->DubRow(w,ranks.indexOf(w)+1,{open(w)},{preview(w)},(playing&&previewId==w.id)||(m.current?.dubbing==true&&m.current?.id==w.id&&m.playing))}
      if(visibleRanks.size>limit)item{MoreDub{limit+=12}}
     }
     if((if(page=="home")ranks else visibleRanks).isEmpty()&&!loading&&error==null)item{
@@ -272,7 +278,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
       DropdownMenu(sortMenu,{sortMenu=false},containerColor=Panel){listOf("최신순","인기순","제목순").forEach{label->DropdownMenuItem(text={Text(label)},onClick={order=label;sortMenu=false})}}
      }
     }}
-    items(list.take(if(page=="home"&&!done)3 else limit),key={"list-"+it.id}){w->DubRow(w,null,{open(w)},{preview(w)},playing&&previewId==w.id)}
+    items(list.take(if(page=="home"&&!done)3 else limit),key={"list-"+it.id}){w->DubRow(w,null,{open(w)},{preview(w)},(playing&&previewId==w.id)||(m.current?.dubbing==true&&m.current?.id==w.id&&m.playing))}
     if(list.isEmpty()&&!loading&&error==null)item{CurrentEmpty(if(query.isNotBlank()||genre!="전체")"검색 결과가 없어." else if(done)"아직 공개된 완성작이 없어." else "아직 공개된 대본이 없어.")}
     if((page!="home"||done)&&list.size>limit)item{MoreDub{limit+=12}}
    }

@@ -205,6 +205,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
 
 @Composable private fun NativeDubbingProject(api:NativeApi,account:String,id:String,navigate:(String)->Unit,back:()->Unit,prefetched:Deferred<JSONObject?>?=null){
  var project by remember{mutableStateOf<JSONObject?>(null)};var error by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)};var editing by remember{mutableStateOf(false)};var recording by rememberSaveable{mutableStateOf(false)};var confirm by remember{mutableStateOf("")};val scope=rememberCoroutineScope();val context=LocalContext.current
+ val sharedPlayer=rememberDubbingController()
  val audio=remember{NativeDubbingAudio(context,api)};DisposableEffect(Unit){onDispose{audio.close()}}
  val lifecycleOwner=LocalLifecycleOwner.current
  DisposableEffect(lifecycleOwner){val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_STOP)audio.stop()};lifecycleOwner.lifecycle.addObserver(observer);onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}}
@@ -253,7 +254,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
     val roleCards=roles.sortedByDescending{it.optBoolean("mine")}
     item{DubbingSectionTitle("작품 정보")}
     item{
-     DubbingInfoCard(p,sound,previewing,previewAt,{if(previewing)audio.stop()else audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))}){
+     DubbingInfoCard(p,sound,previewing,previewAt,{if(previewing)audio.stop()else {sharedPlayer?.pause();audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))}}){
       if(p.optBoolean("isOwner")&&sound.optString("state")=="not_started")Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
        OutlinedButton({confirm="basic"},enabled=!busy,modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke)){Text("기본 배경",fontSize=12.sp,color=SoftText)}
        BrandButton({confirm="sound"},enabled=!busy&&sound.optBoolean("aiAvailable"),modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Text("효과음 · ${sound.optInt("chargeGold",sound.optInt("priceGold",50))} G",fontSize=12.sp)}
@@ -289,16 +290,16 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
          }
         }
        }
-       if(!r.optBoolean("claimed")&&currentRole==null&&p.optString("visibility")=="public"&&p.optString("state") in listOf("recruiting","recording"))BrandButton({task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","POST",payload("revision" to p.getInt("revision")));reload();recording=true}},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Text("배역 선택하고 녹음",fontSize=14.sp)}
+       if(!r.optBoolean("claimed")&&currentRole==null&&p.optString("visibility")=="public"&&p.optString("state") in listOf("recruiting","recording"))BrandButton({task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","POST",payload("revision" to p.getInt("revision")));reload();sharedPlayer?.pause();audio.stop();recording=true}},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Text("배역 선택하고 녹음",fontSize=14.sp)}
       }
      }
     }
     if(currentRole!=null)item{
-     BrandButton({audio.stop();recording=true},enabled=!busy&&p.optBoolean("recordingAvailable"),modifier=Modifier.fillMaxWidth().heightIn(min=56.dp).testTag("dubbing-open-recorder"),shape=RoundedCornerShape(28.dp)){
+     BrandButton({sharedPlayer?.pause();audio.stop();recording=true},enabled=!busy&&p.optBoolean("recordingAvailable"),modifier=Modifier.fillMaxWidth().heightIn(min=56.dp).testTag("dubbing-open-recorder"),shape=RoundedCornerShape(28.dp)){
       Icon(Icons.Outlined.Mic,null,Modifier.size(22.dp));Text("녹음하기",Modifier.padding(start=8.dp),fontSize=17.sp,fontWeight=FontWeight.Bold)
      }
     }
-    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){BrandButton({audio.listen(final.getString("audioUrl"),finalProjectId=id)},modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")};TextButton({audio.stop()}){Text("재생 정지")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
+    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){BrandButton({audio.stop();sharedPlayer?.playDubbingEdition(p)},enabled=sharedPlayer!=null,modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
     item{DubbingSectionTitle("대본 미리보기","총 ${lines.size}개 대사")}
     val starts=dubbingLineStarts(lines)
     items(if(scriptOpen)lines else lines.take(4),key={"line-"+it.getString("id")}){l->DubbingLineCard(l,roles,currentRole?.optString("id"),starts[l.getString("id")]?:0.0)}
@@ -308,6 +309,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
     if(p.optString("visibility")=="public")item{NativeDubbingComments(api,p)}
    }
   }
+  DubbingPlaybackBar(sharedPlayer)
  }
  if(confirm.isNotBlank()&&project!=null){val p=project!!;val action=confirm;val charge=if(action=="basic")0 else sound.optInt("chargeGold",sound.optInt("priceGold",50));AlertDialog(onDismissRequest={if(!busy)confirm=""},title={Text(when(action){"publish"->"배역 모집을 시작할까요?";"unpublish"->"모집을 중지할까요?";"delete"->"내 더빙을 삭제할까요?";"basic"->"기본 배경을 준비할까요?";else->"${charge} G로 음향을 제작할까요?"})},text={Text(when(action){"publish"->"대본을 공개하고 다른 사람과 함께 연기할 권한이 있음을 확인합니다.";"delete"->"삭제하면 이 작품을 다시 열거나 참여할 수 없어요.";"basic"->"효과음 없이 녹음에 사용할 배경을 준비해요.";"unpublish"->"새로운 참여자 모집을 중지해요.";else->"생성 전 최종 금액을 확인해주세요. 실패하면 서버에서 자동 환급돼요."})},confirmButton={TextButton(enabled=!busy,onClick={task{
   when(action){"delete"->{api.call("/api/dubbing/projects/$id","DELETE",payload("revision" to p.getInt("revision")));back()};"publish","unpublish"->{api.call("/api/dubbing/projects/$id/$action","POST",payload("revision" to p.getInt("revision"),"rightsAccepted" to true));if(action=="publish")back()else reload()};else->{api.call("/api/dubbing/projects/$id/sound","POST",payload("requestId" to soundRequest,"mode" to if(action=="basic")"basic" else "ai","revision" to p.getInt("revision"),"acceptedGold" to sound.optInt("priceGold",50),"acceptedChargeGold" to charge));reload()}};confirm=""

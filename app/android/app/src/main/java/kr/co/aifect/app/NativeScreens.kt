@@ -78,7 +78,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   val lyricSong=m.current
   LaunchedEffect(lyricSong?.id,m.user?.optString("id"),m.membership.optLong("premium_until")){
    m.resetLyrics()
-   if(lyricSong!=null)while(true){m.lyricsAt(lyricSong,m.position/1000.0);delay(500)}
+   if(lyricSong!=null&&!lyricSong.dubbing)while(true){m.lyricsAt(lyricSong,m.position/1000.0);delay(500)}
   }
   val keyboardVisible=WindowInsets.isImeVisible
   val navConfiguration=androidx.compose.ui.platform.LocalConfiguration.current
@@ -267,6 +267,10 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  }
 }
 @Composable private fun MiniPlayer(m:MusicModel,song:Song){
+ if(song.dubbing){
+  DubbingPlaybackBar(m.controller)
+  return
+ }
  val shape=RoundedCornerShape(22.dp)
  val liked=m.likes.any{it.id==song.id}
  val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first

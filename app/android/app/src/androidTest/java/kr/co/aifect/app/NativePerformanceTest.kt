@@ -93,7 +93,7 @@ class NativePerformanceTest{
     }
     key.endsWith("/submit")->{recording.getJSONObject("recording").getJSONArray("roles").getJSONObject(0).put("state","submitted");data=recording}
    }
-   val isAudio=key.endsWith("/background")||key.contains("/lines/")&&method=="GET";val isFrame=key=="/assets/products/qa-voice-frame.png";val isImage=isFrame||key.startsWith("/assets/dubbing-genres/")||key.startsWith("/assets/gifts/")||key.startsWith("/media/producer/");val body=if(isAudio)audio else if(isFrame)frameImage else if(key.startsWith("/assets/gifts/"))giftImage else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isFrame)"image/png" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
+   val isAudio=key.endsWith("/background")||key.endsWith("/final")||key.contains("/lines/")&&method=="GET";val isFrame=key=="/assets/products/qa-voice-frame.png";val isImage=isFrame||key.startsWith("/assets/dubbing-genres/")||key.startsWith("/assets/gifts/")||key.startsWith("/media/producer/");val body=if(isAudio)audio else if(isFrame)frameImage else if(key.startsWith("/assets/gifts/"))giftImage else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isFrame)"image/png" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
   }}catch(_:Exception){}}}catch(_:SocketException){}}
  }
  @After fun teardown(){activity?.close();context.stopService(Intent(context,NativeVoiceService::class.java));if(::server.isInitialized)server.close();workers.shutdownNow()}
@@ -101,6 +101,22 @@ class NativePerformanceTest{
  private fun visible(tag:String){ui.waitUntil(20000){ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}}
  private fun text(value:String){ui.waitUntil(20000){ui.onAllNodesWithText(value,substring=true).fetchSemanticsNodes().isNotEmpty()}}
  private fun capture(name:String){val dir=File(context.getExternalFilesDir(null),"native-audio").apply{mkdirs()};ins.waitForIdleSync();Thread.sleep(200);ins.uiAutomation.takeScreenshot().let{bitmap->FileOutputStream(File(dir,"$name.png")).use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()}}
+ @Test fun completedDubbingUsesSharedTransportAndRegistersOneListen(){
+  val project=responses.getValue(path).getJSONObject("project")
+  project.put("state","complete").getJSONObject("recording").put("final",payload("state" to "ready","audioUrl" to "$path/final"))
+  launch("dubbing/$projectId");visible("native-dubbing-project")
+  ui.onNode(hasScrollAction() and hasAnyAncestor(hasTestTag("native-dubbing-project"))).performScrollToNode(hasText("완성된 더빙 듣기"))
+  ui.onNodeWithText("완성된 더빙 듣기").performClick()
+  visible("dubbing-mini-player")
+  ui.waitUntil(20000){requests.any{it.first=="POST $path/plays"}}
+  ui.onNodeWithContentDescription("더빙 일시정지").performClick()
+  ui.onNodeWithTag("dubbing-mini-seek").performTouchInput{click(center)}
+  ui.onNodeWithContentDescription("더빙 재생").performClick()
+  ui.onNodeWithContentDescription("더빙 재생 종료").performClick()
+  ui.onNodeWithTag("dubbing-mini-player").assertDoesNotExist()
+  assertEquals(1,requests.count{it.first=="POST $path/plays"})
+  assertFalse(requests.any{it.first.startsWith("POST /api/playback/")})
+ }
  @Test fun roomCreationUsesSelectedBackgroundAndKeepsPrimaryActionVisible(){
   responses["/api/voice/options"]=payload(
    "crews" to arr(payload("id" to "crew-one","name" to "밤산책")),
