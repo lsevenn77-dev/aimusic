@@ -39,11 +39,15 @@ test('discovery counts use real participating combinations, group completed take
  assert.equal((await f.call('/api/dubbing/projects?tab=open')).body.projects[0].activeCount,undefined);
 });
 test('final audio counts one play across resume and seek, and a new play after ending',async()=>{
- const sent=[],ctx=vm.createContext({crypto,window:{addEventListener(){}},api:async(...args)=>{sent.push(args);}});
- vm.runInContext(readFileSync(new URL('../dist/dubbing.js',import.meta.url),'utf8'),ctx);
- const player=new EventTarget();
- const root={querySelector:selector=>selector==='[data-final-edition-audio]'?player:null};
- ctx.bindFinalDubbingPlay(root,{id:'take',state:'complete',visibility:'public'});
- for(const type of ['loadedmetadata','playing','pause','playing','seeking','playing','ended','playing'])player.dispatchEvent(new Event(type));
+ const sent=[],player=new EventTarget();
+ const ctx=vm.createContext({crypto,audio:player,current:{id:'take',kind:'dubbing',countPlay:true},
+  window:{},api:async(...args)=>{sent.push(args);},setPlayerVisible(){}});
+ const actions=readFileSync(new URL('../dist/actions.js',import.meta.url),'utf8');
+ vm.runInContext(actions.slice(actions.indexOf("audio.addEventListener('playing',()=>{"),actions.indexOf('audio.ontimeupdate=')),ctx);
+ vm.runInContext(actions.slice(actions.indexOf('audio.onended='),actions.indexOf('audio.onerror=')),ctx);
+ ctx.repeatMode=0;
+ for(const type of ['loadedmetadata','playing','pause','playing','seeking','playing'])player.dispatchEvent(new Event(type));
+ player.onended();player.dispatchEvent(new Event('playing'));
  assert.equal(sent.length,2);assert.equal(sent[0][0],'/api/dubbing/projects/take/plays');assert.notEqual(sent[0][2].requestId,sent[1][2].requestId);
+ ctx.current={id:'private',kind:'dubbing',countPlay:false};player.dispatchEvent(new Event('playing'));assert.equal(sent.length,2);
 });

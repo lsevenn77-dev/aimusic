@@ -55,6 +55,7 @@ function remember(tracks){tracks.forEach(t=>trackMap.set(t.id,t));return tracks;
 const liked=id=>library.likes.some(t=>t.id===id);
 const followed=(kind,id)=>library.follows.some(f=>f.kind===kind&&f.target_id===id);
 function trackArtworkPath(t){
+ if(t.kind==='dubbing')return AifectDubbing.dubbingGenreArtwork(t.genres);
  // Older cached payloads can still carry a synthetic performer version.
  let source=t.artwork_id,version=t.cover_version;
  if(source===undefined){
@@ -153,7 +154,7 @@ function updateAccount(){
  $('.profile').innerHTML=identity+icon('chevron');$('.header-login').textContent=me?'내 계정':'로그인';if(typeof refreshActivityBadge==='function')void refreshActivityBadge();
 }
 function askLogin(){returnRoute=location.hash;saveResume();location.hash='account';toast('무료로 가입하고 음악을 이어 들어보세요.');return false;}
-function saveResume(){saveQueue();try{localStorage.setItem('aifect-player-modes',JSON.stringify({shuffle,repeatMode}));if(current){pendingResume={id:current.id,time:playSession?(preview?Math.min(audio.currentTime,60):audio.currentTime):restoredPosition};const value=JSON.stringify(pendingResume);sessionStorage.setItem('aifect-player-resume',value);localStorage.setItem('aifect-player-resume',value);}}catch{}}
+function saveResume(){saveQueue();try{localStorage.setItem('aifect-player-modes',JSON.stringify({shuffle,repeatMode}));if(current){pendingResume={id:current.id,...(current.kind==='dubbing'?{kind:'dubbing'}:{}),time:playSession||current.kind==='dubbing'?(preview?Math.min(audio.currentTime,60):audio.currentTime):restoredPosition};const value=JSON.stringify(pendingResume);sessionStorage.setItem('aifect-player-resume',value);localStorage.setItem('aifect-player-resume',value);}}catch{}}
 
 // Presentation only: preserve gift surfaces, dialog events and form handlers.
 function prepareCompactPopup(modal,content){
@@ -196,10 +197,45 @@ async function play(tid,tracks=null,start=0){
  setCurrentLyrics(t);refreshLyricsPanel();setPlayerVisible(true);
  try{await audio.play();}catch(e){if(e.name==='NotAllowedError')toast('재생 버튼을 눌러 음악을 이어 들어보세요.');else if(e.name!=='AbortError')throw new Error('음원을 재생할 수 없습니다. 잠시 후 다시 시도해주세요.');}
 }
+function loadDubbingPlayer(project,start=0){
+ const src=project.recording.final.audioUrl;
+ const cast=[...new Set((project.roles||[]).map(r=>r.participant).filter(Boolean))].join(' · ');
+ current={id:project.id,kind:'dubbing',title:project.title,producer:cast||project.ownerName,artist:cast||project.ownerName,
+  genres:project.script?.genres||[],genre:'더빙',duration:project.duration, countPlay:project.visibility==='public'&&project.state==='complete'};
+ playSession=null;preview=false;heard=0;lastTick=0;
+ audio.src=src;
+ restoredPosition=Math.min(Math.max(0,Number(start)||0),project.duration);
+ audio.currentTime=restoredPosition;
+ window.AifectPlayerShell?.close();
+ renderPlayerActions(current);setCurrentLyrics(null);
+ $('#listen-mode').textContent='완성 더빙';$('#seek').max=project.duration;$('#seek').value=restoredPosition;
+ $('#elapsed').textContent=playerClock(restoredPosition);$('#duration').textContent=playerClock(project.duration);
+ setPlayerVisible(true);
+}
+async function toggleDubbingPlayback(){
+ if(!audio.paused&&!audio.ended){audio.pause();return;}
+ if(audio.ended)audio.currentTime=0;
+ await audio.play();
+}
+async function playDubbingEdition(id,project=null){
+ const serial=++playSerial;
+ if(current?.kind==='dubbing'&&current.id===id){await toggleDubbingPlayback();return;}
+ if(!project)({project}=await api('/api/dubbing/projects/'+encodeURIComponent(id)));
+ if(serial!==playSerial)return;
+ if(!project.recording?.final?.audioUrl){location.hash='dubbing/'+encodeURIComponent(id);return;}
+ window.AifectAudioAds?.cancel();countAdListening();audio.pause();void report();
+ stopCastingPreview();stopCastingAudio();
+ loadDubbingPlayer(project);await toggleDubbingPlayback();
+}
 async function resumeAfterLogin(){
  // Restore metadata only. Playback sessions, ads and audio.play require a user action.
  if(!pendingResume||current)return;
  const saved=pendingResume,serial=playSerial;
+ if(saved.kind==='dubbing'){
+  const {project}=await api('/api/dubbing/projects/'+encodeURIComponent(saved.id));
+  if(serial===playSerial&&!current&&project.recording?.final?.audioUrl)loadDubbingPlayer(project,saved.time);
+  return;
+ }
  const {track:t}=await api('/api/tracks/'+encodeURIComponent(saved.id));
  if(serial!==playSerial||current)return;
  remember([t]);current=t;preview=!me;restoredPosition=Math.max(0,Math.min(Number(saved.time)||0,preview?Math.min(t.duration,60):t.duration));
@@ -212,7 +248,7 @@ async function resumeAfterLogin(){
 }
 
 async function report(){if(!playSession||heard<1||reportBusy)return;reportBusy=true;try{await api('/api/listens/'+playSession,'PATCH',{seconds:Math.floor(heard)});}catch{}finally{reportBusy=false;}}
-async function nextTrack(delta,automatic=false){if(!queue.length){if(automatic)setPlayerVisible(false);return;}let i=queue.indexOf(current?.id);if(shuffle&&queue.length>1){const choices=queue.filter(id=>id!==current?.id);await play(choices[Math.floor(Math.random()*choices.length)]);return;}i+=delta;if(automatic&&i>=queue.length&&!repeatMode){setPlayerVisible(false);return;}i=(i+queue.length)%queue.length;await play(queue[i]);}
+async function nextTrack(delta,automatic=false){if(current?.kind==='dubbing'){if(delta<0)audio.currentTime=0;return;}if(!queue.length){if(automatic)setPlayerVisible(false);return;}let i=queue.indexOf(current?.id);if(shuffle&&queue.length>1){const choices=queue.filter(id=>id!==current?.id);await play(choices[Math.floor(Math.random()*choices.length)]);return;}i+=delta;if(automatic&&i>=queue.length&&!repeatMode){setPlayerVisible(false);return;}i=(i+queue.length)%queue.length;await play(queue[i]);}
 
 function portrait(p,kind){return '<div class="artist-portrait cover cover-custom profile-avatar'+(kind==='producer'?playerAvatarClass(p):'')+'">'+avatarImage(p,kind)+(kind==='producer'?playerBadgeHTML(p):'')+'</div>';}
 

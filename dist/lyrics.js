@@ -78,7 +78,7 @@ function bindLyricsPanel(){
 }
 let expandedLyrics=null,pendingPlayerLyricsTrack=null;
 function openPlayerLyrics(){
- if(!current)return;
+ if(!current||current.kind==='dubbing')return;
  const route='#song/'+encodeURIComponent(current.id);
  const button=$('#lyrics-expand'),samePage=location.hash.split('?')[0]===route;
  if(samePage&&button?.dataset.track===current.id&&$('.song-main-column')){
@@ -185,7 +185,7 @@ function updateSyncedLyrics(force=false){
   const cues=full?currentCues:(ahead?.lines||[]).filter(c=>c.time>=ahead.from),aheadIndex=AifectLyrics.activeCueIndex(cues,at),aheadCue=cues[aheadIndex];
   const aheadText=limitReached?text:aheadCue?(aheadCue.text||'♪ 간주'):full?'♪ '+(aheadIndex<0?'전주':'간주'):ahead?(ahead.text||'♪ '+(ahead.intro?'전주':'간주')):text;
   const rows=limitReached?[]:cues.slice(Math.max(0,aheadIndex),Math.max(0,aheadIndex)+2),twoLines=rows.length?rows.map(c=>c.text||'♪').join('\n'):aheadText;
-  hud.hidden=!current;hud.href=current?'#song/'+encodeURIComponent(current.id)+'?lyrics=1':'#home';
+  hud.hidden=!current||current.kind==='dubbing';hud.href=current?'#song/'+encodeURIComponent(current.id)+'?lyrics=1':'#home';
   // Two independent single-line rows keep long lyrics from hiding the next cue.
   hud.replaceChildren(...(hasLyrics?twoLines.split('\n').slice(0,2):current?['아직 등록된 가사가 없어요.']:[]).map(text=>{const row=document.createElement('span');row.textContent=text;row.title=text;return row;}));
  }

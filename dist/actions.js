@@ -212,7 +212,9 @@ function syncSongListen(){
  button.setAttribute('aria-label',playing?'일시정지':'노래 듣기');
  button.querySelector('svg').outerHTML=songActionIcon(playing?'pause':'play');
 }
-for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,syncSongListen);
+for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,()=>{
+ syncSongListen();syncDubbingListen();
+});
 
 document.addEventListener('click',async ev=>{
  const el=ev.target.closest('button,a');if(!el||el.disabled)return;
@@ -259,14 +261,21 @@ document.addEventListener('click',async ev=>{
   }
  }catch(e){toast(e.message);}finally{el.disabled=false;el.removeAttribute('aria-busy');}
 });
+audio.addEventListener('playing',()=>{
+ if(current?.kind==='dubbing'&&current.countPlay&&!current.playCounted){
+  current.playCounted=true;
+  api('/api/dubbing/projects/'+encodeURIComponent(current.id)+'/plays','POST',{requestId:crypto.randomUUID()})
+   .then(()=>{if(typeof dubCache!=='undefined')dubCache.clear();}).catch(()=>{});
+ }
+});
 audio.ontimeupdate=()=>{if(window.AifectAudioAds?.active)return;$('#elapsed').textContent=time(audio.currentTime);if(!window.AifectPlayerShell?.scrubbing)$('#seek').value=audio.currentTime;};
-audio.onplay=()=>{if(window.AifectAudioAds?.active)return;if(!current||!playSession){audio.pause();return;}setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML=icon('player-pause');$('#play-toggle').setAttribute('aria-label','일시정지');};
+audio.onplay=()=>{if(window.AifectAudioAds?.active)return;if(!current||(!playSession&&current.kind!=='dubbing')){audio.pause();return;}setPlayerVisible(true);lastTick=performance.now();$('#play-toggle').innerHTML=icon('player-pause');$('#play-toggle').setAttribute('aria-label','일시정지');};
 audio.onpause=()=>{if(window.AifectAudioAds?.active)return;countAdListening();$('#play-toggle').innerHTML=icon('player-play');$('#play-toggle').setAttribute('aria-label','재생');report();};
-audio.onended=()=>{if(window.AifectAudioAds?.active||!current||!playSession)return;report();countAdListening();if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<p class="popup-prompt">무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
+audio.onended=()=>{if(window.AifectAudioAds?.active||!current)return;if(current.kind==='dubbing'){current.playCounted=false;if(repeatMode){audio.currentTime=0;audio.play().catch(e=>toast(e.message));}return;}if(!playSession)return;report();countAdListening();if(preview&&current.duration>=60){setPlayerVisible(false);saveResume();dialog('<p class="popup-prompt">무료 회원가입 후 60초 지점부터 이어 들으세요.</p><a class="primary-button" href="#account" id="preview-login">무료 회원가입 후 전체곡 듣기</a>');$('#preview-login').onclick=()=>{$('#dialog').close();returnRoute='#song/'+current.id;};return;}if(repeatMode===2)play(current.id).catch(e=>toast(e.message));else nextTrack(1,true).catch(e=>toast(e.message));};
 audio.onerror=()=>{if(window.AifectAudioAds?.active)return;if(audio.src)toast('음원을 불러오지 못했습니다. 재생을 다시 눌러주세요.');};
 setInterval(()=>{if(!window.AifectAudioAds?.active&&!audio.paused&&!audio.seeking&&audio.readyState>=3){const n=performance.now();if(lastTick)heard+=Math.min((n-lastTick)/1000,1.1);lastTick=n;}else lastTick=0;},1000);
 setInterval(report,10000);
-$('#play-toggle').onclick=async()=>{try{if(window.AifectAudioAds?.active){window.AifectAudioAds.toggle();return;}if(!current){if(queue.length)await play(queue[0]);else if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,playSession?audio.currentTime:restoredPosition);else if(audio.ended)await play(current.id);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
+$('#play-toggle').onclick=async()=>{try{if(window.AifectAudioAds?.active){window.AifectAudioAds.toggle();return;}if(current?.kind==='dubbing'){await toggleDubbingPlayback();return;}if(!current){if(queue.length)await play(queue[0]);else if(routeTracks.length)await play(routeTracks[0].id,routeTracks);else toast('먼저 음악을 선택해주세요.');}else if(!playSession||preview!==!me)await play(current.id,null,playSession?audio.currentTime:restoredPosition);else if(audio.ended)await play(current.id);else if(audio.paused)await audio.play();else audio.pause();}catch(e){toast(e.message);}};
 $('#next').onclick=()=>nextTrack(1).catch(e=>toast(e.message));$('#previous').onclick=()=>{if(audio.currentTime>3)audio.currentTime=0;else nextTrack(-1).catch(e=>toast(e.message));};
 $('#shuffle').onclick=()=>{shuffle=!shuffle;const button=$('#shuffle'),label=shuffle?'섞어 듣기 켜짐':'섞어 듣기 꺼짐';button.classList.toggle('is-active',shuffle);button.setAttribute('aria-pressed',String(shuffle));button.setAttribute('aria-label',label);button.title=label;window.AifectPlayerShell?.paintModes();saveResume();};
 $('#repeat').onclick=()=>{repeatMode=(repeatMode+1)%3;$('#repeat').classList.toggle('is-active',!!repeatMode);$('#repeat').setAttribute('aria-pressed',String(!!repeatMode));const label=['반복 끔','전체 반복','한 곡 반복'][repeatMode];$('#repeat').setAttribute('aria-label',label);window.AifectPlayerShell?.paintModes();saveResume();};

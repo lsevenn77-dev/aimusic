@@ -108,7 +108,7 @@ function playMusicCard(t,action){
 }
 function playDubbingCard(p){
  const href='#dubbing/'+encodeURIComponent(p.id);
- return `<article class="album-card"><div class="album-art-wrap"><a href="${href}" aria-label="${esc(p.title)} 작품 보기"><img class="album-art cover play-dubbing-art" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="${esc((p.genres||[]).join(' · '))} 장르 이미지" width="640" height="640" loading="lazy" decoding="async"></a><a class="card-play" href="${href}" aria-label="${esc(p.title)} 더빙 듣기">${icon('ui-play-action',36)}</a></div><div class="album-title-row"><a class="album-title play-work-title" href="${href}">${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></a></div><span class="album-artist">${userNickname(p.ownerName,{userId:p.ownerId})}</span></article>`;
+ return `<article class="album-card"><div class="album-art-wrap"><a href="${href}" aria-label="${esc(p.title)} 작품 보기"><img class="album-art cover play-dubbing-art" src="${AifectDubbing.dubbingGenreArtwork(p.genres)}" alt="${esc((p.genres||[]).join(' · '))} 장르 이미지" width="640" height="640" loading="lazy" decoding="async"></a><button type="button" class="card-play" data-mp-dubbing-play="${esc(p.id)}" aria-label="${esc(p.title)} 더빙 듣기">${icon('ui-play-action',36)}</button></div><div class="album-title-row"><a class="album-title play-work-title" href="${href}">${playTypeIcon('dubbing')}<span>${esc(p.title)}</span></a></div><span class="album-artist">${userNickname(p.ownerName,{userId:p.ownerId})}</span></article>`;
 }
 function playDubbingArtworkError(event){
  const image=event.target;if(!image?.matches?.('img.play-dubbing-art'))return;

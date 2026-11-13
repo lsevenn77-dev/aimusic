@@ -3,11 +3,17 @@ function playerCredit(track){return track.kind==='cover'?track.producer||'':hasA
 function playerClock(seconds){const v=Number.isFinite(Number(seconds))?Math.max(0,Math.floor(Number(seconds))):0,h=Math.floor(v/3600),m=Math.floor(v/60)%60,s=String(v%60).padStart(2,'0');return h?h+':'+String(m).padStart(2,'0')+':'+s:Math.floor(v/60)+':'+s;}
 function renderPlayerActions(track){
  const id=esc(track.id),credit=playerCredit(track),details=document.querySelector('.player-track-details');
- document.querySelector('#now-playing').innerHTML='<a href="#song/'+id+'" aria-label="'+esc(track.title)+' 곡 보기">'+cover(track,'mini-cover')+'</a><div class="player-metadata"><strong title="'+esc(track.title)+'">'+esc(track.title)+'</strong><div class="player-meta-line"><span class="player-credit" title="'+esc(credit)+'">'+esc(credit)+'</span></div></div>';
+ const dubbing=track.kind==='dubbing',route=(dubbing?'#dubbing/':'#song/')+id;
+ document.querySelector('.player').dataset.mediaKind=track.kind;
+ document.querySelector('#now-playing').innerHTML='<a href="'+route+'" aria-label="'+esc(track.title)+(dubbing?' 작품 보기':' 곡 보기')+'">'+cover(track,'mini-cover')+'</a><div class="player-metadata"><strong title="'+esc(track.title)+'">'+esc(track.title)+'</strong><div class="player-meta-line"><span class="player-credit" title="'+esc(credit)+'">'+esc(credit)+'</span></div></div>';
  document.querySelector('.player-meta-line').append(details);
  // Genre precedes the stable clock in visual and reading order.
  details.append(document.querySelector('.player-clock'));
  document.querySelector('#player-genre').textContent=track.genre||'';
+ if(dubbing){
+  document.querySelector('#player-actions').innerHTML='<a class="icon-button" href="'+route+'" aria-label="작품 상세보기" title="작품 상세보기">'+icon('chevron')+'<span class="player-action-label">작품 상세</span></a>';
+  window.AifectPlayerShell?.refresh();return;
+ }
  const gift=giftButton(track,'icon-button player-gift').replace('<span>선물</span>','<span class="player-action-label">선물하기</span>').replace('<button ','<button title="선물하기" ')||'<button type="button" class="icon-button player-gift" disabled aria-label="내 곡에는 선물할 수 없어요" title="내 곡에는 선물할 수 없어요">'+icon('gift')+'<span class="player-action-label">선물하기</span></button>';
  document.querySelector('#player-actions').innerHTML='<button type="button" class="icon-button" data-like="'+id+'" aria-label="좋아요" title="좋아요" aria-pressed="'+liked(track.id)+'">'+icon('heart')+'<span class="player-action-label">좋아요</span></button>'+gift+(AifectPlaylist.isPlaylistEligibleTrack(track)?'<button type="button" class="icon-button" data-add="'+id+'" aria-label="플레이리스트" title="플레이리스트">'+icon('list-plus')+'<span class="player-action-label">플레이리스트</span></button>':'')+'<a class="icon-button player-comments" href="#song/'+id+'?comments=1" aria-label="댓글보기" title="댓글보기">'+icon('player-comment')+'<span class="player-action-label">댓글보기</span></a><button type="button" class="icon-button" data-share="'+id+'" aria-label="공유하기" title="공유하기">'+icon('share')+'<span class="player-action-label">공유하기</span></button>';
  window.AifectPlayerShell?.refresh();

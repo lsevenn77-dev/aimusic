@@ -139,3 +139,5 @@
 .player[data-player-narrow=true] #player-utility-panel{width:100%}
 .player[data-player-narrow=true] .player-utility-buttons{flex-wrap:wrap}
 @media(prefers-reduced-motion:reduce){.player :is(button,a),.player svg{transition:none}}
+
+.player[data-media-kind="dubbing"] :is(#player-lyrics-toggle,#next,#shuffle){display:none}

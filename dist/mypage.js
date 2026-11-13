@@ -511,13 +511,6 @@ document.addEventListener('click',async e=>{
  if(b.dataset.mpTabRetry){void mySelectTab(b.dataset.mpTabRetry,false,api,true);return;}
  if(b.hasAttribute('data-mp-retry')){void mySelectTab('activity',false);return;}
  if(b.hasAttribute('data-mp-artists')){dialog('<div class="mypage-dialog"><h2>소속 아티스트</h2>'+identityCards(myPageState.d.artists||[],'artist')+'</div>');return;}
- if(b.dataset.mpDubbingPlay){b.disabled=true;try{const d=await api('/api/dubbing/projects/'+encodeURIComponent(b.dataset.mpDubbingPlay)),p=d.project||d,url=p.recording?.final?.audioUrl;if(!b.isConnected)return;if(url)myDubbingDialog(p,url);else location.hash='dubbing/'+b.dataset.mpDubbingPlay;}catch(err){toast(err.message);}finally{b.disabled=false;}}
+ if(b.dataset.mpDubbingPlay){b.disabled=true;try{await playDubbingEdition(b.dataset.mpDubbingPlay);}catch(err){toast(err.message);}finally{b.disabled=false;}}
 });
-
-function myDubbingDialog(p,url){
- audio.pause();
- dialog('<div class="mp-dub-dialog"><h2>'+esc(p.title)+'</h2><audio controls autoplay src="'+esc(url)+'" aria-label="완성된 더빙 듣기"></audio><a class="text-link" href="#dubbing/'+esc(p.id)+'">작품 상세</a></div>');
- const player=$('#dialog audio');$('#dialog').addEventListener('close',()=>{player.pause();player.removeAttribute('src');player.load();},{once:true});
-}
-document.addEventListener('click',e=>{if(e.target.closest('#dialog .mypage-dialog a[href^="#"],#dialog .mp-dub-dialog a[href^="#"]'))$('#dialog').close();});
-window.addEventListener('hashchange',()=>{if($('#dialog .mp-dub-dialog')&&$('#dialog').open)$('#dialog').close();});
+document.addEventListener('click',e=>{if(e.target.closest('#dialog .mypage-dialog a[href^="#"]'))$('#dialog').close();});
