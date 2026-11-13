@@ -25,8 +25,8 @@ WHERE p.id='b7c81f9a-2182-4dc5-bcb2-6dc0aee0a899'
  AND json_extract(j.manifest_json,'$.duration')=json_extract(k.manifest_json,'$.duration')
  AND json_valid(j.output_meta) AND json_valid(k.output_meta)
  AND json_extract(k.output_meta,'$.sampleRate')=48000 AND abs(json_extract(k.output_meta,'$.duration')-json_extract(j.manifest_json,'$.duration'))<0.1
- AND j.output_key LIKE 'dubbing/'||p.owner_id||'/'||p.id||'/final/'||j.id||'-%'
- AND k.output_key LIKE 'dubbing/'||s.owner_id||'/'||s.id||'/final/'||k.id||'-%'
+ AND instr(j.output_key,'dubbing/'||p.owner_id||'/'||p.id||'/final/'||j.id||'-')=1
+ AND instr(k.output_key,'dubbing/'||s.owner_id||'/'||s.id||'/final/'||k.id||'-')=1
  AND (SELECT count(*) FROM dubbing_role_claims WHERE project_id IN (p.id,s.id))=4
  AND (SELECT count(*) FROM dubbing_recordings WHERE project_id IN (p.id,s.id))=4
  AND (SELECT count(*) FROM dubbing_recording_lines l JOIN dubbing_recordings r ON l.recording_id=r.id WHERE r.project_id IN (p.id,s.id))=184;
@@ -144,8 +144,8 @@ WHERE json_extract(old.value,'$.takeId')=l.take_id AND json_extract(fresh.value,
  AND json_extract(old.value,'$.key')=l.audio_key AND json_extract(fresh.value,'$.key')=n.audio_key
  AND json_extract(old.value,'$.userId')=v.owner AND json_extract(fresh.value,'$.userId')=v.owner
  AND json_extract(old.value,'$.start')=json_extract(fresh.value,'$.start') AND json_extract(old.value,'$.end')=json_extract(fresh.value,'$.end')
- AND l.audio_key LIKE 'dubbing/'||v.owner||'/'||v.public_id||'/voices/'||r.id||'/'||l.take_id||'-%'
- AND n.audio_key LIKE 'dubbing/'||v.owner||'/'||v.stage_id||'/voices/'||t.id||'/'||n.take_id||'-%'
+ AND instr(l.audio_key,'dubbing/'||v.owner||'/'||v.public_id||'/voices/'||r.id||'/'||l.take_id||'-')=1
+ AND instr(n.audio_key,'dubbing/'||v.owner||'/'||v.stage_id||'/voices/'||t.id||'/'||n.take_id||'-')=1
  AND l.bytes>44 AND n.bytes>44 AND l.duration>0 AND n.duration>0
  AND length(l.audio_hash)=64 AND length(n.audio_hash)=64 AND l.audio_hash NOT GLOB '*[^0-9a-f]*' AND n.audio_hash NOT GLOB '*[^0-9a-f]*'
  AND NOT EXISTS (SELECT 1 FROM dubbing_audio_cleanup WHERE object_key IN (l.audio_key,n.audio_key,v.old_output,v.new_output));
