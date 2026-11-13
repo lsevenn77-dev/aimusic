@@ -34,7 +34,7 @@ function workBrowserHTML(title,tracks=[],dubs=[],own=false){
   const isDub=kind==='dubbing',recruit=g.items.some(v=>v.recruiting);
   const privateMark=v=>own&&(isDub?v.visibility==='private':v.status==='hidden')?'<span class="work-private-mark" role="img" aria-label="비공개" title="비공개">'+icon('lock')+'</span>':'';
   const href=(v)=>isDub?'#dubbing/'+esc(v.id):v.status&&v.status!=='published'?'#manage/'+esc(v.id):'#song/'+esc(v.id);
-  const art=v=>isDub?'<img class="work-cover" src="'+esc(AifectDubbing.dubbingGenreArtwork(v.genres||[]))+'" alt="">':cover(v,'work-cover');
+  const art=v=>isDub?'<img class="work-cover" src="'+esc(v.posterUrl||AifectDubbing.dubbingGenreArtwork(v.genres||[]))+'" alt="">':cover(v,'work-cover');
   const play=v=>v.status&&v.status!=='published'||isDub&&(v.state!=='complete'||v.audio_ready===0)?'':'<button type="button" class="list-action work-play" '+(isDub?'data-mp-dubbing-play':'data-play')+'="'+esc(v.id)+'" aria-label="'+esc(v.title)+' 재생">'+icon('ui-play-action')+'</button>';
   const joinItem=g.items.find(v=>v.can_join);
   const join=joinItem?'<a class="small-button work-join" href="'+(isDub?href(joinItem):'#sing/'+esc(joinItem.original_id)+'?duet='+esc(joinItem.id))+'">참여하기</a>':'';

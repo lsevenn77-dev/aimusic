@@ -1,5 +1,6 @@
 // @ts-check
 // Read-only discovery. Recording, publishing, claims and mixing keep their existing routes.
+import {dubbingPosterSQL} from './dubbing-poster.js';
 import {rows,json,fail} from './db.js';
 import {requireUser} from './auth.js';
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
@@ -28,7 +29,7 @@ async function dubbings(env,user,{tab='latest',type='all',offset=0,limit=25,q=''
  }
  if(q){where+=' AND (p.title LIKE ? OR '+publicNameSQL('u')+' LIKE ?)';args.push('%'+q+'%','%'+q+'%');}
  const sort=tab==='popular'?`${likes} DESC,${publishedAt} DESC`:tab==='join'?'p.created DESC':`${publishedAt} DESC`;
- return rows(env,`SELECT p.id,p.owner_id ownerId,p.title,'dubbing' type,p.state,p.visibility,p.duration,p.created,${publishedAt} publishedAt,
+ return rows(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.owner_id ownerId,p.title,'dubbing' type,p.state,p.visibility,p.duration,p.created,${publishedAt} publishedAt,
   ${publicNameSQL('u')} ownerName,p.options_json,p.role_count roleCount,${count} participants,${likes} likes,
   (SELECT id FROM producers WHERE user_id=p.owner_id LIMIT 1) producer_id
   FROM dubbing_projects p JOIN users u ON u.id=p.owner_id

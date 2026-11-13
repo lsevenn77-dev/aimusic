@@ -1,3 +1,4 @@
+import {dubbingPosterSQL} from './dubbing-poster.js';
 import {one,rows,query,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -6,7 +7,7 @@ import {reconcileDubbingGold} from './dubbing-gold.js';
 
 export async function dubbingVersions(env,p,user){
  const root=p.root_id||p.id,uid=user?.id||'';
- return rows(env,`SELECT p.id,p.owner_id ownerId,p.state,p.role_count roleCount,${publicNameSQL('u')} ownerName,
+ return rows(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.owner_id ownerId,p.state,p.role_count roleCount,${publicNameSQL('u')} ownerName,
  (SELECT COUNT(*) FROM dubbing_role_claims WHERE project_id=p.id) participants,
  EXISTS(SELECT 1 FROM dubbing_role_claims WHERE project_id=p.id AND user_id=?) mine
  FROM dubbing_projects p JOIN users u ON u.id=p.owner_id

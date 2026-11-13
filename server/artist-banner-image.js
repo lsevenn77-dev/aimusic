@@ -1,6 +1,6 @@
 import {fail} from './db.js';
 // Inspect container dimensions before R2 storage; no image decoder or external service.
-export function validateArtistBanner(data,type){
+export function imageDimensions(data,type){
  const view=new DataView(data.buffer,data.byteOffset,data.byteLength);let width=0,height=0;
  const text=(offset,n)=>String.fromCharCode(...data.slice(offset,offset+n));
  if(type==='image/png'&&data.length>=24){width=view.getUint32(16);height=view.getUint32(20);}
@@ -20,5 +20,9 @@ export function validateArtistBanner(data,type){
    if([192,193,194,195,197,198,199,201,202,203,205,206,207].includes(marker)&&length>=7){height=view.getUint16(p+3);width=view.getUint16(p+5);break;}p+=length;
   }
  }
+ return {width,height};
+}
+export function validateArtistBanner(data,type){
+ const {width,height}=imageDimensions(data,type);
  if(Math.min(width,height)<320||Math.max(width,height)>8000)fail(400,'배경 사진의 가로·세로는 320~8000px이어야 합니다.');
 }

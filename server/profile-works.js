@@ -1,3 +1,4 @@
+import {dubbingPosterSQL} from './dubbing-poster.js';
 import {dubbingPlayCountSQL} from './dubbing-plays.js';
 import {rows} from './db.js';
 import {VISIBLE,SINGABLE} from './catalog.js';
@@ -25,7 +26,7 @@ export const dubAudioReadySQL="EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j
 export const finished=`p.state='complete' AND (EXISTS(SELECT 1 FROM dubbing_combinations c WHERE c.project_id=p.id AND c.expired_at=0) OR ${dubAudioReadySQL})`;
 export async function completedDubbingWorks(env,root,user,offset=0){
  const uid=user?.id||'';
- return rows(env,`SELECT p.id,p.title,'dubbing' kind,p.owner_id,p.duration,p.state,p.visibility,p.created,p.options_json,${dubbingPlayCountSQL()} plays,${dubAudioReadySQL} audio_ready,COUNT(*) OVER() total,
+ return rows(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.title,'dubbing' kind,p.owner_id,p.duration,p.state,p.visibility,p.created,p.options_json,${dubbingPlayCountSQL()} plays,${dubAudioReadySQL} audio_ready,COUNT(*) OVER() total,
   ${publicNameSQL('u')} owner_name,
   (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants,
   (SELECT group_concat(CASE WHEN EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=cu.id) OR (b.blocked_id=? AND b.user_id=cu.id)) THEN '참여자' ELSE ${publicNameSQL('cu')} END, ' & ') FROM dubbing_role_claims c JOIN users cu ON cu.id=c.user_id WHERE c.project_id=p.id AND cu.provider!='deleted') performers

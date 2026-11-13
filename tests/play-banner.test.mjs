@@ -238,3 +238,10 @@ test('initial ID is resolved from the data rather than a fixed position',()=>{
  const f=setup();vm.runInContext('playBanners.unshift(playBanners.pop())',f.context);
  f.open('dubbing');assert.equal(f.current(),'dubbing');assert.deepEqual(f.pressed(),[2]);f.tick(4000);assert.equal(f.current(),'browse');
 });
+
+test('dubbing discovery keeps the shared carousel visible above its main tabs',()=>{
+ const f=setup(),page=f.context.playPendingView('karaoke','dubbing','karaoke/dubbing?tab=discover');
+ assert.match(page.html,/id="play-banner"[^>]*><\/div>\s*<nav[^>]*play-main-tabs/);
+ const css=readFileSync(new URL('../dist/dub-discovery.css',import.meta.url),'utf8');
+ assert.doesNotMatch(css,/(?:#play-banner|\.play-banner)\b[^{]*\{[^}]*display\s*:\s*none\b/);
+});

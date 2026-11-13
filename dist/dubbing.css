@@ -276,3 +276,10 @@ body.has-player .dubbing-save-bar{position:static}
 .dubbing-record-cue{min-height:48px;display:grid;place-items:center;color:var(--ds-body);font-size:22px;font-weight:700;text-align:center}.dubbing-record-line.is-recorded .dubbing-record-line-number{color:var(--ds-progress)}
 
 .dubbing-record-line{grid-template-columns:34px minmax(0,1fr) 104px}.dubbing-record-line-number{white-space:nowrap}@media(max-width:480px){.dubbing-record-line{grid-template-columns:32px minmax(0,1fr)}.dubbing-record-line-status{display:block;grid-column:2;text-align:left}}
+
+.dubbing-poster-heading{display:grid;grid-template-columns:clamp(68px,16vw,90px) minmax(0,1fr);align-items:center;gap:16px}
+.dubbing-poster-heading>div{min-width:0;overflow-wrap:anywhere}
+.dubbing-detail-poster{display:block;width:100%;height:auto;aspect-ratio:3/4;object-fit:cover;border-radius:10px}
+.dubbing-poster-heading [data-change-dubbing-poster]{min-height:44px}
+.dubbing-poster-status{display:block;font-size:13px;color:var(--ds-muted)}
+.dubbing-page .dubbing-poster-heading input[data-dubbing-poster-file][hidden]{display:none}

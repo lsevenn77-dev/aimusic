@@ -265,7 +265,7 @@ export const karaokeVocalParts=sqliteTable('karaoke_vocal_parts',{
 export const voiceMusicPermissions=sqliteTable('voice_music_permissions',{trackId:text('track_id').primaryKey().references(()=>tracks.id,{onDelete:'cascade'}),ownerId:text('owner_id').notNull().references(()=>users.id),terms:text('terms').notNull(),acceptedAt:integer('accepted_at').notNull()});
 
 // Dubbing is a separate content domain: it never enters the music settlement ledger.
-export const dubbingProjects=sqliteTable('dubbing_projects',{lastSubmittedBy:text('last_submitted_by').notNull().default(''),
+export const dubbingProjects=sqliteTable('dubbing_projects',{posterVersion:text('poster_version').notNull().default(''),lastSubmittedBy:text('last_submitted_by').notNull().default(''),
  id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
  title:text('title').notNull(),optionsJson:text('options_json').notNull(),scriptJson:text('script_json').notNull(),scriptKey:text('script_key').notNull(),
  creationHash:text('creation_hash').notNull(),source:text('source').notNull().default('manual'),generationId:text('generation_id'),

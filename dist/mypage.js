@@ -234,7 +234,7 @@ function profileWorkCard({t,type,section,mine,nickname,key},{showManagement=fals
  const id=encodeURIComponent(t.id),title=esc(t.title),dub=t.kind==='dubbing';
  const canPlay=dub?!!(t.work_finished&&t.audio_ready):!!t.work_public;
  const detail=dub?'#dubbing/'+id:canPlay?'#song/'+id:'#manage/'+id;
- const art=dub?`<img class="mp-dub-cover" loading="lazy" src="${esc(AifectDubbing.dubbingGenreArtwork(t.genres||[]))}" alt="">`:cover(t,'mp-track-cover');
+ const art=dub?`<img class="mp-dub-cover" loading="lazy" src="${esc(t.posterUrl||AifectDubbing.dubbingGenreArtwork(t.genres||[]))}" alt="">`:cover(t,'mp-track-cover');
  const privateWork=dub?t.visibility==='private':!!t.status&&t.status!=='published';
  const mark=privateWork?`<span class="mp-private-state" aria-label="비공개" title="비공개">${icon('lock',14)}</span>`:'';
  const join=profileWorkJoin({t,section,mine}),reasonId='mp-join-'+(dub?'dubbing-':'track-')+id;

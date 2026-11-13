@@ -1,5 +1,5 @@
 #main > .play-page.dub-discovery-active[data-play-mode] > .play-content{--play-section-zoom:1;zoom:1}
-.play-page.dub-discovery-active #play-banner,.play-page.dub-discovery-active>.play-subbar{display:none}
+.play-page.dub-discovery-active>.play-subbar{display:none}
 .dub-hub{display:grid;gap:12px;max-width:1040px;margin-inline:auto;color:var(--text,#efeff7);min-width:0}
 .dub-hub *{box-sizing:border-box}
 .dub-hub a{color:inherit;text-decoration:none}

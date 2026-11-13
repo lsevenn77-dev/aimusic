@@ -73,7 +73,7 @@ function dubWorkURL(s,p){
  return s.mode==='complete'?dubHref(s,{section:'versions',root:p.id}):'#dubbing/'+encodeURIComponent(p.id);
 }
 function dubPhoto(p){
- const hasGenre=p.genres?.some(g=>(AifectDubbing.DUBBING_GENRES||dubGenres).includes(g)),url=hasGenre?AifectDubbing.dubbingGenreArtwork(p.genres):'';
+ const hasGenre=p.genres?.some(g=>(AifectDubbing.DUBBING_GENRES||dubGenres).includes(g)),url=p.posterUrl||(hasGenre?AifectDubbing.dubbingGenreArtwork(p.genres):'');
  return url?'<img loading="lazy" decoding="async" alt="" src="'+esc(url)+'">':'<span class="dub-art-empty" aria-hidden="true">'+icon('message')+'</span>';
 }
 function dubCover(s,p,rank,starter=false){

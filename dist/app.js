@@ -55,7 +55,7 @@ function remember(tracks){tracks.forEach(t=>trackMap.set(t.id,t));return tracks;
 const liked=id=>library.likes.some(t=>t.id===id);
 const followed=(kind,id)=>library.follows.some(f=>f.kind===kind&&f.target_id===id);
 function trackArtworkPath(t){
- if(t.kind==='dubbing')return AifectDubbing.dubbingGenreArtwork(t.genres);
+ if(t.kind==='dubbing')return t.posterUrl||AifectDubbing.dubbingGenreArtwork(t.genres);
  // Older cached payloads can still carry a synthetic performer version.
  let source=t.artwork_id,version=t.cover_version;
  if(source===undefined){
@@ -201,7 +201,7 @@ function loadDubbingPlayer(project,start=0){
  const src=project.recording.final.audioUrl;
  const cast=[...new Set((project.roles||[]).map(r=>r.participant).filter(Boolean))].join(' · ');
  current={id:project.id,kind:'dubbing',title:project.title,producer:cast||project.ownerName,artist:cast||project.ownerName,
-  genres:project.script?.genres||[],genre:'더빙',duration:project.duration, countPlay:project.visibility==='public'&&project.state==='complete'};
+  posterUrl:project.posterUrl,rootId:project.rootId,genres:project.script?.genres||[],genre:'더빙',duration:project.duration, countPlay:project.visibility==='public'&&project.state==='complete'};
  playSession=null;preview=false;heard=0;lastTick=0;
  audio.src=src;
  restoredPosition=Math.min(Math.max(0,Number(start)||0),project.duration);
