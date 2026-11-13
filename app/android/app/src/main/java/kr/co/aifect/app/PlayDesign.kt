@@ -110,6 +110,6 @@ internal fun Song.openDuetFor(userId:String?):Boolean=cover&&raw.optString("cove
 @Composable internal fun DubbingCover(project:JSONObject,modifier:Modifier=Modifier){
  Box(modifier.clip(RoundedCornerShape(12.dp)).background(Panel),contentAlignment=Alignment.Center){
   Icon(Icons.Rounded.TheaterComedy,null,Modifier.fillMaxSize(.5f),tint=Violet)
-  AsyncImage(currentDubbingImage(project),"더빙 장르 이미지",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+  DubbingImage(currentDubbingImage(project),Modifier.fillMaxSize())
  }
 }

@@ -9,6 +9,11 @@ import coil.decode.SvgDecoder
 
 /** Remote catalog artwork, including animated effects and SVG thumbnails. */
 class AifectApplication:Application(),ImageLoaderFactory {
+ internal val dubbingPosters by lazy {
+  ImageLoader.Builder(this).okHttpClient(NativeApi(this).client)
+   .diskCachePolicy(coil.request.CachePolicy.DISABLED)
+   .memoryCachePolicy(coil.request.CachePolicy.DISABLED).build()
+ }
  override fun newImageLoader():ImageLoader=ImageLoader.Builder(this).components {
   if(android.os.Build.VERSION.SDK_INT>=28)add(ImageDecoderDecoder.Factory())else add(GifDecoder.Factory())
   add(SvgDecoder.Factory())

@@ -241,7 +241,7 @@ internal fun communityRankChange(row:JSONObject,rank:Int):Pair<String,String>{
   "work"->Artwork(Song(track?:payload("id" to id,"title" to name)),modifier.testTag("ranking-art-$id"),8.dp)
   else->Box(modifier.clip(RoundedCornerShape(8.dp)).background(Raised).testTag("ranking-art-$id"),contentAlignment=Alignment.Center){
    Icon(Icons.Rounded.RecordVoiceOver,"$name 더빙",tint=Pink)
-   AsyncImage(currentDubbingImage(row),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+   DubbingImage(currentDubbingImage(row),Modifier.fillMaxSize())
   }
  }
 }

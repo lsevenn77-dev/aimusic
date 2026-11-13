@@ -212,6 +212,13 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  var soundRequest by rememberSaveable{mutableStateOf(requestIdentity())};var performanceRequest by rememberSaveable{mutableStateOf(requestIdentity())}
  suspend fun reload(){project=api.call("/api/dubbing/projects/$id",fresh=true).getJSONObject("project")}
  fun task(block:suspend ()->Unit){if(busy)return;busy=true;error=null;scope.launch{try{block()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}
+ val posterPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
+  if(uri!=null && project?.optBoolean("canEditPoster")==true)task{
+   api.uploadWebp("/api/dubbing/projects/$id/poster",uri)
+   api.invalidateReads(homeSnapshot=false)
+   reload()
+  }
+ }
  LaunchedEffect(id){try{val early=prefetched?.await();if(early!=null&&early.optString("id")==id)project=early else reload()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  val sound=project?.optJSONObject("sound")?:JSONObject();val currentRole=project?.optJSONArray("roles").objects().find{it.optBoolean("mine")}
  LaunchedEffect(sound.optString("state"),recording){if(!recording&&sound.optString("state") in listOf("queued","planning","generating","mixing")){while(isActive){delay(5000);try{reload()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message;break}}}}
@@ -237,6 +244,10 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
        val roomId=created.getJSONObject("room").getString("id");DubbingRoomLaunch.pending[roomId]=id;navigate("voice/$roomId")
       }},modifier=Modifier.testTag("dubbing-open-live-room"))
      }
+     if(project?.optBoolean("canEditPoster")==true)DropdownMenuItem(
+      text={Text("썸네일 변경")},enabled=!busy,onClick={menu=false;posterPicker.launch("image/*")},
+      modifier=Modifier.testTag("dubbing-change-poster")
+     )
      project?.takeIf{it.optBoolean("isOwner")}?.let{p->
       if(p.optBoolean("canEdit"))DropdownMenuItem(text={Text("대본 수정")},onClick={menu=false;editing=true})
       DropdownMenuItem(text={Text(if(p.optString("visibility")=="private")"배역 모집 시작" else "모집 중지")},onClick={menu=false;confirm=if(p.optString("visibility")=="private")"publish" else "unpublish"})

@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -36,7 +37,7 @@ internal fun MediaController.playDubbingEdition(project: JSONObject) {
  val title=project.optString("title")
  val owner=project.optString("ownerName")
  val raw=payload("id" to id,"kind" to "dubbing","title" to title,"producer" to owner,"duration" to project.optDouble("duration",0.0))
- val metadata=MediaMetadata.Builder().setTitle(title).setArtist(owner).setExtras(Bundle().apply {
+ val metadata=MediaMetadata.Builder().setTitle(title).setArtist(owner).setArtworkUri(android.net.Uri.parse(currentDubbingImage(project))).setExtras(Bundle().apply {
   putBoolean("dubbing",true)
   putString("song",raw.toString())
  }).build()
@@ -83,7 +84,8 @@ internal fun MediaController.playDubbingEdition(project: JSONObject) {
  Surface(Modifier.fillMaxWidth().padding(horizontal=4.dp,vertical=3.dp).testTag("dubbing-mini-player"),shape=RoundedCornerShape(18.dp),color=Panel){
   Column(Modifier.background(Brush.horizontalGradient(listOf(Panel,Ink))).padding(horizontal=12.dp,vertical=4.dp)){
    Row(verticalAlignment=Alignment.CenterVertically){
-    Icon(Icons.Rounded.RecordVoiceOver,null,tint=Pink)
+    current.mediaMetadata.artworkUri?.let{DubbingImage(it.toString(),Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)))}
+     ?:Icon(Icons.Rounded.RecordVoiceOver,null,tint=Pink)
     Column(Modifier.weight(1f).padding(horizontal=10.dp)){
      Text(current.mediaMetadata.title?.toString().orEmpty(),fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
      Text(if(failed)"재생 실패 · 다시 재생해 주세요" else current.mediaMetadata.artist?.toString().orEmpty(),style=MaterialTheme.typography.labelSmall,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)

@@ -75,7 +75,7 @@ private fun Modifier.glass(shape:RoundedCornerShape=cardShape)=clip(shape).backg
 }
 private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3->Color(0xFFF0B690);else->Color.White}
 @Composable private fun DubArtwork(work:DubWork,modifier:Modifier){
- if(work.genres.any{it in dubbingGenres})DubbingCover(work.project,modifier)
+ if(customDubbingPoster(work.project)!=null || work.genres.any{it in dubbingGenres})DubbingCover(work.project,modifier)
  else Box(modifier.clip(RoundedCornerShape(10.dp)).background(Panel),contentAlignment=Alignment.Center){Icon(Icons.Rounded.TheaterComedy,null,tint=Muted)}
 }
 @Composable private fun DubPoster(work:DubWork,rank:Int?,open:()->Unit,modifier:Modifier){

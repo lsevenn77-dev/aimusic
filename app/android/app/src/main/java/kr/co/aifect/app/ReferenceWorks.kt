@@ -34,7 +34,7 @@ internal fun referenceWorks(songs:List<Song>,dubbings:List<JSONObject>)=(songs.m
  fun open(){work.song?.let{m.openSong(it)}?:work.dubbing?.let{m.openCurrentWorkspace("dubbing/${it.optString("id")}",it.optString("title"))}}
  Column(Modifier.fillMaxWidth().testTag("work-card-${work.id}")){
   Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Panel).clickable{open()}){
-   work.song?.let{Artwork(it,Modifier.fillMaxSize(),12.dp)}?:work.dubbing?.let{AsyncImage(currentDubbingImage(it),"더빙 장르 이미지",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)}
+   work.song?.let{Artwork(it,Modifier.fillMaxSize(),12.dp)}?:work.dubbing?.let{DubbingImage(currentDubbingImage(it),Modifier.fillMaxSize())}
    BrandPlayButton("${work.title} 듣기",{work.song?.let{m.play(it,queue)}?:open()},Modifier.align(Alignment.BottomEnd).padding(6.dp),diameter=32.dp)
   }
   Text(work.title,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp).clickable{open()})

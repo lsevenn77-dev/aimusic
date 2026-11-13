@@ -45,6 +45,18 @@ class DesignCaptureTest {
   ui.onNodeWithTag("mini-player").assertDoesNotExist()
  }
 
+ @Test fun uploadedDubbingPosterLoadsWithoutGenre(){
+  val path="/api/dubbing/projects/poster-original/poster?v=test-version"
+  val project=payload("id" to "poster-original","title" to "썸네일 확인","genres" to arr(),"roleCount" to 2,
+   "posterUrl" to path,"activeCount" to 1,"weeklyActiveCount" to 1)
+  responses["/api/dubbing/projects?tab=open&discovery=1&offset=0"]=payload("projects" to arr(project))
+  act{it.selectTab(2);it.playMode="dubbing"}
+  ready("dub-cover-poster-original")
+  ui.waitUntil(10000){path in requestUrls}
+  assertEquals(Endpoint.url(path),currentDubbingImage(project))
+  assertNull(customDubbingPoster(JSONObject(project.toString()).put("posterUrl","https://other.invalid/cover")))
+  assertEquals(Endpoint.url("/assets/dubbing-genres/romance.webp"),currentDubbingImage(payload("genres" to arr("로맨스"))))
+ }
  @Test fun dubbingPostersAndCompletedEditions(){
   val nativeWidth=instrumentation.targetContext.resources.configuration.screenWidthDp
   val cases=listOf(1,2,4,7)
@@ -386,6 +398,7 @@ class DesignCaptureTest {
     val type:String;val bytes:ByteArray
     val webAsset=if(path.startsWith("/api/")||path.startsWith("/media/"))null else runCatching{instrumentation.context.assets.open("current-web/"+(if(path=="/")"index.html" else path.removePrefix("/"))).use{it.readBytes()}}.getOrNull()
     when{webAsset!=null->{type=when{path.endsWith(".js")->"application/javascript; charset=utf-8";path.endsWith(".css")->"text/css; charset=utf-8";path.endsWith(".svg")->"image/svg+xml";else->"text/html; charset=utf-8"};bytes=webAsset}
+     path=="/api/dubbing/projects/poster-original/poster"->{type="image/png";bytes=photos[0]}
      path=="/media/sample/audio"->{type="audio/wav";bytes=audio}
      path.startsWith("/media/")->{type="image/png";bytes=photos[if(path.contains("ocean")||path.contains("own")||path.contains("photo-2")||path.contains("crew"))1 else 0]}
      path.startsWith("/assets/gifts/")->{type=if(path.endsWith(".png"))"image/png"else"image/webp";bytes=giftsBytes[path.substringAfterLast('/')]?:ByteArray(0)}

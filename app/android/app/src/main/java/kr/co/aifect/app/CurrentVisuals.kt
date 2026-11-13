@@ -69,18 +69,31 @@ import org.json.JSONObject
  }
 }
 
+private val dubbingPosterPath=Regex("""/api/dubbing/projects/[A-Za-z0-9_-]+/poster(?:\?v=[A-Za-z0-9_-]+)?""")
+
+internal fun customDubbingPoster(project:JSONObject):String? =
+ (project.opt("posterUrl") as? String)?.takeIf(dubbingPosterPath::matches)?.let(Endpoint::url)
+
 internal fun currentDubbingImage(p:JSONObject):String {
+ customDubbingPoster(p)?.let{return it}
  val genre=(p.optJSONArray("genres")?:p.optJSONObject("options")?.optJSONArray("genres"))?.optString(0).orEmpty()
  val slug=mapOf("SF" to "sf","이세계물" to "isekai","판타지" to "fantasy","사극" to "historical","로맨스" to "romance","액션" to "action","코미디" to "comedy","첩보" to "spy","공포" to "horror","스릴러" to "thriller","미스터리" to "mystery","일상" to "daily","감동" to "moving")[genre]?:"daily"
  return Endpoint.url("/assets/dubbing-genres/$slug.webp")
 }
+@Composable internal fun DubbingImage(url:String,modifier:Modifier){
+ if(url.startsWith(Endpoint.origin+"/api/dubbing/projects/")){
+  val app=androidx.compose.ui.platform.LocalContext.current.applicationContext as AifectApplication
+  AsyncImage(url,"더빙 썸네일",modifier=modifier,imageLoader=app.dubbingPosters,contentScale=ContentScale.Crop)
+ }else AsyncImage(url,"더빙 썸네일",modifier,contentScale=ContentScale.Crop)
+}
+
 @Composable internal fun CurrentDubbingCard(p:JSONObject,m:MusicModel){
  val id=p.optString("id")
  fun open(){if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("dubbing/$id",p.optString("title","더빙"))}
  Column(Modifier.fillMaxWidth().testTag("dubbing-project-$id")){
   Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Raised).clickable{open()}){
    Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(32.dp).align(Alignment.Center),tint=Muted)
-   AsyncImage(currentDubbingImage(p),"더빙 장르 이미지",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+   DubbingImage(currentDubbingImage(p),Modifier.fillMaxSize())
    BrandPlayButton("${p.optString("title")} 더빙 듣기",::open,Modifier.align(Alignment.BottomEnd).padding(5.dp),diameter=34.dp)
   }
   Row(Modifier.fillMaxWidth().heightIn(min=44.dp).clickable{open()},verticalAlignment=Alignment.CenterVertically){
