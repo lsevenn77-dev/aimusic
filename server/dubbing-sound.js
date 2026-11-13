@@ -2,7 +2,7 @@ import {dubbingSettings,dubbingPriceSQL} from './dubbing-settings.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {one,rows,query,run,now,id,json,fail} from './db.js';
 import {requireUser} from './auth.js';
-import {dubbingSoundTimeline} from '../shared/dubbing.js';
+import {dubbingSoundTimeline,dubbingTimeline} from '../shared/dubbing.js';
 import {pikaAvailable,pikaSubmit,pikaPoll,pikaRequest} from './dubbing-pika.js';
 import {dubbingAIAvailable,generateDubbingSoundPlan} from './dubbing-ai.js';
 import {dubbingGoldEnabled,dubbingChargeWrites,dubbingPayment,refundDubbingGold,reconcileDubbingGold} from './dubbing-gold.js';
@@ -38,19 +38,30 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
  if(env.DUBBING_SOUND_ENABLED!=='true'||!env.TRANSCODER_TOKEN)fail(503,'음향 합성 서버 연결을 기다리고 있습니다.');
  const priceGold=(await dubbingSettings(env)).soundGold;
  const script=JSON.parse(p.script_json);
+ const useScriptCues=body.cueSource==='script';
+ if(useScriptCues&&(body.mode!=='ai'||p.source!=='manual'||!script.soundCues.length||script.soundCues.filter(c=>c.kind==='bgm').length>3)){
+  fail(400,'직접 등록한 대본과 최대 3개의 배경음악을 확인해주세요.');
+ }
+ const timeline=useScriptCues?dubbingTimeline(script):dubbingSoundTimeline(script);
+ if(useScriptCues){
+  for(const cue of timeline.sounds){
+   if(cue.volume<=0)fail(400,'대본에 소리가 없는 음향 큐가 있습니다.');
+   cue.generationSeconds=Math.ceil(cue.generationSeconds);
+  }
+ }
  if(body.mode==='ai'){
   if(!pikaAvailable(env))fail(503,'Pika 연결과 유료 API 실행 승인이 필요합니다.');
   if(body.acceptedGold!==priceGold||body.acceptedChargeGold!==(dubbingGoldEnabled(env)?priceGold:0))fail(409,'음향 제작 가격이 변경되었습니다. 화면을 새로 열어 차감 금액을 확인해주세요.');
   if(!script.soundCues.length&&!dubbingAIAvailable(env))fail(503,'직접 작성한 대본의 AI 음향 연출 연결을 기다리고 있습니다.');
-  dubbingSoundTimeline(script).sounds.forEach(pikaRequest);
+  timeline.sounds.forEach(pikaRequest);
  }
- const timeline=dubbingSoundTimeline(script),jid=body.requestId,at=now();
+ const jid=body.requestId,at=now();
  const bucket=Math.floor(at/soundStartWindow),rateKey=`dubbing-sound-start:${user.id}:${bucket}`,retryAt=(bucket+1)*soundStartWindow;
  const jobExists='EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE id=? AND project_id=? AND script_key=?)';
  // Saved scripts may carry the previous sparse/quiet music directions. A new
  // paid job gets fresh direction when available, without rewriting the script
  // or touching any already generated/recorded project.
- if(body.mode==='ai'&&dubbingAIAvailable(env))timeline.sounds=[];
+ if(body.mode==='ai'&&!useScriptCues&&dubbingAIAvailable(env))timeline.sounds=[];
  if(body.mode==='basic')timeline.sounds=[];
  // Admission, counting and payment commit together. Replays and rejected payments
  // never consume another slot, and concurrent requests cannot bypass the limit.

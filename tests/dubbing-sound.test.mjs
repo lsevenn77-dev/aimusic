@@ -112,3 +112,22 @@ test('manual scripts get a Luna sound plan once before Pika; scene and line cloc
  const timeline=JSON.parse(f.sql.prepare('SELECT timeline_json FROM dubbing_sound_jobs').get().timeline_json);assert.equal(timeline.duration,p.duration);assert.equal(timeline.lines[0].id,script.lines[0].id);
  assert.equal(f.sql.prepare('SELECT provider_id FROM dubbing_generations').get().provider_id,'response_plan');
 });
+
+test('an explicitly authored manual soundtrack keeps the intro, transition and outro on the saved line clock',async t=>{
+ const f=await setup(t,{...paid,DUBBING_AI_ENABLED:'true',OPENAI_API_KEY:'mock-openai-key'}),script=sampleScript();
+ const shape=script.soundCues[0];
+ for(const [i,use] of ['intro','transition','outro'].entries()){
+  script.soundCues.push({...shape,id:'music_'+use,kind:'bgm',anchor:'start',musicUse:use,
+   offsetSeconds:i*3,generationSeconds:10,durationSeconds:3});
+ }
+ const p=await f.create(script),requestId=crypto.randomUUID(),enqueue=()=>f.call('/api/dubbing/projects/'+p.id+'/sound','POST',{
+  requestId,mode:'ai',cueSource:'script',revision:p.revision,acceptedGold:50,acceptedChargeGold:0
+ });
+ assert.equal((await enqueue()).status,202);
+ assert.equal((await enqueue()).body.sound.id,requestId);
+ const timeline=JSON.parse(f.sql.prepare('SELECT timeline_json FROM dubbing_sound_jobs WHERE id=?').get(requestId).timeline_json);
+ assert.deepEqual(timeline.sounds.map(c=>c.id),script.soundCues.map(c=>c.id));
+ assert.equal(timeline.sounds[1].start,timeline.lines[0].start);
+ assert.equal(timeline.sounds[3].durationSeconds,3);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) AS n FROM dubbing_sound_assets WHERE job_id=?').get(requestId).n,4);
+});
