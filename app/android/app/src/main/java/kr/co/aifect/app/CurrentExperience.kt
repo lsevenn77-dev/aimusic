@@ -91,13 +91,17 @@ internal class CurrentRead {
 }
 
 @Composable internal fun CurrentPlayScreen(m:MusicModel,sing:(Song)->Unit,resumeDraft:(JSONObject)->Unit,menu:()->Unit){
+ if(m.playMode=="dubbing"){
+  DubbingDiscovery(m,menu)
+  return
+ }
  var query by rememberSaveable(m.playMode,m.playSection){mutableStateOf("")}
  var kind by rememberSaveable{mutableStateOf("all")}
  var choosingKind by remember{mutableStateOf(false)}
  var offset by rememberSaveable(m.playMode,m.playSection,kind){mutableIntStateOf(0)}
  val mode=m.playMode;val section=m.playSection
- val sections=when(mode){"dubbing"->listOf("discover" to "작품찾기","join" to "더빙참여","mine" to "내 작업");"browse"->listOf("recommended" to "추천","following" to "팔로잉","popular" to "인기","latest" to "최신");else->listOf("recommended" to "추천곡","duets" to "듀엣참여","latest" to "최신곡","drafts" to "내 초안")}
- val gated=(mode=="song"&&section=="drafts"||mode=="dubbing"&&section=="mine"||mode=="browse"&&section=="following")&&m.user==null
+ val sections=when(mode){"browse"->listOf("recommended" to "추천","following" to "팔로잉","popular" to "인기","latest" to "최신");else->listOf("recommended" to "추천곡","duets" to "듀엣참여","latest" to "최신곡","drafts" to "내 초안")}
+ val gated=(mode=="song"&&section=="drafts"||mode=="browse"&&section=="following")&&m.user==null
  val base=CurrentNavigation.playPath(mode,section,kind)
  val path=base+(if('?' in base)"&" else "?")+"offset=$offset"
  val read=currentRead(m,path,enabled=!gated&&!(mode=="song"&&section=="drafts"))
@@ -106,7 +110,7 @@ internal class CurrentRead {
  val tabLists=remember(account){mutableMapOf<String,List<JSONObject>>()}
  var records by remember(listKey,account){mutableStateOf(tabLists[listKey].orEmpty())}
  var appliedData by remember(listKey,account){mutableStateOf<JSONObject?>(null)}
- LaunchedEffect(read.data){read.data?.let{d->val incoming=d.optJSONArray(if(mode=="dubbing")"projects" else if(mode=="browse")"works" else "tracks").objects();records=(if(offset==0)incoming else records+incoming).distinctBy{it.optString("id")};tabLists[listKey]=records;appliedData=d}}
+ LaunchedEffect(read.data){read.data?.let{d->val incoming=d.optJSONArray(if(mode=="browse")"works" else "tracks").objects();records=(if(offset==0)incoming else records+incoming).distinctBy{it.optString("id")};tabLists[listKey]=records;appliedData=d}}
  val responseApplied=read.data==null||read.data===appliedData
  val filtered=records.filter{r->
   val match=query.isBlank()||listOf("title","artist","producer","ownerName","owner_name").any{r.optString(it).contains(query.trim(),true)}
@@ -119,7 +123,6 @@ internal class CurrentRead {
    if(gated)SignInEntry(m)else RecordingDraftsContent(m,resumeDraft)
   }else LazyColumn(Modifier.fillMaxSize().testTag("play-results"),contentPadding=PaddingValues(16.dp,4.dp,16.dp,24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
    if(gated)item{SignInEntry(m)}else{
-    if(mode=="dubbing")item{BrandButton(onClick={m.openCurrentWorkspace("dubbing/new","더빙 만들기")},modifier=Modifier.fillMaxWidth().testTag("dubbing-create")){Icon(Icons.Rounded.Add,null);Text("더빙 만들기")}}
     item{CurrentSearch(query,{query=it},if(mode=="song")"곡 · 아티스트 · 제작자 검색" else "작품 · 창작자 검색","play-search")}
     if(mode=="browse")item{SelectionField("작품 유형",mapOf("all" to "전체","solo" to "솔로","duet" to "듀엣","dubbing" to "더빙").getValue(kind),"play-kind-picker",Modifier.fillMaxWidth()){choosingKind=true}}
     if(CurrentNavigation.playLoaderVisible(read.loading,records.size,offset)||read.error!=null)item{ReadStatus(read)}
@@ -127,7 +130,6 @@ internal class CurrentRead {
      Row(Modifier.fillMaxWidth().testTag("play-grid-row-"+row.first().optString("id")),horizontalArrangement=Arrangement.spacedBy(14.dp)){
       row.forEach{r->Box(Modifier.weight(1f).testTag("play-grid-card-"+r.optString("id"))){
        when{
-        mode=="dubbing"->CurrentPlayDubbingCard(r,section,m)
         mode=="song"&&section=="duets"->DuetParticipationRow(Song(r),m,filtered.map{Song(it)},sing)
         r.optString("type")=="dubbing"||r.optString("kind")=="dubbing"->CurrentDubbingCard(r,m)
         else->CurrentSongCard(Song(r),m,filtered.filter{it.optString("type")!="dubbing"}.map{Song(it)},if(mode=="song")sing else null)
@@ -171,27 +173,6 @@ private fun JSONObject.flag(key:String)=optBoolean(key,false)||optInt(key,0)==1
  }
 }
 private val NoneDescription:String?=null
-@Composable private fun CurrentPlayDubbingCard(p:JSONObject,section:String,m:MusicModel){
- val id=p.optString("id");val states=mapOf("script_ready" to "초안","recruiting" to "배역 모집 중","recording" to "녹음 중","in_progress" to "녹음 중","mixing" to "믹싱 중","complete" to "완료")
- fun open(){if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("dubbing/$id",p.optString("title","더빙"))}
- Column(Modifier.fillMaxWidth().testTag("dubbing-project-$id")){
-  Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Raised).clickable{open()}.testTag("dubbing-card-art-$id")){
-   Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(32.dp).align(Alignment.Center),tint=Muted)
-   AsyncImage(currentDubbingImage(p),"더빙 장르 이미지",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-   BrandPlayButton(if(p.optString("state")=="complete")"${p.optString("title")} 더빙 듣기"else "${p.optString("title")} 작품 보기",::open,Modifier.align(Alignment.BottomEnd).padding(5.dp),diameter=34.dp)
-  }
-  Row(Modifier.fillMaxWidth().heightIn(min=44.dp).clickable{open()},verticalAlignment=Alignment.CenterVertically){
-   Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(15.dp),tint=Muted);Spacer(Modifier.width(4.dp))
-   Text(p.optString("title"),fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-  }
-  Text(p.optString("ownerName",p.optString("owner_name")),fontSize=13.sp,lineHeight=19.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
-  Text(if(section=="discover")"극본 · ${p.optInt("roleCount")}개 배역" else "${states[p.optString("state")]?:"제작 중"} · ${p.optInt("participants")} / ${p.optInt("roleCount")}명",fontSize=12.sp,lineHeight=18.sp,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp).testTag("dubbing-card-status-$id"))
-  OutlinedButton(onClick=::open,modifier=Modifier.fillMaxWidth().padding(top=10.dp).heightIn(min=44.dp).testTag("dubbing-card-open-$id"),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,SoftText.copy(alpha=.3f)),colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText),contentPadding=PaddingValues(horizontal=8.dp,vertical=8.dp)){
-   Text(when(section){"join"->"배역 보기";"mine"->"작업 이어가기";else->"극본 보기"},fontSize=13.sp,lineHeight=18.sp)
-   }
- }
-}
-
 @Composable internal fun CurrentCommunityScreen(m:MusicModel,menu:()->Unit){
  var query by rememberSaveable{mutableStateOf("")}
  val status=currentRead(m,"/api/voice/status",m.communityMode=="voice")

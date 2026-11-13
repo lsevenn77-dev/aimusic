@@ -45,7 +45,7 @@ class DesignCaptureTest {
   ui.onNodeWithTag("mini-player").assertDoesNotExist()
  }
 
- @Test fun participationAndDubbingListsUseTwoColumnCards(){
+ @Test fun duetGridAndDubbingDiscoveryUseDistinctLayouts(){
   val duets=(1..3).map{JSONObject(duet.toString()).put("id","grid-duet-$it").put("title","함께 부를 곡 $it")}
   responses["/api/duets"]=payload("tracks" to arr(*duets.toTypedArray()))
   val dubbings=(1..3).map{payload("id" to "grid-dubbing-$it","title" to "함께 읽는 이야기 $it","ownerName" to "소리","roleCount" to 2,"participants" to 1,"genres" to arr("일상"),"state" to "recruiting")}
@@ -54,10 +54,25 @@ class DesignCaptureTest {
   fun pair(a:String,b:String){val x=ui.onNodeWithTag(a).fetchSemanticsNode().boundsInRoot;val y=ui.onNodeWithTag(b).fetchSemanticsNode().boundsInRoot;assertEquals(x.top,y.top,2f);assertTrue(x.right<y.left);assertEquals(x.width,y.width,2f)}
   act{it.selectTab(2);it.playMode="song";it.playSection="duets"};ready("play-grid-card-grid-duet-1");pair("play-grid-card-grid-duet-1","play-grid-card-grid-duet-2")
   val art=ui.onNodeWithTag("duet-card-art-grid-duet-1").fetchSemanticsNode().boundsInRoot;assertEquals(art.width,art.height,2f);capture("277-duet-grid")
-  for(section in listOf("discover","join","mine")){
-   act{it.playMode="dubbing";it.playSection=section};ready("dubbing-card-art-grid-dubbing-1");pair("play-grid-card-grid-dubbing-1","play-grid-card-grid-dubbing-2");capture("277-dubbing-$section-grid")
-   ui.onNodeWithTag("dubbing-card-open-grid-dubbing-1").assertExists()
+  for(p in dubbings){
+   val id=p.getString("id")
+   responses["/api/dubbing/projects/$id"]=payload("project" to JSONObject(p.toString()).put("versions",arr(p)))
   }
+  responses["/api/dubbing/projects?tab=popular&offset=0"]=payload("projects" to arr(),"nextOffset" to JSONObject.NULL)
+  act{it.playMode="dubbing";it.playSection="discover"}
+  ready("dub-cover-grid-dubbing-1")
+  pair("dub-cover-grid-dubbing-1","dub-cover-grid-dubbing-2");pair("dub-cover-grid-dubbing-2","dub-cover-grid-dubbing-3")
+  capture("dub-discovery-open")
+  ui.onNodeWithTag("dub-nav-rank").performClick();ready("dubbing-project-grid-dubbing-1")
+  ui.onNodeWithTag("dub-week").performClick();text("이번 주 집계된 작품이 없어.")
+  ui.onNodeWithTag("dub-all").performClick();ready("dubbing-project-grid-dubbing-1")
+  ui.onNodeWithTag("dub-search").performTextInput("이야기 2");ready("dubbing-project-grid-dubbing-2")
+  ui.onNodeWithTag("dubbing-project-grid-dubbing-1").assertDoesNotExist()
+  Espresso.closeSoftKeyboard();ui.onNodeWithContentDescription("더빙 홈으로").performClick()
+  ui.onNodeWithTag("dub-nav-genre").performClick();ui.onNodeWithText("공포").performClick();text("검색 결과가 없어.")
+  ui.onNodeWithText("일상").performClick();ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dubbing-project-grid-dubbing-1"))
+  ui.onNodeWithContentDescription("더빙 홈으로").performClick()
+  ui.onNodeWithTag("dub-mode-done").performClick();text("아직 공개된 완성작이 없어.")
   assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})
  }
 
@@ -569,7 +584,7 @@ class DesignCaptureTest {
    payload("id" to "join2","duet_parent_id" to "design-duet","duet_open" to 0,"user_id" to "user-a"),
    payload("id" to "join3","duet_parent_id" to "design-duet","duet_open" to 0,"user_id" to "user-b"),
    payload("id" to "join4","duet_parent_id" to "another-invitation","duet_open" to 0,"user_id" to "user-c")),"counts" to payload("duet" to 4))
-  ready("home-featured-play");capture("revision-00-home")
+  ready("main-tab-2");capture("revision-00-home")
   ui.onNodeWithTag("main-tab-2").performClick();ready("current-sing-design-song")
   ui.onNodeWithTag("current-sing-design-song").assertIsDisplayed()
   ui.onNodeWithTag("current-sing-design-ocean").assertIsDisplayed()
@@ -584,10 +599,10 @@ class DesignCaptureTest {
    assertEquals("design-duet",room.intent.getStringExtra("duetParentId"));assertEquals("design-song",room.intent.getStringExtra("trackId"));room.runOnUiThread{room.finish()}
   }finally{instrumentation.removeMonitor(monitor)}
   ready("play-main-dubbing")
-  ui.onNodeWithTag("play-main-dubbing").performClick();ready("dubbing-project-design-dubbing")
-  capture("current-03-play-dubbing")
-  ui.onNodeWithTag("play-section-join").performClick();ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/participate")}}
-  ui.onNodeWithTag("play-section-mine").performClick();ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/dubbing/projects?tab=mine")}}
+  ui.onNodeWithTag("play-main-dubbing").performClick();ready("dub-mode-open")
+  ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dub-mine"));ui.onNodeWithTag("dub-mine").performClick()
+  ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/dubbing/projects?tab=mine")}}
+  ui.onNodeWithContentDescription("더빙 홈으로").performClick()
   ui.onNodeWithTag("play-main-browse").performClick();ready("play-kind-picker")
   ui.onNodeWithTag("play-section-popular").performClick();ui.onNodeWithTag("play-kind-picker").performClick();ui.onNodeWithTag("play-kind-duet").performClick()
   ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/works?")&&it.contains("tab=popular")&&it.contains("type=duet")}}
@@ -772,7 +787,7 @@ class DesignCaptureTest {
   ui.onAllNodesWithText("사진 올리기").assertCountEquals(0)
  }
  @Test fun currentDubbingFormUsesNativeWorkflowWithoutMicrophone(){
-  ui.onNodeWithTag("main-tab-2").performClick();ui.onNodeWithTag("play-main-dubbing").performClick();ready("dubbing-create")
+  ui.onNodeWithTag("main-tab-2").performClick();ui.onNodeWithTag("play-main-dubbing").performClick();ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dubbing-create"))
   val before=ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)
   ui.onNodeWithTag("dubbing-create").performClick();ready("native-dubbing-create")
   ui.waitUntil(15000){requestUrls.contains("/api/dubbing/config")}
