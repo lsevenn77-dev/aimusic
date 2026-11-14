@@ -3,6 +3,7 @@ const paths=new Set(['/api/me','/api/library','/api/studio','/api/catalog','/api
 function routeName(req){
  if(req.method!=='GET')return null;
  const path=new URL(req.url).pathname;if(paths.has(path))return path;
+ if(/^\/api\/dubbing\/projects\/[\w-]+\/poster$/.test(path))return '/api/dubbing/projects/:id/poster';
  const match=path.match(/^\/api\/(producers|artists|tracks)\/[\w-]+(?:\/(preview|comments|covers|gifts|gallery))?$/);
  return match?'/api/'+match[1]+'/:id'+(match[2]?'/'+match[2]:''):null;
 }

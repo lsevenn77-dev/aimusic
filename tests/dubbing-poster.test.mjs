@@ -39,9 +39,13 @@ test('original author can replace a poster after release, with inherited artwork
  assert.equal((await call(root,'GET',null,'other')).body.project.canEditPoster,false);
  assert.equal((await call('/api/dubbing/projects?tab=open&discovery=1','GET',null,null)).body.projects[0].posterUrl,second);
  assert.equal((await call('/api/dubbing/casting/'+id,'GET',null,null)).body.root.posterUrl,second);
- assert.equal((await raw(second,{user:null})).status,200);
+ const visible=await raw(second,{user:null});
+ assert.equal(visible.status,200);
+ const headers={'if-none-match':visible.headers.get('etag')};assert.ok(headers['if-none-match']);
+ const cached=await raw(second,{user:'other',headers});assert.equal(cached.status,304);assert.equal(await cached.text(),'');
+ assert.equal((await raw(second,{method:'HEAD',headers})).status,304);
  sql.prepare("INSERT INTO user_blocks VALUES('other','owner',0)").run();
- assert.equal((await raw(second,{user:'other'})).status,404);
+ assert.equal((await raw(second,{user:'other',headers})).status,404);
  sql.prepare('UPDATE dubbing_projects SET deleted_at=1 WHERE id=?').run(id);
- assert.equal((await raw(second)).status,404);
+ assert.equal((await raw(second,{headers})).status,404);
 });

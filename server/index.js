@@ -28,6 +28,7 @@ import {adminMcpRoute} from './admin-mcp.js';
 import {dubbingReportsAdminRoute} from './dubbing-reports.js';
 import {pitchCorrectionRoute} from './pitch-correction.js';
 import {dubbingRoute} from './dubbing.js';
+import {readProjectPoster} from './dubbing-poster.js';
 import {playlistImageRoute} from './playlist-images.js';
 import {musicClassificationRoute,musicClassificationInternal,classifyNext} from './music-classification.js';
 import {profileGalleryRoute} from './profile-gallery.js';
@@ -101,6 +102,10 @@ async function fetchRequest(req,env,ctx){
   // address. Redirect page visits before a login flow creates domain cookies.
   if(url.hostname==='wavv-music-design-lseve.sassy-auk-0975.chatgpt.site'&&['GET','HEAD'].includes(req.method)&&!/^\/(api|media|internal)\//.test(path)){
    url.protocol='https:';url.host='aifect.co.kr';return Response.redirect(url.href,308);
+  }
+  if((req.method==='GET'||req.method==='HEAD')&&path.startsWith('/api/dubbing/projects/')){
+   const poster=path.match(/^\/api\/dubbing\/projects\/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/poster$/i);
+   if(poster)return await readProjectPoster(req,env,poster[1]);
   }
   if(env.BUCKET&&ctx?.waitUntil&&(path.startsWith('/api/')||path.startsWith('/internal/')))ctx.waitUntil(drainDeletedFiles(env).catch(()=>console.error('Account file cleanup pending')));
   if(path.startsWith('/api/')||path.startsWith('/internal/'))queueChatImageCleanup(env,ctx);
