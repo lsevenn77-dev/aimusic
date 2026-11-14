@@ -36,19 +36,19 @@ private val cardShape=RoundedCornerShape(15.dp)
 private val pill=RoundedCornerShape(50)
 private fun Modifier.glass(shape:RoundedCornerShape=cardShape)=clip(shape).background(glass).border(1.dp,Color(0xFF35384C),shape)
 
-@Composable private fun DubTab(label:String,on:Boolean,click:()->Unit,modifier:Modifier=Modifier,icon:ImageVector?=null){
- Row(modifier.clip(pill).then(if(on)Modifier.background(tabColor) else Modifier)
+@Composable private fun DubTab(label:String,on:Boolean,click:()->Unit,modifier:Modifier=Modifier,icon:ImageVector?=null,quiet:Boolean=false){
+ Row(modifier.clip(pill).then(if(on)Modifier.background(if(quiet) Color(0xFF342C48) else tabColor) else Modifier)
   .selectable(on,role=Role.Tab,onClick=click).heightIn(min=34.dp).padding(horizontal=5.dp),
   verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center){
-  val tint=if(on)Color(0xFF20172B) else SoftText
+  val tint=if(on && quiet)Color(0xFFF0DFFF) else if(on)Color(0xFF20172B) else SoftText
   if(icon!=null){Icon(icon,null,Modifier.size(16.dp),tint=tint);Spacer(Modifier.width(3.dp))}
   Text(label,color=tint,fontSize=13.sp,fontWeight=if(on)FontWeight.Bold else FontWeight.Medium,maxLines=1)
  }
 }
 @Composable private fun DubModes(done:Boolean,change:(Boolean)->Unit){
  Row(Modifier.fillMaxWidth().glass(pill).padding(2.dp)){
-  DubTab("참여 가능",!done,{change(false)},Modifier.weight(1f).heightIn(min=40.dp).testTag("dub-mode-open"),Icons.Rounded.Mic)
-  DubTab("완성작 보기",done,{change(true)},Modifier.weight(1f).heightIn(min=40.dp).testTag("dub-mode-done"),Icons.Rounded.PlayArrow)
+  DubTab("참여 가능",!done,{change(false)},Modifier.weight(1f).heightIn(min=40.dp).testTag("dub-mode-open"),Icons.Rounded.Mic,quiet=true)
+  DubTab("완성작 보기",done,{change(true)},Modifier.weight(1f).heightIn(min=40.dp).testTag("dub-mode-done"),Icons.Rounded.PlayArrow,quiet=true)
  }
 }
 @Composable private fun DubHeading(label:String,icon:ImageVector,action:(@Composable ()->Unit)?=null){
@@ -79,16 +79,36 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
  else Box(modifier.clip(RoundedCornerShape(10.dp)).background(Panel),contentAlignment=Alignment.Center){Icon(Icons.Rounded.TheaterComedy,null,tint=Muted)}
 }
 @Composable private fun DubPoster(work:DubWork,rank:Int?,open:()->Unit,modifier:Modifier){
- Box(modifier.aspectRatio(3f/4f).clip(RoundedCornerShape(10.dp)).background(Panel).clickable(onClick=open)
-  .testTag((if(rank!=null)"dub-cover-" else "dub-starter-")+work.id)){
-  DubArtwork(work,Modifier.fillMaxSize())
-  Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Transparent,.3f to Color.Transparent,.72f to Color.Black.copy(alpha=.70f),1f to Color(0xF20E1120))))
-  if(rank!=null)Text(rank.toString(),Modifier.align(Alignment.TopStart).padding(4.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xCC101323)).padding(horizontal=5.dp,vertical=1.dp),fontSize=12.sp,fontWeight=FontWeight.Bold,color=rankColor(rank))
-  Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(6.dp)){
-   Text(work.title,color=Color.White,fontSize=14.sp,lineHeight=16.sp,maxLines=2,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
-   val meta=listOfNotNull(work.project.optInt("roleCount").takeIf{it>0}?.let{"${it}인극"},
-    if(rank==null)work.seconds.takeIf{it>0}?.let{"약 ${(it+30)/60}분"} else work.badge).joinToString(" · ")
-   Text(meta,Modifier.padding(top=3.dp),fontSize=11.sp,lineHeight=13.sp,maxLines=2,color=SoftText,overflow=TextOverflow.Ellipsis)
+ Column(modifier.clickable(onClick=open).testTag((if(rank!=null)"dub-cover-" else "dub-starter-")+work.id),verticalArrangement=Arrangement.spacedBy(4.dp)){
+  Box(Modifier.fillMaxWidth().aspectRatio(3f/4f).clip(RoundedCornerShape(10.dp)).background(Panel)){
+   DubArtwork(work,Modifier.fillMaxSize())
+   if(rank!=null)Text(rank.toString(),Modifier.align(Alignment.TopStart).padding(5.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xDA101323)).padding(horizontal=5.dp,vertical=1.dp),fontSize=12.sp,fontWeight=FontWeight.Bold,color=rankColor(rank))
+  }
+  Text(work.title,color=Color.White,fontSize=14.sp,lineHeight=18.sp,maxLines=2,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
+  val meta=listOfNotNull(work.genres.firstOrNull(),work.project.optInt("roleCount").takeIf{it>0}?.let{"${it}인극"}).joinToString(" · ")
+  Text(meta,fontSize=11.sp,lineHeight=14.sp,maxLines=1,color=SoftText,overflow=TextOverflow.Ellipsis)
+ }
+}
+@Composable private fun DubOriginals(works:List<DubWork>,open:(DubWork)->Unit){
+ Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+  Text("AIFECT 오리지널",fontSize=19.sp,fontWeight=FontWeight.Bold)
+  BoxWithConstraints(Modifier.fillMaxWidth()){
+   val width=(maxWidth*.86f).coerceAtMost(420.dp)
+   LazyRow(horizontalArrangement=Arrangement.spacedBy(9.dp)){
+    items(works,key={it.id}){w->
+     Box(Modifier.width(width).aspectRatio(1.55f).clip(cardShape).background(Panel).clickable{open(w)}.testTag("dub-feature-"+w.id)){
+      DubArtwork(w,Modifier.fillMaxSize())
+      Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Transparent,.32f to Color.Transparent,.78f to Color(0xB8080B16),1f to Color(0xF5080B16))))
+      Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+       Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
+        Text((w.genres+listOf("${w.project.optInt("roleCount")}인극")).joinToString(" · "),fontSize=12.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
+        Text(w.title,color=Color.White,fontSize=21.sp,lineHeight=25.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
+       }
+       Text("더빙하기",Modifier.clip(pill).background(Color(0xFF8EDDD2)).padding(horizontal=11.dp,vertical=7.dp),fontWeight=FontWeight.Bold,color=Ink,fontSize=13.sp)
+      }
+     }
+    }
+   }
   }
  }
 }
@@ -158,6 +178,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
   }
  }
  fun setPeriod(value:Boolean){periodChosen=true;weekly=value}
+ val originals=remember(data){data.works.filter{it.project.optBoolean("isOfficialOriginal")}.sortedByDescending{it.created}}
  val ranks=remember(data,weekly,done){data.ranked(weekly,done)}
  val filtered=data.works.filter{(genre=="전체"||genre in it.genres)&&(query.trim().let{q->it.title.contains(q,true)||it.creator.contains(q,true)||it.editions.any{p->p.optString("ownerName").contains(q,true) || p.optString("title").contains(q,true)}})}
  val beginners=filtered.filter{it.beginner}.sortedWith(compareByDescending<DubWork>{it.preferredBeginner}.thenByDescending{it.created})
@@ -230,6 +251,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
      listOf("home" to "추천","rank" to "랭킹","genre" to "장르","new" to "신규").forEach{(p,label)->DubTab(label,p==page,{navigate(p)},Modifier.weight(1f).testTag("dub-nav-$p"),when(p){"rank"->Icons.Rounded.EmojiEvents;"genre"->Icons.Rounded.GridView;"new"->Icons.Rounded.AutoAwesome;else->null})}
     }
    }
+   if(page=="home"&&!done&&originals.isNotEmpty())item{DubOriginals(originals,::open)}
    if(page=="rank"){
     item{GenreStrip(genre,{genre=it})}
     item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){CurrentSearch(query,{query=it},"제목 또는 창작자","dub-search",Modifier.weight(1f));DubPeriod(weekly,::setPeriod)}}
@@ -256,8 +278,8 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
     }
    }
    if(page=="home"&&!done)item{
-    Row(Modifier.fillMaxWidth().clip(cardShape).background(Brush.horizontalGradient(listOf(Color(0xFFD7B8EF),Color(0xFF8EDDD2)))).clickable{m.openCurrentWorkspace("dubbing/new","더빙 대본 만들기")}.heightIn(min=51.dp).testTag("dubbing-create").padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
-     Icon(Icons.Rounded.Edit,null,tint=Ink);Text("  + 더빙 대본 만들기",Modifier.weight(1f),color=Ink,fontSize=17.sp,fontWeight=FontWeight.Bold);Icon(Icons.Rounded.ChevronRight,null,tint=Ink)
+    Row(Modifier.fillMaxWidth().glass().clickable{m.openCurrentWorkspace("dubbing/new","더빙 대본 만들기")}.heightIn(min=51.dp).testTag("dubbing-create").padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
+     Icon(Icons.Rounded.Edit,null,tint=lavender);Text("  + 더빙 대본 만들기",Modifier.weight(1f),color=SoftText,fontSize=17.sp,fontWeight=FontWeight.Bold);Icon(Icons.Rounded.ChevronRight,null,tint=lavender)
     }
    }
    if(page=="home"){
