@@ -1,3 +1,4 @@
+import {officialEpisodeSoundRevision} from './dubbing-episode-sound-revision.js';
 import {dubbingPosterSQL,projectPoster} from './dubbing-poster.js';
 import {recordDubbingPlay,dubbingPlayCountSQL} from './dubbing-plays.js';
 import {dubbingDiscoveryCounts,eligibleDubFinal,noBlockedDubCast} from './dubbing-discovery.js';
@@ -171,6 +172,7 @@ export async function dubbingRoute(req,env,path,user){
  if(action==='performances'&&method==='POST')return startDubbingPerformance(req,env,p,user);
  const community=await dubbingCommunityRoute(req,env,p,user,action,roleId);if(community)return community;
  const recording=await dubbingRecordingRoute(req,env,p,user,action,roleId);if(recording)return recording;
+ if(action==='sound'&&roleId==='revision')return officialEpisodeSoundRevision(req,env,p,user);
  const sound=await dubbingSoundProjectRoute(req,env,p,user,action);if(sound)return sound;
  if(!action&&method==='GET')return json({project:await dto(env,p,user)});
  requireUser(user);
