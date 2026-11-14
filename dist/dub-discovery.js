@@ -72,14 +72,22 @@ function dubBadge(p,complete){
 function dubWorkURL(s,p){
  return s.mode==='complete'?dubHref(s,{section:'versions',root:p.id}):'#dubbing/'+encodeURIComponent(p.id);
 }
-function dubPhoto(p){
+function dubPhoto(p,eager=false){
  const hasGenre=p.genres?.some(g=>(AifectDubbing.DUBBING_GENRES||dubGenres).includes(g)),url=p.posterUrl||(hasGenre?AifectDubbing.dubbingGenreArtwork(p.genres):'');
- return url?'<img loading="lazy" decoding="async" alt="" src="'+esc(url)+'">':'<span class="dub-art-empty" aria-hidden="true">'+icon('message')+'</span>';
+ return url?'<img loading="'+(eager?'eager':'lazy')+'" decoding="async" alt="" src="'+esc(url)+'">':'<span class="dub-art-empty" aria-hidden="true">'+icon('message')+'</span>';
 }
 function dubCover(s,p,rank,starter=false){
- const detail=starter?p.roleCount+'인극 · 약 '+Math.round(p.duration/60)+'분':p.roleCount+'인극 · '+dubBadge(p,s.mode==='complete');
- return '<a class="dub-cover" href="'+esc(dubWorkURL(s,p))+'">'+dubPhoto(p)+(rank?'<b class="dub-rank">'+rank+'</b>':'')+
- '<span class="dub-cover-copy"><strong>'+esc(p.title)+'</strong><small>'+esc(detail)+'</small></span></a>';
+ const meta=[p.genres?.[0],p.roleCount+'인극',starter?'약 '+Math.round(p.duration/60)+'분':''].filter(Boolean).join(' · ');
+ return '<a class="dub-cover" href="'+esc(dubWorkURL(s,p))+'"><span class="dub-cover-art">'+dubPhoto(p)+(rank?'<b class="dub-rank">'+rank+'</b>':'')+'</span>'+
+ '<span class="dub-cover-copy"><strong>'+esc(p.title)+'</strong><small>'+esc(meta)+'</small></span></a>';
+}
+function dubOriginals(s,items){
+ const originals=items.filter(p=>p.isOfficialOriginal).sort((a,b)=>b.created-a.created);
+ if(!originals.length)return '';
+ return '<section class="dub-originals" aria-label="AIFECT 오리지널"><h2>AIFECT 오리지널</h2><div class="dub-feature-rail">'+originals.map((p,i)=>
+  '<a class="dub-feature" href="'+esc(dubWorkURL(s,p))+'">'+dubPhoto(p,i===0)+
+  '<span class="dub-feature-foot"><span class="dub-feature-copy"><small>'+esc([...(p.genres||[]),p.roleCount+'인극'].join(' · '))+'</small><strong>'+esc(p.title)+'</strong></span>'+
+  '<span class="dub-feature-action">더빙하기</span></span></a>').join('')+'</div></section>';
 }
 function dubRow(s,p,rank,version=false){
  const href=version?'#dubbing/'+encodeURIComponent(p.id):dubWorkURL(s,p);
@@ -121,6 +129,7 @@ function dubDiscoveryHTML(view){
  const back=home?'':'<header class="dub-page-title">'+dubLink(s,{section:'home',root:'',genre:'전체',query:''},icon('back'),false,'aria-label="더빙 홈으로"')+'<h1>'+sectionNames[s.section]+'</h1></header>';
  let html='<div class="dub-hub">'+back+'<nav class="dub-modes" aria-label="더빙 작품 종류">'+['open','complete'].map((m,i)=>dubLink(s,{mode:m,root:'',section:s.section==='versions'?'home':s.section},icon(i?'ui-play-action':'mic')+(i?'완성작 보기':'참여 가능'),m===s.mode)).join('')+'</nav>';
  if(home&&!done)html+='<nav class="dub-sections" aria-label="더빙 탐색">'+[['home','추천',''],['rank','랭킹','chart'],['genre','장르','grid'],['latest','신규','sparkles']].map(([v,l,symbol])=>dubLink(s,{section:v,query:'',genre:'전체',root:''},(symbol?icon(symbol):'')+l,s.section===v)).join('')+'</nav>';
+ if(home&&!done)html+=dubOriginals(s,items);
  if(home||s.section==='rank'){
   if(!home)html+=genres+search;
   const rankMore=home?dubLink(s,{section:'rank'},icon('chevron'),false,'aria-label="랭킹 전체보기" class="dub-rank-more"'):'';

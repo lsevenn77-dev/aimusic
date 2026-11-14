@@ -66,3 +66,24 @@
 .dub-work-menu h2{margin:0 0 6px;overflow-wrap:anywhere}
 .dub-work-menu .small-button{justify-content:flex-start}
 @media(max-width:374px){.dub-heading h2{font-size:16px}.dub-rank-more{min-width:26px}.dub-period a{min-width:35px}.dub-row-main .dub-thumb{width:68px;height:60px}}
+
+.dub-originals{display:grid;gap:10px;min-width:0;margin-block:4px 8px}
+.dub-originals h2{margin:0;font-size:clamp(18px,2vw,23px);line-height:1.35}
+.dub-feature-rail{display:grid;grid-auto-flow:column;grid-auto-columns:86%;gap:10px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x mandatory;scrollbar-width:thin;scrollbar-color:#4d435f transparent}
+.dub-feature{position:relative;isolation:isolate;display:block;overflow:hidden;scroll-snap-align:start;aspect-ratio:1.55;border-radius:14px;background:#191d2c}
+.dub-feature img{width:100%;height:100%;object-fit:cover;object-position:50% 36%;display:block}
+.dub-feature-foot{position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:14px;background:linear-gradient(0deg,#080b16f5 0%,#080b16b5 26%,transparent 68%)}
+.dub-feature-copy{display:grid;gap:5px;min-width:0}
+.dub-feature-copy small{font-size:12px;color:#ece9fa}
+.dub-feature-copy strong{font-size:clamp(20px,4.8vw,33px);line-height:1.23;word-break:keep-all;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:white}
+.dub-feature-action{flex:none;background:#8eddd2;color:#17252b;font-size:13px;font-weight:700;border-radius:18px;padding:8px 12px}
+.dub-hub .dub-cover{display:grid;gap:6px;aspect-ratio:auto;background:transparent;border-radius:0;overflow:visible}
+.dub-cover-art{display:block;position:relative;aspect-ratio:3/4;overflow:hidden;border-radius:9px;background:#202437}
+.dub-cover-copy{position:static;display:grid;align-content:start;gap:3px;padding:0;background:none}
+.dub-cover-copy strong{word-break:keep-all;line-height:1.35}
+.dub-cover-copy small{color:#bfc2d1}
+.dub-modes a[aria-current=page]{background:#342c48;color:#f0dfff}
+.dub-hub .dub-create{background:#242135;border:1px solid #494053;color:#e6d5f6}
+.dub-heading,.dub-create{margin-top:4px}
+@media(min-width:760px){.dub-feature-rail{grid-auto-columns:calc((100% - 20px)/2.35)}.dub-feature{aspect-ratio:1.55}.dub-feature-copy strong{font-size:23px}}
+@media(max-width:374px){.dub-feature-foot{padding:10px}.dub-feature-action{padding:7px 9px}.dub-feature-copy strong{font-size:18px}}

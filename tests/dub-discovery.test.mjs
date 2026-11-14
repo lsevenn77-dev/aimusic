@@ -51,3 +51,13 @@ test('final audio counts one play across resume and seek, and a new play after e
  assert.equal(sent.length,2);assert.equal(sent[0][0],'/api/dubbing/projects/take/plays');assert.notEqual(sent[0][2].requestId,sent[1][2].requestId);
  ctx.current={id:'private',kind:'dubbing',countPlay:false};player.dispatchEvent(new Event('playing'));assert.equal(sent.length,2);
 });
+test('the original shelf uses official script roots and custom posters with real destinations',()=>{
+ const original={...work(1),isOfficialOriginal:true,posterUrl:'/api/dubbing/projects/r1/poster?v=2'};
+ const page=html('period=all',[work(2),original]);
+ const shelf=page.match(/<section class="dub-originals".*?<\/section>/s)?.[0];
+ assert.ok(shelf);
+ assert.match(shelf,/href="#dubbing\/r1"/);
+ assert.ok(shelf.includes(original.posterUrl));
+ assert.doesNotMatch(shelf,/#dubbing\/r2/);
+ assert.doesNotMatch(html('section=rank',[original]),/class="dub-originals"/);
+});

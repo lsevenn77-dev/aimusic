@@ -82,7 +82,7 @@ export async function dubbingRoute(req,env,path,user){
   const offset=Math.max(0,Math.min(10000,Math.floor(Number(url.searchParams.get('offset'))||0)));
   const discovery=url.searchParams.get('discovery')==='1'&&tab!=='mine';
   const where=tab==='mine'?`(p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?))`:`p.visibility='public'${tab==='open'?" AND p.root_id IS NULL":" AND p.state='complete'"}`;
-  const list=await rows(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.root_id,p.owner_id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${discovery?`root.title root_title,${publicNameSQL('creator')} root_owner_name,${dubbingPlayCountSQL('p')} plays,`:''} ${publicNameSQL('u')} owner_name,
+  const list=await rows(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.root_id,p.owner_id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${discovery?`root.title root_title,root.owner_id root_owner_id,${publicNameSQL('creator')} root_owner_name,${dubbingPlayCountSQL('p')} plays,`:''} ${publicNameSQL('u')} owner_name,
    EXISTS(SELECT 1 FROM dubbing_sound_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.mode='ai' AND COALESCE(j.output_key,'')!=''
     AND EXISTS(SELECT 1 FROM json_each(j.timeline_json,'$.sounds') cue WHERE json_extract(cue.value,'$.kind') IN ('sfx','ambient') AND json_extract(cue.value,'$.volume')>0)) has_sound_effects,
    (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
@@ -98,7 +98,7 @@ export async function dubbingRoute(req,env,path,user){
    const options=JSON.parse(p.options_json),rootId=p.root_id||p.id;
    return {id:p.id,posterUrl:p.posterUrl,title:p.title,genres:options.genres,roleCount:p.role_count,duration:p.duration,state:p.state,visibility:p.visibility,reusable:tab==='open',
     hasSoundEffects:!!p.has_sound_effects,ownerName:p.owner_name,ownerId:p.owner_id,participants:p.participants,created:p.created,
-    ...(discovery?{rootId,rootTitle:p.root_title,rootOwnerName:p.root_owner_name,activeCount:0,weeklyActiveCount:0,completedCount:0,...counts.get(rootId),beginnerRecommended:options.beginnerRecommended===true,plays:p.plays}:{})};
+    ...(discovery?{rootId,rootTitle:p.root_title,isOfficialOriginal:p.root_owner_id===officialDubbingProducerId,rootOwnerName:p.root_owner_name,activeCount:0,weeklyActiveCount:0,completedCount:0,...counts.get(rootId),beginnerRecommended:options.beginnerRecommended===true,plays:p.plays}:{})};
   }),nextOffset:list.length===25?offset+25:null});
  }
  if(path==='/api/dubbing/generations'&&method==='POST'){
