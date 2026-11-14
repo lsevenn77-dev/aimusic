@@ -4,6 +4,8 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
@@ -51,10 +53,14 @@ private fun Modifier.glass(shape:RoundedCornerShape=cardShape)=clip(shape).backg
   DubTab("완성작 보기",done,{change(true)},Modifier.weight(1f).heightIn(min=40.dp).testTag("dub-mode-done"),Icons.Rounded.PlayArrow,quiet=true)
  }
 }
-@Composable private fun DubHeading(label:String,icon:ImageVector,action:(@Composable ()->Unit)?=null){
+@OptIn(ExperimentalLayoutApi::class)
+@Composable private fun DubHeading(label:String,icon:ImageVector,caption:String?=null,action:(@Composable ()->Unit)?=null){
  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
   Icon(icon,null,Modifier.size(21.dp),tint=lavender);Spacer(Modifier.width(6.dp))
-  Text(label,Modifier.weight(1f),fontSize=17.sp,lineHeight=22.sp,fontWeight=FontWeight.Bold)
+  FlowRow(Modifier.weight(1f),horizontalArrangement=Arrangement.spacedBy(5.dp),verticalArrangement=Arrangement.Center){
+   Text(label,fontSize=17.sp,lineHeight=22.sp,fontWeight=FontWeight.Bold)
+   if(caption!=null)Text(caption,Modifier.align(Alignment.CenterVertically),fontSize=12.sp,color=Muted)
+  }
   action?.invoke()
  }
 }
@@ -94,20 +100,20 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
   Text("AIFECT 오리지널",fontSize=19.sp,fontWeight=FontWeight.Bold)
   BoxWithConstraints(Modifier.fillMaxWidth()){
    val width=(maxWidth*.86f).coerceAtMost(420.dp)
-   LazyRow(horizontalArrangement=Arrangement.spacedBy(9.dp)){
-    items(works,key={it.id}){w->
+   val pages=rememberPagerState(pageCount={works.size})
+   HorizontalPager(state=pages,contentPadding=PaddingValues(end=maxWidth-width),pageSpacing=9.dp,key={works[it].id}){index->
+    val w=works[index]
      Box(Modifier.width(width).aspectRatio(1.55f).clip(cardShape).background(Panel).clickable{open(w)}.testTag("dub-feature-"+w.id)){
       DubArtwork(w,Modifier.fillMaxSize())
       Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Transparent,.32f to Color.Transparent,.78f to Color(0xB8080B16),1f to Color(0xF5080B16))))
       Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){
        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
         Text((w.genres+listOf("${w.project.optInt("roleCount")}인극")).joinToString(" · "),fontSize=12.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
-        Text(w.title,color=Color.White,fontSize=21.sp,lineHeight=25.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
+        Text(if(w.title=="계약 연애 종료 5분 전") "계약 연애\n종료 5분 전" else w.title,color=Color.White,fontSize=21.sp,lineHeight=25.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
        }
        Text("더빙하기",Modifier.clip(pill).background(Color(0xFF8EDDD2)).padding(horizontal=11.dp,vertical=7.dp),fontWeight=FontWeight.Bold,color=Ink,fontSize=13.sp)
       }
      }
-    }
    }
   }
  }
@@ -128,7 +134,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
    if(rank==null)Text("창작자  "+work.creator,fontSize=11.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
    Text("${work.project.optInt("roleCount")}인극",fontSize=11.sp,color=SoftText)
    if(work.finished)Text(work.plays?.let{"재생 ${it}회"}?:"재생 수 미집계",color=Muted,fontSize=11.sp)
-   DubBadge(work.badge,if(work.count==0)Muted else if(rank!=null)Aqua else lavender)
+   if(rank==null || work.finished || (work.count ?: 0)>0)DubBadge(work.badge,if(work.count==0)Muted else if(rank!=null)Aqua else lavender)
   }
   if(rank!=null)Icon(Icons.Rounded.ChevronRight,"작품 보기",Modifier.size(21.dp),tint=Muted)
   else Column(horizontalAlignment=Alignment.CenterHorizontally){
@@ -260,7 +266,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
    if(error!=null||data.incomplete&&!loading)item{Row(verticalAlignment=Alignment.CenterVertically){Text(error?:"일부 작품의 더빙 집계를 불러오지 못했어.",Modifier.weight(1f),fontSize=12.sp,color=Muted);TextButton({revision++}){Text("다시 시도")}}}
    if(page=="home"||page=="rank"){
     val title=if(done)"완성작 인기 랭킹" else if(page=="rank")"참여 가능 작품 인기 랭킹" else "작품 인기 랭킹"
-    item{DubHeading(title,Icons.Rounded.EmojiEvents){
+    item{DubHeading(title,Icons.Rounded.EmojiEvents,caption=if(done&&!weekly)"좋아요순" else null){
      if(page=="home"){IconButton({navigate("rank")},Modifier.size(36.dp).testTag("dub-open-ranking")){Icon(Icons.Rounded.ChevronRight,"랭킹 전체보기")};DubPeriod(weekly,::setPeriod)}
      else IconButton({info=true}){Icon(Icons.Rounded.Info,"집계 기준")}
     }}
