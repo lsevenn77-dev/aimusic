@@ -6,6 +6,7 @@ import UIKit
 enum StreamingUIFixture {
     static var liked = false
     static var claimedDubbingRole = false
+    static var dubbingSubmitted = false
     static var createdPlaylist: [String: Any]?
     static var ownedGiftRequest: String?
     static var shopOrders = Set<String>()
@@ -25,6 +26,9 @@ enum StreamingUIFixture {
     static func response(_ request: URLRequest, body: [String: Any]) -> (Int, String, Data)? {
         let path = request.url!.path
         let args = ProcessInfo.processInfo.arguments
+        if path.hasPrefix("/assets/dubbing-genres/") {
+            return (200, "image/png", UIImage(named: "CommunityStudio")?.pngData() ?? Data())
+        }
         if path.hasPrefix("/media/"), !path.hasSuffix("/mr") && !path.hasSuffix("/stream") {
             return (200, "image/png", UIImage(named: "CommunityStudio")?.pngData() ?? Data())
         }
@@ -98,13 +102,31 @@ enum StreamingUIFixture {
                  "durationSeconds": 3, "gapSeconds": 1, "emotion": "자연스럽게", "text": "예시 대사 \(index)"]
             }
             result = ["project": ["id": "fixture-project", "title": "더빙 연습", "duration": 24, "ownerName": "검증 계정",
-                                  "state": "recruiting", "visibility": "public", "revision": claimedDubbingRole ? 2 : 1,
+                                  "state": "recruiting", "visibility": "public", "revision": claimedDubbingRole ? 2 : 1, "recordingAvailable": true, "sound": ["id": "fixture-sound", "state": "ready"],
                                   "roles": [["id":"guide", "name":"안내자", "claimed":claimedDubbingRole, "mine":claimedDubbingRole],
                                             ["id":"guest", "name":"여행자", "claimed":true, "participant":"봄밤"]],
                                   "script": ["lines": lines], "options": ["genres": ["일상"], "idea": "막차에서 만난 두 사람의 이야기"]]]
         case "/api/dubbing/projects/fixture-project/claims/guide" where request.httpMethod == "POST":
             guard body.int("revision") == 1 && !claimedDubbingRole else { return (409, "application/json", Data()) }
             claimedDubbingRole = true; result = ["ok": true]
+        case "/api/dubbing/projects/fixture-project/background":
+            return (200, "audio/wav", (try? DubbingWAV.encode(pcm: Data(count: 24 * 96000))) ?? Data())
+        case "/api/dubbing/projects/fixture-project/recording", "/api/dubbing/projects/fixture-project/recording/guide/start", "/api/dubbing/projects/fixture-project/recording/guide/submit":
+            if path.hasSuffix("submit") {
+                guard body.flag("rightsAccepted"), body.int("revision") == 1 else { return (400, "application/json", Data()) }
+                dubbingSubmitted = true
+            }
+            let lines: [[String: Any]] = (1...6).map { index in
+                var row: [String: Any] = ["id":"line-\(index)", "roleId": index % 2 == 1 ? "guide" : "guest", "start": (index - 1) * 4, "end": (index - 1) * 4 + 3, "recordEnd": Double((index - 1) * 4) + 3.8]
+                if args.contains("-dubbing-recorder") && index % 2 == 1 { row["takeId"] = "saved-\(index)"; row["duration"] = 3; row["audioUrl"] = "/api/dubbing/projects/fixture-project/background" }
+                return row
+            }
+            result = ["lines": lines, "recording": ["roles": [["roleId":"guide", "revision":1, "state": dubbingSubmitted ? "submitted" : "draft"]]]]
+        case "/api/dubbing/projects/fixture-project/comments": result = ["comments": []]
+        case "/api/dubbing/config": result = ["aiAvailable": true, "quota": ["remaining": 1]]
+        case "/api/dubbing/projects" where request.httpMethod == "POST":
+            guard body.object("script").string("title") == "검증용 새 극본", body.object("script").objects("lines").count == 2, body.object("options").int("roleCount") == 2 else { return (400, "application/json", Data()) }
+            result = ["project": ["id": "fixture-project"]]
         case "/api/dubbing/projects", "/api/play/participate": result = ["projects": [["id":"fixture-project","title":"더빙 연습","roleCount":2,"participants":1,"state":"recruiting"]]]
         case "/api/playlists":
             if request.httpMethod == "POST" { createdPlaylist = ["id": "fixture-created", "name": body.string("name"), "user_id": "fixture-user", "tracks": 0, "is_public": body.flag("is_public"), "active": true] }

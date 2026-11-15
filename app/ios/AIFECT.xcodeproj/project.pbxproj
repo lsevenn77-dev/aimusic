@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BEA290BA706C4D6C972A7643 /* DubbingEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C4C45CB5354E218B95377F /* DubbingEditor.swift */; };
+		853FE3A519BB4948A0933D16 /* DubbingRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE34259F2E0843899212C586 /* DubbingRecorder.swift */; };
 		05D64240A81CDAF648FE80CC /* OriginalUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16C453242CAB3752B8952F6E /* OriginalUploadView.swift */; };
 		0BF24A4EDF3AA51AB8E80928 /* ChatFeatures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BAB73057A6EB2C2CD497213 /* ChatFeatures.swift */; };
 		19C6B4BD4CEBB40BFA1BE57E /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = 0517E330F0CED31371C594F7 /* FirebaseMessaging */; };
@@ -90,6 +92,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		D7C4C45CB5354E218B95377F /* DubbingEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DubbingEditor.swift; sourceTree = "<group>"; };
+		BE34259F2E0843899212C586 /* DubbingRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DubbingRecorder.swift; sourceTree = "<group>"; };
 		0BC8C5348BA6132EB25880E5 /* StreamingUX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingUX.swift; sourceTree = "<group>"; };
 		0C586F75F7DA890CBD9B1A54 /* AIFECTPaymentTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = AIFECTPaymentTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		10671A9AED61D1BCAF631137 /* RedesignComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RedesignComponents.swift; sourceTree = "<group>"; };
@@ -210,6 +214,8 @@
 				34CD4F1B3B984E2E9ACFFEFA /* ListenDesign.swift */,
 				C8001A70DFAEFC308165BFA0 /* LiveCommunity.swift */,
 				AF5BFE3BDC5B465C85CCC975 /* DubbingProject.swift */,
+				D7C4C45CB5354E218B95377F /* DubbingEditor.swift */,
+				BE34259F2E0843899212C586 /* DubbingRecorder.swift */,
 				D003C7678CBA46DC8C6D006B /* CrewHome.swift */,
 				8711381D64AE8959EF6909DB /* PlatformControls.swift */,
 				8487E4C5C14C8B80EEEC6BD0 /* ListeningAds.swift */,
@@ -479,6 +485,8 @@
 				F60205F847AC10A2E84791C7 /* ListenDesign.swift in Sources */,
 				784E74927F94AFA96E723427 /* LiveCommunity.swift in Sources */,
 				FBB4367E385A4885A9966B6B /* DubbingProject.swift in Sources */,
+				BEA290BA706C4D6C972A7643 /* DubbingEditor.swift in Sources */,
+				853FE3A519BB4948A0933D16 /* DubbingRecorder.swift in Sources */,
 				D9D62A80616849A3A03DCE8C /* CrewHome.swift in Sources */,
 				9E5F7B619236C823E748011A /* PlatformControls.swift in Sources */,
 				2DA1D0FE5EFB478ABA9A4024 /* ListeningAds.swift in Sources */,

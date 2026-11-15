@@ -101,8 +101,9 @@ struct WorkspacePage: View {
     @EnvironmentObject private var model: AppModel
     let space: SiteWorkspace
     var body: some View {
-        if space.area == "dubbing", space.key != "new" {
-            DubbingProjectPage(space: space).id(model.userID)
+        if space.area == "dubbing" {
+            if space.key == "new", let owner = model.userID { NativeDubbingEditor(owner: owner).id(owner) }
+            else { DubbingProjectPage(space: space).id(model.userID) }
         } else {
             WebWorkspacePage(space: space)
         }
