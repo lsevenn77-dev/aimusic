@@ -18,9 +18,15 @@
 - 마케팅 버전 `1.0.6`, 빌드 `16`
 - 2026-11-16 배포용 서명 아카이브 생성 성공: `AIFECT-1.0.6-16.xcarchive`.
 - 명령줄 export는 `Failed to Use Accounts`로 실패했다. 로그인된 Xcode Organizer에서 App Store Connect 배포를 다시 진행했다.
-- Apple 서버가 `You do not have required contracts to perform an operation` 오류로 업로드를 차단했다. 오류 ID: `27941199-6710-4bcb-bb01-71d8ac989385`.
-- App Store Connect 웹 세션도 만료되어 로그인과 계정 소유자의 미완료 계약 확인을 요청했다. 업로드, 심사 제출, 자동 출시 설정은 아직 완료하지 못했다.
-- GoogleMobileAds/UserMessagingPlatform 배포 SDK의 dSYM 누락 경고도 표시됐다. 업로드를 차단한 오류는 필수 계약 미완료다.
+- 첫 업로드는 Apple의 필수 계약 미완료로 차단됐다. 계정 소유자가 완료했다고 알린 뒤 웹 세션을 갱신하고 재시도했다.
+- 2026-11-16 01:44 KST Xcode Organizer에서 `Uploaded to Apple`, 빌드 `16`을 확인했다.
+- App Store Connect에 버전 `1.0.6`을 생성하고 한국어 업데이트 내용, 더빙 설명과 심사 안내를 저장했다. 기존 스크린샷 6장, 검색 키워드와 심사 계정을 유지했다.
+- Apple 빌드 처리 완료 후 빌드 `16`을 버전 `1.0.6`에 연결했다. 빌드 ID: `71e89e9b-9ecc-4e5d-8e36-6ed7a60ffd22`.
+- 2026-11-16 01:47 KST 최종 심사 제출 완료. App Store Connect에서 `심사 대기 중`을 확인했다.
+- 제출 ID: `64a735ee-a4f3-44b4-b464-d8c9f5b60d06`.
+- [App Store Connect 심사 상태](https://appstoreconnect.apple.com/apps/6819654764/distribution/reviewsubmissions/details/64a735ee-a4f3-44b4-b464-d8c9f5b60d06)
+- 승인 후 자동 출시 및 모든 사용자에게 즉시 업데이트 출시 설정을 확인했다. 실제 출시와 심사 승인은 아직 대기 중이다.
+- GoogleMobileAds/UserMessagingPlatform 배포 SDK의 dSYM 누락 경고는 남았지만 앱 업로드는 성공했다.
 
 ## 검증 범위
 
