@@ -2,9 +2,10 @@
 import SwiftUI
 import AVFoundation
 
-/// Explicitly opted-in, simulator-only UI fixtures. No service traffic, user
-/// messages, microphone recording, gifts or uploads occur in these UI checks.
+/// Explicitly opted-in, simulator-only UI fixtures. Service requests, messages,
+/// gifts and uploads stay local; audio integration scenarios may use AVAudioRecorder.
 enum FeedbackUIFixture {
+    static let dubbingScriptRoot = FileManager.default.temporaryDirectory.appendingPathComponent("DubbingUITests-" + UUID().uuidString)
     static var enabled: Bool {
         #if targetEnvironment(simulator)
         return ProcessInfo.processInfo.arguments.contains("-feedback-ui-test")

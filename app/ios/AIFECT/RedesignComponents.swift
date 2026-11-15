@@ -174,7 +174,7 @@ struct GenreTags: View {
     }
 }
 
-private struct GenreFlowLayout: Layout {
+struct GenreFlowLayout: Layout {
     private func arrangement(_ subviews: Subviews, width: CGFloat) -> (CGSize, [CGRect]) {
         var frames: [CGRect] = []; var x: CGFloat = 0; var y: CGFloat = 0; var rowHeight: CGFloat = 0
         for view in subviews {

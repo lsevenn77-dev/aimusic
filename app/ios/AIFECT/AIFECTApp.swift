@@ -256,19 +256,7 @@ struct SearchView: View {
                     Text("기분과 순간").font(.headline)
                     MoodMusicShelf()
                     Text("장르별로 둘러보기").font(.headline)
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 10) {
-                        ForEach(musicGenreOptions, id: \.self) { genre in
-                            NavigationLink { MusicCollectionView(title: genre, path: "/api/catalog?section=tracks&genre=\(Endpoint.query(genre))") } label: {
-                                VStack(alignment: .leading) {
-                                    Text(genre).font(.system(size: 14, weight: .semibold))
-                                    Spacer(minLength: 20)
-                                    HStack { Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(AifectDesign.muted) }
-                                }.padding(14).frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
-                                    .background(Brand.card.opacity(0.65), in: RoundedRectangle(cornerRadius: 14))
-                                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
-                            }.buttonStyle(.plain)
-                        }
-                    }
+                    GenreMusicGrid()
                     NavigationLink("공개 플레이리스트") { ExploreView().streamingPage() }
                 } else if query.isEmpty {
                     Text("어떤 음악을 찾고 있나요?").font(.title2.bold()).padding(.top)

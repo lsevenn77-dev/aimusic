@@ -5,8 +5,14 @@ import UIKit
 /// No production account, chat, payment or microphone is used by these checks.
 enum StreamingUIFixture {
     static var liked = false
-    static var claimedDubbingRole = false
+    static var artistFollowed = false
+    static var dmRead = false
+    static var dmCleared = false
+    static var claimedDubbingRole = ProcessInfo.processInfo.arguments.contains("-dubbing-management")
     static var dubbingSubmitted = false
+    static var removedDubbingProject = false
+    static var performanceID: String?
+    static var studioArtist: [String: Any] = ["id": "fixture-artist", "name": "검증 아티스트", "genre": "Ballad", "bio": "밤의 음악"]
     static var createdPlaylist: [String: Any]?
     static var ownedGiftRequest: String?
     static var shopOrders = Set<String>()
@@ -16,7 +22,8 @@ enum StreamingUIFixture {
     static var libraryPlaylists: [[String: Any]] { [playlist] + (createdPlaylist.map { [$0] } ?? []) }
     static let original: [String: Any] = ["id": "fixture-original", "title": "검증용 밤의 산책", "producer": "테스트 음악가", "producer_id": "fixture-profile", "producer_image_version": "fixture", "has_cover": 1, "cover_version": "fixture", "duration": 20, "genre": "Ballad", "karaoke_ready": true, "chart_rank": 1, "chart_movement": "up", "rank_change": 2]
     static let cover: [String: Any] = ["id": "fixture-duet", "title": "함께 부르는 검증용 멜로디", "producer": "듀엣 검증 가수", "producer_id": "fixture-profile", "producer_image_version": "fixture", "user_id": "other", "kind": "cover", "cover_mode": "duet", "duet_open": 1, "original_id": "fixture-original", "duration": 20, "plays": 128, "likes": 24, "comments": 3, "description": "새로운 목소리를 기다려요"]
-    static let playlist: [String: Any] = ["id": "fixture-playlist", "name": "검증용 플레이리스트", "user_id": "fixture-user", "tracks": 1, "active": true]
+    static var playlist: [String: Any] = ["id": "fixture-playlist", "name": "검증용 플레이리스트", "user_id": "fixture-user", "tracks": 1, "active": true]
+    static var playlistTracks: [[String: Any]] = [original]
     static var crewRows: [[String: Any]] {
         [["id": "crew-tide", "name": "파도", "rank": 1, "level": 5, "members": 15, "rank_change": 1],
          ["id": "crew-summer", "name": "여름밤", "rank": 2, "level": 4, "members": 11, "previous_rank": 1],
@@ -26,7 +33,7 @@ enum StreamingUIFixture {
     static func response(_ request: URLRequest, body: [String: Any]) -> (Int, String, Data)? {
         let path = request.url!.path
         let args = ProcessInfo.processInfo.arguments
-        if path.hasPrefix("/assets/dubbing-genres/") {
+        if path.hasPrefix("/assets/dubbing-genres/") || path.hasPrefix("/assets/genres/") || path.hasPrefix("/assets/chat-stickers/") {
             return (200, "image/png", UIImage(named: "CommunityStudio")?.pngData() ?? Data())
         }
         if path.hasPrefix("/media/"), !path.hasSuffix("/mr") && !path.hasSuffix("/stream") {
@@ -59,15 +66,19 @@ enum StreamingUIFixture {
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
             if query.contains(where: { $0.name == "section" && $0.value == "producers" }) || path == "/api/search" {
                 result = ["producers": [["id": "fixture-peer", "user_id": "peer-user", "name": "선물 받을 친구"]]]
-            } else { result = ["tracks": [original], "chart": ["comparison": ["available": true]]] }
+            } else { result = ["tracks": args.contains("-playlist-management") || query.contains(where: { $0.name == "chart" && $0.value == "newcomers" }) ? [original, cover] : [original], "chart": ["comparison": ["available": true]]] }
         case "/api/studio":
-            result = ["producer": ["id": "fixture-own-profile", "name": "검증 계정"], "tracks": [studioTrack], "artists": [], "upload_quota": ["used": 1, "limit": 3, "remaining": 2]]
+            result = ["producer": ["id": "fixture-own-profile", "name": "검증 계정"], "tracks": [studioTrack], "artists": args.contains("-studio-parity") ? [studioArtist] : [], "upload_quota": ["used": 1, "limit": 3, "remaining": 2]]
         case "/api/studio/tracks/fixture-original":
             if request.httpMethod == "PUT" {
                 guard body.string("lyrics_mode") == "synced", body.string("ai_tool") == "검증 도구", body.string("lyrics") == "[00:00.000] 검증 가사" else { return (400, "application/json", Data("{\"error\":\"수정하지 않은 메타데이터가 변경됐습니다.\"}".utf8)) }
                 studioTrack = studioTrack.merging(body) { _, value in value }
             }
-            result = ["profile": studioTrack]
+            result = ["profile": studioTrack, "karaoke": ["mr_ready": true], "alignment": ["state": "ready"]]
+        case "/api/studio/artists/fixture-artist" where request.httpMethod == "PUT":
+            guard body.string("name") == "검증 아티스트 수정" else { return (400, "application/json", Data()) }
+            studioArtist = studioArtist.merging(body) { _, value in value }; result = ["ok": true]
+        case "/api/studio/tracks/fixture-original/karaoke" where request.httpMethod == "POST": result = ["ok": true]
         case "/api/me/gift-inventory": result = ["items": ownedGiftRequest == nil ? [["id": "fixture-gift", "gift_type": "rose", "gift_name": "장미", "available": true, "image": "/media/gift/rose"]] : []]
         case "/api/me/gift-inventory/fixture-gift/send":
             guard request.httpMethod == "POST", body.string("profile_id") == "fixture-peer", !body.string("request_id").isEmpty else { return (400, "application/json", Data()) }
@@ -96,16 +107,26 @@ enum StreamingUIFixture {
                       "membership": ["role": "member"]]
         case "/api/crews/fixture-crew/games" where args.contains("-crew-parity"):
             result = ["games": CrewGame.allCases.map { ["id": $0.rawValue, "route": "game/\($0.rawValue)/fixture-crew"] }]
-        case "/api/dubbing/projects/fixture-project":
+        case "/api/dubbing/projects/fixture-project/claims/guide" where request.httpMethod == "DELETE":
+            guard claimedDubbingRole, body.int("revision") == 2 else { return (409, "application/json", Data()) }
+            claimedDubbingRole = false; result = ["released": true]
+        case "/api/dubbing/projects/fixture-project/performances":
+            guard body.string("roleId") == "guide", UUID(uuidString: body.string("id")) != nil else { return (400, "application/json", Data()) }
+            performanceID = body.string("id"); result = ["id": "fixture-performance"]
+        case "/api/dubbing/projects/fixture-project" where request.httpMethod == "DELETE":
+            guard body.int("revision") == (claimedDubbingRole ? 2 : 1) else { return (409, "application/json", Data()) }
+            removedDubbingProject = true; result = ["deleted": true]
+        case "/api/dubbing/projects/fixture-project", "/api/dubbing/projects/fixture-performance":
             let lines: [[String: Any]] = (1...6).map { index in
                 ["id": "line-\(index)", "order": index, "roleId": index % 2 == 1 ? "guide" : "guest",
-                 "durationSeconds": 3, "gapSeconds": 1, "emotion": "자연스럽게", "text": "예시 대사 \(index)"]
+                 "sceneId": "scene_1", "durationSeconds": 3, "gapSeconds": 1, "emotion": "자연스럽게", "text": "예시 대사 \(index)"]
             }
-            result = ["project": ["id": "fixture-project", "title": "더빙 연습", "duration": 24, "ownerName": "검증 계정",
+            result = ["project": ["id": path.hasSuffix("fixture-performance") ? "fixture-performance" : "fixture-project", "rootId": "fixture-project", "isOwner": args.contains("-dubbing-management"), "canEdit": args.contains("-dubbing-management"), "title": path.hasSuffix("fixture-performance") ? "새 공연 검증" : "더빙 연습", "duration": 24, "ownerName": "검증 계정",
                                   "state": "recruiting", "visibility": "public", "revision": claimedDubbingRole ? 2 : 1, "recordingAvailable": true, "sound": ["id": "fixture-sound", "state": "ready"],
                                   "roles": [["id":"guide", "name":"안내자", "claimed":claimedDubbingRole, "mine":claimedDubbingRole],
                                             ["id":"guest", "name":"여행자", "claimed":true, "participant":"봄밤"]],
-                                  "script": ["lines": lines], "options": ["genres": ["일상"], "idea": "막차에서 만난 두 사람의 이야기"]]]
+                                  "script": ["title": "더빙 연습", "lines": lines, "roles": [["id":"guide", "name":"안내자"], ["id":"guest", "name":"여행자"]], "scenes": [["id":"scene_1", "title":"첫 장면", "description":"막차에서"]]],
+                                  "versions": args.contains("-dubbing-management") ? (1...4).map { ["id":"version-\($0)", "ownerName":"참여자 \($0)", "participants":1, "roleCount":2, "state":"recruiting"] } : [], "options": ["genres": ["일상"], "idea": "막차에서 만난 두 사람의 이야기"]]]
         case "/api/dubbing/projects/fixture-project/claims/guide" where request.httpMethod == "POST":
             guard body.int("revision") == 1 && !claimedDubbingRole else { return (409, "application/json", Data()) }
             claimedDubbingRole = true; result = ["ok": true]
@@ -132,20 +153,39 @@ enum StreamingUIFixture {
             if request.httpMethod == "POST" { createdPlaylist = ["id": "fixture-created", "name": body.string("name"), "user_id": "fixture-user", "tracks": 0, "is_public": body.flag("is_public"), "active": true] }
             result = ["playlists": libraryPlaylists]
         case "/api/playlists/fixture-created": result = ["playlist": createdPlaylist ?? [:], "tracks": []]
-        case "/api/discovery/profiles": result = ["profiles": [["id":"fixture-artist","name":"검증 아티스트","image_version":"fixture","followers":3]]]
+        case "/api/discovery/profiles": result = ["profiles": [["id":"fixture-artist","name":"검증 아티스트","image_version":"fixture","followers":artistFollowed ? 4 : 3]]]
+        case "/api/artists/fixture-artist/follow": artistFollowed = request.httpMethod == "PUT"; result = ["ok": true]
         case "/api/play/works": result = ["works": [original, cover]]
         case "/api/karaoke": result = ["tracks": [original]]
         case "/api/duets":
             if args.contains("-streaming-error") { status = 503; result = ["error": "듀엣 목록을 불러오지 못했어요."] }
             else { result = ["tracks": [cover]] }
         case "/api/duets/fixture-duet": result = ["track": original, "mr": "/media/fixture-original/mr", "words": FeedbackUIFixture.lyrics.map { ["s": $0.number("time"), "w": [["t": $0.string("text")]]] }, "duet": ["parent_id": "fixture-duet", "slot": "second", "part": "B", "guide": ["v": 1, "lines": ["A", "B", "both", "A", "B", "both"]]]]
-        case "/api/library": result = ["likes": liked ? [original] : [], "collections": args.contains("-streaming-empty") ? [] : libraryPlaylists]
+        case "/api/library": result = ["follows": artistFollowed ? [["kind":"artist", "target_id":"fixture-artist"]] : [], "likes": liked ? [original] : [], "collections": args.contains("-streaming-empty") ? [] : libraryPlaylists]
         case "/api/history": result = ["tracks": args.contains("-streaming-empty") ? [] : [original]]
-        case "/api/playlists/fixture-playlist": result = ["playlist": playlist, "tracks": [original]]
+        case "/api/playlists/fixture-playlist":
+            if request.httpMethod == "PATCH" { playlist = playlist.merging(body) { _, value in value } }
+            result = ["playlist": playlist, "tracks": playlistTracks]
+        case let target where target.hasPrefix("/api/playlists/fixture-playlist/tracks/"):
+            let id = String(target.split(separator: "/").last ?? "")
+            playlistTracks.removeAll { $0.selfID == id }
+            if request.httpMethod == "PUT", let song = [original, cover].first(where: { $0.selfID == id }) { playlistTracks.append(song) }
+            result = ["ok": true]
+        case "/api/playlists/fixture-playlist/order":
+            let ids = body["track_ids"] as? [String] ?? []
+            guard Set(ids) == Set(playlistTracks.map(\.selfID)) else { return (400, "application/json", Data()) }
+            playlistTracks = ids.compactMap { id in playlistTracks.first { $0.selfID == id } }; result = ["ok": true]
+        case "/api/cover-rankings":
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
+            if query.contains(where: { $0.name == "kind" && $0.value == "singers" }) { result = ["singers": [["id": "fixture-profile", "name": "듀엣 검증 가수", "rank": 1, "rank_likes": 24, "ranked_covers": 1]]] }
+            else { result = ["tracks": [cover.merging(["rank": 1, "rank_likes": 24]) { _, value in value }]] }
         case "/api/tracks/fixture-original/like": liked = request.httpMethod != "DELETE"; result = ["ok": true]
         case "/api/tracks/fixture-original": result = ["track": original]
         case "/api/tracks/fixture-duet": result = ["track": cover]
-        case "/api/dm": result = ["conversations": [["id": "fixture-peer", "name": "채팅 테스트", "image_version": "fixture", "last_message": "다음에도 같이 불러요", "updated": Date().timeIntervalSince1970 - 60, "unread": 1]], "crew": ["id": "fixture-crew", "name": "검증 크루", "unread": 2], "unread": 3]
+        case "/api/dm/read-all": dmRead = true; result = ["ok": true]
+        case "/api/dm":
+            if request.httpMethod == "DELETE" { dmCleared = true; result = ["ok": true] }
+            else { result = ["conversations": dmCleared ? [] : [["id": "fixture-peer", "name": "채팅 테스트", "image_version": "fixture", "last_message": "다음에도 같이 불러요", "updated": Date().timeIntervalSince1970 - 60, "unread": dmRead ? 0 : 1]], "crew": ["id": "fixture-crew", "name": "검증 크루", "unread": 2], "unread": dmRead || dmCleared ? 2 : 3] }
         case "/api/notifications": result = ["items": [["id": "fixture-notification", "actor_name": "듀엣 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": "duet", "source_title": "검증용 밤의 산책", "target": "fixture-duet", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": 0]], "unread": 1]
         case "/api/notifications/read": result = ["ok": true]
         case "/api/producers/fixture-own-profile": result = ["profile": ["id": "fixture-own-profile", "name": "검증 계정"], "tracks": [original], "covers": [cover]]

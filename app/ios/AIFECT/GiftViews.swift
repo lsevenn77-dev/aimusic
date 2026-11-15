@@ -239,20 +239,50 @@ struct RewardsView: View {
     @State private var error: String?
     @State private var busy = false
     private let labels = ["checkin": "오늘 출석", "cover": "커버곡 공개", "listen": "서로 다른 5곡 감상", "comment1": "첫 번째 감상 댓글", "comment2": "두 번째 감상 댓글", "comment3": "세 번째 감상 댓글"]
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.dismiss) private var dismiss
     var body: some View {
-        List {
-            Section { VStack(alignment: .leading, spacing: 8) { Label("오늘의 무료 보상", systemImage: "sparkles").font(.headline); LabeledContent("실버", value: "\(data.int("balance")) S"); Text("매일 활동하고 실버를 받아 좋아하는 음악에 선물하세요.").font(.caption) }.foregroundStyle(AifectDesign.text).padding(12) }.listRowBackground(MusicSurface(feature: true))
-            ForEach(data.objects("rewards"), id: \.rewardID) { reward in
-                HStack {
-                    VStack(alignment: .leading) { Text(labels[reward.string("kind")] ?? reward.string("kind")); Text("\(reward.int("progress"))/\(reward.int("target")) · \(reward.int("amount")) S").font(.caption).foregroundStyle(.secondary) }
-                    Spacer()
-                    Button(reward.flag("claimed") ? "받음" : "받기") { Task { await claim(reward.string("kind")) } }.disabled(busy || reward.flag("claimed") || !reward.flag("eligible"))
-                }
-            }
-            if let error { Text(error).foregroundStyle(.red) }
-        }.navigationTitle("오늘의 보상").task(id: model.userID) { await load() }.refreshable { await load() }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 10) {
+                Text("오늘의 실버").font(.system(size: 23, weight: .bold))
+                HStack(spacing: 12) {
+                    Image(systemName: "star.fill").font(.system(size: 32)).foregroundStyle(Brand.aqua)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("보유 실버").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                        Text(data.isEmpty ? "불러오는 중…" : "\(data.int("balance")) S").font(.system(size: 23, weight: .bold)).foregroundStyle(Brand.aqua)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    Text("하루 최대\n10 S").font(.system(size: 12)).foregroundStyle(Brand.aqua)
+                }.padding(16).background(Brand.aqua.opacity(0.08), in: RoundedRectangle(cornerRadius: 16)).padding(.top, 14).padding(.bottom, 4)
+                if data.isEmpty && error == nil { ProgressView().frame(maxWidth: .infinity) }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+                ForEach(data.objects("rewards"), id: \.rewardID) { reward in rewardCard(reward) }
+                Text("매일 0시 갱신 · 받은 실버는 누적돼요.\n실버는 수익 정산 대상이 아니에요.").font(.system(size: 12)).foregroundStyle(AifectDesign.muted).padding(.top, 4)
+            }.padding(.horizontal, 20).padding(.bottom, 24)
+        }.navigationTitle("실버").task(id: model.userID) { data = [:]; await load() }.refreshable { await load() }
     }
-    private func load() async { do { data = try await API.shared.call("/api/gifts/free"); error = nil } catch { self.error = error.localizedDescription } }
+    private func rewardCard(_ reward: [String: Any]) -> some View {
+        let kind = reward.string("kind"), claimed = reward.flag("claimed"), eligible = reward.flag("eligible")
+        let target = max(1, reward.int("target")), progress = claimed || eligible ? max(1, reward.int("target")) : min(max(0, reward.int("progress")), max(1, reward.int("target")))
+        let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(spacing: 14))
+        return layout {
+            VStack(alignment: .leading, spacing: 5) {
+                Text(labels[kind] ?? kind).font(.system(size: 15, weight: .semibold))
+                Text(claimed ? "오늘 보상 완료" : kind == "listen" ? "\(progress) / \(target)곡 · 곡마다 60% 이상" : kind.hasPrefix("comment") ? "3자 이상 감상 남기기" : "하루 1회").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                if kind == "listen" { ProgressView(value: Double(progress) / Double(target)).tint(Brand.aqua).padding(.top, 3) }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text("\(reward.int("amount")) S").font(.system(size: 13, weight: .bold)).foregroundStyle(claimed ? AifectDesign.muted : Brand.aqua)
+                Button(claimed ? "받음" : eligible ? "실버 받기" : "활동하기") {
+                    if eligible { Task { await claim(kind) } }
+                    else {
+                        dismiss(); model.navigationPath = NavigationPath(); model.selectedTab = kind == "cover" ? 2 : 0
+                        model.notice = kind.hasPrefix("comment") ? "좋아하는 곡에서 3자 이상 감상을 남겨보세요." : kind == "listen" ? "서로 다른 5곡을 각각 60% 이상 감상해주세요." : "커버곡을 공개하면 보상을 받을 수 있어요."
+                    }
+                }.buttonStyle(CatalogButtonStyle(filled: true)).disabled(busy || claimed)
+            }
+        }.padding(14).background(AifectDesign.stroke.opacity(0.45), in: RoundedRectangle(cornerRadius: 16)).accessibilityIdentifier("reward-" + kind)
+    }
+    private func load() async { let owner = model.userID; do { let value = try await API.shared.call("/api/gifts/free"); guard owner == model.userID, !Task.isCancelled else { return }; data = value; error = nil } catch { if owner == model.userID { self.error = error.localizedDescription } } }
     private func claim(_ kind: String) async {
         busy = true; defer { busy = false }
         do { data = try await API.shared.call("/api/gifts/free/claim", method: "POST", body: ["kind": kind]); model.walletRevision += 1; error = nil } catch { self.error = error.localizedDescription }

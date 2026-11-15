@@ -1,6 +1,15 @@
 import SwiftUI
 import PhotosUI
 
+struct OfficialAIBadge: View {
+    let person: [String: Any]
+    var body: some View {
+        if person.string("account_type") == "ai_bot" {
+            Text("AI").font(.system(size: 9)).foregroundStyle(AifectDesign.violet).padding(.horizontal, 4).padding(.vertical, 1).background(AifectDesign.violet.opacity(0.18), in: RoundedRectangle(cornerRadius: 4)).accessibilityLabel("공식 AI 응원 계정")
+        }
+    }
+}
+
 struct PersonRow: View {
     let person: [String: Any]
     var body: some View {
@@ -134,6 +143,8 @@ struct MessagesView: View {
     @State private var filter = "전체"
     @State private var query = ""
     @State private var searching = false
+    @State private var working = false
+    @State private var clearConfirmation = false
     @State private var error: String?
     private var conversations: [[String: Any]] {
         model.inboxConversations.filter { person in
@@ -152,10 +163,14 @@ struct MessagesView: View {
                 Text("메시지").font(.title2.bold()).foregroundStyle(AifectDesign.text).frame(maxWidth: .infinity, alignment: .leading)
                 Button { searching.toggle(); if !searching { query = "" } } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }.accessibilityLabel("대화 검색")
                 NavigationLink { NewConversationView().streamingPage() } label: { Image(systemName: "person.badge.plus").frame(width: 44, height: 44) }.accessibilityLabel("새 대화")
-                Menu { NavigationLink("알림 설정") { PushSettingsView().streamingPage() }; NavigationLink("계정 관리") { AccountView() } } label: { Image(systemName: "line.3.horizontal").frame(width: 44, height: 44) }.accessibilityLabel("메시지 관리")
+                Menu {
+                    Button("모두 읽음") { Task { await manage(clear: false) } }.disabled(working)
+                    NavigationLink("알림 기록") { ActivityHistoryView().streamingPage() }
+                    Button("내 DM 전체 삭제", role: .destructive) { clearConfirmation = true }.disabled(working)
+                } label: { Image(systemName: "line.3.horizontal").frame(width: 44, height: 44) }.accessibilityLabel("메시지 관리")
             }.font(.title3).foregroundStyle(AifectDesign.secondaryText).buttonStyle(.plain).padding(.leading, 16).padding(.trailing, 4).frame(minHeight: 56)
+            if searching { TextField("이름 · 메시지 검색", text: $query).padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke)).padding(.horizontal, 14).accessibilityIdentifier("inbox-search") }
             CatalogTabs(names: ["전체", "안 읽음", "크루", "공지"], selection: $filter)
-            if searching { TextField("이름 · 메시지 검색", text: $query).textFieldStyle(.roundedBorder).padding(.horizontal, 14).accessibilityIdentifier("inbox-search") }
             if model.user == nil { LoginPrompt(title: "로그인하고 메시지 보기") }
             else {
                 ScrollView {
@@ -163,110 +178,255 @@ struct MessagesView: View {
                         if let crew {
                             NavigationLink(value: MessageRoute(id: crew.string("id"), title: crew.string("name"), crew: true)) {
                                 HStack(spacing: 12) {
-                                    CrewArtwork(crew: crew).frame(width: 48, height: 48).clipShape(Circle())
-                                    VStack(alignment: .leading, spacing: 6) { Text(crew.string("name")).font(.headline); Text("크루와 함께하는 대화").font(.subheadline).foregroundStyle(AifectDesign.muted) }.frame(maxWidth: .infinity, alignment: .leading)
+                                    CrewArtwork(crew: crew).frame(width: 56, height: 56).clipShape(Circle())
+                                    VStack(alignment: .leading, spacing: 6) { Text(crew.string("name")).font(.headline); Text(ChatSticker.preview(crew.string("last_message", fallback: "크루와 함께하는 대화"))).font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }.frame(maxWidth: .infinity, alignment: .leading)
                                     VStack(spacing: 6) { Text("크루").font(.caption).foregroundStyle(AifectDesign.violet); unread(crew.int("unread")) }
-                                }.padding(12).background(Brand.card.opacity(0.55), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke)).padding(.vertical, 3).contentShape(Rectangle())
+                                }.padding(.horizontal, 14).padding(.vertical, 17).background(Brand.card.opacity(0.8), in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke)).padding(.vertical, 5).contentShape(Rectangle())
                             }.buttonStyle(.plain).accessibilityIdentifier("inbox-crew")
                         }
                         if filter != "크루" {
                             ForEach(conversations, id: \.selfID) { person in
                                 HStack(spacing: 12) {
-                                    NavigationLink { ProfilePage(id: person.string("id")).streamingPage() } label: { ProfilePhoto(person: person, size: 48, showsLevel: false) }.buttonStyle(.plain).accessibilityLabel("\(person.displayName()) 프로필")
+                                    NavigationLink { ProfilePage(id: person.string("id")).streamingPage() } label: { ProfilePhoto(person: person, size: 56, showsLevel: false) }.buttonStyle(.plain).accessibilityLabel("\(person.displayName()) 프로필")
                                     NavigationLink(value: MessageRoute(id: person.string("id"), title: person.displayName(), crew: false)) {
                                         HStack {
-                                            VStack(alignment: .leading, spacing: 7) { Text(person.displayName()).font(.headline); Text(person.string("last_message")).font(.subheadline).foregroundStyle(AifectDesign.muted).lineLimit(2) }.frame(maxWidth: .infinity, alignment: .leading)
+                                            VStack(alignment: .leading, spacing: 7) { HStack(spacing: 5) { Text(person.displayName()).font(.system(size: 15, weight: .semibold)); OfficialAIBadge(person: person) }; Text(ChatSticker.preview(person.string("last_message"))).font(.system(size: 13)).foregroundStyle(AifectDesign.muted).lineLimit(1) }.frame(maxWidth: .infinity, alignment: .leading)
                                             VStack(alignment: .trailing, spacing: 6) {
                                                 if person.flag("muted") { Image(systemName: "bell.slash").font(.caption) }
                                                 if person.number("updated") > 0 { Text(Date(timeIntervalSince1970: person.number("updated")), style: .relative).font(.caption2).foregroundStyle(AifectDesign.muted) }
                                                 unread(person.int("unread"))
                                             }
                                         }.contentShape(Rectangle())
-                                    }.buttonStyle(.plain)
-                                }.padding(12).background(Brand.card.opacity(0.55), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke)).padding(.vertical, 3)
+                                    }.buttonStyle(.plain).accessibilityIdentifier("inbox-dm-" + person.selfID)
+                                }.padding(.horizontal, 14).padding(.vertical, 17).background(Brand.card.opacity(0.8), in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke)).padding(.vertical, 5)
                             }
                         }
                         if crew == nil && (filter == "크루" || conversations.isEmpty) { ContentUnavailableView(filter == "안 읽음" ? "읽지 않은 대화가 없어요" : "대화를 시작해보세요", systemImage: "bubble.left.and.bubble.right", description: Text("새 대화에서 팔로잉을 선택하거나 프로필에서 메시지를 보낼 수 있어요.")) }
                         if let error { RetryCard(message: error) { Task { await load() } } }
-                    }.padding(.horizontal, 16)
+                    }.padding(.horizontal, 14)
                 }.refreshable { await load() }
             }
         }.task(id: model.userID) { await load() }
+        .confirmationDialog("내 DM 전체 삭제", isPresented: $clearConfirmation, titleVisibility: .visible) {
+            Button("삭제", role: .destructive) { Task { await manage(clear: true) } }.disabled(working)
+        } message: { Text("내 기기와 내 목록에서 대화를 삭제해요. 상대방의 기록은 유지되며 새 메시지는 다시 표시돼요.") }
     }
     @ViewBuilder private func unread(_ value: Int) -> some View {
         if value > 0 { Text(value > 99 ? "99+" : "\(value)").font(.caption.bold()).foregroundStyle(Brand.background).padding(7).background(StreamStyle.purple, in: Circle()) }
+    }
+    private func manage(clear: Bool) async {
+        guard let owner = model.userID, !working else { return }; working = true; defer { working = false }
+        do {
+            _ = try await API.shared.call(clear ? "/api/dm" : "/api/dm/read-all", method: clear ? "DELETE" : "POST", body: [:])
+            guard model.userID == owner else { return }
+            if clear { ChatCache.removeAll(owner: owner) }
+            await load()
+        } catch { if model.userID == owner { self.error = error.localizedDescription } }
     }
     private func load() async { guard model.userID != nil else { return }; await model.refreshInbox(); error = model.inboxError }
 }
 
 struct NewConversationView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var query = ""
     @State private var people: [[String: Any]] = []
+    @State private var loading = false
+    @State private var revision = 0
     @State private var error: String?
     var body: some View {
-        List {
-            if model.userID == nil { LoginPrompt(title: "로그인하고 대화를 시작하세요") }
-            else {
-                NavigationLink("새로운 음악가 찾기") { SearchView() }
-                ForEach(people, id: \.selfID) { person in NavigationLink { ProfilePage(id: person.string("target_id", fallback: person.string("id"))).streamingPage() } label: { PersonRow(person: person) } }
-                if people.isEmpty && error == nil { Text("팔로잉한 음악가의 프로필에서 메시지를 보내세요.").foregroundStyle(.secondary) }
-                if let error { Text(error).foregroundStyle(.secondary) }
+        VStack(spacing: 12) {
+            TextField("닉네임 또는 고유 ID", text: $query).font(.system(size: 15)).padding(14)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
+                .padding(.horizontal, 14).accessibilityIdentifier("new-conversation-search")
+            if loading { ProgressView() }
+            ScrollView {
+                LazyVStack(spacing: 10) {
+                    ForEach(people, id: \.selfID) { person in
+                        NavigationLink { ChatPage(path: "/api/dm/\(Endpoint.pathID(person.selfID))", title: person.displayName(), crew: false).streamingPage() } label: {
+                            HStack(spacing: 12) {
+                                ProfilePhoto(person: person, size: 46, showsLevel: false)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack(spacing: 5) { Text(person.displayName()).font(.system(size: 15)); OfficialAIBadge(person: person) }
+                                    if !person.string("public_id").isEmpty { Text("ID " + person.string("public_id")).font(.system(size: 11)).foregroundStyle(AifectDesign.muted) }
+                                }.frame(maxWidth: .infinity, alignment: .leading)
+                                Image(systemName: "bubble.left").foregroundStyle(Brand.pink)
+                            }.padding(14).frame(minHeight: 80).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke))
+                        }.buttonStyle(.plain).contentShape(Rectangle()).accessibilityIdentifier("new-conversation-" + person.selfID)
+                    }
+                    if !loading && people.isEmpty && error == nil { Text(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "닉네임이나 고유 ID를 입력해 친구를 찾아보세요." : "검색 결과가 없어요.").font(.subheadline).foregroundStyle(AifectDesign.muted) }
+                    if let error { RetryCard(message: error) { revision += 1 } }
+                }.padding(14)
+            }.scrollDismissesKeyboard(.interactively)
+        }.navigationTitle("새 대화").navigationBarTitleDisplayMode(.inline)
+            .task(id: query + "|" + String(revision) + "|" + (model.userID ?? "")) { await search() }
+    }
+    private func search() async {
+        people = []; error = nil; loading = false
+        guard let owner = model.userID else { return }
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !term.isEmpty else { return }; loading = true
+        do {
+            try await Task.sleep(for: .milliseconds(250))
+            let result = try await API.shared.call("/api/search?q=" + Endpoint.query(term))
+            guard !Task.isCancelled, model.userID == owner else { return }
+            var seen = Set<String>()
+            people = result.objects("producers").filter { SiteWorkspace.validKey($0.selfID) && $0.string("user_id") != owner && $0.selfID != model.user?.string("profile_id") && seen.insert($0.selfID).inserted }
+            loading = false
+        } catch { if !Task.isCancelled, model.userID == owner { loading = false; self.error = error.localizedDescription } }
+    }
+}
+
+enum CrewDirectoryFilter {
+    static func isOpen(_ row: [String: Any]) -> Bool { row.flag("recruiting") && (row.int("capacity") == 0 || row.int("members") < row.int("capacity")) }
+    static func interests(_ row: [String: Any]) -> [String] { row.string("interests").components(separatedBy: CharacterSet(charactersIn: ",·#")).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty } }
+    static func rows(_ crews: [[String: Any]], query: String, interest: String, recruitment: String, level: String, onlyMine: Bool, mine: String?, sort: String) -> [[String: Any]] {
+        let term = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        return crews.filter { row in
+            (term.isEmpty || [row.string("name"), row.string("description"), row.string("interests")].joined(separator: " ").localizedCaseInsensitiveContains(term)) &&
+            (interest.isEmpty || interests(row).contains(interest)) && (recruitment.isEmpty || isOpen(row) == (recruitment == "open")) &&
+            (level.isEmpty || String(row.int("level")) == level) && (!onlyMine || row.selfID == mine)
+        }.sorted { a, b in
+            switch sort {
+            case "recent": return a.number("created") > b.number("created")
+            case "members": return a.int("members") > b.int("members")
+            case "level": return a.int("level") == b.int("level") ? a.number("xp") > b.number("xp") : a.int("level") > b.int("level")
+            default: return a.int("match") == b.int("match") ? a.number("xp") > b.number("xp") : a.int("match") > b.int("match")
             }
-        }.navigationTitle("새 대화").task(id: model.userID) {
-            guard let owner = model.userID else { return }
-            do { let value = try await API.shared.call("/api/follows"); guard owner == model.userID, !Task.isCancelled else { return }; people = value.objects("follows").filter { $0.string("kind") == "producer" }; error = nil } catch { self.error = error.localizedDescription }
         }
     }
 }
 
 struct CrewsView: View {
     @EnvironmentObject var model: AppModel
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var featuredID: String?
+    @State private var featuredVisible = false
+    @State private var featuredWidth: CGFloat = 268
     @State private var crews: [[String: Any]] = []
     @State private var query = ""
     @State private var error: String?
     @State private var create = false
     @State private var loading = true
     @State private var mine: String?
+    @State private var interest = ""
+    @State private var recruitment = ""
+    @State private var level = ""
+    @State private var onlyMine = false
+    @State private var sort = "recommended"
+    @State private var grid = true
+    @State private var filtering = false
+    private var filtered: [[String: Any]] { CrewDirectoryFilter.rows(crews, query: query, interest: interest, recruitment: recruitment, level: level, onlyMine: onlyMine, mine: mine, sort: sort) }
+    private var recommended: [[String: Any]] { Array(CrewDirectoryFilter.rows(crews, query: "", interest: "", recruitment: "", level: "", onlyMine: false, mine: mine, sort: "recommended").prefix(5)) }
+    private var filterCount: Int { [!interest.isEmpty, !recruitment.isEmpty, !level.isEmpty, onlyMine].filter { $0 }.count }
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 5) {
                         Text("함께하는 음악 모임").font(.system(size: 19, weight: .bold))
-                        Text("듣고, 부르고, 이야기해요").font(.system(size: 13)).foregroundStyle(AifectDesign.muted)
-                    }
-                    Spacer(minLength: 4)
-                    Button { if model.requireLogin() { create = true } } label: { Image(systemName: "plus").frame(width: 44, height: 44).background(Brand.card, in: Circle()) }.accessibilityLabel("새 크루 만들기")
+                        Text("듣고, 부르고, 이야기해요").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                    if let mine { NavigationLink("내 크루") { CrewPage(id: mine).streamingPage() }.buttonStyle(ParityPill(filled: true)) }
+                    else { Button("크루 만들기") { if model.requireLogin() { create = true } }.buttonStyle(ParityPill(filled: true)).accessibilityLabel("새 크루 만들기") }
                 }
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(AifectDesign.muted)
-                    TextField("크루 이름 · 관심 장르", text: $query).submitLabel(.search).accessibilityIdentifier("crew-search")
-                    if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(AifectDesign.muted) }.accessibilityLabel("검색어 지우기") }
-                }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 15))
-                if loading { ProgressView("크루를 찾는 중").frame(maxWidth: .infinity).padding(.vertical, 12) }
-                ForEach(crews, id: \.selfID) { crew in
-                    NavigationLink { CrewPage(id: crew.string("id")).streamingPage() } label: { CrewDirectoryCard(crew: crew, isMine: crew.string("id") == mine) }
-                        .buttonStyle(.plain).accessibilityIdentifier("crew-card-" + crew.string("id"))
+                if loading { ProgressView("크루를 찾는 중").frame(maxWidth: .infinity) }
+                if !recommended.isEmpty {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("지금 주목할 만한 크루").font(.system(size: 16, weight: .bold)).padding(.horizontal, 14)
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 12) { ForEach(recommended, id: \.selfID) { row in crewLink(row, grid: false, featured: true).frame(width: featuredWidth).id(row.selfID) } }.scrollTargetLayout().padding(.horizontal, 14)
+                        }.scrollTargetBehavior(.viewAligned).scrollPosition(id: $featuredID)
+                            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { featuredWidth = min(268, max(180, $0 - 44)) }
+                        if recommended.count > 1 { HStack(spacing: 6) { ForEach(recommended, id: \.selfID) { row in Circle().fill((featuredID ?? recommended.first?.selfID) == row.selfID ? Brand.pink : AifectDesign.muted.opacity(0.35)).frame(width: 5, height: 5) } }.frame(maxWidth: .infinity).accessibilityHidden(true) }
+                    }.padding(.vertical, 16).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke))
+                        .onAppear { featuredVisible = true }.onDisappear { featuredVisible = false }
+                        .task(id: "\(featuredID ?? "")-\(scenePhase)-\(featuredVisible)-\(reduceMotion)") {
+                            guard featuredVisible, scenePhase == .active, !reduceMotion, recommended.count > 1 else { return }
+                            do { try await Task.sleep(for: .milliseconds(4500)); try Task.checkCancellation() } catch { return }
+                            let index = recommended.firstIndex { $0.selfID == featuredID } ?? 0
+                            withAnimation { featuredID = recommended[(index + 1) % recommended.count].selfID }
+                        }
                 }
+                HStack(spacing: 8) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "magnifyingglass").foregroundStyle(AifectDesign.muted)
+                        TextField("크루명 · 관심사 검색", text: $query).submitLabel(.search).accessibilityIdentifier("crew-search")
+                    }.font(.system(size: 14)).padding(12).frame(minHeight: 48).background(Brand.card, in: RoundedRectangle(cornerRadius: 12))
+                    Button { filtering = true } label: { Label(filterCount > 0 ? "\(filterCount)" : "필터", systemImage: "slider.horizontal.3").font(.caption).padding(10).frame(minHeight: 48).overlay(RoundedRectangle(cornerRadius: 12).stroke(filterCount > 0 ? Brand.pink : AifectDesign.stroke)) }.buttonStyle(.plain).accessibilityIdentifier("crew-filters")
+                }
+                HStack {
+                    Text("발견할 크루").font(.system(size: 16, weight: .bold)); Text("\(filtered.count)").foregroundStyle(Brand.pink); Spacer()
+                    Button { grid = true } label: { Image(systemName: "square.grid.2x2").frame(width: 44, height: 44).foregroundStyle(grid ? Brand.pink : AifectDesign.muted) }.accessibilityLabel("크루 카드로 보기")
+                    Button { grid = false } label: { Image(systemName: "list.bullet").frame(width: 44, height: 44).foregroundStyle(!grid ? Brand.pink : AifectDesign.muted) }.accessibilityLabel("크루 목록으로 보기")
+                }
+                Picker("정렬", selection: $sort) { Text("추천순").tag("recommended"); Text("최신순").tag("recent"); Text("레벨순").tag("level"); Text("인원순").tag("members") }
+                if grid {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) { ForEach(filtered, id: \.selfID) { crewLink($0, grid: true) } }
+                } else { ForEach(filtered, id: \.selfID) { crewLink($0, grid: false) } }
                 if let error { RetryCard(message: error) { Task { await load() } } }
-                else if crews.isEmpty && !loading { ContentUnavailableView(query.isEmpty ? "첫 크루를 만들어보세요" : "검색된 크루가 없어요", systemImage: "person.3", description: Text(query.isEmpty ? "좋아하는 음악으로 함께할 모임을 시작해보세요." : "다른 크루 이름이나 관심 장르로 찾아보세요.")) }
-            }.padding(20).padding(.bottom, 16)
+                else if filtered.isEmpty && !loading { ContentUnavailableView("조건에 맞는 크루가 없어요", systemImage: "person.3", description: Text("검색어나 필터를 바꿔보세요.")) }
+                if !crews.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("크루 랭킹").font(.system(size: 16, weight: .bold))
+                        Text("레벨순 · 같은 레벨은 누적 경험치순").font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
+                        ForEach(Array(NativeRedesignLayout.rankedCrews(crews).prefix(5).enumerated()), id: \.element.selfID) { index, row in
+                            NavigationLink { CrewPage(id: row.selfID).streamingPage() } label: {
+                                HStack(spacing: 10) { Text("\(index + 1)").foregroundStyle(Brand.pink); CrewArtwork(crew: row).frame(width: 44, height: 44).clipShape(Circle()); VStack(alignment: .leading) { Text(row.string("name")); Text("\(row.int("members"))명").font(.caption).foregroundStyle(AifectDesign.muted) }.frame(maxWidth: .infinity, alignment: .leading); Text("LV.\(max(1, row.int("level")))").font(.caption) }.padding(.vertical, 10)
+                            }.buttonStyle(.plain)
+                        }
+                    }.padding(14).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
+                }
+            }.padding(16).padding(.bottom, 16)
         }.background(AifectDesign.background).scrollDismissesKeyboard(.interactively)
             .navigationTitle("크루").navigationBarTitleDisplayMode(.inline)
-            .task(id: query + "|" + (model.userID ?? "guest")) {
-                do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {}
-            }.refreshable { await load() }
+            .task(id: model.userID) { await load() }.refreshable { await load() }
             .navigationDestination(isPresented: $create) { CrewEditor() }.onChange(of: create) { _, value in if !value { Task { await load() } } }
+            .sheet(isPresented: $filtering) { filters }
+    }
+    private func crewLink(_ crew: [String: Any], grid: Bool, featured: Bool = false) -> some View {
+        NavigationLink { CrewPage(id: crew.selfID).streamingPage() } label: {
+            VStack(alignment: .leading, spacing: 10) {
+                if grid {
+                    Color.clear.aspectRatio(1, contentMode: .fit).overlay { CrewArtwork(crew: crew) }.clipped().clipShape(RoundedRectangle(cornerRadius: 12))
+                    crewDescription(crew, grid: true)
+                } else {
+                    HStack(alignment: .top, spacing: 12) { CrewArtwork(crew: crew).frame(width: 84, height: 84).clipShape(RoundedRectangle(cornerRadius: 12)); crewDescription(crew, grid: false) }
+                }
+                HStack {
+                    let open = CrewDirectoryFilter.isOpen(crew)
+                    Text(crew.selfID == mine ? "내 크루" : open ? "모집 중" : "모집 마감").font(.system(size: 10)).foregroundStyle(open ? Brand.aqua : AifectDesign.muted).padding(.horizontal, 7).padding(.vertical, 3).overlay(Capsule().stroke(AifectDesign.stroke))
+                    Spacer(); if !grid { Text("자세히 보기").font(.system(size: 11)).foregroundStyle(Brand.pink) }; Image(systemName: "chevron.right").font(.caption).foregroundStyle(Brand.pink)
+                }
+            }.padding(grid ? 10 : 12).background(Brand.card, in: RoundedRectangle(cornerRadius: grid ? 16 : 14)).overlay(RoundedRectangle(cornerRadius: grid ? 16 : 14).stroke(AifectDesign.stroke))
+        }.buttonStyle(.plain).accessibilityIdentifier((featured ? "crew-featured-" : "crew-card-") + crew.selfID)
+    }
+    private func crewDescription(_ crew: [String: Any], grid: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(crew.string("name")).font(.system(size: grid ? 15 : 16, weight: .bold)).lineLimit(1)
+            Text(crew.string("description", fallback: "함께 음악을 나눠요")).font(.system(size: 12)).foregroundStyle(AifectDesign.muted).lineLimit(2, reservesSpace: true)
+            Text("\(crew.int("members"))명 · LV.\(max(1, crew.int("level")))").font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
+        }.frame(maxWidth: .infinity, alignment: .leading)
+    }
+    private var filters: some View {
+        NavigationStack {
+            Form {
+                Picker("관심사", selection: $interest) { Text("모든 관심사").tag(""); ForEach(Array(Set(crews.flatMap(CrewDirectoryFilter.interests))).sorted(), id: \.self) { Text($0).tag($0) } }
+                Picker("모집 상태", selection: $recruitment) { Text("모든 모집 상태").tag(""); Text("모집 중").tag("open"); Text("모집 마감").tag("closed") }
+                Picker("레벨", selection: $level) { Text("모든 레벨").tag(""); ForEach(Array(Set(crews.map { $0.int("level") })).sorted(), id: \.self) { Text("LV.\($0)").tag(String($0)) } }
+                Toggle("내 크루만 보기", isOn: $onlyMine).disabled(mine == nil)
+                Button("\(filtered.count)개 크루 보기") { filtering = false }.accessibilityIdentifier("crew-filter-apply")
+            }.navigationTitle("크루 필터").navigationBarTitleDisplayMode(.inline)
+                .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("초기화") { interest = ""; recruitment = ""; level = ""; onlyMine = false } } }
+        }.presentationDetents([.medium, .large])
     }
     private func load() async {
-        let owner = model.userID, search = query
-        loading = true
-        defer { if !Task.isCancelled { loading = false } }
+        let owner = model.userID; loading = true; defer { if !Task.isCancelled { loading = false } }
         do {
-            let result = try await API.shared.call("/api/crews?q=" + Endpoint.query(search))
-            guard !Task.isCancelled, owner == model.userID, search == query else { return }
-            crews = NativeRedesignLayout.rankedCrews(result.objects("crews")); mine = result["mine"] as? String; error = nil
-        } catch { if !Task.isCancelled, owner == model.userID, search == query { self.error = error.localizedDescription } }
+            let result = try await API.shared.call("/api/crews?summary=1")
+            guard !Task.isCancelled, owner == model.userID else { return }
+            crews = result.objects("crews"); mine = result["mine"] as? String; error = nil
+        } catch { if !Task.isCancelled, owner == model.userID { self.error = error.localizedDescription } }
     }
 }
 struct CrewEditor: View {

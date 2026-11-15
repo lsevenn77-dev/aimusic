@@ -57,10 +57,12 @@ struct AlbumArtwork: View {
     var ratio: CGFloat = 1
     var body: some View {
         Color.clear.aspectRatio(ratio, contentMode: .fit).overlay {
-            RemoteArtwork(url: song.artURL) { $0.resizable().scaledToFill() } placeholder: {
-                ZStack { AifectDesign.raised; Image(systemName: song.isCover ? "mic" : "music.note").font(.largeTitle).foregroundStyle(AifectDesign.secondaryText.opacity(0.45)) }
+            GeometryReader { bounds in
+                RemoteArtwork(url: song.artURL) { $0.resizable().scaledToFill() } placeholder: {
+                    ZStack { AifectDesign.raised; Image(systemName: song.isCover ? "mic" : "music.note").font(.largeTitle).foregroundStyle(AifectDesign.secondaryText.opacity(0.45)) }
+                }.frame(width: bounds.size.width, height: bounds.size.height).clipped()
             }
-        }.clipShape(RoundedRectangle(cornerRadius: 16)).accessibilityLabel("\(song.title) 앨범 표지")
+        }.clipShape(RoundedRectangle(cornerRadius: 12)).contentShape(Rectangle()).accessibilityLabel("\(song.title) 앨범 표지")
     }
 }
 struct SaveMusicButton: View {

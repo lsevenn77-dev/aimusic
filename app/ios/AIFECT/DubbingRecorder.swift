@@ -345,6 +345,7 @@ struct NativeDubbingRecorder: View {
     @State private var expanded = false
     @State private var confirmSubmit = false
     @State private var confirmLeave = false
+    @State private var leaving = false
     @State private var continuous = false
     @State private var confirmOverwrite = false
     @State private var showVolume = false
@@ -396,9 +397,10 @@ struct NativeDubbingRecorder: View {
             .toolbar { ToolbarItem(placement: .topBarLeading) { Button { leave() } label: { Image(systemName: "chevron.left").accessibilityLabel("뒤로") }.disabled(session.busy) } }
             .task { model.player.pause(); await session.prepare(sound: project.object("sound"), audio: audio); selected = session.lines.firstIndex { $0.string("takeId").isEmpty } ?? 0 }
             .onChange(of: scene) { _, phase in if phase != .active { audio.cancel(); do { try session.drafts?.save() } catch { session.error = error.localizedDescription } } }
+            .onChange(of: audio.running) { _, running in if leaving && !running { leaving = false; leave() } }
             .onDisappear { audio.cancel(); session.drafts?.discard() }
             .sheet(isPresented: $showVolume) { DubbingVolumeControls(audio: audio) }
-            .confirmationDialog("진행사항을 저장할까요?", isPresented: $confirmLeave, titleVisibility: .visible) {
+            .alert("진행사항을 저장할까요?", isPresented: $confirmLeave) {
                 Button("저장하고 나가기") { do { try session.drafts?.save(); dismiss() } catch { session.error = error.localizedDescription } }
                 Button("저장 안 함", role: .destructive) { session.drafts?.discard(); dismiss() }
                 Button("계속 작업하기", role: .cancel) { }
@@ -419,7 +421,7 @@ struct NativeDubbingRecorder: View {
             selected = session.lines.firstIndex { $0.selfID == id } ?? selected
         }, completed: { session.revision += 1 })
     }
-    private func leave() { guard !audio.running else { audio.finish(); return }; if session.drafts?.changed == true { confirmLeave = true } else { dismiss() } }
+    private func leave() { guard !audio.running else { leaving = true; audio.finish(); return }; if session.drafts?.changed == true { confirmLeave = true } else { dismiss() } }
     private func scriptCard(_ line: [String: Any]) -> some View {
         let own = line.string("roleId") == role.selfID, active = line.selfID == current?.selfID
         let roles = project.objects("roles"), index = roles.firstIndex { $0.selfID == line.string("roleId") } ?? 0
@@ -446,16 +448,14 @@ struct NativeDubbingRecorder: View {
             let canListen = take != nil || !current.string("audioUrl").isEmpty
             VStack(spacing: 10) {
                 if audio.countdown > 0 {
-                    Button { audio.finish() } label: { Text("\(audio.countdown)").font(.system(size: 46, weight: .bold)).frame(width: 100, height: 100).background(Brand.card, in: Circle()).overlay(Circle().stroke(AifectDesign.violet, lineWidth: 3)) }.accessibilityLabel("녹음 준비 취소")
+                    Button { audio.finish() } label: { Text("\(audio.countdown)").font(.system(size: 46, weight: .bold)).frame(width: 108, height: 108).background(Brand.card, in: Circle()).overlay(Circle().stroke(AifectDesign.violet, lineWidth: 3)) }.accessibilityLabel("녹음 준비 취소")
                 } else if audio.running {
-                    Text(audio.status).font(.headline)
-                    ProgressView(value: min(1, audio.elapsed / max(0.1, (try? DubbingWindow(current).duration) ?? 1)))
-                    Text(String(format: "%.1f초", audio.elapsed)).font(.caption.monospacedDigit())
-                    Button("이 대사 마치기") { audio.finish() }.buttonStyle(CatalogButtonStyle(filled: true))
+                    DubbingRecordingProgress(title: audio.capturing ? "녹음 중..." : audio.status, elapsed: audio.elapsed, total: (try? DubbingWindow(current).duration) ?? 0, live: audio.capturing, complete: false)
+                    Button { audio.finish() } label: { RoundedRectangle(cornerRadius: 5).fill(AifectDesign.secondaryText).frame(width: 24, height: 24).frame(width: 72, height: 72).overlay(Circle().stroke(AifectDesign.violet, lineWidth: 2)) }
+                        .buttonStyle(.plain).accessibilityLabel(audio.capturing ? "이 대사 마치기" : "녹음 준비 취소").accessibilityIdentifier("dubbing-record-line")
                 } else {
                     if canListen {
-                        HStack { Label("녹음 완료", systemImage: "checkmark.circle"); Spacer(); Text(String(format: "%.1f초", take?.duration ?? current.number("duration"))).font(.caption.monospacedDigit()) }
-                        ProgressView(value: 1).tint(AifectDesign.violet)
+                        DubbingRecordingProgress(title: "녹음 완료", elapsed: take?.duration ?? current.number("duration"), total: (try? DubbingWindow(current).duration) ?? 0, live: false, complete: true)
                     }
                     HStack {
                         if !session.submitted {
@@ -526,18 +526,51 @@ enum DubbingPalette {
     static func color(_ index: Int) -> Color { Color(aifectHex: [0xA7C9FF, 0xF4B1D3, 0x9DE1C7, 0xF1D38F, 0xCFB5F5, 0xFFB6A1][max(0, index) % 6]) }
 }
 
-private struct DubbingControlButton: View {
+struct DubbingBadge: View {
+    let text: String
+    let color: Color
+    var body: some View {
+        Text(text).font(.system(size: 11, weight: .semibold)).lineLimit(1).foregroundStyle(color).padding(.horizontal, 7).padding(.vertical, 2)
+            .background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.45)))
+    }
+}
+
+struct DubbingControlButton: View {
     @Environment(\.isEnabled) private var enabled
     let title: String
     let filled: Bool
+    var icon: String? = nil
+    var minHeight: CGFloat = 52
     let action: () -> Void
     var body: some View {
         Button(action: action) {
-            Text(title).font(.system(size: 15, weight: .semibold)).frame(maxWidth: .infinity, minHeight: 52)
+            HStack(spacing: 8) { if let icon { Image(systemName: icon) }; Text(title) }.font(.system(size: 15, weight: .semibold)).frame(maxWidth: .infinity, minHeight: minHeight)
                 .foregroundStyle(filled ? Brand.background : AifectDesign.secondaryText)
                 .background(filled ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Brand.card.opacity(0.45)), in: RoundedRectangle(cornerRadius: 26))
                 .overlay(RoundedRectangle(cornerRadius: 26).stroke(filled ? .clear : AifectDesign.stroke))
                 .contentShape(RoundedRectangle(cornerRadius: 26))
         }.buttonStyle(.plain).opacity(enabled ? 1 : 0.45)
+    }
+}
+
+private struct DubbingRecordingProgress: View {
+    let title: String
+    let elapsed: Double
+    let total: Double
+    let live: Bool
+    let complete: Bool
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                if live { Circle().fill(Color(red: 1, green: 0.35, blue: 0.43)).frame(width: 10, height: 10) }
+                if complete { Image(systemName: "checkmark.circle").foregroundStyle(Brand.aqua) }
+                Text(title).font(.system(size: 15, weight: .semibold)).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+                Text(String(format: "%.1f / %.1f초", elapsed, total)).font(.system(size: 14)).foregroundStyle(AifectDesign.muted).monospacedDigit()
+            }
+            GeometryReader { geometry in
+                Capsule().fill(AifectDesign.stroke).overlay(alignment: .leading) { Capsule().fill(AifectDesign.violet).frame(width: geometry.size.width * (complete ? 1 : live ? min(1, max(0, elapsed / max(0.1, total))) : 0)) }
+            }.frame(height: 8).accessibilityLabel("녹음 진행률").accessibilityValue("\(Int((complete ? 1 : min(1, max(0, elapsed / max(0.1, total)))) * 100))%")
+        }.padding(14).background(Brand.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(AifectDesign.stroke))
     }
 }

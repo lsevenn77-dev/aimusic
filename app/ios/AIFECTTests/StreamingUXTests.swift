@@ -4,6 +4,26 @@ import AVFoundation
 @testable import AIFECT
 
 final class StreamingUXTests: XCTestCase {
+    func testCrewFiltersCombineCapacityInterestsAndStableRanking() {
+        let rows: [[String: Any]] = [
+            ["id": "full", "name": "보컬", "interests": "발라드, 듀엣", "recruiting": true, "members": 10, "capacity": 10, "level": 3, "xp": 900],
+            ["id": "open", "name": "별빛", "description": "보컬 모임", "interests": "발라드 · 커버", "recruiting": true, "members": 5, "capacity": 10, "level": 3, "xp": 700],
+            ["id": "closed", "name": "재즈", "recruiting": false, "members": 1, "capacity": 10, "level": 4, "xp": 1000]
+        ]
+        XCTAssertFalse(CrewDirectoryFilter.isOpen(rows[0]))
+        XCTAssertEqual(CrewDirectoryFilter.rows(rows, query: "보컬", interest: "발라드", recruitment: "open", level: "3", onlyMine: false, mine: nil, sort: "level").map(\.selfID), ["open"])
+        XCTAssertEqual(CrewDirectoryFilter.rows(rows, query: "", interest: "", recruitment: "", level: "", onlyMine: true, mine: "full", sort: "members").map(\.selfID), ["full"])
+        XCTAssertEqual(CrewDirectoryFilter.rows(rows, query: "", interest: "", recruitment: "", level: "", onlyMine: false, mine: nil, sort: "level").map(\.selfID), ["closed", "full", "open"])
+    }
+    func testChatStickerTokensPreserveUnicodeAndUnknownTags() throws {
+        let laugh = try XCTUnwrap(ChatSticker.all.first { $0.key == "cat_basic_laugh" })
+        let text = "안녕 👨‍👩‍👧‍👦 " + laugh.token + " 끝 [aifect:unknown]"
+        XCTAssertEqual(ChatSticker.parts(text).map(\.0).joined(), text)
+        XCTAssertEqual(ChatSticker.preview(text), "안녕 👨‍👩‍👧‍👦 [웃음] 끝 [aifect:unknown]")
+        XCTAssertEqual(ChatSticker.parts(text).compactMap(\.1).count, 1)
+        XCTAssertEqual(Set(ChatSticker.all.map(\.key)).count, ChatSticker.all.count)
+        XCTAssertEqual(laugh.path, "/assets/chat-stickers/v1/basic/cat_basic_laugh.webp")
+    }
     func testArtworkUsesCoverUploaderAndPreservesOriginalColorsSource() {
         let cover = Song(["id": "cover", "kind": "cover", "producer_id": "singer", "producer_image_version": "v2", "has_cover": 1, "original_id": "original", "original_has_cover": 1])
         XCTAssertEqual(cover.artURL?.path, "/media/producer/singer")
@@ -42,6 +62,53 @@ final class StreamingUXTests: XCTestCase {
 }
 
 final class NativeDubbingTests: XCTestCase {
+    @MainActor func testScriptStructureEditsKeepRolesScenesAndSoundReferencesValid() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let editor = DubbingScriptEditorModel(owner: "test", existing: nil, root: root)
+        editor.script = try DubbingScriptEditorModel.manualScript(title: "연습", text: "A: 하나\nB: 둘\nA: 셋", options: ["roleCount": 2])
+        let first = editor.script.objects("lines")[0].selfID, onlyB = editor.script.objects("lines")[1].selfID
+        let binding = editor.rowField("lines", 2, "text")
+        editor.script["soundCues"] = [["id":"remove-start", "lineId":first], ["id":"remove-end", "endLineId":first], ["id":"keep", "lineId":onlyB]]
+        XCTAssertFalse(editor.canDeleteLine(onlyB))
+        editor.deleteLine(onlyB); XCTAssertEqual(editor.script.objects("lines").count, 3)
+        editor.deleteLine(first)
+        XCTAssertEqual(editor.script.objects("lines").map { $0.int("order") }, [1, 2])
+        XCTAssertEqual(editor.script.objects("soundCues").map(\.selfID), ["keep"])
+        binding.wrappedValue = "인덱스가 바뀌어도 같은 대사"
+        XCTAssertEqual(editor.script.objects("lines")[1].string("text"), "인덱스가 바뀌어도 같은 대사")
+        editor.addLine(after: onlyB)
+        XCTAssertEqual(editor.script.objects("lines").count, 3)
+        XCTAssertTrue(editor.script.objects("lines")[1].string("text").isEmpty)
+        XCTAssertEqual(editor.script.objects("lines")[1].string("roleId"), "role_2")
+        for _ in 0..<20 { editor.addScene() }
+        XCTAssertEqual(editor.script.objects("scenes").count, 12)
+        XCTAssertEqual(Set(editor.script.objects("lines").map(\.selfID)).count, editor.script.objects("lines").count)
+        try editor.persist()
+        let restored = DubbingScriptEditorModel(owner: "test", existing: nil, root: root)
+        XCTAssertEqual(restored.script.objects("scenes").count, 12)
+    }
+    @MainActor func testScriptDraftSaveDiscardAndPendingRequestProtection() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let editor = DubbingScriptEditorModel(owner: "test", existing: nil, root: root)
+        XCTAssertFalse(editor.hasChanges)
+        editor.title = "저장할 대본"
+        XCTAssertTrue(editor.hasChanges)
+        try editor.saveDraft()
+        XCTAssertFalse(editor.hasChanges)
+        let restored = DubbingScriptEditorModel(owner: "test", existing: nil, root: root)
+        XCTAssertEqual(restored.title, "저장할 대본")
+        restored.title = "저장하지 않을 대본"
+        restored.generation = ["state": "running"]
+        XCTAssertThrowsError(try restored.discardDraft())
+        XCTAssertFalse(restored.closed)
+        restored.generation = [:]
+        try restored.discardDraft()
+        restored.cache() // A disappearing view must not recreate a discarded draft.
+        let empty = DubbingScriptEditorModel(owner: "test", existing: nil, root: root)
+        XCTAssertEqual(empty.title, "")
+    }
     override func tearDown() { MockURLProtocol.handler = nil; super.tearDown() }
     @MainActor func testContinuousRecordingKeepsBackgroundAcrossThreeLocalTakes() async throws {
         guard AVAudioApplication.shared.recordPermission == .granted else { throw XCTSkip("Simulator microphone permission is required for this audio integration test.") }
@@ -64,7 +131,11 @@ final class NativeDubbingTests: XCTestCase {
         XCTAssertEqual(selected, ["line-0", "line-0", "line-1", "line-2"])
         for take in drafts.takes.values {
             XCTAssertEqual(take.duration, 0.5, accuracy: 0.025)
-            XCTAssertEqual(try Data(contentsOf: drafts.file(take)).count, 48044)
+            // Real input starts on an audio buffer boundary. Verify the actual
+            // PCM duration and the segment cap instead of requiring zero latency.
+            let bytes = try Data(contentsOf: drafts.file(take))
+            XCTAssertEqual(bytes.count, 44 + Int((take.duration * 48000).rounded()) * 2)
+            XCTAssertLessThanOrEqual(bytes.count, 48044)
         }
     }
     @MainActor func testPlaybackVolumesStayIndependentAcrossPreparationAndReplay() async throws {

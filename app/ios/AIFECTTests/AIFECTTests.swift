@@ -194,6 +194,38 @@ final class AIFECTTests: XCTestCase {
         XCTAssertEqual(creates, 1); XCTAssertEqual(uploads, 1); XCTAssertEqual(completions, 1)
         XCTAssertTrue(resumed.submitted)
     }
+    @MainActor func testOriginalCoverSurvivesLostResponseAndUsesFrozenFileOnRetry() async throws {
+        let owner = "test-original-" + UUID().uuidString
+        let folder = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("OriginalUploads").appendingPathComponent(owner)
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(owner + ".wav")
+        defer { try? FileManager.default.removeItem(at: folder); try? FileManager.default.removeItem(at: file); MockURLProtocol.handler = nil }
+        try Data(repeating: 0, count: 128).write(to: file)
+        let cover = Data(repeating: 17, count: 200)
+        let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [MockURLProtocol.self]
+        let api = API(configuration: config, cookie: "")
+        var creates = 0, covers = 0, completed = false
+        MockURLProtocol.handler = { request in
+            switch request.url!.path {
+            case "/api/uploads": creates += 1; return (201, Data("{\"id\":\"cover-retry\"}".utf8))
+            case "/api/studio/tracks/cover-retry": return (200, Data("{\"profile\":{\"status\":\"uploading\"}}".utf8))
+            case "/api/uploads/cover-retry/audio": return (200, Data("{}".utf8))
+            case "/api/uploads/cover-retry/cover":
+                var body = request.httpBody ?? Data()
+                if let stream = request.httpBodyStream { stream.open(); defer { stream.close() }; var buffer = [UInt8](repeating: 0, count: 4096); while stream.hasBytesAvailable { let n = stream.read(&buffer, maxLength: buffer.count); if n <= 0 { break }; body.append(buffer, count: n) } }
+                XCTAssertEqual(body, cover); XCTAssertEqual(request.value(forHTTPHeaderField: "Content-Type"), "image/webp")
+                covers += 1; if covers == 1 { throw URLError(.networkConnectionLost) }; return (200, Data("{}".utf8))
+            case "/api/uploads/cover-retry/complete": completed = true; return (200, Data("{}".utf8))
+            default: XCTFail("Unexpected endpoint"); return (404, Data())
+            }
+        }
+        let first = OriginalUpload(); _ = first.restore(account: owner)
+        let failed = await first.submit(file: file, metadata: [:], account: owner, cover: cover, api: api)
+        XCTAssertNil(failed); XCTAssertFalse(completed)
+        let resumed = OriginalUpload(); let stored = try XCTUnwrap(resumed.restore(account: owner))
+        let result = await resumed.submit(file: stored, metadata: [:], account: owner, cover: Data([99]), api: api)
+        XCTAssertEqual(result, "cover-retry"); XCTAssertEqual(creates, 1); XCTAssertEqual(covers, 2); XCTAssertTrue(completed)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("cover.webp").path))
+    }
     func testOfflineMixProducesFiniteStereoAudioAndCorrectLength() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

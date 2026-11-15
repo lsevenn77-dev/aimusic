@@ -32,7 +32,7 @@ final class AIFECTUITests: XCTestCase {
 
         app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
         if app.buttons["크루 찾기"].waitForExistence(timeout: 5) { app.buttons["크루 찾기"].tap() }
-        let crew = app.buttons["crew-card-fixture-crew"]
+        let crew = app.buttons["crew-featured-fixture-crew"]
         XCTAssertTrue(crew.waitForExistence(timeout: 8)); crew.tap()
         let entry = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "크루 채팅방")).firstMatch
         // SwiftUI reports a partially visible row as hittable even under the
@@ -42,7 +42,7 @@ final class AIFECTUITests: XCTestCase {
             app.scrollViews["crew-content"].swipeUp()
         }
         XCTAssertTrue(entry.isHittable); entry.tap()
-        XCTAssertTrue(app.textFields["chat-input"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch.waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["mini-player-collapse"].exists)
         app.navigationBars.buttons.element(boundBy: 0).tap()
         XCTAssertTrue(app.buttons["inbox-crew"].waitForExistence(timeout: 5))
@@ -149,9 +149,9 @@ final class AIFECTUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["main-tab-3"].waitForExistence(timeout: 20))
         app.buttons["main-tab-3"].tap()
-        let peer = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "채팅 테스트")).firstMatch
+        let peer = app.buttons["inbox-dm-fixture-peer"]
         XCTAssertTrue(peer.waitForExistence(timeout: 10)); peer.tap()
-        let input = app.textFields["chat-input"]
+        let input = app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 5)); XCTAssertTrue(input.isHittable)
         input.tap(); input.typeText("DM immediate")
         app.buttons["chat-send"].tap()
@@ -307,7 +307,7 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(balance.waitForExistence(timeout: 8))
         let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "550.125"), object: balance)
         XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 8), .completed)
-        XCTAssertEqual(app.staticTexts["diamond-preview"].label, "50다이아 → 500골드")
+        XCTAssertEqual(app.staticTexts["diamond-preview"].label, "500 G")
         app.buttons["diamond-submit"].tap(); app.buttons["50다이아 골드로 전환"].tap()
         XCTAssertTrue(app.staticTexts["diamond-success"].waitForExistence(timeout: 8))
         XCTAssertEqual(balance.label, "500.125")
@@ -354,7 +354,7 @@ final class AIFECTUITests: XCTestCase {
         let myShot = XCTAttachment(screenshot: app.screenshot()); myShot.name = "My profile settings and balances"; myShot.lifetime = .keepAlways; add(myShot)
         app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
         if app.buttons["크루 찾기"].waitForExistence(timeout: 5) { app.buttons["크루 찾기"].tap() }
-        XCTAssertTrue(app.buttons["crew-card-fixture-crew"].waitForExistence(timeout: 10)); app.buttons["crew-card-fixture-crew"].tap()
+        XCTAssertTrue(app.buttons["crew-featured-fixture-crew"].waitForExistence(timeout: 10)); app.buttons["crew-featured-fixture-crew"].tap()
         XCTAssertTrue(app.staticTexts["crew-detail-name"].waitForExistence(timeout: 10))
         let crewShot = XCTAttachment(screenshot: app.screenshot()); crewShot.name = "Crew hero and experience"; crewShot.lifetime = .keepAlways; add(crewShot)
         let content = app.scrollViews["crew-content"]

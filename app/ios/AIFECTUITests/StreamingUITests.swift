@@ -101,6 +101,56 @@ final class StreamingUITests: XCTestCase {
         XCTAssertEqual(actions.buttons.count, 4)
         capture(app, "android-parity-song-actions")
     }
+    @MainActor func testAndroidChartCategoriesAndKaraokeRanking() {
+        let app = launch()
+        app.buttons["인기 차트"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["검증용 밤의 산책 상세"].waitForExistence(timeout: 10))
+        capture(app, "parity-chart-compact-rows")
+        app.buttons["신인"].tap()
+        let first = app.buttons["검증용 밤의 산책 먼저 듣기"], second = app.buttons["함께 부르는 검증용 멜로디 먼저 듣기"]
+        XCTAssertTrue(first.waitForExistence(timeout: 8)); XCTAssertTrue(second.waitForExistence(timeout: 8))
+        XCTAssertEqual(first.frame.midY, second.frame.midY, accuracy: 2)
+        XCTAssertLessThan(first.frame.midX, second.frame.midX)
+        capture(app, "parity-chart-newcomers")
+        app.buttons["노래방 차트"].tap()
+        XCTAssertTrue(app.navigationBars["노래방 차트"].waitForExistence(timeout: 8))
+        let title = app.buttons["함께 부르는 검증용 멜로디 상세"]
+        reveal(title, in: app.scrollViews["cover-ranking-scroll"], app: app)
+        capture(app, "parity-karaoke-chart")
+        let singers = app.buttons["가수"]
+        reveal(singers, in: app.scrollViews["cover-ranking-scroll"], app: app, towardTop: true); singers.tap()
+        XCTAssertTrue(app.staticTexts["좋아요 24 · 커버 1곡"].waitForExistence(timeout: 8))
+        capture(app, "parity-karaoke-singers")
+    }
+    @MainActor func testAndroidPlaylistDetailManagement() {
+        let app = launch(["-playlist-management"])
+        app.buttons["main-tab-4"].tap(); app.buttons["내 보관함"].tap()
+        let lists = app.buttons["music-shortcut-0"]
+        reveal(lists, in: app.scrollViews.firstMatch, app: app); lists.tap()
+        let detail = app.buttons["my-playlist-manage-fixture-playlist"]
+        XCTAssertTrue(detail.waitForExistence(timeout: 8)); detail.tap()
+        XCTAssertTrue(app.buttons["playlist-cover-edit"].waitForExistence(timeout: 8))
+        capture(app, "parity-playlist-detail")
+        app.buttons["playlist-detail-edit"].tap()
+        let name = app.textFields["플레이리스트 이름"]
+        XCTAssertTrue(name.waitForExistence(timeout: 8)); name.tap(); name.typeText(" 수정")
+        app.buttons["저장"].tap()
+        XCTAssertTrue(app.staticTexts["검증용 플레이리스트 수정"].waitForExistence(timeout: 8))
+        app.buttons["playlist-detail-add"].tap()
+        let add = app.buttons["playlist-add-fixture-duet"]
+        reveal(add, in: app.scrollViews["playlist-detail-scroll"], app: app); add.tap()
+        let close = app.buttons["playlist-detail-add"]
+        reveal(close, in: app.scrollViews["playlist-detail-scroll"], app: app, towardTop: true); close.tap()
+        let up = app.buttons["playlist-up-fixture-duet"]
+        reveal(up, in: app.scrollViews["playlist-detail-scroll"], app: app); up.tap()
+        let moved = XCTNSPredicateExpectation(predicate: NSPredicate(format: "enabled == false"), object: up)
+        XCTAssertEqual(XCTWaiter.wait(for: [moved], timeout: 8), .completed)
+        let remove = app.buttons["playlist-remove-fixture-original"]
+        reveal(remove, in: app.scrollViews["playlist-detail-scroll"], app: app); remove.tap()
+        let removed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: remove)
+        XCTAssertEqual(XCTWaiter.wait(for: [removed], timeout: 8), .completed)
+        capture(app, "parity-playlist-managed")
+    }
     @MainActor func testAndroidPlaylistGridSearchCreateAndPlayback() {
         let app = launch()
         app.buttons["main-tab-4"].tap()
@@ -392,7 +442,7 @@ final class StreamingUITests: XCTestCase {
         app.buttons["안 읽음"].tap(); capture(app, "08-messages")
         app.buttons["대화 검색"].tap(); app.textFields["inbox-search"].tap(); app.textFields["inbox-search"].typeText("채팅")
         app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "다음에도 같이 불러요")).firstMatch.tap()
-        XCTAssertTrue(app.textFields["chat-input"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch.waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["main-tab-3"].exists)
         back(app)
         XCTAssertEqual(app.textFields["inbox-search"].value as? String, "채팅")
@@ -530,6 +580,150 @@ final class StreamingUITests: XCTestCase {
         let save = app.buttons["대본 저장"]
         reveal(save, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); save.tap()
         XCTAssertTrue(app.navigationBars["더빙 스튜디오"].waitForExistence(timeout: 8))
+        back(app)
+        XCTAssertTrue(app.buttons["더빙 만들기"].waitForExistence(timeout: 8))
+    }
+
+    @MainActor func testAndroidStudioChoicesArtistAndMR() {
+        let app = launch(["-studio-parity"])
+        app.buttons["main-tab-4"].tap(); app.buttons["스튜디오 바로가기"].tap()
+        let edit = app.buttons["studio-edit-fixture-original"]
+        XCTAssertTrue(edit.waitForExistence(timeout: 10)); reveal(edit, in: app.scrollViews.firstMatch, app: app); edit.tap()
+        XCTAssertTrue(app.textFields["studio-title"].waitForExistence(timeout: 10))
+        capture(app, "parity-studio-editor-top")
+        let genres = app.buttons["studio-choice-장르"]
+        reveal(genres, in: app.scrollViews.firstMatch, app: app, hasBottomBar: false); genres.tap()
+        app.buttons["K-POP"].tap(); app.buttons["Pop"].tap()
+        XCTAssertFalse(app.buttons["Dark Pop"].isEnabled)
+        app.buttons["적용"].tap()
+        let moods = app.buttons["studio-choice-기분"]
+        moods.tap(); app.buttons["위로가 필요할 때"].tap(); app.buttons["적용"].tap()
+        capture(app, "parity-studio-genres-moods")
+        let mr = app.buttons["MR 자동으로 다시 만들기"]
+        reveal(mr, in: app.scrollViews.firstMatch, app: app, hasBottomBar: false); mr.tap(); app.buttons["다시 만들기"].tap()
+        XCTAssertTrue(app.staticTexts["반주를 다시 만들고 있어요."].waitForExistence(timeout: 8))
+        capture(app, "parity-studio-mr")
+        app.buttons["studio-track-save"].tap()
+        XCTAssertTrue(app.navigationBars["스튜디오"].waitForExistence(timeout: 8))
+        let artist = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "검증 아티스트")).firstMatch
+        reveal(artist, in: app.scrollViews["creator-studio"], app: app); artist.tap()
+        let name = app.textFields["studio-artist-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 8)); name.tap(); name.typeText(" 수정")
+        app.buttons["완료"].tap(); capture(app, "parity-studio-artist")
+        let save = app.buttons["studio-artist-save"]
+        reveal(save, in: app.scrollViews["studio-artist-scroll"], app: app, hasBottomBar: false); save.tap()
+        XCTAssertTrue(app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "검증 아티스트 수정")).firstMatch.waitForExistence(timeout: 8))
+    }
+    @MainActor func testAndroidDubbingManagementAndChoices() {
+        let app = launch(["-dubbing-management"])
+        app.buttons["main-tab-2"].tap(); app.buttons["더빙"].firstMatch.tap()
+        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "극본 보기")).firstMatch.tap()
+        let roleMenu = app.buttons["dubbing-role-menu-guide"]
+        XCTAssertTrue(roleMenu.waitForExistence(timeout: 10)); roleMenu.tap(); app.buttons["배역 취소"].tap()
+        XCTAssertTrue(app.buttons["claim-role-guide"].waitForExistence(timeout: 8))
+        roleMenu.tap(); app.buttons["이 배역으로 새 더빙 시작"].tap()
+        XCTAssertTrue(app.staticTexts["새 공연 검증"].waitForExistence(timeout: 8)); back(app)
+        app.buttons["더빙 메뉴"].tap(); app.buttons["대본 수정"].tap()
+        XCTAssertTrue(app.navigationBars["대본 편집"].waitForExistence(timeout: 8))
+        let advanced = app.switches["연기 지시 · 시간 조절"]
+        reveal(advanced, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); advanced.tap()
+        let add = app.buttons["dubbing-line-add-line-1"]
+        reveal(add, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); add.tap()
+        let remove = app.buttons["dubbing-line-delete-line-1"]
+        remove.tap()
+        XCTAssertFalse(app.textFields["dubbing-line-text-line-1"].exists)
+        capture(app, "parity-dubbing-line-editor")
+        back(app)
+        XCTAssertTrue(app.buttons["저장하고 나가기"].waitForExistence(timeout: 5))
+        capture(app, "parity-dubbing-save-leave")
+        app.buttons["계속 작업하기"].tap()
+        XCTAssertTrue(app.navigationBars["대본 편집"].exists)
+        back(app); app.buttons["저장 안 함"].tap(); back(app)
+        app.buttons["더빙 만들기"].tap()
+        let genre = app.buttons["dubbing-choice-genres"]
+        XCTAssertTrue(genre.waitForExistence(timeout: 8)); genre.tap()
+        app.buttons["SF"].tap(); app.buttons["완료"].tap()
+        XCTAssertTrue(genre.label.contains("SF"))
+        app.buttons["dubbing-choice-minutes"].tap()
+        let duration = app.buttons["5:00"]
+        reveal(duration, in: app.scrollViews.firstMatch, app: app, hasBottomBar: false); duration.tap()
+        XCTAssertTrue(app.buttons["dubbing-choice-minutes"].label.contains("5:00"))
+        capture(app, "parity-dubbing-create-options")
+        back(app); app.buttons["저장하고 나가기"].tap()
+        app.buttons["더빙 만들기"].tap()
+        XCTAssertTrue(app.buttons["dubbing-choice-minutes"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["dubbing-choice-minutes"].label.contains("5:00"))
+        XCTAssertTrue(app.buttons["dubbing-choice-genres"].label.contains("SF"))
+    }
+
+    @MainActor func testAndroidChatStickersSearchAndInboxManagement() {
+        let app = launch()
+        app.buttons["main-tab-3"].tap()
+        app.buttons["inbox-dm-fixture-peer"].tap()
+        let input = app.textViews["chat-input"]
+        XCTAssertTrue(input.waitForExistence(timeout: 8))
+        input.tap(); input.typeText("Hello ")
+        app.buttons["chat-sticker-toggle"].tap(); app.buttons["웃음"].tap()
+        capture(app, "parity-chat-sticker-input")
+        input.typeText(XCUIKeyboardKey.delete.rawValue)
+        XCTAssertEqual(input.value as? String, "Hello ")
+        app.buttons["chat-sticker-toggle"].tap(); app.buttons["웃음"].tap()
+        app.buttons["chat-send"].tap()
+        XCTAssertTrue(app.staticTexts["Hello [웃음]"].waitForExistence(timeout: 8))
+        capture(app, "parity-chat-sticker-message")
+        back(app)
+        app.buttons["메시지 관리"].tap(); app.buttons["모두 읽음"].tap()
+        app.buttons["안 읽음"].tap()
+        XCTAssertFalse(app.buttons["inbox-dm-fixture-peer"].exists)
+        XCTAssertTrue(app.buttons["inbox-crew"].exists)
+        app.buttons["전체"].tap()
+        app.buttons["새 대화"].tap()
+        let search = app.textFields["new-conversation-search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 8)); search.tap(); search.typeText("friend")
+        let friend = app.buttons["new-conversation-fixture-peer"]
+        XCTAssertTrue(friend.waitForExistence(timeout: 8)); capture(app, "parity-new-conversation"); friend.tap()
+        XCTAssertTrue(input.waitForExistence(timeout: 8)); back(app); back(app)
+        app.buttons["메시지 관리"].tap(); app.buttons["내 DM 전체 삭제"].tap(); app.buttons["삭제"].tap()
+        XCTAssertTrue(app.buttons["inbox-crew"].waitForExistence(timeout: 8))
+        let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.buttons["inbox-dm-fixture-peer"])
+        XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 8), .completed)
+    }
+    @MainActor func testAndroidHomeShelvesAndArtistFollow() {
+        let app = launch()
+        let genre = app.buttons["home-discover-genre"]
+        reveal(genre, in: app.scrollViews.firstMatch, app: app)
+        capture(app, "parity-home-latest-discovery")
+        genre.tap()
+        XCTAssertTrue(app.buttons["discover-genre-K-POP"].waitForExistence(timeout: 8))
+        capture(app, "parity-home-genres"); back(app)
+        let artist = app.buttons["home-artist-fixture-artist"]
+        reveal(artist, in: app.scrollViews.firstMatch, app: app)
+        capture(app, "parity-home-community-shelves")
+        let more = app.buttons["section-more-지금 뜨는 AI 아티스트"]
+        reveal(more, in: app.scrollViews.firstMatch, app: app); more.tap()
+        let follow = app.buttons["artist-follow-fixture-artist"]
+        XCTAssertTrue(follow.waitForExistence(timeout: 8)); follow.tap()
+        XCTAssertEqual(app.staticTexts["artist-followers-fixture-artist"].label, "4")
+        XCTAssertEqual(follow.value as? String, "팔로우 중")
+        capture(app, "parity-artist-follow")
+        follow.tap(); XCTAssertEqual(app.staticTexts["artist-followers-fixture-artist"].label, "3")
+    }
+
+    @MainActor func testAndroidCrewDirectoryLayoutsAndFilters() {
+        let app = launch(["-crew-parity", "-crew-nonmember"])
+        app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
+        let search = app.textFields["crew-search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 8)); capture(app, "parity-crew-featured")
+        let filters = app.buttons["crew-filters"]
+        reveal(filters, in: app.scrollViews.firstMatch, app: app); filters.tap()
+        XCTAssertTrue(app.navigationBars["크루 필터"].waitForExistence(timeout: 8))
+        capture(app, "parity-crew-filters")
+        app.buttons["crew-filter-apply"].tap()
+        let list = app.buttons["크루 목록으로 보기"]
+        reveal(list, in: app.scrollViews.firstMatch, app: app); list.tap()
+        capture(app, "parity-crew-list")
+        app.buttons["크루 카드로 보기"].tap()
+        capture(app, "parity-crew-grid")
     }
 
 }

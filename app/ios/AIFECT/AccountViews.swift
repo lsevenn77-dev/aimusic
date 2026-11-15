@@ -1,6 +1,7 @@
 import KakaoSDKUser
 import SwiftUI
 import AuthenticationServices
+import PhotosUI
 
 struct LoginView: View {
     @EnvironmentObject var model: AppModel
@@ -308,33 +309,103 @@ struct PlaylistView: View {
     @State private var isPublic = false
     @State private var busy = false
     private var owned: Bool { model.userID != nil && playlist.string("user_id") == model.userID }
+    @State private var adding = false
+    @State private var photo: PhotosPickerItem?
+    private var candidates: [Song] {
+        var seen = Set(songs.map(\.id))
+        return (model.likes + model.latest + model.chart).filter { seen.insert($0.id).inserted }
+    }
     var body: some View {
-        List {
-            if loading { ProgressView() }
-            if let error { RetryCard(message: error) { Task { await load() } } }
-            if !songs.isEmpty { Button("전체 재생") { model.player.play(songs[0], queue: songs) } }
-            if !playlist.isEmpty {
-                Text(playlist.string("description")).font(.caption)
-                if owned { Button("이름 · 공개 설정") { name = playlist.string("name"); isPublic = playlist.flag("is_public"); editing = true }; Button("플레이리스트 삭제", role: .destructive) { deleting = true } }
-                else if model.user != nil { Button(playlist.flag("saved") ? "보관함에서 제거" : "내 보관함에 저장") { Task { await bookmark() } } }
-            }
-            if songs.isEmpty && !loading && error == nil { Text(playlist.flag("active") ? "아직 곡이 없습니다." : "보관 중인 목록입니다. 활성 플레이리스트를 선택해주세요.") }
-            ForEach(songs) { SongRow(song: $0, queue: songs) }
-                .onDelete { indices in Task { await remove(indices) } }
-                .onMove { indices, target in Task { await move(indices, target) } }
-                .deleteDisabled(!owned || busy).moveDisabled(!owned || busy)
-        }.navigationTitle(playlist.string("name", fallback: title)).task { await load() }.refreshable { await load() }
-            .toolbar { if owned { EditButton() } }
-            .navigationDestination(isPresented: $editing) {
-                Group { Form { TextField("이름", text: $name); Toggle("공개 목록", isOn: $isPublic); Button("저장") { Task { await save() } }.disabled(busy || name.isEmpty); if let error { Text(error).foregroundStyle(.red) } }.navigationTitle("목록 편집").toolbar { Button("닫기") { editing = false } } }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                if loading && playlist.isEmpty { ProgressView() }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+                if !playlist.isEmpty {
+                    PlaylistArtwork(list: playlist).frame(width: 112, height: 112).clipShape(RoundedRectangle(cornerRadius: 12))
+                    if owned {
+                        PhotosPicker(selection: $photo, matching: .images) { Label("플레이리스트 사진 변경", systemImage: "photo.badge.plus").font(.system(size: 13)) }.disabled(busy || playlist.flag("locked")).accessibilityIdentifier("playlist-cover-edit")
+                    }
+                    Text(playlist.string("name", fallback: title)).font(.system(size: 29, weight: .bold)).padding(.top, 2)
+                    Text([playlist.string("owner_name"), "\(songs.count)곡"].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 13)).foregroundStyle(AifectDesign.muted)
+                    if !playlist.string("description").isEmpty { Text(playlist.string("description")).font(.caption).foregroundStyle(AifectDesign.muted) }
+                    HStack(spacing: 7) {
+                        Button("전체 재생", systemImage: "play.fill") { if let song = songs.first { model.player.play(song, queue: songs) } }.buttonStyle(ParityPill(filled: true)).disabled(songs.isEmpty)
+                        if owned {
+                            Button("편집") { name = playlist.string("name"); isPublic = playlist.flag("is_public"); editing = true }.frame(minHeight: 44).accessibilityIdentifier("playlist-detail-edit")
+                            Button("플레이리스트 삭제", systemImage: "trash", role: .destructive) { deleting = true }.labelStyle(.iconOnly).frame(width: 44, height: 44)
+                        } else if model.user != nil { Button(playlist.flag("saved") ? "보관함에서 빼기" : "보관함 저장") { Task { await bookmark() } }.buttonStyle(ParityPill()) }
+                    }.padding(.top, 4).disabled(busy)
+                    if playlist.flag("locked") { Text("현재 요금제의 플레이리스트 한도를 넘었어요. 보관함을 정리해주세요.").font(.system(size: 13)).foregroundStyle(AifectDesign.violet) }
+                    if owned { Button(adding ? "곡 선택 닫기" : "곡 추가", systemImage: "plus") { adding.toggle() }.frame(minHeight: 44).disabled(busy).accessibilityIdentifier("playlist-detail-add") }
+                    if busy { ProgressView().frame(maxWidth: .infinity) }
+                }
+                if adding {
+                    ForEach(candidates.enumerated().map { PlaylistDisplaySong(song: $0.element, index: $0.offset, candidate: true) }) { item in
+                        let song = item.song
+                        HStack {
+                            SongRow(song: song, queue: candidates)
+                            Button { Task { await add(song) } } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.disabled(busy).accessibilityLabel(song.title + " 목록에 추가").accessibilityIdentifier("playlist-add-" + song.id)
+                        }
+                    }
+                    if candidates.isEmpty { Text("추가할 음악이 없어요. 듣기에서 곡을 찾아 담아보세요.").font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
+                } else {
+                    ForEach(songs.enumerated().map { PlaylistDisplaySong(song: $0.element, index: $0.offset, candidate: false) }) { item in
+                        let song = item.song, index = item.index
+                        VStack(spacing: 0) {
+                            SongRow(song: song, queue: songs)
+                            if owned {
+                                HStack(spacing: 12) {
+                                    Spacer()
+                                    Button("위로", systemImage: "chevron.up") { Task { await move(IndexSet(integer: index), index - 1) } }.disabled(index == 0 || busy).accessibilityIdentifier("playlist-up-" + song.id)
+                                    Button("아래로", systemImage: "chevron.down") { Task { await move(IndexSet(integer: index), index + 2) } }.disabled(index == songs.count - 1 || busy).accessibilityIdentifier("playlist-down-" + song.id)
+                                    Button("빼기") { Task { await remove(IndexSet(integer: index)) } }.disabled(busy).foregroundStyle(AifectDesign.muted).accessibilityIdentifier("playlist-remove-" + song.id)
+                                }.font(.system(size: 12)).frame(minHeight: 44)
+                            }
+                        }
+                    }
+                    if songs.isEmpty && !loading && error == nil { ContentUnavailableView("이 순간에 어울리는 음악을 담아요", systemImage: "music.note.list", description: Text("좋아하는 곡으로 순서까지 직접 구성해보세요.")) }
+                }
+            }.padding(.horizontal, 22).padding(.bottom, 28)
+        }.accessibilityIdentifier("playlist-detail-scroll").navigationTitle("플레이리스트").task(id: id + (model.userID ?? "")) { await load() }.refreshable { await load() }
+            .task(id: photo) { if let photo { await uploadPhoto(photo) } }
+            .sheet(isPresented: $editing) {
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 18) {
+                        StudioTextField(title: "플레이리스트 이름", text: $name, limit: 80)
+                        Toggle("다른 사람에게 공개하기", isOn: $isPublic)
+                        if let error { Text(error).font(.caption).foregroundStyle(Brand.pink) }
+                        Button("저장") { Task { await save() } }.buttonStyle(CatalogButtonStyle(filled: true, fullWidth: true)).disabled(busy || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Spacer(minLength: 0)
+                    }.padding(20).background(Brand.background).navigationTitle("플레이리스트 편집").navigationBarTitleDisplayMode(.inline).toolbar { Button("취소") { editing = false } }
+                }.presentationDetents([.medium, .large])
             }
             .confirmationDialog("플레이리스트를 삭제할까요?", isPresented: $deleting, titleVisibility: .visible) {
-                Button("삭제", role: .destructive) { Task { do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))", method: "DELETE", body: [:]); await model.loadLibrary(); dismiss() } catch { self.error = error.localizedDescription } } }
-            } message: { Text("목록은 삭제되며 음원은 그대로 유지됩니다.") }
+                Button("삭제", role: .destructive) { Task { await delete() } }
+            } message: { Text("목록과 곡 순서가 삭제돼요. 원곡과 좋아요는 그대로 남아요.") }
+    }
+    private func add(_ song: Song) async {
+        guard owned, !busy else { return }; busy = true; defer { busy = false }
+        let owner = model.userID
+        do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))/tracks/\(Endpoint.pathID(song.id))", method: "PUT", body: [:]); guard owner == model.userID else { return }; await load(); await model.loadLibrary() } catch { if owner == model.userID { self.error = error.localizedDescription } }
+    }
+    private func uploadPhoto(_ item: PhotosPickerItem) async {
+        guard owned, !busy else { return }; let owner = model.userID; busy = true; defer { busy = false; photo = nil }
+        do {
+            guard let source = try await item.loadTransferable(type: Data.self) else { return }
+            let bytes = try await Task.detached { try ChatImageEncoder.encode(source) }.value
+            guard model.userID == owner, !Task.isCancelled else { return }
+            _ = try await API.shared.request("/api/playlists/\(Endpoint.pathID(id))/image", method: "PUT", bytes: bytes, type: "image/webp")
+            guard model.userID == owner else { return }; await load(); await model.loadLibrary()
+        } catch { if model.userID == owner { self.error = error.localizedDescription } }
+    }
+    private func delete() async {
+        guard owned, !busy else { return }; busy = true; defer { busy = false }; let owner = model.userID
+        do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))", method: "DELETE", body: [:]); guard owner == model.userID else { return }; await model.loadLibrary(); dismiss() } catch { if model.userID == owner { self.error = error.localizedDescription } }
     }
     private func load() async {
         loading = true; defer { loading = false }
-        do { let data = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))"); songs = data.songs(); playlist = data.object("playlist"); error = nil } catch { self.error = error.localizedDescription }
+        let owner = model.userID
+        do { let data = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))"); guard owner == model.userID, !Task.isCancelled else { return }; songs = data.songs(); playlist = data.object("playlist"); error = nil } catch { if owner == model.userID { self.error = error.localizedDescription } }
     }
     private func save() async { busy = true; defer { busy = false }; do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))", method: "PATCH", body: ["name": name, "is_public": isPublic]); editing = false; await load(); await model.loadLibrary() } catch { self.error = error.localizedDescription } }
     private func bookmark() async { do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))/save", method: playlist.flag("saved") ? "DELETE" : "PUT", body: [:]); await load(); await model.loadLibrary() } catch { self.error = error.localizedDescription } }
@@ -346,6 +417,13 @@ struct PlaylistView: View {
         guard owned, !busy else { return }; var next = songs; next.move(fromOffsets: offsets, toOffset: target); busy = true; defer { busy = false }
         do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))/order", method: "PUT", body: ["track_ids": next.map(\.id)]); songs = next } catch { self.error = error.localizedDescription; await load() }
     }
+}
+
+private struct PlaylistDisplaySong: Identifiable {
+    let song: Song
+    let index: Int
+    let candidate: Bool
+    var id: String { (candidate ? "candidate-" : "track-") + song.id }
 }
 
 struct AccountSettingsView: View {

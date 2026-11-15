@@ -239,13 +239,16 @@ struct SongQuickActionLabel: View {
 
 /// Explicit shape keeps iOS system button-style changes from altering Android's cards.
 struct CatalogButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var enabled
     var filled = false
+    var fullWidth = false
     func makeBody(configuration: Configuration) -> some View {
         configuration.label.font(.system(size: 13, weight: .semibold)).padding(.horizontal, 12).frame(minHeight: 40)
+            .frame(maxWidth: fullWidth ? .infinity : nil)
             .foregroundStyle(filled ? Brand.background : AifectDesign.secondaryText)
             .background(filled ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Brand.card.opacity(0.45)), in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(filled ? .clear : AifectDesign.stroke))
-            .opacity(configuration.isPressed ? 0.7 : 1)
+            .opacity(!enabled ? 0.45 : configuration.isPressed ? 0.7 : 1)
     }
 }
 

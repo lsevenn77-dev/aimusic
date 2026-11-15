@@ -56,21 +56,87 @@ struct CoverRankingView: View {
     @EnvironmentObject var model: AppModel
     @State private var period: String
     var originalID: String?
-    init(initialPeriod: String = "today", originalID: String? = nil) { _period = State(initialValue: initialPeriod); self.originalID = originalID }
+    var karaokeChart: Bool
+    init(initialPeriod: String = "today", originalID: String? = nil, karaokeChart: Bool = false) { _period = State(initialValue: initialPeriod); self.originalID = originalID; self.karaokeChart = karaokeChart }
     @State private var kind = "tracks"
+    @State private var genre = "전체"
+    @State private var query = ""
     @State private var data: [String: Any] = [:]
     @State private var error: String?
-    var body: some View {
-        List {
-            Picker("기간", selection: $period) { Text("오늘").tag("today"); Text("이번 주").tag("week"); Text("이달").tag("month"); Text("전체").tag("all") }.pickerStyle(.segmented)
-            Picker("랭킹", selection: $kind) { Text("커버곡").tag("tracks"); Text("싱어").tag("singers") }.pickerStyle(.segmented)
-            ForEach(data.songs()) { SongRow(song: $0, queue: data.songs()) }
-            ForEach(data.objects("singers"), id: \.selfID) { person in NavigationLink { ProfilePage(id: person.string("id")) } label: { HStack { Text("\(person.int("rank"))").foregroundStyle(Brand.pink); PersonRow(person: person) } } }
-            if data.songs().isEmpty && data.objects("singers").isEmpty { Text("아직 해당 기간의 순위가 없습니다.") }
-            if let error { Text(error).foregroundStyle(.red) }
-        }.navigationTitle("커버곡 랭킹").task(id: period + kind) { await load() }.refreshable { await load() }
+    @State private var loading = true
+    private let periods = [("today", "오늘"), ("week", "이번 주"), ("month", "이달"), ("all", "전체")]
+    private var periodName: String { periods.first { $0.0 == period }?.1 ?? "오늘" }
+    private var path: String {
+        "/api/cover-rankings?period=\(period)&kind=\(kind)" + (karaokeChart ? "&include_unranked=1" : "") + (originalID.map { "&original_id=" + Endpoint.query($0) } ?? "") + (genre == "전체" ? "" : "&genre=" + Endpoint.query(genre)) + (query.trimmingCharacters(in: .whitespaces).isEmpty ? "" : "&q=" + Endpoint.query(query.trimmingCharacters(in: .whitespaces)))
     }
-    private func load() async { do { let value = try await API.shared.call("/api/cover-rankings?period=\(period)&kind=\(kind)" + (originalID.map { "&original_id=\(Endpoint.query($0))" } ?? "")); guard !Task.isCancelled else { return }; data = value; error = nil } catch { self.error = error.localizedDescription } }
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                Text(karaokeChart ? "노래방 차트" : originalID == nil ? "커버 랭킹" : "이 곡의 커버 랭킹").font(.system(size: 26, weight: .bold))
+                ParityChips(items: periods.map(\.1), selection: Binding(get: { periodName }, set: { value in period = periods.first { $0.1 == value }?.0 ?? "today" }))
+                Text(period == "all" ? "공개 커버의 누적 좋아요 순" : "\(periodName) 받은 좋아요 순 · 한국 시간 기준").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                ParityChips(items: ["커버곡", "가수"], selection: Binding(get: { kind == "tracks" ? "커버곡" : "가수" }, set: { kind = $0 == "커버곡" ? "tracks" : "singers" }))
+                if originalID == nil { ParityChips(items: ["전체"] + StudioChoices.genres, selection: $genre) }
+                CatalogSearchField(prompt: "곡 또는 가수 찾기", text: $query).accessibilityIdentifier("cover-ranking-search")
+                Text(karaokeChart ? "공개된 커버곡만 표시해요. 가수는 커버곡의 좋아요 합계로 집계해요." : "좋아요가 없으면 순위에 포함되지 않아요. 가수는 커버곡의 좋아요 합계로 집계해요.").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                if loading { ProgressView().frame(maxWidth: .infinity) }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+                if kind == "tracks" {
+                    ForEach(data.objects("tracks"), id: \.selfID) { row in rankedTrack(row) }
+                } else {
+                    ForEach(data.objects("singers"), id: \.selfID) { person in
+                        HStack(spacing: 12) {
+                            Text("\(person.int("rank"))").font(.system(size: 24, weight: .bold)).foregroundStyle(Brand.pink).frame(width: 34)
+                            NavigationLink { ProfilePage(id: person.selfID).streamingPage() } label: {
+                                HStack(spacing: 12) {
+                                    ProfilePhoto(person: person, size: 48)
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        Text(person.displayName()).font(.system(size: 16, weight: .semibold)).lineLimit(1)
+                                        Text("좋아요 \(person.int("rank_likes")) · 커버 \(person.int("ranked_covers"))곡").font(.system(size: 12)).foregroundStyle(Brand.aqua)
+                                        Text("노래 들으러 가기 ›").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                                    }.frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }.buttonStyle(.plain)
+                            Button(model.followedProducers.contains(person.selfID) ? "팔로잉" : "팔로우") { Task { await model.toggleFollow(person.selfID) } }.buttonStyle(ParityPill())
+                        }.padding(.vertical, 16)
+                    }
+                }
+                if !loading && error == nil && data.songs().isEmpty && data.objects("singers").isEmpty { ContentUnavailableView("아직 순위에 오른 목소리가 없어요", systemImage: "trophy", description: Text("새로운 커버를 듣고 마음에 드는 목소리에 좋아요를 남겨주세요.")) }
+                NavigationLink("새로운 커버곡 둘러보기") { MusicCollectionView(title: "커버곡", path: "/api/community?kind=cover" + (originalID.map { "&original_id=" + Endpoint.query($0) } ?? "")).streamingPage() }.frame(maxWidth: .infinity, minHeight: 44)
+            }.padding(16)
+        }.accessibilityIdentifier("cover-ranking-scroll").scrollDismissesKeyboard(.interactively).navigationTitle(karaokeChart ? "노래방 차트" : "커버 랭킹")
+            .task(id: path + (model.userID ?? "")) { do { try await Task.sleep(for: .milliseconds(250)); await load() } catch {} }
+            .task(id: model.userID) { await model.loadFollows() }.refreshable { await load() }
+    }
+    private func rankedTrack(_ row: [String: Any]) -> some View {
+        let song = Song(row), rank = row.int("rank")
+        return VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                Text(rank > 0 ? "\(rank)" : "—").font(.system(size: karaokeChart ? 16 : 25, weight: .bold)).foregroundStyle((1...3).contains(rank) ? Brand.pink : AifectDesign.muted).frame(width: karaokeChart ? 26 : 34)
+                Button { model.player.play(song, queue: data.songs()) } label: {
+                    CoverArt(song: song, size: karaokeChart ? 72 : 56).overlay(alignment: .bottomTrailing) { Image(systemName: "play.fill").font(.system(size: 13)).foregroundStyle(Brand.pink).frame(width: 26, height: 26).background(Brand.background.opacity(0.88), in: Circle()).padding(4) }
+                }.buttonStyle(.plain).accessibilityLabel(song.title + " 재생")
+                VStack(alignment: .leading, spacing: 5) {
+                    Button { model.navigationPath.append(song) } label: { Text(song.title).font(.system(size: 16, weight: .semibold)).lineLimit(karaokeChart ? 1 : 2).frame(maxWidth: .infinity, alignment: .leading) }.buttonStyle(.plain).accessibilityLabel(song.title + " 상세")
+                    if let id = song.producerID { NavigationLink { ProfilePage(id: id).streamingPage() } label: { Text(song.credit).font(.system(size: 13)).foregroundStyle(AifectDesign.muted).lineLimit(1) }.accessibilityLabel(song.credit + " 가수 보기") }
+                    HStack(spacing: 12) {
+                        Text("\(periodName) 좋아요 \(row.int("rank_likes"))").font(.system(size: 12)).foregroundStyle(Brand.aqua)
+                        Spacer(minLength: 0)
+                        Button { Task { await model.toggleLike(song) } } label: { Image(systemName: model.likes.contains { $0.id == song.id } ? "heart.fill" : "heart").font(.system(size: 15)).foregroundStyle(Brand.pink) }.accessibilityLabel(song.title + " 좋아요")
+                        Button { model.navigationPath.append(song) } label: { Label("\(song.comments)", systemImage: "bubble.right").font(.system(size: 12)) }.accessibilityLabel(song.title + " 댓글")
+                    }.frame(minHeight: 32)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }.padding(.vertical, 12)
+            Divider()
+        }.accessibilityIdentifier("cover-ranking-" + song.id)
+    }
+    private func load() async {
+        let target = path, owner = model.userID; loading = true
+        do {
+            let value = try await API.shared.call(target); try Task.checkCancellation()
+            guard target == path, owner == model.userID else { return }; data = value; error = nil; loading = false
+        } catch is CancellationError {} catch { if target == path, owner == model.userID { self.error = error.localizedDescription; loading = false } }
+    }
 }
 struct QueueView: View {
     @ObservedObject var player: MusicPlayer
@@ -114,6 +180,9 @@ struct FullLyricsView: View {
 
 struct CatalogDirectory: View {
     let artists: Bool
+    @EnvironmentObject private var model: AppModel
+    @State private var follows = Set<String>()
+    @State private var pending = Set<String>()
     @State private var rows: [[String: Any]] = []
     @State private var error: String?
     @State private var reload = 0
@@ -127,19 +196,7 @@ struct CatalogDirectory: View {
                 if artists {
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
                         ForEach(rows, id: \.selfID) { row in
-                            NavigationLink { ProfilePage(id: row.selfID, kind: "artist") } label: {
-                                Color.clear.aspectRatio(1, contentMode: .fit).overlay {
-                                    let version = row.string("image_version")
-                                    let url = version.isEmpty || version == "0" ? nil : try? Endpoint.url("/media/artist/\(Endpoint.pathID(row.selfID))?v=\(Endpoint.query(version))")
-                                    RemoteArtwork(url: url) { $0.resizable().scaledToFill() } placeholder: { ZStack { Brand.card; Image(systemName: "person.fill") } }
-                                }.overlay(alignment: .bottomLeading) {
-                                    VStack(alignment: .leading) {
-                                        Text(row.displayName()).font(.headline).lineLimit(1)
-                                        Text("팔로워 \(row.int("followers"))명").font(.caption)
-                                    }.frame(maxWidth: .infinity, alignment: .leading).padding(9)
-                                        .background(LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .top, endPoint: .bottom))
-                                }.clipShape(RoundedRectangle(cornerRadius: 16))
-                            }.buttonStyle(.plain)
+                            ArtistDirectoryCard(artist: row, following: follows.contains(row.selfID), busy: pending.contains(row.selfID)) { Task { await follow(row.selfID) } }
                         }
                     }
                 } else {
@@ -147,12 +204,19 @@ struct CatalogDirectory: View {
                 }
             }.padding(16)
         }.background(Brand.background).navigationTitle(artists ? "AI 아티스트" : "공개 플레이리스트")
-            .task(id: reload) {
+            .task(id: "\(reload)-\(model.userID ?? "")") {
                 loading = true
+                follows = []
+                let owner = model.userID
                 do {
                     let data = try await API.shared.call(artists ? "/api/discovery/profiles?kind=artist&sort=popular" : "/api/playlists?sort=popular")
                     try Task.checkCancellation()
                     rows = data.objects(artists ? "profiles" : "playlists")
+                    if artists, owner != nil {
+                        let library = try await API.shared.call("/api/library")
+                        guard owner == model.userID, !Task.isCancelled else { return }
+                        follows = Set(library.objects("follows").filter { $0.string("kind") == "artist" }.map { $0.string("target_id") })
+                    }
                     error = nil
                 } catch {
                     guard !Task.isCancelled else { return }
@@ -160,5 +224,74 @@ struct CatalogDirectory: View {
                 }
                 loading = false
             }
+    }
+    private func follow(_ id: String) async {
+        guard model.requireLogin(), let owner = model.userID, pending.insert(id).inserted else { return }
+        let wasFollowing = follows.contains(id)
+        if wasFollowing { follows.remove(id) } else { follows.insert(id) }
+        changeCount(id, by: wasFollowing ? -1 : 1)
+        defer { pending.remove(id) }
+        do {
+            _ = try await API.shared.call("/api/artists/\(Endpoint.pathID(id))/follow", method: wasFollowing ? "DELETE" : "PUT", body: [:])
+        } catch {
+            guard owner == model.userID else { return }
+            if wasFollowing { follows.insert(id) } else { follows.remove(id) }
+            changeCount(id, by: wasFollowing ? 1 : -1)
+            model.notice = error.localizedDescription
+        }
+    }
+    private func changeCount(_ id: String, by delta: Int) {
+        guard let index = rows.firstIndex(where: { $0.selfID == id }) else { return }
+        rows[index]["followers"] = max(0, rows[index].int("followers") + delta)
+    }
+
+}
+
+struct ArtistArtwork: View {
+    let artist: [String: Any]
+    var body: some View {
+        let version = artist.string("image_version")
+        let url = version.isEmpty || version == "0" ? nil : try? Endpoint.url("/media/artist/\(Endpoint.pathID(artist.selfID))?v=\(Endpoint.query(version))")
+        RemoteArtwork(url: url) { $0.resizable().scaledToFill() } placeholder: { ZStack { Brand.card; Image(systemName: "person.fill").foregroundStyle(Brand.pink) } }
+    }
+}
+private struct ArtistDirectoryCard: View {
+    let artist: [String: Any]
+    let following: Bool
+    let busy: Bool
+    let follow: () -> Void
+    var body: some View {
+        Color.clear.aspectRatio(1, contentMode: .fit)
+            .overlay {
+                NavigationLink { ProfilePage(id: artist.selfID, kind: "artist").streamingPage() } label: {
+                    ArtistArtwork(artist: artist).overlay(LinearGradient(colors: [.clear, Color(red: 0.04, green: 0.06, blue: 0.13).opacity(0.97)], startPoint: .center, endPoint: .bottom))
+                }.buttonStyle(.plain).accessibilityLabel(artist.displayName() + " 아티스트 프로필")
+            }
+            .overlay(alignment: .bottomLeading) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(artist.displayName()).font(.system(size: 15, weight: .semibold)).lineLimit(1).allowsHitTesting(false)
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.2").font(.system(size: 14))
+                        Text(artist.int("followers").formatted()).font(.system(size: 11)).frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("artist-followers-" + artist.selfID)
+                        Button(action: follow) { Text("팔로우").font(.system(size: 11, weight: .medium)).padding(.horizontal, 9).frame(minWidth: 64, minHeight: 33).background(Brand.card.opacity(0.95), in: Capsule()).overlay(Capsule().stroke(following ? AifectDesign.muted : Brand.aqua.opacity(0.85))) }.buttonStyle(.plain).disabled(busy).accessibilityIdentifier("artist-follow-" + artist.selfID).accessibilityValue(following ? "팔로우 중" : "팔로우 안 함")
+                    }
+                }.padding(.horizontal, 10).padding(.bottom, 9)
+            }.clipShape(RoundedRectangle(cornerRadius: 17)).overlay(RoundedRectangle(cornerRadius: 17).stroke(AifectDesign.stroke))
+    }
+}
+struct GenreMusicGrid: View {
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            ForEach(Array(StudioChoices.genres.enumerated()), id: \.element) { index, genre in
+                NavigationLink { MusicCollectionView(title: genre, path: "/api/catalog?section=tracks&genre=\(Endpoint.query(genre))").streamingPage() } label: {
+                    Text(genre).font(.system(size: 16, weight: .semibold)).lineLimit(3).frame(maxWidth: .infinity, minHeight: 68, alignment: .leading).padding(.leading, 14).padding(.trailing, 28).padding(.vertical, 14)
+                        .background {
+                            RemoteArtwork(url: try? Endpoint.url(String(format: "/assets/genres/%02d.webp", index + 1))) { $0.resizable().scaledToFill() } placeholder: { Brand.card }
+                                .overlay(LinearGradient(colors: [Brand.background.opacity(0.88), Brand.background.opacity(0.2)], startPoint: .leading, endPoint: .trailing))
+                        }.overlay(alignment: .bottomTrailing) { Image(systemName: "chevron.right").font(.system(size: 13)).padding(12) }
+                        .clipShape(RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(AifectDesign.stroke))
+                }.buttonStyle(.plain).accessibilityIdentifier("discover-genre-" + genre)
+            }
+        }
     }
 }

@@ -572,35 +572,28 @@ struct MobilePlayView: View {
     @ViewBuilder private func card(_ row: [String: Any], queue: [Song]) -> some View {
         let song = Song(row)
         if isDubbing(row) {
-            Button { space = SiteWorkspace(area: "dubbing", key: row.string("id"), title: row.string("title")) } label: {
-                VStack(alignment: .leading) {
-                    Color.clear.aspectRatio(1, contentMode: .fit).overlay { DubbingCover(row: row) }
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    Text(row.string("title")).font(.headline).lineLimit(2)
-                    Text(row.string("owner_name", fallback: row.string("ownerName"))).font(.caption)
-                    if mode == "더빙" {
-                        let status = ["script_ready":"초안", "recruiting":"배역 모집 중", "recording":"녹음 중", "in_progress":"녹음 중", "mixing":"믹싱 중", "complete":"완료"][row.string("state")] ?? "제작 중"
-                        Text(section == "작품찾기" ? "극본 · \(row.int("roleCount"))개 배역" : "\(status) · \(row.int("participants")) / \(row.int("roleCount"))명")
-                            .font(.caption).foregroundStyle(AifectDesign.muted)
-                        Text(section == "더빙참여" ? "배역 보기" : section == "내 작업" ? "작업 이어가기" : "극본 보기")
-                            .font(.subheadline).frame(maxWidth: .infinity, minHeight: 44)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke))
-                    }
+            let open = { space = SiteWorkspace(area: "dubbing", key: row.string("id"), title: row.string("title")) }
+            VStack(alignment: .leading, spacing: 0) {
+                Button(action: open) {
+                    Color.clear.aspectRatio(1, contentMode: .fit).overlay { GeometryReader { bounds in DubbingCover(row: row).frame(width: bounds.size.width, height: bounds.size.height).clipped() } }.clipShape(RoundedRectangle(cornerRadius: 12)).contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityLabel(row.string("title") + " 작품 보기")
+                    .overlay(alignment: .bottomTrailing) { ArtworkPlayButton(diameter: 34, label: row.string("title") + (row.string("state") == "complete" ? " 더빙 듣기" : " 작품 열기"), action: open).padding(5) }
+                Button(action: open) {
+                    HStack(spacing: 4) { Image(systemName: "waveform").font(.system(size: 15)).foregroundStyle(AifectDesign.muted); Text(row.string("title")).font(.system(size: 15, weight: .semibold)).lineLimit(1) }.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
+                }.buttonStyle(.plain)
+                Text(row.string("ownerName", fallback: row.string("owner_name"))).font(.system(size: 13)).foregroundStyle(AifectDesign.muted).lineLimit(1)
+                if mode == "더빙" {
+                    let status = ["script_ready":"초안", "recruiting":"배역 모집 중", "recording":"녹음 중", "in_progress":"녹음 중", "mixing":"믹싱 중", "complete":"완료"][row.string("state")] ?? "제작 중"
+                    Text(section == "작품찾기" ? "극본 · \(row.int("roleCount"))개 배역" : "\(status) · \(row.int("participants")) / \(row.int("roleCount"))명").font(.system(size: 12)).foregroundStyle(AifectDesign.muted).lineLimit(2).padding(.top, 3)
+                    Button(section == "더빙참여" ? "배역 보기" : section == "내 작업" ? "작업 이어가기" : "극본 보기", action: open)
+                        .frame(maxWidth: .infinity, minHeight: 44).font(.system(size: 13)).foregroundStyle(AifectDesign.secondaryText).overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke)).padding(.top, 10)
+                } else {
+                    Text(((row["genres"] as? [String])?.first ?? "") + " · " + timeLabel(row.number("duration"))).font(.system(size: 12)).foregroundStyle(AifectDesign.muted).padding(.top, 3)
                 }
-            }.buttonStyle(.plain)
+            }
+
         } else {
-            VStack(alignment: .leading, spacing: 5) {
-                ZStack(alignment: .bottomTrailing) {
-                    NavigationLink(value: song) { AlbumArtwork(song: song).aspectRatio(1, contentMode: .fit) }
-                    ArtworkPlayButton(diameter: 32, label: song.title + " 먼저 듣기") { model.player.play(song, queue: queue) }
-                }
-                NavigationLink(value: song) { Text(song.title).font(.system(size: 14, weight: .semibold)).lineLimit(2) }
-                Text(song.credit).font(.caption).foregroundStyle(AifectDesign.muted)
-                if mode == "노래" {
-                    Text(song.genreLabel + " · " + timeLabel(song.duration)).font(.system(size: 10)).foregroundStyle(AifectDesign.muted)
-                    SingSongButton(song: song, title: section == "듀엣참여" ? "듀엣 참여" : "노래하기", compact: true, wide: true)
-                }
-            }.buttonStyle(.plain)
+            CatalogSongTile(song: song, queue: queue, singTitle: mode == "노래" ? (section == "듀엣참여" ? "듀엣 참여" : "노래하기") : nil)
         }
     }
     @MainActor private func fetch(offset: Int) async {
