@@ -222,7 +222,7 @@ struct MoodMusicShelf: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) { ForEach(moods, id: \.0) { mood in
                 NavigationLink { MusicCollectionView(title: mood.1, path: "/api/discovery?mood=\(mood.0)").streamingPage() } label: {
-                    VStack(alignment: .leading, spacing: 6) { Image(systemName: mood.3).font(.system(size: 20)); Spacer(); Text(mood.1).font(.system(size: 18, weight: .bold)); Text(mood.2).font(.system(size: 12)).opacity(0.8) }.foregroundStyle(.white).frame(width: 168, height: 120, alignment: .leading).padding(16).background(Color(aifectHex: mood.4), in: RoundedRectangle(cornerRadius: 18))
+                    VStack(alignment: .leading, spacing: 7) { Image(systemName: mood.3).font(.system(size: 20)).foregroundStyle(Brand.pink); Spacer(minLength: 12); Text(mood.1).font(.system(size: 14, weight: .semibold)); Text(mood.2).font(.system(size: 11)).foregroundStyle(AifectDesign.muted) }.frame(width: 148, height: 100, alignment: .leading).padding(14).background(Brand.card.opacity(0.75), in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(AifectDesign.stroke))
                 }.buttonStyle(.plain)
             } }
         }

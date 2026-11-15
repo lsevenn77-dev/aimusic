@@ -29,6 +29,16 @@ enum CatalogArtwork {
         }
         return nil
     }
+
+    static func decorationURL(_ product: [String: Any]) -> URL? {
+        let keys = product.string("kind") == "TALKING_ROOM_THEME"
+            ? ["roomCard", "thumbnail", "roomMobile", "roomDesktop", "image", "cover"]
+            : ["thumbnail", "overlay", "roomCard", "roomMobile", "image", "cover"]
+        for group in [product.object("assetPaths"), product.object("assets"), product] {
+            for key in keys { if let url = url(group[key] as? String) { return url } }
+        }
+        return nil
+    }
 }
 
 struct CatalogFrame {

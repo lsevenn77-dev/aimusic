@@ -13,17 +13,154 @@ final class StreamingUITests: XCTestCase {
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
     @MainActor private func back(_ app: XCUIApplication) { app.navigationBars.buttons.element(boundBy: 0).tap() }
-    @MainActor private func reveal(_ element: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, towardTop: Bool = false) {
+    @MainActor private func reveal(_ element: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, towardTop: Bool = false, hasBottomBar: Bool = true) {
         let mini = app.buttons["mini-player-collapse"]
         let bottomTab = app.buttons["main-tab-0"]
         for _ in 0..<10 {
-            let bottom = mini.exists ? mini.frame.minY : bottomTab.exists ? bottomTab.frame.minY : app.frame.maxY - 25
+            let bottom = hasBottomBar ? (mini.exists ? mini.frame.minY : bottomTab.exists ? bottomTab.frame.minY : app.frame.maxY - 25) : app.frame.maxY - 25
             if element.exists && element.isHittable && element.frame.midY > 130 && element.frame.midY < bottom - 12 { return }
             let a = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.57, dy: towardTop ? 0.32 : 0.67))
             let b = scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.57, dy: towardTop ? 0.67 : 0.32))
             a.press(forDuration: 0.05, thenDragTo: b)
         }
         XCTFail("화면에서 누를 수 없는 항목: " + element.description)
+    }
+    @MainActor func testAndroidRoomThemesAndCreationValidation() {
+        let app = launch()
+        app.buttons["main-tab-1"].tap()
+        let create = app.buttons["방 만들기"]
+        XCTAssertTrue(create.waitForExistence(timeout: 10)); create.tap()
+        let title = app.textFields["room-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 8))
+        let headphones = app.buttons["room-theme-basic_light"]
+        reveal(headphones, in: app.scrollViews.firstMatch, app: app, hasBottomBar: false)
+        XCTAssertTrue(app.buttons["room-theme-basic_dark"].exists)
+        XCTAssertFalse(app.buttons["room-theme-navy"].exists)
+        XCTAssertFalse(app.buttons["room-theme-theme_expired"].exists)
+        headphones.tap()
+        capture(app, "android-parity-room-themes")
+        let decrement = app.buttons["최대 인원 줄이기"]
+        reveal(decrement, in: app.scrollViews.firstMatch, app: app, hasBottomBar: false); decrement.tap()
+        let submit = app.buttons["room-create-submit"]
+        reveal(submit, in: app.scrollViews.firstMatch, app: app, hasBottomBar: false)
+        XCTAssertTrue(submit.isEnabled); submit.tap()
+        XCTAssertTrue(app.navigationBars["검증용 노래방"].waitForExistence(timeout: 10))
+    }
+    @MainActor func testAndroidShopQuantityRetryAndDecorationActivation() {
+        let app = launch(["-shop-parity"])
+        app.buttons["main-tab-4"].tap(); app.buttons["인벤토리"].tap()
+        let shop = app.buttons["my-item-shop"]
+        XCTAssertTrue(shop.waitForExistence(timeout: 8)); reveal(shop, in: app.scrollViews.firstMatch, app: app); shop.tap()
+        let rose = app.buttons["shop-product-rose"]
+        XCTAssertTrue(rose.waitForExistence(timeout: 8)); rose.tap()
+        app.buttons["shop-quantity-more"].tap()
+        XCTAssertTrue(app.staticTexts["총 40 G"].exists)
+        app.buttons["shop-buy-confirm"].tap()
+        let retry = app.buttons["shop-order-retry"]
+        XCTAssertTrue(retry.waitForExistence(timeout: 8))
+        back(app); app.buttons["my-item-shop"].tap()
+        XCTAssertTrue(retry.waitForExistence(timeout: 8)); retry.tap()
+        XCTAssertTrue(app.staticTexts["shop-success"].waitForExistence(timeout: 8))
+        XCTAssertEqual(app.staticTexts["shop-gold"].label, "1,210 G")
+        app.buttons["토크룸 배경"].tap()
+        XCTAssertTrue(app.buttons["shop-product-fixture-theme-shop"].waitForExistence(timeout: 5))
+        app.buttons["액자"].tap()
+        let frame = app.buttons["shop-product-fixture-frame-shop"]
+        XCTAssertTrue(frame.waitForExistence(timeout: 5)); frame.tap()
+        app.buttons["1개월"].tap()
+        XCTAssertTrue(app.staticTexts["총 90 G"].exists)
+        capture(app, "android-parity-decoration-checkout")
+        app.buttons["shop-buy-confirm"].tap()
+        XCTAssertTrue(app.staticTexts["검증 달빛 액자 1개를 인벤토리에 보관했어요."].waitForExistence(timeout: 8))
+        XCTAssertEqual(app.staticTexts["shop-gold"].label, "1,120 G")
+        app.buttons["인벤토리"].tap()
+        let stored = app.buttons["inventory-decoration-fixture-stock"]
+        XCTAssertTrue(stored.waitForExistence(timeout: 8)); reveal(stored, in: app.scrollViews.firstMatch, app: app)
+        XCTAssertTrue(app.staticTexts["보관 중"].exists); stored.tap()
+        XCTAssertTrue(app.buttons["inventory-use-confirm"].waitForExistence(timeout: 5))
+        app.buttons["inventory-use-confirm"].tap()
+        XCTAssertTrue(app.navigationBars["아이템 보관함"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.staticTexts["보관 중"].exists)
+        XCTAssertFalse(app.buttons["inventory-decoration-fixture-stock"].isEnabled)
+        capture(app, "android-parity-decorations-inventory")
+    }
+    @MainActor func testAndroidPlayCardsChartAndSongActions() {
+        let app = launch()
+        app.buttons["main-tab-2"].tap()
+        XCTAssertTrue(app.textFields["곡 · 아티스트 · 제작자 검색"].waitForExistence(timeout: 8))
+        capture(app, "android-parity-play-songs")
+        app.buttons["main-tab-0"].tap(); app.buttons["인기 차트"].firstMatch.tap()
+        let song = app.buttons["검증용 밤의 산책 상세"]
+        XCTAssertTrue(song.waitForExistence(timeout: 10))
+        capture(app, "android-parity-chart")
+        song.tap()
+        let actions = app.otherElements["song-quick-actions"]
+        let like = app.buttons["song-action-like"]
+        reveal(like, in: app.scrollViews.firstMatch, app: app)
+        XCTAssertTrue(like.exists)
+        XCTAssertEqual(actions.buttons.count, 4)
+        capture(app, "android-parity-song-actions")
+    }
+    @MainActor func testAndroidPlaylistGridSearchCreateAndPlayback() {
+        let app = launch()
+        app.buttons["main-tab-4"].tap()
+        app.buttons["내 보관함"].tap()
+        let lists = app.buttons["music-shortcut-0"]
+        reveal(lists, in: app.scrollViews.firstMatch, app: app)
+        lists.tap()
+        let search = app.textFields["my-playlist-search"]
+        XCTAssertTrue(search.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["playlist-play-fixture-playlist"].exists)
+        capture(app, "android-parity-playlist-grid")
+        search.tap(); search.typeText("없는목록")
+        XCTAssertTrue(app.staticTexts["일치하는 목록이 없어요"].waitForExistence(timeout: 5))
+        app.buttons["검색 지우기"].tap()
+        search.typeText("\n")
+        app.buttons["playlist-play-fixture-playlist"].tap()
+        XCTAssertTrue(app.buttons["mini-player-collapse"].waitForExistence(timeout: 8))
+        app.buttons["my-playlist-create"].tap()
+        let name = app.textFields["my-playlist-create-name"]
+        XCTAssertTrue(name.waitForExistence(timeout: 5)); name.tap(); name.typeText("새 검증 목록")
+        app.buttons["my-playlist-create-save"].tap()
+        XCTAssertTrue(app.buttons["playlist-play-fixture-created"].waitForExistence(timeout: 10))
+        capture(app, "android-parity-playlist-created")
+    }
+    @MainActor func testAndroidStudioMetadataAndReturnRefresh() {
+        let app = launch()
+        app.buttons["main-tab-4"].tap()
+        app.buttons["스튜디오 바로가기"].tap()
+        XCTAssertTrue(app.staticTexts["이번 달 제작곡 1 / 3곡 · 2곡 남음"].waitForExistence(timeout: 10))
+        capture(app, "android-parity-studio")
+        let edit = app.buttons["studio-edit-fixture-original"]
+        reveal(edit, in: app.scrollViews.firstMatch, app: app); edit.tap()
+        let title = app.textFields["studio-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 10)); title.tap()
+        title.typeText(" 수정")
+        let save = app.buttons["studio-track-save"]
+        XCTAssertTrue(save.isEnabled)
+        save.tap()
+        XCTAssertTrue(app.navigationBars["스튜디오"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["검증용 밤의 산책 수정"].waitForExistence(timeout: 10))
+    }
+    @MainActor func testAndroidOwnedGiftInventoryRetryUsesSameRequest() {
+        let app = launch(["-owned-gift-retry"])
+        app.buttons["main-tab-4"].tap()
+        app.buttons["인벤토리"].tap()
+        let gift = app.buttons["my-owned-gift-rose:true"]
+        XCTAssertTrue(gift.waitForExistence(timeout: 10))
+        reveal(gift, in: app.scrollViews.firstMatch, app: app)
+        capture(app, "android-parity-owned-gifts")
+        gift.tap()
+        app.buttons["owned-gift-fixture-gift"].tap()
+        let recipient = app.buttons["owned-gift-recipient-fixture-peer"]
+        XCTAssertTrue(recipient.waitForExistence(timeout: 10)); recipient.tap()
+        app.buttons["1개 보내기"].tap()
+        let retry = app.buttons["전송 결과 확인 · 재시도"]
+        XCTAssertTrue(retry.waitForExistence(timeout: 8)); retry.tap()
+        app.buttons["1개 보내기"].tap()
+        XCTAssertTrue(app.navigationBars["선물 관리"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["보유한 선물이 없어요"].waitForExistence(timeout: 8))
+        XCTAssertFalse(app.buttons["owned-gift-fixture-gift"].exists)
     }
     @MainActor func testCrewMemberHomeDirectoryAndRankings() {
         let app = launch(["-crew-parity"])
@@ -275,7 +412,7 @@ final class StreamingUITests: XCTestCase {
             scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.6)).press(forDuration: 0.05, thenDragTo: scroll.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.35)))
         }
         XCTAssertTrue(shortcut.isHittable); shortcut.tap()
-        XCTAssertTrue(app.buttons["플레이리스트 만들기"].waitForExistence(timeout: 8)); capture(app, "12b-large-playlist")
+        XCTAssertTrue(app.buttons["my-playlist-create"].waitForExistence(timeout: 8)); capture(app, "12b-large-playlist")
     }
     @MainActor func testSignedOutAndDuetFailureAreNotFakeContent() {
         let app = launch(["-streaming-guest", "-streaming-error"])

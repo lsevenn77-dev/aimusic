@@ -317,12 +317,15 @@ final class AIFECTUITests: XCTestCase {
         let gold = app.staticTexts["my-gold-balance"]
         XCTAssertEqual(gold.label, "1,750 G")
         app.buttons["my-inventory"].tap()
-        XCTAssertTrue(app.buttons["해제하기"].waitForExistence(timeout: 8)); app.buttons["해제하기"].tap()
-        XCTAssertTrue(app.buttons["장착하기"].waitForExistence(timeout: 8))
+        let frame = app.buttons["inventory-item-crew-outline"]
+        XCTAssertTrue(frame.waitForExistence(timeout: 8)); XCTAssertEqual(frame.value as? String, "장착 중"); frame.tap()
+        let unequipped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "장착 가능"), object: frame)
+        XCTAssertEqual(XCTWaiter.wait(for: [unequipped], timeout: 8), .completed)
         XCTAssertFalse(app.staticTexts["avatar-level"].exists)
+        app.buttons["레벨 · 활동 보상"].tap()
         app.scrollViews.firstMatch.swipeUp()
         XCTAssertTrue(app.staticTexts["크루 LV.5 액자"].exists)
-        XCTAssertEqual(app.buttons.matching(identifier: "장착하기").count, 1)
+        XCTAssertFalse(app.buttons["inventory-item-crew-level-5"].isEnabled)
         let inventory = XCTAttachment(screenshot: app.screenshot()); inventory.name = "Server frames and unearned reward"; inventory.lifetime = .keepAlways; add(inventory)
     }
 

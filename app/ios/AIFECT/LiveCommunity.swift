@@ -105,7 +105,9 @@ private struct LiveLobby: View {
 
 private struct RoomCreation: View {
     var onCreated: (SiteWorkspace) -> Void
+    @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
+    @FocusState private var typing: Bool
     @State private var mode = "karaoke"
     @State private var title = ""
     @State private var visibility = "public"
@@ -117,55 +119,128 @@ private struct RoomCreation: View {
     @State private var crew = ""
     @State private var notice = ""
     @State private var busy = false
+    @State private var loading = true
+    @State private var showThemes = false
     @State private var error: String?
     @State private var requestID = UUID().uuidString
-    private var hasSelectedTheme: Bool {
-        !theme.isEmpty && themes.contains { $0.string("sku") == theme }
+    private var hasSelectedTheme: Bool { !theme.isEmpty && themes.contains { $0.string("sku") == theme } }
+    private var valid: Bool {
+        !busy && !loading && error == nil && hasSelectedTheme && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && title.count <= 60 && (visibility != "crew" || crews.contains { $0.selfID == crew })
+    }
+    private var previewThemes: [[String: Any]] {
+        let first = Array(themes.prefix(3))
+        guard !first.contains(where: { $0.string("sku") == theme }), let selected = themes.first(where: { $0.string("sku") == theme }) else { return first }
+        return Array(first.prefix(2)) + [selected]
     }
     var body: some View {
-        Form {
-            Picker("방 유형", selection: $mode) { Text("노래방").tag("karaoke"); Text("토킹룸").tag("talk") }.pickerStyle(.segmented)
-            TextField("방 제목", text: $title)
-            Picker("공개 범위", selection: $visibility) {
-                Text("공개").tag("public"); Text("초대 전용").tag("private"); Text("팔로워").tag("followers")
-                if !crews.isEmpty { Text("크루").tag("crew") }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                Text("방 유형").font(.system(size: 16, weight: .semibold))
+                RoomChoiceSegments(options: [("karaoke", "노래방"), ("talk", "토킹룸")], selection: $mode)
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack { Text("방 제목").font(.system(size: 16, weight: .semibold)); Spacer(); Button { typing = false; Task { await options(generateTitle: true) } } label: { Label("자동 제목 생성", systemImage: "sparkles").font(.system(size: 13)).frame(minHeight: 44) }.disabled(loading) }
+                    VStack(alignment: .trailing, spacing: 4) {
+                        TextField("어떤 이야기를 나눌까요?", text: $title).textFieldStyle(.plain).font(.system(size: 16)).focused($typing).submitLabel(.done).accessibilityIdentifier("room-title")
+                        Text("\(title.count)/60").font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
+                    }.padding(14).frame(minHeight: 64).background(Brand.card.opacity(0.72), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
+                }
+                Text("공개 범위").font(.system(size: 16, weight: .semibold))
+                RoomChoiceSegments(options: [("public", "공개"), ("private", "초대 전용"), ("followers", "팔로워"), ("crew", "크루")], selection: $visibility)
+                if visibility == "crew" {
+                    if crews.count > 1 { Picker("참여할 크루", selection: $crew) { ForEach(crews, id: \.selfID) { c in Text(c.string("name")).tag(c.selfID) } } }
+                    else { Text(crews.first.map { $0.string("name") + " 크루원에게 공개돼요." } ?? "가입한 크루가 있어야 선택할 수 있어요.").font(.caption).foregroundStyle(AifectDesign.muted) }
+                }
+                Text("좌석 참여").font(.system(size: 16, weight: .semibold))
+                RoomChoiceSegments(options: [("approval", "허락 후 착석"), ("free", "자유 착석")], selection: $seating)
+                Text(seating == "approval" ? "방장 승인 후 착석할 수 있어요." : "빈 좌석에 바로 앉을 수 있어요.").font(.caption).foregroundStyle(AifectDesign.muted)
+                HStack {
+                    Text("방 배경").font(.system(size: 16, weight: .semibold)); Spacer()
+                    Button { typing = false; showThemes = true } label: { Label("전체 보기", systemImage: "chevron.right").font(.caption).frame(minHeight: 44) }.accessibilityIdentifier("room-all-themes")
+                }
+                if loading { ProgressView().frame(maxWidth: .infinity) }
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+                    ForEach(previewThemes.indices, id: \.self) { index in themeTile(previewThemes[index]) }
+                }
+                Divider()
+                HStack(spacing: 14) {
+                    Text("최대 인원").font(.system(size: 16, weight: .semibold)); Spacer()
+                    Button { typing = false; capacity = max(2, capacity - 1) } label: { Image(systemName: "minus").frame(width: 44, height: 44) }.disabled(capacity <= 2).accessibilityLabel("최대 인원 줄이기")
+                    Text("\(capacity)").font(.headline.monospacedDigit()).frame(minWidth: 26).accessibilityIdentifier("room-capacity")
+                    Button { typing = false; capacity = min(30, capacity + 1) } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.disabled(capacity >= 30).accessibilityLabel("최대 인원 늘리기")
+                }
+                Text("2명 ~ 30명까지 설정 가능해요.").font(.caption).foregroundStyle(AifectDesign.muted)
+                Text("공지").font(.system(size: 16, weight: .semibold))
+                TextField("참여자에게 전할 공지", text: $notice, axis: .vertical).lineLimit(3...6).focused($typing).padding(14).background(Brand.card.opacity(0.72), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
+                if let error { RetryCard(message: error) { Task { await options() } } }
+                Button { typing = false; Task { await submit() } } label: { Text(busy ? "방을 만드는 중…" : "방 만들기").frame(maxWidth: .infinity, minHeight: 52) }.buttonStyle(CatalogButtonStyle(filled: true)).disabled(!valid).accessibilityIdentifier("room-create-submit")
+            }.padding(20)
+        }.scrollDismissesKeyboard(.interactively).background(CatalogBackdrop()).disabled(busy).navigationTitle("방 만들기").navigationBarTitleDisplayMode(.inline)
+            .toolbar { Button("닫기") { dismiss() }.disabled(busy) }
+            .task(id: mode + (model.userID ?? "")) { await options() }
+            .onChange(of: title) { _, value in if value.count > 60 { title = String(value.prefix(60)) } }
+            .sheet(isPresented: $showThemes) {
+                NavigationStack {
+                    ScrollView { LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) { ForEach(themes.indices, id: \.self) { index in themeTile(themes[index]) } }.padding(20) }.background(Brand.background).navigationTitle("방 배경").navigationBarTitleDisplayMode(.inline).toolbar { Button("완료") { showThemes = false } }
+                }
             }
-            if visibility == "crew" { Picker("크루", selection: $crew) { ForEach(crews, id: \.selfID) { c in Text(c.string("name")).tag(c.string("id")) } } }
-            Picker("좌석 참여", selection: $seating) { Text("허락 후 착석").tag("approval"); Text("자유 착석").tag("free") }
-            Picker("방 배경", selection: $theme) { ForEach(themes.indices, id: \.self) { i in Text(themes[i].string("name", fallback: themes[i].string("sku"))).tag(themes[i].string("sku")) } }
-            Stepper("최대 인원 \(capacity)명", value: $capacity, in: 2...30)
-            TextField("공지", text: $notice, axis: .vertical)
-            if let error { Text(error).foregroundStyle(Brand.pink); Button("설정 다시 읽기") { Task { await options() } } }
-            Button("방 만들기") { Task { await submit() } }.disabled(busy || title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || title.count > 60 || !hasSelectedTheme)
-        }.disabled(busy).navigationTitle("방 만들기")
-            .toolbar { Button("닫기") { dismiss() } }.task(id: mode) { await options() }
     }
-    private func options() async {
-        theme = ""
-        themes = []
+    private func themeTile(_ item: [String: Any]) -> some View {
+        let selected = item.string("sku") == theme
+        return Button { typing = false; theme = item.string("sku") } label: {
+            VStack(spacing: 8) {
+                GeometryReader { bounds in
+                    let product = item.merging(["kind": "TALKING_ROOM_THEME"]) { _, value in value }
+                    RemoteArtwork(url: CatalogArtwork.decorationURL(product), catalog: true) { $0.resizable().scaledToFill() } placeholder: { Brand.card.overlay { Image(systemName: item.string("sku") == "basic_light" ? "headphones" : "opticaldisc").font(.title).foregroundStyle(Brand.pink) } }
+                        .frame(width: bounds.size.width, height: bounds.size.height).clipped()
+                }.frame(height: 96).clipShape(RoundedRectangle(cornerRadius: 12))
+                    .overlay(alignment: .topTrailing) { if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(Brand.pink).padding(6) } }
+                Text(item.string("name", fallback: item.string("sku"))).font(.system(size: 12)).lineLimit(2).frame(minHeight: 32)
+            }.padding(5).frame(maxWidth: .infinity).background(Brand.card.opacity(selected ? 0.75 : 0.3), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(selected ? Brand.pink : AifectDesign.stroke, lineWidth: selected ? 2 : 1)).contentShape(Rectangle())
+        }.buttonStyle(.plain).accessibilityAddTraits(selected ? .isSelected : []).accessibilityIdentifier("room-theme-" + item.string("sku"))
+    }
+    private func options(generateTitle: Bool = false) async {
+        guard let owner = model.userID else { themes = []; crews = []; loading = false; return }
+        let requestedMode = mode
+        loading = true; defer { if requestedMode == mode { loading = false } }
         do {
-            let result = try await API.shared.call("/api/voice/options?mode=" + mode)
-            try Task.checkCancellation()
-            crews = result.objects("crews"); crew = crews.first?.string("id") ?? ""
-            themes = result.objects("themes").filter {
-                $0.flag("selectable") && !["navy","sunset","night"].contains($0.string("sku"))
+            let result = try await API.shared.call("/api/voice/options?mode=" + requestedMode + "&exclude=" + Endpoint.query(title))
+            guard model.userID == owner, mode == requestedMode, !Task.isCancelled else { return }
+            crews = result.objects("crews"); if !crews.contains(where: { $0.selfID == crew }) { crew = crews.first?.selfID ?? "" }
+            themes = result.objects("themes").filter { $0.flag("selectable") && !["navy", "sunset", "night"].contains($0.string("sku")) }
+            if !hasSelectedTheme {
+                let preferred = result.string("preferred_theme")
+                theme = themes.contains { $0.string("sku") == preferred } ? preferred : themes.first?.string("sku") ?? ""
             }
-            let preferred = result.string("preferred_theme")
-            theme = themes.contains { $0.string("sku") == preferred } ? preferred : themes.first?.string("sku") ?? ""
-            if title.isEmpty { title = result.object("suggested_titles").string(mode) }
+            if title.isEmpty || generateTitle { title = result.object("suggested_titles").string(requestedMode) }
             error = nil
-        } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+        } catch { if !Task.isCancelled, model.userID == owner, mode == requestedMode { self.error = error.localizedDescription } }
     }
     private func submit() async {
-        guard !busy, hasSelectedTheme else { return }
+        guard valid, let owner = model.userID else { return }
         busy = true; defer { busy = false }
-        var body: [String: Any] = ["mode":mode,"title":title.trimmingCharacters(in: .whitespacesAndNewlines),"visibility":visibility,"seating_mode":seating,"max_members":capacity,"announcement":notice,"theme_sku":theme,"background":theme,"request_id":requestID]
+        var body: [String: Any] = ["mode":mode, "title":title.trimmingCharacters(in: .whitespacesAndNewlines), "visibility":visibility, "seating_mode":seating, "max_members":capacity, "announcement":notice, "theme_sku":theme, "background":theme, "request_id":requestID]
         if visibility == "crew" { body["crew_id"] = crew }
         do {
             let room = try await API.shared.call("/api/voice/rooms", method: "POST", body: body).object("room")
+            guard model.userID == owner else { return }
             guard let space = SiteWorkspace(area: mode == "karaoke" ? "live" : "voice", key: room.string("id"), title: title) else { throw URLError(.cannotParseResponse) }
             onCreated(space)
-        } catch { self.error = error.localizedDescription }
+        } catch { if model.userID == owner { self.error = error.localizedDescription } }
+    }
+}
+
+private struct RoomChoiceSegments: View {
+    let options: [(String, String)]
+    @Binding var selection: String
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(options, id: \.0) { key, title in
+                Button { selection = key } label: {
+                    Text(title).font(.system(size: 13, weight: .semibold)).frame(maxWidth: .infinity, minHeight: 44).foregroundStyle(selection == key ? Brand.background : AifectDesign.muted)
+                        .background(selection == key ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Color.clear), in: RoundedRectangle(cornerRadius: 10)).contentShape(Rectangle())
+                }.buttonStyle(.plain).accessibilityAddTraits(selection == key ? .isSelected : [])
+            }
+        }.padding(4).background(Brand.card.opacity(0.72), in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
     }
 }
 

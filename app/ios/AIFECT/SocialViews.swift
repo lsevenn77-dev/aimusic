@@ -581,38 +581,10 @@ struct MyMusicView: View {
                             libraryEntry("최근 감상", icon: "clock", selection: 2, count: "\(model.history.count)곡")
                             libraryEntry("플레이리스트", icon: "music.note.list", selection: 0, count: "\(model.playlists.count)개")
                         }.task(id: model.userID) { await model.loadLibrary() }
-                        HStack(spacing: 8) {
-                            NavigationLink { CreatorWorkView().streamingPage() } label: { StreamingActionTile(title: "내 작업", caption: "창작자 스튜디오", icon: "mic.fill") }.buttonStyle(.plain)
-                            NavigationLink { RecordingDraftsView().streamingPage() } label: { StreamingActionTile(title: "내 초안", caption: "녹음 이어 하기", icon: "pencil", color: StreamStyle.cyan) }.buttonStyle(.plain)
-                        }
-                        StreamingHeading(title: "내 플레이리스트") { LibraryView().navigationTitle("플레이리스트") }
-                        ForEach(model.playlists.prefix(4), id: \.selfID) { StreamingPlaylistRow(list: $0) }
-                        if model.playlists.isEmpty && model.libraryLoaded { NavigationLink("첫 플레이리스트 만들기") { LibraryView() }.frame(minHeight: 44) }
+                        Button("레벨 · 계정 관리") { account = true }.font(.caption).frame(maxWidth: .infinity, minHeight: 44)
                         if let error = model.libraryError { RetryCard(message: error) { Task { await model.loadLibrary() } } }
-                        if !model.history.isEmpty { StreamingHeading(title: "최근 감상") { LibraryView(initialSelection: 2) }; ForEach(model.history.prefix(3)) { StreamingSongRow(song: $0, queue: model.history) } }
                     } else {
-                        MyWalletSummary()
-                        NavigationLink { PlayerInventoryView().streamingPage() } label: {
-                            StreamingEntry(title: "프레임 · 배경", caption: "보유 아이템과 장착 상태 보기", icon: "square.stack.3d.up")
-                        }.buttonStyle(.plain).accessibilityIdentifier("my-inventory")
-                        if !profile.string("id").isEmpty { NavigationLink { ProfileGiftRankingView(profileID: profile.string("id")).streamingPage() } label: { Label("받은 선물", systemImage: "gift").frame(minHeight: 44) } }
-                        NavigationLink { ActivityHistoryView().streamingPage() } label: { StreamingEntry(title: "알림 기록", caption: "커버 · 듀엣 참여와 받은 선물", icon: "bell") }.buttonStyle(.plain)
-                        HStack(spacing: 8) {
-                            NavigationLink { RecordingDraftsView().streamingPage() } label: { StreamingEntry(title: "내 초안", caption: "녹음 이어 하기", icon: "pencil") }.buttonStyle(.plain)
-                        }
-                        NavigationLink { CreatorWorkView().streamingPage() } label: { StreamingEntry(title: "내 작업 · 스튜디오", caption: "원곡 업로드와 내 음악 관리", icon: "slider.horizontal.3") }.buttonStyle(.plain)
-                        ParityChips(items: ["전체", "제작곡", "커버", "듀엣"], selection: $filter)
-                        HStack { Text("공개 음악 \(visibleSongs.count)곡").font(.subheadline); Spacer(); Button { grid.toggle() } label: { Image(systemName: grid ? "list.bullet" : "square.grid.2x2").frame(width: 44, height: 44) }.accessibilityLabel(grid ? "목록 보기" : "그리드 보기") }
-                        if filter == "커버" || filter == "듀엣" {
-                            ForEach(visibleSongs) { song in
-                                VStack(alignment: .leading) {
-                                    StreamingSongRow(song: song, queue: visibleSongs)
-                                    NavigationLink { TrackGiftRankingView(song: song).streamingPage() } label: { Label("조회 \(song.plays ?? 0)회 · 받은 선물", systemImage: "gift").font(.caption).frame(minHeight: 44) }
-                                }
-                            }
-                        } else if grid { MusicGrid(songs: visibleSongs) }
-                        else { ForEach(visibleSongs) { StreamingSongRow(song: $0, queue: visibleSongs) } }
-                        if visibleSongs.isEmpty && error == nil { ContentUnavailableView("공개한 음악이 없어요", systemImage: "music.note", description: Text("제작곡과 커버를 공개하면 여기에 모여요.")) }
+                        MyInventoryContent(profileID: profile.string("id")).id(model.userID)
                     }
                 }
                 if let error { RetryCard(message: error) { Task { await load() } } }
@@ -622,7 +594,15 @@ struct MyMusicView: View {
     }
     private func libraryEntry(_ title: String, icon: String, selection: Int, count: String) -> some View {
         NavigationLink { LibraryView(initialSelection: selection).navigationTitle(title).streamingPage() } label: {
-            StreamingEntry(title: title, caption: model.libraryLoaded ? count : model.libraryError == nil ? "불러오는 중" : "다시 불러오기", icon: icon, color: Brand.pink)
+            HStack(spacing: 18) {
+                Image(systemName: icon).font(.system(size: 25)).foregroundStyle(Brand.pink).frame(width: 26)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(title).font(.system(size: 14, weight: .semibold))
+                    Text(model.libraryLoaded ? count : model.libraryError == nil ? "불러오는 중" : "다시 불러오기").font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
+                }.frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right").font(.system(size: 14)).foregroundStyle(AifectDesign.secondaryText)
+            }.padding(.horizontal, 16).padding(.vertical, 15).frame(maxWidth: .infinity, minHeight: 74)
+                .background(Brand.card, in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
         }.buttonStyle(.plain).accessibilityIdentifier("music-shortcut-\(selection)")
     }
     private var profileCard: some View {
@@ -927,47 +907,84 @@ struct PlayerInventoryView: View {
     @State private var profile: [String: Any] = [:]
     @State private var error: String?
     @State private var busy = false
+    @State private var decoration: CatalogItemSelection?
     private var items: [[String: Any]] { data.objects("inventory") }
     private var rewards: [[String: Any]] { data.objects("rewards") }
+    private var decorations: [[String: Any]] {
+        var seen = Set<String>()
+        return (data.objects("stored_decorations") + data.objects("decorations")).filter { seen.insert($0.selfID).inserted }
+    }
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 if model.user == nil { LoginPrompt(title: "내 아이템 보관함") }
                 else if data.isEmpty && error == nil { ProgressView() }
                 else if !data.isEmpty {
-                    PlayerLevelCard(xp: data.object("player").int("xp"))
-                    Text("보유 아이템 \(items.count)").font(.headline)
+                    NavigationLink { ItemShopView().streamingPage() } label: { StreamingEntry(title: "상점", caption: "선물 · 액자 · 토크룸 배경", icon: "bag") }.buttonStyle(.plain)
+                    Text("프레임").font(.system(size: 16, weight: .semibold))
                     if items.isEmpty { ContentUnavailableView("첫 액자를 만나보세요", systemImage: "person.2", description: Text("크루에 가입하면 전용 장식 액자를 무료로 드려요.")); NavigationLink("크루 둘러보기") { CrewsView() } }
-                    ForEach(items.indices, id: \.self) { index in
-                        itemCard(items[index])
+                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                        ForEach(items.indices, id: \.self) { index in itemCard(items[index]) }
                     }
-                    if !rewards.isEmpty {
-                        Text("달성할 수 있는 보상").font(.headline)
-                        ForEach(rewards.indices, id: \.self) { index in itemCard(rewards[index]) }
+                    if !decorations.isEmpty {
+                        Text("액자 · 토크룸 배경").font(.system(size: 16, weight: .semibold))
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
+                            ForEach(decorations, id: \.selfID) { item in
+                                let product = item.object("product").isEmpty ? item : item.object("product")
+                                Button { decoration = CatalogItemSelection(payload: item) } label: {
+                                    VStack(spacing: 6) {
+                                        DecorationArtwork(product: product).frame(height: 80)
+                                        Text(product.string("name")).font(.system(size: 12)).lineLimit(2).frame(height: 36)
+                                        Text(Self.decorationStatus(item)).font(.system(size: 11)).foregroundStyle(Brand.aqua)
+                                    }.frame(maxWidth: .infinity).padding(8).background(Brand.card, in: RoundedRectangle(cornerRadius: 12)).contentShape(Rectangle())
+                                }.buttonStyle(.plain).disabled(busy || !item.flag("available") || !(item.flag("stored") || item.string("source") == "decoration_stock")).accessibilityIdentifier("inventory-decoration-" + item.selfID)
+                            }
+                        }
                     }
-                    Text("이렇게 레벨이 올라요").font(.headline)
-                    ForEach(data.objects("rules").indices, id: \.self) { index in
-                        let rule = data.objects("rules")[index]
-                        HStack { VStack(alignment: .leading, spacing: 5) { Text(rule.string("label")); Text(rule.string("limit")).font(.caption).foregroundStyle(AifectDesign.muted) }; Spacer(); Text("+\(rule.int("xp")) XP").foregroundStyle(Brand.aqua) }.font(.subheadline)
+                    NavigationLink { OwnedGiftInventoryView().streamingPage() } label: { StreamingEntry(title: "보유 선물", caption: "다른 회원에게 선물 보내기", icon: "gift") }.buttonStyle(.plain)
+                    DisclosureGroup("레벨 · 활동 보상") {
+                        PlayerLevelCard(xp: data.object("player").int("xp"))
+                        if !rewards.isEmpty {
+                            Text("달성할 수 있는 보상").font(.headline)
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) { ForEach(rewards.indices, id: \.self) { index in itemCard(rewards[index]) } }
+                        }
+                        Text("이렇게 레벨이 올라요").font(.headline)
+                        ForEach(data.objects("rules").indices, id: \.self) { index in
+                            let rule = data.objects("rules")[index]
+                            HStack { VStack(alignment: .leading, spacing: 5) { Text(rule.string("label")); Text(rule.string("limit")).font(.caption).foregroundStyle(AifectDesign.muted) }; Spacer(); Text("+\(rule.int("xp")) XP").foregroundStyle(Brand.aqua) }.font(.subheadline)
+                        }
+                        Text("매일 활동은 한국 시간 자정에 새로 시작해요. 기존 공개곡도 반영되며 같은 곡의 경험치는 한 번만 지급돼요.").font(.caption).foregroundStyle(AifectDesign.muted)
                     }
-                    Text("매일 활동은 한국 시간 자정에 새로 시작해요. 기존 공개곡도 반영되며 같은 곡의 경험치는 한 번만 지급돼요.").font(.caption).foregroundStyle(AifectDesign.muted)
                 }
                 if let error { RetryCard(message: error) { Task { await load() } } }
             }.padding(20)
-        }.background(AifectDesign.background).navigationTitle("아이템 보관함").navigationBarTitleDisplayMode(.inline).task(id: model.userID) { data = [:]; profile = [:]; error = nil; await load() }.refreshable { await load() }
+        }.background(AifectDesign.background).navigationTitle("아이템 보관함").navigationBarTitleDisplayMode(.inline).task(id: model.userID) { data = [:]; profile = [:]; error = nil; decoration = nil; await load() }.refreshable { await load() }
+            .sheet(item: $decoration) { selection in
+                DecorationUseView(item: selection.payload) { Task { await load() } }.environmentObject(model)
+            }
     }
     private func itemCard(_ item: [String: Any]) -> some View {
         var preview = profile
         preview["profile_frame"] = item.string("item_key")
         preview["profile_frame_artwork"] = item.string("artwork")
+        preview["profile_frame_display"] = item["display"]
         let owned = item["owned"] as? Bool ?? true
         preview["player_xp"] = data.object("player").int("xp")
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 20) { ProfilePhoto(person: preview, size: 64); VStack(alignment: .leading, spacing: 6) { Text(item.string("name")).font(.headline); Text(item.flag("equipped") ? "장착 중" : owned ? "보유 중" : "달성 보상").font(.caption).foregroundStyle(Brand.aqua) } }
-            Text(item.string("description")).font(.subheadline).foregroundStyle(AifectDesign.muted)
-            Text(item.string("reason").isEmpty ? item.string("usage", fallback: "보유 아이템") : item.string("reason")).font(.caption).foregroundStyle(AifectDesign.muted)
-            if owned { Button { Task { await equip(item) } } label: { Text(item.flag("equipped") ? "해제하기" : "장착하기").frame(maxWidth: .infinity, minHeight: 36) }.buttonStyle(.borderedProminent).tint(Brand.aqua).foregroundStyle(AifectDesign.background).disabled(busy || !item.flag("available")) }
-        }.frame(maxWidth: .infinity, alignment: .leading).padding(20).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)).accessibilityElement(children: .contain).accessibilityIdentifier("inventory-item-" + item.string("item_key"))
+        return Button { Task { await equip(item) } } label: {
+            VStack(spacing: 6) {
+                ProfilePhoto(person: preview, size: 56).frame(height: 76)
+                Text(item.string("name")).font(.system(size: 12)).lineLimit(2).frame(height: 40)
+                Text(item.flag("equipped") ? "장착 중" : owned ? "장착" : "달성 보상").font(.system(size: 11)).foregroundStyle(item.flag("equipped") ? Brand.pink : AifectDesign.muted)
+            }.frame(maxWidth: .infinity).padding(8).background(Brand.card, in: RoundedRectangle(cornerRadius: 12))
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(item.flag("equipped") ? Brand.pink : AifectDesign.stroke)).contentShape(Rectangle())
+        }.buttonStyle(.plain).disabled(!owned || busy || !item.flag("available")).accessibilityIdentifier("inventory-item-" + item.string("item_key"))
+            .accessibilityValue(item.flag("equipped") ? "장착 중" : owned ? "장착 가능" : "미보유")
+    }
+    static func decorationStatus(_ item: [String: Any]) -> String {
+        if item.flag("stored") || item.string("source") == "decoration_stock" { return item.flag("available") ? "보관 중" : "사용 보류" }
+        if !item.flag("available") { return item.number("expires_at") > 0 && item.number("expires_at") <= Date().timeIntervalSince1970 ? "기간 만료" : "사용 불가" }
+        if item.object("product").string("kind", fallback: item.string("kind")) == "PROFILE_FRAME" { return item.flag("equipped") ? "장착 중" : "사용 가능" }
+        return item.string("source") == "decoration" || item.flag("active") || item.flag("applied") || item.flag("equipped") ? "적용 중" : "사용 가능"
     }
     private func load() async {
         guard let owner = model.userID else { data = [:]; profile = [:]; return }

@@ -17,6 +17,7 @@ struct CatalogHeader: View {
 struct CatalogTabs: View {
     let names: [String]
     @Binding var selection: String
+    var inset: CGFloat = 20
     var body: some View {
         HStack(spacing: 0) {
             ForEach(names, id: \.self) { name in
@@ -30,7 +31,7 @@ struct CatalogTabs: View {
                         .contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityAddTraits(selection == name ? .isSelected : [])
             }
-        }.padding(.horizontal, 20).overlay(alignment: .bottom) { Divider() }
+        }.padding(.horizontal, inset).overlay(alignment: .bottom) { Divider() }
     }
 }
 
@@ -157,6 +158,13 @@ private struct WorkspaceBrowser: UIViewRepresentable {
         view.navigationDelegate = context.coordinator
         view.isOpaque = false
         view.backgroundColor = UIColor(Brand.background)
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-feedback-ui-test") {
+            view.navigationDelegate = nil
+            view.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0b1024;color:white;font-family:system-ui;padding:24px'>검증용 작업 화면</body>", baseURL: nil)
+            return view
+        }
+        #endif
         let cookies = API.shared.mediaCookies()
         let url = Endpoint.origin.absoluteString + space.path
         context.coordinator.start = Task { @MainActor in
@@ -193,5 +201,68 @@ private struct WorkspaceBrowser: UIViewRepresentable {
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError failure: Error) {
             if (failure as NSError).code != NSURLErrorCancelled { error = failure.localizedDescription }
         }
+    }
+}
+
+
+/// Shared Android reference: 48pt dark field with an outlined, 12pt corner.
+struct CatalogSearchField: View {
+    let prompt: String
+    @Binding var text: String
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass").foregroundStyle(AifectDesign.muted)
+            TextField(prompt, text: $text).textFieldStyle(.plain).font(.system(size: 13))
+                .submitLabel(.search).autocorrectionDisabled().textInputAutocapitalization(.never)
+            if !text.isEmpty {
+                Button { text = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 32, height: 44) }
+                    .buttonStyle(.plain).accessibilityLabel("검색 지우기")
+            }
+        }.padding(.horizontal, 14).frame(minHeight: 48)
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke))
+    }
+}
+
+struct SongQuickActionLabel: View {
+    let title: String
+    let icon: String
+    var accent: Color = AifectDesign.secondaryText
+    var body: some View {
+        VStack(spacing: 7) {
+            Image(systemName: icon).font(.system(size: 23)).foregroundStyle(accent)
+            Text(title).font(.system(size: 11)).foregroundStyle(AifectDesign.secondaryText)
+        }.frame(maxWidth: .infinity, minHeight: 60).contentShape(Rectangle())
+    }
+}
+
+/// Explicit shape keeps iOS system button-style changes from altering Android's cards.
+struct CatalogButtonStyle: ButtonStyle {
+    var filled = false
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.system(size: 13, weight: .semibold)).padding(.horizontal, 12).frame(minHeight: 40)
+            .foregroundStyle(filled ? Brand.background : AifectDesign.secondaryText)
+            .background(filled ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Brand.card.opacity(0.45)), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(filled ? .clear : AifectDesign.stroke))
+            .opacity(configuration.isPressed ? 0.7 : 1)
+    }
+}
+
+struct ChartFilterTabs: View {
+    let names: [String]
+    @Binding var selection: String
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 22) {
+                ForEach(names, id: \.self) { name in
+                    Button { selection = name } label: {
+                        VStack(spacing: 14) {
+                            Text(name).font(.system(size: 14, weight: .semibold)).foregroundStyle(selection == name ? Brand.pink : AifectDesign.muted)
+                            Rectangle().fill(selection == name ? Brand.pink : .clear).frame(width: 30, height: 2)
+                        }.padding(.top, 12).frame(minHeight: 48).contentShape(Rectangle())
+                    }.buttonStyle(.plain).accessibilityAddTraits(selection == name ? .isSelected : [])
+                }
+            }
+        }.overlay(alignment: .bottom) { Divider() }
     }
 }

@@ -237,24 +237,21 @@ struct SearchView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
                 if discovery { Text("발견").font(.title2.bold()) }
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(Brand.pink)
-                    TextField("곡 · 아티스트 검색", text: $query).font(.system(size: 14)).lineLimit(1).submitLabel(.search).accessibilityLabel("음악 검색")
-                    if !query.isEmpty { Button { query = "" } label: { Image(systemName: "xmark.circle.fill").frame(width: 44, height: 44) }.accessibilityLabel("검색 지우기") }
-                }.frame(minHeight: 52).padding(.horizontal, 14).background(Brand.card, in: RoundedRectangle(cornerRadius: 16)).overlay(RoundedRectangle(cornerRadius: 16).stroke(AifectDesign.stroke, lineWidth: 1))
+                if discovery { Text("지금의 기분에서, 다음 취향까지").font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
+                CatalogSearchField(prompt: "곡 · 아티스트 검색", text: $query).accessibilityIdentifier("music-search")
                 Text("제작자와 플레이리스트도 함께 찾아요").font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
                 if query.isEmpty && discovery {
                     Text("바로 발견하기").font(.headline)
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {
                             if let onPopularChart {
-                                Button("인기 차트", action: onPopularChart).accessibilityIdentifier("discovery-chart")
+                                Button(action: onPopularChart) { Label("인기 차트", systemImage: "chart.line.uptrend.xyaxis") }.accessibilityIdentifier("discovery-chart")
                             } else {
-                                NavigationLink("인기 차트") { PopularChartView() }
+                                NavigationLink { PopularChartView() } label: { Label("인기 차트", systemImage: "chart.line.uptrend.xyaxis") }
                             }
-                            Button("플레이") { model.selectTab(2) }
-                            NavigationLink("커버곡") { MusicCollectionView(title: "커버곡 둘러보기", path: "/api/community?kind=cover") }
-                        }.buttonStyle(ParityPill())
+                            Button { model.selectTab(2) } label: { Label("플레이", systemImage: "play.fill") }
+                            NavigationLink { MusicCollectionView(title: "커버곡 둘러보기", path: "/api/community?kind=cover") } label: { Label("커버곡", systemImage: "person.2.fill") }
+                        }.buttonStyle(CatalogButtonStyle())
                     }
                     Text("기분과 순간").font(.headline)
                     MoodMusicShelf()
@@ -262,8 +259,13 @@ struct SearchView: View {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 140))], spacing: 10) {
                         ForEach(musicGenreOptions, id: \.self) { genre in
                             NavigationLink { MusicCollectionView(title: genre, path: "/api/catalog?section=tracks&genre=\(Endpoint.query(genre))") } label: {
-                                Text(genre).font(.subheadline.bold()).frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
-                                    .padding(.horizontal, 12).background(Brand.card, in: RoundedRectangle(cornerRadius: 12))
+                                VStack(alignment: .leading) {
+                                    Text(genre).font(.system(size: 14, weight: .semibold))
+                                    Spacer(minLength: 20)
+                                    HStack { Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(AifectDesign.muted) }
+                                }.padding(14).frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+                                    .background(Brand.card.opacity(0.65), in: RoundedRectangle(cornerRadius: 14))
+                                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
                             }.buttonStyle(.plain)
                         }
                     }

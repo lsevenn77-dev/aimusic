@@ -67,11 +67,13 @@ struct SaveMusicButton: View {
     @EnvironmentObject private var model: AppModel
     let song: Song
     var compact = false
+    var verticalAction = false
     @State private var presented = false
     var body: some View {
         Button { if model.requireLogin() { presented = true } } label: {
-            Label(compact ? "담기" : "플레이리스트 담기", systemImage: "text.badge.plus")
-                .font(.system(size: compact ? 12 : 14)).foregroundStyle(AifectDesign.secondaryText).frame(minHeight: 44)
+            if verticalAction { SongQuickActionLabel(title: "저장", icon: "plus") }
+            else { Label(compact ? "담기" : "플레이리스트 담기", systemImage: "text.badge.plus")
+                .font(.system(size: compact ? 12 : 14)).foregroundStyle(AifectDesign.secondaryText).frame(minHeight: 44) }
         }.buttonStyle(.plain).navigationDestination(isPresented: $presented) { PlaylistPickerView(song: song) }
     }
 }
@@ -121,6 +123,8 @@ struct SingSongButton: View {
     var color: Color = Brand.pink
     var compact = false
     var gradient = false
+    var wide = false
+    var verticalAction = false
     @State private var target: FreshStudio?
     @State private var resolving = false
     @State private var login = false
@@ -130,13 +134,21 @@ struct SingSongButton: View {
             guard model.userID != nil else { login = true; return }
             openStudio()
         } label: {
-            Group {
-                if compact { Text(resolving ? "확인 중" : title) }
-                else { Label(resolving ? "반주 확인 중…" : title, systemImage: "mic.fill") }
-            }.font(.caption.weight(.semibold)).padding(.horizontal, compact ? 11 : 14).padding(.vertical, 8)
-                .foregroundStyle(compact ? color : Brand.background)
-                .background { if gradient { LinearGradient(colors: [Brand.pink, StreamStyle.purple], startPoint: .leading, endPoint: .trailing) } else { compact ? color.opacity(0.15) : color } }.clipShape(Capsule())
-                .overlay(Capsule().stroke(compact ? color.opacity(0.5) : .clear, lineWidth: 1)).frame(minHeight: 44)
+            if verticalAction { SongQuickActionLabel(title: resolving ? "확인 중" : "부르기", icon: "waveform") }
+            else if wide {
+                Label(resolving ? "확인 중" : title, systemImage: "mic.fill")
+                    .font(.system(size: 12, weight: .medium)).frame(maxWidth: .infinity, minHeight: 40)
+                    .foregroundStyle(AifectDesign.secondaryText)
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke))
+            } else {
+                Group {
+                    if compact { Text(resolving ? "확인 중" : title) }
+                    else { Label(resolving ? "반주 확인 중…" : title, systemImage: "mic.fill") }
+                }.font(.caption.weight(.semibold)).padding(.horizontal, compact ? 11 : 14).padding(.vertical, 8)
+                    .foregroundStyle(compact ? color : Brand.background)
+                    .background { if gradient { LinearGradient(colors: [Brand.pink, StreamStyle.purple], startPoint: .leading, endPoint: .trailing) } else { compact ? color.opacity(0.15) : color } }.clipShape(Capsule())
+                    .overlay(Capsule().stroke(compact ? color.opacity(0.5) : .clear, lineWidth: 1)).frame(minHeight: 44)
+            }
         }.buttonStyle(.plain).disabled(resolving)
             .fullScreenCover(item: $target) { StudioView(studio: $0.studio) }
             .sheet(isPresented: $login, onDismiss: { if model.userID != nil { openStudio() } }) { LoginView() }

@@ -471,8 +471,11 @@ struct RecordingDraftsView: View {
 
 struct MobilePlayView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var mode = "노래"
-    @State private var section = "추천곡"
+    @State private var mode: String
+    @State private var section: String
+    init(initialMode: String = "노래", initialSection: String = "추천곡") {
+        _mode = State(initialValue: initialMode); _section = State(initialValue: initialSection)
+    }
     @State private var kind = "all"
     @State private var query = ""
     @State private var rows: [[String: Any]] = []
@@ -537,8 +540,7 @@ struct MobilePlayView: View {
                                     .background(Brand.gradient, in: RoundedRectangle(cornerRadius: 12))
                             }.buttonStyle(.plain)
                         }
-                        TextField(mode == "노래" ? "곡 · 아티스트 · 제작자 검색" : "작품 · 창작자 검색", text: $query)
-                            .textFieldStyle(.roundedBorder)
+                        CatalogSearchField(prompt: mode == "노래" ? "곡 · 아티스트 · 제작자 검색" : "작품 · 창작자 검색", text: $query)
                         if mode == "둘러보기" {
                             Picker("작품 유형", selection: $kind) {
                                 Text("전체").tag("all"); Text("솔로").tag("solo"); Text("듀엣").tag("duet"); Text("더빙").tag("dubbing")
@@ -592,9 +594,12 @@ struct MobilePlayView: View {
                     NavigationLink(value: song) { AlbumArtwork(song: song).aspectRatio(1, contentMode: .fit) }
                     ArtworkPlayButton(diameter: 32, label: song.title + " 먼저 듣기") { model.player.play(song, queue: queue) }
                 }
-                NavigationLink(value: song) { Text(song.title).font(.headline).lineLimit(2) }
+                NavigationLink(value: song) { Text(song.title).font(.system(size: 14, weight: .semibold)).lineLimit(2) }
                 Text(song.credit).font(.caption).foregroundStyle(AifectDesign.muted)
-                if mode == "노래" { SingSongButton(song: song, title: section == "듀엣참여" ? "듀엣 참여" : "노래하기", compact: true) }
+                if mode == "노래" {
+                    Text(song.genreLabel + " · " + timeLabel(song.duration)).font(.system(size: 10)).foregroundStyle(AifectDesign.muted)
+                    SingSongButton(song: song, title: section == "듀엣참여" ? "듀엣 참여" : "노래하기", compact: true, wide: true)
+                }
             }.buttonStyle(.plain)
         }
     }

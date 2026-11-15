@@ -65,6 +65,10 @@ final class OctoberParityTests: XCTestCase {
         let gift: [String: Any] = ["assetPaths": ["image": "http://example.org/old.png"], "assets": ["thumbnail": "/media/gifts/new.webp?v=2"]]
         XCTAssertEqual(CatalogArtwork.giftURL(gift)?.absoluteString, "https://aifect.co.kr/media/gifts/new.webp?v=2")
         XCTAssertEqual(CatalogArtwork.url("https://cdn.example.org/new.webp")?.host, "cdn.example.org")
+        let room: [String: Any] = ["kind": "TALKING_ROOM_THEME", "assetPaths": ["roomCard": "/media/theme/new.webp"], "assets": ["roomMobile": "/media/theme/old.webp"]]
+        XCTAssertEqual(CatalogArtwork.decorationURL(room)?.path, "/media/theme/new.webp")
+        let decoration: [String: Any] = ["kind": "PROFILE_FRAME", "assetPaths": ["thumbnail": "http://cdn.example.org/frame.webp"], "assets": ["overlay": "/media/frame/new.webp"]]
+        XCTAssertEqual(CatalogArtwork.decorationURL(decoration)?.path, "/media/frame/new.webp")
         for raw in ["//example.org/a", "relative.gif", "data:image/png,test", "/assets/%2e%2e/private", "https://user@cdn.example.org/file", "/art#section"] {
             XCTAssertNil(CatalogArtwork.url(raw), raw)
         }
