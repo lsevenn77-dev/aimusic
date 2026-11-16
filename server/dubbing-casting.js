@@ -4,6 +4,7 @@ import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {dubbingVisibleSQL,assertDubbingCreator} from './dubbing-access.js';
 import {dubbingRecordingWindows} from '../shared/dubbing-recording.js';
+import revisedOriginals from './dubbing-original-editions.json' with {type:'json'};
 
 export const CASTING_LICENSE='casting-2026-11-01';
 export const CASTING_TTL=30*86400;
@@ -33,11 +34,11 @@ export async function castingInfo(env,p,user){
  return {draft,combination:combo?{...combo,offsets:JSON.parse(combo.offsetsJson)}:null,isRoot:!p.root_id};
 }
 export async function castingRootView(env,pid,user){
- const root=await accessible(env,pid,user);if(root.root_id)fail(400,'원작 대본을 선택해주세요.');
+ const root=await currentRecruitingRoot(env,pid,user);if(root.root_id)fail(400,'원작 대본을 선택해주세요.');
  const script=JSON.parse(root.script_json),uid=user?.id||'',base=await baseRecording(env,root);
  const combos=await rows(env,`SELECT p.id,p.state,c.last_participation,(SELECT COUNT(*) FROM dubbing_recordings r WHERE r.project_id=p.id AND r.state='submitted') count
  FROM dubbing_combinations c JOIN dubbing_projects p ON p.id=c.project_id WHERE c.root_id=? AND c.expired_at=0 AND p.visibility='public' AND ${dubbingVisibleSQL()}
- AND (p.state='complete' OR c.last_participation>?) AND ${blockSQL} ORDER BY count DESC,c.last_participation DESC LIMIT 100`,pid,now()-CASTING_TTL,uid,uid);
+ AND (p.state='complete' OR c.last_participation>?) AND ${blockSQL} ORDER BY count DESC,c.last_participation DESC LIMIT 100`,root.id,now()-CASTING_TTL,uid,uid);
  const combinations=[];for(const c of combos)combinations.push({...c,members:await members(env,c.id),expiresAt:c.state==='complete'?null:c.last_participation+CASTING_TTL});
  if(base)combinations.push({id:root.id,base:true,count:1,state:'base',members:await members(env,root.id,base.id),expiresAt:null});
  else if(root.visibility==='public')combinations.push({id:root.id,base:true,count:0,state:'open',members:[],expiresAt:null});
@@ -46,6 +47,11 @@ export async function castingRootView(env,pid,user){
 async function readyBackground(env,p,required=true){
  const bg=await one(env,"SELECT * FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready' AND output_key IS NOT NULL",p.id,p.script_key);
  if(!bg||!await env.BUCKET.head(bg.output_key)){if(required)fail(409,'선택한 조합의 배경 오디오 준비가 끝나면 녹음할 수 있어요.');return null;}return bg;
+}
+async function currentRecruitingRoot(env,pid,user){
+ const revised=revisedOriginals.find(e=>e.oldRoot===pid);
+ if(revised&&await one(env,'SELECT id FROM admin_audit WHERE id=?',pid+':original-retired'))return accessible(env,revised.root,user);
+ return accessible(env,pid,user);
 }
 function cloneProject(env,root,pid,owner,visibility,token,guard='1=1',args=[]){
  return query(env,`INSERT INTO dubbing_projects(id,owner_id,title,options_json,script_json,script_key,creation_hash,source,state,visibility,root_id,role_count,duration,write_token,rights_at,created,updated)
@@ -165,7 +171,11 @@ export async function dubbingCastingRoute(req,env,path,user){
   return new Response(req.method==='HEAD'?null:o.body,{headers:{'content-type':'audio/wav','cache-control':'private, no-store','x-content-type-options':'nosniff'}});
  }
  requireUser(user);if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');const body=await req.json();
- if(action==='start')return json(await startDraft(env,await accessible(env,pid,user),user,body),201);
+ if(action==='start'){
+  const existing=await one(env,'SELECT root_id FROM dubbing_casting_drafts WHERE project_id=?',body.id||'');
+  const root=existing?.root_id===pid?await accessible(env,pid,user):await currentRecruitingRoot(env,pid,user);
+  return json(await startDraft(env,root,user,body),201);
+ }
  if(action==='retarget'){
   const p=await accessible(env,pid,user),draft=await one(env,'SELECT * FROM dubbing_casting_drafts WHERE project_id=? AND committed_id IS NULL',pid);
   if(!draft||p.owner_id!==user.id)fail(404,'내 녹음 초안을 찾을 수 없습니다.');

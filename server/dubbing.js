@@ -1,4 +1,5 @@
 import {officialEpisodeSoundRevision} from './dubbing-episode-sound-revision.js';
+import {officialRebuild} from './dubbing-original-rebuild.js';
 import {dubbingPosterSQL,projectPoster} from './dubbing-poster.js';
 import {recordDubbingPlay,dubbingPlayCountSQL} from './dubbing-plays.js';
 import {dubbingDiscoveryCounts,eligibleDubFinal,noBlockedDubCast} from './dubbing-discovery.js';
@@ -84,12 +85,13 @@ export async function dubbingRoute(req,env,path,user){
   const castingRoles=discovery&&tab==='open'&&url.searchParams.get('castingRoles')==='1';
   const roleColumns=castingRoles?`json_extract(p.script_json,'$.roles') cast_roles,(${baseRecordingSQL('r.role_id','p.id','p.owner_id')}) base_role,`:'';
   const where=tab==='mine'?`(p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?))`:`p.visibility='public'${tab==='open'?" AND p.root_id IS NULL":" AND p.state='complete'"}`;
+  const retired=tab==='open'?" AND NOT EXISTS(SELECT 1 FROM admin_audit a WHERE a.id=p.id||':original-retired')":'';
   const list=await rows(env,`SELECT p.id,${roleColumns}${dubbingPosterSQL} posterUrl,p.root_id,p.owner_id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${discovery?`root.title root_title,root.owner_id root_owner_id,${publicNameSQL('creator')} root_owner_name,${dubbingPlayCountSQL('p')} plays,`:''} ${publicNameSQL('u')} owner_name,
    EXISTS(SELECT 1 FROM dubbing_sound_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.mode='ai' AND COALESCE(j.output_key,'')!=''
     AND EXISTS(SELECT 1 FROM json_each(j.timeline_json,'$.sounds') cue WHERE json_extract(cue.value,'$.kind') IN ('sfx','ambient') AND json_extract(cue.value,'$.volume')>0)) has_sound_effects,
    (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
    ${discovery?'JOIN dubbing_projects root ON root.id=COALESCE(p.root_id,p.id) JOIN users creator ON creator.id=root.owner_id':''}
-   WHERE u.provider!='deleted' AND p.deleted_at=0 AND (p.root_id IS NULL OR EXISTS(SELECT 1 FROM dubbing_projects root WHERE root.id=p.root_id AND root.deleted_at=0)) AND ${where} AND ${unblocked} ${tab==='mine'?'':`AND ${dubbingVisibleSQL()}`}
+   WHERE u.provider!='deleted' AND p.deleted_at=0 AND (p.root_id IS NULL OR EXISTS(SELECT 1 FROM dubbing_projects root WHERE root.id=p.root_id AND root.deleted_at=0)) AND ${where}${retired} AND ${unblocked} ${tab==='mine'?'':`AND ${dubbingVisibleSQL()}`}
    ${discovery?'AND '+noBlockedDubCast('p')+(tab==='open'?'':' AND '+eligibleDubFinal('p')):''}
    ${search?'AND (p.title LIKE ? OR '+publicNameSQL('u')+' LIKE ?)':''}
    ${genre?"AND EXISTS(SELECT 1 FROM json_each(p.options_json,'$.genres') g WHERE g.value=?)":''}
@@ -175,6 +177,7 @@ export async function dubbingRoute(req,env,path,user){
  if(action==='performances'&&method==='POST')return startDubbingPerformance(req,env,p,user);
  const community=await dubbingCommunityRoute(req,env,p,user,action,roleId);if(community)return community;
  const recording=await dubbingRecordingRoute(req,env,p,user,action,roleId);if(recording)return recording;
+ if(action==='sound'&&roleId?.startsWith('official-rebuild/'))return officialRebuild(req,env,p,user,roleId.slice('official-rebuild/'.length));
  if(action==='sound'&&roleId==='revision')return officialEpisodeSoundRevision(req,env,p,user);
  const sound=await dubbingSoundProjectRoute(req,env,p,user,action);if(sound)return sound;
  if(!action&&method==='GET')return json({project:await dto(env,p,user)});

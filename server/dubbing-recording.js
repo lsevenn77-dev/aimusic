@@ -5,6 +5,7 @@ import {dubbingRecordingWindows,validateDubbingTake} from '../shared/dubbing-rec
 import {dubbingSoundStatus} from './dubbing-sound.js';
 import {dubbingTimeline} from '../shared/dubbing.js';
 import {submitCastingRecording,castingLines} from './dubbing-casting.js';
+import officialEditions from './dubbing-original-editions.json' with {type:'json'};
 
 export const recordingEnabled=env=>env.DUBBING_RECORDING_ENABLED==='true'&&!!env.BUCKET&&!!env.TRANSCODER_TOKEN;
 const active=`${dubbingVisibleSQL()} AND EXISTS(SELECT 1 FROM users WHERE id=p.owner_id AND provider!='deleted')`;
@@ -28,10 +29,18 @@ async function recordingView(env,p,user){
  const takes=await rows(env,`SELECT r.role_id,r.user_id,r.state,l.line_id,l.duration,l.take_id FROM dubbing_recordings r JOIN dubbing_recording_lines l ON l.recording_id=r.id JOIN users u ON u.id=r.user_id
   WHERE r.project_id=? AND u.provider!='deleted' AND (r.user_id=? OR r.state='submitted')`,p.id,user.id);
  const visible=takes.filter(t=>!env.AIFECT_BLOCKED?.includes(t.user_id));
- const draft=await one(env,'SELECT root_id,target_id,base_recording_id FROM dubbing_casting_drafts WHERE project_id=?',p.id);
+ const draft=await one(env,'SELECT root_id,target_id,base_recording_id,role_id FROM dubbing_casting_drafts WHERE project_id=?',p.id);
  let guide=[];if(draft&&(draft.target_id||draft.base_recording_id)){try{guide=(await castingLines(env,draft.target_id||draft.root_id,user)).lines;}catch{/* A closed target cannot expose audio; the draft remains editable. */}}
+ const guideEdition=draft&&officialEditions.find(e=>e.root===draft.root_id);
+ if(guideEdition){
+  const edition=await one(env,"SELECT id FROM dubbing_projects p WHERE id=? AND root_id=? AND visibility='public' AND state='complete' AND "+dubbingVisibleSQL(),guideEdition.edition,draft.root_id);
+  if(edition){
+   try{const official=await castingLines(env,edition.id,user);guide.push(...official.lines.filter(l=>l.roleId!==draft.role_id&&l.audioUrl));}
+   catch(error){if(![403,404].includes(error.status))throw error;}
+  }
+ }
  return {recording:await dubbingRecordingStatus(env,p,user),timeline,lines:timeline.lines.map(l=>{
-  const t=visible.find(t=>t.line_id===l.id),g=guide.find(t=>t.id===l.id);return {...l,...(t?{takeId:t.take_id,duration:t.duration,audioUrl:`/api/dubbing/projects/${p.id}/recording/${t.role_id}/lines/${l.id}`}:(g?.audioUrl?{duration:g.duration,audioUrl:g.audioUrl}:{}))};
+  const t=visible.find(t=>t.line_id===l.id),g=guide.find(t=>t.id===l.id&&t.audioUrl);return {...l,...(t?{takeId:t.take_id,duration:t.duration,audioUrl:`/api/dubbing/projects/${p.id}/recording/${t.role_id}/lines/${l.id}`}:(g?{duration:g.duration,audioUrl:g.audioUrl}:{}))};
  })};
 }
 export async function queueDubbingFinal(env,p){
