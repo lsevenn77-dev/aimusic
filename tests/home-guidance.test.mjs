@@ -130,6 +130,27 @@ test('the native app retains its original portrait, scenery and preload at every
  }
 });
 
+test('the artist hair layer includes moving WebP frames and a transparent still',()=>{
+ const css=readFileSync(new URL('../dist/home-content.css',import.meta.url),'utf8');
+ for(const name of ['breeze','still']){
+  const path=css.match(new RegExp("url\\('(/assets/home-banners/[^']+/artist-hair-"+name+"-[a-f0-9]+\\.webp)'\\)"))?.[1];
+  assert.ok(path,'missing '+name+' artwork');
+  const bytes=readFileSync(new URL('../dist'+path,import.meta.url));
+  assert.equal(bytes.toString('ascii',8,12),'WEBP');
+  let frames=0,alpha=false;
+  for(let p=12;p+8<=bytes.length;){
+   const tag=bytes.toString('ascii',p,p+4),size=bytes.readUInt32LE(p+4);
+   if(tag==='ANMF')frames++;
+   if(tag==='VP8X')alpha=Boolean(bytes[p+8]&0x10);
+   if(tag==='VP8L')alpha=Boolean(bytes[p+12]&0x10);
+   p+=8+size+(size&1);
+  }
+  assert.ok(alpha,'only the added hair should be opaque');
+  if(name==='breeze')assert.ok(frames>1,'hair must visibly move');
+  else assert.equal(frames,0,'the reduced-motion image is static');
+ }
+});
+
 test('public PC slides fill one wide frame and preload the same responsive WebP as the picture',()=>{
  const c=context(),banners=vm.runInContext("homeBanners.filter(b=>b.id!=='premium')",c);
  for(const [index,banner] of banners.entries()){
