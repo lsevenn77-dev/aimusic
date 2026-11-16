@@ -66,7 +66,7 @@ await cp('dist/app-ads.txt','dist/client/app-ads.txt');
 await cp('dist/artist-gallery.js','dist/client/artist-gallery.js');
 for(const file of ['artist-directory.js','artist-directory.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['page-redesign.js','page-redesign.css','community-feed.css','gift-dashboard.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['release-refinements.js','release-refinements.css','notifications.js','notifications.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['crew-directory.js','crew-directory.css','release-refinements.js','release-refinements.css','notifications.js','notifications.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/social-layouts.js','dist/client/social-layouts.js');
 await cp('dist/page-atmosphere.css','dist/client/page-atmosphere.css');
 for(const file of ['diamonds.js','player-progress.css','player-progress.js','design-surfaces.css','music-classification.js','music-classification.css','chat-features.js','october-polish.css','canonical-origin.js','music-ui.js','music-experience.css','brand-refinement.css','account-settings.js','social-chat.js','recorder-worklet.js','improvements.js','improvements.css','recording-studio.css','recording-workspace.css','duet-lyrics.css','sing-drafts.js','sing-key.js','sing-effects.js','sing-punch.js','singing-hub.js','singing-hub.css','ads.txt','audio-ads.js','audio-ads.css','upload-ads.js','upload-ads.css','gifts.js','gifts.css','image-upload.js'])await cp(`dist/${file}`,`dist/client/${file}`);
@@ -107,6 +107,7 @@ await build({entryPoints:['shared/dubbing.js'],outfile:'dist/client/dubbing-core
 await build({entryPoints:['shared/dubbing-reward-player.js'],outfile:'dist/client/dubbing-reward-core.js',bundle:true,format:'iife',globalName:'AifectDubbingRewards',target:'es2022',minify:true});
 await build({entryPoints:['shared/gifts.js'],outfile:'dist/client/gifts-core.js',bundle:true,format:'iife',globalName:'AifectGifts',target:'es2022',minify:true});
 await build({entryPoints:['shared/site-info.js'],outfile:'dist/client/site-info.js',bundle:true,format:'iife',globalName:'AifectSite',target:'es2022',minify:true});
+await build({entryPoints:['shared/crew-tags.js'],outfile:'dist/client/crew-tags-core.js',bundle:true,format:'iife',globalName:'AifectCrewTags',target:'es2022',minify:true});
 await build({entryPoints:['shared/genres.js'],outfile:'dist/client/genres-core.js',bundle:true,format:'iife',globalName:'AifectGenres',target:'es2022',minify:true});
 await build({entryPoints:['shared/alignment.js'],outfile:'dist/client/alignment-core.js',bundle:true,format:'iife',globalName:'AifectAlignment',target:'es2022',minify:true});
 await build({entryPoints:['shared/queue.js'],outfile:'dist/client/queue-core.js',bundle:true,format:'iife',globalName:'AifectQueue',target:'es2022',minify:true});

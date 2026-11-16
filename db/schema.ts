@@ -158,6 +158,7 @@ export const goldOrders=sqliteTable('gold_orders',{
 },t=>[uniqueIndex('gold_orders_request').on(t.userId,t.requestId),uniqueIndex('gold_orders_tid').on(t.tid),index('gold_orders_reconcile').on(t.state,t.lastChecked)]);
 
 export const crews=sqliteTable('crews',{
+ primaryActivity:text('primary_activity'),additionalActivities:text('additional_activities').notNull().default('[]'),musicGenres:text('music_genres').notNull().default('[]'),
  highestLevel:integer('highest_level').notNull().default(1),growthStarted:integer('growth_started').notNull().default(0),
  joinPolicy:text('join_policy').notNull().default('open'),minimumLevel:integer('minimum_level').notNull().default(1),memberLimit:integer('member_limit').notNull().default(0),version:integer('version').notNull().default(1),notice:text('notice').notNull().default(''),
  nameChangedAt:integer('name_changed_at').notNull().default(0),

@@ -136,17 +136,19 @@ function crewInfoValues(form) {
   if(field.disabled||field.readOnly) continue;
   values[key]=field.type==='checkbox'?field.checked:field.type==='number'?field.valueAsNumber:field.value;
  }
+ if(form.elements.primary_activity)Object.assign(values,crewTagFormValues(form));
  return values;
 }
 function changedCrewFields(before,after) {
- return Object.fromEntries(Object.entries(after).filter(([key,value])=>before[key]!==value));
+ return Object.fromEntries(Object.entries(after).filter(([key,value])=>Array.isArray(value)?JSON.stringify(before[key])!==JSON.stringify(value):before[key]!==value));
 }
 
 function bindCrewInfo(ui,detail) {
  const {body,footer,modal,error}=ui, owner=detail.membership.role==='owner';
- body.innerHTML=crewEditor(detail.crew);
+ body.innerHTML=crewEditor(detail.crew,owner);
  const form=body.querySelector('form');
  form.id='crew-settings-form';
+ bindCrewTagEditor(form);
  if(!owner){
   form.elements.name.readOnly=true;
   for(const key of ['join_policy','minimum_level']) form.elements[key].disabled=true;

@@ -53,10 +53,14 @@ function crewCard(c,mine){return `<a href="#crew/${esc(c.id)}" class="surface cr
 function chatComposer(dm=false,direct=false){
  return chatComposerHTML({id:'chat-compose',rich:dm,limit:2000,emojiAttributes:dm?'data-dm-emoji aria-controls="dm-emoji-picker"':'',sendAttributes:'data-chat-send'});
 }
-function crewEditor(c=null){
+function desktopCrewDirectory() {
+ return typeof matchMedia === 'function' && matchMedia('(min-width:801px)').matches;
+}
+
+function crewEditor(c=null, showTags=!c){
  const available=Number(c?.name_change_available_at||0)*1000,locked=available>Date.now(),days=Math.max(1,Math.ceil((available-Date.now())/86400000));
  const help=locked?`${days}일 뒤에 수정 가능합니다. (${new Date(available).toLocaleString('ko-KR')}부터)`:'크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.';
- return `${c?'':'<h2>새 크루 만들기</h2>'}<form id="crew-form" data-crew="${esc(c?.id||'')}" data-version="${c?.version||1}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" aria-describedby="crew-name-help" '+(locked?'readonly aria-readonly="true"':''))}<p id="crew-name-help" class="field-help" role="status">${esc(help)}</p><label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label>${crewV3SettingsHTML(c)}${crewImageEditorHTML(c)}${c?'':'<p class="field-help">완성 작품·협업·감상평 미션으로 성장해요. 하루 최대 100 XP, 주간 최대 270 XP.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p>'}</form>`;
+ return `${c?'':'<h2>새 크루 만들기</h2>'}<form id="crew-form" data-crew="${esc(c?.id||'')}" data-version="${c?.version||1}">${formField('크루 이름','name','text',c?.name||'','required maxlength="40" aria-describedby="crew-name-help" '+(locked?'readonly aria-readonly="true"':''))}<p id="crew-name-help" class="field-help" role="status">${esc(help)}</p><label class="form-field">소개<textarea name="description" maxlength="1000">${esc(c?.description||'')}</textarea></label>${formField('관심사 · 예: Ballad, K-POP','interests','text',c?.interests||'','maxlength="160"')}${showTags && desktopCrewDirectory() ? crewTagEditor(c) : ''}<label class="checkbox-line"><input name="recruiting" type="checkbox" ${c?.recruiting===0?'':'checked'}>새 멤버 모집</label>${crewV3SettingsHTML(c)}${crewImageEditorHTML(c)}${c?'':'<p class="field-help">완성 작품·협업·감상평 미션으로 성장해요. 하루 최대 100 XP, 주간 최대 270 XP.</p><button class="primary-button">저장</button><p class="form-error" role="alert"></p>'}</form>`;
 }
 function crewDetailView(d,param,tab='music',community=false,discovery=''){
  const c=d.crew,m=d.membership,owner=m?.role==='owner';
@@ -85,9 +89,11 @@ async function improvementsView(base,param,raw,readApi=api){
   // The crew tab resolves current membership from the home summary in one read.
   const hint=base==='community'?peekCrewNavigation('discovery'):null;
   if(hint?.mine&&!params.has('q')&&params.get('browse')!=='1'){try{return await liveCrewDetail(hint.mine,'music',readApi,true);}catch(e){if(e.status!==404)throw e;clearCrewNavigation();}}
-  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await readApi('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
+  const desktop=desktopCrewDirectory();
+  const account=me?.id||'guest',revision=typeof apiRevision==='number'?apiRevision:0,d=await readApi('/api/crews?q='+encodeURIComponent(q)+'&summary=1'+(desktop?'&directory=1':'')+(!params.has('q')&&params.get('browse')!=='1'?'&home=1':''));rememberCrewDiscovery(d,q,account,revision);
   if(d.detail){if(crewNavigationCurrent(account,revision))rememberCrewNavigation(d.mine,d.detail.crew);return crewDetailView(d.detail,d.mine,'music',true);}
   if(d.mine&&!params.has('q')&&params.get('browse')!=='1')return liveCrewDetail(d.mine,'music',readApi,true);
+  if(desktop)return crewDirectoryView(d,q);
   if(d.mine){const mine=await readApi('/api/crews/'+encodeURIComponent(d.mine));if(mine.membership){const view=crewDetailView(mine,d.mine,'find',true,crewDiscoveryHTML(d,q,true));return {...view,crewDiscovery:d};}}
   return {html:crewDiscoveryHTML(d,q),tracks:[],crewDiscovery:d};
  }
@@ -136,12 +142,14 @@ function bindCrewForm(){
  const form=$('#crew-form'),modal=$('#dialog'),controller=new AbortController();
  modal.addEventListener('close',()=>{controller.abort();form.remove();},{once:true});
  const save=form.querySelector('button.primary-button'),error=formError(form);
+ bindCrewTagEditor(form);
  const photo=bindCrewPhoto(form,{save,error,signal:controller.signal});
  let created=null;
  form.onsubmit=busyForm(form,async fd=>{
   photo.check();
   if(!created){
-   const d=await api('/api/crews','POST',{name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting'),...(fd.has('join_policy')?{join_policy:fd.get('join_policy'),minimum_level:Number(fd.get('minimum_level'))}:{}),notice:fd.get('notice')});
+   const tagged=!!form.elements.primary_activity;
+   const d=await api(tagged?'/api/crews?tags=1':'/api/crews','POST',{...crewTagFormValues(form),name:fd.get('name'),description:fd.get('description'),interests:fd.get('interests'),recruiting:fd.has('recruiting'),...(fd.has('join_policy')?{join_policy:fd.get('join_policy'),minimum_level:Number(fd.get('minimum_level'))}:{}),notice:fd.get('notice')});
    created=d.crew;form.dataset.crew=created.id;
    // The crew exists even if the independent photo PUT fails. Retry only the photo.
    for(const field of form.elements)if(field.name&&field.name!=='crew_image')field.disabled=true;
@@ -158,6 +166,13 @@ function bindCrewForm(){
 function bindImprovements(view){
  bindCrewHome(view);
  bindCrewDiscovery(view);
+ if(view?.crewDirectory)bindDesktopCrewDirectory(view.crewDirectory);
+ if(view?.crewDirectory||view?.crewDiscovery){
+  const media=matchMedia('(min-width:801px)');
+  const resize=()=>render();
+  media.addEventListener('change',resize);
+  registerRouteCleanup(()=>media.removeEventListener('change',resize));
+ }
  document.querySelectorAll('[data-crew-invite]').forEach(button=>button.onclick=async()=>{
   if(!me)return askLogin();if(button.disabled)return;button.disabled=true;
   const rid=button.dataset.requestId||(button.dataset.requestId=crypto.randomUUID());

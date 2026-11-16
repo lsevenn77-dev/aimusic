@@ -1,3 +1,4 @@
+import {storedCrewTags, includesCrewTags, crewTagsForWrite, findCrews} from './crew-directory.js';
 import {dubbingPosterSQL} from './dubbing-poster.js';
 import {legacyCrewNoticeDisplaySQL} from './crew-notice-display.js';
 import {welcomeConversation} from './welcome-notices.js';
@@ -24,7 +25,7 @@ const xpSQL="COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id)
 const crewSelect=`SELECT c.*,${xpSQL} xp,(SELECT count(*) FROM crew_members m WHERE m.crew_id=c.id) members FROM crews c`;
 const CREW_RENAME_INTERVAL=30*86400;
 const nameChangeAvailableAt=c=>c.name_changed_at?c.name_changed_at+CREW_RENAME_INTERVAL:0;
-const present=c=>({...c,...crewLevel(c.xp,c.highest_level,c.growth_started),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
+const present=c=>({...c,...storedCrewTags(c),...crewLevel(c.xp,c.highest_level,c.growth_started),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해주세요.');return b.request_id;};
 async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT m.*,c.name crew_name,c.image_version crew_image_version FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.crew_id=? AND m.user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있어요.');return m;}
 async function syncXp(env,crewId){await syncCrewGrowth(env,crewId);}
@@ -68,8 +69,13 @@ export async function socialRoute(req,env,path,user){
  if(gameMenu){if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');await member(env,gameMenu[1],user);return json(await crewGameCatalog(env,gameMenu[1]));}
  if(path==='/api/crews'){
   if(method==='GET'){
-   const mine=user?await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',user.id):null;
+   const mine=user?await one(env,'SELECT m.crew_id,c.name FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.user_id=?',user.id):null;
    if(mine&&url.searchParams.get('home')==='1')return json({mine:mine.crew_id,detail:await crewDetail(env,mine.crew_id,user)});
+   if(url.searchParams.get('directory')==='1'){
+    const result=await findCrews(env,url.searchParams,crewSelect,present);
+    const rankings=url.searchParams.get('summary')==='1'?await rows(env,`${crewSelect} ORDER BY xp DESC,c.created ASC,c.id ASC LIMIT 5`):null;
+    return json({...result,mine:mine?.crew_id||null,mine_name:mine?.name||null,rankings:rankings?.map(present)});
+   }
    if(mine)await syncXp(env,mine.crew_id);
    const q=(url.searchParams.get('q')||'').slice(0,80);
    // Level is a monotonic function of total XP, so this orders by level then XP
@@ -85,9 +91,10 @@ export async function socialRoute(req,env,path,user){
   requireUser(user);if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
   if(await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id))fail(409,'이미 가입한 크루가 있어요.');
   await rate(env,'crew-create:'+user.id,3,86400);const b=await req.json(),settings=crewSettings(b),cid=id(),name=str(b.name,40),description=str(b.description||'',1000,false),interests=str(b.interests||'',160,false);
+  const tagValues=crewTagsForWrite(b,null,url.searchParams.get('tags')==='1'||includesCrewTags(b));
   await ensureSocialProfile(env,user);
   try{await env.DB.batch([
-   query(env,'INSERT INTO crews(id,owner_id,name,description,interests,recruiting,created,join_policy,minimum_level,growth_started,notice) VALUES(?,?,?,?,?,?,?,?,?,?,?)',cid,user.id,name,description,interests,b.recruiting===false?0:1,now(),settings.join_policy,settings.minimum_level,now(),settings.notice),
+   query(env,'INSERT INTO crews(id,owner_id,name,description,interests,recruiting,created,join_policy,minimum_level,growth_started,notice,primary_activity,additional_activities,music_genres) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',cid,user.id,name,description,interests,b.recruiting===false?0:1,now(),settings.join_policy,settings.minimum_level,now(),settings.notice,...tagValues),
    query(env,"INSERT INTO crew_members(crew_id,user_id,role,joined,joined_sequence) VALUES(?,?,'owner',?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=?),0)+1)",cid,user.id,now(),cid),
    crewNotice(env,cid,user.id,(await memberName(env,user.id))+'님이 크루를 만들었습니다.')
   ]);}catch(e){if(/UNIQUE/i.test(e.message))fail(409,'크루 이름 또는 가입 상태를 확인해주세요.');throw e;}
@@ -146,14 +153,15 @@ export async function socialRoute(req,env,path,user){
   if(!action&&method==='PATCH'){
    if(!['owner','deputy','manager','operator'].includes(membership.role))fail(403,'크루 운영진만 설정할 수 있어요.');
    const b=await req.json(),settings=crewSettings(b,c),name=b.name===undefined?c.name:str(b.name,40),changed=name!==c.name,t=now();
-   if(membership.role!=='owner'&&(changed||b.join_policy!==undefined&&b.join_policy!==c.join_policy||b.minimum_level!==undefined&&Number(b.minimum_level)!==c.minimum_level))fail(403,'이 설정은 크루장만 변경할 수 있어요.');
+   if(membership.role!=='owner'&&(includesCrewTags(b)||changed||b.join_policy!==undefined&&b.join_policy!==c.join_policy||b.minimum_level!==undefined&&Number(b.minimum_level)!==c.minimum_level))fail(403,'이 설정은 크루장만 변경할 수 있어요.');
    const cooldown=()=>fail(409,`${Math.max(1,Math.ceil((nameChangeAvailableAt(c)-t)/86400))}일 뒤에 수정 가능합니다. 크루 이름은 변경 후 30일에 한 번 수정할 수 있어요.`);
    if(changed&&t<nameChangeAvailableAt(c))cooldown();
    if(b.version!==undefined&&b.version!==c.version)fail(409,'크루 정보가 변경됐어요. 다시 열어주세요.');
-   const details=[settings.join_policy,settings.minimum_level,settings.notice,str(b.description??c.description,1000,false),str(b.interests??c.interests,160,false),b.recruiting===undefined?c.recruiting:b.recruiting===false?0:1];
+   const tagValues=crewTagsForWrite(b,c,false);
+   const details=[...tagValues,settings.join_policy,settings.minimum_level,settings.notice,str(b.description??c.description,1000,false),str(b.interests??c.interests,160,false),b.recruiting===undefined?c.recruiting:b.recruiting===false?0:1];
    try{
     // The cooldown and ownership are checked in the write too, so two requests cannot rename twice.
-    const updated=changed?await one(env,'UPDATE crews SET name=?,name_changed_at=?,join_policy=?,minimum_level=?,notice=?,description=?,interests=?,recruiting=?,version=version+1 WHERE id=? AND owner_id=? AND version=? AND name=? AND (name_changed_at=0 OR name_changed_at<=?) RETURNING id',name,t,...details,cid,user.id,c.version,c.name,t-CREW_RENAME_INTERVAL):await one(env,'UPDATE crews SET join_policy=?,minimum_level=?,notice=?,description=?,interests=?,recruiting=?,version=version+1 WHERE id=? AND owner_id=? AND version=? RETURNING id',...details,cid,c.owner_id,c.version);
+    const updated=changed?await one(env,'UPDATE crews SET name=?,name_changed_at=?,primary_activity=?,additional_activities=?,music_genres=?,join_policy=?,minimum_level=?,notice=?,description=?,interests=?,recruiting=?,version=version+1 WHERE id=? AND owner_id=? AND version=? AND name=? AND (name_changed_at=0 OR name_changed_at<=?) RETURNING id',name,t,...details,cid,user.id,c.version,c.name,t-CREW_RENAME_INTERVAL):await one(env,'UPDATE crews SET primary_activity=?,additional_activities=?,music_genres=?,join_policy=?,minimum_level=?,notice=?,description=?,interests=?,recruiting=?,version=version+1 WHERE id=? AND owner_id=? AND version=? RETURNING id',...details,cid,c.owner_id,c.version);
     if(!updated)fail(409,'크루 정보가 변경되었어요. 새로고침 후 다시 확인해주세요.');
     await auditCrew(env,cid,user.id,'settings_changed').run();
    }catch(e){if(/UNIQUE.*crews.name/i.test(e.message))fail(409,'이미 사용 중인 크루 이름이에요. 다른 이름을 입력해주세요.');throw e;}
