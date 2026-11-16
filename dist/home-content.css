@@ -5,7 +5,7 @@
 #home-release.home-promo-carousel .home-feature-stage{height:100%;min-width:0;overflow:hidden}
 #home-release.home-promo-carousel .home-promo-link{--ui-space-scale:1;--ui-type-scale:1;display:block;position:relative;padding:0;width:100%;height:100%;color:var(--ds-text);text-decoration:none;user-select:none;-webkit-user-select:none;background:var(--home-promo-bg,var(--ds-bg))}
 #home-release.home-promo-carousel .home-promo-picture{display:block;position:relative;z-index:0;width:100%;height:100%;overflow:hidden}
-/* Original mobile photographs are also the only portrait layer on desktop. */
+/* The picture element selects the portrait for the current viewport. */
 #home-release.home-promo-carousel .home-promo-original{display:block;width:100%;height:100%;object-fit:cover;object-position:var(--home-promo-focus,71% 20%);border:0;border-radius:0}
 #home-release.home-promo-carousel .home-promo-scenery{display:none}
 @media(min-width:801px){
@@ -28,23 +28,14 @@
     keeps its existing center. Scenery and object overlays share this geometry. */
  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/talking-background-overlay-1536.webp');--home-promo-photo-scale:1.1;--home-promo-closeup-offset:calc(var(--home-feature-height,272px) * .1)}
  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-photo-scale:1.25;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
- #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1.32;--home-promo-shift:20cqi;--home-promo-inset-max:256px;--home-promo-closeup-offset:calc(var(--home-feature-height,272px) * .12)}
  /* Revised scenery holds exactly 154 source pixels beyond its 2211px anchor.
     Align that copied background with the unchanged original at every scale. */
- #home-release.home-promo-carousel :is([data-home-banner=studio],[data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking],[data-home-banner=crew]){--home-promo-left-edge:1.7994791667}
- /* Two narrow background-only overlaps match the repaired window and wall.
-    Their inspected source bounds exclude every face, shoulder, body and hand. */
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right{width:var(--home-promo-inset);z-index:1}
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::before,
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::after{content:"";position:absolute;left:calc(-1 * var(--home-promo-right-blend));width:var(--home-promo-right-blend);background-position:left top;background-size:100% 100%;background-repeat:no-repeat;mask-image:linear-gradient(90deg,transparent,#000),var(--home-promo-right-fade);-webkit-mask-image:linear-gradient(90deg,transparent,#000),var(--home-promo-right-fade);-webkit-mask-composite:source-in;mask-composite:intersect;pointer-events:none}
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::before{--home-promo-right-blend:calc(var(--home-promo-photo-height) * .0662983425);--home-promo-right-fade:linear-gradient(180deg,#000 96.4705882353%,transparent);top:0;height:calc(var(--home-promo-photo-height) * .4696132597);background-image:url('/assets/home-banners/repair-20261109/crew-right-window-blend-48.webp')}
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-scenery-right::after{--home-promo-right-blend:calc(var(--home-promo-photo-height) * .0276243094);--home-promo-right-fade:linear-gradient(180deg,transparent,#000 7.5%,#000 80%,transparent);top:calc(var(--home-promo-photo-height) * .4419889503);height:calc(var(--home-promo-photo-height) * .1104972376);background-image:url('/assets/home-banners/repair-20261109/crew-right-wall-blend-20.webp')}
+ #home-release.home-promo-carousel :is([data-home-banner=studio],[data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking]){--home-promo-left-edge:1.7994791667}
  @container(max-width:790px){
   #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:max(0px,calc(clamp(24px,8cqi,56px) - var(--home-promo-closeup-offset)))}
  }
  @container(min-width:541px) and (max-width:650px){
   #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:max(0px,calc(24px - var(--home-promo-closeup-offset)))}
-  #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-photo-scale:1.1;--home-promo-closeup-offset:calc(var(--home-feature-height,272px) * .1)}
  }
 }
 /* Gently shade and soften the scenery behind the words. Both effects diminish
@@ -68,6 +59,23 @@
 #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-bg:#202545;--home-promo-accent:#edca7e}
 @media(min-width:801px){
  #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-end:52%}
+ /* All slides reserve one height. The crew artwork contains its own copy and arrows. */
+ #home-release.home-promo-carousel .home-feature,
+ #home-release.home-promo-carousel .release-placeholder{--home-feature-height:clamp(174px,30.20335cqi,360px);height:var(--home-feature-height)}
+ #home-release.home-promo-carousel [data-home-banner=crew]{background:linear-gradient(90deg,#09212a,#141124)}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-picture{inset:0;width:100%;height:100%;aspect-ratio:auto;mask-image:none;-webkit-mask-image:none}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-desktop,
+ #home-release.home-promo-carousel [data-home-banner=crew]::before{display:none}
+ #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]){
+  --crew-art-width:min(100%,calc(var(--home-feature-height) * 1672 / 505));
+  --crew-arrow-inset:max(0px,calc(50% - var(--crew-art-width) * .47 - 22px));
+ }
+ #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-arrow{
+  top:calc(50% - min(var(--home-feature-height),30.20335cqi) * .045 - 22px);bottom:auto
+ }
+ #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-prev{left:var(--crew-arrow-inset)}
+ #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-next{right:var(--crew-arrow-inset)}
+ #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-arrow svg{visibility:hidden}
 }
 #home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;box-sizing:border-box;height:100%;width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
 #home-release.home-promo-carousel .home-promo-headline{font-size:clamp(22px,3.2cqi,36px);line-height:1.35;font-weight:750;font-style:italic;letter-spacing:-.04em;word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 2px 5px color-mix(in srgb,var(--ds-bg) 50%,transparent),0 4px 16px color-mix(in srgb,var(--ds-bg) 38%,transparent)}

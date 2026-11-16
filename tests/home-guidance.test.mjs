@@ -29,7 +29,7 @@ test('all eight service banners expose a whole-banner link and responsive WebP a
   assert.ok(html.includes(b.headline));assert.ok(html.includes(b.cta));
   assert.match(html,/<img\b[^>]*width="1536" height="768"/);
   assert.match(html,/768w, [^"]+1536w/);
-  assert.ok(html.includes(c.homeBannerBackgroundImage(b.id)),b.id+' must include its separate desktop scenery');
+  assert.equal(html.includes(c.homeBannerBackgroundImage(b.id)),b.id!=='crew');
   assert.equal((html.match(/<a\b/g)||[]).length,1,'the artwork and live copy share one destination on desktop and mobile');
   for(const width of [768,1536]){
    const image=readFileSync(new URL('../dist'+c.homeBannerImage(b.id,width),import.meta.url));
@@ -88,18 +88,35 @@ test('mobile retains the seven approved photos and uses the new full-frame crew 
  }
 });
 
-test('desktop and compact desktop reuse the exact mobile photo independently from generated scenery',()=>{
+test('desktop selects density-specific portraits and mobile keeps the reviewed photos',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
  for(const [index,banner] of banners.entries()){
   const original=c.homeBannerImage(banner.id,1536);
   const html=c.homeBannerHTML(banner,banners[(index+1)%banners.length]);
   const picture=html.match(/<picture\b[^>]*>[\s\S]*?<\/picture>/)?.[0];
   assert.ok(picture,banner.id+' needs the original photo as a separate layer');
-  for(const width of [801,860,1150,1151,1440,1920]){
-   assert.equal(pictureSourceAt(html,width),original,banner.id+' must retain the mobile original at '+width+'px');
+  const base='/assets/home-banners/portraits-20261116/'+banner.id+'-';
+  const desktop=banner.id==='crew'?'/assets/home-banners/portraits-20261116/aifect-crew-banner-final.webp':base+'896.webp 1x, '+base+'1536.webp 2x';
+  for(const width of [320,390,768,800])assert.equal(pictureSourceAt(html,width),original);
+  for(const width of [801,860,1150,1151,1440,1920])assert.equal(pictureSourceAt(html,width),desktop);
+  if(banner.id!=='crew'){
+   for(const size of [896,1536]){
+    const image=readFileSync(new URL('../dist'+base+size+'.webp',import.meta.url));
+    assert.equal(image.toString('ascii',8,12),'WEBP');
+   }
   }
+  const next=banners[(index+1)%banners.length];
+  const preload=Array.from(html.matchAll(/<link\b[^>]*>/g),match=>attributes(match[0]))
+   .find(tag=>tag.media==='(min-width: 801px)'&&tag.imagesrcset);
+  assert.equal(preload?.imagesrcset,pictureSourceAt(c.homeBannerHTML(next),1440));
   assert.equal(attributes(picture.match(/<img\b[^>]*>/)?.[0]||'').src,original);
   const scenery=Array.from(html.matchAll(/<span\b[^>]*>/g),match=>attributes(match[0])).filter(tag=>tag.class?.split(/\s+/).includes('home-promo-scenery'));
+  if(banner.id==='crew'){
+   assert.equal(scenery.length,0);
+   const final=readFileSync(new URL('../dist'+desktop,import.meta.url));
+   assert.equal(createHash('sha256').update(final).digest('hex'),'0c4569cdf4a19992107be35e1f55557476f8557ae6f4fe4007ac88b0d863d7b2');
+   continue;
+  }
   assert.equal(scenery.length,2,'both exposed sides need their own matching outpaint');
   for(const side of ['left','right']){
    const background=c.homeBannerBackgroundImage(banner.id,side);
