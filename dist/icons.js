@@ -62,6 +62,8 @@ paths.logout='M9 4H4v16h5m6-12 4 4-4 4m-6-4h12';
 paths.check='m5 12 4 4L19 6';
 // PLAY categories extend the existing 24px outline family without another icon library.
 paths.folder='M3 7V5a2 2 0 0 1 2-2h5l2 3h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z';
+paths['trending-up']='m3 17 6-6 4 4 8-9m-6 0h6v6';
+paths['file-pen-line']='M12 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l5 5v4m-6-9v6h6M8 12h4m-4 4h2m4 5 1-4 6-6 2 2-6 6-3 2Z';
 paths['list-pen']='M4 5h12M4 10h8M4 15h4m5 5 3-1 6-6-2-2-6 6-1 3Zm5-7 2 2';
 
 // Audio controls use the unchanged external artwork. The SVG viewport retains

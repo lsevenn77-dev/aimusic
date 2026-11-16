@@ -27,6 +27,10 @@ function playHref(mode='song',tab=playSections[mode][0][0],type='all'){
 }
 function playAlias(hash){
  const [route,query='']=hash.replace(/^#/,'').split('?'),q=new URLSearchParams(query);
+ if(route==='karaoke/dubbing'&&typeof desktopDubActive==='function'&&desktopDubActive()&&q.get('tab')!=='mine'&&!q.has('project')){
+  if(q.get('section')==='rank')return communityRankingHref({category:'dubbing',period:'week'});
+  if(q.get('view')==='complete')return playHref('browse','latest','dubbing');
+ }
  if(route==='play'||route==='karaoke/songs')return '#karaoke';
  if(route==='dubbing')return ['complete','popular','latest'].includes(q.get('tab'))?playHref('browse',q.get('tab')==='complete'?'recommended':q.get('tab'),'dubbing'):playHref('dubbing',q.get('tab')==='mine'?'mine':'discover');
  if(route==='covers'||route==='community/covers')return playHref('browse','recommended',['solo','duet'].includes(q.get('mode'))?q.get('mode'):'all');
@@ -57,7 +61,8 @@ function playRouteTargetsHTML(raw=''){
  if(raw)routes.add('#'+raw.replace(/^#/,''));
  return '<div data-play-route-targets hidden aria-hidden="true">'+[...routes].map(href=>'<span data-play-route-target id="'+esc(href.slice(1))+'"></span>').join('')+'</div>';
 }
-function playSubtabs(s){
+function playSubtabs(s,raw=''){
+ if(s.mode==='dubbing'&&typeof desktopDubActive==='function'&&desktopDubActive())return desktopDubTabs(s,raw);
  const menu=s.mode==='dubbing'?[['create','더빙 만들기','plus'],...playSections.dubbing]:playSections[s.mode];
  return playTabs(menu,s.tab,'플레이 하위 메뉴',t=>s.mode==='dubbing'&&t==='create'?'#dubbing/new':playHref(s.mode,t,s.type),'play-category-tabs'+(s.mode==='dubbing'?' play-dubbing-tabs':''));
 }
@@ -69,10 +74,17 @@ function playTabs(items,active,label,href,extra=''){
  const primary=extra==='play-main-tabs';
  return `<nav class="tabs play-tabs ${extra}${primary?' aifect-main-tabs':''}" role="tablist" aria-label="${label}">${items.map(([key,title,symbol],index)=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" tabindex="${active===key?'0':'-1'}" ${active===key?'aria-current="page"':''} ${primary?`data-tab-tone="${['pink','mint','purple'][index]}"`:''} href="${esc(href(key))}">${symbol?icon(symbol):''}<span>${title}</span></a>`).join('')}</nav>`;
 }
+function playPanelLabel(s,raw){
+ if(s.mode==='dubbing'&&typeof desktopDubActive==='function'&&desktopDubActive()){
+  const tab=desktopDubSelection(s,raw),entry=desktopDubMenu.find(([key])=>key===tab);
+  if(entry)return entry[1];
+ }
+ return playSections[s.mode].find(([key])=>key===s.tab)[1];
+}
 function playShell(s,content,raw=''){
  return `<div class="play-page" data-play-mode="${s.mode}">${playRouteTargetsHTML(raw)}<div class="home-content-refresh play-banner" id="play-banner" aria-label="플레이 추천 배너"></div>${playTabs([['song','노래'],['dubbing','더빙'],['browse','둘러보기']],s.mode,'플레이 종류',m=>playHref(m),'play-main-tabs')}
- <div class="play-subbar">${playSubtabs(s)}</div>
- <section class="play-content" aria-label="${playSections[s.mode].find(([k])=>k===s.tab)[1]}">${content}</section></div>`;
+ <div class="play-subbar">${playSubtabs(s,raw)}</div>
+ <section class="play-content" aria-label="${playPanelLabel(s,raw)}">${content}</section></div>`;
 }
 // Show the selected banner while its list loads, then retain that same carousel
 // so the response cannot flash the first slide or restart its four-second clock.
@@ -169,7 +181,7 @@ function playDraftRows(drafts){
 }
 function playResults(view){
  const s=view.play,items=view.items;
- if(view.discovery)return dubDiscoveryHTML(view);
+ if(view.discovery)return view.discovery.desktop?desktopDubHTML(view):dubDiscoveryHTML(view);
  if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다려요':'아직 표시할 작품이 없어요',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모여요.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모여요.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
  if(s.mode==='dubbing')return s.tab==='mine'?playProjectRows(items,s.tab):dubbingCastingHTML(view);
  if(s.mode==='song')return `<div class="play-song-unified">${playSongRows(items,s.tab)}</div>`;
@@ -178,15 +190,19 @@ function playResults(view){
 const playNavigationCache=new Map();
 const playCacheAccount=()=>typeof me==='undefined'?'guest':me?.id||'guest';
 const playCacheRevision=()=>typeof apiRevision==='number'?apiRevision:0;
+function playViewKey(raw,account=playCacheAccount()){
+ const desktop=raw.startsWith('karaoke/dubbing')&&typeof desktopDubActive==='function'&&desktopDubActive();
+ return account+':'+(desktop?'desktop:':'')+raw;
+}
 function cachedPlayView(raw){
- const key=playCacheAccount()+':'+raw,entry=playNavigationCache.get(key);
+ const key=playViewKey(raw),entry=playNavigationCache.get(key);
  if(!entry)return null;
  if(entry.revision!==playCacheRevision()||entry.until<=Date.now()){playNavigationCache.delete(key);return null;}
  return {...entry.view,play:{...entry.view.play},items:[...entry.view.items],tracks:[...entry.view.tracks]};
 }
 function cachePlayView(view){
  if(view.pending||view.error||view.gated||view.play.mode==='song'&&view.play.tab==='drafts'||view.account!==playCacheAccount()||view.revision!==playCacheRevision())return;
- const key=view.account+':'+view.raw;
+ const key=playViewKey(view.raw,view.account);
  const {html,...data}=view;playNavigationCache.delete(key);
  playNavigationCache.set(key,{view:data,revision:view.revision,until:Date.now()+30000});
  while(playNavigationCache.size>24)playNavigationCache.delete(playNavigationCache.keys().next().value);
@@ -198,7 +214,7 @@ function playListHTML(view){
  if(view.play.mode==='song'&&view.play.tab==='drafts')return playDraftRows(view.drafts||[]);
  return (view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+playResults(view);
 }
-function playToolsHidden(view){return view.discovery||view.gated||view.play.mode==='song'&&view.play.tab==='drafts';}
+function playToolsHidden(view){return (view.discovery&&!view.discovery.desktop)||view.gated||view.play.mode==='song'&&view.play.tab==='drafts';}
 function playExtraHTML(view){return !view.gated&&view.play.mode==='dubbing'&&view.play.tab==='mine'?castingMineTabs(view.play.kind):'';}
 function playContentHTML(view){
  return `<div data-play-tools ${playToolsHidden(view)?'hidden':''}>${playToolbar(view.play)}</div><div data-play-extra>${playExtraHTML(view)}</div><div id="play-results" aria-live="polite"${view.pending?' aria-busy="true"':''}>${playListHTML(view)}</div><button class="small-button play-more" id="play-more" ${(view.nextOffset==null||view.pending||view.error||view.gated)?'hidden':''}>더 보기</button>`;
@@ -261,7 +277,8 @@ function paintPlayRoute(view,raw){
  root._playListCleanup?.();root._playView=view;
  root.dataset.playMode=s.mode;
  playSetTabState(root.querySelector('.play-main-tabs'),s.mode);
- if(changedMode)root.querySelector('.play-subbar').innerHTML=playSubtabs(s);
+ const desktopTabs=s.mode==='dubbing'&&typeof desktopDubActive==='function'&&desktopDubActive();
+ if(changedMode||desktopTabs||root.querySelector('.dub-desktop-tabs'))root.querySelector('.play-subbar').innerHTML=playSubtabs(s,raw);
  else playSetTabState(root.querySelector('.play-category-tabs'),s.tab,s.mode,s.type);
  const tools=root.querySelector('[data-play-tools]');
  if(changedMode)tools.innerHTML=playToolbar(s);
@@ -270,7 +287,7 @@ function paintPlayRoute(view,raw){
  const type=tools.querySelector('#play-work-type');if(type)type.value=s.type;
  const extra=root.querySelector('[data-play-extra]'),extraHTML=playExtraHTML(view);
  if(extra.innerHTML!==extraHTML)extra.innerHTML=extraHTML;
- root.querySelector('.play-content').setAttribute('aria-label',playSections[s.mode].find(([key])=>key===s.tab)[1]);
+ root.querySelector('.play-content').setAttribute('aria-label',playPanelLabel(s,raw));
  root.querySelector('.play-load-error')?.remove();
  const results=root.querySelector('#play-results');results.innerHTML=playListHTML(view);
  if(view.pending)results.setAttribute('aria-busy','true');else results.removeAttribute('aria-busy');
@@ -308,6 +325,13 @@ async function refreshPlayRoute(raw,ticket,readApi=api,visible){
  finally{clearTimeout(timer);}
  return true;
 }
+function playTabKeydown(e){
+ if(!(e.target instanceof HTMLAnchorElement))return;
+ const nav=e.target.closest('nav[role="tablist"]');if(!nav||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
+ const tabs=[...nav.querySelectorAll('a')],i=tabs.indexOf(e.target);if(i<0)return;e.preventDefault();
+ const next=tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];
+ tabs.forEach(tab=>{tab.tabIndex=tab===next?0:-1;});next.focus({preventScroll:true});
+}
 function bindPlay(view){
  if(!view?.play)return;
  const root=document.querySelector('.play-page');if(!root)return;
@@ -323,20 +347,15 @@ function bindPlay(view){
     const tab=event.target.closest('.play-main-tabs a[role="tab"]');
     if(tab)selectPlayBanner(playRouteSelection(tab.getAttribute('href'))?.mode);
    }
-   if(event.target.closest('[data-play-retry]')){playNavigationCache.delete(playCacheAccount()+':'+root._playView.raw);void render();}
+   if(event.target.closest('[data-play-retry]')){playNavigationCache.delete(playViewKey(root._playView.raw));void render();}
   });
-  root.addEventListener('keydown',e=>{
-   if(!(e.target instanceof HTMLAnchorElement))return;
-   const nav=e.target.closest('nav[role="tablist"]');if(!nav||!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;
-   const tabs=[...nav.querySelectorAll('a')],i=tabs.indexOf(e.target);if(i<0)return;e.preventDefault();
-   const next=tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];
-   tabs.forEach(tab=>{tab.tabIndex=tab===next?0:-1;});next.focus({preventScroll:true});
-  });
+  root.addEventListener('keydown',playTabKeydown);
   const scroll=()=>{if(root.isConnected&&!root._playView?.pending)holdPlayViewport(root);};
   window.addEventListener('scroll',scroll,{passive:true});
   if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{window.removeEventListener('scroll',scroll);root._playListCleanup?.();});
  }
- root.classList?.toggle('dub-discovery-active',typeof isDubDiscovery==='function'&&isDubDiscovery(view));
+ root.classList?.toggle('dub-discovery-active',typeof isDubDiscovery==='function'&&isDubDiscovery(view)&&!(typeof desktopDubActive==='function'&&desktopDubActive()));
+ if(view.discovery?.desktop){bindDesktopDub(view,root);return;}
  if(view.discovery){bindDubDiscovery(view,root);return;}
  if(!view.pending&&!view.error&&!view.gated&&view.play.mode==='dubbing'&&view.play.tab!=='mine')bindDubbingCasting(view,root);
  root.querySelectorAll('img.play-dubbing-art').forEach(image=>{if(image instanceof HTMLImageElement&&image.complete&&!image.naturalWidth)playDubbingArtworkError({target:image});});

@@ -1,3 +1,7 @@
+function scheduleSearchInput(previous,search){
+ clearTimeout(previous);
+ return setTimeout(search,220);
+}
 let searchPreviousRoute='',searchOrigin=null,searchResizeCleanup=null;
 // The mobile disclosure opens the same search form and submit handler used on PC.
 function bindHeaderSearch(){

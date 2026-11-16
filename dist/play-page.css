@@ -1,5 +1,5 @@
 /* Scoped layout only; home tokens, card controls and the global shell remain authoritative. */
-.play-page[data-play-mode="song"]{--play-accent:#FF75B4}
+.play-page[data-play-mode="song"],.play-page .dub-desktop-tabs{--play-accent:#FF75B4}
 .play-page[data-play-mode="dubbing"]{--play-accent:#B7A0FF}
 .play-page[data-play-mode="browse"]{--play-accent:#80E0D3}
 /* Paint on the full-width shell, outside the capped main content. Each layer

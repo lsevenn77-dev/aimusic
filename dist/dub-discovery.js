@@ -2,7 +2,7 @@
 const dubGenres=['전체','로맨스','판타지','스릴러','공포','코미디','액션','일상','사극','SF'];
 const dubCache=new Map();
 function isDubDiscovery(view){
- return view.play.mode==='dubbing'&&view.play.tab==='discover'&&!new URLSearchParams(view.raw.split('?')[1]).has('project');
+ return view.play.mode==='dubbing'&&(view.play.tab==='discover'||view.play.tab==='join'&&desktopDubActive())&&!new URLSearchParams(view.raw.split('?')[1]).has('project');
 }
 function dubSettings(raw){
  const params=new URLSearchParams(raw.split('?')[1]);
@@ -26,15 +26,15 @@ async function dubPages(readApi,path,key,next){
  }
 }
 async function readDubDiscovery(view,readApi){
- const s=dubSettings(view.raw),key=[view.account,view.revision,s.mode].join('|');
+ const s=dubSettings(view.raw),desktop=desktopDubActive(),key=[view.account,view.revision,s.mode,desktop].join('|');
  const cached=dubCache.get(key);
  if(cached&&cached.until>Date.now())return cached.data;
  const complete=s.mode==='complete';
  const [projects,weekly]=await Promise.all([
-  dubPages(readApi,'/api/dubbing/projects?tab='+(complete?'popular':'open')+'&discovery=1','projects','nextOffset'),
+  dubPages(readApi,'/api/dubbing/projects?tab='+(complete?'popular':'open')+'&discovery=1'+(desktop?'&castingRoles=1':''),'projects','nextOffset'),
   complete?dubPages(readApi,'/api/community/rankings?category=dubbing&period=week','rows','next_offset'):[]
  ]);
- const data={projects,weekly};
+ const data={projects,weekly,desktop};
  if(view.account===playCacheAccount()&&view.revision===playCacheRevision()){
   dubCache.set(key,{data,until:Date.now()+30000});
   while(dubCache.size>6)dubCache.delete(dubCache.keys().next().value);
@@ -172,4 +172,125 @@ function bindDubDiscovery(view,root){
  });
  if(form)form.onsubmit=e=>{e.preventDefault();location.hash=dubHref(s,{query:form.elements.q.value.trim()});};
  if(sort)sort.onchange=()=>{location.hash=dubHref(s,{sort:sort.value});};
+}
+
+const desktopDubMedia=typeof matchMedia==='function'?matchMedia('(min-width: 801px)'):null;
+function desktopDubActive(){return !!desktopDubMedia?.matches;}
+desktopDubMedia?.addEventListener('change',()=>{
+ if(/^#karaoke\/dubbing(?:\?|$)/.test(location.hash))void render();
+});
+const desktopDubMenu=[['discover','추천더빙','sparkles'],['popular','인기더빙','trending-up'],['join','더빙참여','mic'],['create','대본제작','file-pen-line']];
+function desktopDubSelection(s,raw){
+ if(raw.split('?')[0]==='dubbing/new')return 'create';
+ if(s.tab==='discover'&&dubSettings(raw).sort==='popular')return 'popular';
+ return s.tab;
+}
+function desktopDubURL(tab,query='',genre='전체'){
+ if(tab==='create')return dubbingNewURL();
+ const href=playHref('dubbing',tab==='popular'?'discover':tab);
+ const params=new URLSearchParams(href.split('?')[1]);
+ if(tab==='popular')params.set('sort','popular');
+ if(query)params.set('q',query);
+ if(genre!=='전체')params.set('genre',genre);
+ return href.split('?')[0]+'?'+params;
+}
+function desktopDubTabs(s,raw){
+ const state=dubSettings(raw),selected=desktopDubSelection(s,raw);
+ return playTabs(desktopDubMenu,selected,'플레이 하위 메뉴',tab=>desktopDubURL(tab,state.query,state.genre),'play-category-tabs dub-desktop-tabs');
+}
+function bindDesktopDubCreation(raw){
+ if(!desktopDubMedia)return;
+ const main=document.querySelector('#main'),play={mode:'dubbing',tab:'discover'};
+ // Move the live form across the breakpoint so unsaved fields, listeners and focus survive.
+ const content=[...main.children].filter(el=>!el.matches('h1.sr-only'));
+ let shell;
+ function sync(){
+  const focus=document.activeElement;
+  if(desktopDubActive()&&!shell){
+   main.insertAdjacentHTML('beforeend',playShell(play,'',raw));
+   shell=main.lastElementChild;shell.querySelector('[data-play-route-targets]').remove();shell.querySelector('.play-content').append(...content);
+   shell.addEventListener('keydown',playTabKeydown);bindPlayBanner(play,shell);
+  }else if(!desktopDubActive()&&shell){
+   if(shell.contains(playBannerElement))playBannerCleanup?.();
+   shell.before(...content);shell.remove();shell=null;
+  }
+  if(focus instanceof HTMLElement&&focus!==document.body&&focus.isConnected&&focus!==document.activeElement)focus.focus({preventScroll:true});
+ }
+ sync();desktopDubMedia.addEventListener('change',sync);
+ registerRouteCleanup(()=>desktopDubMedia.removeEventListener('change',sync));
+}
+function desktopDubCard(project,tab){
+ const join=tab==='join';
+ const href=join?playHref('dubbing','join')+'&project='+encodeURIComponent(project.id):dubWorkURL({mode:'open'},project);
+ const genres=(project.genres||[]).map(g=>g==='사극'?'시대극':g);
+ const duration=Number.isFinite(project.duration)&&project.duration>0?time(project.duration):'';
+ const meta=[genres.join(' · '),duration].filter(Boolean).join(' · ');
+ const status=project.state==='recording'?'녹음 진행 중':'배역 모집 중';
+ const progress=Number.isInteger(project.activeCount)&&project.activeCount>0?' · '+project.activeCount+'개 조합 진행 중':'';
+ const roles=join?'<small class="dub-available-roles">참여 가능 · '+esc(project.availableRoles.join(', '))+'</small>':'';
+ return '<a class="dub-poster-card" href="'+esc(href)+'"><span class="dub-poster-art">'+dubPhoto(project)+'</span>'+
+  '<strong>'+esc(project.title)+'</strong><small>'+esc(meta)+'</small><small>'+esc(status+progress)+'</small>'+roles+'</a>';
+}
+function desktopDubBanners(){
+ const link=(href,symbol,title,copy)=>'<a href="'+esc(href)+'">'+icon(symbol)+'<span><strong>'+title+'</strong><small>'+copy+'</small></span>'+icon('chevron')+'</a>';
+ return '<footer class="dub-desktop-banners">'+link(dubbingNewURL(),'file-pen-line','더빙 대본 만들기','나만의 이야기를 직접 만들어보세요.')+
+  link(playHref('browse','latest','dubbing'),'headphones','완성작 보러가기','다른 이용자들의 완성된 더빙을 감상해보세요.')+'</footer>';
+}
+function desktopDubHTML(view,limit=10){
+ const state=dubSettings(view.raw),tab=desktopDubSelection(view.play,view.raw),query=state.query.trim().toLocaleLowerCase('ko');
+ const all=view.discovery.projects.filter(p=>p.reusable&&p.visibility==='public'&&
+  ['recruiting','recording','in_progress','script_ready'].includes(p.state)&&p.availableRoles?.length);
+ const items=all.filter(p=>(state.genre==='전체'||p.genres?.includes(state.genre))&&
+  (!query||[p.title,p.ownerName].some(v=>String(v||'').toLocaleLowerCase('ko').includes(query))));
+ const latest=(a,b)=>b.created-a.created||a.id.localeCompare(b.id);
+ items.sort(tab==='popular'?(a,b)=>b.activeCount-a.activeCount||b.completedCount-a.completedCount||latest(a,b):latest);
+ const genres='<nav class="dub-genres" aria-label="더빙 장르">'+dubGenres.map(g=>'<a href="'+esc(desktopDubURL(tab,state.query,g))+'"'+(state.genre===g?' aria-current="page"':'')+'>'+esc(g==='사극'?'시대극':g)+'</a>').join('')+'</nav>';
+ const grid=rows=>'<div class="dub-poster-grid">'+rows.map(p=>desktopDubCard(p,tab)).join('')+'</div>';
+ const section=(title,body)=>'<section class="dub-desktop-section"><h2>'+title+'</h2>'+body+'</section>';
+ const blank=text=>'<p class="dub-empty" role="status">'+text+'</p>';
+ let body=genres;
+ if(!items.length)body+=blank(query||state.genre!=='전체'?'검색 조건에 맞는 작품이 없어요.':'현재 참여할 수 있는 더빙 작품이 없어요.');
+ else{
+  if(tab==='discover'){
+   body+=dubOriginals({mode:'open'},items);
+   const starters=items.filter(p=>p.beginnerRecommended===true).sort((a,b)=>Number(b.roleCount===2&&b.duration>=240&&b.duration<=300)-Number(a.roleCount===2&&a.duration>=240&&a.duration<=300)||latest(a,b));
+   body+=section('더빙이 처음이라면',starters.length?grid(starters):blank('아직 초보자용으로 지정된 작품이 없어요.'));
+  }
+  const title=tab==='discover'?'신규 작품':tab==='popular'?'인기더빙':'참여 가능한 작품';
+  body+=section(title,grid(items.slice(0,limit))+(items.length>limit?'<button class="small-button play-more" type="button" data-dub-more>더 보기</button>':''));
+ }
+ const mine='<a class="dub-mine-link" href="'+esc(playHref('dubbing','mine'))+'">내 더빙 작업 '+icon('chevron')+'</a>';
+ return '<div class="dub-hub dub-desktop">'+body+mine+(tab==='discover'?desktopDubBanners():'')+'</div>';
+}
+function bindDesktopDub(view,root){
+ const form=root.querySelector('#play-search'),input=form.elements.q,results=root.querySelector('#play-results');
+ let timer,limit=10;
+ const state=dubSettings(view.raw),tab=desktopDubSelection(view.play,view.raw);
+ input.value=state.query;form.inert=false;
+ function paint(){results.innerHTML=desktopDubHTML(view,limit);icons();}
+ function apply(){
+  clearTimeout(timer);
+  if(!form.isConnected||root._playView!==view)return;
+  const raw=desktopDubURL(tab,input.value.trim(),dubSettings(view.raw).genre).slice(1);
+  if(raw===view.raw)return;
+  history.replaceState(history.state,'','#'+raw);view.raw=raw;root.closest('#main').dataset.route=raw;window.AifectRender?.syncTarget();
+  root.querySelector('.play-subbar').innerHTML=desktopDubTabs(view.play,raw);
+  limit=10;paint();
+ }
+ const schedule=()=>{timer=scheduleSearchInput(timer,apply);};
+ input.oninput=e=>{if(e.isComposing)clearTimeout(timer);else schedule();};
+ input.oncompositionstart=()=>clearTimeout(timer);input.oncompositionend=schedule;
+ form.onsubmit=e=>{e.preventDefault();apply();};
+ const click=e=>{
+  const more=e.target.closest('[data-dub-more]');
+  if(more){const prior=limit;limit+=10;paint();results.querySelectorAll('.dub-desktop-section:last-of-type .dub-poster-card')[prior]?.focus({preventScroll:true});return;}
+  const a=e.target.closest('.dub-genres a,.dub-desktop-tabs a');
+  if(!a||e.button!==0||e.ctrlKey||e.metaKey||e.shiftKey||e.altKey)return;
+  clearTimeout(timer);
+  if(input.value.trim()===dubSettings(view.raw).query||a.hash.startsWith('#dubbing/new'))return;
+  const params=new URLSearchParams(a.hash.split('?')[1]);if(input.value.trim())params.set('q',input.value.trim());else params.delete('q');
+  a.hash=a.hash.split('?')[0]+'?'+params;
+ };
+ root.addEventListener('click',click);
+ root._playListCleanup=()=>{clearTimeout(timer);input.oninput=input.oncompositionstart=input.oncompositionend=null;form.onsubmit=null;root.removeEventListener('click',click);};
 }

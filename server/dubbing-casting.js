@@ -15,8 +15,12 @@ async function accessible(env,pid,user){
  AND (p.visibility='public' OR p.owner_id=?) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id)) AND ${blockSQL}`,pid,uid,uid,uid,uid,uid);
  if(!p)fail(404,'더빙 작품을 찾을 수 없습니다.');return p;
 }
+// The published owner take occupies one role in each new casting combination.
+export function baseRecordingSQL(columns,project,owner){
+ return `SELECT ${columns} FROM dubbing_recordings r JOIN dubbing_recording_permissions v ON v.recording_id=r.id WHERE r.project_id=${project} AND r.user_id=${owner} AND r.state='submitted' AND v.visibility='public' AND v.license_version=? ORDER BY r.created LIMIT 1`;
+}
 async function baseRecording(env,root){
- return one(env,`SELECT r.* FROM dubbing_recordings r JOIN dubbing_recording_permissions v ON v.recording_id=r.id WHERE r.project_id=? AND r.user_id=? AND r.state='submitted' AND v.visibility='public' AND v.license_version=? ORDER BY r.created LIMIT 1`,root.id,root.owner_id,CASTING_LICENSE);
+ return one(env,baseRecordingSQL('r.*','?','?'),root.id,root.owner_id,CASTING_LICENSE);
 }
 async function members(env,pid,onlyRecord=null){
  const list=await rows(env,`SELECT r.id,r.user_id,r.role_id roleId,${publicNameSQL('u')} name,u.account_type,(SELECT id FROM producers WHERE user_id=u.id) profile_id,(SELECT image_version FROM producers WHERE user_id=u.id) image_version

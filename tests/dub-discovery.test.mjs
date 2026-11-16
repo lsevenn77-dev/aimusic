@@ -61,3 +61,31 @@ test('the original shelf uses official script roots and custom posters with real
  assert.doesNotMatch(shelf,/#dubbing\/r2/);
  assert.doesNotMatch(html('section=rank',[original]),/class="dub-originals"/);
 });
+
+test('desktop discovery filters playable script roots and keeps the writing and finished-work links last',()=>{
+ const c=vm.createContext({URLSearchParams,esc:String,icon:()=>'',time:s=>String(s),AifectDubbing:{dubbingGenreArtwork:()=>'/poster.webp'},dubbingNewURL:()=>'#dubbing/new',playHref:(mode,tab,type)=>'#karaoke/'+mode+'?'+new URLSearchParams({tab,...(type?{type}:{})})});
+ vm.runInContext(readFileSync(new URL('../dist/dub-discovery.js',import.meta.url),'utf8'),c);
+ const projects=Array.from({length:13},(_,i)=>({...work(i),state:'recruiting',reusable:true,visibility:'public',availableRoles:['서연'],genres:['사극'],duration:null,activeCount:0,completedCount:i}));
+ const unavailable=[{state:'complete'},{visibility:'private'},{availableRoles:[]}].map(update=>({...projects[0],id:'unavailable',...update}));
+ const view={raw:'karaoke/dubbing?tab=discover',play:{mode:'dubbing',tab:'discover'},discovery:{desktop:true,projects:[...projects,...unavailable]}};
+ const cards=html=>html.split('<section class="dub-desktop-section"><h2>신규 작품</h2>').at(-1).match(/class="dub-poster-card"/g)?.length;
+ const home=c.desktopDubHTML(view);
+ assert.equal(cards(home),10);assert.match(home,/data-dub-more/);assert.equal(cards(c.desktopDubHTML(view,20)),13);
+ assert.doesNotMatch(home,/unavailable|NaN|undefined|data-dc-audio|data-dub-menu|dub-rank|완성작 리스트/);
+ assert.match(home,/더빙이 처음이라면/);assert.match(home,/<footer class="dub-desktop-banners">.*#dubbing\/new.*type=dubbing.*<\/footer><\/div>$/s);
+ const popular=c.desktopDubHTML({...view,raw:view.raw+'&sort=popular'});
+ assert.ok(popular.indexOf('href="#dubbing/r12"')<popular.indexOf('href="#dubbing/r11"'));
+ const join=c.desktopDubHTML({...view,raw:'karaoke/dubbing?tab=join&genre=사극&q=작가+12',play:{mode:'dubbing',tab:'join'}});
+ assert.match(join,/시대극<\/a>/);assert.match(join,/project=r12/);assert.match(join,/참여 가능 · 서연/);
+ assert.equal((join.match(/class="dub-poster-card"/g)||[]).length,1);
+ assert.match(c.desktopDubHTML({...view,raw:view.raw+'&genre=SF&q=작가+12'}),/검색 조건에 맞는 작품이 없어요/);
+});
+
+test('desktop casting availability excludes the submitted owner role and leaves the legacy response intact',async t=>{
+ const f=await castingFixture(t,2);
+ const get=async suffix=>(await f.call('/api/dubbing/projects?tab=open&discovery=1'+suffix)).body.projects.find(p=>p.id===f.root);
+ const original=await get('&castingRoles=1');assert.equal(original.availableRoles.length,2);
+ await f.base();const seeded=await get('&castingRoles=1');
+ assert.deepEqual(seeded.availableRoles,original.availableRoles.slice(1));
+ assert.equal((await get('')).availableRoles,undefined);
+});

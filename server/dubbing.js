@@ -22,7 +22,7 @@ import {dubbingQuota,reserveDubbingGeneration} from './dubbing-quota.js';
 import {dubbingRewardRoute} from './dubbing-rewarded.js';
 import {dubbingRewardAvailable} from './dubbing-ad-config.js';
 import {dubbingRecordingRoute,dubbingRecordingStatus,recordingEnabled} from './dubbing-recording.js';
-import {dubbingCastingRoute,castingInfo} from './dubbing-casting.js';
+import {dubbingCastingRoute,castingInfo,baseRecordingSQL,CASTING_LICENSE} from './dubbing-casting.js';
 
 const uuid=value=>{if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))fail(400,'요청 식별자를 확인해주세요.');return value;};
 const revision=value=>{if(!Number.isSafeInteger(value)||value<1)fail(400,'저장 버전을 확인해주세요.');return value;};
@@ -81,8 +81,10 @@ export async function dubbingRoute(req,env,path,user){
   if(tab==='mine')requireUser(user);
   const offset=Math.max(0,Math.min(10000,Math.floor(Number(url.searchParams.get('offset'))||0)));
   const discovery=url.searchParams.get('discovery')==='1'&&tab!=='mine';
+  const castingRoles=discovery&&tab==='open'&&url.searchParams.get('castingRoles')==='1';
+  const roleColumns=castingRoles?`json_extract(p.script_json,'$.roles') cast_roles,(${baseRecordingSQL('r.role_id','p.id','p.owner_id')}) base_role,`:'';
   const where=tab==='mine'?`(p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?))`:`p.visibility='public'${tab==='open'?" AND p.root_id IS NULL":" AND p.state='complete'"}`;
-  const list=await rows(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.root_id,p.owner_id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${discovery?`root.title root_title,root.owner_id root_owner_id,${publicNameSQL('creator')} root_owner_name,${dubbingPlayCountSQL('p')} plays,`:''} ${publicNameSQL('u')} owner_name,
+  const list=await rows(env,`SELECT p.id,${roleColumns}${dubbingPosterSQL} posterUrl,p.root_id,p.owner_id,p.title,p.options_json,p.role_count,p.duration,p.state,p.visibility,p.created,p.updated,${discovery?`root.title root_title,root.owner_id root_owner_id,${publicNameSQL('creator')} root_owner_name,${dubbingPlayCountSQL('p')} plays,`:''} ${publicNameSQL('u')} owner_name,
    EXISTS(SELECT 1 FROM dubbing_sound_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.mode='ai' AND COALESCE(j.output_key,'')!=''
     AND EXISTS(SELECT 1 FROM json_each(j.timeline_json,'$.sounds') cue WHERE json_extract(cue.value,'$.kind') IN ('sfx','ambient') AND json_extract(cue.value,'$.volume')>0)) has_sound_effects,
    (SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
@@ -92,12 +94,13 @@ export async function dubbingRoute(req,env,path,user){
    ${search?'AND (p.title LIKE ? OR '+publicNameSQL('u')+' LIKE ?)':''}
    ${genre?"AND EXISTS(SELECT 1 FROM json_each(p.options_json,'$.genres') g WHERE g.value=?)":''}
    ORDER BY ${tab==='popular'?'(SELECT COUNT(*) FROM likes WHERE dubbing_id=p.id) DESC,':''}${tab==='latest'?'p.updated':'p.created'} DESC,p.id LIMIT 25 OFFSET ?`,
-   ...(tab==='mine'?[user.id,user.id]:[]),user?.id||'',user?.id||'',...(discovery?[user?.id||'',user?.id||'']:[]),...(search?['%'+search+'%','%'+search+'%']:[]),...(genre?[genre]:[]),offset);
+   ...(castingRoles?[CASTING_LICENSE]:[]),...(tab==='mine'?[user.id,user.id]:[]),user?.id||'',user?.id||'',...(discovery?[user?.id||'',user?.id||'']:[]),...(search?['%'+search+'%','%'+search+'%']:[]),...(genre?[genre]:[]),offset);
   const counts=discovery?await dubbingDiscoveryCounts(env,list,user):null;
   return json({projects:list.map(p=>{
    const options=JSON.parse(p.options_json),rootId=p.root_id||p.id;
    return {id:p.id,posterUrl:p.posterUrl,title:p.title,genres:options.genres,roleCount:p.role_count,duration:p.duration,state:p.state,visibility:p.visibility,reusable:tab==='open',
     hasSoundEffects:!!p.has_sound_effects,ownerName:p.owner_name,ownerId:p.owner_id,participants:p.participants,created:p.created,
+    ...(castingRoles?{availableRoles:JSON.parse(p.cast_roles||'[]').filter(role=>role.id!==p.base_role).map(role=>role.name)}:{}),
     ...(discovery?{rootId,rootTitle:p.root_title,isOfficialOriginal:p.root_owner_id===officialDubbingProducerId,rootOwnerName:p.root_owner_name,activeCount:0,weeklyActiveCount:0,completedCount:0,...counts.get(rootId),beginnerRecommended:options.beginnerRecommended===true,plays:p.plays}:{})};
   }),nextOffset:list.length===25?offset+25:null});
  }

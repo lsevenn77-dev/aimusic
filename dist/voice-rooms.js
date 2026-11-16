@@ -233,8 +233,9 @@ class VoiceRoomClient {
   $('#voice-noise').checked=this.preferences.noise;$('#voice-noise').onchange=()=>{this.preferences.noise=$('#voice-noise').checked;this.safe(async()=>{const track=this.stream?.getAudioTracks()[0];if(track?.applyConstraints)await track.applyConstraints({noiseSuppression:this.preferences.noise});});};
   $('#voice-music-seek').onchange=()=>this.safe(()=>this.musicCommand('seek',{position:Number($('#voice-music-seek').value)}));
   $('#voice-music-search').onsubmit=e=>{e.preventDefault();clearTimeout(this.searchTimer);this.safe(()=>this.searchMusic());};
-  $('#voice-music-query').oninput=e=>{clearTimeout(this.searchTimer);this.searchSerial=(this.searchSerial||0)+1;this.searchAbort?.abort();if(!e.isComposing)this.searchTimer=setTimeout(()=>this.safe(()=>this.searchMusic()),220);};
-  $('#voice-music-query').oncompositionend=()=>{clearTimeout(this.searchTimer);this.searchTimer=setTimeout(()=>this.safe(()=>this.searchMusic()),220);};
+  const scheduleMusic=()=>{this.searchTimer=scheduleSearchInput(this.searchTimer,()=>this.safe(()=>this.searchMusic()));};
+  $('#voice-music-query').oninput=e=>{clearTimeout(this.searchTimer);this.searchSerial=(this.searchSerial||0)+1;this.searchAbort?.abort();if(!e.isComposing)scheduleMusic();};
+  $('#voice-music-query').oncompositionend=scheduleMusic;
   this.musicSelection=new Map();
   $('#voice-music-results').onclick=e=>{
    const button=e.target.closest('[data-music-track]');if(!button||button.disabled)return;
