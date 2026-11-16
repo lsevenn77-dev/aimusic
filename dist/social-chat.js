@@ -254,6 +254,7 @@ function patchDmInbox(root,html,previous){
  const empty=incoming.nextElementSibling,priorEmpty=list.nextElementSibling;
  if(empty?.outerHTML!==priorEmpty?.outerHTML){priorEmpty?.remove();if(empty)list.after(empty);}
 }
+const dmLoadingSpinnerHTML='<span class="dm-loading-spinner" role="status" aria-label="대화 불러오는 중"></span>';
 let dmSession=null;
 function bindSocialChat(view){
  if(!view?.inbox&&!view?.chat)return;
@@ -363,10 +364,11 @@ function bindSocialChat(view){
    pane.className=param?'message-thread-pane':'message-welcome';
    if(param)pane.setAttribute('aria-label','선택한 대화');else pane.removeAttribute('aria-label');
    if(!param){pane.removeAttribute('aria-busy');pane.innerHTML=dmWelcomeHTML();if(leavingFinder)root.querySelector('[data-dm-find]')?.focus({preventScroll:true});return;}
-   pane.setAttribute('aria-busy','true');
-   pane.innerHTML='<p class="message-thread-loading" role="status">대화를 불러오는 중…</p>';
    const timedSignal=AbortSignal.any([request.signal,AbortSignal.timeout(20000)]);
    const read=async path=>{
+    timedSignal.throwIfAborted();
+    pane.setAttribute('aria-busy','true');
+    if(!pane.firstElementChild?.classList.contains('dm-loading-spinner'))pane.innerHTML=dmLoadingSpinnerHTML;
     const data=await readDmPanel(path,historyCache,timedSignal);
     if(!active())throw new DOMException('대화가 변경되었어요.','AbortError');
     return data;
@@ -391,7 +393,7 @@ function bindSocialChat(view){
  addTarget(route);addInboxTargets(inboxData);syncCrewInbox(inboxData?.crew);
  if(root&&inboxData)paintInbox(inboxData);
  if(view.chat?.peer&&view.chat.initial)rememberDmHistory(historyCache,view.chat.path,view.chat.initial);
- bindPanel(view);
+ if(view.openThread)void session.select(route);else bindPanel(view);
  if(view.refreshInbox)void loadInbox();
  socialCleanup=()=>{
   closed=true;controller?.abort();unbindPanel();stopInbox();stopCrewInbox?.();
@@ -444,7 +446,8 @@ function bindChatThread(view,workspace=null){
  const mobileChat=()=>window.AifectMobileInput?.isMobile()??innerWidth<=800;
  const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;patchChatLog(log,html);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
  const deny=()=>{if(!current())return;denied=true;stopBinding(false);if(crew){chatGeneration++;unsent.pending.clear();clearChatPending(uid,path);setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
- if(initial||unsent.pending.size)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
+ if(initial||unsent.pending.size)paint(false,true);
+ else log.innerHTML=workspace?dmLoadingSpinnerHTML:'<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
   if(!current()||denied)return;if(fetching){if(!older)again=true;else earlier.disabled=false;return;}fetching=true;
   try{do{again=false;const list=sorted().filter(m=>m.sequence),cursor=older?list[0]?.sequence:latestSequence;
@@ -462,7 +465,7 @@ function bindChatThread(view,workspace=null){
    if(!workspace)void refreshMessageBadge();
    if(!older&&cursor&&d.has_more)again=true;
   }while(again&&current()&&!older);}
-  catch(e){if(current()){$('#chat-error').textContent=e.message;if([401,403].includes(e.status))deny();}}
+  catch(e){if(current()){if(workspace)log.querySelector?.('.dm-loading-spinner')?.remove();$('#chat-error').textContent=e.message;if([401,403].includes(e.status))deny();}}
   finally{fetching=false;earlier.disabled=false;if(again&&older&&current())void load();}
  };
  earlier.onclick=()=>{earlier.disabled=true;load(true);};

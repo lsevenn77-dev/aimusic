@@ -36,6 +36,9 @@
 #main #dm-conversations .crew-inbox-art{display:grid;place-items:center;width:44px;height:44px;flex:0 0 44px;border:0;border-radius:16px;background:color-mix(in srgb,#8eddd2 12%,transparent);color:#8eddd2}
 #main #dm-conversations .notice-art{background:color-mix(in srgb,var(--ds-accent-lavender) 12%,transparent);color:var(--ds-accent-lavender)}
 #main .message-workspace .message-thread-pane,#main .message-workspace .message-welcome{background:var(--ds-bg);min-height:0;overflow:hidden}
+#main .message-workspace .dm-loading-spinner{display:block;box-sizing:border-box;flex:none;width:32px;height:32px;margin:auto;border:3px solid #8EDDD2;border-right-color:transparent;border-radius:50%;animation:dm-loading-spin .8s linear infinite}
+#main .message-workspace #chat-log:has(>.dm-loading-spinner){display:grid;place-items:center;padding:0;scrollbar-gutter:auto}
+@keyframes dm-loading-spin{to{transform:rotate(1turn)}}
 #main .message-workspace .dm-thread-header{flex:none;display:flex;flex-wrap:nowrap;align-items:center;gap:16px;padding:14px 24px!important;margin:0;background:var(--ds-bg);border-bottom:1px solid var(--ds-line)}
 #main .message-workspace .dm-thread-header h1{min-width:0;margin:0;font-size:var(--dm-thread-title)!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #main .message-workspace .dm-thread-header :is(.dm-back,.icon-button,.dm-block-button){width:44px;min-width:44px;height:44px;min-height:44px;background:none;box-shadow:none;border:0;color:var(--ds-body)}

@@ -26,9 +26,12 @@ test('profile-less follower navigation is gated and exposes only the returned pu
  const {c,calls}=context({id:'me'},{'/api/followers/u':{profile:{id:null,name:'Listener',user_id:'u'}}});
  const page=await c.improvementsView('follower','u','follower/u');assert.match(page.html,/Listener/);assert.doesNotMatch(page.html,/data-follow|data-profile-gift|#dm\/null/);assert.deepEqual(calls,['/api/followers/u']);
 });
-test('a DM opened directly has an explicit return to the conversation list',async()=>{
- const {c}=context({id:'me'},{'/api/blocks':{blocks:[]},'/api/dm':{conversations:[]},'/api/dm/p':{peer:{id:'p',name:'Singer'},messages:[]}});c.chatPanelHTML=()=>'<div>CHAT</div>';
- const page=await c.improvementsView('dm','p','dm/p');assert.match(page.html,/dm-thread-header/);assert.match(page.html,/href="#dm"/);assert.match(page.html,/대화 목록으로 돌아가기/);
+test('a direct DM entry mounts the workspace before reading history, then offers a return to the list',async()=>{
+ const {c,calls}=context({id:'me'},{'/api/dm/p':{peer:{id:'p',name:'Singer'},messages:[]}});c.chatPanelHTML=()=>'<div>CHAT</div>';
+ const entry=await c.improvementsView('dm','p','dm/p');
+ assert.equal(entry.openThread,true);assert.deepEqual(calls,[]);assert.match(entry.html,/message-thread-pane[^>]*><span class="dm-loading-spinner"/);
+ const page=await c.dmRouteView('p','dm/p',c.api,null,(_inbox,html)=>html);
+ assert.deepEqual(calls,['/api/dm/p']);assert.match(page.html,/dm-thread-header/);assert.match(page.html,/href="#dm"/);assert.match(page.html,/대화 목록으로 돌아가기/);
 });
 test('cover grid/list presentation uses the cover ID and never enables unpublished own music',()=>{
  const {c}=context({id:'owner'});let mode='grid';c.localStorage={getItem:()=>mode};

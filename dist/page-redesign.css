@@ -254,7 +254,6 @@ main[data-route^="sing/"]{background:radial-gradient(ellipse at 50% 25%,#5834493
 .message-thread-pane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden}
 .message-thread-pane .dm-thread-header{display:flex;flex-shrink:0;padding:17px 20px!important;margin:0!important;border-bottom:1px solid #ffffff14;position:static;background:#1d2533}
 .message-thread-pane .chat-panel{flex:1;width:100%;max-width:none;min-height:0;height:auto;margin:0;border-radius:0}
-.message-thread-loading{align-items:center;justify-content:center;min-height:280px;color:var(--ds-muted)}
 .message-list-pane .inbox-tools{flex-wrap:wrap;justify-content:flex-end;gap:7px}
 .dm-thread-actions .dm-block-button{font-size:.73rem;padding:7px 10px;color:var(--ds-body)}
 .blocked-people{padding:24px;overflow:auto;font-size:.85rem;line-height:1.8;color:var(--ds-muted)}
