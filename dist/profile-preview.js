@@ -110,12 +110,17 @@ function closeProfilePreview(reason,restoreFocus=true){
  profilePreviewOrigin=null;
  if(reason==='dismiss')document.dispatchEvent(new Event('aifect-profile-dismiss'));
 }
+function profileFollowButton(key,following,followsViewer,managementAction=null){
+ const mutual=following&&followsViewer&&!key.startsWith('artist/');
+ const label=mutual?'맞팔중':'팔로우';
+ return `<button type="button" class="primary-button" data-follow-presentation="profile" data-follows-viewer="${!!followsViewer}" data-follow="${esc(key)}" aria-pressed="${!!following}" aria-label="${following?(mutual?'맞팔중, 팔로우 취소':'팔로우 취소'):'팔로우'}" ${managementAction!==null?'data-fm-relation':''} ${managementAction?'data-fm="'+managementAction+'"':''}>${profilePreviewIcons.follow}<span data-follow-label>${label}</span></button>`;
+}
 function profilePreviewActions(d, own) {
  const p=d.profile, id=encodeURIComponent(p.id||''), artist=!!d.artist;
  if(own&&!artist)return `<a class="primary-button" href="#profile/edit">${profilePreviewIcons.edit}<span>프로필 수정</span></a><button type="button" class="small-button" data-preview-share="${esc(p.id||'')}">${profilePreviewIcons.share}<span>공유</span></button><a class="small-button" href="#profile">${icon('chevron')}<span>내 페이지</span></a>`;
  if(!p.id)return p.public_id?`<a class="small-button" href="#member/${esc(p.public_id)}">프로필 보기</a>`:'';
  const fan='#artist/'+id, following=!!d.following;
- return `<button type="button" class="primary-button" data-follow-presentation="profile" data-follows-viewer="${!artist&&!!d.follows_viewer}" data-follow="${artist?'artist':'producer'}/${esc(p.id)}" aria-pressed="${following}">${profilePreviewIcons.follow}<span data-follow-label>${following&&!artist&&d.follows_viewer?'맞팔중':'팔로우'}</span></button>
+ return `${profileFollowButton((artist?'artist/':'producer/')+p.id,following,!artist&&d.follows_viewer)}
  <a class="small-button" href="${artist?fan+'?tab=lounge&amp;compose=1':'#dm/'+id}" ${artist?'data-preview-lounge':'data-preview-message'}>${icon('message')}<span>${artist?'응원글':'메시지'}</span></a>
  <a class="small-button" href="${artist?fan:'#producer/'+id}">${icon('chevron')}<span>${artist?'팬페이지':'더보기'}</span></a>
  <button type="button" class="small-button" data-preview-gift="${esc(p.id)}">${icon('gift')}<span>선물 보내기</span></button>`;
@@ -168,7 +173,14 @@ async function openProfilePreview(id,origin){
   if(d.profile.id)paintFollowState(kind+'/'+d.profile.id,followed(kind,d.profile.id),pendingFollows.has(kind+'/'+d.profile.id),undefined,d.follows_viewer);
   const room=typeof voiceController!=='undefined'?voiceController:null;
   if(room?.joined&&!room.closed&&room.host?.isConnected)room.adoptRoomPopup(panel,origin);
-  else{panel.showModal();panel.querySelector('[data-preview-close]').focus();}
+  else{
+   if(origin?.closest?.('.fm-page')){
+    panel.classList.add('fm-profile-dialog');
+    panel.querySelector('[data-preview-close]').remove();
+   }
+   panel.showModal();
+   (panel.querySelector('[data-preview-close]')||panel.querySelector('.profile-preview-photo')).focus();
+  }
   panel.addEventListener('cancel',event=>{event.preventDefault();closeProfilePreview('dismiss');});
   panel.addEventListener('keydown',event=>{
    if(event.key!=='Tab')return;

@@ -56,3 +56,24 @@ test('a listener blocking a followed artist cannot remove a separate fan moderat
  assert.equal((await f.call('/api/artists/artist/follow','PUT',{},'other')).status,403);
  await write(f,'blocks','unblock',['a:artist'],'other');assert.equal((await f.call(endpoint+'tab=artists&artist=artist')).body.total,0);
 });
+
+test('list rows distinguish reciprocal personal edges, unrelated artist follows and public profile fields',async t=>{
+ const f=await fixture(t);load(f);
+ f.sql.exec("UPDATE producers SET bio='소개' WHERE id='p2'");
+ const list=async(tab,user='owner')=>(await f.call(endpoint+'user=owner&tab='+tab,'GET',null,user)).body.items;
+ const row=(await list('following')).find(r=>r.uid==='other');
+ assert.equal(row.bio,'소개');assert.match(row.public_id,/^[A-Z]{3}\d{4}$/);
+ assert.equal(row.following,1);assert.equal(row.follows_viewer,1);
+ const guest=(await list('following',null)).find(r=>r.uid==='other');
+ assert.equal(guest.following,0);assert.equal(guest.follows_viewer,0);
+ f.sql.exec("DELETE FROM follows WHERE kind='producer' AND user_id='other'");
+ assert.equal((await list('following'))[0].follows_viewer,0);
+});
+test('unfollowing one displayed member also resolves a legacy member key for the same profile',async t=>{
+ const f=await fixture(t);load(f);
+ f.sql.exec("INSERT INTO follows VALUES('owner','member','other',5)");
+ assert.equal((await f.call(endpoint+'tab=following')).body.total,1);
+ assert.deepEqual((await write(f,'following','unfollow',['m:other'])).body.ok,['m:other']);
+ assert.equal((await f.call(endpoint+'tab=following')).body.total,0);
+ assert.equal((await f.call(endpoint+'tab=followers')).body.total,1);
+});

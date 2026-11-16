@@ -46,7 +46,7 @@ function source(s){
  UNION ALL SELECT p.user_id,a.id,NULL,b.created FROM artist_follow_blocks b JOIN artists a ON a.id=b.artist_id JOIN producers p ON p.id=a.producer_id WHERE b.direction='artist' AND b.user_id=${actor}`;
  return `WITH RECURSIVE ctx(viewer,owner,artist) AS (VALUES(?,?,?)),edges(uid,aid,scope,created) AS (${({followers:received,following:sent,artists:fans,blocks:blocked})[s.tab]}),
  people AS (SELECT CASE WHEN e.aid IS NOT NULL THEN 'a:'||e.aid WHEN e.scope IS NOT NULL THEN 's:'||e.scope||':'||u.id ELSE 'm:'||u.id END key,
- u.id uid,e.aid artist_id,e.scope,sa.name scope_name,p.id profile_id,COALESCE(a.name,${publicNameSQL()}) name,COALESCE(a.image_version,p.image_version) image_version,
+ u.id uid,e.aid artist_id,e.scope,sa.name scope_name,p.id profile_id,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,CASE WHEN e.aid IS NULL THEN p.bio ELSE a.bio END bio,COALESCE(a.name,${publicNameSQL()}) name,COALESCE(a.image_version,p.image_version) image_version,
  max(e.created) created FROM edges e JOIN users u ON u.id=e.uid LEFT JOIN producers p ON p.user_id=u.id LEFT JOIN artists a ON a.id=e.aid LEFT JOIN artists sa ON sa.id=e.scope
  WHERE u.provider!='deleted' ${s.tab==='blocks'?'':`AND NOT ${personal(actor,'u.id')} AND NOT ${personal(owner,'u.id')} AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks b WHERE b.artist_id=e.aid AND b.user_id IN (${actor},${owner}))`} GROUP BY key)`;
 }
@@ -80,7 +80,11 @@ async function list(env,s,q){
  const filtered=cte+', matched AS (SELECT * FROM people WHERE lower(name) GLOB ?)';
  const count=query(env,cte+' SELECT count(*) total,count(CASE WHEN lower(name) GLOB ? THEN 1 END) matched FROM people',...args,pattern);
  const after=q.get('after')||'';
- const page=query(env,filtered+(byName?sortKeys:'')+' SELECT '+(keys?'m.key,m.name':`m.*,EXISTS(SELECT 1 FROM follows f WHERE f.user_id=${actor} AND ((m.artist_id IS NOT NULL AND f.kind='artist' AND f.target_id=m.artist_id) OR (m.artist_id IS NULL AND ((f.kind='producer' AND f.target_id=m.profile_id) OR (f.kind='member' AND f.target_id=m.uid))))) following`)+
+ const page=query(env,filtered+(byName?sortKeys:'')+' SELECT '+(keys?'m.key,m.name':`m.*,COALESCE((SELECT sum(x.amount) FROM player_xp x WHERE x.user_id=m.uid),0) player_xp,
+  (EXISTS(SELECT 1 FROM follows f WHERE f.user_id=${actor} AND ((m.artist_id IS NOT NULL AND f.kind='artist' AND f.target_id=m.artist_id) OR (m.artist_id IS NULL AND ((f.kind='producer' AND f.target_id=m.profile_id) OR (f.kind='member' AND f.target_id=m.uid))))) OR (m.artist_id IS NULL AND EXISTS(SELECT 1 FROM ai_support_follows bot WHERE bot.bot_id=${actor} AND bot.owner_id=m.uid))) following,
+  (m.artist_id IS NULL AND ${actor}!='' AND (EXISTS(SELECT 1 FROM follows reverse WHERE reverse.user_id=m.uid AND
+    ((reverse.kind='member' AND reverse.target_id=${actor}) OR (reverse.kind='producer' AND reverse.target_id=(SELECT id FROM producers WHERE user_id=${actor}))))
+    OR EXISTS(SELECT 1 FROM ai_support_follows bot WHERE bot.bot_id=m.uid AND bot.owner_id=${actor}))) follows_viewer`)+
  ' FROM matched m '+(byName?"JOIN sortkeys sk ON sk.key=m.key AND sk.rest='' ":'')+(keys?'WHERE m.key>? ':'')+'ORDER BY '+(keys?'m.key':byName?nameOrder:'m.created DESC,m.key')+' LIMIT ? OFFSET ?',...args,pattern,...(keys?[after]:[]),limit+1,keys?0:offset);
  if(keys){const {results}=await page.all(),items=results.slice(0,limit);return json({items,next:results.length>limit?items.at(-1).key:null});}
  const [counts,pageData]=await env.DB.batch([count,page]),items=pageData.results.slice(0,limit),next=pageData.results.length>limit?(keys?items.at(-1).key:offset+limit):null;
@@ -100,7 +104,12 @@ async function mutate(req,env,s){
  else if(op==='remove'){
   statements.push(q(`DELETE FROM follows WHERE ((kind='member' AND target_id=${actor}) OR (kind='producer' AND target_id=(SELECT id FROM producers WHERE user_id=${actor}))) AND user_id IN (SELECT uid FROM targets)`),q(`DELETE FROM ai_support_follows WHERE owner_id=${actor} AND bot_id IN (SELECT uid FROM targets)`));
  }else if(op==='follow')statements.push(q(`INSERT OR IGNORE INTO follows SELECT ${actor},CASE WHEN profile_id IS NULL THEN 'member' ELSE 'producer' END,coalesce(profile_id,uid),? FROM targets`,now()));
- else if(op==='unfollow')statements.push(q(`DELETE FROM follows WHERE user_id=${actor} AND (kind,target_id) IN (SELECT CASE WHEN artist_id IS NOT NULL THEN 'artist' WHEN profile_id IS NOT NULL THEN 'producer' ELSE 'member' END,coalesce(artist_id,profile_id,uid) FROM targets)`));
+ else if(op==='unfollow')statements.push(
+  q(`DELETE FROM follows WHERE user_id=${actor} AND (kind,target_id) IN (
+    SELECT 'artist',artist_id FROM targets WHERE artist_id IS NOT NULL UNION ALL
+    SELECT 'producer',profile_id FROM targets WHERE artist_id IS NULL UNION ALL
+    SELECT 'member',uid FROM targets WHERE artist_id IS NULL)`),
+  q(`DELETE FROM ai_support_follows WHERE bot_id=${actor} AND owner_id IN (SELECT uid FROM targets WHERE artist_id IS NULL)`));
  else if(op==='block'&&s.tab==='artists')statements.push(q(`INSERT OR IGNORE INTO artist_follow_blocks SELECT ${artist},uid,'fan',? FROM targets`,now()));
  else if(op==='block'){
   statements.push(q(`INSERT OR IGNORE INTO artist_follow_blocks SELECT artist_id,${actor},'artist',? FROM targets WHERE artist_id IS NOT NULL`,now()),q(`INSERT OR IGNORE INTO user_blocks SELECT ${actor},uid,? FROM targets WHERE artist_id IS NULL`,now()));

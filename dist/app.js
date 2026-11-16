@@ -93,7 +93,8 @@ async function refreshLibrary(fresh=false,readApi=api){const uid=me?.id,readRevi
 function paintInteractions(){
  document.querySelectorAll('[data-track-like-label]').forEach(label=>{label.textContent=liked(label.closest('[data-like]').dataset.like)?'좋아요 해제':'좋아요';});
  document.querySelectorAll('[data-like]').forEach(b=>{const tid=b.dataset.like;b.classList.toggle('is-active',liked(tid));b.setAttribute('aria-pressed',String(liked(tid)));b.disabled=pendingLikes.has(tid);const count=trackMap.get(tid)?.likes,label=b.querySelector('[data-like-count]');if(label&&count!=null){label.textContent=number(count);b.setAttribute('aria-label',`좋아요 ${number(count)}개`);}});
- document.querySelectorAll('[data-follow]').forEach(b=>{const [kind,id]=b.dataset.follow.split('/');paintFollowState(b.dataset.follow,followed(kind,id),pendingFollows.has(b.dataset.follow));});
+ const keys=new Set([...document.querySelectorAll('[data-follow]')].filter(button=>!button.hasAttribute?.('data-fm-relation')).map(button=>button.dataset.follow));
+ for(const key of keys){const [kind,id]=key.split('/');paintFollowState(key,followed(kind,id),pendingFollows.has(key));}
 }
 async function toggleLike(button){
  if(!me)return askLogin();const tid=button.dataset.like;if(pendingLikes.has(tid))return;
@@ -114,8 +115,8 @@ function paintFollowState(key,following,busy,followers,followsViewer){
   if(button.dataset.follow!==key)return;
   const label=button.querySelector('[data-follow-label]')||button;
   if(button.dataset.followPresentation==='profile'){
-   if(followsViewer!==undefined)button.dataset.followsViewer=String(key.startsWith('producer/')&&!!followsViewer);
-   const mutual=following&&key.startsWith('producer/')&&button.dataset.followsViewer==='true';
+   if(followsViewer!==undefined)button.dataset.followsViewer=String(!key.startsWith('artist/')&&!!followsViewer);
+   const mutual=following&&!key.startsWith('artist/')&&button.dataset.followsViewer==='true';
    label.textContent=mutual?'맞팔중':'팔로우';
    button.setAttribute('aria-label',following?(mutual?'맞팔중, 팔로우 취소':'팔로우 취소'):'팔로우');
   }else label.textContent=label.dataset.followLabel||(following?'팔로잉':'팔로우');
@@ -127,10 +128,15 @@ function paintFollowState(key,following,busy,followers,followsViewer){
 }
 async function toggleFollow(button){
  if(!me)return askLogin();const key=button.dataset.follow;if(pendingFollows.has(key))return;
- const [kind,id]=key.split('/'),uid=me.id,prior=library.follows.find(f=>f.kind===kind&&f.target_id===id),following=!prior;
+ const [kind,id]=key.split('/'),uid=me.id,saved=library.follows.find(f=>f.kind===kind&&f.target_id===id);
+ // A public list can include an edge outside the currently loaded library.
+ const fromList=button.hasAttribute?.('data-fm-relation');
+ const wasFollowing=fromList?button.getAttribute('aria-pressed')==='true':!!saved;
+ const prior=wasFollowing?saved||{name:button.closest('li')?.querySelector('.fm-name a')?.textContent||''}:null;
+ const following=!wasFollowing;
  const counter=[...document.querySelectorAll('[data-followers]')].find(node=>node.dataset.followers===key),oldCount=counter?Number(counter.dataset.count):undefined;
  pendingFollows.set(key,uid);updateFollowLocal(kind,id,following,prior||{name:button.closest('article,section')?.querySelector('h2,h3')?.textContent||''});paintFollowState(key,following,true,oldCount===undefined?undefined:Math.max(0,oldCount+(following?1:-1)));
- try{const result=await api('/api/'+(kind==='artist'?'artists':'producers')+'/'+id+'/follow',following?'PUT':'DELETE');if(me?.id!==uid)return;updateFollowLocal(kind,id,result.following,result.profile);paintFollowState(key,result.following,false,result.followers,result.follows_viewer);if(typeof window!=='undefined'&&window.dispatchEvent)window.dispatchEvent(new CustomEvent('aifect:follow-saved',{detail:{kind,id,following:result.following}}));}
+ try{const result=await api('/api/'+(kind==='artist'?'artists':'producers')+'/'+id+'/follow',following?'PUT':'DELETE');if(me?.id!==uid)return;updateFollowLocal(kind,id,result.following,result.profile);paintFollowState(key,result.following,false,result.followers,result.follows_viewer);if(typeof window!=='undefined'&&window.dispatchEvent)window.dispatchEvent(new CustomEvent('aifect:follow-saved',{detail:{kind,id,following:result.following,followsViewer:result.follows_viewer}}));}
  catch(error){if(me?.id===uid){updateFollowLocal(kind,id,!!prior,prior);paintFollowState(key,!!prior,false,oldCount);}throw error;}
  finally{if(pendingFollows.get(key)===uid)pendingFollows.delete(key);if(me?.id===uid)paintFollowState(key,followed(kind,id),false);}
 }
