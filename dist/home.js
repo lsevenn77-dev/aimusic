@@ -99,7 +99,16 @@ const homeBanners=[
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',subtitle:'고음질로 음악을 더 깊이 즐겨요.',cta:'프리미엄 혜택 보기',href:'#membership'}
 ].filter(b=>b.id!=='premium'||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false);
 function homeBannerImage(id,width){return '/assets/home-banners/'+(id==='crew'?'seamless-20261109/':'mobile-20261109/')+id+'-'+width+'.webp';}
+const homeBannerDesktopSizes='(max-width: 1150px) calc(100vw - 275px), min(1420px, calc(100vw - 305px))';
+function homeWideBanner(id){
+ return (typeof inApp==='undefined'||!inApp)&&id!=='premium';
+}
 function homeBannerDesktopSources(id){
+ if(homeWideBanner(id)){
+  const base='/assets/home-banners/wide-20261116/'+id+'-';
+  const large=id==='crew'?2148:2840;
+  return base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
+ }
  if(id==='crew')return '/assets/home-banners/portraits-20261116/aifect-crew-banner-final.webp';
  const base='/assets/home-banners/portraits-20261116/'+id+'-';
  return base+'896.webp 1x, '+base+'1536.webp 2x';
@@ -126,10 +135,18 @@ function homeBannerHTML(b,next){
  const sizes='(max-width: 800px) 100vw, '+(b.id==='artists'?'680':b.id==='crew'?'718':b.id==='talking'?'598':'544')+'px';
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
  const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
- const sides=id=>id==='crew'?[]:['left','right'];
+ const sides=id=>homeWideBanner(id)||id==='crew'?[]:['left','right'];
  const scenery=id=>sides(id).map(side=>`<span class="home-promo-scenery home-promo-scenery-${side}" aria-hidden="true" style="--home-promo-scenery:url('${homeBannerBackgroundImage(id,side)}')"></span>`).join('');
- const preload=next?sides(next.id).map(side=>`<link rel="preload" as="image" href="${homeBannerBackgroundImage(next.id,side)}" media="(min-width: 801px)" fetchpriority="low">`).join('')+`<link rel="preload" as="image" imagesrcset="${homeBannerDesktopSources(next.id)}" media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:'';
- return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${b.id==='crew'?'width="1672" height="505"':'width="1536" height="768"'}><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
+ const preload=next?sides(next.id).map(side=>`<link rel="preload" as="image" href="${homeBannerBackgroundImage(next.id,side)}" media="(min-width: 801px)" fetchpriority="low">`).join('')+`<link rel="preload" as="image" imagesrcset="${homeBannerDesktopSources(next.id)}" ${homeWideBanner(next.id)?'imagesizes="'+homeBannerDesktopSizes+'"':''} media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:'';
+ return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" ${homeWideBanner(b.id)?'data-wide-banner':''} href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${homeWideBanner(b.id)?'sizes="'+homeBannerDesktopSizes+'" width="1420" height="363"':b.id==='crew'?'width="1672" height="505"':'width="1536" height="768"'}><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
+}
+// A jump to an unvisited desktop slide can outrun the next-image preload.
+function prepareHomeBanner(b){
+ if(!homeWideBanner(b.id)||!window.matchMedia('(min-width: 801px)').matches)return;
+ const image=new Image();
+ image.sizes=homeBannerDesktopSizes;
+ image.srcset=homeBannerDesktopSources(b.id);
+ return image.decode();
 }
 function homeParticipationHTML(){
  return '<div class="home-participation"><h2>함께 만들 작품을 골라보세요</h2><div class="home-participation-options"><a class="small-button" href="#karaoke/duets">듀엣 참여하기 '+icon('chevron')+'</a><a class="small-button" href="#karaoke/dubbing?tab=join">더빙 참여하기 '+icon('chevron')+'</a></div></div>';
@@ -163,7 +180,7 @@ function mountHomeRail(target){
  homeRailCleanups.set(target.id,()=>{target.removeEventListener('click',click);target.removeEventListener('keydown',key);rail.removeEventListener('scroll',update);window.removeEventListener('resize',update);observer?.disconnect();});
 }
 function homeHTML(){return `<div class="listening-home listening-home-v2 home-content-refresh"><h1 class="sr-only">홈</h1>
- <section id="home-release" class="home-promo-carousel" aria-label="AIFECT 이용 안내 배너"></section>
+ <section id="home-release" class="home-promo-carousel${homeWideBanner('studio')?' home-promo-wide':''}" aria-label="AIFECT 이용 안내 배너"></section>
  <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#charts?period=week')}<div class="home-music-grid"></div><p class="home-load-message">음악을 불러오고 있어요.</p></section>
  <section id="home-popular" class="listening-section" aria-busy="true">${homeSection('인기 차트','#charts')}</section>
  <section id="home-more" class="listening-section" hidden></section>
@@ -204,7 +221,7 @@ function homeFloatPose(slot,g){
  return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]})`;
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
-function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false,initialId,intervalMs=5500,showCount=false,pauseForDialogs=false,retainOnRoute=null}={}){
+function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,prepareSlide,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false,initialId,intervalMs=5500,showCount=false,pauseForDialogs=false,retainOnRoute=null}={}){
  if(!tracks.length)return;
  const multi=tracks.length>1;
  const initialIndex=Math.max(0,tracks.findIndex(t=>t.id===initialId));
@@ -212,15 +229,29 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  // Minimal DOM renderers used by navigation tests do not implement browser events.
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=root.querySelector('.home-feature-stage'),motion=window.matchMedia('(prefers-reduced-motion: reduce)');
+ let pendingIndex=null,requestNumber=0;
  let index=initialIndex,timer=null,transitionTimer=null,manualPause=false,hover=false,focus=false,start=null,suppressClick=false,disposed=false;
  const syncPlayback=()=>{if(!syncAudio)return;const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
  const clearTransition=()=>{clearTimeout(transitionTimer);transitionTimer=null;stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());stage.removeAttribute('data-home-direction');};
- const schedule=()=>{clear();if(multi&&!start&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden&&!(pauseForDialogs&&document.querySelector?.('dialog[open]')))timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},intervalMs);};
- const go=value=>{
-  const target=(value+tracks.length)%tracks.length;if(target===index){schedule();return;}
-  // Use the requested direction before wrapping the first/last slide index.
-  const direction=value>index?'next':'previous';index=target;clearTransition();
+ const schedule=()=>{clear();if(multi&&pendingIndex===null&&!start&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden&&!(pauseForDialogs&&document.querySelector?.('dialog[open]')))timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},intervalMs);};
+ const go=async value=>{
+  const target=(value+tracks.length)%tracks.length,request=++requestNumber;
+  const direction=value>(pendingIndex??index)?'next':'previous';
+  pendingIndex=null;
+  if(target===index){schedule();return;}
+  const ready=prepareSlide?.(tracks[target]);
+  if(ready){
+   clear();pendingIndex=target;
+   try{await ready;}
+   catch{
+    if(!disposed&&request===requestNumber){pendingIndex=null;schedule();}
+    return;
+   }
+   if(disposed||request!==requestNumber)return;
+   pendingIndex=null;
+  }
+  index=target;clearTransition();
   const old=document.createElement('div');old.className='home-feature-outgoing';old.setAttribute('aria-hidden','true');old.inert=true;
   old.innerHTML=coverflow?(stage.querySelector('.home-feature-background')?.outerHTML||''):stage.innerHTML;
   if(!coverflow)stage.setAttribute('data-home-direction',direction);
@@ -235,8 +266,8 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  const click=e=>{
   if(suppressClick){suppressClick=false;if(e.detail!==0){e.preventDefault();e.stopPropagation();return;}}
   const b=e.target.closest('button');if(!b)return;
-  if(b.matches('.home-feature-prev'))go(index-1);
-  else if(b.matches('.home-feature-next,[data-home-next]'))go(index+1);
+  if(b.matches('.home-feature-prev'))go((pendingIndex??index)-1);
+  else if(b.matches('.home-feature-next,[data-home-next]'))go((pendingIndex??index)+1);
   else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
   else if(b.matches('.home-feature-autoplay')){
    manualPause=!manualPause;
@@ -247,7 +278,7 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
   }else schedule();
  };
  const enter=e=>{if(e.pointerType==='touch')return;hover=true;clear();},leave=e=>{hover=false;if(e.pointerType!=='touch')start=null;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
- const key=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();go(index+(e.key==='ArrowLeft'?-1:1));}};
+ const key=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();go((pendingIndex??index)+(e.key==='ArrowLeft'?-1:1));}};
  const down=e=>{
   if(e.isPrimary===false){if(start)start.cancelled=true;return;}
   if(e.button!=null&&e.button!==0)return;
@@ -263,7 +294,7 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,label='추천
  const up=e=>{
   if(!start||e.pointerId!==start.id)return;
   const gesture=start,dx=e.clientX-gesture.x,dy=e.clientY-gesture.y;start=null;
-  if(!gesture.cancelled&&gesture.axis!=='y'&&Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.25){suppressClick=true;go(index+(dx<0?1:-1));}
+  if(!gesture.cancelled&&gesture.axis!=='y'&&Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.25){suppressClick=true;go((pendingIndex??index)+(dx<0?1:-1));}
   else schedule();
  };
  const cancel=e=>{if(!start||e.pointerId!==start.id)return;start=null;schedule();};
@@ -348,7 +379,7 @@ function renderHome(ticket){
  const addTracks=tracks=>{remember(tracks);const known=new Set(routeTracks.map(t=>t.id));routeTracks.push(...tracks.filter(t=>!known.has(t.id)));};
  const paint=(target,html)=>{if(markup.get(target)!==html||!displayed.has(target)){target.innerHTML=html;markup.set(target,html);}displayed.add(target);target.removeAttribute('aria-busy');};
  const release=$('#home-release');
- homeCarouselCleanup=mountFeatureCarousel(release,homeBanners,{renderSlide:homeBannerHTML,label:'AIFECT 이용 안내',previousLabel:'이전 안내 배너',nextLabel:'다음 안내 배너',dotsLabel:'안내 배너 선택',syncAudio:false,pauseForDialogs:true});
+ homeCarouselCleanup=mountFeatureCarousel(release,homeBanners,{renderSlide:homeBannerHTML,prepareSlide:prepareHomeBanner,label:'AIFECT 이용 안내',previousLabel:'이전 안내 배너',nextLabel:'다음 안내 배너',dotsLabel:'안내 배너 선택',syncAudio:false,pauseForDialogs:true});
  let pool=null,playlists=null,chartIds=[],lastLayout='',requested=0;
  const capacities=()=>({music:homeCapacity('#home-recommended>.home-music-grid'),discovery:homeCapacity('#home-discovery>.home-music-grid'),playlist:homeCapacity('#home-curations>.public-playlist-grid')});
  const shelf=(id,title,href,d)=>{const target=$('#'+id),tracks=(d.tracks||[]).slice(0,12);addTracks(tracks);paint(target,homeSection(title,href)+(tracks.length?'<div class="home-music-grid">'+tracks.map(homeCard).join('')+'</div>':'<p class="home-empty-inline">아직 공개된 음악이 없어요.</p>'));};

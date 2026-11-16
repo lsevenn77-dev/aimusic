@@ -4,8 +4,8 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 
-function context(){
- const c=vm.createContext({esc:s=>String(s).replaceAll('&','&amp;').replaceAll('"','&quot;'),icon:()=>'<svg></svg>'});
+function context(inApp=false){
+ const c=vm.createContext({inApp,esc:s=>String(s).replaceAll('&','&amp;').replaceAll('"','&quot;'),icon:()=>'<svg></svg>'});
  vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);
  return c;
 }
@@ -29,7 +29,7 @@ test('all eight service banners expose a whole-banner link and responsive WebP a
   assert.ok(html.includes(b.headline));assert.ok(html.includes(b.cta));
   assert.match(html,/<img\b[^>]*width="1536" height="768"/);
   assert.match(html,/768w, [^"]+1536w/);
-  assert.equal(html.includes(c.homeBannerBackgroundImage(b.id)),b.id!=='crew');
+  assert.equal(html.includes(c.homeBannerBackgroundImage(b.id)),b.id==='premium');
   assert.equal((html.match(/<a\b/g)||[]).length,1,'the artwork and live copy share one destination on desktop and mobile');
   for(const width of [768,1536]){
    const image=readFileSync(new URL('../dist'+c.homeBannerImage(b.id,width),import.meta.url));
@@ -88,8 +88,8 @@ test('mobile retains the seven approved photos and uses the new full-frame crew 
  }
 });
 
-test('desktop selects density-specific portraits and mobile keeps the reviewed photos',()=>{
- const c=context(),banners=vm.runInContext('homeBanners',c);
+test('the native app retains its original portrait, scenery and preload at every width',()=>{
+ const c=context(true),banners=vm.runInContext('homeBanners',c);
  for(const [index,banner] of banners.entries()){
   const original=c.homeBannerImage(banner.id,1536);
   const html=c.homeBannerHTML(banner,banners[(index+1)%banners.length]);
@@ -126,6 +126,31 @@ test('desktop selects density-specific portraits and mobile keeps the reviewed p
    assert.equal(layer['aria-hidden'],'true','decorative scenery is not a second announced image');
   }
   assert.doesNotMatch(html,/\/assets\/home-banners\/(?:approved|desktop|desktop-close|seamless)-20261109\/[^"'\s<>]+-2172\.webp/,'old generated portraits must not return through a source or preload');
+ }
+});
+
+test('public PC slides fill one wide frame and preload the same responsive WebP as the picture',()=>{
+ const c=context(),banners=vm.runInContext("homeBanners.filter(b=>b.id!=='premium')",c);
+ for(const [index,banner] of banners.entries()){
+  const next=banners[(index+1)%banners.length],html=c.homeBannerHTML(banner,next);
+  const base='/assets/home-banners/wide-20261116/'+banner.id+'-';
+  const large=banner.id==='crew'?2148:2840;
+  const sources=base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
+  for(const width of [801,1024,1440,1920,2560])assert.equal(pictureSourceAt(html,width),sources);
+  for(const width of [390,768,800])assert.equal(pictureSourceAt(html,width),c.homeBannerImage(banner.id,1536));
+  assert.doesNotMatch(html,/home-promo-scenery/);
+  const source=attributes(html.match(/<source\b[^>]*>/)[0]);
+  assert.equal(source.width,'1420');assert.equal(source.height,'363');
+  const preload=Array.from(html.matchAll(/<link\b[^>]*>/g),m=>attributes(m[0])).filter(tag=>tag.media==='(min-width: 801px)');
+  assert.equal(preload.length,1);
+  assert.equal(preload[0].imagesrcset,pictureSourceAt(c.homeBannerHTML(next),1440));
+  assert.equal(preload[0].imagesizes,source.sizes);
+  for(const width of [1420,large]){
+   const bytes=readFileSync(new URL('../dist'+base+width+'.webp',import.meta.url));
+   assert.equal(bytes.toString('ascii',8,16),'WEBPVP8 ');
+   assert.equal(bytes.readUInt16LE(26)&0x3fff,width);
+   assert.equal(bytes.readUInt16LE(28)&0x3fff,Math.round(width*363/1420));
+  }
  }
 });
 

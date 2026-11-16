@@ -21,7 +21,7 @@
  /* Desktop object corrections extend into the empty left side of the original
     photograph. Their transparent masks exclude every portrait; mobile keeps
     its approved source without any overlay. */
- #home-release.home-promo-carousel :is([data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking]) .home-promo-picture::after{content:"";position:absolute;inset:0;background-image:var(--home-promo-detail);background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}
+ #home-release.home-promo-carousel :is([data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking]):not([data-wide-banner]) .home-promo-picture::after{content:"";position:absolute;inset:0;background-image:var(--home-promo-detail);background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}
  #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/play-background-overlay-1536.webp')}
  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-detail:url('/assets/home-banners/seam-20261110/karaoke-background-overlay-1536.webp')}
  /* Move the right inset by half the added photo width so the closer group
@@ -60,22 +60,22 @@
 @media(min-width:801px){
  #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-end:52%}
  /* All slides reserve one height. The crew artwork contains its own copy and arrows. */
- #home-release.home-promo-carousel .home-feature,
- #home-release.home-promo-carousel .release-placeholder{--home-feature-height:clamp(174px,30.20335cqi,360px);height:var(--home-feature-height)}
- #home-release.home-promo-carousel [data-home-banner=crew]{background:linear-gradient(90deg,#09212a,#141124)}
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-picture{inset:0;width:100%;height:100%;aspect-ratio:auto;mask-image:none;-webkit-mask-image:none}
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-desktop,
- #home-release.home-promo-carousel [data-home-banner=crew]::before{display:none}
- #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]){
+ #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature,
+ #home-release.home-promo-carousel:not(.home-promo-wide) .release-placeholder{--home-feature-height:clamp(174px,30.20335cqi,360px);height:var(--home-feature-height)}
+ #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew]{background:linear-gradient(90deg,#09212a,#141124)}
+ #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-picture{inset:0;width:100%;height:100%;aspect-ratio:auto;mask-image:none;-webkit-mask-image:none}
+ #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-desktop,
+ #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew]::before{display:none}
+ #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]){
   --crew-art-width:min(100%,calc(var(--home-feature-height) * 1672 / 505));
   --crew-arrow-inset:max(0px,calc(50% - var(--crew-art-width) * .47 - 22px));
  }
- #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-arrow{
+ #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-arrow{
   top:calc(50% - min(var(--home-feature-height),30.20335cqi) * .045 - 22px);bottom:auto
  }
- #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-prev{left:var(--crew-arrow-inset)}
- #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-next{right:var(--crew-arrow-inset)}
- #home-release.home-promo-carousel .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-arrow svg{visibility:hidden}
+ #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-prev{left:var(--crew-arrow-inset)}
+ #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-next{right:var(--crew-arrow-inset)}
+ #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-arrow svg{visibility:hidden}
 }
 #home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;box-sizing:border-box;height:100%;width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
 #home-release.home-promo-carousel .home-promo-headline{font-size:clamp(22px,3.2cqi,36px);line-height:1.35;font-weight:750;font-style:italic;letter-spacing:-.04em;word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 2px 5px color-mix(in srgb,var(--ds-bg) 50%,transparent),0 4px 16px color-mix(in srgb,var(--ds-bg) 38%,transparent)}
@@ -134,6 +134,26 @@
  #home-release.home-promo-carousel .home-feature-autoplay{width:44px;flex:0 0 44px}
  #home-release.home-promo-carousel .home-feature-dots{display:flex;flex:0 1 352px;min-width:0}
  #home-release.home-promo-carousel .home-feature-dots button{width:44px;min-width:0;flex:1 1 44px}
+}
+/* Public desktop artwork already includes its scene extensions. Reserve the
+   same stage before the first image or the carousel controls are mounted. */
+@media (min-width:801px){
+ #home-release.home-promo-wide{position:relative;width:100%;aspect-ratio:1420 / 363;container-type:inline-size}
+ #home-release.home-promo-wide > .home-feature{position:absolute;inset:0;width:100%;height:100%;padding:0;margin:0;border:0;box-shadow:none}
+ #home-release.home-promo-wide [data-wide-banner] .home-promo-picture{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;mask-image:none;-webkit-mask-image:none}
+ #home-release.home-promo-wide [data-wide-banner] .home-promo-original{width:100%;height:100%;object-fit:cover;object-position:center}
+ #home-release.home-promo-wide [data-home-banner=crew] .home-promo-desktop,
+ #home-release.home-promo-wide [data-home-banner=crew]::before{display:none}
+ @container(max-width:840px){
+  #home-release.home-promo-wide .home-promo-copy{height:calc(100% - 26px);width:60%;padding-left:9cqi;gap:clamp(3px,.7cqi,6px)}
+  #home-release.home-promo-wide .home-promo-headline{font-size:clamp(15px,3cqi,22px);line-height:1.23;white-space:nowrap}
+  #home-release.home-promo-wide .home-promo-subtitle{font-size:clamp(11px,1.9cqi,13px)}
+  #home-release.home-promo-wide .home-promo-cta{min-height:0;padding:4px 1.9cqi;gap:1.1cqi;font-size:clamp(12px,2cqi,14px)}
+  #home-release.home-promo-wide .home-feature-pagination button{height:28px}
+  #home-release.home-promo-wide .home-feature-arrow{width:34px;height:44px;top:calc(50% - 22px);bottom:auto}
+  #home-release.home-promo-wide .home-feature-prev{left:0}
+  #home-release.home-promo-wide .home-feature-next{right:0}
+ }
 }
 @media(prefers-reduced-motion:reduce){
  #home-release.home-promo-carousel .home-feature-autoplay{display:none}
