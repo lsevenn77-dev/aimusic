@@ -34,11 +34,13 @@
 
 - 단위 검사 100개 통과. 화면 검사 11종은 변경별 최종 재검사 기준이며, 최종 탭 터치/공통 API AI 비교 2개는 같은 실행에서 통과했다. 공통 서버 편집·생성 복구 검사 11개 통과.
 
-## 배포 상태 · 2026-11-17 01:25 KST
+## 배포 상태 · 2026-11-17 02:01 KST
 
 - 앱 소스 `234ec3c`, `origin/ios/from-android-2.5.97` push 완료.
 - Release 아카이브 생성 성공. 경로: `/Users/user/Library/Developer/Xcode/Archives/2026-11-17/AIFECT-1.0.7-17.xcarchive`.
 - `codesign --verify --deep --strict` 통과, 앱 버전 1.0.7/빌드 17/번들 `kr.co.aifect.app` 확인. 앱과 dSYM UUID `85B4475B-1D38-3BF4-9E92-FE24B1672E28` 일치. Release 바이너리에 Debug 테스트 표식 없음.
-- **Apple 업로드 미완료.** `xcodebuild -exportArchive`가 전송 전에 `Failed to Use Accounts`로 종료했다. Mac이 잠겨 Xcode Organizer 화면을 조작하지 못해 사용자에게 잠금 해제를 요청했다. 새 아카이브를 Organizer에서 선택하여 업로드하고 TestFlight 처리 결과를 확인해야 한다.
-- 기존 1.0.6(16)은 App Store Connect에서 심사 대기 중으로 확인했으며 철회·교체하지 않았다. 1.0.7의 업로드/심사/출시 완료로 해석하면 안 된다.
+- **Apple 업로드 및 빌드 처리 완료.** Mac 잠금 해제 후 Xcode Organizer에서 01:58 KST **Uploaded to Apple**을 확인했다. App Store Connect에는 01:59 KST 업로드로 표시되며, 02:01 KST TestFlight의 1.0.7(17)이 **제출 준비 완료** 상태임을 확인했다. 빌드 ID: `de6e6bd6-e370-4934-a0b2-aa03705fcd35`.
+- CLI의 `Failed to Use Accounts`는 전송 전 실패였으며 Organizer의 기존 계정으로 업로드했다. GoogleMobileAds/UMP 공급업체 dSYM 누락 경고 2건은 기존과 같고 앱 자체 dSYM은 포함되어 있다.
+- 기존 1.0.6(16)은 App Store Connect에서 심사 대기 중으로 확인했으며 철회·교체하지 않았다. **1.0.7은 업로드 완료이며 아직 App Review에 제출하거나 공개 출시하지 않았다.**
+- 업로드 증빙: `../work/ios-1.0.7-17-uploaded.png`, TestFlight 처리 완료 증빙: `../work/ios-1.0.7-17-testflight.png` (저장소 루트 기준 경로).
 - 검사가 끝난 iPhone 17 Pro 시뮬레이터는 종료했다. App Store Connect의 기존 탭은 TestFlight 목록에 남겼다.
