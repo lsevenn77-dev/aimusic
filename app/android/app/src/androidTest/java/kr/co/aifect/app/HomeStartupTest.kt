@@ -44,12 +44,13 @@ class HomeStartupTest {
     var length=0;while(true){val h=line();if(h.isEmpty())break;if(h.startsWith("Content-Length:",true))length=h.substringAfter(':').trim().toInt()}
     repeat(length){input.read()}
     val path=request[1];requested.add(path)
-    when(path){chart,latest->firstScreen.await(20,TimeUnit.SECONDS);"/api/me"->authentication.await(20,TimeUnit.SECONDS);else->optional.await(20,TimeUnit.SECONDS)}
+    when(path){chart,latest->firstScreen.await(20,TimeUnit.SECONDS);"/api/me"->authentication.await(20,TimeUnit.SECONDS);"/api/tracks/shared-song"->Unit;else->optional.await(20,TimeUnit.SECONDS)}
     val song=payload("id" to "startup-song","title" to "시작 화면 테스트곡","artist" to "테스트 아티스트","kind" to "original","status" to "published")
     val status=if(path==chart)chartStatus else 200
     val response=when {
      status!=200->payload("error" to "차트를 잠시 불러올 수 없어요.")
      path=="/api/me"->payload("user" to payload("id" to "startup-user","name" to "시작 테스트","profile_id" to "startup-profile"),"membership" to payload("premium_until" to 0),"providers" to JSONArray())
+     path=="/api/tracks/shared-song"->payload("track" to org.json.JSONObject(song.toString()).put("id","shared-song"))
      path==chart||path==latest->payload("tracks" to JSONArray().put(song))
      else->payload("ok" to true)
     }.toString().toByteArray()
@@ -105,6 +106,47 @@ class HomeStartupTest {
   ui.waitUntil(8000){!model.refreshing}
   assertFalse(model.home.any{it.id=="cached-song"})
   assertFalse(model.latest.any{it.id=="cached-song"})
+ }
+ @Test fun sharedSongMetadataIsFetchedOnceWhileOptionalRequestsAreHeld(){
+  launch()
+  firstScreen.countDown()
+  ui.waitUntil(8000){!model.loading}
+  screen.onActivity{model.openCurrentSong("shared-song")}
+  try{ui.waitUntil(3000){model.detail?.id=="shared-song"}}
+  catch(e:Throwable){throw AssertionError("detail=${model.detail?.id}, loading=${model.loading}, requests=$requested, notice=${model.notice}, error=${model.error}",e)}
+  assertEquals(1,requested.count{it=="/api/tracks/shared-song"})
+  assertTrue(model.refreshing)
+  assertEquals(1L,optional.count)
+ }
+ @Test fun closingSongReleasesConnectionsForTheNextPage(){
+  launch()
+  firstScreen.countDown()
+  ui.waitUntil(8000){!model.loading&&model.home.isNotEmpty()}
+  screen.onActivity{model.openSong(model.home.first())}
+  val paths=setOf("/api/tracks/startup-song","/api/tracks/startup-song/comments")
+  ui.waitUntil(3000){
+   val calls=model.api.client.dispatcher.runningCalls()+model.api.client.dispatcher.queuedCalls()
+   paths.all{path->calls.any{it.request().url.encodedPath==path}}
+  }
+  screen.onActivity{model.detail=null;model.openCurrentSong("shared-song")}
+  try{ui.waitUntil(3000){
+   (model.api.client.dispatcher.runningCalls()+model.api.client.dispatcher.queuedCalls()).none{it.request().url.encodedPath in paths&&!it.isCanceled()}
+  }}catch(e:Throwable){
+   val calls=(model.api.client.dispatcher.runningCalls()+model.api.client.dispatcher.queuedCalls()).map{it.request().url.encodedPath+" cancelled="+it.isCanceled()}
+   throw AssertionError("shown=${model.detail?.id}, playing=${model.current?.id}, calls=$calls",e)
+  }
+  ui.waitUntil(3000){model.detail?.id=="shared-song"}
+  assertEquals(1L,optional.count)
+ }
+ @Test fun sharedSongOpensBeforeOptionalHomeRequestsFinish(){
+  launch()
+  firstScreen.countDown()
+  ui.waitUntil(8000){!model.loading&&model.home.isNotEmpty()}
+  assertTrue(model.refreshing)
+  screen.onActivity{model.openCurrentSong("startup-song")}
+  ui.waitUntil(3000){model.detail?.id=="startup-song"}
+  assertTrue("A song opens while unrelated prefetch remains blocked",model.refreshing)
+  assertEquals(1L,optional.count)
  }
  @Test fun homeGetsConnectionsBeforeOptionalPrefetchAndRemainsTouchable(){
   launch()

@@ -40,15 +40,46 @@ import org.json.JSONObject
  },onError={failed=true})
 }
 
-@Composable internal fun DmActions(m:MusicModel,peer:String?,muted:Boolean,change:(Boolean)->Unit,clear:()->Unit,withDelete:Boolean=true){
+@Composable internal fun DmActions(m:MusicModel,peer:String,peerName:String,muted:Boolean,change:(Boolean)->Unit,clear:()->Unit){
  var confirm by remember(peer){mutableStateOf(false)}
  var working by remember(peer){mutableStateOf(false)}
  val scope=rememberCoroutineScope()
+ val account=m.user?.optString("id")?:return
+ IconButton(enabled=!working,onClick={scope.launch{working=true;try{m.api.call("/api/dm/$peer/settings","PUT",payload("muted" to !muted));if(m.user?.optString("id")==account)change(!muted)}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}finally{working=false}}}){Icon(if(muted)Icons.Rounded.NotificationsOff else Icons.Rounded.NotificationsNone,if(muted)"대화 알림 켜기" else "대화 알림 끄기",tint=if(muted)Aqua else Muted)}
+ IconButton(onClick={confirm=true},enabled=!working){Icon(Icons.Rounded.DeleteOutline,"내 대화 전체 삭제",tint=Muted)}
+ if(confirm)DeleteConversationDialog(m,peer,peerName,dismiss={confirm=false},deleted=clear)
+}
+
+@Composable internal fun DeleteConversationDialog(m:MusicModel,peer:String,peerName:String,dismiss:()->Unit,deleted:()->Unit){
  val context=LocalContext.current.applicationContext
  val account=m.user?.optString("id")?:return
- if(peer!=null)IconButton(enabled=!working,onClick={scope.launch{working=true;try{m.api.call("/api/dm/$peer/settings","PUT",payload("muted" to !muted));if(m.user?.optString("id")==account)change(!muted)}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}finally{working=false}}}){Icon(if(muted)Icons.Rounded.NotificationsOff else Icons.Rounded.NotificationsNone,if(muted)"대화 알림 켜기" else "대화 알림 끄기",tint=if(muted)Aqua else Muted)}
- if(withDelete)IconButton(onClick={confirm=true},enabled=!working){Icon(Icons.Rounded.DeleteOutline,if(peer==null)"내 DM 전체 삭제" else "내 대화 전체 삭제",tint=Muted)}
- if(confirm)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text(if(peer==null)"내 DM 전체 삭제" else "내 대화 삭제")},text={Text("내 기기와 내 목록에서 대화를 삭제해요. 상대방의 기록은 유지되며 새 메시지는 다시 표시돼요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{working=true;try{m.api.call("/api/dm"+(peer?.let{"/$it"}?:""),"DELETE");NativeChatCache.clear(context,account,peer);if(m.user?.optString("id")==account){clear();m.refreshMessageSummary()};confirm=false}catch(e:Exception){if(e is CancellationException)throw e;m.notice=e.message}finally{working=false}}}){Text("삭제")}})
+ val scope=rememberCoroutineScope()
+ var working by remember(account,peer){mutableStateOf(false)}
+ var error by remember(account,peer){mutableStateOf<String?>(null)}
+ AlertDialog(
+  onDismissRequest={if(!working)dismiss()},
+  title={Text("대화 기록을 모두 삭제할까요?")},
+  text={Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+   Text((if(peerName.isBlank())"이 대화방" else "$peerName 님과의 대화방")+"에서 주고받은 메시지와 사진을 내 계정에서 삭제해요. 이후 새 메시지는 다시 받을 수 있어요.")
+   error?.let{Text(it,color=Pink)}
+  }},
+  dismissButton={TextButton(onClick=dismiss,enabled=!working){Text("취소")}},
+  confirmButton={TextButton(enabled=!working,onClick={
+   if(!working){
+    working=true
+    scope.launch{
+     try{
+      if(m.user?.optString("id")!=account)return@launch
+      m.api.call("/api/dm/$peer","DELETE")
+      NativeChatCache.clear(context,account,peer)
+      if(m.user?.optString("id")==account){deleted();dismiss()}
+     }catch(e:CancellationException){throw e}
+     catch(e:Exception){error=e.message?:"대화 기록을 삭제하지 못했어요."}
+     finally{working=false}
+    }
+   }
+  },modifier=Modifier.testTag("dm-delete-confirm")){Text("전체 삭제")}}
+ )
 }
 
 @Composable internal fun DmAttachments(m:MusicModel,peer:String,busy:Boolean,crew:Boolean=false,send:(JSONObject)->Unit){

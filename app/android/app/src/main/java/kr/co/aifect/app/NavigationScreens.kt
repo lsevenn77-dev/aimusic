@@ -55,9 +55,9 @@ import org.json.JSONObject
  var busy by remember(artists){mutableStateOf(true)}
  var retry by remember{mutableIntStateOf(0)}
  LaunchedEffect(artists,retry){busy=true;try{
-  val data=m.api.call(if(artists)"/api/catalog" else "/api/playlists",fresh=true)
-  if(artists)m.artistFollowerCounts.clear()
+  val data=m.api.call(if(artists)"/api/catalog?section=artists" else "/api/playlists",fresh=true)
   entries=data.optJSONArray(if(artists)"artists" else "playlists").objects();error=null
+  if(artists){m.aiArtists=entries;m.artistFollowerCounts.clear()}
  }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
  if(artists){
   AIArtistDirectoryGrid(entries,m,busy,error){retry++}

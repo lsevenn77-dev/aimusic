@@ -203,7 +203,7 @@ class NativeAppTest {
   }}catch(_:IOException){} } }catch(e:Exception){if(!server.isClosed)throw e} }
   screen=ActivityScenario.launch(Intent(context,MainActivity::class.java).putExtra("testOrigin","http://127.0.0.1:${server.localPort}"))
   screen.onActivity { it.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
-  ui.waitUntil(30_000){ui.onAllNodesWithTag("home-featured-play").fetchSemanticsNodes().isNotEmpty()}
+  ui.waitUntil(30_000){"/api/me" in requests && ui.onAllNodesWithTag("main-tab-6").fetchSemanticsNodes().isNotEmpty()}
  }
  @After fun tearDown(){
   heldResponses.values.forEach{it.countDown()}
@@ -766,6 +766,20 @@ class NativeAppTest {
   assertThrows(IllegalArgumentException::class.java){api.blocking("//evil.invalid/token")}
   assertThrows(IllegalArgumentException::class.java){api.blocking("/../private")}
  }
+ @Test fun googleButtonStartsNativeAuthenticationInTestBuild(){
+  screen.onActivity{
+   val model=androidx.lifecycle.ViewModelProvider(it)[MusicModel::class.java]
+   model.providers=listOf("google")
+   model.showLogin=true
+   // Omit a provider credential so no real account is needed to exercise the error path.
+   model.googleClientId=""
+  }
+  ui.onNodeWithText("Google로 계속하기").performClick()
+  waitText("계정 인증을 완료하지 못했어요. 다시 시도하거나 브라우저 로그인을 이용해주세요.")
+  assertTrue("/api/auth/google/nonce" in requests)
+  assertFalse("/api/auth/mobile/start" in requests)
+  ui.onNodeWithText("브라우저로 Google 로그인").assertExists()
+ }
  @Test fun googleNonceCookieIsTemporaryAndScopedToAuthentication(){
   val api=NativeApi(context)
   api.blocking("/api/auth/google/nonce","POST",payload())
@@ -895,7 +909,8 @@ class NativeAppTest {
   ui.runOnIdle{model.get().history=listOf(Song(song));model.get().messagePeer="person";model.get().play(Song(song))}
   val playbackReady=AtomicBoolean(false)
   ui.waitUntil(10000){screen.onActivity{playbackReady.set(model.get().controller?.currentMediaItem!=null)};playbackReady.get()}
-  ui.runOnIdle{model.get().selectTab(6)};ui.onNodeWithTag("account-menu").performClick();waitText("로그아웃")
+  ui.runOnIdle{model.get().selectTab(6)};ui.onNodeWithTag("my-settings").performClick()
+  ui.onNodeWithText("계정 관리").performScrollTo().performClick();waitText("로그아웃")
   val meReads=requests.count{it.substringBefore("?")=="/api/me"}
   ui.onNodeWithText("로그아웃").performScrollTo().performClick()
   ui.waitUntil(10000){!model.get().busy&&model.get().user==null&&NativeSession.cookie(context).isEmpty()}

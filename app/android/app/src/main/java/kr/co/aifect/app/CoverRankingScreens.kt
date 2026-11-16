@@ -65,12 +65,8 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
     Row(verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(if(m.karaokeChart)"노래방 차트" else if(m.rankOriginal==null)"커버 랭킹" else "이 곡의 커버 랭킹",fontSize=26.sp,fontWeight=FontWeight.Bold);m.rankOriginal?.let{Text(it.title,fontSize=14.sp,color=Aqua,modifier=Modifier.padding(top=7.dp))}};IconButton(onClick=m::dismissRanking){Icon(Icons.Rounded.Close,"랭킹 닫기")}}
     Spacer(Modifier.height(18.dp));Chips(CoverPeriods.map{it.second},selected){label->m.rankPeriod=CoverPeriods.first{it.second==label}.first;m.loadRankings()}
     Text(if(m.rankPeriod=="all")"공개 커버의 누적 좋아요 순" else "$selected 받은 좋아요 순 · 한국 시간 기준",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=8.dp,bottom=12.dp))
-    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-     FilterChip(m.rankKind=="tracks",{m.rankKind="tracks";m.loadRankings()},label={Text("커버곡")},leadingIcon={Icon(Icons.Rounded.MusicNote,null,Modifier.size(16.dp))})
-     FilterChip(m.rankKind=="singers",{m.rankKind="singers";m.loadRankings()},label={Text("가수")},leadingIcon={Icon(Icons.Rounded.PersonOutline,null,Modifier.size(16.dp))})
-    }
-    if(m.rankOriginal==null)Chips(listOf("전체")+Genres,m.rankGenre){m.rankGenre=it;m.loadRankings()}
-    OutlinedTextField(m.rankQuery,{m.rankQuery=it.take(100);m.loadRankings(true)},modifier=Modifier.fillMaxWidth().padding(top=10.dp).testTag("ranking-search"),singleLine=true,placeholder={Text("곡 또는 가수 찾기",fontSize=14.sp)},leadingIcon={Icon(Icons.Rounded.Search,null)},shape=RoundedCornerShape(14.dp))
+    RankingFilters(m.rankKind,m.rankGenre,m.rankQuery,m.rankOriginal==null,
+     {m.rankKind=it;m.loadRankings()},{m.rankGenre=it;m.loadRankings()},{m.rankQuery=it;m.loadRankings(true)})
     Text(if(m.karaokeChart)"공개된 커버곡만 표시해요. 가수는 커버곡의 좋아요 합계로 집계해요." else "좋아요가 없으면 순위에 포함되지 않아요. 가수는 커버곡의 좋아요 합계로 집계해요.",color=Muted,fontSize=12.sp,lineHeight=16.sp,modifier=Modifier.padding(vertical=12.dp))
     if(m.rankBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
     m.rankError?.let{Text(it,fontSize=14.sp,color=Pink);TextButton(onClick={m.loadRankings()}){Text("다시 불러오기")}}
@@ -92,12 +88,7 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
      HorizontalDivider(color=Stroke.copy(alpha=.55f))
     }
    }else items(m.rankSingers,key={it.getString("id")}){p->
-    Row(Modifier.fillMaxWidth().padding(vertical=16.dp),verticalAlignment=Alignment.CenterVertically){
-     Text("${p.optInt("rank")}",fontSize=24.sp,color=Pink,fontWeight=FontWeight.Bold,modifier=Modifier.width(34.dp))
-     Box(Modifier.clickable{m.openProfile(p.getString("id"),showCovers=true)}){Avatar(p.optString("name"),p,48)}
-     Column(Modifier.weight(1f).padding(horizontal=12.dp).clickable{m.openProfile(p.getString("id"),showCovers=true)}){Text(p.optString("name"),fontWeight=FontWeight.SemiBold,fontSize=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text("좋아요 ${p.optInt("rank_likes")} · 커버 ${p.optInt("ranked_covers")}곡",fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=6.dp));Text("노래 들으러 가기 ›",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}
-     OutlinedButton(onClick={m.followPerson(p.getString("id"))},enabled=!m.busy,contentPadding=PaddingValues(horizontal=10.dp)){Text(if(m.follows.any{it.optString("target_id")==p.optString("id")&&it.optString("kind")=="producer"})"팔로잉" else "팔로우",fontSize=12.sp)}
-    }
+    RankingSingerRow(p,m)
    }
    if(!m.rankBusy&&m.rankError==null&&m.rankTracks.isEmpty()&&m.rankSingers.isEmpty())item{Empty(if(m.karaokeChart&&m.rankKind=="tracks"&&m.rankQuery.isBlank()&&m.rankGenre=="전체")"아직 등록된 커버곡이 없어요" else "아직 순위에 오른 목소리가 없어요","새로운 커버를 듣고, 마음에 드는 목소리에 좋아요를 남겨주세요.",Icons.Rounded.EmojiEvents)}
    item{TextButton(onClick={val original=m.rankOriginal;m.dismissRanking();if(original!=null)m.openCovers(original) else {m.community("커버곡");m.selectTab(3)}},modifier=Modifier.fillMaxWidth()){Text(if(m.rankOriginal!=null)"이 곡의 모든 커버 듣기" else "새로운 커버곡 둘러보기")}}
@@ -107,20 +98,20 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
 
 
 /** A ranked cover is three lines; profile and reactions stay inline. */
-@Composable private fun KaraokeChartRow(song:Song,m:MusicModel,selected:String){
+@Composable internal fun KaraokeChartRow(song:Song,m:MusicModel,selected:String,periodKey:String=m.rankPeriod,queue:List<Song> = m.rankTracks){
  val verifiedComments=verifiedSongCommentCount(song,m)
  val measure=rememberTextMeasurer()
  val titleHeight=measure.measure("가",style=LocalTextStyle.current.copy(fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold),maxLines=1).size.height
  val creditHeight=measure.measure("가",style=LocalTextStyle.current.copy(fontSize=13.sp,lineHeight=18.sp),maxLines=1).size.height
  val artSize=with(LocalDensity.current){titleHeight.toDp()+creditHeight.toDp()+32.dp}
  val rank=song.raw.optInt("rank")
- val period=when(m.rankPeriod){"today"->"오늘";"week"->"주간";"month"->"월간";else->"누적"}
+ val period=when(periodKey){"today"->"오늘";"week"->"주간";"month"->"월간";else->"누적"}
  val periodLikes=song.raw.optInt("rank_likes")
  val liked=m.likes.any{it.id==song.id}
  Column(Modifier.fillMaxWidth().testTag("karaoke-row-${song.id}")){
   Row(Modifier.fillMaxWidth().padding(vertical=12.dp),verticalAlignment=Alignment.CenterVertically){
    Text(if(rank>0)rank.toString()else "—",fontSize=16.sp,fontWeight=FontWeight.Bold,color=if(rank in 1..3)Pink else Muted,modifier=Modifier.width(26.dp),maxLines=1)
-   Box(Modifier.size(artSize).clip(RoundedCornerShape(10.dp)).clickable(role=Role.Button){m.play(song,m.rankTracks)}.semantics{contentDescription="${song.title} 재생"}.testTag("karaoke-play-${song.id}")){
+   Box(Modifier.size(artSize).clip(RoundedCornerShape(10.dp)).clickable(role=Role.Button){m.play(song,queue)}.semantics{contentDescription="${song.title} 재생"}.testTag("karaoke-play-${song.id}")){
     Artwork(song,Modifier.fillMaxSize(),corner=10.dp)
     Box(Modifier.align(Alignment.BottomEnd).padding(4.dp).size(26.dp).background(Ink.copy(alpha=.88f),CircleShape).border(1.dp,BrandGradient,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Rounded.PlayArrow,null,tint=Pink,modifier=Modifier.size(18.dp))}
    }
@@ -151,4 +142,22 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
 private fun rankingCount(value:Int):String{
  val scale=when{value>=100000000->100000000 to "억";value>=10000->10000 to "만";value>=1000->1000 to "천";else->return value.toString()}
  return String.format(java.util.Locale.ROOT,"%.1f",value.toDouble()/scale.first).removeSuffix(".0")+scale.second
+}
+
+@Composable internal fun RankingFilters(kind:String,genre:String,query:String,showGenres:Boolean,onKind:(String)->Unit,onGenre:(String)->Unit,onQuery:(String)->Unit){
+    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+     FilterChip(kind=="tracks",{onKind("tracks")},label={Text("커버곡")},leadingIcon={Icon(Icons.Rounded.MusicNote,null,Modifier.size(16.dp))})
+     FilterChip(kind=="singers",{onKind("singers")},label={Text("가수")},leadingIcon={Icon(Icons.Rounded.PersonOutline,null,Modifier.size(16.dp))})
+    }
+    if(showGenres)Chips(listOf("전체")+Genres,genre){onGenre(it)}
+    OutlinedTextField(query,{onQuery(it.take(100))},modifier=Modifier.fillMaxWidth().padding(top=10.dp).testTag("ranking-search"),singleLine=true,placeholder={Text("곡 또는 가수 찾기",fontSize=14.sp)},leadingIcon={Icon(Icons.Rounded.Search,null)},shape=RoundedCornerShape(14.dp))
+}
+
+@Composable internal fun RankingSingerRow(p:org.json.JSONObject,m:MusicModel){
+    Row(Modifier.fillMaxWidth().padding(vertical=16.dp),verticalAlignment=Alignment.CenterVertically){
+     Text("${p.optInt("rank")}",fontSize=24.sp,color=Pink,fontWeight=FontWeight.Bold,modifier=Modifier.width(34.dp))
+     Box(Modifier.clickable{m.openProfile(p.getString("id"),showCovers=true)}){Avatar(p.optString("name"),p,48)}
+     Column(Modifier.weight(1f).padding(horizontal=12.dp).clickable{m.openProfile(p.getString("id"),showCovers=true)}){Text(p.optString("name"),fontWeight=FontWeight.SemiBold,fontSize=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text("좋아요 ${p.optInt("rank_likes")} · 커버 ${p.optInt("ranked_covers")}곡",fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=6.dp));Text("노래 들으러 가기 ›",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}
+     OutlinedButton(onClick={m.followPerson(p.getString("id"))},enabled=!m.busy,contentPadding=PaddingValues(horizontal=10.dp)){Text(if(m.follows.any{it.optString("target_id")==p.optString("id")&&it.optString("kind")=="producer"})"팔로잉" else "팔로우",fontSize=12.sp)}
+    }
 }

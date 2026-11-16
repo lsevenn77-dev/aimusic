@@ -18,9 +18,11 @@ class NativeReadCacheTest {
  private suspend fun <T> cancelled(task:Deferred<T>){try{task.await();fail("Invalidated read must not return a late result")}catch(expected:CancellationException){}}
 
  @Test fun exactAllowlistExcludesActionsAndPermissions(){
-  val allowed=listOf("/api/catalog?section=tracks","/api/search?q=music","/api/community?following=1","/api/duets","/api/library","/api/history","/api/follows","/api/me/profile","/api/producers/p","/api/artists/a","/api/followers/u","/api/playlists?sort=popular","/api/playlists/p","/api/cover-rankings?period=week","/api/tracks/t/covers")
+  val allowed=listOf("/api/catalog?section=tracks","/api/search?q=music","/api/community?following=1","/api/duets","/api/library","/api/history","/api/follows","/api/me/profile","/api/producers/p","/api/artists/a","/api/followers/u","/api/playlists?sort=popular","/api/playlists/p","/api/cover-rankings?period=week","/api/tracks/t/covers","/api/karaoke?offset=0","/api/play/songs?tab=recommended&offset=0","/api/community/rankings?category=crew")
   allowed.forEach{assertNotNull(it,NativeReadPolicy.ttlMillis(it))}
-  val excluded=listOf("/api/me","/api/me?state=1","/api/gold","/api/gifts","/api/rewards","/api/payouts","/api/auth/login","/api/me/profile/image","/api/me/profile/check?name=x","/api/playback/t","/api/tracks/t","/api/tracks/t/comments","/api/tracks/t/lyrics/line?at=0","/api/karaoke","/api/karaoke/t","/api/duets/t","/api/playlists/p/save","/api/playlists/p/order","/api/playlists/p/tracks/t","/api/crews","/api/crews/c/messages","/api/dm","/api/dm/p","/api/chat/events","/api/studio","/media/t","//api/catalog","/api/producers/../me","/api/catalog#other")
+  listOf("/api/voice/status","/api/voice/public-rooms").forEach{assertNotNull(it,NativeReadPolicy.ttlMillis(it))}
+  listOf("/api/voice/rooms/r/state","/api/voice/rooms/r/join","/api/crews?summary=1&home=1").forEach{assertNull(it,NativeReadPolicy.ttlMillis(it))}
+  val excluded=listOf("/api/me","/api/me?state=1","/api/gold","/api/gifts","/api/rewards","/api/payouts","/api/auth/login","/api/me/profile/image","/api/me/profile/check?name=x","/api/playback/t","/api/tracks/t","/api/tracks/t/comments","/api/tracks/t/lyrics/line?at=0","/api/karaoke/t","/api/duets/t","/api/playlists/p/save","/api/playlists/p/order","/api/playlists/p/tracks/t","/api/crews","/api/crews/c/messages","/api/dm","/api/dm/p","/api/chat/events","/api/studio","/media/t","//api/catalog","/api/producers/../me","/api/catalog#other")
   excluded.forEach{assertNull(it,NativeReadPolicy.ttlMillis(it))}
  }
 

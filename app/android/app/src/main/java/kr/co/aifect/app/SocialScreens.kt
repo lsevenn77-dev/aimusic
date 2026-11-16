@@ -351,6 +351,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  var error by remember(accountId,peerId){mutableStateOf<String?>(null)}
  var hydrated by remember(accountId,peerId){mutableStateOf(cached!=null)}
  var synced by remember(accountId,peerId){mutableStateOf(false)}
+ val inboxRevision=remember(accountId){mutableLongStateOf(0L)}
  val profileOverlay=m.profile!=null||m.showGifts||m.showBilling||m.showRewards
  androidx.activity.compose.BackHandler(embedded&&m.messagePeer!=null&&!profileOverlay){m.messagePeer=null}
  androidx.activity.compose.BackHandler(!embedded&&!profileOverlay){m.dismissMessages()}
@@ -365,7 +366,8 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   val pid=peerId
   if(!current(pid))return
   if(pid==null){
-   val inbox=m.api.call("/api/dm");val result=inbox.optJSONArray("conversations").objects();if(!current(pid))return
+   val revision=++inboxRevision.longValue
+   val inbox=m.api.call("/api/dm",fresh=true);val result=inbox.optJSONArray("conversations").objects();if(!current(pid)||revision!=inboxRevision.longValue)return
    m.inboxCrew=inbox.optJSONObject("crew");m.unreadMessages=inbox.optInt("unread")
    conversations=result;synced=true;NativeChatCache.saveConversations(context,accountId,result);return
   }
@@ -445,7 +447,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     if(m.messagePeer!=null&&peer!=null)MessageProfileAvatar(peer,"dm-peer-profile-"+peer.optString("id"),44){openMessageProfile(peer)}
     if(!embedded||peerId!=null)Text(peer?.optString("name")?:"대화",fontSize=21.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2,overflow=TextOverflow.Ellipsis)
     if(peer!=null)UserSafety(m,peer.optString("user_id"),peer.optString("id"),peer.optString("name"),compact=true)
-    DmActions(m,peerId,data?.optJSONObject("settings")?.optInt("muted")==1,{value->data=JSONObject((data?:JSONObject()).toString()).put("settings",payload("muted" to if(value)1 else 0))},{body="";messages=emptyList();conversations=emptyList();m.messagePeer=null;sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}})
+    DmActions(m,peerId,peer?.optString("name").orEmpty(),data?.optJSONObject("settings")?.optInt("muted")==1,{value->data=JSONObject((data?:JSONObject()).toString()).put("settings",payload("muted" to if(value)1 else 0))},{body="";messages=emptyList();conversations=conversations.filterNot{it.optString("id")==peerId};m.messagePeer=null})
     if(m.messagePeer!=null&&peer!=null){
      val id=peer.optString("id");val followed=m.follows.any{it.optString("kind")=="producer"&&it.optString("target_id")==id}
      TextButton(onClick={m.followPerson(id)},enabled=!m.busy,modifier=Modifier.testTag("dm-peer-follow"),contentPadding=PaddingValues(horizontal=6.dp)){Text(if(followed)"팔로잉" else "팔로우",fontSize=12.sp)}
@@ -454,7 +456,13 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    error?.let{Text(it,color=Pink,modifier=Modifier.padding(horizontal=18.dp))}
    if(m.messagePeer==null){
     inboxState.SaveableStateProvider("inbox:$accountId"){
-     MessageInbox(m,conversations,synced,Modifier.fillMaxWidth().weight(1f),readAll={sheetScope.launch{try{m.api.call("/api/dm/read-all","POST");load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},clear={conversations=emptyList();sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},openProfile=::openMessageProfile)
+     MessageInbox(m,conversations,synced,Modifier.fillMaxWidth().weight(1f),
+      readAll={sheetScope.launch{try{m.api.call("/api/dm/read-all","POST");load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}},
+      onConversationDeleted={id->
+       inboxRevision.longValue++
+       conversations=conversations.filterNot{it.optString("id")==id}
+       sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
+      },refreshInbox={load()},openProfile=::openMessageProfile)
     }
    }else{
     ChatHistory(m,messages,earlier,historyLoading,{if(!historyLoading){historyLoading=true;sheetScope.launch{try{load(older=true)}catch(e:Exception){if(e is CancellationException)throw e;if(current(peerId))error=e.message}finally{historyLoading=false}}}},m.user?.optString("id"),false,peer=peer?.optString("name")?:"",retry={send(it)},modifier=Modifier.weight(1f).padding(horizontal=8.dp),fill=true,peerPerson=peer,openPeer={peer?.let{openMessageProfile(it)}})

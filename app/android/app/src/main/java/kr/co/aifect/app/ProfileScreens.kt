@@ -41,6 +41,9 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
  val pick=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){image=it}
  AppPage(title="내 프로필 수정",onDismissRequest={if(!m.busy)m.showProfileEdit=false},containerColor=Panel){
   Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).imePadding().padding(24.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
+   val clipboard=androidx.compose.ui.platform.LocalClipboardManager.current
+   val code=sequenceOf(m.ownDashboard?.optString("public_id"),p?.optString("public_id"),m.user?.optString("public_id")).filterNotNull().firstOrNull{it.matches(Regex("[A-Z]{3}[0-9]{4}"))}
+   if(code!=null)TextButton(onClick={clipboard.setText(androidx.compose.ui.text.AnnotatedString(code));m.notice="ID를 복사했어요."}){Text("ID $code  ⧉")}
    Text("내 프로필",fontSize=25.sp)
    Box(Modifier.clickable{pick.launch("image/*")}){if(image!=null)AsyncImage(image,"선택한 프로필 사진",Modifier.size(90.dp))else Avatar(name,p,90)}
    TextButton(onClick={pick.launch("image/*")}){Text("프로필 사진 바꾸기")}

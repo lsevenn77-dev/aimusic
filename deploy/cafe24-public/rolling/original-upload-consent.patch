@@ -1,0 +1,132 @@
+diff --git a/dist/actions.js b/dist/actions.js
+index 85bd1db..38481f6 100644
+--- a/dist/actions.js
++++ b/dist/actions.js
+@@ -71,7 +71,9 @@ async function upload(fd){
+  const form=$('#upload-form');applyLyrics(fd);
+  const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해주세요.');
+  for(const name of ['cover','artist_image','producer_image'])await validateImage(fd.get(name));
+- const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:fd.has('rights'),is_ai:true,karaoke:fd.has('karaoke'),extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
++ const consent=fd.get('upload_consent_version');
++ if(consent!==AifectSite.ORIGINAL_UPLOAD_TERMS_VERSION)throw new Error('음원 권리 확인 및 이용허락에 동의해주세요.');
++ const body={...textFields(fd),participation:fd.getAll('participation').join(', '),rights:true,is_ai:true,karaoke:true,upload_consent_version:consent,extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+  uploadStage(form,'1 / 3 · 곡 정보와 프로필을 저장하고 있어요.');form.querySelector('#upload-submit').textContent='업로드 중…';
+  const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
+  let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/uploads','POST',body),fingerprint};form._draft=draft;}
+diff --git a/dist/studio.js b/dist/studio.js
+index b3eb7d1..9f33cca 100644
+--- a/dist/studio.js
++++ b/dist/studio.js
+@@ -8,11 +8,13 @@ const profileImageURL=(p,kind)=>p?.image_version?`/media/${kind}/${p.id}?v=${p.i
+ const bannerURL=p=>p?.banner_version?`/media/banner/${p.id}?v=${p.banner_version}`:'';
+ function imageField(label,name,src='',round=false){return `<div class="image-field ${round?'is-portrait':''}"><div class="image-preview ${round?'profile-avatar':''}">${src||round?`<img class="${round?'profile-avatar-image':''}" src="${esc(src||DEFAULT_AVATAR)}" alt="${label} 미리보기">`:`<span>${icon('plus')}</span>`}</div><div class="image-field-controls"><label class="form-field">${label}<input type="file" name="${name}" accept="image/jpeg,image/png,image/webp" data-image-input></label><p class="field-help">JPG · PNG · WebP / 최대 5MB<br>업로드 시 WebP로 자동 압축해요 (최대 1600px).<br>정사각형 이미지를 권장해요.</p><span class="image-selection" role="status"></span><button type="button" class="text-link" data-reset-image hidden>선택 취소</button></div></div>`;}
+ function uploadQuotaHTML(q){return q?`<section class="upload-quota" aria-label="이번 달 제작곡 업로드"><strong>이번 달 제작곡 ${q.used} / ${q.limit}곡 · ${q.remaining}곡 남음</strong><p>일반회원 월 3곡 · Premium 월 10곡<br>매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.</p></section>`:'';}
+-function uploadHTML(d){const p=d.producer;return heading('음원 업로드','음악과 창작자의 이야기를 함께 들려주세요.')+uploadQuotaHTML(d.upload_quota)+`<div class="upload-layout"><form id="upload-form" class="surface upload-form"><div class="form-section-heading"><span>01</span><h2>음악과 앨범 커버</h2></div><label class="file-zone">${icon('upload')}<strong>원본 음원 선택</strong><span>WAV · FLAC · MP3 / 최대 80MB</span><input name="audio" type="file" accept=".wav,.flac,.mp3" required aria-label="원본 음원 선택"></label>${imageField('앨범 / 싱글 커버','cover')}<div class="form-section-heading"><span>02</span><h2>곡 정보</h2></div>${formField('곡 제목','title','text','','required maxlength="120"')}${musicClassificationHTML()}${formField('태그 (쉼표로 구분)','tags','text','','maxlength="300" placeholder="예: dark pop, fusion, 한국 설화, 어두운 분위기"')}<label class="form-field">곡 소개<textarea name="description" maxlength="4000" placeholder="음악에 담은 이야기, 가사와 분위기를 소개해주세요."></textarea></label><div class="form-section-heading"><span>03</span><h2>AI 가수 · 아티스트</h2></div><label class="form-field">표시할 이름<select name="artist_id" id="upload-artist"><option value="none">AI 가수 선택 안 함 · 내 활동명으로 표시</option><option value="">새 AI 가수 만들기</option>${d.artists.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label><p class="field-help">AI 가수를 선택하면 가수 이름으로, 선택하지 않으면 내 활동명으로 표시돼요.</p><div id="upload-artist-fields"></div><div class="form-section-heading"><span>04</span><h2>작곡가 · 제작자</h2></div><p class="field-help">음악을 만드는 사람의 공개 프로필입니다. 변경하면 기존 곡에도 함께 반영됩니다.</p>${imageField('작곡가 / 제작자 사진','producer_image',profileImageURL(p,'producer'),true)}${formField('작곡가 / 제작자 이름','producer','text',p?.name||me.name,'required maxlength="60"')}${bioField('작곡가 / 제작자 소개','producer_bio',p?.bio||'','작업 스타일, 음악 활동, 전하고 싶은 이야기를 소개해주세요.')}${lyricsEditorHTML()}<div class="form-section-heading"><span>06</span><h2>제작 크레딧</h2></div>${formField('사용한 AI 도구','ai_tool','text','','required maxlength="100" placeholder="예: Suno, Udio"')}${participationFields()}<p class="field-help">입력한 AI 도구와 제작 참여 내용이 곡의 크레딧에 표시돼요.</p><label class="checkbox-line rights-check"><input name="rights" type="checkbox" required> 이 음원과 이미지들을 업로드하고 공개할 권리를 보유하고 있습니다. 무단 복제, 타인의 음성 복제, 권리 없는 재업로드가 아닙니다.</label>${karaokeCheckHTML()}<button type="submit" class="primary-button" id="upload-submit">음원 업로드 ${icon('upload')}</button><div class="upload-progress" hidden><progress aria-label="파일 전송 진행률" max="100" value="0"></progress><p role="status" aria-live="polite"></p><small>전송이 끝날 때까지 이 화면을 유지해주세요.</small></div><p class="form-error" role="alert"></p></form><aside class="surface upload-guide"><span class="eyebrow">MADE BY YOU</span><h2>음악의 첫인상부터<br>당신의 이야기까지.</h2><p>앨범 커버는 곡 목록과 플레이어에, AI 가수와 작곡가 사진·소개는 각 프로필에 표시됩니다.</p><p>이미지는 선택 사항입니다. 스튜디오에서 사진과 소개를 언제든 수정할 수 있어요.</p><hr><p>음원은 5초부터 20분까지. 업로드 후 감상용 음원과 60초 미리 듣기를 자동으로 만들고 공개합니다.</p></aside></div>`;}
++function uploadHTML(d){const p=d.producer;return heading('음원 업로드','음악과 창작자의 이야기를 함께 들려주세요.')+uploadQuotaHTML(d.upload_quota)+`<div class="upload-layout"><form id="upload-form" class="surface upload-form"><div class="form-section-heading"><span>01</span><h2>음악과 앨범 커버</h2></div><label class="file-zone">${icon('upload')}<strong>원본 음원 선택</strong><span>WAV · FLAC · MP3 / 최대 80MB</span><input name="audio" type="file" accept=".wav,.flac,.mp3" required aria-label="원본 음원 선택"></label>${imageField('앨범 / 싱글 커버','cover')}<div class="form-section-heading"><span>02</span><h2>곡 정보</h2></div>${formField('곡 제목','title','text','','required maxlength="120"')}${musicClassificationHTML()}${formField('태그 (쉼표로 구분)','tags','text','','maxlength="300" placeholder="예: dark pop, fusion, 한국 설화, 어두운 분위기"')}<label class="form-field">곡 소개<textarea name="description" maxlength="4000" placeholder="음악에 담은 이야기, 가사와 분위기를 소개해주세요."></textarea></label><div class="form-section-heading"><span>03</span><h2>AI 가수 · 아티스트</h2></div><label class="form-field">표시할 이름<select name="artist_id" id="upload-artist"><option value="none">AI 가수 선택 안 함 · 내 활동명으로 표시</option><option value="">새 AI 가수 만들기</option>${d.artists.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label><p class="field-help">AI 가수를 선택하면 가수 이름으로, 선택하지 않으면 내 활동명으로 표시돼요.</p><div id="upload-artist-fields"></div><div class="form-section-heading"><span>04</span><h2>작곡가 · 제작자</h2></div><p class="field-help">음악을 만드는 사람의 공개 프로필입니다. 변경하면 기존 곡에도 함께 반영됩니다.</p>${imageField('작곡가 / 제작자 사진','producer_image',profileImageURL(p,'producer'),true)}${formField('작곡가 / 제작자 이름','producer','text',p?.name||me.name,'required maxlength="60"')}${bioField('작곡가 / 제작자 소개','producer_bio',p?.bio||'','작업 스타일, 음악 활동, 전하고 싶은 이야기를 소개해주세요.')}${lyricsEditorHTML()}<div class="form-section-heading"><span>06</span><h2>제작 크레딧</h2></div>${formField('사용한 AI 도구','ai_tool','text','','required maxlength="100" placeholder="예: Suno, Udio"')}${participationFields()}<p class="field-help">입력한 AI 도구와 제작 참여 내용이 곡의 크레딧에 표시돼요.</p>${originalUploadConsentHTML()}<button type="submit" class="primary-button" id="upload-submit">음원 업로드 ${icon('upload')}</button><div class="upload-progress" hidden><progress aria-label="파일 전송 진행률" max="100" value="0"></progress><p role="status" aria-live="polite"></p><small>전송이 끝날 때까지 이 화면을 유지해주세요.</small></div><p class="form-error" role="alert"></p></form><aside class="surface upload-guide"><span class="eyebrow">MADE BY YOU</span><h2>음악의 첫인상부터<br>당신의 이야기까지.</h2><p>앨범 커버는 곡 목록과 플레이어에, AI 가수와 작곡가 사진·소개는 각 프로필에 표시됩니다.</p><p>이미지는 선택 사항입니다. 스튜디오에서 사진과 소개를 언제든 수정할 수 있어요.</p><hr><p>음원은 5초부터 20분까지. 업로드 후 감상용 음원과 60초 미리 듣기를 자동으로 만들고 공개합니다.</p></aside></div>`;}
+ function artistUploadFields(a){return `${a?'<p class="field-help">선택한 아티스트의 공통 프로필을 수정합니다. 기존 곡에도 반영됩니다.</p>':''}${imageField('AI 가수 / 아티스트 사진','artist_image',profileImageURL(a,'artist'),true)}${formField('AI 가수 / 아티스트 이름','artist','text',a?.name||'','required maxlength="60"')}${bioField('AI 가수 / 아티스트 소개','artist_bio',a?.bio||'','목소리, 성격, 음악 스타일과 세계관을 소개해주세요.')}`;}
+ function participationFields(value=''){return `<div class="participation">사람이 참여한 부분 ${['작사','작곡','편곡','보컬','믹싱'].map(v=>`<label><input type="checkbox" name="participation" value="${v}" ${value.split(',').map(s=>s.trim()).includes(v)?'checked':''}>${v}</label>`).join('')}</div>`;}
+ function studioHTML(d){return heading('스튜디오','음악, 이미지, 프로필을 한곳에서 관리하세요.')+uploadQuotaHTML(d.upload_quota)+`<div class="stats-grid"><div class="stat-card"><span>공개한 음악</span><strong>${d.tracks.filter(t=>t.status==='published').length}</strong></div><div class="stat-card"><span>업로드 · 변환 중</span><strong>${d.tracks.filter(t=>['queued','processing','uploading'].includes(t.status)).length}</strong></div><div class="stat-card"><span>AI 아티스트</span><strong>${d.artists.length}</strong></div></div><div class="section-heading"><h2>내 음원 · 앨범 커버</h2><a class="primary-button" href="#upload">음원 업로드 ${icon('plus')}</a></div><div class="surface">${d.tracks.length?d.tracks.map(t=>`<div class="studio-track"><div class="studio-track-title">${cover(t,'mini-cover')}<div><strong>${esc(t.title)}${t.kind==='cover'?' <b class="ai-mini cover-mini">COVER</b>':''}</strong><p>${{uploading:'파일 전송 대기',queued:'변환 대기',processing:'음원 변환 중',published:'공개됨',hidden:'비공개',failed:'변환 실패'}[t.status]}</p>${alignmentBadge(t.alignment_state)}<small class="classification-summary">${t.classification_source==='ai'?'AI · '+esc(AifectGenres.parseList(t.genres_json).join(' · '))+' / '+esc(AifectGenres.parseList(t.moods_json).map(id=>AifectGenres.MOODS.find(m=>m.id===id)?.name||id).join(' · ')):t.classification_state==='failed'?'AI 분류를 완료하지 못했어요. 곡 정보에서 다시 요청할 수 있어요.':['queued','processing'].includes(t.classification_state)?'AI가 장르와 기분을 분석하고 있어요.':''}</small>${t.error?`<small class="form-error">${esc(t.error)}</small>`:''}</div></div><div class="inline-actions studio-track-actions"><a class="small-button" href="#manage/${t.id}">수정</a><button type="button" class="small-button danger-button" data-delete-track="${t.id}" data-track-title="${esc(t.title)}" data-track-kind="${t.kind}">삭제</button>${t.status==='published'?`<a class="small-button" href="#song/${t.id}">곡 보기</a><button class="small-button" data-hide-track="${t.id}">비공개</button>`:['failed','hidden'].includes(t.status)?`<button class="small-button" data-retry-track="${t.id}">${t.status==='hidden'?'다시 공개':'다시 변환'}</button>`:''}</div></div>`).join(''):'아직 업로드한 곡이 없습니다.'}</div>${section('내 프로필')}<form id="producer-form" class="surface upload-form profile-editor"><p class="field-help">제작곡과 커버곡이 모두 이 프로필에 모여요.${d.producer?` <a href="#producer/${d.producer.id}">내 프로필 보기</a>`:''}</p>${imageField('프로필 사진','image',profileImageURL(d.producer,'producer'),true)}${formField('닉네임','name','text',d.producer?.name||me.name,'required maxlength="12"')}${bioField('소개','bio',d.producer?.bio||'')}<button class="primary-button">프로필 저장</button><p class="form-error" role="alert"></p></form>${section('AI 가수 · 아티스트 프로필')}<div class="artist-editors">${d.artists.length?d.artists.map(a=>`<details class="surface artist-editor"><summary>${portrait(a,'artist')}<div><strong>${esc(a.name)}</strong><span>${esc(a.genre)} · 사진과 소개 수정</span></div>${icon('chevron')}</summary><form class="upload-form artist-form" data-id="${a.id}">${imageField('AI 가수 / 아티스트 사진','image',profileImageURL(a,'artist'),true)}${formField('AI 가수 / 아티스트 이름','name','text',a.name,'required maxlength="60"')}${bioField('AI 가수 / 아티스트 소개','bio',a.bio)}${genreField(a.genre)}<button class="primary-button">아티스트 프로필 저장</button><p class="form-error" role="alert"></p></form></details>`).join(''):'<p class="quiet">음원 업로드에서 첫 AI 아티스트를 등록해보세요.</p>'}</div>`;}
+-function karaokeCheckHTML(){return `<label class="checkbox-line rights-check"><input name="karaoke" type="checkbox" required> <span>${esc(AifectSite.KARAOKE_TERMS_TEXT)} <a href="/terms#karaoke" target="_blank" rel="noopener">약관 보기</a></span></label>`;}
++function originalUploadConsentHTML(){
++ return `<div class="rights-check"><p class="field-help" id="upload-rights-note">${esc(AifectSite.AI_UPLOAD_RIGHTS_NOTE)}</p><label class="checkbox-line"><input name="upload_consent_version" value="${esc(AifectSite.ORIGINAL_UPLOAD_TERMS_VERSION)}" type="checkbox" required aria-describedby="upload-rights-note"><span>${esc(AifectSite.ORIGINAL_UPLOAD_TERMS_TEXT)}</span></label><a href="/terms#original-upload" target="_blank" rel="noopener">음원 이용허락 약관 보기</a></div>`;
++}
+ function karaokeStatusHTML(t){if(t.karaoke_at)return karaokePanelHTML(t);return `<div class="rights-check karaoke-optin"><p>이 곡은 노래방 MR 제공 · 커버 허락 조항이 생기기 전에 올라왔습니다. 동의하면 노래방과 커버곡 기능에 포함됩니다.</p><label class="checkbox-line"><input type="checkbox" id="karaoke-accept"> <span>${esc(AifectSite.KARAOKE_TERMS_TEXT)} <a href="/terms#karaoke" target="_blank" rel="noopener">약관 보기</a></span></label><button type="button" class="small-button" data-karaoke-track="${t.id}">동의하고 노래방에 포함하기</button></div>`;}
+ const KARAOKE_STATE={queued:'노래방 MR을 만들 차례를 기다리고 있어요. 한 곡씩 차례로 만들어서 시간이 걸릴 수 있어요.',processing:'보컬을 분리해 노래방 MR을 만들고 있어요.',ready:'노래방 MR이 준비됐어요. 들어보고 보컬이 남아 있으면 직접 만든 반주 파일로 바꿀 수 있어요.'};
+ const KARAOKE_WORDS={ready:'가사 단어별 싱크까지 완료됐어요.',attention:'가사 단어별 싱크를 맞췄어요. 일부 구간은 정확하지 않을 수 있어요.',failed:'가사 단어별 싱크를 맞추지 못했어요. 등록한 가사가 실제로 부르는 내용과 같은지 확인해주세요.'};
+diff --git a/server/media.js b/server/media.js
+index d2bdad4..67a6b03 100644
+--- a/server/media.js
++++ b/server/media.js
+@@ -15,7 +15,7 @@ import {alignmentInternalRoute,alignmentWrite} from './alignment.js';
+ import {dubbingSoundInternalRoute} from './dubbing-sound.js';
+ import {dubbingFinalInternalRoute} from './dubbing-final.js';
+ import {dubbingGenerationInternalRoute} from './dubbing-generation.js';
+-import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
++import {KARAOKE_TERMS_VERSION,ORIGINAL_UPLOAD_TERMS_VERSION} from '../shared/site-info.js';
+ import {MAX_AUDIO,put,objectResponse,imageCacheControl,parseRange,originalKey} from './storage.js';
+ import {originalArchiveRoute} from './original-archives.js';
+ import {premiumAudio,premiumAudioRoute} from './premium-audio.js';
+@@ -55,13 +55,15 @@ export async function mediaRoute(req,env,path,user){
+   const performance=b.performance_mode??'solo';if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해주세요.');
+   if(b.rights!==true||b.is_ai!==true)fail(400,'AI 제작 여부와 음원 권리 보유 확인이 필요합니다.');
+   if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');
++  const termsVersion='upload_consent_version' in b?b.upload_consent_version:KARAOKE_TERMS_VERSION;
++  if('upload_consent_version' in b && termsVersion!==ORIGINAL_UPLOAD_TERMS_VERSION)fail(400,'현재 음원 이용허락 내용을 확인하고 다시 동의해주세요.');
+   const classification=classificationFields(b);b.genre=classification.genres[0];
+   if(!validGenre(b.genre)||!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'지원하는 장르와 80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');
+   let producer=await one(env,'SELECT * FROM producers WHERE user_id=?',user.id);
+   if(!producer){producer={id:id()};await nicknameBatch(env,user.id,producerName,[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1)',producer.id,user.id,producerName,str(b.producer_bio||'',1000,false),now())]);}
+   const artist=await chooseArtist(env,producer.id,b,b.genre);
+   const tid=id(),jobWrites=lyricData.auto?await alignmentWrite(env,tid,user.id,lyricData):[];
+-  await env.DB.batch([query(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode,karaoke_terms,karaoke_at,performance_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode,KARAOKE_TERMS_VERSION,now(),performance),...jobWrites]);
++  await env.DB.batch([query(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode,karaoke_terms,karaoke_at,performance_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode,termsVersion,now(),performance),...jobWrites]);
+   await run(env,'UPDATE tracks SET genres_json=?,moods_json=? WHERE id=?',JSON.stringify(classification.genres),JSON.stringify(classification.moods),tid);
+   return json({id:tid,artist_id:artist.selected?artist.id:null,producer_id:producer.id},201);
+  }
+diff --git a/server/public-pages.js b/server/public-pages.js
+index fa1a424..d9e4750 100644
+--- a/server/public-pages.js
++++ b/server/public-pages.js
+@@ -1,6 +1,6 @@
+ import {settlementPolicyHTML} from '../shared/gifts.js';
+ import {GOLD_PACKS,WEB_GOLD_PACKS} from '../shared/gifts.js';
+-import {BUSINESS, PREMIUM, APP_PREMIUM, POLICY_VERSION, SUBSCRIPTION_REVENUE_POLICY, businessFooterHTML, businessDetailsHTML, policyLinks, escapeHTML as esc} from '../shared/site-info.js';
++import {ORIGINAL_UPLOAD_TERMS_TEXT, AI_UPLOAD_RIGHTS_NOTE, BUSINESS, PREMIUM, APP_PREMIUM, POLICY_VERSION, SUBSCRIPTION_REVENUE_POLICY, businessFooterHTML, businessDetailsHTML, policyLinks, escapeHTML as esc} from '../shared/site-info.js';
+ 
+ const mail=(subject,label='이메일로 문의하기')=>`<a href="mailto:${BUSINESS.email}?subject=${encodeURIComponent('[AIFECT] '+subject)}">${label}</a>`;
+ const section=(id,title,body)=>`<section id="${id}"><h2>${title}</h2>${body}</section>`;
+@@ -31,6 +31,7 @@ function terms(){return {
+  section('billing','4. 정기결제와 계약','<p>유료 서비스 개시 후 결제 전 상품명, 총금액, 이용 기간, 결제 주기, 다음 결제일, 제공 기능 및 환불 기준을 안내합니다. 이용자가 해당 조건에 동의하고 결제가 완료되면 이용권이 제공됩니다. 결제 실패 시 결제되지 않은 기간의 이용권이 자동으로 부여되지는 않습니다.</p><p>이용자가 정기결제에 동의한 경우 매월 안내된 날짜에 갱신됩니다. 가격 인상이나 무료에서 유료 정기결제로 전환할 때에는 관계 법령에 따른 사전 안내와 동의 절차를 거칩니다. 동의하지 않은 변경 금액을 임의로 청구하지 않습니다.</p>')+
+  section('refund','5. 해지·청약철회·환불','<p>정기결제 해지와 이미 지급한 금액의 환불은 구분됩니다. 해지는 다음 결제를 중단하며, 이미 결제한 기간은 종료일까지 이용할 수 있습니다. 청약철회와 이용 중 환불은 <a href="/refund">환불 · 해지 정책</a>에 따릅니다. 관계 법령에 따라 보장되는 소비자의 권리는 이 약관보다 우선합니다.</p><p>카드결제를 통한 구매 건의 환불은 원칙적으로 카드 매출 취소 환불을 통해서만 가능합니다.</p>')+
+  section('creator','6. 창작물 업로드와 권리','<p>제작자는 자신이 AIFECT에 공개하고 스트리밍할 권리를 가진 음원, 이미지, 가사만 업로드해야 합니다. AI 도구의 이용 조건, 타인의 저작권·상표권·초상권·음성 등 관련 권리를 확인해야 하며, AI 활용 여부와 제작 참여 정보를 사실대로 기재해야 합니다.</p><p>업로드한 콘텐츠의 권리는 해당 권리자에게 남습니다. 제작자는 운영자에게 AIFECT 안에서 콘텐츠를 보관·변환·전송·재생하고, 검색 결과와 서비스 내 소개에 표시할 수 있는 비독점적 이용 권한을 허락합니다. 별도의 합의 없이 외부 광고나 AI 모델 학습을 위한 권리까지 넘기는 것은 아닙니다.</p><p>제작자는 스튜디오에서 곡을 비공개로 전환할 수 있습니다. 원본 및 계정 데이터의 완전한 삭제는 고객센터로 요청할 수 있습니다. 공개 중단 이후에도 분쟁 처리 또는 법정 보관 의무에 필요한 정보는 필요한 범위에서 보관될 수 있습니다. 업로드만으로 정산이 약속되는 것은 아니며, 선물 수익의 배분과 지급은 8조에 따릅니다.</p><h3 id="karaoke">노래방 MR 제공과 커버 허락</h3><p>제작자는 곡을 업로드할 때 다음 사항에 동의합니다. 운영자는 곡의 반주(MR)를 만들거나 제작자가 제공한 반주를 사용해 AIFECT 노래방에서 가사와 함께 재생할 수 있습니다. 다른 이용자는 그 곡을 부르거나 편곡한 커버곡을 AIFECT에 올리고 공개할 수 있으며, 커버곡에는 원곡과 원곡 제작자가 함께 표시됩니다.</p><p>이 허락은 AIFECT 웹사이트와 AIFECT 모바일 앱 안에서의 이용에 한정되며, 비독점적입니다. 제작자는 이 허락에 필요한 권리를 보유하고 있음을 보증합니다. 사용한 AI 도구의 이용 조건이 반주 제작·커버 허락을 제한하는 경우 해당 곡을 업로드할 수 없습니다.</p><p>제작자가 원곡을 비공개로 전환하거나 삭제하면 해당 곡의 노래방 반주 제공이 중단되고, 그 곡의 커버곡도 함께 비공개로 전환됩니다. 커버곡에 들어온 선물의 수익 배분은 8조에 따릅니다.</p><p>이 조항은 업로드할 때 이 조항에 동의한 곡에 적용됩니다. 이 조항이 생기기 전에 올라온 곡은 제작자가 스튜디오에서 따로 동의한 경우에만 노래방과 커버곡 기능에 포함됩니다.</p>')+
++ section('original-upload','제작곡 업로드 시 권리 확인과 이용허락',`<p>${esc(ORIGINAL_UPLOAD_TERMS_TEXT)}</p><p>${esc(AI_UPLOAD_RIGHTS_NOTE)}</p><p>게임과 웹사이트 이용허락은 이 내용에 동의하여 업로드한 음원에 적용됩니다. 권리는 기존 권리자에게 남습니다.</p>`)+
+  section('gold','7. 골드와 선물','<p>골드는 AIFECT의 곡·회원에게 선물을 보내거나 AI 더빙 음향 제작에 쓰는 유료 재화입니다. 음향 제작 요청 전 차감할 수량을 표시하고 동의받으며, 제작 실패 시 차감한 골드를 자동 환급합니다. 충전 화면에 표시한 금액과 수량의 묶음 단위로 단건 판매합니다. 웹 결제 시 기본 골드의 5%를 추가 지급하며, 기본·추가·총 지급 수량을 결제 전에 안내합니다. 추가 골드는 기본 골드와 함께 사용하고, 이미 생성된 주문은 그 주문에 표시된 수량을 유지합니다. 자동충전이나 자동갱신은 없습니다. 골드의 구매 가격은 선물받는 창작자의 정산 단가가 아니며, 정산액은 결제 수수료와 수익 배분 기준을 반영해 별도로 계산합니다. 골드는 AIFECT 안에서 위 기능을 이용할 때만 쓸 수 있고, 현금으로 바꾸거나 다른 회원에게 넘길 수 없습니다. 먼저 충전한 골드부터 사용되며, 구매일로부터 5년이 지난 골드는 사용할 수 없습니다.</p><p>회원은 다른 회원에게 직접 또는 공개된 원곡과 커버곡에 골드를 선물할 수 있으며, 본인이나 자신이 올린 곡에는 선물할 수 없습니다. 보낸 선물은 받는 회원 또는 해당 곡의 창작자에게 배분되므로 취소하거나 되돌릴 수 없습니다. 다만 결제 도용이나 시스템 오류처럼 회원에게 책임이 없는 사유가 확인되면 관계 법령과 환불 정책에 따라 처리합니다. 곡과 프로필의 선물 순위에는 선물한 회원의 닉네임과 골드 수가 공개됩니다.</p><p>충전한 골드의 청약철회와 환불은 <a href="/refund#gold">환불 · 해지 정책</a>에 따릅니다. 미성년자가 법정대리인의 동의 없이 결제한 경우 본인 또는 법정대리인이 취소를 요청할 수 있습니다. 이 조항은 골드 판매를 시작한 날부터 적용합니다.</p>')+
+   section('earnings','8. 창작자 수익과 정산',settlementPolicyHTML())+
+   section('conduct','9. 게시물과 서비스 이용 기준','<p>권리 침해, 불법 콘텐츠, 타인 사칭, 괴롭힘, 개인정보 무단 공개, 악성코드, 스팸, 허위 재생·좋아요·댓글 및 시스템 공격을 금지합니다. 운영자는 신고나 객관적인 사유에 따라 콘텐츠를 제한할 수 있으며, 긴급한 법적·보안상 사유가 아니라면 사유와 이의제기 방법을 안내합니다.</p><p>권리 침해 신고 시 대상 곡이나 게시물 주소, 침해 사유, 권리 관계를 확인할 수 있는 자료 및 회신 받을 연락처를 고객센터로 보내주세요. 운영자는 신고 내용을 확인하고 필요한 조치를 안내합니다.</p>')+
+diff --git a/shared/site-info.js b/shared/site-info.js
+index 05c0acf..1bef6ca 100644
+--- a/shared/site-info.js
++++ b/shared/site-info.js
+@@ -11,6 +11,9 @@ export const APP_PREMIUM = Object.freeze({...PREMIUM, price: 5900});
+ export const POLICY_VERSION = '2026-10-11';
+ // Karaoke MR / cover license accepted per track. Bump when the clause text changes; older consents keep their version.
+ export const KARAOKE_TERMS_VERSION = '2026-09-24';
++export const ORIGINAL_UPLOAD_TERMS_VERSION = '2026-11-02.1';
++export const ORIGINAL_UPLOAD_TERMS_TEXT = 'AI로 제작한 이 음원과 가사·이미지를 업로드하고 공개할 권리가 있으며, 무단 복제물이나 허락 없이 복제한 타인의 음성을 사용하지 않았습니다. AIFECT에서 반주(MR)를 만들고 다른 이용자가 커버를 제작·공개하는 데 동의합니다. 또한 아이팩트가 직접 운영하는 게임과 웹사이트에서 이 음원을 사용할 수 있도록 비독점적으로 허락합니다.';
++export const AI_UPLOAD_RIGHTS_NOTE = 'Suno 무료 플랜으로 만든 곡은 기본적으로 비상업적 용도로만 이용할 수 있어요. 다른 AI로 만든 곡도 제작 당시 요금제와 약관에서 상업적 이용과 위 이용허락이 가능한지 확인해주세요.';
+ export const KARAOKE_TERMS_TEXT = '이 곡을 AIFECT 노래방에 MR(반주)로 제공하고, 다른 이용자가 이 곡을 커버해 AIFECT에 공개하는 것을 허락합니다. 이 허락에 필요한 권리를 보유하고 있습니다.';
+ export const escapeHTML = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ export const policyLinks = [['/pricing','이용권 · 가격'],['/terms','이용약관'],['/privacy','개인정보처리방침'],['/refund','환불 · 해지 정책'],['/contact','고객센터']];
+diff --git a/tests/karaoke.test.mjs b/tests/karaoke.test.mjs
+index 9f78557..534d447 100644
+--- a/tests/karaoke.test.mjs
++++ b/tests/karaoke.test.mjs
+@@ -1,7 +1,7 @@
+ import test from 'node:test';
+ import assert from 'node:assert/strict';
+ import {fixture} from './fixture.mjs';
+-import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
++import {KARAOKE_TERMS_VERSION,ORIGINAL_UPLOAD_TERMS_VERSION} from '../shared/site-info.js';
+ import {publicPage} from '../server/public-pages.js';
+ 
+ const upload={title:'노래방 동의',artist:'AI',producer:'Creator',genre:'Rock',ai_tool:'QA',extension:'wav',bytes:128,rights:true,is_ai:true};
+@@ -18,6 +18,19 @@ test('upload requires the karaoke MR and cover consent and records its version',
+  assert.ok(row.karaoke_at>0);
+ });
+ 
++test('new original upload records the combined license only after explicit agreement',async t=>{
++ const f=await fixture(t);
++ const body={...upload,karaoke:true,upload_consent_version:ORIGINAL_UPLOAD_TERMS_VERSION};
++ for(const invalid of [{rights:false},{karaoke:false},{is_ai:false},{upload_consent_version:null},{upload_consent_version:'unknown'}]){
++  assert.equal((await f.call('/api/uploads','POST',{...body,...invalid})).status,400);
++ }
++ const ok=await f.call('/api/uploads','POST',body);
++ assert.equal(ok.status,201);
++ const track=f.sql.prepare('SELECT karaoke_terms,karaoke_at,rights_accepted FROM tracks WHERE id=?').get(ok.body.id);
++ assert.equal(track.karaoke_terms,ORIGINAL_UPLOAD_TERMS_VERSION);
++ assert.ok(track.karaoke_at>0 && track.rights_accepted>0);
++});
++
+ test('tracks uploaded before the clause opt in once, only by their owner',async t=>{
+  const f=await fixture(t);
+  assert.equal(f.sql.prepare("SELECT karaoke_at FROM tracks WHERE id='one'").get().karaoke_at,0);

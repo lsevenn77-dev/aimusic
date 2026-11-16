@@ -39,7 +39,10 @@ internal class CurrentRead {
 }
 @Composable internal fun currentRead(m:MusicModel,path:String,enabled:Boolean=true,poll:Long=0):CurrentRead {
  val account=m.user?.optString("id")
- val read=remember(path,account){CurrentRead()}
+ val read=remember(path,account,m.trackContentRevision){CurrentRead().apply{
+  if(enabled)data=m.api.peek(path)
+  loading=data==null
+ }}
  val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
  LaunchedEffect(path,account,enabled,read.revision,m.trackContentRevision){
   if(!enabled){read.loading=false;return@LaunchedEffect}
@@ -47,7 +50,7 @@ internal class CurrentRead {
    do{
     read.loading=read.data==null
     try{val d=m.api.call(path,fresh=true);if(account==m.user?.optString("id")){read.data=d;read.error=null}}
-    catch(e:Exception){if(e is CancellationException)throw e;read.error=e.message?:"불러오지 못했어요."}
+    catch(e:Exception){if(e is CancellationException)throw e;if(e is ApiException&&e.status in listOf(401,403,404))read.data=null;read.error=e.message?:"불러오지 못했어요."}
     finally{read.loading=false}
     if(poll>0)delay(poll)
    }while(poll>0)
@@ -55,59 +58,97 @@ internal class CurrentRead {
  }
  return read
 }
-@Composable internal fun ReadStatus(read:CurrentRead){
- if(read.loading)LinearProgressIndicator(Modifier.fillMaxWidth().padding(vertical=8.dp),color=Pink,trackColor=Stroke)
- read.error?.let{Column(Modifier.fillMaxWidth().padding(vertical=12.dp)){Text(it,color=Muted,fontSize=14.sp);TextButton(onClick=read::retry){Text("다시 불러오기")}}}
-}
-@Composable internal fun CurrentTabs(items:List<Pair<String,String>>,selected:String,tag:String,onSelect:(String)->Unit){
- val equalWidth=tag in setOf("community-main","play-main","my-section","inbox-filter")
- Column(Modifier.fillMaxWidth()){
- Row(Modifier.fillMaxWidth().then(if(equalWidth)Modifier else Modifier.horizontalScroll(rememberScrollState())).padding(horizontal=if(tag.startsWith("my-"))0.dp else 20.dp).testTag(tag),horizontalArrangement=Arrangement.spacedBy(if(equalWidth)0.dp else 20.dp)){
-  items.forEach{(key,label)->
-   Column((if(equalWidth)Modifier.weight(1f)else Modifier.width(IntrinsicSize.Max)).selectable(selected==key,role=Role.Tab,onClick={onSelect(key)}).testTag("$tag-$key").heightIn(min=48.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
-    Text(label,color=if(selected==key)Pink else Muted,fontWeight=if(selected==key)FontWeight.SemiBold else FontWeight.Medium,fontSize=13.sp,lineHeight=18.sp,modifier=Modifier.padding(vertical=11.dp))
-    Box(Modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).then(if(selected==key)Modifier.background(BrandGradient)else Modifier))
+@Composable internal fun LoadingRows(){
+ Column(Modifier.fillMaxWidth().padding(vertical=8.dp).testTag("loading-skeleton"),verticalArrangement=Arrangement.spacedBy(10.dp)){
+  repeat(2){
+   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+    Spacer(Modifier.size(46.dp).background(Panel,RoundedCornerShape(8.dp)))
+    Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
+     Spacer(Modifier.fillMaxWidth(.62f).height(12.dp).background(Panel,RoundedCornerShape(4.dp)))
+     Spacer(Modifier.fillMaxWidth(.36f).height(9.dp).background(Panel,RoundedCornerShape(4.dp)))
+    }
    }
   }
  }
- HorizontalDivider(color=Stroke)
+}
+@Composable internal fun ReadStatus(read:CurrentRead){
+ if(read.loading&&read.data==null)LoadingRows()
+ read.error?.let{Column(Modifier.fillMaxWidth().padding(vertical=12.dp)){Text(it,color=Muted,fontSize=14.sp);TextButton(onClick=read::retry){Text("다시 불러오기")}}}
+}
+@Composable internal fun CurrentTabs(
+ items:List<Pair<String,String>>,selected:String,tag:String,
+ actions:(@Composable RowScope.()->Unit)?=null,onSelect:(String)->Unit
+){
+ val equalWidth=tag in setOf("community-main","play-main","my-section","inbox-filter")
+ Column(Modifier.fillMaxWidth()){
+  Row(Modifier.fillMaxWidth().padding(horizontal=if(actions!=null)4.dp else 0.dp),verticalAlignment=Alignment.CenterVertically){
+   BoxWithConstraints(Modifier.weight(1f)) {
+    val minSlot=48.dp*androidx.compose.ui.platform.LocalDensity.current.fontScale.coerceAtLeast(1f)
+    val fit=equalWidth && (actions==null || maxWidth>=minSlot*items.size)
+    Row(Modifier.fillMaxWidth().then(if(fit)Modifier else Modifier.horizontalScroll(rememberScrollState()))
+     .padding(horizontal=if(actions!=null || tag.startsWith("my-"))0.dp else 20.dp).testTag(tag),
+     horizontalArrangement=Arrangement.spacedBy(if(equalWidth)0.dp else 20.dp)){
+     items.forEach{(key,label)->
+      val slot=if(fit)Modifier.weight(1f) else if(equalWidth)Modifier.widthIn(min=minSlot) else Modifier.width(IntrinsicSize.Max)
+      Column(slot.selectable(selected==key,role=Role.Tab,onClick={onSelect(key)}).testTag("$tag-$key").heightIn(min=48.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.Center){
+       Text(label,color=if(selected==key)Pink else Muted,fontWeight=if(selected==key)FontWeight.SemiBold else FontWeight.Medium,fontSize=13.sp,lineHeight=18.sp,maxLines=1,modifier=Modifier.padding(vertical=11.dp))
+       Box(Modifier.then(if(fit)Modifier.fillMaxWidth() else Modifier.width(30.dp)).height(3.dp).clip(RoundedCornerShape(2.dp)).then(if(selected==key)Modifier.background(if(tag=="community-main"||tag=="play-main")DiscoveryGradient else BrandGradient)else Modifier))
+      }
+     }
+    }
+   }
+   if(actions!=null) actions()
+  }
+  HorizontalDivider(color=Stroke)
  }
 }
-@Composable private fun CurrentHeader(title:String,menu:()->Unit){
- Row(Modifier.fillMaxWidth().padding(start=20.dp,end=8.dp).heightIn(min=56.dp),verticalAlignment=Alignment.CenterVertically){Text(title,fontSize=24.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick=menu){Icon(Icons.Rounded.Menu,"전체 메뉴",tint=SoftText)}}
-}
-
-@Composable internal fun CurrentPlayScreen(m:MusicModel,sing:(Song)->Unit,resumeDraft:(JSONObject)->Unit,menu:()->Unit){
+@Composable internal fun CurrentPlayScreen(m:MusicModel,sing:(Song)->Unit,resumeDraft:(JSONObject)->Unit){
+ if(m.playMode=="dubbing"){
+  DubbingDiscovery(m)
+  return
+ }
  var query by rememberSaveable(m.playMode,m.playSection){mutableStateOf("")}
  var kind by rememberSaveable{mutableStateOf("all")}
  var choosingKind by remember{mutableStateOf(false)}
- var offset by rememberSaveable(m.playMode,m.playSection,kind){mutableIntStateOf(0)}
+ var finishedId by rememberSaveable(m.playMode){mutableStateOf<String?>(null)}
+ val account=m.user?.optString("id")
+ var offset by remember(m.playMode,m.playSection,kind,account){mutableIntStateOf(0)}
  val mode=m.playMode;val section=m.playSection
- val sections=when(mode){"dubbing"->listOf("discover" to "작품찾기","join" to "더빙참여","mine" to "내 작업");"browse"->listOf("recommended" to "추천","following" to "팔로잉","popular" to "인기","latest" to "최신");else->listOf("recommended" to "추천곡","duets" to "듀엣참여","latest" to "최신곡","drafts" to "내 초안")}
- val gated=(mode=="song"&&section=="drafts"||mode=="dubbing"&&section=="mine"||mode=="browse"&&section=="following")&&m.user==null
+ val sections=when(mode){"browse"->listOf("recommended" to "추천","following" to "팔로잉","popular" to "인기","latest" to "최신");else->listOf("recommended" to "추천","popular" to "인기","duets" to "듀엣 참여","drafts" to "내 초안")}
+ val gated=(mode=="song"&&section=="drafts"||mode=="browse"&&section=="following")&&m.user==null
  val base=CurrentNavigation.playPath(mode,section,kind)
  val path=base+(if('?' in base)"&" else "?")+"offset=$offset"
  val read=currentRead(m,path,enabled=!gated&&!(mode=="song"&&section=="drafts"))
- val account=m.user?.optString("id")
  val listKey=CurrentNavigation.playListKey(mode,section,kind)
  val tabLists=remember(account){mutableMapOf<String,List<JSONObject>>()}
  var records by remember(listKey,account){mutableStateOf(tabLists[listKey].orEmpty())}
  var appliedData by remember(listKey,account){mutableStateOf<JSONObject?>(null)}
- LaunchedEffect(read.data){read.data?.let{d->val incoming=d.optJSONArray(if(mode=="dubbing")"projects" else if(mode=="browse")"works" else "tracks").objects();records=(if(offset==0)incoming else records+incoming).distinctBy{it.optString("id")};tabLists[listKey]=records;appliedData=d}}
- val responseApplied=read.data==null||read.data===appliedData
- val filtered=records.filter{r->
-  val match=query.isBlank()||listOf("title","artist","producer","ownerName","owner_name").any{r.optString(it).contains(query.trim(),true)}
-  match&&(mode!="song"||section!="duets"||Song(r).openDuetFor(m.user?.optString("id")))&&(mode!="song"||section!="latest"||Song(r).cover)
+ LaunchedEffect(listKey,read.data,read.error){
+  val data=read.data
+  if(data!=null){
+   val incoming=data.optJSONArray(if(mode=="browse")"works" else "tracks").objects()
+   records=(if(offset==0)incoming else records+incoming).distinctBy{it.optString("id")}
+   tabLists[listKey]=records;appliedData=data
+  }else if(read.error!=null){records=emptyList();tabLists.remove(listKey);appliedData=null}
  }
+ val responseApplied=read.data==null||read.data===appliedData
+ val userId=m.user?.optString("id")
+ val filtered=remember(records,query,mode,section,userId){records.filter{r->
+  val match=query.isBlank()||listOf("title","artist","producer","ownerName","owner_name").any{r.optString(it).contains(query.trim(),true)}
+  match&&(mode!="song"||section!="duets"||Song(r).openDuetFor(userId))
+ }}
+ val nextOffset=read.data?.takeUnless{it.isNull("nextOffset")}?.optInt("nextOffset")?.takeIf{it>offset}
+ val queue=remember(filtered){filtered.filter{it.optString("type")!="dubbing"&&it.optString("kind")!="dubbing"}.map(::Song)}
  Column(Modifier.fillMaxSize().testTag("current-play")){
-  CurrentHeader("플레이",menu)
   CurrentTabs(listOf("song" to "노래","dubbing" to "더빙","browse" to "둘러보기"),mode,"play-main"){m.playMode=it;m.playSection=if(it=="dubbing")"discover" else "recommended"}
-  PlaySections(sections,section){m.playSection=it}
+  if(mode=="song"){
+   StudioSectionTabs(sections,section,"play-section",Modifier.padding(horizontal=12.dp,vertical=8.dp)){m.playSection=it}
+  }
+  else DiscoverySections(sections,section,"play-section",Modifier.padding(horizontal=16.dp,vertical=7.dp)){m.playSection=it}
   if(mode=="song"&&section=="drafts"){
    if(gated)SignInEntry(m)else RecordingDraftsContent(m,resumeDraft)
   }else LazyColumn(Modifier.fillMaxSize().testTag("play-results"),contentPadding=PaddingValues(16.dp,4.dp,16.dp,24.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
    if(gated)item{SignInEntry(m)}else{
-    if(mode=="dubbing")item{BrandButton(onClick={m.openCurrentWorkspace("dubbing/new","더빙 만들기")},modifier=Modifier.fillMaxWidth().testTag("dubbing-create")){Icon(Icons.Rounded.Add,null);Text("더빙 만들기")}}
     item{CurrentSearch(query,{query=it},if(mode=="song")"곡 · 아티스트 · 제작자 검색" else "작품 · 창작자 검색","play-search")}
     if(mode=="browse")item{SelectionField("작품 유형",mapOf("all" to "전체","solo" to "솔로","duet" to "듀엣","dubbing" to "더빙").getValue(kind),"play-kind-picker",Modifier.fillMaxWidth()){choosingKind=true}}
     if(CurrentNavigation.playLoaderVisible(read.loading,records.size,offset)||read.error!=null)item{ReadStatus(read)}
@@ -115,20 +156,20 @@ internal class CurrentRead {
      Row(Modifier.fillMaxWidth().testTag("play-grid-row-"+row.first().optString("id")),horizontalArrangement=Arrangement.spacedBy(14.dp)){
       row.forEach{r->Box(Modifier.weight(1f).testTag("play-grid-card-"+r.optString("id"))){
        when{
-        mode=="dubbing"->CurrentPlayDubbingCard(r,section,m)
-        mode=="song"&&section=="duets"->DuetParticipationRow(Song(r),m,filtered.map{Song(it)},sing)
-        r.optString("type")=="dubbing"||r.optString("kind")=="dubbing"->CurrentDubbingCard(r,m)
-        else->CurrentSongCard(Song(r),m,filtered.filter{it.optString("type")!="dubbing"}.map{Song(it)},if(mode=="song")sing else null)
+        mode=="song"&&section=="duets"->DuetParticipationRow(Song(r),m,queue,sing)
+        r.optString("type")=="dubbing"||r.optString("kind")=="dubbing"->CurrentDubbingCard(r){id->finishedId=id}
+        else->CurrentSongCard(Song(r),m,queue,if(mode=="song")sing else null)
        }
       }}
       if(row.size==1)Spacer(Modifier.weight(1f))
      }
     }
     if(CurrentNavigation.playEmptyVisible(filtered.size,read.loading,read.error!=null,responseApplied))item{CurrentEmpty(if(query.isNotBlank())"검색 결과가 없어요" else "아직 표시할 작품이 없어요",if(query.isNotBlank())"다른 제목이나 창작자를 찾아보세요." else "공개된 작품이 여기에 모여요.")}
-    if(read.data?.has("nextOffset")==true&&!read.data!!.isNull("nextOffset"))item{OutlinedButton(onClick={offset=read.data!!.optInt("nextOffset")},enabled=!read.loading,modifier=Modifier.fillMaxWidth()){Text("더 보기")}}
+    if(nextOffset!=null)item{OutlinedButton(onClick={offset=nextOffset},enabled=!read.loading&&responseApplied,modifier=Modifier.fillMaxWidth().testTag("play-more")){Text("더 보기")}}
    }
   }
  }
+ finishedId?.let{id->CompletedDubbingDetail(m,id){finishedId=null}}
  if(choosingKind)SelectionSheet("작품 유형",listOf("all" to "전체","solo" to "솔로","duet" to "듀엣","dubbing" to "더빙"),listOf(kind),"play-kind",{choosingKind=false}){kind=it}
 }
 @Composable private fun RecordingDraftsContent(m:MusicModel,resume:(JSONObject)->Unit){
@@ -159,38 +200,22 @@ private fun JSONObject.flag(key:String)=optBoolean(key,false)||optInt(key,0)==1
  }
 }
 private val NoneDescription:String?=null
-@Composable private fun CurrentPlayDubbingCard(p:JSONObject,section:String,m:MusicModel){
- val id=p.optString("id");val states=mapOf("script_ready" to "초안","recruiting" to "배역 모집 중","recording" to "녹음 중","in_progress" to "녹음 중","mixing" to "믹싱 중","complete" to "완료")
- fun open(){if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("dubbing/$id",p.optString("title","더빙"))}
- Column(Modifier.fillMaxWidth().testTag("dubbing-project-$id")){
-  Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Raised).clickable{open()}.testTag("dubbing-card-art-$id")){
-   Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(32.dp).align(Alignment.Center),tint=Muted)
-   AsyncImage(currentDubbingImage(p),"더빙 장르 이미지",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-   BrandPlayButton(if(p.optString("state")=="complete")"${p.optString("title")} 더빙 듣기"else "${p.optString("title")} 작품 보기",::open,Modifier.align(Alignment.BottomEnd).padding(5.dp),diameter=34.dp)
-  }
-  Row(Modifier.fillMaxWidth().heightIn(min=44.dp).clickable{open()},verticalAlignment=Alignment.CenterVertically){
-   Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(15.dp),tint=Muted);Spacer(Modifier.width(4.dp))
-   Text(p.optString("title"),fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-  }
-  Text(p.optString("ownerName",p.optString("owner_name")),fontSize=13.sp,lineHeight=19.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
-  Text(if(section=="discover")"극본 · ${p.optInt("roleCount")}개 배역" else "${states[p.optString("state")]?:"제작 중"} · ${p.optInt("participants")} / ${p.optInt("roleCount")}명",fontSize=12.sp,lineHeight=18.sp,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp).testTag("dubbing-card-status-$id"))
-  OutlinedButton(onClick=::open,modifier=Modifier.fillMaxWidth().padding(top=10.dp).heightIn(min=44.dp).testTag("dubbing-card-open-$id"),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,SoftText.copy(alpha=.3f)),colors=ButtonDefaults.outlinedButtonColors(contentColor=SoftText),contentPadding=PaddingValues(horizontal=8.dp,vertical=8.dp)){
-   Text(when(section){"join"->"배역 보기";"mine"->"작업 이어가기";else->"극본 보기"},fontSize=13.sp,lineHeight=18.sp)
-   }
- }
-}
-
-@Composable internal fun CurrentCommunityScreen(m:MusicModel,menu:()->Unit){
+@Composable internal fun CurrentCommunityScreen(m:MusicModel){
+ var rankCategory by rememberSaveable{mutableStateOf("work")}
  var query by rememberSaveable{mutableStateOf("")}
+ LaunchedEffect(m.user?.optString("id"),m.communityMode){
+  if(m.user!=null&&m.communityMode=="voice"&&m.crewHomePreview()==null){
+   try{m.readCrewHome()}catch(e:CancellationException){throw e}catch(_:Exception){ /* Retry on entry. */ }
+  }
+ }
  val status=currentRead(m,"/api/voice/status",m.communityMode=="voice")
  val read=currentRead(m,"/api/voice/public-rooms",m.communityMode=="voice"&&status.data?.optBoolean("enabled")==true,poll=20000)
- val rooms=read.data?.optJSONArray("rooms").objects().filter{query.isBlank()||(it.optString("title")+" "+it.optString("host_name")).contains(query.trim(),true)}
+ val rooms=read.data?.takeIf{status.data?.optBoolean("enabled")==true}?.optJSONArray("rooms").objects().filter{query.isBlank()||(it.optString("title")+" "+it.optString("host_name")).contains(query.trim(),true)}
  Column(Modifier.fillMaxSize().testTag("current-community")){
-  CurrentHeader("커뮤니티",menu)
   CurrentTabs(listOf("voice" to "라이브","crews" to "크루","rankings" to "랭킹"),m.communityMode,"community-main"){m.communityMode=it}
   when(m.communityMode){
-   "crews"->NativeCrewHome(m)
-   "rankings"->CurrentRankings(m)
+   "crews"->NativeCrewHome(m){rankCategory="crew";m.communityMode="rankings"}
+   "rankings"->CurrentRankings(m,rankCategory){rankCategory=it}
    else->LazyColumn(Modifier.fillMaxSize().testTag("voice-lobby"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
     item{Text("지금 열려 있는 노래방 · 토킹룸",fontSize=18.sp,fontWeight=FontWeight.SemiBold);Text("공개된 방만 보여줘요",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=6.dp))}
     item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
@@ -216,12 +241,11 @@ private val NoneDescription:String?=null
   Text(message,Modifier.padding(top=28.dp),fontSize=15.sp,lineHeight=23.sp,color=SoftText,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
  }
 }
-@Composable internal fun CurrentMyScreen(m:MusicModel){
+@Composable internal fun CurrentMyScreen(m:MusicModel,toolsOpen:Boolean,onToolsOpen:(Boolean)->Unit){
  var area by rememberSaveable{mutableStateOf("works")}
+ var selectedWork by rememberSaveable{mutableStateOf<String?>(null)}
  var allWorks by rememberSaveable{mutableStateOf<String?>(null)}
- var toolsOpen by rememberSaveable{mutableStateOf(false)}
  var rankingOpen by rememberSaveable{mutableStateOf(false)}
- val clipboard=androidx.compose.ui.platform.LocalClipboardManager.current
  LaunchedEffect(m.user?.optString("id")){m.refreshMyDashboard()}
  val self=m.ownProfile
  val pid=self.optJSONObject("profile")?.optString("id").orEmpty()
@@ -234,53 +258,49 @@ private val NoneDescription:String?=null
    item{
     if(loading)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)
     m.ownDashboardError?.let{Text(it,fontSize=12.sp,color=Muted);TextButton({m.refreshMyDashboard(fresh=true)}){Text("다시 불러오기")}}
-    Row(verticalAlignment=Alignment.CenterVertically){
-     Box(Modifier.testTag("my-avatar-open").clickable{m.viewProfilePhoto(p)}){Avatar(p.optString("name",m.user?.optString("name").orEmpty()),p,96)}
-     Column(Modifier.weight(1f).padding(start=12.dp)){
-      Text(p.optString("name",m.user?.optString("name").orEmpty()),fontSize=23.sp,lineHeight=30.sp,fontWeight=FontWeight.Bold)
-      val code=sequenceOf(data?.optString("public_id").orEmpty(),p.optString("public_id"),m.user?.optString("public_id").orEmpty()).firstOrNull{it.matches(Regex("[A-Z]{3}[0-9]{4}"))}.orEmpty()
-      if(code.isBlank())Text("ID 발급 확인 중",fontSize=11.sp,lineHeight=15.sp,color=Muted)
-      else Text("ID $code  ⧉",fontSize=11.sp,lineHeight=15.sp,color=Muted,modifier=Modifier.heightIn(min=26.dp).wrapContentHeight().clickable{clipboard.setText(androidx.compose.ui.text.AnnotatedString(code));m.notice="ID를 복사했어요."})
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
+     Box(Modifier.padding(5.dp).testTag("my-avatar-open").clickable{m.viewProfilePhoto(p)}){Avatar(p.optString("name",m.user?.optString("name").orEmpty()),p,72)}
+     Column(Modifier.weight(1f).padding(start=10.dp)){
+      Row(verticalAlignment=Alignment.CenterVertically){
+       Text(p.optString("name",m.user?.optString("name").orEmpty()),Modifier.widthIn(max=130.dp).weight(1f,false),fontSize=21.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
+       IconButton(onClick=m::editProfile){Icon(Icons.Rounded.Edit,"프로필 수정",Modifier.size(17.dp),tint=Pink)}
+      }
       val crew=data?.optJSONObject("crew")
-      Text(crew?.optString("name")?:"소속 크루 없음",fontSize=11.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(top=2.dp).clickable{if(crew!=null)m.openCurrentWorkspace("crew/${crew.optString("id")}",crew.optString("name"))else{m.selectTab(3);m.communityMode="crews"}})
-     }
-     Column(horizontalAlignment=Alignment.End,verticalArrangement=Arrangement.spacedBy(2.dp)){
-      IconButton(onClick={toolsOpen=true},modifier=Modifier.size(44.dp)){Icon(Icons.Rounded.Settings,"계정 관리",Modifier.size(24.dp))}
-      TextButton(onClick={rankingOpen=true},enabled=p.optString("id").isNotBlank(),contentPadding=PaddingValues(horizontal=5.dp,vertical=0.dp),modifier=Modifier.heightIn(min=44.dp).testTag("my-gift-ranking")){Icon(Icons.Rounded.StarBorder,null,Modifier.size(15.dp));Text("선물 랭킹",fontSize=10.sp,lineHeight=14.sp,modifier=Modifier.padding(start=3.dp))}
-     }
-    }
-    Row(Modifier.fillMaxWidth().padding(top=12.dp,bottom=12.dp),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically){
-     listOf(Triple("팔로워",data?.optInt("followers",self.optInt("follower_count"))?:0,{m.library("팔로워")}),Triple("팔로잉",data?.optInt("following_count",self.optInt("following_count"))?:0,{m.library("팔로잉")}),Triple("공개곡",data?.optInt("public_track_count",tracks.size+covers.size)?:tracks.size+covers.size,{allWorks="all"})).forEachIndexed{index,(label,count,action)->
-      if(index>0)Box(Modifier.width(1.dp).height(28.dp).background(Stroke))
-      Column(Modifier.weight(1f).clickable(onClick=action).padding(vertical=4.dp),horizontalAlignment=Alignment.CenterHorizontally){Text("$count",fontSize=21.sp,lineHeight=28.sp,fontWeight=FontWeight.SemiBold);Text(label,fontSize=11.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(top=3.dp))}
+      Text(crew?.optString("name")?:"소속 크루 없음",fontSize=12.sp,color=Muted,modifier=Modifier.clickable{if(crew!=null)m.openCurrentWorkspace("crew/${crew.optString("id")}",crew.optString("name"))else{m.selectTab(3);m.communityMode="crews"}})
+      Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)){
+       listOf(Triple("팔로워",data?.optInt("followers",self.optInt("follower_count"))?:0,{m.library("팔로워")}),Triple("팔로잉",data?.optInt("following_count",self.optInt("following_count"))?:0,{m.library("팔로잉")}),Triple("공개곡",data?.optInt("public_track_count",tracks.size+covers.size)?:tracks.size+covers.size,{allWorks="all"})).forEach{(label,count,action)->
+        Text("$label $count",fontSize=11.sp,lineHeight=15.sp,color=SoftText,modifier=Modifier.clickable(onClick=action).padding(vertical=8.dp))
+       }
+      }
      }
     }
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-     BrandButton(onClick=m::editProfile,modifier=Modifier.weight(.42f).heightIn(min=48.dp),shape=RoundedCornerShape(12.dp),contentPadding=PaddingValues(horizontal=8.dp)){Text("프로필 수정",fontSize=13.sp,fontWeight=FontWeight.SemiBold)}
-     OutlinedButton(onClick=m::openStudio,modifier=Modifier.weight(.58f).heightIn(min=48.dp),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Pink.copy(alpha=.7f)),contentPadding=PaddingValues(horizontal=8.dp)){
-      Icon(Icons.Rounded.Hub,null,Modifier.size(17.dp));Text("스튜디오 바로가기",Modifier.padding(start=6.dp),fontSize=12.sp,lineHeight=18.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(17.dp))
-     }
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically){
+     TextButton(onClick={rankingOpen=true},enabled=p.optString("id").isNotBlank(),modifier=Modifier.testTag("my-gift-ranking")){Icon(Icons.Rounded.StarBorder,null,Modifier.size(16.dp));Text(" 선물 랭킹",fontSize=12.sp)}
+     OutlinedButton(onClick=m::openStudio,contentPadding=PaddingValues(horizontal=12.dp,vertical=4.dp)){Icon(Icons.Rounded.Hub,null,Modifier.size(16.dp));Text(" 스튜디오",fontSize=12.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(16.dp))}
     }
    }
    item{CurrentMySwitch(area){area=it}}
    if(area=="works"){
-    item{CurrentPanel("갤러리",gallery.size,"전체보기",{m.galleryPreview=ProfileGalleryPreview(p.optString("name"),gallery,pid.takeIf{it.isNotBlank()})}){
-     Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
-      repeat(4){index->val photo=gallery.getOrNull(index)
-       Box(Modifier.weight(1f).aspectRatio(1f).clip(RoundedCornerShape(12.dp)).border(1.dp,Stroke,RoundedCornerShape(12.dp)).clickable{if(photo==null)m.galleryPreview=ProfileGalleryPreview(p.optString("name"),gallery,pid.takeIf{it.isNotBlank()})else m.photoPreview=ProfilePhotoPreview(p.optString("name")+" 갤러리",profileMediaUrl(photo.optString("url")))},contentAlignment=Alignment.Center){
-        if(photo!=null)ProfileImage(m,profileMediaUrl(photo.optString("url")),"갤러리 사진",Modifier.fillMaxSize())else Icon(Icons.Rounded.Add,"갤러리 관리",Modifier.size(26.dp),tint=SoftText)
-       }
-      }
-     }
-    }}
     item{CurrentPanel("제작곡",tracks.size,"전체보기",{allWorks="original"}){
      ReferenceWorkShelf(referenceWorks(tracks,emptyList()),m)
      if(tracks.isEmpty()&&!loading)Text("등록된 제작곡이 없어요.",color=Muted,fontSize=13.sp)
     };HorizontalDivider(color=Stroke)}
     item{Box(Modifier.testTag("my-creations-preview")){CurrentPanel("커버 · 듀엣 · 더빙",covers.size+dubbings.size,"전체보기",{allWorks="creations"}){
-     ReferenceWorkShelf(referenceWorks(covers,dubbings),m)
+     ReferenceWorkShelf(referenceWorks(covers,dubbings),m){id->selectedWork=id;allWorks="creations"}
      if(covers.isEmpty()&&dubbings.isEmpty()&&!loading)Text("아직 등록된 작품이 없어요.",color=Muted,fontSize=13.sp)
     }};HorizontalDivider(color=Stroke)}
+    item{CurrentPanel("갤러리",gallery.size,"전체보기",{m.galleryPreview=ProfileGalleryPreview(p.optString("name"),gallery,pid.takeIf{it.isNotBlank()})}){
+     BoxWithConstraints(Modifier.fillMaxWidth()){
+      val tile=(maxWidth-24.dp)/4
+      Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
+      repeat(minOf(gallery.size,3)+1){index->val photo=gallery.getOrNull(index).takeIf{index<3}
+       Box(Modifier.size(tile).clip(RoundedCornerShape(12.dp)).border(1.dp,Stroke,RoundedCornerShape(12.dp)).clickable{if(photo==null)m.galleryPreview=ProfileGalleryPreview(p.optString("name"),gallery,pid.takeIf{it.isNotBlank()})else m.photoPreview=ProfilePhotoPreview(p.optString("name")+" 갤러리",profileMediaUrl(photo.optString("url")))},contentAlignment=Alignment.Center){
+        if(photo!=null)ProfileImage(m,profileMediaUrl(photo.optString("url")),"갤러리 사진",Modifier.fillMaxSize())else Icon(Icons.Rounded.Add,"갤러리 관리",Modifier.size(26.dp),tint=SoftText)
+       }
+      }
+     }
+     }
+    }}
     item{CurrentPanel("소속 아티스트",action="전체보기",onAction={if(pid.isNotBlank())m.openCurrentWorkspace("profile-artists/$pid","소속 아티스트")}){
      val artists=data?.optJSONArray("artists").objects()
      BoxWithConstraints(Modifier.fillMaxWidth()){
@@ -301,13 +321,13 @@ private val NoneDescription:String?=null
 
    }else if(area=="library"){
     item{ReferenceLibrary(m)}
-    item{TextButton(onClick={toolsOpen=true},modifier=Modifier.fillMaxWidth()){Text("레벨 · 계정 관리");Icon(Icons.Rounded.ChevronRight,null)}}
+    item{TextButton(onClick={onToolsOpen(true)},modifier=Modifier.fillMaxWidth()){Text("레벨 · 계정 관리");Icon(Icons.Rounded.ChevronRight,null)}}
    }else item{MyInventoryContent(m)}
   }
  }
  if(rankingOpen)MyGiftRankingPage(m,p.optString("id")){rankingOpen=false}
- allWorks?.let{kind->ReferenceWorksPage(m,kind,tracks,covers,dubbings){allWorks=null}}
- if(toolsOpen)AppPage("내 보관함 관리",{toolsOpen=false}){Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
+ allWorks?.let{kind->ReferenceWorksPage(m,kind,tracks,covers,dubbings,manageOwn=kind=="creations",initialSelection=selectedWork){allWorks=null;selectedWork=null}}
+ if(toolsOpen)AppPage("내 보관함 관리",{onToolsOpen(false)}){Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(16.dp)){
   CurrentPanel("내 지갑",action="골드 충전",onAction={m.billingInitialTab="gold";m.showBilling=true}){MyWalletPanel(m)}
   PlayerHomePanel(m,compact=true)
   CurrentPanel("바로가기"){MusicLibraryShortcuts(m,compact=true,inventoryFirst=true)}

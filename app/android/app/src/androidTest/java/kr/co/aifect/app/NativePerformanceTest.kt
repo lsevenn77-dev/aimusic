@@ -35,6 +35,7 @@ class NativePerformanceTest{
  private var state=JSONObject()
  private var recording=JSONObject()
  private var uploadReplyLost=false
+ private var holdUpload:CountDownLatch?=null
  @Volatile private var generationMode="rejected"
  @Volatile private var generatedId=""
  @Volatile private var generationReady=false
@@ -86,6 +87,7 @@ class NativePerformanceTest{
      if(op!="socket")state.put("revision",state.optInt("revision")+1);data=state}
     key=="$path/recording"||key.endsWith("/start")->data=recording
     key.contains("/recording/role_1/lines/")&&method=="PUT"->{
+     holdUpload?.await(10,TimeUnit.SECONDS)
      assertEquals("RIFF",bytes.copyOfRange(0,4).toString(Charsets.US_ASCII));assertEquals(48000,ByteBuffer.wrap(bytes,24,4).order(ByteOrder.LITTLE_ENDIAN).int);assertTrue(bytes.size<=44+86402)
      val take=URLDecoder.decode(url.substringAfter("take="),"UTF-8");val lineId=key.substringAfterLast('/');recording.getJSONArray("lines").objects().first{it.getString("id")==lineId}.put("takeId",take).put("audioUrl",key)
      val r=recording.getJSONObject("recording").getJSONArray("roles").getJSONObject(0);r.put("revision",r.getInt("revision")+1);data=recording
@@ -93,7 +95,7 @@ class NativePerformanceTest{
     }
     key.endsWith("/submit")->{recording.getJSONObject("recording").getJSONArray("roles").getJSONObject(0).put("state","submitted");data=recording}
    }
-   val isAudio=key.endsWith("/background")||key.contains("/lines/")&&method=="GET";val isFrame=key=="/assets/products/qa-voice-frame.png";val isImage=isFrame||key.startsWith("/assets/dubbing-genres/")||key.startsWith("/assets/gifts/")||key.startsWith("/media/producer/");val body=if(isAudio)audio else if(isFrame)frameImage else if(key.startsWith("/assets/gifts/"))giftImage else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isFrame)"image/png" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
+   val isAudio=key.endsWith("/background")||key.endsWith("/final")||key.contains("/lines/")&&method=="GET";val isFrame=key=="/assets/products/qa-voice-frame.png";val isImage=isFrame||key.startsWith("/assets/dubbing-genres/")||key.startsWith("/assets/gifts/")||key.startsWith("/media/producer/");val body=if(isAudio)audio else if(isFrame)frameImage else if(key.startsWith("/assets/gifts/"))giftImage else if(isImage)genreImage else data.toString().toByteArray();val type=if(isAudio)"audio/wav" else if(isFrame)"image/png" else if(isImage)"image/webp" else "application/json";client.getOutputStream().write("HTTP/1.1 $code Response\r\nContent-Type: $type\r\nContent-Length: ${body.size}\r\nConnection: close\r\n\r\n".toByteArray()+body)
   }}catch(_:Exception){}}}catch(_:SocketException){}}
  }
  @After fun teardown(){activity?.close();context.stopService(Intent(context,NativeVoiceService::class.java));if(::server.isInitialized)server.close();workers.shutdownNow()}
@@ -101,6 +103,22 @@ class NativePerformanceTest{
  private fun visible(tag:String){ui.waitUntil(20000){ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isNotEmpty()}}
  private fun text(value:String){ui.waitUntil(20000){ui.onAllNodesWithText(value,substring=true).fetchSemanticsNodes().isNotEmpty()}}
  private fun capture(name:String){val dir=File(context.getExternalFilesDir(null),"native-audio").apply{mkdirs()};ins.waitForIdleSync();Thread.sleep(200);ins.uiAutomation.takeScreenshot().let{bitmap->FileOutputStream(File(dir,"$name.png")).use{bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()}}
+ @Test fun completedDubbingUsesSharedTransportAndRegistersOneListen(){
+  val project=responses.getValue(path).getJSONObject("project")
+  project.put("state","complete").getJSONObject("recording").put("final",payload("state" to "ready","audioUrl" to "$path/final"))
+  launch("dubbing/$projectId");visible("native-dubbing-project")
+  ui.onNode(hasScrollAction() and hasAnyAncestor(hasTestTag("native-dubbing-project"))).performScrollToNode(hasText("완성된 더빙 듣기"))
+  ui.onNodeWithText("완성된 더빙 듣기").performClick()
+  visible("dubbing-mini-player")
+  ui.waitUntil(20000){requests.any{it.first=="POST $path/plays"}}
+  ui.onNodeWithContentDescription("더빙 일시정지").performClick()
+  ui.onNodeWithTag("dubbing-mini-seek").performTouchInput{click(center)}
+  ui.onNodeWithContentDescription("더빙 재생").performClick()
+  ui.onNodeWithContentDescription("더빙 재생 종료").performClick()
+  ui.onNodeWithTag("dubbing-mini-player").assertDoesNotExist()
+  assertEquals(1,requests.count{it.first=="POST $path/plays"})
+  assertFalse(requests.any{it.first.startsWith("POST /api/playback/")})
+ }
  @Test fun roomCreationUsesSelectedBackgroundAndKeepsPrimaryActionVisible(){
   responses["/api/voice/options"]=payload(
    "crews" to arr(payload("id" to "crew-one","name" to "밤산책")),
@@ -276,15 +294,104 @@ class NativePerformanceTest{
   ins.uiAutomation.grantRuntimePermission(context.packageName,Manifest.permission.RECORD_AUDIO)
   launch("dubbing/$projectId");visible("native-dubbing-project");ui.onNodeWithText("녹음하기").performScrollTo().performClick();visible("native-dubbing-recorder");try{ui.waitUntil(20000){ui.onNodeWithTag("dubbing-record-line").fetchSemanticsNode().config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled).not()}}catch(e:Throwable){capture("polish-268-dubbing-prepare-failure");throw AssertionError(ui.onRoot().printToString(),e)}
   ui.onNodeWithTag("dubbing-record-line").assertIsDisplayed();ui.onNodeWithTag("dubbing-save-all").assertIsDisplayed();ui.onNodeWithTag("dubbing-script-line2").assertExists()
+  ui.onNodeWithText("전체 제출").assertIsNotEnabled()
   ui.onNodeWithTag("dubbing-record-line").performClick();text("3");capture("dubbing-countdown");text("내 대사 1 / 2")
   assertTrue(requests.none{it.first.startsWith("PUT ")})
   ui.onNodeWithText("다음").performClick();ui.onNodeWithTag("dubbing-record-line").performClick();text("내 대사 2 / 2");capture("dubbing-checks");assertEquals("Two lines reuse a single complete background download",1,requests.count{it.first.endsWith("/background")})
-  ui.onNodeWithTag("dubbing-save-all").performClick();text("응답 유실")
-  ui.onNodeWithTag("dubbing-save-all").performClick();text("모두 임시 저장했어요")
+  ui.onNodeWithText("전체 제출").assertIsEnabled()
+  val saveStart=android.os.SystemClock.elapsedRealtime()
+  holdUpload=CountDownLatch(1)
+  ui.onNodeWithTag("dubbing-save-all").performClick();text("이 기기에 저장했어요 · 서버 저장 0/2")
+  android.util.Log.i("DubbingTiming","local receipt after click: ${android.os.SystemClock.elapsedRealtime()-saveStart} ms (loopback)")
+  assertTrue(requests.none{it.first=="GET $path/recording"})
+  holdUpload!!.countDown();text("응답 유실")
+  ui.onNodeWithTag("dubbing-save-all").performClick();text("서버 저장 2/2 완료")
   assertEquals(2,requests.count{it.first.startsWith("PUT ")})
+  val savesBefore=requests.count{it.first.endsWith("/recording")||it.first.startsWith("PUT ")}
+  ui.onNodeWithTag("dubbing-save-all").performClick();ui.waitForIdle()
+  assertEquals(savesBefore,requests.count{it.first.endsWith("/recording")||it.first.startsWith("PUT ")})
   ui.onNodeWithText("전체 제출").performClick();ui.onNodeWithText("동의하고 제출").performClick();text("제출 완료")
   assertEquals(2,requests.count{it.first.startsWith("PUT ")});assertEquals(1,requests.count{it.first.endsWith("/submit")})
   val submitted=JSONObject(requests.first{it.first.endsWith("/submit")}.second.toString(Charsets.UTF_8));assertTrue(submitted.getBoolean("rightsAccepted"));capture("dubbing-submitted")
+ }
+ @Test fun localDraftCanCloseBeforeServerAcknowledges(){
+  val sound=responses.getValue(path).getJSONObject("project").getJSONObject("sound").getString("id")
+  val draft=DubbingDrafts(context,me,projectId,sound,"role_1")
+  val take=payload("id" to requestIdentity(),"duration" to .2,"uploaded" to false)
+  draft.file(take).writeBytes(dubbingWavHeader(9600)+ByteArray(19200))
+  draft.commit("line1",take)
+  uploadReplyLost=true
+  val gate=CountDownLatch(1)
+  holdUpload=gate
+  launch("dubbing/$projectId");visible("native-dubbing-project")
+  ui.onNodeWithText("녹음하기").performScrollTo().performClick()
+  ui.waitUntil(20000){ui.onAllNodesWithTag("dubbing-save-all").fetchSemanticsNodes().any{!it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)}}
+  ui.onNodeWithTag("dubbing-save-all").performClick();text("서버 저장 0/1")
+  try{
+   androidx.test.espresso.Espresso.pressBack();visible("native-dubbing-project")
+   assertFalse(DubbingDrafts(draft.directory).takes.getValue("line1").optBoolean("uploaded"))
+  }finally{gate.countDown()}
+  ui.waitUntil(5000){DubbingDrafts(draft.directory).takes.getValue("line1").optBoolean("uploaded")}
+  ui.onNodeWithText("녹음하기").performScrollTo().performClick();text("내 대사 1 / 2")
+  ui.onNodeWithTag("dubbing-save-all").performClick();text("서버 저장 1/1 완료")
+  assertEquals(1,requests.count{it.first.startsWith("PUT ")})
+ }
+ @Test fun continuousRecordingSkipsAndResumes(){
+  ins.uiAutomation.grantRuntimePermission(context.packageName,Manifest.permission.RECORD_AUDIO)
+  val sound=responses.getValue(path).getJSONObject("project").getJSONObject("sound").getString("id")
+  val directory=DubbingDrafts(context,me,projectId,sound,"role_1").directory
+  // A first line right at zero exercises a completely silent 3-2-1 lead-in.
+  recording.getJSONArray("lines").getJSONObject(0).put("start",0.0).put("end",1.1).put("recordEnd",1.3)
+  recording.getJSONArray("lines").getJSONObject(2).put("start",5.4).put("end",6.4).put("recordEnd",6.5)
+  launch("dubbing/$projectId");visible("native-dubbing-project")
+  fun openRecorder(){
+   ui.onNodeWithText("녹음하기").performScrollTo().performClick()
+   visible("native-dubbing-recorder")
+   ui.waitUntil(20000){ui.onAllNodesWithTag("dubbing-record-line").fetchSemanticsNodes().any{
+    !it.config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)
+   }}
+   ui.onNodeWithText("이어서 녹음").performClick()
+  }
+  openRecorder()
+  ui.onNodeWithTag("dubbing-gain-slider").assertDoesNotExist()
+  ui.onNodeWithTag("dubbing-gain-toggle").performClick()
+  ui.onNodeWithTag("dubbing-gain-slider").performTouchInput{click(center)}
+  ui.onNodeWithTag("dubbing-gain-slider").assertDoesNotExist()
+  ui.onNodeWithTag("dubbing-record-line").performClick()
+  for(digit in listOf("3","2","1")){
+   ui.waitUntil(5000){ui.onAllNodes(hasTestTag("dubbing-countdown") and hasText(digit)).fetchSemanticsNodes().isNotEmpty()}
+  }
+  text("내 대사 1 / 2");text("다음 내 대사를 기다려요")
+  ui.onNodeWithTag("dubbing-record-line").performClick()
+  text("이 위치부터 이어서 녹음")
+  val partial=DubbingDrafts(directory)
+  assertEquals(setOf("line1"),partial.takes.keys)
+  val firstFile=partial.file(partial.takes.getValue("line1"))
+  val firstBytes=firstFile.readBytes()
+  assertTrue(firstBytes.size>=9644)
+  assertEquals("RIFF",firstBytes.copyOfRange(0,4).toString(Charsets.US_ASCII))
+  // Restart in place at the saved line. Its timer must advance before the next mic capture.
+  ui.onNodeWithTag("dubbing-record-line").performClick()
+  visible("dubbing-countdown");text("다음 내 대사를 기다려요")
+  val meter=SemanticsMatcher.keyIsDefined(androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo) and hasAnyAncestor(hasTestTag("dubbing-line-progress"))
+  ui.waitUntil(3500){ui.onAllNodes(meter,useUnmergedTree=true).fetchSemanticsNodes().any{
+   it.config[androidx.compose.ui.semantics.SemanticsProperties.ProgressBarRangeInfo].current in .12f..0.90f
+  }}
+  ui.onNodeWithTag("dubbing-record-line").performClick();text("이 위치부터 이어서 녹음")
+  assertEquals(setOf("line1"),DubbingDrafts(directory).takes.keys)
+  androidx.test.espresso.Espresso.pressBack();visible("native-dubbing-project")
+  openRecorder()
+  // Start at the saved first line and pass both it and the partner before capturing the next own line.
+  ui.onNodeWithText("이전").performClick()
+  ui.onNodeWithTag("dubbing-record-line").performClick()
+  visible("dubbing-countdown");text("내 대사 2 / 2")
+  val finished=DubbingDrafts(directory)
+  assertEquals(setOf("line1","line3"),finished.takes.keys)
+  assertEquals(firstFile.name,finished.file(finished.takes.getValue("line1")).name)
+  assertArrayEquals(firstBytes,firstFile.readBytes())
+  assertTrue(finished.file(finished.takes.getValue("line3")).length()>=9644)
+  assertEquals("Both recordings and reopening share one actual WAV download",1,requests.count{it.first.endsWith("/background")})
+  assertFalse(requests.any{it.first.startsWith("PUT ")})
  }
  @Test fun manualScriptAndAccountDraftIsolation(){
   val script=manualDubbingScript("테스트","A: 먼저 시작해요\nB： 이어서 말해요",defaultDubbingOptions());assertEquals(2,script.getJSONArray("lines").length());assertTrue(runCatching{manualDubbingScript("x","대사만",defaultDubbingOptions())}.isFailure)
@@ -331,23 +438,22 @@ class NativePerformanceTest{
   androidx.test.espresso.Espresso.pressBack();visible("dubbing-discard-leave");ui.onNodeWithTag("dubbing-continue").performClick();visible("native-dubbing-form")
   androidx.test.espresso.Espresso.pressBack();visible("dubbing-discard-leave");ui.onNodeWithTag("dubbing-discard-leave").performClick();assertFalse(prefs.contains(key))
  }
- @Test fun dubbingDraftStorageKeepsOnlyExplicitlySavedTakes(){
+ @Test fun dubbingDraftStorageKeepsCompletedTakes(){
   val sound="save-${System.nanoTime()}";val d=DubbingDrafts(context,me,projectId,sound,"role_1")
-  val first=payload("id" to requestIdentity());d.file(first).writeBytes(wave);d.commit("line1",first);assertTrue(d.hasUnsavedChanges)
-  d.discard();assertTrue(d.takes.isEmpty());assertFalse(d.file(first).exists())
-  val saved=payload("id" to requestIdentity());d.file(saved).writeBytes(wave);d.commit("line1",saved);d.save();assertFalse(d.hasUnsavedChanges)
-  val replacement=payload("id" to requestIdentity());d.file(replacement).writeBytes(wave);d.commit("line1",replacement);d.discard()
-  assertEquals(saved.getString("id"),d.takes.getValue("line1").getString("id"));assertFalse(d.file(replacement).exists());assertTrue(d.file(saved).exists())
-  val restored=DubbingDrafts(context,me,projectId,sound,"role_1");assertEquals(saved.getString("id"),restored.takes.getValue("line1").getString("id"));restored.directory.deleteRecursively()
+  val first=payload("id" to requestIdentity());d.file(first).writeBytes(wave);d.commit("line1",first)
+  val replacement=payload("id" to requestIdentity())
+  assertTrue(runCatching{d.commit("line1",replacement)}.isFailure)
+  assertEquals(first.getString("id"),DubbingDrafts(d.directory).takes.getValue("line1").getString("id"))
+  d.file(replacement).writeBytes(wave);d.commit("line1",replacement)
+  assertEquals(replacement.getString("id"),DubbingDrafts(d.directory).takes.getValue("line1").getString("id"))
+  assertFalse(d.file(first).exists());assertTrue(d.file(replacement).exists())
  }
- @Test fun dubbingRecordedProgressAsksBeforeLeaving(){
+ @Test fun dubbingRecordedProgressSurvivesLeaving(){
   ins.uiAutomation.grantRuntimePermission(context.packageName,Manifest.permission.RECORD_AUDIO)
   launch("dubbing/$projectId");visible("native-dubbing-project")
   fun openRecorder(){ui.onNodeWithText("녹음하기").performScrollTo().performClick();visible("native-dubbing-recorder");try{ui.waitUntil(30000){!ui.onNodeWithTag("dubbing-record-line").fetchSemanticsNode().config.contains(androidx.compose.ui.semantics.SemanticsProperties.Disabled)}}catch(e:Throwable){capture("polish-268-reopen-failure");throw AssertionError(ui.onRoot().printToString()+"\nRequests: "+requests.map{it.first},e)}}
   openRecorder();ui.onNodeWithTag("dubbing-record-line").performClick();text("내 대사 1 / 2")
-  androidx.test.espresso.Espresso.pressBack();visible("dubbing-discard-leave");capture("polish-268-recording-save-confirm");ui.onNodeWithTag("dubbing-discard-leave").performClick();visible("native-dubbing-project")
-  openRecorder();text("내 대사 0 / 2");ui.onNodeWithTag("dubbing-record-line").performClick();text("내 대사 1 / 2")
-  androidx.test.espresso.Espresso.pressBack();visible("dubbing-save-leave");ui.onNodeWithTag("dubbing-save-leave").performClick();visible("native-dubbing-project")
-  openRecorder();text("내 대사 1 / 2");assertFalse("Leaving only keeps the explicitly requested local draft",requests.any{it.first.startsWith("PUT ")});capture("polish-268-recording-resumed")
+  androidx.test.espresso.Espresso.pressBack();visible("native-dubbing-project")
+  openRecorder();text("내 대사 1 / 2");assertFalse("Leaving retains a local draft without submitting it",requests.any{it.first.startsWith("PUT ")});capture("polish-268-recording-resumed")
  }
 }

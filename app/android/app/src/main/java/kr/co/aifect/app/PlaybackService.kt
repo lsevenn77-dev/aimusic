@@ -36,6 +36,7 @@ class PlaybackService : MediaSessionService() {
  private var adLastTick=android.os.SystemClock.elapsedRealtime()
  private var adWasPlaying=false
  private var destroyed=false
+ private var lastPlayedDubbing:android.net.Uri?=null
  override fun onCreate() {
   super.onCreate();api=NativeApi(this)
   val http=OkHttpDataSource.Factory(api.client)
@@ -45,6 +46,11 @@ class PlaybackService : MediaSessionService() {
    if(uri.host!="play.aifect.invalid")throw IOException("재생 주소를 확인해주세요.")
    val id=uri.pathSegments.firstOrNull()?:""
    if(!Regex("[\\w-]{1,80}").matches(id))throw IOException("곡을 찾을 수 없어요.")
+   if(uri.getQueryParameter("kind")=="dubbing"){
+    // Each listen resolves the protected final endpoint. Never share cached final audio across sessions.
+    val finalUri=Endpoint.url("/api/dubbing/projects/$id/final")
+    return@Factory spec.buildUpon().setUri(finalUri).setKey(PlaybackDisk.key(NativeSession.cookie(this),uri.toString(),0,0.0)).build()
+   }
    val key=uri.toString()
    val requestingSession=NativeSession.cookie(this)
    val saved=resolved[key]?.takeIf { it.cookie==NativeSession.cookie(this) }
@@ -64,7 +70,15 @@ class PlaybackService : MediaSessionService() {
    setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA).setContentType(C.AUDIO_CONTENT_TYPE_MUSIC).build(),true)
    setHandleAudioBecomingNoisy(true)
    addListener(object:Player.Listener {
-    override fun onIsPlayingChanged(isPlaying:Boolean) { if(!isPlaying&&adWasPlaying)accrueListen(reportingKey);accrueAdListening();adWasPlaying=isPlaying;handler.removeCallbacks(tick);lastTick=android.os.SystemClock.elapsedRealtime();ticks=0;if(isPlaying)handler.postDelayed(tick,1000) else report() }
+    override fun onIsPlayingChanged(isPlaying:Boolean) { if(!isPlaying&&adWasPlaying)accrueListen(reportingKey);accrueAdListening();adWasPlaying=isPlaying;handler.removeCallbacks(tick);lastTick=android.os.SystemClock.elapsedRealtime();ticks=0;if(isPlaying){
+     val uri=player.currentMediaItem?.localConfiguration?.uri
+     if(uri?.getQueryParameter("kind")=="dubbing"&&uri!=lastPlayedDubbing){
+      lastPlayedDubbing=uri
+      val id=uri.pathSegments.first()
+      worker.launch {runCatching{api.call("/api/dubbing/projects/$id/plays","POST",payload("requestId" to uri.getQueryParameter("run")))}}
+     }
+     handler.postDelayed(tick,1000)
+    } else report() }
     override fun onMediaItemTransition(item:MediaItem?,reason:Int) {
      // Manual next/previous and playlist selections also finish the old listen.
      // Evaluate it before replacing the old key, duration and listened time.
@@ -91,7 +105,8 @@ class PlaybackService : MediaSessionService() {
      if(c.packageName!=packageName)return Futures.immediateFailedFuture(SecurityException("Only the app may choose media"))
      return Futures.immediateFuture(items.map { item ->
       require(Regex("[\\w-]{1,80}").matches(item.mediaId))
-      item.buildUpon().setUri("https://play.aifect.invalid/${item.mediaId}?run=${java.util.UUID.randomUUID()}").build()
+      val kind=if(item.isDubbingEdition())"&kind=dubbing" else ""
+      item.buildUpon().setUri("https://play.aifect.invalid/${item.mediaId}?run=${java.util.UUID.randomUUID()}$kind").build()
      }.toMutableList())
     }
    }).build()

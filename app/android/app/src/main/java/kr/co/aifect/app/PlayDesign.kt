@@ -46,13 +46,32 @@ internal fun Song.openDuetFor(userId:String?):Boolean=cover&&raw.optString("cove
  }
 }
 
-@Composable internal fun PlaySections(items:List<Pair<String,String>>,selected:String,onSelect:(String)->Unit){
- Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(horizontal=16.dp,vertical=14.dp).testTag("play-section"),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-  items.forEach{(key,label)->val active=selected==key
-   val icon=when(key){"duets","join"->Icons.Rounded.PeopleOutline;"latest"->Icons.Rounded.Schedule;"drafts"->Icons.Rounded.EditNote;"mine"->Icons.Rounded.FolderOpen;"popular"->Icons.Rounded.BarChart;"following"->Icons.Rounded.FavoriteBorder;"discover"->Icons.Rounded.Explore;else->Icons.Rounded.AutoAwesome}
-   Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(13.dp)).background(if(active)Violet.copy(alpha=.13f)else Panel).border(1.dp,if(active)Violet else Stroke,RoundedCornerShape(13.dp)).selectable(active,role=Role.Tab){onSelect(key)}.testTag("play-section-$key").padding(vertical=10.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(7.dp)){
-    Icon(icon,null,Modifier.size(20.dp),tint=if(active)Pink else Muted)
-    Text(label,fontSize=12.sp,lineHeight=16.sp,maxLines=2,color=if(active)Pink else SoftText,fontWeight=FontWeight.Medium,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().padding(horizontal=1.dp))
+internal val DiscoveryRose=Color(0xFFF39EBB)
+internal val DiscoveryGradient=Brush.horizontalGradient(listOf(Violet,DiscoveryRose))
+
+@Composable internal fun DiscoverySections(items:List<Pair<String,String>>,selected:String,tag:String,modifier:Modifier=Modifier,onSelect:(String)->Unit){
+ Row(modifier.fillMaxWidth().testTag(tag),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+  items.forEach{(key,label)->
+   val active=key==selected
+   val image=when(key){
+    "recommended"->R.drawable.nav_orbit_recommended
+    "following"->R.drawable.nav_orbit_following
+    "popular"->R.drawable.nav_orbit_popular
+    "latest"->R.drawable.nav_orbit_latest
+    "duets"->R.drawable.nav_orbit_duets
+    "drafts"->R.drawable.nav_orbit_drafts
+    "work"->R.drawable.nav_orbit_work
+    "aiArtist"->R.drawable.nav_orbit_aiartist
+    "crew"->R.drawable.nav_orbit_crew
+    "dubbing"->R.drawable.nav_orbit_dubbing
+    else->error("Unknown discovery category: $key")
+   }
+   Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).selectable(active,role=Role.Tab){onSelect(key)}
+    .testTag("$tag-$key").heightIn(min=62.dp).padding(vertical=3.dp),
+    horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(2.dp)){
+    Image(androidx.compose.ui.res.painterResource(image),null,Modifier.size(if(tag=="play-section")30.dp else 27.dp),alpha=if(active||tag=="play-section")1f else .78f)
+    Text(label,Modifier.testTag(if(tag=="ranking-category")"ranking-label-$key" else "play-label-$key"),fontSize=12.sp,lineHeight=15.sp,maxLines=2,textAlign=TextAlign.Center,color=if(active)Pink else SoftText,fontWeight=if(active)FontWeight.Bold else FontWeight.Medium)
+    Spacer(Modifier.size(4.dp).background(if(active)Violet else Color.Transparent,androidx.compose.foundation.shape.CircleShape))
    }
   }
  }
@@ -110,6 +129,6 @@ internal fun Song.openDuetFor(userId:String?):Boolean=cover&&raw.optString("cove
 @Composable internal fun DubbingCover(project:JSONObject,modifier:Modifier=Modifier){
  Box(modifier.clip(RoundedCornerShape(12.dp)).background(Panel),contentAlignment=Alignment.Center){
   Icon(Icons.Rounded.TheaterComedy,null,Modifier.fillMaxSize(.5f),tint=Violet)
-  AsyncImage(currentDubbingImage(project),"더빙 장르 이미지",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
+  DubbingImage(currentDubbingImage(project),Modifier.fillMaxSize())
  }
 }

@@ -69,7 +69,7 @@ class MainActivity:ComponentActivity(){
  private fun openBrowser(url:String){try{startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(url)))}catch(_:android.content.ActivityNotFoundException){model.notice="브라우저를 설치하거나 활성화한 뒤 다시 열어주세요."}}
  private fun login(provider:String){
   when(provider){
-   "google"->if(BuildConfig.DEBUG&&BuildConfig.APPLICATION_ID.endsWith(".test"))browserLogin("google") else model.nativeLogin(provider){client,nonce->signIn.google(client,nonce)}
+   "google"->model.nativeLogin(provider){client,nonce->signIn.google(client,nonce)}
    "google-browser"->browserLogin("google")
    "kakao"->model.nativeLogin(provider){_,_->signIn.kakao()}
    "apple"->browserLogin("apple")

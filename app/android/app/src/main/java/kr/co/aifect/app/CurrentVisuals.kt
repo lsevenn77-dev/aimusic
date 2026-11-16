@@ -69,19 +69,32 @@ import org.json.JSONObject
  }
 }
 
+private val dubbingPosterPath=Regex("""/api/dubbing/projects/[A-Za-z0-9_-]+/poster(?:\?v=[A-Za-z0-9_-]+)?""")
+
+internal fun customDubbingPoster(project:JSONObject):String? =
+ (project.opt("posterUrl") as? String)?.takeIf(dubbingPosterPath::matches)?.let(Endpoint::url)
+
 internal fun currentDubbingImage(p:JSONObject):String {
+ customDubbingPoster(p)?.let{return it}
  val genre=(p.optJSONArray("genres")?:p.optJSONObject("options")?.optJSONArray("genres"))?.optString(0).orEmpty()
  val slug=mapOf("SF" to "sf","이세계물" to "isekai","판타지" to "fantasy","사극" to "historical","로맨스" to "romance","액션" to "action","코미디" to "comedy","첩보" to "spy","공포" to "horror","스릴러" to "thriller","미스터리" to "mystery","일상" to "daily","감동" to "moving")[genre]?:"daily"
  return Endpoint.url("/assets/dubbing-genres/$slug.webp")
 }
-@Composable internal fun CurrentDubbingCard(p:JSONObject,m:MusicModel){
+@Composable internal fun DubbingImage(url:String,modifier:Modifier){
+ if(url.startsWith(Endpoint.origin+"/api/dubbing/projects/")){
+  val app=androidx.compose.ui.platform.LocalContext.current.applicationContext as AifectApplication
+  AsyncImage(url,"더빙 썸네일",modifier=modifier,imageLoader=app.dubbingPosters,contentScale=ContentScale.Crop)
+ }else AsyncImage(url,"더빙 썸네일",modifier,contentScale=ContentScale.Crop)
+}
+
+@Composable internal fun CurrentDubbingCard(p:JSONObject,onOpen:(String)->Unit){
  val id=p.optString("id")
- fun open(){if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("dubbing/$id",p.optString("title","더빙"))}
+ fun open(){if(CurrentNavigation.safeID(id))onOpen(id)}
  Column(Modifier.fillMaxWidth().testTag("dubbing-project-$id")){
   Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Raised).clickable{open()}){
    Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(32.dp).align(Alignment.Center),tint=Muted)
-   AsyncImage(currentDubbingImage(p),"더빙 장르 이미지",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-   BrandPlayButton("${p.optString("title")} 더빙 듣기",::open,Modifier.align(Alignment.BottomEnd).padding(5.dp),diameter=34.dp)
+   DubbingImage(currentDubbingImage(p),Modifier.fillMaxSize())
+   BrandPlayButton("${p.optString("title")} 완성작 보기",::open,Modifier.align(Alignment.BottomEnd).padding(5.dp),diameter=34.dp)
   }
   Row(Modifier.fillMaxWidth().heightIn(min=44.dp).clickable{open()},verticalAlignment=Alignment.CenterVertically){
    Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(15.dp),tint=Muted);Spacer(Modifier.width(4.dp))
@@ -90,6 +103,41 @@ internal fun currentDubbingImage(p:JSONObject):String {
   Text(p.optString("ownerName",p.optString("owner_name")),fontSize=13.sp,lineHeight=19.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
   Text("${p.optJSONArray("genres")?.optString(0).orEmpty()} · ${timeLabel((p.optDouble("duration")*1000).toLong())}",fontSize=12.sp,lineHeight=18.sp,color=Muted,modifier=Modifier.padding(top=3.dp))
  }
+}
+
+@Composable internal fun CompletedDubbingDetail(m:MusicModel,id:String,dismiss:()->Unit){
+ val read=currentRead(m,"/api/dubbing/projects/$id")
+ val project=read.data?.optJSONObject("project")
+ val finalAudio=project?.optJSONObject("recording")?.optJSONObject("final")
+ val canPlay=finalAudio?.optString("state")=="ready"&&finalAudio.opt("audioUrl") is String
+ val playing=m.current?.dubbing==true&&m.current?.id==id&&m.playing
+ AlertDialog(onDismissRequest=dismiss,title={Text(project?.optString("title")?:"완성된 더빙")},
+  text={Column(Modifier.verticalScroll(rememberScrollState()).testTag("completed-dubbing-detail"),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   ReadStatus(read)
+   project?.let{p->
+    val description=sequenceOf(p.optJSONObject("options")?.opt("idea"),
+     p.optJSONObject("script")?.optJSONArray("scenes").objects().firstOrNull()?.opt("description"))
+     .filterIsInstance<String>().firstOrNull{it.isNotBlank()}
+    Text(description?:"등록된 작품 소개가 없어요.",color=SoftText)
+    val participants=p.optJSONArray("roles").objects().filter{it.optBoolean("claimed")}
+     .distinctBy{it.opt("participantUserId") as? String?:it.optString("participant")}
+    if(participants.isNotEmpty()){
+     Text("참여자",fontWeight=FontWeight.SemiBold)
+     participants.forEach{role->
+      val userId=role.opt("participantUserId") as? String
+      val name=role.optString("participant","참여자")
+      if(userId!=null&&CurrentNavigation.safeID(userId)){
+       val member=currentRead(m,"/api/member-preview/$userId")
+       val code=member.data?.optJSONObject("profile")?.opt("public_id") as? String
+       Text(if(code.isNullOrBlank())name else "$name · ID $code",color=SoftText)
+       if(member.error!=null)TextButton(member::retry){Text("참여자 ID 다시 불러오기")}
+      }else Text(name,color=SoftText)
+     }
+    }
+   }
+  }},dismissButton={TextButton(dismiss){Text("닫기")}},confirmButton={
+   if(canPlay&&project!=null)TextButton({if(playing)m.controller?.pause() else m.controller?.playDubbingEdition(project)},enabled=m.controller!=null){Text(if(playing)"일시정지" else "완성작 듣기")}
+  })
 }
 
 /** The deployed My page's section surface, rather than a standalone oversized heading. */
@@ -110,7 +158,7 @@ internal fun currentDubbingImage(p:JSONObject):String {
 }
 
 @Composable internal fun CurrentMySwitch(selected:String,onSelect:(String)->Unit){
- CurrentTabs(listOf("works" to "내 작품","library" to "내 보관함","inventory" to "인벤토리"),selected,"my-section",onSelect)
+ CurrentTabs(listOf("works" to "내 작품","library" to "내 보관함","inventory" to "인벤토리"),selected,"my-section",onSelect=onSelect)
 }
 
 @Composable internal fun CurrentRoomCard(room:JSONObject,m:MusicModel){

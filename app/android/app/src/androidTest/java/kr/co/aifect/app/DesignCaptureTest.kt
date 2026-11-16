@@ -29,18 +29,132 @@ import java.util.concurrent.TimeUnit
 
 /** Reproducible UI handoff: real product composables, loopback sample data, no live account. */
 class DesignCaptureTest {
- @Test fun miniPlayerClosesFromUpperRightAndKeepsTransportLower(){
-  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-close")
-  val close=ui.onNodeWithTag("mini-player-close").fetchSemanticsNode().boundsInRoot
-  val controls=ui.onNodeWithTag("mini-player-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  assertTrue(close.top<controls.top);assertTrue(close.right>controls.right);capture("277-mini-close")
+ @Test fun compactPlayerSeparatesTransportAndLibraryAndCloseStopsPlayback(){
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-controls")
+  val controls=listOf(hasContentDescription("이전 곡"),hasContentDescription("일시정지"),hasContentDescription("다음 곡"),hasContentDescription("좋아요 추가") or hasContentDescription("좋아요 취소"),hasContentDescription("보관함에 담기"))
+  val bounds=controls.map{ui.onNode(it,useUnmergedTree=true).fetchSemanticsNode().boundsInRoot}
+  (bounds.take(3).zipWithNext()+bounds.drop(3).zipWithNext()).forEach{(left,right)->assertTrue(left.center.x<right.center.x);assertEquals(left.center.y,right.center.y,2f)}
+  ui.onNodeWithTag("mini-player-seek").assertExists()
   val controller=model.controller
+  val title=ui.onNodeWithTag("mini-player-title",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val close=ui.onNodeWithContentDescription("재생 종료",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue(title.right<=bounds.first().left && bounds[2].right<=close.left)
+  assertTrue(bounds[3].top>=bounds[0].bottom-1f)
   ui.onNodeWithTag("mini-player-close").performClick();ui.waitUntil(10000){model.current==null}
   ui.runOnIdle{assertFalse(controller!!.isPlaying);assertEquals(0,controller.mediaItemCount)}
-  ui.onNodeWithTag("mini-player").assertDoesNotExist();assertFalse(model.fullPlayer)
+  ui.onNodeWithTag("mini-player").assertDoesNotExist()
  }
 
- @Test fun participationAndDubbingListsUseTwoColumnCards(){
+ @Test fun uploadedDubbingPosterLoadsWithoutGenre(){
+  val path="/api/dubbing/projects/poster-original/poster?v=test-version"
+  val project=payload("id" to "poster-original","title" to "썸네일 확인","genres" to arr(),"roleCount" to 2,
+   "posterUrl" to path,"isOfficialOriginal" to true,"activeCount" to 1,"weeklyActiveCount" to 1)
+  responses["/api/dubbing/projects?tab=open&discovery=1&offset=0"]=payload("projects" to arr(project))
+  act{it.selectTab(2);it.playMode="dubbing"}
+  ready("dub-feature-poster-original")
+  val create=ui.onNodeWithTag("dubbing-create").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+  val originals=ui.onNodeWithText("AIFECT 오리지널").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+  assertTrue(create.bottom<=originals.top)
+  ui.waitUntil(10000){path in requestUrls}
+  assertEquals(Endpoint.url(path),currentDubbingImage(project))
+  assertNull(customDubbingPoster(JSONObject(project.toString()).put("posterUrl","https://other.invalid/cover")))
+  assertEquals(Endpoint.url("/assets/dubbing-genres/romance.webp"),currentDubbingImage(payload("genres" to arr("로맨스"))))
+  ui.onNodeWithTag("dubbing-create").performClick();ready("native-dubbing-create")
+ }
+ @Test fun dubbingPostersAndCompletedEditions(){
+  val nativeWidth=instrumentation.targetContext.resources.configuration.screenWidthDp
+  val cases=listOf(1,2,4,7)
+  for(count in cases){
+   val projects=(1..count).map{i->payload("id" to "poster-$i","title" to "아주 긴 작품 제목이 여러 줄에 걸쳐 보이는 경우 $i","genres" to arr(),"ownerName" to "창작자","roleCount" to 2,"duration" to 270,"beginnerRecommended" to (i==1),"activeCount" to (10-i),"weeklyActiveCount" to (10-i))}
+   responses["/api/dubbing/projects?tab=open&discovery=1&offset=0"]=payload("projects" to arr(*projects.toTypedArray()))
+   act{it.selectTab(2);it.playMode="dubbing"}
+   ready("dub-cover-poster-1")
+   val shown=count.coerceAtMost(6)
+   val grid=(1..shown).map{i->ui.onNodeWithTag("dub-cover-poster-$i-art",useUnmergedTree=true).getUnclippedBoundsInRoot()}
+   val first=grid.first()
+   for((index,box) in grid.withIndex()){
+    val width=(box.right-box.left).value
+    val height=(box.bottom-box.top).value
+    assertEquals((first.right-first.left).value,width,1f);assertEquals((first.bottom-first.top).value,height,1f)
+    assertEquals(0.75f,width/height,.02f)
+    if(index in 1..2)assertEquals(first.top.value,box.top.value,1f)
+    if(index>=3)assertTrue(box.top>first.bottom)
+   }
+   ui.onNodeWithTag("dub-cover-poster-"+(shown+1)).assertDoesNotExist()
+   ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dub-starter-poster-1"))
+   if(count==4)capture("dub-starter-$nativeWidth")
+   act{it.playMode="song"}
+   ready("play-main-song")
+  }
+  val editions=(1..2).map{i->payload("id" to "edition-$i","type" to "dubbing","state" to "complete","roleCount" to 2,"title" to "같은 대본 $i","ownerName" to "성우 $i","duration" to 195)}
+  responses["/api/play/works"]=payload("works" to arr(*editions.toTypedArray()))
+  responses["/api/dubbing/projects/edition-1"]=payload("project" to JSONObject(editions.first().toString())
+   .put("options",payload("idea" to "두 성우가 함께 읽은 이야기"))
+   .put("roles",arr(payload("claimed" to true,"participant" to "성우 1","participantUserId" to "actor-one"))))
+  responses["/api/member-preview/actor-one"]=payload("profile" to payload("public_id" to "ABC1234"))
+  act{it.playMode="dubbing"}
+  ready("dub-nav-rank")
+  ui.onNodeWithTag("dub-mode-done").assertDoesNotExist()
+  ui.onNodeWithTag("play-main-browse").performClick()
+  ready("dubbing-project-edition-1")
+  ui.onNodeWithContentDescription("같은 대본 1 완성작 보기").performClick()
+  ready("completed-dubbing-detail");text("두 성우가 함께 읽은 이야기");text("성우 1 · ID ABC1234")
+ }
+ @Test fun pageReentryShowsCachedResultsWhileRefreshIsDelayed(){
+  responses["/api/play/songs"]=payload("tracks" to arr(song,second))
+  responses.getValue("/api/dubbing/projects").getJSONArray("projects").getJSONObject(0).put("activeCount",1).put("weeklyActiveCount",1)
+  responses["/api/crews?summary=1&home=1"]=payload("mine" to "design-crew","detail" to responses.getValue("/api/crews/design-crew"))
+  fun measure(label:String,tag:String,open:()->Unit){
+   val start=android.os.SystemClock.elapsedRealtime()
+   open()
+   ui.waitUntil(4000){ui.onAllNodesWithTag(tag,useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}
+   android.util.Log.i("PageAudit","$label visibleMs=${android.os.SystemClock.elapsedRealtime()-start}")
+  }
+  measure("song-first","play-grid-card-design-song"){act{it.selectTab(2)}}
+  measure("popular-first","play-grid-card-design-song"){ui.onNodeWithTag("play-section-popular").performClick()}
+  measure("duet-first","duet-card-art-design-duet"){ui.onNodeWithTag("play-section-duets").performClick()}
+  measure("browse-first","play-grid-card-design-cover"){ui.onNodeWithTag("play-main-browse").performClick()}
+  measure("dubbing-first","dub-cover-design-dubbing"){ui.onNodeWithTag("play-main-dubbing").performClick()}
+  measure("crew-first","crew-home-tabs"){act{it.communityMode="crews";it.selectTab(3)}}
+  measure("live-first","voice-lobby"){ui.onNodeWithTag("community-main-voice").performClick()}
+  measure("rankings-first","community-rankings-scroll"){ui.onNodeWithTag("community-main-rankings").performClick()}
+  measure("messages-first","dm-conversation-design-peer"){act{it.selectTab(5)}}
+  measure("my-first","my-section-works"){act{it.selectTab(6)}}
+  act{it.selectTab(0)}
+  val held=CountDownLatch(1)
+  heldResponses["/api/karaoke"]=held
+  heldResponses["/api/play/songs"]=held
+  heldResponses["/api/play/works"]=held
+  heldResponses["/api/dubbing/projects"]=held
+  try{
+   measure("song-return-held","play-grid-card-design-song"){act{it.playMode="song";it.playSection="recommended";it.selectTab(2)}}
+   measure("popular-return-held","play-grid-card-design-song"){ui.onNodeWithTag("play-section-popular").performClick()}
+   measure("browse-return-held","play-grid-card-design-cover"){ui.onNodeWithTag("play-main-browse").performClick()}
+   measure("dubbing-return-held","dub-cover-design-dubbing"){ui.onNodeWithTag("play-main-dubbing").performClick()}
+  }finally{held.countDown()}
+ }
+ @Test fun songTabsShowFourDestinationsInOneRow(){
+  val popularPath="/api/play/songs?tab=recommended&offset=0"
+  fun row(id:String,genre:String)=track(id,id).put("genre",genre)
+  responses[popularPath]=payload("tracks" to arr(row("popular-first","Pop"),row("popular-second","Rock")))
+  act{it.selectTab(2)}
+  val tabs=listOf("recommended" to "추천","popular" to "인기","duets" to "듀엣 참여","drafts" to "내 초안")
+  val bounds=tabs.map{(key,label)->
+   ui.onNodeWithTag("play-section-$key").assertTextEquals(label).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+  }
+  bounds.zipWithNext().forEach{(left,right)->assertEquals(left.top,right.top,2f);assertTrue(left.right<=right.left+1f)}
+  ready("play-grid-card-design-song")
+  ui.onNodeWithTag("play-section-popular").performClick()
+  ready("play-grid-card-popular-first")
+  val first=ui.onNodeWithTag("play-grid-card-popular-first").fetchSemanticsNode().boundsInRoot
+  val second=ui.onNodeWithTag("play-grid-card-popular-second").fetchSemanticsNode().boundsInRoot
+  assertTrue(first.left<second.left);assertTrue(popularPath in requestUrls)
+  ui.onNodeWithTag("play-section-latest").assertDoesNotExist()
+  ui.onNodeWithTag("play-section-genre").assertDoesNotExist()
+  ui.onNodeWithTag("play-section-duets").performClick();ready("duet-card-art-design-duet")
+  ui.onNodeWithTag("play-section-drafts").performClick();ready("play-drafts-open")
+ }
+ @Test fun duetGridAndDubbingDiscoveryUseDistinctLayouts(){
   val duets=(1..3).map{JSONObject(duet.toString()).put("id","grid-duet-$it").put("title","함께 부를 곡 $it")}
   responses["/api/duets"]=payload("tracks" to arr(*duets.toTypedArray()))
   val dubbings=(1..3).map{payload("id" to "grid-dubbing-$it","title" to "함께 읽는 이야기 $it","ownerName" to "소리","roleCount" to 2,"participants" to 1,"genres" to arr("일상"),"state" to "recruiting")}
@@ -49,10 +163,25 @@ class DesignCaptureTest {
   fun pair(a:String,b:String){val x=ui.onNodeWithTag(a).fetchSemanticsNode().boundsInRoot;val y=ui.onNodeWithTag(b).fetchSemanticsNode().boundsInRoot;assertEquals(x.top,y.top,2f);assertTrue(x.right<y.left);assertEquals(x.width,y.width,2f)}
   act{it.selectTab(2);it.playMode="song";it.playSection="duets"};ready("play-grid-card-grid-duet-1");pair("play-grid-card-grid-duet-1","play-grid-card-grid-duet-2")
   val art=ui.onNodeWithTag("duet-card-art-grid-duet-1").fetchSemanticsNode().boundsInRoot;assertEquals(art.width,art.height,2f);capture("277-duet-grid")
-  for(section in listOf("discover","join","mine")){
-   act{it.playMode="dubbing";it.playSection=section};ready("dubbing-card-art-grid-dubbing-1");pair("play-grid-card-grid-dubbing-1","play-grid-card-grid-dubbing-2");capture("277-dubbing-$section-grid")
-   ui.onNodeWithTag("dubbing-card-open-grid-dubbing-1").assertExists()
+  for(p in dubbings){
+   val id=p.getString("id")
+   responses["/api/dubbing/projects/$id"]=payload("project" to JSONObject(p.toString()).put("versions",arr(p)))
   }
+  responses["/api/dubbing/projects?tab=popular&discovery=1&offset=0"]=payload("projects" to arr(),"nextOffset" to JSONObject.NULL)
+  act{it.playMode="dubbing";it.playSection="discover"}
+  ready("dub-cover-grid-dubbing-1")
+  pair("dub-cover-grid-dubbing-1","dub-cover-grid-dubbing-2");pair("dub-cover-grid-dubbing-2","dub-cover-grid-dubbing-3")
+  capture("dub-discovery-open")
+  ui.onNodeWithTag("dub-nav-rank").performClick();ready("dubbing-project-grid-dubbing-1")
+  ui.onNodeWithTag("dub-week").performClick();text("이번 주 집계된 작품이 없어.")
+  ui.onNodeWithTag("dub-all").performClick();ready("dubbing-project-grid-dubbing-1")
+  ui.onNodeWithTag("dub-search").performTextInput("이야기 2");ready("dubbing-project-grid-dubbing-2")
+  ui.onNodeWithTag("dubbing-project-grid-dubbing-1").assertDoesNotExist()
+  Espresso.closeSoftKeyboard();ui.onNodeWithContentDescription("더빙 홈으로").performClick()
+  ui.onNodeWithTag("dub-nav-genre").performClick();ui.onNodeWithText("공포").performClick();text("검색 결과가 없어.")
+  ui.onNodeWithText("일상").performScrollTo().performClick();ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dubbing-project-grid-dubbing-1"))
+  ui.onNodeWithContentDescription("더빙 홈으로").performClick()
+  ui.onNodeWithTag("dub-mode-done").assertDoesNotExist()
   assertFalse(requestBodies.keys.any{it.startsWith("/api/dubbing/")})
  }
 
@@ -210,7 +339,7 @@ class DesignCaptureTest {
   act{it.selectTab(2)};ready("current-play");capture("reference-play")
   act{it.selectTab(3)};ready("community-main");capture("reference-community")
   act{it.selectTab(5)};ready("inbox-filter-전체");capture("reference-messages")
-  ui.onNodeWithTag("inbox-filter-안 읽음").performClick();ui.onNodeWithTag("inbox-filter-안 읽음").assertIsSelected()
+  ui.onNodeWithTag("inbox-filter-공지").performClick();ui.onNodeWithTag("inbox-filter-공지").assertIsSelected()
   act{it.selectTab(6)};ready("current-my")
   ui.onNodeWithTag("current-my").performScrollToNode(hasTestTag("my-section-library"))
   capture("reference-my-works")
@@ -235,6 +364,7 @@ class DesignCaptureTest {
  private val requestBodies=ConcurrentHashMap<String,String>()
  private val uploadBytes=ConcurrentHashMap<String,Int>()
  private val requestUrls=java.util.concurrent.CopyOnWriteArrayList<String>()
+ private val dmDeletes=java.util.concurrent.CopyOnWriteArrayList<String>()
  private val heldResponses=ConcurrentHashMap<String,CountDownLatch>()
  private val heldRequests=ConcurrentHashMap<String,CountDownLatch>()
  private val now=System.currentTimeMillis()/1000
@@ -329,6 +459,14 @@ class DesignCaptureTest {
    while(true){val header=line();if(header.isEmpty())break;if(header.startsWith("Content-Length:",true))length=header.substringAfter(":").trim().toInt()}
    if(length>0){val body=ByteArray(length);var read=0;while(read<length){val n=input.read(body,read,length-read);if(n<0)break;read+=n};uploadBytes[path]=read;requestBodies[path]=String(body,0,read,Charsets.UTF_8)}
    requestUrls.add(request[1])
+   if(request[0]=="DELETE"&&(path=="/api/dm"||path.startsWith("/api/dm/"))){
+    dmDeletes.add(path)
+    if(responseStatuses.getOrDefault(path,200)==200){
+     val inbox=responses.getValue("/api/dm")
+     val keep=inbox.getJSONArray("conversations").objects().filterNot{it.optString("id")==path.substringAfterLast('/')}
+     responses["/api/dm"]=JSONObject(inbox.toString()).put("conversations",JSONArray(keep))
+    }
+   }
    heldResponses[path]?.let{gate->heldRequests[path]?.countDown();gate.await(20,TimeUnit.SECONDS)}
    val out=c.getOutputStream()
    if(path=="/api/chat/events"){
@@ -337,6 +475,7 @@ class DesignCaptureTest {
     val type:String;val bytes:ByteArray
     val webAsset=if(path.startsWith("/api/")||path.startsWith("/media/"))null else runCatching{instrumentation.context.assets.open("current-web/"+(if(path=="/")"index.html" else path.removePrefix("/"))).use{it.readBytes()}}.getOrNull()
     when{webAsset!=null->{type=when{path.endsWith(".js")->"application/javascript; charset=utf-8";path.endsWith(".css")->"text/css; charset=utf-8";path.endsWith(".svg")->"image/svg+xml";else->"text/html; charset=utf-8"};bytes=webAsset}
+     path=="/api/dubbing/projects/poster-original/poster"->{type="image/png";bytes=photos[0]}
      path=="/media/sample/audio"->{type="audio/wav";bytes=audio}
      path.startsWith("/media/")->{type="image/png";bytes=photos[if(path.contains("ocean")||path.contains("own")||path.contains("photo-2")||path.contains("crew"))1 else 0]}
      path.startsWith("/assets/gifts/")->{type=if(path.endsWith(".png"))"image/png"else"image/webp";bytes=giftsBytes[path.substringAfterLast('/')]?:ByteArray(0)}
@@ -383,6 +522,31 @@ class DesignCaptureTest {
   ui.onNodeWithTag("shop-category-frames").performClick();ready("shop-decoration-frame-test");ui.onNodeWithTag("shop-tab-silver").assertDoesNotExist();ui.onNodeWithTag("shop-decoration-frame-test").performClick();ui.onNodeWithTag("decoration-period-P1M").performClick();text("150 G");capture("polish-268-frame-purchase");ui.onNodeWithText("취소").performClick()
   ui.onNodeWithTag("shop-category-themes").performClick();ready("shop-decoration-theme-test");capture("polish-268-theme-shop")
   assertFalse(requestBodies.containsKey("/api/decorations/buy"));ui.onNodeWithTag("shop-category-gifts").performClick();ready("shop-item-silver-letter")
+ }
+ @Test fun chartSwipeAndArrowNavigateTheSameTenSongPages(){
+  act{it.selectTab(3)}
+  ready("community-main")
+  ui.onNodeWithContentDescription("전체 메뉴").assertDoesNotExist()
+  val rows=(1..23).map { track("swipe-$it","차트 테스트 $it").put("chart_rank",it) }
+  responses["/api/catalog?section=tracks&chart=top&period=week"]=payload("tracks" to JSONArray(rows))
+  act{it.selectTab(0)}
+  ui.onNode(hasText("인기 차트") and hasAnyAncestor(hasTestTag("listen-tabs"))).performClick()
+  text("이번 주 · 1–10위")
+  val pager=ui.onNodeWithTag("home-chart-pager")
+  pager.performTouchInput{swipeLeft(durationMillis=350)}
+  text("이번 주 · 11–20위")
+  ui.onNodeWithContentDescription("다음 10곡").performClick()
+  text("이번 주 · 21–23위")
+  ui.onNodeWithContentDescription("다음 10곡").assertIsNotEnabled()
+  pager.performTouchInput{swipeRight(durationMillis=350)}
+  text("이번 주 · 11–20위")
+  act{it.selectTab(6)}
+  ready("my-settings")
+  ui.onAllNodesWithContentDescription("계정 관리").assertCountEquals(1)
+  ui.onNodeWithTag("my-settings").performClick()
+  text("내 지갑")
+  ui.onNodeWithText("계정 관리").performScrollTo().performClick()
+  ready("account-actions")
  }
  @Test fun homeKeepsTwoLineRowsAndFollowsItsTabOrder(){
   ready("home-featured-play");capture("home-257-01-top")
@@ -457,27 +621,29 @@ class DesignCaptureTest {
   ui.onAllNodesWithTag("voice-room-design-room").assertCountEquals(0)
   Espresso.closeSoftKeyboard();ui.onNodeWithTag("community-main-rankings").performClick();ready("community-rank-work-design-cover")
   ui.waitUntil(15000){requestUrls.contains("/api/tracks/design-cover")};text("하루 · 솔로")
-  ui.onNodeWithTag("ranking-category-relationship").assertDoesNotExist();ui.onNodeWithText("47점").assertDoesNotExist();ui.onNodeWithText("35점").assertDoesNotExist()
+  ui.onNodeWithTag("ranking-category-relationship").assertDoesNotExist();text("47.8점");text("35점")
   ui.onNodeWithTag("community-movement-work-design-cover",useUnmergedTree=true).assertTextEquals("▲2")
   ui.onNodeWithTag("community-movement-work-design-ocean",useUnmergedTree=true).assertTextEquals("—")
   ui.onNodeWithContentDescription("이전 순위 기록 없음",useUnmergedTree=true).assertExists()
   val categoryHeights=listOf("work","aiArtist","crew","dubbing").map{ui.onNodeWithTag("ranking-category-$it").fetchSemanticsNode().boundsInRoot.height}
-  assertTrue("Ranking category cards keep equal heights",categoryHeights.max()-categoryHeights.min()<1f)
+  assertTrue("Each category is a touch target",categoryHeights.min()>=48*context.resources.displayMetrics.density)
   val artistLabel=mutableListOf<TextLayoutResult>();ui.onNodeWithTag("ranking-label-aiArtist",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(artistLabel)}
-  capture("community-261-label-check");assertEquals(2,artistLabel.single().lineCount);assertFalse("AI artist label overflow: size=${artistLabel.single().size} width=${artistLabel.single().didOverflowWidth} height=${artistLabel.single().didOverflowHeight}",artistLabel.single().hasVisualOverflow)
+  capture("community-261-label-check");assertTrue(artistLabel.single().lineCount in 1..2);assertFalse("AI artist label overflow: size=${artistLabel.single().size} width=${artistLabel.single().didOverflowWidth} height=${artistLabel.single().didOverflowHeight}",artistLabel.single().hasVisualOverflow)
   ui.onNodeWithTag("ranking-art-design-cover",useUnmergedTree=true).assertExists()
   ui.waitUntil(15000){requestUrls.any{it=="/media/producer/design-peer?v=sample"}&&ui.onAllNodesWithTag("default-profile-artwork",useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}
   assertFalse("A cover without a profile photo must not use the original album",requestUrls.any{it.startsWith("/media/rank-ocean/cover")})
+  ui.onNodeWithTag("stream-play-design-cover").performClick();ui.waitUntil(15000){model.playing&&model.current?.id=="design-cover"}
+  ui.onNodeWithTag("mini-player").assertDoesNotExist()
   capture("community-261-work")
   ui.onNodeWithTag("community-rank-work-design-cover").performClick();ui.waitUntil(15000){model.detail?.id=="design-cover"};Espresso.pressBack();ready("ranking-period")
   ui.onNodeWithTag("ranking-period").performClick();ui.onNodeWithTag("ranking-period-month").performClick()
   ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/community/rankings?")&&it.contains("period=month")}}
   ui.waitUntil(10000){ui.onAllNodesWithText("▼1").fetchSemanticsNodes().isNotEmpty()}
   ui.onNodeWithTag("ranking-category-aiArtist").performClick();ready("community-rank-aiArtist-design-artist")
-  ui.onNodeWithTag("community-photo-artist-design-artist",useUnmergedTree=true).assertExists();ui.onNodeWithText("72점").assertDoesNotExist();capture("community-261-artists")
+  ui.onNodeWithTag("community-photo-artist-design-artist",useUnmergedTree=true).assertExists();text("72점");capture("community-261-artists")
   ui.onNodeWithTag("community-rank-aiArtist-design-artist").performClick();ui.waitUntil(15000){model.profile?.optString("id")=="design-artist"};Espresso.pressBack();ready("ranking-category-crew")
   ui.onNodeWithTag("ranking-category-crew").performClick();ready("community-rank-crew-design-crew")
-  ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};ui.onNodeWithContentDescription("밤산책 사진",useUnmergedTree=true).assertExists();ui.onNodeWithText("99점").assertDoesNotExist()
+  ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};ui.onNodeWithContentDescription("밤산책 사진",useUnmergedTree=true).assertExists();text("99점")
   val first=ui.onNodeWithTag("community-rank-crew-design-crew").fetchSemanticsNode().boundsInRoot
   val second=ui.onNodeWithTag("community-rank-crew-crew-zero").fetchSemanticsNode().boundsInRoot
   val third=ui.onNodeWithTag("community-rank-crew-crew-eclipse").fetchSemanticsNode().boundsInRoot
@@ -489,20 +655,58 @@ class DesignCaptureTest {
   ui.onNodeWithTag("community-rankings-scroll").performScrollToNode(hasTestTag("crew-rank-podium"))
   ui.onNodeWithTag("community-rank-crew-design-crew").performClick();ui.waitUntil(15000){model.workspace?.route=="crew/design-crew"};act{it.workspace=null};ready("ranking-category-dubbing")
   ui.onNodeWithTag("ranking-category-dubbing").performClick();text("아직 집계된 순위가 없어요.")
+  responses["/api/community/rankings?category=dubbing&period=week&workKind=solo"]=payload("rows" to arr(payload("id" to "design-dub","name" to "목소리 여행","score" to 118,"detail" to "완성 더빙")))
+  ui.onNodeWithTag("ranking-period").performClick();ui.onNodeWithTag("ranking-period-week").performClick();ready("community-rank-dubbing-design-dub");text("118점")
+  val monitor=instrumentation.addMonitor(NativePerformanceActivity::class.java.name,null,false)
+  try{
+   ui.onNodeWithTag("community-rank-dubbing-design-dub").performClick()
+   val activity=instrumentation.waitForMonitorWithTimeout(monitor,10000)
+   assertNotNull(activity);assertEquals("dubbing/design-dub",activity.intent.getStringExtra("route"))
+   instrumentation.runOnMainSync{activity.finish()}
+  }finally{instrumentation.removeMonitor(monitor)}
   assertFalse(requestUrls.any{it.contains("category=relationship")});assertFalse(requestBodies.keys.any{it.startsWith("/api/voice/")})
  }
+ @Test fun crewOwnerSeesTransferRequirementAndEmptyNotices(){
+  responses["/api/crews?summary=1&home=1"]=payload("mine" to "design-crew","detail" to responses.getValue("/api/crews/design-crew"))
+  member.put("role","owner")
+  responses["/api/crews/design-crew/notices"]=payload("items" to arr())
+  ui.onNodeWithTag("main-tab-3").performClick();ui.onNodeWithTag("community-main-crews").performClick()
+  text("크루 관리");ui.onNodeWithText("크루 관리").performClick();text("크루장")
+  ui.onNodeWithTag("crew-membership-leave").assertIsNotEnabled()
+  text("크루장을 위임한 후 탈퇴할 수 있어요.")
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithText("공지").performClick()
+  text("등록된 공지가 없어요")
+ }
+ @Test fun crewHomeOpensNoticesAndManagesOwnMembership(){
+  val summary="/api/crews?summary=1&home=1"
+  val leave="/api/crews/design-crew/leave"
+  responses[summary]=payload("mine" to "design-crew","detail" to responses.getValue("/api/crews/design-crew"))
+  member.put("joined",1704067200)
+  responses["/api/crews/design-crew/notices"]=payload("items" to arr(payload("id" to "n1","title" to "이번 주 모임","body" to "금요일 저녁에 만나요.")))
+  ui.onNodeWithTag("main-tab-3").performClick();ui.onNodeWithTag("community-main-crews").performClick()
+  ready("native-crew-home");text("크루 관리")
+  assertTrue(requestUrls.count{it==summary} in 1..2);assertFalse(requestUrls.contains("/api/crews/design-crew"));assertFalse(requestUrls.contains("/api/crews?summary=1"))
+  ui.onNodeWithText("공지 · 채팅 · 크루 관리").assertDoesNotExist()
+  ui.onNodeWithText("공지").performClick();text("이번 주 모임");text("금요일 저녁에 만나요.")
+  assertNull(model.workspace)
+  Espresso.pressBack();text("크루 관리");ui.onNodeWithText("크루 관리").performClick()
+  text("2024.01.01");text("크루원");ui.onNodeWithTag("crew-membership-leave").performClick()
+  ui.onNodeWithText("취소").performClick();assertFalse(requestUrls.contains(leave))
+  responses[summary]=payload("mine" to JSONObject.NULL,"crews" to arr(crew))
+  ui.onNodeWithTag("crew-membership-leave").performClick();ui.onNodeWithText("탈퇴").performClick()
+  ready("crew-directory-scroll");assertEquals(1,requestUrls.count{it==leave})
+ }
  @Test fun crewDiscoveryUsesPhotosAndFiltersAndOpensDetails(){
+  responses["/api/crews?summary=1&home=1"]=payload("mine" to "design-crew","detail" to responses.getValue("/api/crews/design-crew"))
   val other=payload("id" to "other-crew","name" to "새벽 라디오","description" to "감성적인 목소리가 모이는 곳","image_version" to "sample-ocean","level" to 2,"xp" to 700,"members" to 8,"capacity" to 20,"recruiting" to 0,"interests" to "Jazz","created" to now)
   responses["/api/crews?summary=1"]=payload("mine" to "design-crew","crews" to arr(crew,other),"rankings" to arr(crew,other))
-  ui.onNodeWithTag("main-tab-3").performClick();ui.onNodeWithTag("community-main-crews").performClick();ready("crew-featured-design-crew")
+  ui.onNodeWithTag("main-tab-3").performClick();ui.onNodeWithTag("community-main-crews").performClick();text("크루 찾기");ui.onNodeWithText("크루 찾기").performClick();ready("crew-discovery-design-crew")
   ui.waitUntil(15000){requestUrls.any{it.startsWith("/media/crew/design-crew")}};capture("community-261-crews-top")
   val scroll=ui.onNodeWithTag("crew-directory-scroll",useUnmergedTree=true)
   scroll.performScrollToNode(hasTestTag("crew-discovery-design-crew"))
-  val offset=ui.onNodeWithTag("crew-discovery-design-crew",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot.top-scroll.fetchSemanticsNode().boundsInRoot.top
-  scroll.performSemanticsAction(SemanticsActions.ScrollBy){it(0f,offset)}
   val one=ui.onNodeWithTag("crew-discovery-design-crew",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   val two=ui.onNodeWithTag("crew-discovery-other-crew",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  assertTrue(one.right<two.left);assertEquals(one.top,two.top,1f);assertTrue(one.width>125*context.resources.displayMetrics.density);capture("community-261-crews-grid")
+  assertTrue(one.bottom<=two.top+1f);assertEquals(one.left,two.left,1f);capture("crew-directory-rows")
   ui.onNodeWithTag("crew-discovery-design-crew").performClick();ui.waitUntil(15000){model.workspace?.route=="crew/design-crew"};act{it.workspace=null};ready("crew-directory-scroll")
   scroll.performScrollToNode(hasTestTag("crew-filters"));ui.onNodeWithTag("crew-filters").performClick();ready("crew-recruitment")
   ui.onNodeWithTag("crew-recruitment").performClick();ui.onNodeWithTag("crew-recruitment-open").performClick();ui.onNodeWithTag("crew-filter-apply").performClick()
@@ -510,7 +714,7 @@ class DesignCaptureTest {
   scroll.performScrollToNode(hasTestTag("crew-directory-search"));ui.onNodeWithTag("crew-directory-search").performTextInput("없는 크루");Espresso.closeSoftKeyboard()
   scroll.performScrollToNode(hasText("조건에 맞는 크루가 없어요"));ui.onNodeWithText("조건에 맞는 크루가 없어요").assertIsDisplayed()
   scroll.performScrollToNode(hasTestTag("crew-directory-search"));ui.onNodeWithTag("crew-directory-search").performTextClearance();Espresso.closeSoftKeyboard()
-  scroll.performScrollToNode(hasTestTag("crew-directory-ranking"));capture("community-261-crews-ranking")
+  scroll.performScrollToNode(hasTestTag("crew-directory-ranking"));ui.onNodeWithTag("crew-directory-ranking").performClick();ui.onNodeWithTag("ranking-category-crew").assertIsSelected()
   assertFalse(requestBodies.containsKey("/api/crews"))
  }
  @Test fun currentPlaySeparatesRecordingDubbingAndFinishedWorks(){
@@ -524,7 +728,7 @@ class DesignCaptureTest {
    payload("id" to "join2","duet_parent_id" to "design-duet","duet_open" to 0,"user_id" to "user-a"),
    payload("id" to "join3","duet_parent_id" to "design-duet","duet_open" to 0,"user_id" to "user-b"),
    payload("id" to "join4","duet_parent_id" to "another-invitation","duet_open" to 0,"user_id" to "user-c")),"counts" to payload("duet" to 4))
-  ready("home-featured-play");capture("revision-00-home")
+  ready("main-tab-2");capture("revision-00-home")
   ui.onNodeWithTag("main-tab-2").performClick();ready("current-sing-design-song")
   ui.onNodeWithTag("current-sing-design-song").assertIsDisplayed()
   ui.onNodeWithTag("current-sing-design-ocean").assertIsDisplayed()
@@ -539,10 +743,10 @@ class DesignCaptureTest {
    assertEquals("design-duet",room.intent.getStringExtra("duetParentId"));assertEquals("design-song",room.intent.getStringExtra("trackId"));room.runOnUiThread{room.finish()}
   }finally{instrumentation.removeMonitor(monitor)}
   ready("play-main-dubbing")
-  ui.onNodeWithTag("play-main-dubbing").performClick();ready("dubbing-project-design-dubbing")
-  capture("current-03-play-dubbing")
-  ui.onNodeWithTag("play-section-join").performClick();ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/participate")}}
-  ui.onNodeWithTag("play-section-mine").performClick();ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/dubbing/projects?tab=mine")}}
+  ui.onNodeWithTag("play-main-dubbing").performClick();ready("dub-nav-home")
+  ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dub-mine"));ui.onNodeWithTag("dub-mine").performClick()
+  ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/dubbing/projects?tab=mine")}}
+  ui.onNodeWithContentDescription("더빙 홈으로").performClick()
   ui.onNodeWithTag("play-main-browse").performClick();ready("play-kind-picker")
   ui.onNodeWithTag("play-section-popular").performClick();ui.onNodeWithTag("play-kind-picker").performClick();ui.onNodeWithTag("play-kind-duet").performClick()
   ui.waitUntil(10000){requestUrls.any{it.startsWith("/api/play/works?")&&it.contains("tab=popular")&&it.contains("type=duet")}}
@@ -580,18 +784,14 @@ class DesignCaptureTest {
   Espresso.pressBack();ready("profile-public-gallery")
  }
 
- @Test fun polish266HomeAndCrewCarouselsAdvanceAndPause(){
+ @Test fun polish266HomeCarouselAdvancesAndPauses(){
   fun state(tag:String)=ui.onNodeWithTag(tag).fetchSemanticsNode().config[SemanticsProperties.StateDescription]
   ready("home-carousel");val first=state("home-carousel");val started=android.os.SystemClock.uptimeMillis()
   ui.waitUntil(6200){state("home-carousel")!=first};assertTrue(android.os.SystemClock.uptimeMillis()-started>=3600)
   ui.onNodeWithTag("home-carousel").performTouchInput{swipeLeft(durationMillis=350)};ui.waitForIdle();val manual=state("home-carousel")
   Thread.sleep(1000);assertEquals(manual,state("home-carousel"))
   act{it.showInventory=true};ready("owned-inventory");Thread.sleep(3400);Espresso.pressBack();ready("home-carousel");assertEquals(manual,state("home-carousel"));capture("polish-266-home-carousel")
-  act{it.selectTab(3);it.communityMode="crews"};ready("crew-carousel");val crewFirst=state("crew-carousel")
-  assertTrue(crewFirst.endsWith(" / 2"));ui.waitUntil(4700){state("crew-carousel")!=crewFirst};capture("polish-266-crew-carousel")
-  val crewNext=state("crew-carousel");ui.waitUntil(4700){state("crew-carousel")!=crewNext};assertEquals(crewFirst,state("crew-carousel"))
-  act{it.selectTab(0)};responses["/api/crews"]=payload("crews" to arr(crew));act{it.api.invalidateReads();it.selectTab(3);it.communityMode="crews"}
-  ready("crew-carousel");ui.waitUntil(10000){state("crew-carousel")=="1 / 1"};Thread.sleep(3400);assertEquals("1 / 1",state("crew-carousel"))
+
  }
 
  @Test fun polish265LevelInventoryNavigationAndStudio(){
@@ -697,7 +897,7 @@ class DesignCaptureTest {
   val join=ui.onNodeWithTag("song-detail-duet").fetchSemanticsNode().boundsInRoot
   assertTrue("Listen and join cannot overlap",listen.bottom<=join.top);capture("polish-264-cover-detail")
   ui.onNodeWithTag("song-detail-delete").assertDoesNotExist();Espresso.pressBack()
-  act{it.selectTab(2);it.playMode="song";it.playSection="latest"};ui.waitUntil(15000){requestUrls.contains("/api/community?kind=cover")}
+  act{it.selectTab(2);it.playMode="song";it.playSection="latest"};ui.waitUntil(15000){requestUrls.any{url->url.startsWith("/api/play/songs?tab=latest")}}
   ui.onNodeWithTag("current-play").assertExists();assertFalse(model.playSection!="latest")
   act{it.openSong(Song(song))};ready("song-detail-delete");ui.onNodeWithTag("song-detail-delete").performScrollTo().performClick()
   ui.onNodeWithText("취소").performClick();assertFalse(requestUrls.contains("/api/uploads/design-song"))
@@ -727,7 +927,7 @@ class DesignCaptureTest {
   ui.onAllNodesWithText("사진 올리기").assertCountEquals(0)
  }
  @Test fun currentDubbingFormUsesNativeWorkflowWithoutMicrophone(){
-  ui.onNodeWithTag("main-tab-2").performClick();ui.onNodeWithTag("play-main-dubbing").performClick();ready("dubbing-create")
+  ui.onNodeWithTag("main-tab-2").performClick();ui.onNodeWithTag("play-main-dubbing").performClick();ui.onNodeWithTag("dub-list").performScrollToNode(hasTestTag("dubbing-create"))
   val before=ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)
   ui.onNodeWithTag("dubbing-create").performClick();ready("native-dubbing-create")
   ui.waitUntil(15000){requestUrls.contains("/api/dubbing/config")}
@@ -790,22 +990,120 @@ class DesignCaptureTest {
    instrumentation.runOnMainSync{room.finish()}
   }finally{instrumentation.removeMonitor(monitor)}
  }
- @Test fun messageBoardFiltersSearchAndStartsRealConversations(){
+ @Test fun miniModeCyclesRealPlayerAndPinsNotices(){
+  val incoming=responses.getValue("/api/dm")
+  incoming.put("crew",JSONObject(crew.toString()).put("unread",1))
+  val people=incoming.getJSONArray("conversations")
+  listOf("older" to now-200,"newer" to now-100).forEach{(id,date)->people.put(payload("id" to id,"name" to id,"updated" to date,"last_message" to id,"is_notice" to true))}
+  repeat(20){people.put(payload("id" to "peer-$it","name" to "친구 $it","updated" to now,"last_message" to "대화"))}
+  act{it.play(Song(song),listOf(Song(song),Song(cover)));it.selectTab(5)}
+  ready("mini-player-mode");ready("dm-conversation-newer")
+  val mode=ui.onNodeWithTag("mini-player-mode")
+  mode.performClick()
+  ui.waitUntil(10000){model.repeat==androidx.media3.common.Player.REPEAT_MODE_ONE&&!model.shuffle}
+  act{val c=it.controller!!;assertEquals(c.currentMediaItemIndex,c.currentTimeline.getNextWindowIndex(c.currentMediaItemIndex,c.repeatMode,c.shuffleModeEnabled))}
+  mode.performClick();ui.waitUntil(10000){model.shuffle&&model.repeat==androidx.media3.common.Player.REPEAT_MODE_OFF}
+  act{it.play(Song(cover),listOf(Song(song),Song(cover)))}
+  ui.waitUntil(10000){model.current?.id==cover.getString("id")&&model.shuffle}
+  mode.performClick();ui.waitUntil(10000){!model.shuffle&&model.repeat==androidx.media3.common.Player.REPEAT_MODE_OFF}
+  act{val c=it.controller!!;assertEquals(0,c.previousMediaItemIndex);assertEquals(1,c.currentMediaItemIndex)}
+  fun top(tag:String)=ui.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.top
+  assertTrue(top("dm-conversation-newer")<top("dm-conversation-older"))
+  assertTrue(top("dm-conversation-older")<top("inbox-crew"))
+  ui.onNodeWithTag("inbox-list").performScrollToNode(hasTestTag("dm-conversation-peer-17"))
+  ui.onNodeWithTag("dm-conversation-newer").assertIsDisplayed()
+ }
+ @Test fun noticesStackByPostAndOpenTheSelectedBody(){
+  val official=payload("id" to "design-official","is_notice" to true,"name" to "운영팀","updated" to now,"unread" to 0)
+  responses.getValue("/api/dm").getJSONArray("conversations").put(official)
+  fun post(id:String,body:String,created:Long,sequence:Int)=payload("id" to id,"body" to body,"created" to created,"sequence" to sequence,"recipient_id" to "design-user")
+  val newest=post("b","서비스 업데이트\n새로운 기능을 확인해보세요.\n공지 전문 마지막 줄",now,20)
+  val older=post("a","이벤트 공지\n참여 방법이에요.",now-100,18)
+  val sent=post("r","개인 답장",now-50,19).put("recipient_id","admin")
+  responses["/api/dm/design-official"]=payload("messages" to arr(sent,newest),"has_more" to true)
+  responses["/api/dm/design-official?before=19"]=payload("messages" to arr(older),"has_more" to false)
+  act{it.selectTab(5)};ready("inbox-filter-공지");ui.onNodeWithTag("inbox-filter-공지").performClick()
+  val recent=ui.onNodeWithTag("notice-item-design-official/b")
+  ready("notice-item-design-official/b");ui.onNodeWithText("이전 공지 더 보기").performClick()
+  ready("notice-item-design-official/a")
+  assertTrue(recent.fetchSemanticsNode().boundsInRoot.top<ui.onNodeWithTag("notice-item-design-official/a").fetchSemanticsNode().boundsInRoot.top)
+  ui.onNodeWithTag("notice-item-design-official/r").assertDoesNotExist()
+  recent.performClick();ui.onNodeWithTag("notice-full-body").assertTextEquals(newest.getString("body"))
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("notice-item-design-official/a").performClick()
+  ui.onNodeWithTag("notice-full-body").assertTextEquals(older.getString("body"));assertNull(model.messagePeer)
+ }
+ @Test fun welcomeIsANoticeFromBothInboxTabs(){
+  val endpoint="/api/notices/welcome"
+  val inbox=responses.getValue("/api/dm").getJSONArray("conversations")
+  inbox.put(payload("id" to "design-guide","name" to "아이팩트 안내","is_notice" to true,"read_only" to true,"notice_type" to "welcome","last_message" to "가입을 환영해요","unread" to 1))
+  responses[endpoint]=payload("campaign_id" to "welcome-1","created" to now,"read_at" to 0,"guide" to payload("greeting" to "가입을 환영해요","intro" to JSONArray(listOf("아이팩트를 소개할게요.")),"sections" to arr(payload("title" to "노래방","body" to "함께 노래를 불러보세요.")),"closing" to JSONArray(listOf("반가워요!"))))
+  act{it.selectTab(5)}
+  ready("dm-conversation-design-guide");ui.onNodeWithTag("dm-conversation-design-guide").performClick()
+  ready("welcome-notice-banner");text("함께 노래를 불러보세요.");ui.onNodeWithTag("dm-composer").assertDoesNotExist()
+  ui.waitUntil(15000){requestBodies.containsKey(endpoint)}
+  assertEquals("welcome-1",JSONObject(requestBodies.getValue(endpoint)).getString("campaign_id"))
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("inbox-filter-공지").performClick()
+  ui.onNodeWithTag("dm-conversation-design-peer").assertDoesNotExist()
+  ui.onNodeWithTag("dm-list-profile-design-guide").assertDoesNotExist()
+  ui.onNodeWithTag("dm-conversation-design-guide").performClick();ready("welcome-notice-banner")
+  assertFalse(requestUrls.contains("/api/dm/design-guide"))
+  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("inbox-filter-알림").performClick();ready("activity-list")
+  ui.onNodeWithTag("dm-conversation-design-guide").assertDoesNotExist()
+ }
+ @Test fun inboxBadgeCombinesMessagesAndActivities(){
+  val summary="/api/dm/summary"
+  val activity="/api/notifications/summary"
+  responses[summary]=payload("unread" to 3,"crew" to JSONObject(crew.toString()).put("unread",2))
+  responses.getValue("/api/dm").put("unread",3).put("crew",JSONObject(crew.toString()).put("unread",2))
+  responses[activity]=payload("unread" to 1)
+  act{it.selectTab(5)}
+  ready("dm-conversation-design-peer")
+  val badge=hasTestTag("inbox-nav-badge")
+  fun count(value:String){ui.waitUntil(15000){ui.onAllNodes(hasText(value) and (badge or hasAnyAncestor(badge)),useUnmergedTree=true).fetchSemanticsNodes().isNotEmpty()}}
+  count("4")
+  ui.onNodeWithTag("inbox-filter-알림").performClick();text("손편지 5개를 보냈어요.")
+  responses[activity]=payload("unread" to 0)
+  ui.onNodeWithText("읽음").performClick();count("3")
+  responses[summary]=payload("unread" to 0)
+  responses.getValue("/api/dm").put("unread",0)
+  ui.onNodeWithTag("inbox-filter-전체").performClick()
+  ui.onNodeWithTag("inbox-list").performScrollToNode(hasTestTag("inbox-read-all"))
+  ui.onNodeWithTag("inbox-read-all").performClick()
+  ui.waitUntil(15000){ui.onAllNodes(badge,useUnmergedTree=true).fetchSemanticsNodes().isEmpty()}
+ }
+ @Test fun messageBoardSwitchesTabsAndStartsRealConversations(){
   responses.getValue("/api/dm").put("crew",JSONObject(crew.toString()).put("unread",2)).put("unread",3)
   act{it.play(Song(song),listOf(Song(song)));it.selectTab(5)}
   ready("dm-conversation-design-peer");ready("inbox-crew");phaseCapture("34-message-inbox")
-  ui.onNodeWithTag("inbox-filter-안 읽음").performClick();ui.onNodeWithTag("dm-conversation-design-friend").assertDoesNotExist()
-  ui.onNodeWithTag("inbox-search-toggle").performClick();ui.onNodeWithTag("inbox-search").performTextInput("하루");Espresso.closeSoftKeyboard()
-  ui.onNodeWithTag("inbox-crew").assertDoesNotExist();ui.onNodeWithTag("dm-conversation-design-peer").performClick();ready("dm-composer")
+  ui.onNodeWithTag("dm-conversation-design-friend").assertExists()
+  ui.onNodeWithTag("inbox-search-toggle").assertDoesNotExist()
+  ui.onNodeWithTag("inbox-management").assertDoesNotExist()
+  val topRow=listOf("inbox-filter-전체","inbox-filter-공지","inbox-filter-알림","inbox-compose").map{ui.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot}
+  assertTrue(topRow.zipWithNext().all{(left,right)->left.right<=right.left&&kotlin.math.abs(left.center.y-right.center.y)<2f})
+  ui.onNodeWithTag("dm-conversation-design-peer").performClick();ready("dm-composer")
   ui.onNodeWithTag("dm-input").performTextInput("보관할 초안");Espresso.closeSoftKeyboard();ui.onNodeWithTag("dm-back").performClick()
-  ready("inbox-search");ui.onNodeWithTag("inbox-search").assertTextContains("하루");ui.onNodeWithTag("inbox-filter-안 읽음").assertIsSelected()
-  ui.onNodeWithTag("inbox-search-toggle").performClick();ui.onNodeWithTag("inbox-filter-크루").performClick();ready("inbox-crew");ui.onNodeWithTag("dm-conversation-design-peer").assertDoesNotExist();phaseCapture("35-message-crews")
-  ui.onNodeWithTag("inbox-crew").performClick();ready("crew-chat-input");Espresso.pressBack();ready("inbox-filter-크루");ui.onNodeWithTag("inbox-filter-크루").assertIsSelected()
-  ui.onNodeWithTag("inbox-filter-알림").performClick();ui.onNodeWithText("알림 기록").assertIsDisplayed()
-  ui.onNodeWithTag("inbox-compose").performClick();ready("new-conversation-design-peer");phaseCapture("36-message-new")
+  ready("inbox-crew");ui.onNodeWithTag("inbox-filter-전체").assertIsSelected();ui.onNodeWithTag("inbox-filter-크루").assertDoesNotExist()
+  ui.onNodeWithTag("inbox-crew").performClick();ready("crew-chat-input");Espresso.pressBack();ready("inbox-filter-전체");ui.onNodeWithTag("inbox-filter-전체").assertIsSelected()
+  ui.onNodeWithTag("inbox-filter-알림").performClick();ready("activity-list");text("손편지 5개를 보냈어요.");ui.onNodeWithTag("inbox-crew").assertDoesNotExist()
+  ui.onNodeWithTag("inbox-compose").performClick();ready("new-conversation-search");phaseCapture("36-message-new")
   ui.onNodeWithTag("new-conversation-search").performTextInput("하루");ui.waitUntil(15000){requestUrls.any{it.startsWith("/api/search?q=")}};Espresso.closeSoftKeyboard()
   ui.onNodeWithTag("new-conversation-design-own").assertDoesNotExist();ui.onNodeWithTag("new-conversation-design-peer").performClick();ready("dm-input")
   ui.onNodeWithTag("dm-input").assertTextContains("보관할 초안");assertEquals("design-peer",model.messagePeer);assertEquals("design-song",model.current?.id)
+ }
+
+ @Test fun inboxLongPressConfirmsDeletionForOnlyTheSelectedConversation(){
+  act{it.selectTab(5)}
+  val tag="dm-conversation-design-friend"
+  ready(tag)
+  ui.onNodeWithTag(tag).performTouchInput{longClick()}
+  ready("dm-delete-confirm");assertNull(model.messagePeer)
+  ui.onNodeWithText("취소").performClick()
+  ui.onNodeWithTag(tag).assertIsDisplayed();assertTrue(dmDeletes.isEmpty())
+  ui.onNodeWithTag(tag).performTouchInput{longClick()}
+  ui.onNodeWithTag("dm-delete-confirm").performClick()
+  ui.waitUntil(15000){dmDeletes.isNotEmpty()&&ui.onAllNodesWithTag(tag).fetchSemanticsNodes().isEmpty()}
+  assertEquals(listOf("/api/dm/design-friend"),dmDeletes.toList())
+  ui.onNodeWithTag("dm-conversation-design-peer").assertIsDisplayed()
  }
 
  @Test fun creatorStudioOpensFromMyAccountAndSavesOriginal(){
@@ -823,7 +1121,8 @@ class DesignCaptureTest {
   assertEquals("수정한 밤의 산책",body.getString("title"));assertEquals("앱에서 수정한 소개",body.getString("description"))
   assertEquals("design-artist",body.getString("artist_id"));assertEquals("[00:00.000] 오늘의 마음을 담아요",body.getString("lyrics"))
   Espresso.pressBack();assertEquals(6,model.tab)
-  ui.onNodeWithTag("account-menu").performClick();ready("account-actions")
+  ui.onNodeWithTag("my-settings").performClick()
+  ui.onNodeWithText("계정 관리").performScrollTo().performClick();ready("account-actions")
   ui.onNodeWithTag("account-창작자 스튜디오").performScrollTo().performClick();ready("creator-studio")
  }
 
@@ -1195,7 +1494,7 @@ class DesignCaptureTest {
   ui.onNodeWithContentDescription("다음 곡").assertIsDisplayed();phaseCapture("21-compact-player")
  }
  @Test fun captureProfileAndGiftScreens(){
-  ui.onNodeWithTag("main-tab-6").performClick();ready("music-shortcut-보관함");ui.onNodeWithTag("account-menu").assertIsDisplayed();capture("19-my-profile")
+  ui.onNodeWithTag("main-tab-6").performClick();ready("my-settings");ui.onNodeWithTag("my-settings").assertIsDisplayed();capture("19-my-profile")
   ui.onNodeWithText("내 활동").performClick();ui.onNodeWithTag("my-music-page").performScrollToNode(hasTestTag("my-music-layout-grid"));capture("20-my-music")
   act{it.openProfile("design-peer")};ui.waitUntil(15000){!model.profileLoading&&model.profile!=null};ready("profile-close");capture("21-public-profile")
   ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-gift"));ui.onNodeWithTag("profile-gift").performClick();text("하루(밤산책)님에게 선물");capture("22-person-gift")
@@ -1264,19 +1563,25 @@ class DesignCaptureTest {
   Espresso.pressBack();Espresso.pressBack();assertEquals(6,model.tab)
   ui.onNodeWithTag("music-shortcut-보관함").performClick();ready("library-scroll");phaseCapture("08-library")
   Espresso.pressBack();ui.onNodeWithText("내 활동").performClick();phaseCapture("09-my-activity")
-  ui.onNodeWithTag("account-menu").performClick();ready("account-actions");Espresso.pressBack()
+  ui.onNodeWithTag("my-settings").performClick();ui.onNodeWithText("계정 관리").performScrollTo().performClick();ready("account-actions");Espresso.pressBack();Espresso.pressBack()
   ui.onNodeWithText("내 음악").performClick();ui.onNodeWithTag("my-music-page").performScrollToNode(hasText("창작자 스튜디오"));ui.onNodeWithText("창작자 스튜디오").performClick();ready("creator-studio");Espresso.pressBack();assertEquals(6,model.tab)
  }
- @Test fun miniPlayerLyricsAreCenteredAcrossEntireBar(){
-  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-current-lyric")
+ @Test fun miniPlayerWrapsLongLyricsBelowTransportAndBesideLibraryActions(){
+  val verse="오늘의 마음을 이 노래에 담아 너에게 전할게 긴 밤이 지나도 우리 함께 걸어온 이 길을 언제까지나 기억할게"
+  responses["/api/tracks/design-song/lyrics/line"]=payload("line" to payload("text" to verse,"from" to 0,"until" to 180))
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing && model.lyric==verse}
+  val node=ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true)
   val layouts=mutableListOf<TextLayoutResult>()
-  ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
+  node.assertTextEquals(verse).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
   val layout=layouts.single()
-  assertEquals(androidx.compose.ui.text.style.TextAlign.Center,layout.layoutInput.style.textAlign)
-  assertEquals(layout.size.width/2f,(layout.getLineLeft(0)+layout.getLineRight(0))/2f,2f)
-  val bar=ui.onNodeWithTag("mini-player").fetchSemanticsNode().boundsInRoot
-  val lyrics=ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
-  assertEquals(bar.center.x,lyrics.center.x,2f);assertTrue(lyrics.width>bar.width*.85f)
+  assertFalse(layout.hasVisualOverflow)
+  assertEquals(verse.length,layout.getLineEnd(layout.lineCount-1))
+  val lyrics=node.fetchSemanticsNode().boundsInRoot
+  val transport=ui.onNodeWithTag("mini-player-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val heart=ui.onNode(hasContentDescription("좋아요",substring=true) and hasAnyAncestor(hasTestTag("mini-player")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  val mode=ui.onNodeWithTag("mini-player-mode").fetchSemanticsNode().boundsInRoot
+  val save=ui.onNode(hasContentDescription("보관함에 담기") and hasAnyAncestor(hasTestTag("mini-player")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
+  assertTrue(lyrics.top>=transport.bottom && heart.right<=lyrics.left && lyrics.right<=mode.left && mode.right<=save.left)
   capture("275-mini-lyrics-centered")
   val controller=model.controller
   act{it.selectTab(6)};assertSame(controller,model.controller);assertEquals("design-song",model.current?.id);assertTrue(model.playing)

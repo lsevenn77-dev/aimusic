@@ -1,0 +1,477 @@
+From b1c86874a8acbadef02cc06226a17b9a7a4ff19a Mon Sep 17 00:00:00 2001
+From: JONG SEOK <lsevenn77@gmail.com>
+Date: Mon, 2 Nov 2026 21:12:55 +0900
+Subject: [PATCH] Update Site source
+
+---
+ dist/live-karaoke.css          | 17 ++++++-
+ dist/live-karaoke.js           | 52 +++++++++++++++++++-
+ dist/voice-audio.js            | 43 +++++++++++++++--
+ dist/voice-room-controls.js    |  2 +-
+ dist/voice-rooms.js            |  6 +--
+ tests/live-karaoke-ui.test.mjs | 15 +++++-
+ tests/voice-audio.test.mjs     | 87 +++++++++++++++++++++++++++++++++-
+ tests/voice-emoji.test.mjs     | 55 +++++++++++++++++++--
+ 8 files changed, 260 insertions(+), 17 deletions(-)
+
+diff --git a/dist/live-karaoke.css b/dist/live-karaoke.css
+index 13c55b9..9f5ac38 100644
+--- a/dist/live-karaoke.css
++++ b/dist/live-karaoke.css
+@@ -43,7 +43,22 @@
+ .live-actions{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;min-height:44px}
+ .live-actions .primary-button,.live-actions .small-button,.live-result button{min-height:44px;font-size:13px}
+ .live-actions button{max-width:100%;overflow-wrap:anywhere;white-space:normal}
+-.live-actions [data-voice="karaoke-monitor"][aria-pressed="true"]{border-color:var(--ds-accent-mint);color:var(--ds-accent-mint)}
++.live-sound-toolbar{display:flex;align-items:center;justify-content:flex-end;align-self:flex-end;gap:8px;flex-wrap:wrap;max-width:100%}
++.live-sound-toolbar .small-button{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 12px;font-size:13px}
++.live-sound-toolbar svg{width:18px;height:18px;flex:none}
++.live-sound-toolbar [aria-pressed="true"]{border-color:var(--ds-accent-mint);color:var(--ds-accent-mint)}
++.live-karaoke-room #voice-sound>.voice-audio-card,.live-karaoke-room #voice-sound>.live-audio-settings,.live-karaoke-room #voice-sound>#voice-sound-current{display:none}
++.live-vocal-settings{display:grid;gap:12px}
++.live-sound-card{padding:18px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel)}
++.live-sound-card h3{margin:0 0 18px;font-size:16px}
++.live-karaoke-room #voice-sound .live-sound-card label{display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px;font-size:14px;margin:16px 0 10px}
++.live-sound-card output{color:var(--ds-accent-mint);font-variant-numeric:tabular-nums}
++.live-sound-card input[type=range]{display:block;width:100%;margin:0;min-height:26px}
++.live-sound-card input:disabled{opacity:.45}
++.live-sound-card #live-effect-status{color:var(--ds-muted);font-size:13px;line-height:1.6}
++.live-karaoke-room #voice-sound>.voice-audio-extra{margin-top:16px}
++.live-karaoke-room #voice-sound .voice-mic-test{margin-top:16px}
++@media(max-width:800px){.live-karaoke-room #voice-sound{box-sizing:border-box;max-height:calc(90dvh - 4px)}}
+ .live-invite{margin:0;color:var(--ds-accent-mint);font-size:13px;line-height:1.5}
+ .live-stage-note{font-size:12px;line-height:1.5;color:var(--ds-body);margin:auto 0 0;overflow-wrap:anywhere}
+ .live-audio-unlock{min-height:44px}
+diff --git a/dist/live-karaoke.js b/dist/live-karaoke.js
+index 35eccd6..dbb3f75 100644
+--- a/dist/live-karaoke.js
++++ b/dist/live-karaoke.js
+@@ -15,6 +15,39 @@ function liveKaraokeLobbyHTML(data,enabled=true){
+   .replace('id="v3-create-title">방 만들기','id="v3-create-title">라이브 노래방 만들기')
+   +(me?'':'<p class="quiet live-login"><a class="text-link" href="#account">로그인하면 노래방을 만들거나 참여할 수 있어요.</a></p>');
+ }
++function liveVoiceMix(c){
++ if(!c.liveVocalMix)c.liveVocalMix=typeof AifectKaraoke!=='undefined'?AifectKaraoke.defaultVocalMix():{echo:0,room:0,size:.5,tone:0,noise:2};
++ return c.liveVocalMix;
++}
++function liveVocalSettingsHTML(){
++ const effects=[['room','리버브',0,100],['echo','에코',0,65],['size','룸 크기',0,100],['tone','음색',-100,200]];
++ return `<div class="live-vocal-settings"><section class="live-sound-card"><h3>음량</h3><label for="voice-input-gain">내 목소리 <output data-value-for="voice-input-gain">100%</output></label><div id="live-voice-volume-slot"></div><label for="live-mr-volume">음원 <output data-value-for="live-mr-volume">75%</output></label><div id="live-music-volume-slot"></div></section><section class="live-sound-card"><h3>공간 효과</h3>${effects.map(([key,label,min,max])=>`<label for="live-fx-${key}">${label}<output data-value-for="live-fx-${key}"></output></label><input id="live-fx-${key}" data-live-fx="${key}" aria-label="${label}" type="range" min="${min}" max="${max}" step="1" value="0">`).join('')}<p id="live-effect-status" role="status" hidden></p></section></div>`;
++}
++function bindLiveVocalSettings(c){
++ const sound=c.host.querySelector('#voice-sound'),mix=liveVoiceMix(c);
++ sound.querySelector('#live-voice-volume-slot').append(c.host.querySelector('#voice-input-gain'));
++ sound.querySelector('#live-music-volume-slot').append(c.host.querySelector('#live-mr-volume'));
++ const advanced=sound.querySelector('.voice-audio-extra');
++ advanced.querySelector('summary').textContent='장치 · 고급 설정';
++ advanced.append(c.host.querySelector('#live-delay').closest('label'));
++ advanced.append(sound.querySelector('.voice-mic-test'));
++ sound.querySelector('.voice-sheet-heading p').textContent='내 목소리와 음원, 공간 효과를 조절하세요.';
++ for(const input of sound.querySelectorAll('[data-live-fx]')){
++  input.value=Math.round(mix[input.dataset.liveFx]*100);c.updateDesignField(input);
++  input.oninput=()=>{
++   c.liveVocalMix={...liveVoiceMix(c),preset:'custom',[input.dataset.liveFx]:Number(input.value)/100};
++   c.processing?.setMix?.(c.liveVocalMix);
++   if(c.testGraph!==c.processing)c.testGraph?.setMix?.(c.liveVocalMix);
++   c.updateDesignField(input);
++  };
++ }
++}
++function liveEffectAvailability(c){
++ const supported=!c.processing||c.processing.supportsMix!==false;
++ for(const input of c.host.querySelectorAll('[data-live-fx]'))input.disabled=!supported;
++ const note=c.host.querySelector('#live-effect-status');
++ if(note){note.hidden=supported;note.textContent=supported?'':'이 브라우저에서 공간 효과를 연결하지 못했어요. 현재 원음으로 전달 중이에요.';}
++}
+ function liveKaraokeRoomHTML(id){
+  const stage=`<div id="live-karaoke-stage"><section class="live-stage-main">
+   <div class="live-stage-top"><div class="live-room-caption"><span>LIVE KARAOKE</span><strong id="live-room-name"></strong></div><span id="live-phase" role="status">가창자 기다리는 중</span></div>
+@@ -27,16 +60,22 @@ function liveKaraokeRoomHTML(id){
+   <p id="live-invite" class="live-invite" role="status" hidden></p>
+   <button class="small-button live-audio-unlock" id="live-audio-unlock" type="button" data-voice="karaoke-resume" hidden>소리 켜기</button>
+   <p class="live-stage-note" id="live-stage-note">이어폰을 사용하면 반주가 마이크에 섞이지 않아요.</p>
++  <div class="live-sound-toolbar" role="group" aria-label="소리와 모니터링">
++   <button type="button" class="small-button" id="live-monitor-toggle" data-voice="karaoke-monitor" aria-pressed="false" disabled title="내 노래 차례에 모니터링을 켤 수 있어요.">${icon('headphones')}<span>내 목소리 듣기 꺼짐</span></button>
++   <button type="button" class="small-button" data-voice="sound" aria-label="소리 설정">${icon('sliders')}<span>소리 설정</span></button>
++  </div>
+  </section>
+  <section class="live-request-area" aria-label="노래 신청과 예약 순서"><button type="button" class="live-request-button" data-voice="karaoke-search-open">${icon('mic')}<span><strong>노래 신청하기</strong><small id="live-queue-count">0명 대기</small></span></button><ol id="live-queue" class="live-queue" tabindex="0" aria-label="예약 순서, 좌우로 스크롤"></ol></section>
+  </div>`;
+  const search=`<dialog id="live-search-sheet" class="voice-sheet" aria-labelledby="live-search-title"><button type="button" class="voice-dialog-close" data-voice="dismiss" aria-label="닫기">×</button><h2 id="live-search-title">부를 노래 찾기</h2><form id="live-search" class="live-search" role="search"><label for="live-query">곡명 또는 아티스트</label><div><input id="live-query" type="search" maxlength="80" placeholder="곡명 또는 아티스트 검색" required><button type="submit" class="small-button">${icon('search')} 검색</button></div></form><div id="live-results" class="live-results" aria-live="polite"></div></dialog>`;
+  const audio=`<div class="live-audio-settings"><label>내 반주 음량 <input id="live-mr-volume" type="range" min="0" max="100" value="75"></label><label>청취 싱크 보정 <input id="live-delay" type="range" min="0" max="500" step="50" value="200"><output id="live-delay-value">200ms</output></label></div>`;
+- return voiceRoomHTML(id,false).replace('class="voice-room"','class="voice-room live-karaoke-room"')
++ return voiceRoomHTML(id,false).replace(/<button\b[^>]*data-voice="sound"[^>]*>[\s\S]*?<\/button>/,'')
++  .replace('class="voice-room"','class="voice-room live-karaoke-room"')
+   .replace('href="#voice">← 토킹룸','href="#live">〈 라이브 노래방')
+   .replace('좌석을 눌러 참여 신청해보세요.','신청 순서대로 한 명씩 노래해요.')
+   .replace('id="voice-title">토킹룸','id="voice-title">라이브 노래방')
+   .replace('토킹룸 종료','노래방 종료')
++  .replace('<p id="voice-sound-current"',liveVocalSettingsHTML()+'<p id="voice-sound-current"')
+   .replace('<div id="voice-seats" class="voice-seats"></div>',stage+'<div id="voice-seats" class="voice-seats"></div>')
+   .replace('<dialog id="voice-members"',search+'<dialog id="voice-members"')
+   .replace('<section id="voice-host-audio"',audio+'<section id="voice-host-audio"');
+@@ -139,6 +178,7 @@ function setLiveMonitor(c,enabled){
+ }
+ function bindLiveKaraoke(c){
+  clearInterval(c.liveTimer);c.liveVolume??=.75;c.liveDelayMs??=200;
++ bindLiveVocalSettings(c);liveEffectAvailability(c);
+  const monitor=c.host.querySelector('#voice-monitor');
+  monitor.checked=!!c.liveMonitorEnabled;
+  monitor.onchange=()=>setLiveMonitor(c,monitor.checked);
+@@ -215,12 +255,18 @@ function paintLiveKaraoke(c){
+  if(active&&host&&!isSinger&&k.phase==='ready')buttons.push('<span class="quiet">가창자가 준비를 마치면 시작해요.</span>');
+  if(active&&c.liveError)buttons.push('<button class="small-button" data-voice="karaoke-retry">반주 다시 불러오기</button>');
+  if(isSinger&&k.phase==='singing')buttons.push(`<button class="small-button" data-voice="${self.muted?'enable-mic':'mute'}">${self.muted?'마이크 켜기':'마이크 끄기'}</button>`);
+- if(isLiveSingerTurn(c))buttons.push(`<button type="button" class="small-button" data-voice="karaoke-monitor" aria-pressed="${!!c.liveMonitorEnabled}">${icon('headphones')} 내 목소리 듣기 ${c.liveMonitorEnabled?'켜짐':'꺼짐'}</button>`);
+  if(active&&(host||isSinger))buttons.push(`<button class="small-button" data-voice="karaoke-abandon" data-target="${esc(active.invitation_id)}">노래 포기</button>`);
+  if(active&&host&&next)buttons.push(`<button class="small-button" data-voice="karaoke-next">${esc(nextName)}님 부르기</button>`);
+  if(hasQueued)buttons.push('<button class="small-button" data-voice="karaoke-cancel">내 신청 취소</button>');
+  c.host.querySelector('#live-actions').innerHTML=buttons.join('');
+  for(const button of c.host.querySelectorAll('[data-voice^="karaoke-"]'))if(c.liveCommandPending)button.disabled=true;
++ const monitorToggle=c.host.querySelector('#live-monitor-toggle');
++ if(monitorToggle){
++  monitorToggle.disabled=!isLiveSingerTurn(c)||!!c.liveCommandPending;
++  monitorToggle.setAttribute('aria-pressed',String(!!c.liveMonitorEnabled));
++  monitorToggle.title=isLiveSingerTurn(c)?'이어폰으로 내 목소리를 바로 들어요.':'내 노래 차례에 모니터링을 켤 수 있어요.';
++  monitorToggle.querySelector('span').textContent='내 목소리 듣기 '+(c.liveMonitorEnabled?'켜짐':'꺼짐');
++ }
+  // Static picker/result buttons are not rebuilt with the stage controls.
+  for(const button of c.host.querySelectorAll('[data-voice="karaoke-search-open"],#live-results [data-voice="karaoke-request"]'))button.disabled=!!c.liveCommandPending;
+  c.host.querySelector('#live-queue-count').textContent=(k?.queue?.length||0)+'명 대기';
+@@ -240,6 +286,7 @@ function liveRenderLyrics(c,seconds){
+ function liveSync(c){
+  const k=c.state?.karaoke,active=k?.active;if(c.closed||!c.host?.isConnected)return;
+  syncLiveMonitor(c);
++ liveEffectAvailability(c);
+  const phase=c.host.querySelector('#live-phase'),timer=c.host.querySelector('#live-timer'),progress=c.host.querySelector('#live-progress');
+  const invite=c.host.querySelector('#live-invite');
+  if(invite)invite.hidden=!active||!['invited','ready'].includes(k.phase);
+@@ -323,6 +370,7 @@ bindVoice=function(base,id){
+ };
+ const productionVoiceBind=VoiceRoomClient.prototype.bind;
+ VoiceRoomClient.prototype.bind=function(host){
++ if(this.liveMode)liveVoiceMix(this);
+  const result=productionVoiceBind.call(this,host);
+  if(this.liveMode){
+   bindLiveKaraoke(this);
+diff --git a/dist/voice-audio.js b/dist/voice-audio.js
+index 9b8d4ba..9261240 100644
+--- a/dist/voice-audio.js
++++ b/dist/voice-audio.js
+@@ -1,11 +1,46 @@
+ // AIFECT voice presets. Values are intentionally modest; no pitch correction.
+ const VoiceAudio=(()=>{
+  const presets=Object.freeze({original:{name:'원음',highpass:0,mud:0,presence:0,compress:false,wet:0},radio:{name:'라디오 클린',highpass:85,mud:-2,presence:1.2,compress:true,wet:0},studio:{name:'스튜디오',highpass:75,mud:-2,presence:1,compress:true,wet:0.06}});
+- async function microphone(raw,preset='radio',level=1){
+-  const Context=window.AudioContext||window.webkitAudioContext;let ctx;
++ async function microphone(raw,preset='radio',level=1,mix){
++  const Context=window.AudioContext||window.webkitAudioContext;let ctx,outgoing;
+   try{
+    if(!Context)throw Error('unsupported');ctx=new Context({latencyHint:'interactive'});let timer;try{await Promise.race([ctx.resume(),new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(Error('suspended')),500);})]);}finally{clearTimeout(timer);}if(ctx.state!=='running')throw Error('suspended');
+-   const source=ctx.createMediaStreamSource(raw),input=ctx.createGain(),analyser=ctx.createAnalyser(),destination=ctx.createMediaStreamDestination();analyser.fftSize=256;
++   if(mix!==undefined){
++    if(!ctx.audioWorklet||typeof AudioWorkletNode!=='function')throw Error('worklet unsupported');
++    let timer;
++    try{
++     await Promise.race([
++      ctx.audioWorklet.addModule('/vocal-worklet.js?v=20261017-tone-range'),
++      new Promise((resolve,reject)=>{timer=setTimeout(()=>reject(Error('worklet timeout')),2000);})
++     ]);
++    }finally{clearTimeout(timer);}
++    if(ctx.state!=='running')throw Error('suspended');
++    const source=ctx.createMediaStreamSource(raw),input=ctx.createGain(),analyser=ctx.createAnalyser(),destination=ctx.createMediaStreamDestination();
++    outgoing=destination.stream;
++    const effects=new AudioWorkletNode(ctx,'aifect-vocal',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:'explicit',processorOptions:{mix}});
++    analyser.fftSize=256;input.gain.value=level;
++    source.connect(input).connect(effects).connect(analyser).connect(destination);
++    let closed=false;
++    const graph={
++     stream:outgoing,analyser,context:ctx,supportsMix:true,
++     setLevel:value=>input.gain.setTargetAtTime(Math.max(0,Math.min(2,value)),ctx.currentTime,.015),
++     setMix(value){if(!closed&&graph.supportsMix)effects.port.postMessage(value);},
++     // Legacy talk-room presets must not override the supplied recording mix.
++     setPreset(){},setReverb(){},
++     close(){
++      if(closed)return;closed=true;
++      effects.onprocessorerror=null;source.disconnect();input.disconnect();effects.disconnect();analyser.disconnect();effects.port.close?.();
++      outgoing.getTracks().forEach(track=>track.stop());void ctx.close().catch(()=>{});
++     }
++    };
++    effects.onprocessorerror=()=>{
++     if(closed||!graph.supportsMix)return;
++     graph.supportsMix=false;input.disconnect();effects.disconnect();effects.port.close?.();input.connect(analyser);
++     graph.onMixError?.();
++    };
++    return graph;
++   }
++   const source=ctx.createMediaStreamSource(raw),input=ctx.createGain(),analyser=ctx.createAnalyser(),destination=ctx.createMediaStreamDestination();analyser.fftSize=256;outgoing=destination.stream;
+    source.connect(input);input.gain.value=level;let nodes=[],effectSource,reverbGain;const setReverb=value=>{const wet=Math.max(0,Math.min(.07,value));if(wet&&!reverbGain){const delay=ctx.createDelay(.1);reverbGain=ctx.createGain();delay.delayTime.value=.045;effectSource.connect(delay);delay.connect(reverbGain);reverbGain.connect(analyser);nodes.push(delay,reverbGain);}if(reverbGain)reverbGain.gain.setTargetAtTime(wet,ctx.currentTime,.02);};
+    const configure=key=>{const p=presets[key]||presets.radio;input.disconnect();for(const n of nodes)n.disconnect();nodes=[];reverbGain=null;let last=input;
+     const append=n=>{last.connect(n);last=n;nodes.push(n);};
+@@ -15,7 +50,7 @@ const VoiceAudio=(()=>{
+     last.connect(analyser);analyser.connect(destination);
+    };
+    configure(preset);return {stream:destination.stream,analyser,context:ctx,setLevel:v=>input.gain.setTargetAtTime(Math.max(0,Math.min(1,v)),ctx.currentTime,0.015),setPreset:configure,setReverb,close(){source.disconnect();destination.stream.getTracks().forEach(t=>t.stop());void ctx.close().catch(()=>{});}};
+-  }catch{if(ctx)void ctx.close().catch(()=>{});return {stream:raw,fallback:true,setLevel(){},setPreset(){},setReverb(){},close(){}};}
++  }catch{outgoing?.getTracks().forEach(track=>track.stop());if(ctx)void ctx.close().catch(()=>{});return {stream:raw,fallback:true,supportsMix:false,setLevel(){},setMix(){},setPreset(){},setReverb(){},close(){}};}
+  }
+  function rms(analyser){const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);let energy=0;for(const n of data)energy+=((n-128)/128)**2;return Math.min(1,Math.max(0,Math.sqrt(energy/data.length)-.012)*5);}
+  return {presets,microphone,rms};
+diff --git a/dist/voice-room-controls.js b/dist/voice-room-controls.js
+index e3d8a53..812c4cd 100644
+--- a/dist/voice-room-controls.js
++++ b/dist/voice-room-controls.js
+@@ -191,7 +191,7 @@ Object.assign(VoiceRoomClient.prototype,{
+  },
+  async startMicTest(){
+   const attempt=this.testAttempt=(this.testAttempt||0)+1;if(this.processing){this.testGraph=this.processing;this.testOwned=false;}
+-  else{const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});if(this.closed||attempt!==this.testAttempt){raw.getTracks().forEach(t=>t.stop());return;}this.testRaw=raw;this.testOwned=true;const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input);if(this.closed||attempt!==this.testAttempt){graph.close();raw.getTracks().forEach(t=>t.stop());return;}this.testGraph=graph;if(graph.fallback){this.stopMicTest();throw Error('이 브라우저에서는 입력 레벨 분석을 지원하지 않아요.');}}
++  else{const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});if(this.closed||attempt!==this.testAttempt){raw.getTracks().forEach(t=>t.stop());return;}this.testRaw=raw;this.testOwned=true;const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);if(this.closed||attempt!==this.testAttempt){graph.close();raw.getTracks().forEach(t=>t.stop());return;}this.testGraph=graph;if(graph.fallback){this.stopMicTest();throw Error('이 브라우저에서는 입력 레벨 분석을 지원하지 않아요.');}}
+   this.startLevels();this.host.querySelector('[data-voice="mic-test"]').textContent='테스트 중지';
+   clearTimeout(this.micTestTimer);this.micTestTimer=setTimeout(()=>this.stopMicTest(),30000);
+  },
+diff --git a/dist/voice-rooms.js b/dist/voice-rooms.js
+index be6176c..7173d4f 100644
+--- a/dist/voice-rooms.js
++++ b/dist/voice-rooms.js
+@@ -70,7 +70,7 @@ class VoiceRoomClient {
+  status(message){const el=$('#voice-status');if(el)el.textContent=message;}
+  async safe(fn){try{await fn();}catch(e){this.status(e.message);toast(e.message);}}
+  bind(host){this.host=host;if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>{const blocked=this.waitForMusicGesture||this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;this.waitForMusicGesture=false;if(this.liveMode||blocked)this.resumeSound();};host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
+-  this.bindFinalControls();const chat=$('#voice-chat-form');chat.onsubmit=busyForm(chat,async()=>{const body=chat.elements.body.value;this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};await this.command('chat',this.chatPending);if(this.liveMode||chat.elements.body.value===body)chat.reset();this.chatPending=null;await this.refresh();});
++  this.bindFinalControls();const chat=$('#voice-chat-form');chat.onsubmit=busyForm(chat,async()=>{const body=chat.elements.body.value;this.chatPending=this.chatPending?.body===body?this.chatPending:{body,request_id:crypto.randomUUID()};await this.command('chat',this.chatPending);this.toggleEmojiPicker(false);if(this.liveMode||chat.elements.body.value===body)chat.reset();this.chatPending=null;await this.refresh();});
+   const gift=$('#voice-gift-form');gift.onchange=()=>{this.giftRequest=crypto.randomUUID();this.giftSummary();};gift.onsubmit=busyForm(gift,()=>this.openGiftDialog());
+   const invite=$('#voice-invite-form');invite.onchange=()=>this.inviteRequest=crypto.randomUUID();invite.onsubmit=busyForm(invite,async()=>{await this.command('invite',{profile_id:invite.elements.profile_id.value,request_id:this.inviteRequest});toast('토킹룸 초대 DM을 보냈어요.');this.inviteRequest=crypto.randomUUID();});
+   $('#voice-monitor').onchange=()=>this.safe(()=>this.monitor());$('#voice-input').onchange=()=>this.safe(()=>this.changeMicrophone());$('#voice-output').onchange=()=>this.safe(()=>this.output());
+@@ -131,7 +131,7 @@ class VoiceRoomClient {
+  async changeMicrophone(){
+   if(!this.stream||!this.micSender)return;const epoch=this.epoch,attempt=this.micAttempt,sender=this.micSender;
+   const raw=await navigator.mediaDevices.getUserMedia({audio:this.microphoneConstraints(),video:false});
+-  const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input);graph.setReverb(this.preferences.reverb);
++  const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);graph.setReverb(this.preferences.reverb);
+   if(this.closed||epoch!==this.epoch||attempt!==this.micAttempt||sender!==this.micSender){graph.close();raw.getTracks().forEach(t=>t.stop());return;}
+   try{graph.stream.getAudioTracks()[0].enabled=sender.track?.enabled!==false;await sender.replaceTrack(graph.stream.getAudioTracks()[0]);}catch(e){graph.close();raw.getTracks().forEach(t=>t.stop());throw e;}
+   const old=this.stream,oldGraph=this.processing;for(const track of old.getTracks())track.onended=null;if(oldGraph?.stream!==old)for(const track of oldGraph?.stream.getTracks()||[])track.onended=null;
+@@ -369,7 +369,7 @@ class VoiceRoomClient {
+    if(stale()||!stream)return;
+    this.microphoneSettings=stream.getAudioTracks()[0].getSettings?.()||{};
+    stage=this.setMicPhase('processing',stage);this.pendingStream=stream;
+-   const processing=await VoiceAudio.microphone(stream,this.preferences.preset,this.preferences.input);if(this.pendingStream===stream)this.pendingStream=null;
++   const processing=await VoiceAudio.microphone(stream,this.preferences.preset,this.preferences.input,this.liveMode?liveVoiceMix(this):undefined);if(this.pendingStream===stream)this.pendingStream=null;
+    processing.setReverb(this.preferences.reverb);if(stale()){processing.close();stream.getTracks().forEach(t=>t.stop());return;}
+    this.stream=stream;this.processing=processing;
+    const pc=this.publisher=this.preparedPublisher||this.pc();this.preparedPublisher=null;const track=processing.stream.getAudioTracks()[0];track.enabled=false;
+diff --git a/tests/live-karaoke-ui.test.mjs b/tests/live-karaoke-ui.test.mjs
+index 41a0c1f..94bf036 100644
+--- a/tests/live-karaoke-ui.test.mjs
++++ b/tests/live-karaoke-ui.test.mjs
+@@ -11,7 +11,11 @@ function context(overrides={}){
+   paint(){} warmMicrophone(){this.warmCount++;} action(action){calls.push(['base-action',action]);}
+   leave(){this.closed=true;calls.push(['leave',this.id]);return Promise.resolve();}
+  }
+- const nodes=new Map(),node=()=>({textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true});
++ const nodes=new Map(),node=()=>({textContent:'',innerHTML:'',hidden:false,value:0,readyState:0,isConnected:true,attributes:new Map(),children:new Map(),
++  setAttribute(name,value){this.attributes.set(name,value);},
++  getAttribute(name){return this.attributes.get(name);},
++  querySelector(selector){if(!this.children.has(selector))this.children.set(selector,node());return this.children.get(selector);}
++ });
+  const host={isConnected:true,dataset:{},querySelector:sel=>{if(!nodes.has(sel))nodes.set(sel,node());return nodes.get(sel);},querySelectorAll:()=>[]};
+  const c=vm.createContext({
+   icon:()=>'<svg></svg>',esc:s=>String(s??'').replaceAll('<','&lt;').replaceAll('"','&quot;'),number:x=>String(x),time:x=>String(x),avatarImage:()=>'<img>',
+@@ -58,10 +62,15 @@ test('stage monitoring taps only the singer vocal and leaves the outgoing connec
+  const gain=client.liveMonitorTap.gain;
+  assert.ok(vocal.connections.has(gain));assert.ok(gain.connections.has(client.processing.context.destination));
+  assert.equal(nodes.get('#voice-monitor').checked,true);
++ assert.equal(nodes.get('#live-monitor-toggle').disabled,false);
++ assert.equal(nodes.get('#live-monitor-toggle').getAttribute('aria-pressed'),'true');
++ assert.equal(nodes.get('#live-monitor-toggle').querySelector('span').textContent,'내 목소리 듣기 켜짐');
+  sync();assert.equal(client.liveMonitorTap.gain,gain);
+  await toggle();assert.deepEqual([...vocal.connections],[broadcast]);assert.equal(gain.connections.size,0);
+  assert.equal(nodes.get('#voice-monitor').checked,false);
+  client.state.karaoke.active.user_id='other';await toggle();assert.equal(client.liveMonitorTap,null);
++ vm.runInContext('paintLiveKaraoke(client)',c);
++ assert.equal(nodes.get('#live-monitor-toggle').disabled,true);
+ });
+ 
+ test('mute, changed device, turn handoff and capture fallback cannot leave an old local monitor playing',()=>{
+@@ -87,6 +96,10 @@ test('live room wraps the current template while preserving chat, gifts, setting
+  assert.match(html,/class="voice-room live-karaoke-room"/);assert.match(html,/data-voice-room="live-room"/);
+  assert.match(html,/href="#live"/);assert.match(html,/id="voice-title">라이브 노래방/);
+  assert.match(html,/3|노래가 시작/);
++ assert.equal((html.match(/data-voice="sound"/g)||[]).length,1);
++ assert.match(html,/<div class="live-sound-toolbar"[\s\S]*?data-voice="sound"/);
++ assert.doesNotMatch(html.slice(0,html.indexOf('id="live-karaoke-stage"')),/data-voice="sound"/);
++ assert.equal((html.match(/id="live-monitor-toggle"/g)||[]).length,1);
+ });
+ 
+ test('existing talking room lobby excludes karaoke rooms while live reuses the current card/form design',()=>{
+diff --git a/tests/voice-audio.test.mjs b/tests/voice-audio.test.mjs
+index 05c8262..a15fa30 100644
+--- a/tests/voice-audio.test.mjs
++++ b/tests/voice-audio.test.mjs
+@@ -1,7 +1,90 @@
+ import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
+ const source=readFileSync(new URL('../dist/voice-audio.js',import.meta.url),'utf8');
+-function fixture(fail=false){const nodes=[],track={stop(){track.stopped=true;}},raw={getAudioTracks:()=>[track],getTracks:()=>[track]};const parameter=()=>({value:0,setTargetAtTime(v){this.value=v;}});const node=kind=>{const n={kind,connections:[],connect(to){this.connections.push(to);return to;},disconnect(){this.connections=[];}};for(const k of ['gain','frequency','Q','threshold','knee','ratio','attack','release','delayTime'])n[k]=parameter();nodes.push(n);return n;};class Context{constructor(){this.state=fail?'suspended':'running';this.currentTime=0;}async resume(){}async close(){this.closed=true;}createMediaStreamSource(){return node('source');}createGain(){return node('gain');}createAnalyser(){const n=node('analyser');n.getByteTimeDomainData=a=>a.fill(128);return n;}createMediaStreamDestination(){return {...node('destination'),stream:{getAudioTracks:()=>[{stop(){}}],getTracks:()=>[{stop(){}}]}};}createBiquadFilter(){return node('filter');}createDynamicsCompressor(){return node('compressor');}createDelay(){return node('delay');}}
+- const c=vm.createContext({window:{AudioContext:Context},Uint8Array,setTimeout,clearTimeout});vm.runInContext(source+';this.audio=VoiceAudio;',c);return {audio:c.audio,nodes,raw,track};}
++function fixture(fail=false,workletMode='ready'){
++ const nodes=[],contexts=[],modules=[];
++ const track={stop(){track.stopped=true;}},outputTrack={stop(){outputTrack.stopped=true;}};
++ const raw={getAudioTracks:()=>[track],getTracks:()=>[track]};
++ const parameter=()=>({value:0,setTargetAtTime(v){this.value=v;}});
++ const node=kind=>{
++  const n={kind,connections:[],connect(to){this.connections.push(to);return to;},disconnect(){this.connections=[];}};
++  for(const key of ['gain','frequency','Q','threshold','knee','ratio','attack','release','delayTime'])n[key]=parameter();
++  nodes.push(n);return n;
++ };
++ let finishModule;
++ class Context{
++  constructor(){
++   this.state=fail?'suspended':'running';this.currentTime=0;contexts.push(this);
++   if(workletMode!=='unsupported')this.audioWorklet={addModule:path=>{
++    modules.push(path);
++    if(workletMode==='reject')return Promise.reject(Error('module unavailable'));
++    if(workletMode==='timeout')return new Promise(resolve=>{finishModule=resolve;});
++    return Promise.resolve();
++   }};
++  }
++  async resume(){}
++  async close(){this.closed=true;this.state='closed';}
++  createMediaStreamSource(){return node('source');}
++  createGain(){return node('gain');}
++  createAnalyser(){const n=node('analyser');n.getByteTimeDomainData=a=>a.fill(128);return n;}
++  createMediaStreamDestination(){
++   return Object.assign(node('destination'),{stream:{getAudioTracks:()=>[outputTrack],getTracks:()=>[outputTrack]}});
++  }
++  createBiquadFilter(){return node('filter');}
++  createDynamicsCompressor(){return node('compressor');}
++  createDelay(){return node('delay');}
++ }
++ class Worklet{
++  constructor(context,name,options){
++   const n=node('worklet');Object.assign(n,{context,name,options,messages:[]});
++   n.port={postMessage:value=>n.messages.push(structuredClone(value)),close(){n.port.closed=true;}};
++   return n;
++  }
++ }
++ const c=vm.createContext({window:{AudioContext:Context},AudioWorkletNode:Worklet,Uint8Array,
++  setTimeout:(fn,delay)=>setTimeout(fn,workletMode==='timeout'&&delay===2000?5:delay),clearTimeout});
++ vm.runInContext(source+';this.audio=VoiceAudio;',c);
++ return {audio:c.audio,nodes,raw,track,outputTrack,contexts,modules,finishModule:()=>finishModule?.()};
++}
+ test('radio clean processes outgoing audio with EQ and compressor without local speaker monitoring',async()=>{const f=fixture(),graph=await f.audio.microphone(f.raw);assert.notEqual(graph.stream,f.raw);assert.ok(f.nodes.some(n=>n.kind==='compressor'));assert.equal(f.nodes.filter(n=>n.kind==='filter').length,3);assert.equal(f.nodes.some(n=>n.kind==='delay'),false);graph.setLevel(.4);assert.equal(f.nodes.find(n=>n.kind==='gain').gain.value,.4);assert.equal(f.audio.rms(graph.analyser),0);graph.close();assert.equal(f.track.stopped,undefined,'raw ownership stays with room client');});
+ test('preset switches reuse the same output stream, original bypasses EQ, studio adds modest wet path',async()=>{const f=fixture(),g=await f.audio.microphone(f.raw,'original'),stream=g.stream;assert.equal(f.nodes.some(n=>n.kind==='compressor'),false);g.setPreset('studio');assert.equal(g.stream,stream);assert.ok(f.nodes.some(n=>n.kind==='delay'));g.close();});
+ test('unsupported or suspended Web Audio safely returns raw microphone',async()=>{const f=fixture(true),g=await f.audio.microphone(f.raw);assert.equal(g.fallback,true);assert.equal(g.stream,f.raw);g.setLevel(.5);g.close();assert.equal(f.track.stopped,undefined);});
++
++test('live recording effects use the shared worklet on the outgoing track and update without republishing',async()=>{
++ const f=fixture(),mix={room:.4,size:.6,echo:.1,tone:0};
++ const graph=await f.audio.microphone(f.raw,'radio',.7,mix),output=graph.stream;
++ assert.equal(graph.supportsMix,true);assert.notEqual(output,f.raw);
++ assert.deepEqual(f.modules,['/vocal-worklet.js?v=20261017-tone-range']);
++ const sourceNode=f.nodes.find(n=>n.kind==='source'),input=f.nodes.find(n=>n.kind==='gain'),worklet=f.nodes.find(n=>n.kind==='worklet'),destination=f.nodes.find(n=>n.kind==='destination');
++ assert.equal(worklet.name,'aifect-vocal');assert.equal(worklet.options.processorOptions.mix,mix);
++ assert.deepEqual(sourceNode.connections,[input]);assert.deepEqual(input.connections,[worklet]);
++ assert.deepEqual(worklet.connections,[graph.analyser]);assert.deepEqual(graph.analyser.connections,[destination]);
++ assert.equal(f.nodes.some(n=>n.kind==='filter'||n.kind==='compressor'||n.kind==='delay'),false);
++ const next={...mix,echo:.25};graph.setMix(next);assert.deepEqual(worklet.messages,[next]);assert.equal(graph.stream,output);
++ graph.setPreset('original');graph.setReverb(0);assert.deepEqual(worklet.messages,[next],'legacy setters cannot clear the recording mix');
++ graph.setLevel(1.4);assert.equal(input.gain.value,1.4);
++ graph.close();assert.equal(f.track.stopped,undefined);assert.equal(f.outputTrack.stopped,true);assert.equal(f.contexts[0].closed,true);
++ assert.deepEqual(sourceNode.connections,[]);assert.deepEqual(worklet.connections,[]);assert.equal(worklet.port.closed,true);
++ graph.setMix(mix);assert.deepEqual(worklet.messages,[next]);
++});
++
++test('unavailable live worklet returns the raw mic without keeping a context or stopping its owner track',async()=>{
++ for(const mode of ['unsupported','reject','timeout']){
++  const f=fixture(false,mode),graph=await f.audio.microphone(f.raw,'studio',1,{room:.5});
++  assert.equal(graph.supportsMix,false,mode);assert.equal(graph.fallback,true,mode);assert.equal(graph.stream,f.raw,mode);
++  assert.equal(f.contexts[0].closed,true,mode);assert.equal(f.track.stopped,undefined,mode);
++  graph.setMix({room:.2});graph.close();f.finishModule();await Promise.resolve();
++  assert.equal(f.nodes.some(n=>n.kind==='worklet'),false,'late module completion cannot construct a stale graph');
++ }
++});
++
++test('a runtime worklet failure keeps the same outgoing track and analyser with dry audio',async()=>{
++ const f=fixture(),graph=await f.audio.microphone(f.raw,'radio',1,{room:.5}),output=graph.stream;
++ const worklet=f.nodes.find(n=>n.kind==='worklet'),input=f.nodes.find(n=>n.kind==='gain');
++ let notified=0;graph.onMixError=()=>notified++;
++ worklet.onprocessorerror();
++ assert.equal(graph.supportsMix,false);assert.equal(graph.stream,output);assert.deepEqual(input.connections,[graph.analyser]);
++ assert.deepEqual(worklet.connections,[]);assert.equal(worklet.port.closed,true);assert.equal(notified,1);
++ graph.setMix({room:.2});assert.deepEqual(worklet.messages,[]);worklet.onprocessorerror();assert.equal(notified,1);
++ assert.equal(f.outputTrack.stopped,undefined);assert.equal(f.track.stopped,undefined);
++ graph.close();assert.equal(f.outputTrack.stopped,true);assert.equal(f.contexts[0].closed,true);
++});
+diff --git a/tests/voice-emoji.test.mjs b/tests/voice-emoji.test.mjs
+index abb218a..0ce9cf8 100644
+--- a/tests/voice-emoji.test.mjs
++++ b/tests/voice-emoji.test.mjs
+@@ -8,12 +8,10 @@ function fixture(){
+  const c=vm.createContext({VoiceRoomClient:class{},Event,$:s=>nodes[s]});vm.runInContext(readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+';this.client=new VoiceRoomClient();',c);
+  c.client.host={querySelector:()=>button};return {client:c.client,input,picker,attrs,sent:()=>sent};
+ }
+-test('chat emoji picker stays open through repeated choices, message sending and another choice',async()=>{
++test('chat emoji picker stays open while composing repeated choices and supports explicit close',async()=>{
+  const f=fixture();await f.client.finalAction('emoji');assert.equal(f.picker.hidden,false);assert.equal(f.attrs['aria-expanded'],'true');
+  for(const emoji of ['😀','💜','👏'])await f.client.finalAction('insert-emoji',emoji);
+  assert.equal(f.input.value,'😀💜👏');assert.equal(f.picker.hidden,false);assert.equal(f.sent(),0);
+- await f.client.finalAction('send-chat');assert.equal(f.sent(),1);assert.equal(f.picker.hidden,false);
+- await f.client.finalAction('insert-emoji','✨');assert.equal(f.input.value,'✨');
+  await f.client.finalAction('emoji-close');assert.equal(f.picker.hidden,true);assert.equal(f.attrs['aria-expanded'],'false');
+ });
+ test('emoji insertion replaces the selection and cannot exceed the chat length limit or split an emoji',async()=>{
+@@ -22,3 +20,54 @@ test('emoji insertion replaces the selection and cannot exceed the chat length l
+  f.input.value='a'.repeat(499);f.input.selectionStart=f.input.selectionEnd=499;await f.client.finalAction('insert-emoji','😀');assert.equal(f.input.value.length,499);
+  f.input.selectionStart=498;f.input.selectionEnd=499;await f.client.finalAction('insert-emoji','😀');assert.equal(f.input.value.length,500);assert.ok(f.input.value.endsWith('😀'));
+ });
++
++function boundChat(liveMode,command,refresh=async()=>{}){
++ const nodes=new Map(),attrs={},picker={hidden:true},button={setAttribute(key,value){attrs[key]=value;},focus(){}};
++ const input={value:'😀💜👏',selectionStart:6,selectionEnd:6,maxLength:500,focus(){},dispatchEvent(){}};
++ const form={elements:{body:input},reset(){input.value='';},requestSubmit(){this.pending=this.onsubmit();}};
++ nodes.set('#voice-chat-form',form);nodes.set('#voice-message',input);nodes.set('#voice-emoji-picker',picker);
++ const get=selector=>{
++  if(selector==='[data-voice="emoji"]')return button;
++  if(!nodes.has(selector))nodes.set(selector,{value:'',elements:{},addEventListener(){}});
++  return nodes.get(selector);
++ };
++ const context=vm.createContext({Event,crypto,navigator:{mediaDevices:{}},localStorage:{getItem:()=>null},
++  window:{innerWidth:390,innerHeight:844,addEventListener(){},removeEventListener(){}},
++  document:{addEventListener(){}},$:get,busyForm:(element,callback)=>callback});
++ vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8')+'\n'+readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8')+'\nthis.client=new VoiceRoomClient("test-room");',context);
++ const client=context.client;
++ Object.assign(client,{liveMode,command,refresh,joinAttempted:true,resumeSound(){},bindAudioSettings(){},giftSummary(){}});
++ client.bind({isConnected:false,querySelector:get,addEventListener(){}});
++ return {client,input,form,picker,attrs};
++}
++
++for(const liveMode of [false,true]){
++ const mode=liveMode?'live karaoke':'talking room';
++ test(mode+' closes the emoji picker only after successful send, for button and Enter',async()=>{
++  for(const entry of ['button','enter']){
++   let acknowledge;
++   const received=new Promise(resolve=>{acknowledge=resolve;});
++   const calls=[],f=boundChat(liveMode,async(action,payload)=>{calls.push({action,payload});await received;});
++   await f.client.finalAction('emoji');
++   if(entry==='button')await f.client.finalAction('send-chat');
++   else f.input.onkeydown({key:'Enter',preventDefault(){}});
++   assert.equal(f.picker.hidden,false,'pending delivery must keep the picker open');
++   acknowledge();await f.form.pending;
++   assert.equal(calls.length,1);assert.equal(calls[0].action,'chat');assert.equal(calls[0].payload.body,'😀💜👏');
++   assert.equal(f.picker.hidden,true);assert.equal(f.attrs['aria-expanded'],'false');assert.equal(f.input.value,'');
++  }
++ });
++ test(mode+' preserves the picker, message and idempotency key when delivery fails',async()=>{
++  const requests=[];let fail=true;
++  const f=boundChat(liveMode,async(action,payload)=>{requests.push(payload);if(fail)throw Error('offline');});
++  await f.client.finalAction('emoji');f.form.requestSubmit();await assert.rejects(f.form.pending,/offline/);
++  assert.equal(f.picker.hidden,false);assert.equal(f.attrs['aria-expanded'],'true');assert.equal(f.input.value,'😀💜👏');
++  fail=false;f.form.requestSubmit();await f.form.pending;
++  assert.equal(requests[0].request_id,requests[1].request_id);assert.equal(f.picker.hidden,true);assert.equal(f.input.value,'');
++ });
++ test(mode+' keeps the picker closed when only the post-send refresh fails',async()=>{
++  const f=boundChat(liveMode,async()=>{},async()=>{throw Error('refresh failed');});
++  await f.client.finalAction('emoji');f.form.requestSubmit();await assert.rejects(f.form.pending,/refresh failed/);
++  assert.equal(f.picker.hidden,true);assert.equal(f.attrs['aria-expanded'],'false');assert.equal(f.input.value,'');assert.equal(f.client.chatPending,null);
++ });
++}

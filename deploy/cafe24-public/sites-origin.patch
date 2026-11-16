@@ -1,0 +1,117 @@
+diff --git a/scripts/build.mjs b/scripts/build.mjs
+index a20c54f..5901cff 100644
+--- a/scripts/build.mjs
++++ b/scripts/build.mjs
+@@ -1,3 +1,4 @@
++import {buildOrigin} from '../ops/cafe24/build-origin.mjs';
+ import {builtinModules} from 'node:module';
+ import { build } from 'esbuild';
+ import { mkdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
+@@ -96,7 +97,8 @@ await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.j
+ // A .txt asset avoids HTML canonical redirects when fetched through ASSETS.
+ await writeFile('dist/client/aifect-shell.txt',await bundleClient(indexHTML.replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
+ await rm('dist/client/index.html',{force:true});
+-await build({entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
++const originRevision=await buildOrigin();
++await build({define:{__CAFE24_BUILD__:JSON.stringify(originRevision)},entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
+ await mkdir('dist/.openai',{recursive:true});
+ await cp('.openai/hosting.json','dist/.openai/hosting.json');
+ // Replace generated migration output: renamed source files must never remain in a release archive.
+diff --git a/server/images.js b/server/images.js
+index f8f9212..27df2e5 100644
+--- a/server/images.js
++++ b/server/images.js
+@@ -1,3 +1,4 @@
++import {originRequest} from './cafe24-origin.js';
+ import {fail,id} from './db.js';
+ 
+ const MAX_IMAGE=5*1024*1024;
+@@ -16,8 +17,13 @@ export async function readImage(req){
+  return {data,type};
+ }
+ export async function storeImage(req,env,kind,entityId,validate){
+- const {data,type}=await readImage(req),version=id(),key=`images/${kind}/${entityId}/${version}`;
++ let {data,type}=await readImage(req);const version=id(),key=`images/${kind}/${entityId}/${version}`;
+  if(validate)validate(data,type);
++ if(env.CAFE24_ORIGIN_KEY&&['track','producer','artist'].includes(kind)&&!validate&&type!=='image/webp'){
++  let r;try{r=await originRequest(env,'webp',data,type,7000);}catch{}
++  if(!r?.ok||r.headers.get('content-type')!=='image/webp')fail(503,'이미지 변환을 완료하지 못했습니다. 잠시 뒤 다시 시도해주세요.');
++  ({data,type}=await readImage(r));
++ }
+  await env.BUCKET.put(key,data,{httpMetadata:{contentType:type}});
+  return {version,type};
+ }
+diff --git a/server/index.js b/server/index.js
+index 804fcad..3eb4630 100644
+--- a/server/index.js
++++ b/server/index.js
+@@ -1,3 +1,4 @@
++import {tryPublicOrigin} from './cafe24-origin.js';
+ import {followManagement} from './follow-management.js';
+ import {expireDubbingCombinations} from './dubbing-casting.js';
+ import {artistFanpageRoute} from './artist-fanpage.js';
+@@ -84,6 +85,7 @@ export default {async fetch(req,env,ctx){
+   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
+   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
+   if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueBotHeartbeat(env,ctx);retryPush(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
++  const originPage=await tryPublicOrigin(req,env,path);if(originPage)return originPage;
+   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
+   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
+   const publicResponse=publicPageRoute(req,path);if(publicResponse)return publicResponse;
+diff --git a/server/public-music.js b/server/public-music.js
+index 817bd68..f36d0d0 100644
+--- a/server/public-music.js
++++ b/server/public-music.js
+@@ -23,12 +23,11 @@ function card(t){return `<article class="music-card"><a href="/music/${encodeURI
+ function nav(){return '<nav class="public-nav" aria-label="음악과 이용 안내"><a href="/music">공개 음악</a><a href="/about">AIFECT 소개</a><a href="/guide/listening">감상·플레이리스트</a><a href="/guide/recording">녹음 안내</a><a href="/guide/community">커뮤니티·크루</a></nav>';}
+ function document(title,body,path,{summary="",noindex=false}={}){return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} | AIFECT</title><meta name="description" content="${esc(summary||title+". AIFECT의 공개 음악과 참여형 음악 커뮤니티.")}">${noindex?'<meta name="robots" content="noindex,follow">':''}<link rel="canonical" href="https://aifect.co.kr${esc(path)}"><link rel="stylesheet" href="/policies.css"><link rel="stylesheet" href="/brand.css"><link rel="stylesheet" href="/public-music.css"><link rel="stylesheet" href="/mobile-input.css"></head><body class="legal-site"><header class="legal-header"><a class="legal-brand" href="/">AIFECT</a><a href="/#home">음악 앱 열기</a></header><main class="legal-content public-music">${nav()}<h1>${esc(title)}</h1>${body}</main><footer class="page-footer">${businessFooterHTML()}</footer></body></html>`;}
+ function response(req,html,status=200){return new Response(req.method==='HEAD'?null:html,{status,headers:{'content-type':'text/html; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});}
+-export async function publicMusicRoute(req,env,path){
+- if(!['GET','HEAD'].includes(req.method))return null;
+- if(path==='/about')return response(req,document('음악을 만들고, 함께 부르는 AIFECT',`<p class="public-lead">AIFECT는 AI로 만든 음악과 사람이 직접 부른 커버를 함께 듣는 음악 서비스입니다. 제작곡을 발견하고, 제작자가 허용한 곡의 반주에 내 목소리를 더하고, 완성된 음악으로 다른 사람과 연결됩니다.</p><h2>제작곡과 커버는 이렇게 구분합니다</h2><p>제작곡에는 올린 사람이 등록한 곡 소개와 제작 도구, AI 아티스트 또는 창작자의 이름이 표시됩니다. AI 아티스트는 창작자가 설정한 음악 활동 프로필이며 실제 가수의 신원을 인증하는 표시가 아닙니다. 커버곡은 참여한 사람의 활동명과 프로필 사진, 연결된 원곡을 표시합니다.</p><h2>처음 방문했다면</h2><ol><li><a href="/music">공개 음악</a>에서 제목·장르로 곡을 찾고 소개를 읽어보세요. 로그인하지 않아도 목록과 곡 정보는 볼 수 있습니다.</li><li>노래 듣기를 누르면 곡 화면이 열립니다. 비회원은 1분 미리듣기, 로그인한 회원은 공개된 전체곡을 무료로 들을 수 있습니다.</li><li>플레이에서 반주 준비가 완료된 곡을 골라 솔로 또는 듀엣으로 참여하세요. <a href="/guide/recording">녹음 안내</a>에서 준비 과정을 확인할 수 있습니다.</li><li>완성된 커버를 공개하거나 좋아하는 곡을 플레이리스트에 담아 다시 들어보세요.</li></ol><h2>콘텐츠와 권리</h2><p>창작자는 직접 만들었거나 게시할 권한이 있는 음악과 이미지만 올릴 수 있습니다. 커버 참여는 제작자가 노래방 제공을 허용한 원곡에서 가능합니다. 공개가 중단된 원곡과 연결된 커버는 목록과 재생에서 제외됩니다. 권리 침해 또는 이용 중 문제가 있는 콘텐츠는 곡 화면이나 <a href="/contact">고객센터</a>로 알려주세요.</p><h2>운영 및 이용 안내</h2><p>AIFECT는 모티브가 운영합니다. <a href="/contact">사업자 정보와 문의 방법</a>, <a href="/pricing">무료·Premium 이용 범위</a>, <a href="/privacy">개인정보 처리방침</a>을 확인할 수 있습니다. 공개 음악과 이용 안내는 결제 없이 둘러볼 수 있습니다.</p>`,path));
+- if(guides[path])return response(req,document(guides[path].title,guides[path].body,path));
++const publicFields='id kind cover_mode duration has_cover cover_version producer title artist genres genre description has_ai_artist artist_id producer_id created ai_tool participation moods original_id original_title accepts_covers'.split(' ');
++const viewRow=t=>Object.fromEntries(publicFields.filter(k=>Object.hasOwn(t,k)).map(k=>[k,t[k]]));
++export async function readPublicMusicData(req,env,path){
+  const single=path.match(/^\/music\/([\w-]+)$/);
+- if(!['/','/index.html','/music','/sitemap.xml'].includes(path)&&!single)return null;
++ if(!['/','/index.html','/music','/sitemap.xml'].includes(path)&&!single)return {};
+  const url=new URL(req.url),q=(url.searchParams.get('q')||'').trim().slice(0,100),genre=url.searchParams.get('genre')||'',category=url.searchParams.get('kind')||'',page=Math.max(1,Math.min(500,Math.trunc(Number(url.searchParams.get('page')))||1));
+  let where=single?`${VISIBLE()} AND t.id=?`:VISIBLE(),args=single?[single[1]]:[];
+  if(path==='/music'){
+@@ -37,6 +36,24 @@ export async function publicMusicRoute(req,env,path){
+   if(['original','cover'].includes(category)){where+=' AND t.kind=?';args.push(category);}
+  }
+  const tracks=await trackList(env,where,args,'t.created DESC,t.id',single?1:path==='/sitemap.xml'?1000:path==='/music'?`25 OFFSET ${(page-1)*24}`:12);
++ const result={tracks:tracks.map(viewRow)};
++ if(single&&tracks[0]){
++  const t=tracks[0];
++  const related=await trackList(env,`${VISIBLE()} AND t.producer_id=? AND t.id!=?`,[t.producer_id,t.id],'t.created DESC',6);
++  const covers=t.kind==='original'?await trackList(env,`${VISIBLE()} AND t.original_id=?`,[t.id],'t.created DESC',6):[];
++  const creator=t.has_ai_artist?await one(env,'SELECT name,bio FROM artists WHERE id=?',t.artist_id):await one(env,'SELECT name,bio FROM producers WHERE id=?',t.producer_id);
++  Object.assign(result,{related:related.map(viewRow),covers:covers.map(viewRow),creator:creator?{name:creator.name,bio:creator.bio}:null});
++ }
++ return result;
++}
++export async function publicMusicRoute(req,env,path,provided){
++ if(!['GET','HEAD'].includes(req.method))return null;
++ if(path==='/about')return response(req,document('음악을 만들고, 함께 부르는 AIFECT',`<p class="public-lead">AIFECT는 AI로 만든 음악과 사람이 직접 부른 커버를 함께 듣는 음악 서비스입니다. 제작곡을 발견하고, 제작자가 허용한 곡의 반주에 내 목소리를 더하고, 완성된 음악으로 다른 사람과 연결됩니다.</p><h2>제작곡과 커버는 이렇게 구분합니다</h2><p>제작곡에는 올린 사람이 등록한 곡 소개와 제작 도구, AI 아티스트 또는 창작자의 이름이 표시됩니다. AI 아티스트는 창작자가 설정한 음악 활동 프로필이며 실제 가수의 신원을 인증하는 표시가 아닙니다. 커버곡은 참여한 사람의 활동명과 프로필 사진, 연결된 원곡을 표시합니다.</p><h2>처음 방문했다면</h2><ol><li><a href="/music">공개 음악</a>에서 제목·장르로 곡을 찾고 소개를 읽어보세요. 로그인하지 않아도 목록과 곡 정보는 볼 수 있습니다.</li><li>노래 듣기를 누르면 곡 화면이 열립니다. 비회원은 1분 미리듣기, 로그인한 회원은 공개된 전체곡을 무료로 들을 수 있습니다.</li><li>플레이에서 반주 준비가 완료된 곡을 골라 솔로 또는 듀엣으로 참여하세요. <a href="/guide/recording">녹음 안내</a>에서 준비 과정을 확인할 수 있습니다.</li><li>완성된 커버를 공개하거나 좋아하는 곡을 플레이리스트에 담아 다시 들어보세요.</li></ol><h2>콘텐츠와 권리</h2><p>창작자는 직접 만들었거나 게시할 권한이 있는 음악과 이미지만 올릴 수 있습니다. 커버 참여는 제작자가 노래방 제공을 허용한 원곡에서 가능합니다. 공개가 중단된 원곡과 연결된 커버는 목록과 재생에서 제외됩니다. 권리 침해 또는 이용 중 문제가 있는 콘텐츠는 곡 화면이나 <a href="/contact">고객센터</a>로 알려주세요.</p><h2>운영 및 이용 안내</h2><p>AIFECT는 모티브가 운영합니다. <a href="/contact">사업자 정보와 문의 방법</a>, <a href="/pricing">무료·Premium 이용 범위</a>, <a href="/privacy">개인정보 처리방침</a>을 확인할 수 있습니다. 공개 음악과 이용 안내는 결제 없이 둘러볼 수 있습니다.</p>`,path));
++ if(guides[path])return response(req,document(guides[path].title,guides[path].body,path));
++ const single=path.match(/^\/music\/([\w-]+)$/);
++ if(!['/','/index.html','/music','/sitemap.xml'].includes(path)&&!single)return null;
++ const url=new URL(req.url),q=(url.searchParams.get('q')||'').trim().slice(0,100),genre=url.searchParams.get('genre')||'',category=url.searchParams.get('kind')||'',page=Math.max(1,Math.min(500,Math.trunc(Number(url.searchParams.get('page')))||1));
++ const data=provided||await readPublicMusicData(req,env,path),tracks=data.tracks;
+  if(path==='/sitemap.xml'){
+   const original=await publicPageRoute(req,path),xml=await original.text();
+   const links=['/music','/about',...Object.keys(guides),...tracks.map(t=>'/music/'+t.id)];
+@@ -44,9 +61,7 @@ export async function publicMusicRoute(req,env,path){
+  }
+  if(single){
+   const t=tracks[0];if(!t)return response(req,document('공개된 음악을 찾을 수 없습니다','<p>비공개 또는 제거된 음악입니다.</p><a href="/music">공개 음악 둘러보기</a>',path,{noindex:true}),404);
+-  const related=await trackList(env,`${VISIBLE()} AND t.producer_id=? AND t.id!=?`,[t.producer_id,t.id],'t.created DESC',6);
+-  const covers=t.kind==='original'?await trackList(env,`${VISIBLE()} AND t.original_id=?`,[t.id],'t.created DESC',6):[];
+-  const creator=t.has_ai_artist?await one(env,'SELECT name,bio FROM artists WHERE id=?',t.artist_id):await one(env,'SELECT name,bio FROM producers WHERE id=?',t.producer_id);
++  const {related,covers,creator}=data;
+   const bio=description({description:creator?.bio});
+   const body=`<div class="public-song-head">${artwork(t)}<div><span class="public-kicker">${kind(t)}</span><p class="public-lead">${esc(t.artist)}</p><p>${esc((t.genres||[]).join(' · '))} · ${length(t)}</p><div class="public-preview"><p id="preview-label">로그인 없이 1분 미리듣기</p><audio controls preload="none" aria-labelledby="preview-label" src="/media/${encodeURIComponent(t.id)}/preview">브라우저가 오디오 재생을 지원하지 않습니다. 아래 곡 화면에서 들어보세요.</audio></div><a class="public-listen" href="/#song/${encodeURIComponent(t.id)}">전체곡 듣기 · 곡 화면 열기 <span aria-hidden="true">▷</span></a><p>전체곡은 로그인 후 무료로 들을 수 있어요.</p></div></div>${description(t)?`<section><h2>창작자의 곡 소개</h2><p class="public-story">${esc(description(t))}</p></section>`:''}${bio?`<section><h2>${t.has_ai_artist?'AI 아티스트 소개':'창작자 소개'} · ${esc(creator.name)}</h2><p class="public-story">${esc(bio)}</p><a href="/#${t.has_ai_artist?'artist/'+encodeURIComponent(t.artist_id):'producer/'+encodeURIComponent(t.producer_id)}">프로필에서 더 보기</a></section>`:''}<h2>곡 정보</h2><dl class="public-details"><div><dt>올린 사람</dt><dd><a href="/#producer/${encodeURIComponent(t.producer_id)}">${esc(t.producer)}</a></dd></div><div><dt>공개일</dt><dd>${new Date(t.created*1000).toISOString().slice(0,10)}</dd></div><div><dt>길이</dt><dd>${length(t)}</dd></div>${t.kind==='original'&&t.ai_tool?`<div><dt>등록된 제작 도구</dt><dd>${esc(t.ai_tool)}</dd></div>`:''}${t.participation?`<div><dt>창작자가 등록한 참여 내용</dt><dd>${esc(t.participation)}</dd></div>`:''}${t.moods?.length?`<div><dt>기분</dt><dd>${esc(t.moods.join(' · '))}</dd></div>`:''}</dl>${t.original_id?`<p>커버 원곡: <a href="/music/${encodeURIComponent(t.original_id)}">${esc(t.original_title)}</a></p>`:''}${t.accepts_covers?`<section><h2>내 목소리로 참여하기</h2><p>제작자가 커버 참여를 허용한 곡입니다. 반주와 가사 준비 여부는 <a href="/#sing/${encodeURIComponent(t.id)}">이 곡 부르기</a>에서 확인하세요. 처음 녹음한다면 <a href="/guide/recording">솔로·듀엣 녹음 안내</a>를 읽어보세요.</p></section>`:''}${covers.length?'<h2>이 곡을 부른 다른 목소리</h2><div class="public-music-grid">'+covers.map(card).join('')+'</div>':''}${related.length?'<h2>같은 창작자의 다른 음악</h2><div class="public-music-grid">'+related.map(card).join('')+'</div>':''}<p class="public-report">곡·이미지의 권리 또는 이용에 문제가 있다면 <a href="/contact">고객센터</a>에 이 페이지 주소와 함께 알려주세요.</p>`;
+   return response(req,document(t.title+' · '+t.artist,body,path,{summary:(description(t)||`${t.artist}의 ${kind(t)}. ${(t.genres||[]).join(' · ')} · ${length(t)}. 로그인 없이 1분 미리듣기.`).slice(0,180)}));

@@ -7,7 +7,7 @@ final class DirectMonitor implements AutoCloseable {
  private final long handle;private volatile boolean stopped;private boolean closed;
  static DirectMonitor open(int output,int input,int sdk){if(!AVAILABLE)return null;long handle=create(output,input,sdk);return handle==0?null:new DirectMonitor(handle);}
  private DirectMonitor(long handle){this.handle=handle;}
- synchronized void settings(VocalEffects.Settings s,boolean enabled){if(closed)return;configure(handle,s.echo,s.room,s.size,s.voice,s.monitor,s.tone,s.noiseLevel,enabled);}
+ synchronized void settings(VocalEffects.Settings s,boolean enabled,float inputGain){if(closed)return;configure(handle,s.echo,s.room,s.size,s.voice*inputGain,s.monitor,s.tone,s.noiseLevel,enabled);}
  int read(short[] target,int count)throws IOException{long deadline=System.nanoTime()+5_000_000_000L;while(!stopped){int n; synchronized(this){if(closed)return 0;n=pull(handle,target,count);}if(System.nanoTime()>deadline)throw new IOException("마이크 응답 시간이 초과됐어요. 녹음은 보관돼요.");if(n<0)throw new IOException("이어폰 청음 연결이 끊겼어요. 녹음은 보관돼요.");if(n>0)return n;LockSupport.parkNanos(200_000);}return 0;}
  synchronized boolean timestamp(android.media.AudioTimestamp time){if(closed)return false;long[] data=new long[2];if(!stamp(handle,data))return false;time.framePosition=data[0];time.nanoTime=data[1];return true;}
  int performance(){return performance(handle);}int bufferFrames(){return bufferFrames(handle);}

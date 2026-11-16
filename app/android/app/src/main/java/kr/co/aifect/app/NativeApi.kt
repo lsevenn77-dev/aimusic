@@ -47,6 +47,7 @@ data class Song(val raw: JSONObject) {
  val comments=raw.optInt("comments")
  val plays=raw.optInt("plays")
  val cover=raw.optString("kind")=="cover"
+ val dubbing=raw.optString("kind")=="dubbing"
  val hasAiArtist get() = !cover && if(raw.has("has_ai_artist")) raw.optInt("has_ai_artist") == 1 else artist.trim().isNotEmpty() && artist.trim() !in setOf("없음","미등록","-","선택 안함","선택안함")
  val credit get() = if(cover&&raw.optString("cover_mode")=="duet"&&raw.optString("duet_partner_id").isNotBlank()) "${raw.optString("duet_partner")} & $producer" else (if(hasAiArtist) artist else producer).ifBlank { "AIFECT" }
  val art: String? get() {
@@ -57,6 +58,7 @@ data class Song(val raw: JSONObject) {
  }
 }
 class NativeApi(private val context: Context) {
+ private val prefetchSlots=kotlinx.coroutines.sync.Semaphore(2)
  internal val appContext get()=context.applicationContext
  @Volatile private var googleBinding=""
  private val sessionPreferences=context.getSharedPreferences("native_session",0)
@@ -93,6 +95,22 @@ class NativeApi(private val context: Context) {
  fun clearGoogleBinding(){googleBinding="";invalidateReads()}
  val client=OkHttpClient.Builder().connectTimeout(15,TimeUnit.SECONDS).readTimeout(25,TimeUnit.SECONDS)
   .followRedirects(false).followSslRedirects(false)
+  .eventListenerFactory{
+   object:EventListener(){
+    private var started=0L
+    override fun callStart(call:Call){started=System.nanoTime()}
+    private fun report(call:Call,outcome:String){
+     val elapsed=(System.nanoTime()-started)/1_000_000
+     val url=call.request().url
+     if(elapsed<1000||call.isCanceled()||url.pathSegments.firstOrNull()!="api")return
+     val area=url.pathSegments.getOrNull(1)
+     val group=when(area){"search","catalog","play","dubbing","library","karaoke","community","tracks","producers","artists","history"->area;else->"other"}
+     android.util.Log.i("AifectPerf","api=$group result=$outcome durationMs=$elapsed")
+    }
+    override fun callEnd(call:Call)=report(call,"complete")
+    override fun callFailed(call:Call,ioe:IOException)=report(call,"failed")
+   }
+  }
   .addInterceptor { chain ->
    val r=chain.request()
    if(!r.url.toString().startsWith(Endpoint.origin+"/")) throw IOException("허용되지 않은 서버 주소예요.")
@@ -157,7 +175,12 @@ class NativeApi(private val context: Context) {
   }
   }finally{invalidateReads()}
  }
- suspend fun call(path:String,method:String="GET",data:JSONObject?=null,fresh:Boolean=false):JSONObject {
+ suspend fun call(path:String,method:String="GET",data:JSONObject?=null,fresh:Boolean=false,prefetch:Boolean=false):JSONObject {
+  if(prefetch){
+   require(method in setOf("GET","HEAD"))
+   prefetchSlots.acquire()
+   try{return call(path,method,data,fresh)}finally{prefetchSlots.release()}
+  }
   val mutation=method !in listOf("GET","HEAD")
   val invalidate=NativeReadPolicy.invalidatesOnMutation(path,method)
   val scope=synchronizeScope()
@@ -170,7 +193,7 @@ class NativeApi(private val context: Context) {
      try{network(path,method,data).toString().also{if(CatalogSnapshot.accepts(path))CatalogSnapshot.save(context,scope,path,it,diskRevision){readScope()==scope&&reads.generation==revision}}}
      catch(e:IOException){if(!guest||e is ApiException||readScope()!=scope)throw e;CatalogSnapshot.read(context,scope,path,diskRevision){readScope()==scope&&reads.generation==revision}?:throw e}
     }
-    return JSONObject(serialized)
+    return withContext(Dispatchers.Default){JSONObject(serialized)}
    }
    return network(path,method,data)
   }catch(e:ApiException){

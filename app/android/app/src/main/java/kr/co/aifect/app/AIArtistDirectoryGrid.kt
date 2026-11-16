@@ -34,6 +34,9 @@ import org.json.JSONObject
 import java.text.NumberFormat
 import java.util.Locale
 
+internal fun MusicModel.artistFollowers(artist:JSONObject):Int =
+ (artistFollowerCounts[artist.optString("id")] ?: artist.optInt("followers")).coerceAtLeast(0)
+
 /**
  * Native AI artist directory. Only the name, real follower count and follow action
  * are displayed on top of a square, edge-to-edge portrait. No genre placeholder.
@@ -63,7 +66,7 @@ internal fun AIArtistDirectoryGrid(
     }
    }
   }
-  items(entries,key={it.optString("id")}){a-> AIArtistSquareTile(a,m)}
+  items(entries.sortedByDescending(m::artistFollowers),key={it.optString("id")}){a-> AIArtistSquareTile(a,m)}
   if(!busy&&error==null&&entries.isEmpty())item(span={GridItemSpan(maxLineSpan)}){
    Text("아직 공개된 AI 아티스트가 없어요.",color=Muted)
   }
@@ -75,7 +78,7 @@ private fun AIArtistSquareTile(a:JSONObject,m:MusicModel){
  val id=a.optString("id")
  val name=a.optString("name")
  val version=a.optString("image_version")
- val count=(m.artistFollowerCounts[id]?:a.optInt("followers")).coerceAtLeast(0)
+ val count=m.artistFollowers(a)
  val following=m.follows.any{it.optString("kind")=="artist"&&it.optString("target_id")==id}
  val shape=RoundedCornerShape(17.dp)
  Box(

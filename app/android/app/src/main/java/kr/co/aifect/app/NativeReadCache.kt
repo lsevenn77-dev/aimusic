@@ -27,8 +27,10 @@ internal object NativeReadPolicy {
   if(!path.startsWith("/api/")||path.startsWith("//")||path.contains("..")||path.contains('#'))return null
   val base=path.substringBefore('?')
   return when {
+   base in setOf("/api/voice/status","/api/voice/public-rooms")->5_000L
    base in setOf("/api/library","/api/history","/api/follows","/api/duets","/api/me/profile")->10_000L
-   base in setOf("/api/catalog","/api/search","/api/community","/api/playlists","/api/cover-rankings")->20_000L
+   base in setOf("/api/play/works","/api/play/songs","/api/karaoke","/api/catalog","/api/search","/api/community","/api/community/rankings","/api/playlists","/api/cover-rankings")->20_000L
+   base=="/api/dubbing/projects"&&path.substringAfter('?').split('&').any{it=="tab=open"||it=="tab=popular"}->10_000L
    Regex("/api/(producers|artists|followers)/[A-Za-z0-9_-]+").matches(base)->20_000L
    Regex("/api/playlists/[A-Za-z0-9_-]+").matches(base)->20_000L
    Regex("/api/tracks/[A-Za-z0-9_-]+/covers").matches(base)->20_000L

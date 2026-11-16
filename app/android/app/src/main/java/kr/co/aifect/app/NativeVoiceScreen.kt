@@ -34,7 +34,9 @@ import java.net.URLEncoder
 @Composable internal fun NativeAudioHeader(title:String,close:()->Unit,actions:@Composable RowScope.()->Unit={}){
  Row(Modifier.fillMaxWidth().heightIn(min=48.dp).padding(horizontal=4.dp),verticalAlignment=Alignment.CenterVertically){IconButton(close){Icon(Icons.Outlined.ArrowBack,"돌아가기",Modifier.size(23.dp))};Text(title,Modifier.weight(1f),fontSize=18.sp,lineHeight=24.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis);actions()}
 }
-@Composable internal fun NativeVoiceScreen(engine:NativeVoiceEngine,leave:()->Unit){
+@Composable internal fun NativeVoiceScreen(engine:NativeVoiceEngine,leave:()->Unit,openRoute:(String)->Unit={}){
+ val dubbingRoom by engine.state.collectAsState()
+ if(dubbingRoom.optJSONObject("room")?.optString("mode")=="dubbing"){NativeDubbingRoomScreen(engine,leave,openRoute);return}
  val state by engine.state.collectAsState();val error by engine.error.collectAsState();val mic by engine.micOn.collectAsState()
  val context=LocalContext.current;val scope=rememberCoroutineScope();val members=state.optJSONArray("members").objects();val room=state.optJSONObject("room")?:JSONObject();val self=members.find{it.optString("id")==state.optString("self")};val host=self?.optString("role")=="host"
  var panel by remember{mutableStateOf("")};var target by remember{mutableStateOf<JSONObject?>(null)};var message by remember{mutableStateOf("")};var messageId by remember{mutableStateOf(requestIdentity())};var sending by remember{mutableStateOf(false)}
