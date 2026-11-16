@@ -1,9 +1,9 @@
 // The Play carousel reuses the home controls and doesn't subscribe to the player.
 let playBannerCleanup=null,playBannerElement=null,playBannerMode=null;
 const playBanners=[
- {id:'song',label:'노래',heading:['오늘은 네 목소리가','주인공'],description:['좋아하는 노래를 직접 부르고','솔로·듀엣 커버에','참여해 봐.']},
- {id:'dubbing',label:'더빙',heading:['목소리 하나로','달라지는 장면'],description:['다양한 캐릭터와 장면에','나만의 목소리를','입혀봐.']},
- {id:'browse',label:'둘러보기',heading:['다른 사람들은','어떻게 표현했을까?'],description:['완성된 노래와 더빙 작품을','감상하고 새로운 목소리를','발견해 봐.']}
+ {id:'song',label:'노래',heading:['오늘의 주인공은','여러분의 목소리예요'],description:['좋아하는 노래를 직접 부르고','솔로·듀엣 커버에','참여해 보세요.']},
+ {id:'dubbing',label:'더빙',heading:['목소리 하나로','달라지는 장면'],description:['다양한 캐릭터와 장면에','나만의 목소리를','입혀 보세요.']},
+ {id:'browse',label:'둘러보기',heading:['다른 사람들은','어떻게 표현했을까요?'],description:['완성된 노래와 더빙 작품을','감상하고 새로운 목소리를','발견해 보세요.']}
 ].map(banner=>({...banner,title:banner.heading.join(' ')}));
 function playBannerHTML(banner){
  const art='/assets/play-banners/';
