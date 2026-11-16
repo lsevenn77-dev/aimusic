@@ -20,9 +20,9 @@ html:not([data-render-state="error"]) #route-pending-message{animation:pending-n
 /* The fragment target changes synchronously with the URL, before JS routing.
    A ready page is visible only for its completed route or a tab target in the
    mounted Play/Community/MyPage/Chart shell. Other routes still hide stale content immediately. */
-html[data-render-state="ready"]:not(:has([data-render-target]:target,[data-play-route-target]:target,[data-community-route-target]:target,[data-mypage-route-target]:target,[data-chart-route-target]:target)) #main{display:none!important}
-html[data-render-state="ready"]:not(:has([data-render-target]:target,[data-play-route-target]:target,[data-community-route-target]:target,[data-mypage-route-target]:target,[data-chart-route-target]:target)) #route-pending{display:block}
-html[data-render-state="ready"]:not(:has([data-render-target]:target,[data-play-route-target]:target,[data-community-route-target]:target,[data-mypage-route-target]:target,[data-chart-route-target]:target)) .page-wrap>.page-footer{visibility:hidden}
+html[data-render-state="ready"]:not(:has([data-render-target]:target,[data-play-route-target]:target,[data-community-route-target]:target,[data-mypage-route-target]:target,[data-chart-route-target]:target,[data-dm-route-target]:target)) #main{display:none!important}
+html[data-render-state="ready"]:not(:has([data-render-target]:target,[data-play-route-target]:target,[data-community-route-target]:target,[data-mypage-route-target]:target,[data-chart-route-target]:target,[data-dm-route-target]:target)) #route-pending{display:block}
+html[data-render-state="ready"]:not(:has([data-render-target]:target,[data-play-route-target]:target,[data-community-route-target]:target,[data-mypage-route-target]:target,[data-chart-route-target]:target,[data-dm-route-target]:target)) .page-wrap>.page-footer{visibility:hidden}
 
 /* Opaque from the first inline script through ready, retry and history changes. */
 @media(max-width:800px),(max-width:1100px) and (pointer:coarse){

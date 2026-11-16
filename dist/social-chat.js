@@ -186,32 +186,124 @@ function watchSocialChat(query,changed,status,revoked){
 }
 function dmWorkspaceHeight(bottom,top,inset,payoutLine,keyboard=false){return Math.max(keyboard?0:180,Math.min(bottom-inset,Number.isFinite(payoutLine)?payoutLine-12:bottom-inset)-top);}
 function dmPayoutLine(){if(innerWidth<=800)return undefined;const r=document.querySelector('#sidebar a[href="#payouts"]')?.getBoundingClientRect();return r?.height>0?r.top+r.height/2:undefined;}
+// Keep one page per direct conversation while this account's DM workspace is open.
+// A cursor read on revisit validates access and applies the server's current clear boundary.
+function rememberDmHistory(cache,path,data){
+ if(!data.peer)return;
+ cache.delete(path);cache.set(path,data);
+ if(cache.size>20)cache.delete(cache.keys().next().value);
+}
+async function readDmPanel(path,cache,signal){
+ const direct=/^\/api\/dm\/[\w-]+$/.test(path);
+ const cached=direct?cache.get(path):null,cursor=cached?.messages.at(-1)?.sequence;
+ const read=url=>api(url,'GET',undefined,{signal});
+ try{
+  let data=await read(cursor?path+'?after='+cursor:path);
+  signal.throwIfAborted();
+  if(cursor){
+   if(data.has_more){data=await read(path);signal.throwIfAborted();}
+   else{
+    const cutoff=data.settings?.cleared_sequence||0;
+    const prior=cached.messages.filter(m=>m.sequence>cutoff);
+    const combined=prior.concat(data.messages);
+    data={...data,messages:combined.slice(-100),has_more:combined.length>100||
+     (cached.has_more&&prior.length===cached.messages.length&&prior[0]?.sequence>cutoff+1)};
+   }
+  }
+  if(direct)rememberDmHistory(cache,path,data);
+  return data;
+ }catch(error){if(!signal.aborted)cache.delete(path);throw error;}
+}
+function dmRowLink(row){return row.matches('a')?row:row.querySelector('.conversation-open');}
+function selectDmRow(root,selected){
+ for(const row of root.querySelectorAll('.conversation-row')){
+  const link=dmRowLink(row),active=!!selected&&link.getAttribute('href')==='#dm/'+selected;
+  row.classList.toggle('is-selected',active);
+  if(active)link.setAttribute('aria-current','true');else link.removeAttribute('aria-current');
+ }
+}
+// Compare generated markup, so runtime avatar decorations survive receipts and reordering.
+function patchDmInbox(root,html,previous){
+ const template=document.createElement('template');template.innerHTML=html;
+ const incoming=template.content.firstElementChild,list=root.querySelector('.conversation-list');
+ if(!list){root.replaceChildren(template.content);previous.clear();return;}
+ const rows=new Map([...list.children].map(row=>[dmRowLink(row).getAttribute('href'),row]));
+ let cursor=list.firstElementChild;
+ for(const next of [...incoming.children]){
+  const link=dmRowLink(next),key=link.getAttribute('href'),row=rows.get(key)||next;
+  rows.delete(key);
+  const parts=['.dm-profile-link','.crew-inbox-art','.conversation-copy','.conversation-meta'];
+  const signatures=parts.map(selector=>next.querySelector(selector)?.outerHTML);
+  if(row!==next){
+   const prior=previous.get(key);
+   parts.forEach((selector,i)=>{
+    if(prior&&prior[i]!==signatures[i]){
+     const old=row.querySelector(selector),replacement=next.querySelector(selector);
+     if(old&&replacement)old.replaceWith(replacement);
+    }
+   });
+   row.classList.toggle('is-selected',next.classList.contains('is-selected'));
+   row.classList.toggle('is-unread',next.classList.contains('is-unread'));
+   const liveLink=dmRowLink(row);
+   if(link.hasAttribute('aria-current'))liveLink.setAttribute('aria-current','true');else liveLink.removeAttribute('aria-current');
+  }
+  previous.set(key,signatures);
+  if(row!==cursor)list.insertBefore(row,cursor);else cursor=cursor.nextElementSibling;
+ }
+ rows.forEach((row,key)=>{row.remove();previous.delete(key);});
+ const empty=incoming.nextElementSibling,priorEmpty=list.nextElementSibling;
+ if(empty?.outerHTML!==priorEmpty?.outerHTML){priorEmpty?.remove();if(empty)list.after(empty);}
+}
+let dmSession=null;
 function bindSocialChat(view){
  if(!view?.inbox&&!view?.chat)return;
- const ticket=renderId,uid=me?.id,current=()=>ticket===renderId&&uid===me?.id;
+ if(!view.inbox){socialCleanup=bindChatThread(view);return;}
+ const ticket=renderId,uid=me?.id,root=document.querySelector('.message-workspace');
+ let closed=false,threadBinding=null,stopNotice=null,watchedCrew=null,stopCrewInbox=null;
  let inboxData=uid&&dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
- let watchedCrew=null,stopCrewInbox=null;
- // The personal inbox stream tracks direct messages. Crew changes have their own stream.
- const syncCrewInbox=crew=>{
-  const id=crew?.id===view.chat?.crew?.id?null:crew?.id;
-  if(id===watchedCrew)return;
-  stopCrewInbox?.();watchedCrew=id;
-  stopCrewInbox=id?watchSocialChat('?crew='+encodeURIComponent(id),refreshInbox,()=>{},refreshInbox):null;
+ let selection=view.selectedConversation||'',directRevision=0,crewRevision=0;
+ const current=()=>!closed&&ticket===renderId&&uid===me?.id;
+ const changes=new Map(),receipts=new Map();
+ const targets=new Set(),historyCache=new Map();
+ const routeTargets=root&&document.createElement('span');
+ if(routeTargets){routeTargets.hidden=true;root.querySelector('aside').append(routeTargets);}
+ const addTarget=raw=>{
+  if(!routeTargets||targets.has(raw))return;
+  const target=document.createElement('span');target.id=raw;target.dataset.dmRouteTarget='';
+  routeTargets.append(target);targets.add(raw);
  };
- const paintInbox=d=>{const root=$('#dm-conversations'),html=conversationListHTML(d.conversations,d.crew,view.selectedConversation||'');if(root&&root.innerHTML!==html)root.innerHTML=html;};
- const search=document.querySelector('#dm-inbox-search');const filter=()=>{dmInboxQuery=search.value;if(inboxData)paintInbox(inboxData);};search?.addEventListener('input',filter);
+ const addInboxTargets=d=>{
+  addTarget('dm');addTarget('dm/notice');
+  for(const p of d?.conversations||[])addTarget(p.is_notice?'dm/notice?peer='+encodeURIComponent(p.id):'dm/'+p.id);
+  if(d?.crew)addTarget('dm/crew/'+d.crew.id);
+ };
+ const syncCrewInbox=crew=>{
+  const id=crew?.id||null;if(id===watchedCrew)return;
+  stopCrewInbox?.();watchedCrew=id;
+  stopCrewInbox=id?watchSocialChat('?crew='+encodeURIComponent(id),()=>{
+   if(!current())return;
+   crewRevision++;threadBinding?.crewChanged?.();void loadInbox();
+  },text=>threadBinding?.crewStatus?.(text),()=>{threadBinding?.crewDenied?.();refreshInbox();}):null;
+ };
+ const paintInbox=d=>{
+  const list=$('#dm-conversations');if(!list)return;
+  const html=conversationListHTML(d.conversations,d.crew,selection);
+  if(list.querySelector)patchDmInbox(list,html,changes);
+  else list.innerHTML=html;
+  addInboxTargets(d);
+ };
+ const search=document.querySelector('#dm-inbox-search');
+ const filter=()=>{dmInboxQuery=search.value;if(inboxData)paintInbox(inboxData);};
+ search?.addEventListener('input',filter);
  let inboxFetching=false,inboxAgain=false,inboxVersion=0;
- const loadInbox=async()=>{if(!view?.inbox||!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
+ const loadInbox=async()=>{if(!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
   try{do{inboxAgain=false;const version=inboxVersion;
-   try{const d=await api('/api/dm','GET',undefined,{fresh:true});if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);syncCrewInbox(d.crew);$('#dm-list-error').textContent='';}
+   try{const d=await api('/api/dm','GET',undefined,{fresh:true});if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);syncCrewInbox(d.crew);if(Number.isFinite(d.unread)&&typeof paintMessageBadge==='function')paintMessageBadge(d.unread);$('#dm-list-error').textContent='';}
    catch(e){if(current()&&version===inboxVersion)$('#dm-list-error').textContent=e.message;}
   }while(inboxAgain&&current());}finally{inboxFetching=false;}
  };
- const localInbox=e=>{if(current()&&view?.inbox&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{inboxVersion++;void loadInbox();};if(view?.inbox){window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);}
- if(view.inbox)syncCrewInbox(inboxData?.crew);
- const clearInboxEvents=()=>{stopCrewInbox?.();window.removeEventListener('aifect:inbox-local',localInbox);window.removeEventListener('aifect:inbox-refresh',refreshInbox);};
- if(view?.inbox&&!view.chat){
-  if(view.refreshInbox)void loadInbox();
+ const localInbox=e=>{if(current()&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{inboxVersion++;void loadInbox();};
+ window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);
   const noticeRead=()=>{
    if(!current())return;inboxVersion++;
    if(inboxData){
@@ -225,12 +317,79 @@ function bindSocialChat(view){
    }
    window.dispatchEvent(new Event('aifect:dm-read'));void loadInbox();void refreshMessageBadge();
   };
-  const stopNotice=view.welcomeNotice?bindWelcomeNotice(view,noticeRead):()=>{};
-  const stop=watchSocialChat('',loadInbox,()=>{},()=>{$('#dm-list-error').textContent='로그인 상태를 다시 확인해주세요.';});
-  socialCleanup=()=>{clearInboxEvents();stopNotice();stop();search?.removeEventListener('input',filter);};return;
+
+ const stopInbox=watchSocialChat('',()=>{
+  if(!current())return;
+  directRevision++;threadBinding?.directChanged?.();void loadInbox();
+ },text=>threadBinding?.directStatus?.(text),()=>{
+  historyCache.clear();threadBinding?.deny?.();
+  const error=$('#dm-list-error');if(error)error.textContent='로그인 상태를 다시 확인해주세요.';
+ });
+ function unbindPanel(){threadBinding?.();threadBinding=null;stopNotice?.();stopNotice=null;}
+ function bindPanel(panelView){
+  if(panelView.chat){
+   const route=session.route;
+   threadBinding=bindChatThread(panelView,{receipts,read:()=>inboxData,refreshInbox,current:()=>location.hash.slice(1)===route});
+  }
+  if(panelView.welcomeNotice)stopNotice=bindWelcomeNotice(panelView,noticeRead);
  }
- if(!view?.chat)return;
+ let controller=null;
+ const route=typeof location==='undefined'?'dm':location.hash.slice(1);
+ const session={
+  route,
+  owns:raw=>current()&&root?.isConnected&&/^dm(?:$|\/)/.test(raw)&&raw.split('?')[0]!=='dm/blocked'&&$('#main').dataset.account===uid,
+  async select(raw){
+   const main=$('#main'),pane=root.querySelector('.message-thread-pane,.message-welcome');
+   controller?.abort();const request=controller=new AbortController();
+   const active=()=>current()&&!request.signal.aborted&&location.hash.slice(1)===raw&&root.isConnected;
+   const param=raw.split('?')[0].split('/')[1];
+   const directAt=directRevision,crewAt=crewRevision;
+   unbindPanel();session.route=raw;selection=raw.split('?')[0].slice(3);
+   root.classList.toggle('has-thread',!!param);
+   const notice=inboxData?.conversations.some(p=>p.id===selection&&p.is_notice);
+   selectDmRow(root,notice?'notice':selection);
+   addTarget(raw);main.dataset.route=raw;
+   window.AifectRender?.syncTarget();
+   pane.className=param?'message-thread-pane':'message-welcome';
+   if(param)pane.setAttribute('aria-label','선택한 대화');else pane.removeAttribute('aria-label');
+   if(!param){pane.removeAttribute('aria-busy');pane.innerHTML=dmWelcomeHTML();return;}
+   pane.setAttribute('aria-busy','true');
+   pane.innerHTML='<p class="message-thread-loading" role="status">대화를 불러오는 중…</p>';
+   const timedSignal=AbortSignal.any([request.signal,AbortSignal.timeout(20000)]);
+   const read=async path=>{
+    const data=await readDmPanel(path,historyCache,timedSignal);
+    if(!active())throw new DOMException('대화가 변경되었어요.','AbortError');
+    return data;
+   };
+   try{
+    const panelView=await dmRouteView(param,raw,read,inboxData,(_inbox,html)=>html);
+    if(!active())return;
+    pane.innerHTML=panelView.html;bindPanel(panelView);
+    if(directRevision!==directAt)threadBinding?.directChanged?.();
+    if(crewRevision!==crewAt)threadBinding?.crewChanged?.();
+   }catch(error){
+    if(!active())return;
+    pane.innerHTML='<p role="alert">'+esc(timedSignal.aborted?'연결 응답이 늦어지고 있어요.':error.message)+'</p><button type="button" class="small-button">다시 시도</button>';
+    pane.querySelector('button').onclick=()=>session.select(raw);
+   }finally{if(active())pane.removeAttribute('aria-busy');}
+  }
+ };
+ dmSession=session;
+ addTarget(route);addInboxTargets(inboxData);syncCrewInbox(inboxData?.crew);
+ if(root&&inboxData)paintInbox(inboxData);
+ if(view.chat?.peer&&view.chat.initial)rememberDmHistory(historyCache,view.chat.path,view.chat.initial);
+ bindPanel(view);
  if(view.refreshInbox)void loadInbox();
+ socialCleanup=()=>{
+  closed=true;controller?.abort();unbindPanel();stopInbox();stopCrewInbox?.();
+  window.removeEventListener('aifect:inbox-local',localInbox);window.removeEventListener('aifect:inbox-refresh',refreshInbox);
+  search?.removeEventListener('input',filter);if(dmSession===session)dmSession=null;
+ };
+}
+function bindChatThread(view,workspace=null){
+ const ticket=renderId,uid=me?.id;
+ let closed=false;
+ const current=()=>!closed&&ticket===renderId&&uid===me?.id&&(!workspace||workspace.current());
  const {path,peer,crew,initial}=view.chat,form=$('#chat-compose'),log=$('#chat-log'),earlier=$('#chat-earlier'),input=form.querySelector('textarea')||form.querySelector('[data-dm-editor]'),sendButton=form.querySelector('[data-chat-send]');
  const unsent=chatUnsent(uid,path),messages=new Map((initial?.messages||[]).map(m=>[m.id,m]));
  const editor=input.dataset?.dmEditor!==undefined?AifectStickers.editor(input,toast):null;
@@ -248,25 +407,35 @@ function bindSocialChat(view){
  input.addEventListener('input',resizeInput);resizeInput();
  // Only a history read advances the cursor. A POST can return a newer message
  // before intervening messages from another member have arrived.
- let latestSequence=Math.max(0,...(initial?.messages||[]).map(m=>m.sequence||0)),joinedSequence=crew?(initial?.membership?.joined_sequence??null):null,readThrough=0;
+ let latestSequence=Math.max(0,...(initial?.messages||[]).map(m=>m.sequence||0)),joinedSequence=crew?(initial?.membership?.joined_sequence??null):null;
+ const receipt=workspace?.receipts.get(path)||{through:0,pending:null};
+ workspace?.receipts.set(path,receipt);
  const acknowledge=async()=>{
-  if(document.hidden||!current()||latestSequence<=readThrough)return;
+  if(document.hidden||!current()||latestSequence<=receipt.through)return;
+  if(receipt.pending){await receipt.pending;return acknowledge();}
   const sequence=latestSequence;
-  if(peer)await api(path,'PATCH',{sequence});
-  if(crew)await api('/api/crews/'+crew.id+'/read','POST',{sequence});
-  if(current())readThrough=Math.max(readThrough,sequence);
+  const unread=crew?workspace?.read()?.crew?.unread:workspace?.read()?.conversations.find(p=>p.id===peer?.id)?.unread;
+  if(workspace&&peer&&unread===0&&!Array.from(messages.values()).some(m=>m.sender_id!==uid&&!m.read_at))return;
+  const pending=(async()=>{
+   if(peer)await api(path,'PATCH',{sequence});
+   if(crew)await api('/api/crews/'+crew.id+'/read','POST',{sequence});
+   receipt.through=sequence;
+   if(current()&&crew&&unread)workspace.refreshInbox();
+  })();
+  receipt.pending=pending;
+  try{await pending;return true;}finally{receipt.pending=null;}
  };
  const sorted=()=>[...messages.values()].sort((a,b)=>(a.sequence||Number.MAX_SAFE_INTEGER)-(b.sequence||Number.MAX_SAFE_INTEGER)||a.created-b.created);
  const merge=incoming=>incoming.forEach(m=>{if(m.request_id&&(m.user_id===uid||m.sender_id===uid)){const id='pending:'+m.request_id;messages.delete(id);unsent.pending.delete(id);removeChatPending(uid,path,id);}messages.set(m.id,m);});
  merge(initial?.messages||[]);
  const mobileChat=()=>window.AifectMobileInput?.isMobile()??innerWidth<=800;
  const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;patchChatLog(log,html);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
- const deny=()=>{denied=true;socialCleanup?.();if(crew){chatGeneration++;unsent.pending.clear();clearChatPending(uid,path);setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
+ const deny=()=>{if(!current())return;denied=true;stopBinding(false);if(crew){chatGeneration++;unsent.pending.clear();clearChatPending(uid,path);setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
  if(initial||unsent.pending.size)paint(false,true);else log.innerHTML='<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
   if(!current()||denied)return;if(fetching){if(!older)again=true;else earlier.disabled=false;return;}fetching=true;
   try{do{again=false;const list=sorted().filter(m=>m.sequence),cursor=older?list[0]?.sequence:latestSequence;
-   const d=await api(path+(cursor?'?'+(older?'before':'after')+'='+cursor:''));if(!current())return;
+   const d=await api(path+(cursor?'?'+(older?'before':'after')+'='+cursor:''));if(!current()||denied)return;
    if(crew){const boundary=Number(d.membership?.joined_sequence)||0;
     if(joinedSequence!==null&&joinedSequence!==boundary){chatGeneration++;messages.clear();latestSequence=0;initialized=false;lastHTML=null;joinedSequence=boundary;paint(false,true);if(cursor){again=true;older=false;continue;}}
     joinedSequence=boundary;
@@ -277,9 +446,9 @@ function bindSocialChat(view){
    if(d.member_roles){const roles=new Map(d.member_roles.map(m=>[m.profile_id,m.role]));messages.forEach(m=>{if(roles.has(m.profile_id))m.role=roles.get(m.profile_id);});if(crew)crew.owner=d.membership?.role==='owner';}
    if(older||!initialized)earlier.hidden=!d.has_more;initialized=true;paint(older);$('#chat-error').textContent='';
    await acknowledge();
-   void refreshMessageBadge();
+   if(!workspace)void refreshMessageBadge();
    if(!older&&cursor&&d.has_more)again=true;
-  }while(again&&current()&&!older);void loadInbox();}
+  }while(again&&current()&&!older);}
   catch(e){if(current()){$('#chat-error').textContent=e.message;if([401,403].includes(e.status))deny();}}
   finally{fetching=false;earlier.disabled=false;if(again&&older&&current())void load();}
  };
@@ -318,21 +487,21 @@ function bindSocialChat(view){
  });
  bindChatImageUpload(peer,path,send,()=>sending||denied||!current());
  // Opening a room also acknowledges older unread messages outside the last page.
- if(initial)acknowledge().then(()=>{if(current()){void refreshMessageBadge();}}).catch(e=>{if(current())$('#chat-error').textContent='읽음 상태를 반영하지 못했어요. '+e.message;});
+ if(initial)acknowledge().then(changed=>{if(current()&&changed&&!workspace)void refreshMessageBadge();}).catch(e=>{if(current())$('#chat-error').textContent='읽음 상태를 반영하지 못했어요. '+e.message;});
  const query=crew?'?crew='+encodeURIComponent(crew.id):view.inbox?'':'?peer='+encodeURIComponent(path.split('/').at(-1));
  // History must not wait for the first SSE event or a stream timeout.
  if(!initial)void load();
- const stopStream=watchSocialChat(query,()=>{void load();},text=>{if(current())$('#chat-connection').textContent=text;},deny);
- const stopInbox=crew&&view.inbox?watchSocialChat('',loadInbox,()=>{},deny):()=>{};
+ const stopStream=workspace?()=>{}:watchSocialChat(query,()=>{void load();},text=>{if(current())$('#chat-connection').textContent=text;},deny);
+
  // Resize only the conversation pane, never scroll the whole document while typing.
  document.body.classList.add('chat-active');
  const panel=log.closest('.chat-panel');let pinned=true,frame=0;
  const onScroll=()=>{pinned=log.scrollHeight-log.scrollTop-log.clientHeight<90;};
  const anchor=()=>{cancelAnimationFrame(frame);frame=requestAnimationFrame(()=>{if(!current())return;if(pinned)log.scrollTop=log.scrollHeight;});};
- const workspace=panel.closest?.('.message-workspace'),target=workspace||panel;
+ const workspaceElement=panel.closest?.('.message-workspace'),target=workspaceElement||panel;
  const viewport=()=>{
   if(!current()||(target.getClientRects&&!target.getClientRects().length))return;resizeInput();
-  if(workspace){window.AifectMessageLayout?.fit();anchor();return;}
+  if(workspaceElement){window.AifectMessageLayout?.fit();anchor();return;}
   const vv=window.visualViewport,bottom=(vv?.height||innerHeight)+(vv?.offsetTop||0);
   panel.style.height=Math.max(0,bottom-panel.getBoundingClientRect().top-12)+'px';anchor();
  };
@@ -345,7 +514,12 @@ function bindSocialChat(view){
  const readyFrame=requestAnimationFrame(viewport);
  window.addEventListener('aifect:input-viewport',viewport);
  window.addEventListener('aifect:topbar-layout',viewport);
- socialCleanup=()=>{saveDraft();stickers?.destroy();editor?.destroy();input.removeEventListener('input',resizeInput);clearInboxEvents();search?.removeEventListener('input',filter);document.body.classList.remove('chat-keyboard','chat-active');stopStream();stopInbox();resize.disconnect();layoutResize.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(readyFrame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.visualViewport?.removeEventListener('scroll',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);window.removeEventListener('aifect:topbar-layout',viewport);};
+ function stopBinding(dispose=true){if(dispose)closed=true;saveDraft();stickers?.destroy();editor?.destroy();input.removeEventListener('input',resizeInput);document.body.classList.remove('chat-keyboard','chat-active');stopStream();resize.disconnect();layoutResize.disconnect();cancelAnimationFrame(frame);cancelAnimationFrame(readyFrame);log.removeEventListener('scroll',onScroll);log.removeEventListener('load',anchor,true);input.removeEventListener('focus',viewport);input.removeEventListener('blur',viewport);window.visualViewport?.removeEventListener('resize',viewport);window.visualViewport?.removeEventListener('scroll',viewport);window.removeEventListener('resize',viewport);window.removeEventListener('aifect:input-viewport',viewport);window.removeEventListener('aifect:topbar-layout',viewport);}
+ const status=text=>{if(current())$('#chat-connection').textContent=text;};
+ if(crew){stopBinding.crewChanged=load;stopBinding.crewDenied=deny;stopBinding.crewStatus=status;}
+ else{stopBinding.directChanged=load;stopBinding.directStatus=status;}
+ stopBinding.deny=deny;
+ return stopBinding;
 }
 
 document.addEventListener('click',async event=>{

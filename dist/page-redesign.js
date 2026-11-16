@@ -7,27 +7,19 @@ function libraryOverviewHTML(){
  const collections=library.collections||library.playlists||[];
  return '<div class="library-overview"><section class="library-playlists-pane"><div class="section-heading"><h2>나의 플레이리스트</h2><a class="text-link" href="#library/playlists">모두 보기 '+icon('chevron')+'</a></div>'+collectionGrid(collections.slice(0,4),'아직 모아둔 플레이리스트가 없어요.')+'<div class="inline-actions"><button class="small-button" id="new-playlist">'+icon('plus')+' 새 플레이리스트</button><a class="text-link" href="#collections">공개 목록 둘러보기</a></div></section><section class="library-likes-pane"><div class="section-heading"><h2>좋아하는 음악</h2><span>'+number(library.likes.length)+'곡</span></div>'+browsePlaybackActions(library.likes)+'<button class="text-link" data-organize-likes '+(library.likes.length?'':'disabled')+'>선택해서 플레이리스트 만들기</button>'+list(library.likes)+'</section></div>';
 }
+function dmWelcomeHTML(){return '<div class="dm-welcome-copy"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p></div><div class="dm-compose-preview" aria-hidden="true" inert><span class="dm-emoji-toggle">'+voiceGlyph('smile')+'</span><span>메시지를 입력하세요…</span><span class="dm-send">'+voiceGlyph('send')+'</span></div>';}
 function dmInboxHTML(d,thread='',selected=''){
  rememberDmInbox(d);
- return '<section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록"><div class="dm-section-heading"><a class="chat-ui-icon dm-mobile-exit" href="#home" aria-label="메시지 나가기">'+icon('back')+'</a><h2>메시지</h2>'+inboxControlsHTML()+'</div>'+'<label class="dm-search brand-search">'+icon('search')+'<input id="dm-inbox-search" type="search" aria-label="대화 검색" placeholder="이름 또는 최근 메시지 검색" value="'+esc(dmInboxQuery)+'"></label>'+'<div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome"><div class="dm-welcome-copy"><span class="message-welcome-icon">'+icon('message')+'</span><h2>누구와 이야기할까요?</h2><p>왼쪽에서 대화상대를 선택하면<br>이곳에서 바로 대화할 수 있어요.</p></div><div class="dm-compose-preview" aria-hidden="true" inert><span class="dm-emoji-toggle">'+voiceGlyph('smile')+'</span><span>메시지를 입력하세요…</span><span class="dm-send">'+voiceGlyph('send')+'</span></div></div>')+'</section>';
+ return '<section class="message-workspace'+(thread?' has-thread':'')+'"><aside class="message-list-pane" aria-label="대화 상대 목록"><div class="dm-section-heading"><a class="chat-ui-icon dm-mobile-exit" href="#home" aria-label="메시지 나가기">'+icon('back')+'</a><h2>메시지</h2>'+inboxControlsHTML()+'</div>'+'<label class="dm-search brand-search">'+icon('search')+'<input id="dm-inbox-search" type="search" aria-label="대화 검색" placeholder="이름 또는 최근 메시지 검색" value="'+esc(dmInboxQuery)+'"></label>'+'<div id="dm-conversations">'+conversationListHTML(d.conversations,d.crew,selected)+'</div><p id="dm-list-error" role="status">'+esc(d.error||'')+'</p></aside>'+(thread?'<div class="message-thread-pane" aria-label="선택한 대화">'+thread+'</div>':'<div class="message-welcome">'+dmWelcomeHTML()+'</div>')+'</section>';
 }
-async function dmWorkspaceView(view){
+async function dmWorkspaceView(view,layout=dmInboxHTML){
  // The thread must not wait for a second inbox request. Refresh the sidebar after paint.
  const inbox=me?.id&&dmInboxSnapshot?.uid===me.id?dmInboxSnapshot.data:{conversations:[]};
  const selected=view.chat.crew?'crew/'+view.chat.crew.id:view.chat.peer.id;
- return {...view,html:dmInboxHTML(inbox,view.html,selected),inbox:true,refreshInbox:true,selectedConversation:selected};
+ return {...view,html:layout(inbox,view.html,selected),inbox:true,refreshInbox:true,selectedConversation:selected};
 }
 
-function dmPendingView(base,param,raw){
- if(base!=='dm'||!me)return null;
- const main=$('#main'),aside=main?.querySelector('.message-list-pane');
- if(!aside||main.dataset.account!==me.id)return null;
- const selected=raw.split('?')[0].slice(3),copy=aside.cloneNode(true);
- copy.querySelectorAll('.is-selected').forEach(e=>e.classList.remove('is-selected'));
- copy.querySelectorAll('[aria-current]').forEach(e=>e.removeAttribute('aria-current'));
- for(const link of copy.querySelectorAll('a[href^="#dm/"]'))if(link.getAttribute('href')==='#dm/'+selected){link.setAttribute('aria-current','true');link.closest('.conversation-row')?.classList.add('is-selected');}
- return {html:'<section class="message-workspace'+(param?' has-thread':'')+'">'+copy.outerHTML+'<div class="message-thread-pane message-thread-loading" role="status"><p>대화를 불러오는 중…</p></div></section>'};
-}
+
 function singingDiscoverHTML(duets,covers=[]){
  return '<section class="sing-cover-discovery" aria-label="커버곡 둘러보기"><header><div><h2>커버 둘러보기</h2><p>다른 사람의 솔로·듀엣 커버를 들어보세요.</p></div><nav><a href="#community/covers?mode=solo">'+icon('mic')+' 솔로 커버 듣기 '+icon('chevron')+'</a><a href="#community/covers?mode=duet">'+icon('users')+' 듀엣 커버 듣기 '+icon('chevron')+'</a><a href="#community/covers">더보기 '+icon('chevron')+'</a></nav></header>'+
  (covers.length?'<div class="sing-cover-shelf">'+covers.map(t=>'<article><a href="#song/'+esc(t.id)+'">'+cover(t)+'<strong>'+esc(t.title)+'</strong></a><a class="sing-cover-person" href="#producer/'+esc(t.producer_id)+'">'+userNickname(t.producer,{profileId:t.producer_id})+'</a><small>'+number(t.plays||0)+'회 감상</small><button class="icon-button" data-play="'+esc(t.id)+'" aria-label="'+esc(t.title)+' 커버 듣기">'+icon('audio-play')+'</button></article>').join('')+'</div>':'<p class="empty-inline">아직 공개된 커버곡이 없어요. 첫 목소리를 들려주세요.</p>')+'</section><section class="sing-duet-preview compact-duet"><div class="section-heading"><div><h3>참여를 기다리는 듀엣</h3><p>누군가의 목소리가 당신을 기다리고 있어요.</p></div><a class="text-link" href="#community/duets?open=1">듀엣 보기 '+icon('chevron')+'</a></div>'+ (duets.length?'<div class="sing-duet-row">'+duets.slice(0,3).map(t=>'<a data-list-row href="'+(t.user_id===me?.id?'#song/'+esc(t.id):'#sing/'+esc(t.original_id)+'?duet='+esc(t.id))+'">'+cover(t,'mini-cover')+'<span><strong>'+esc(t.title)+'</strong><small>'+esc(t.producer)+(t.user_id===me?.id?' · 내 듀엣 보기':' · 듀엣 참여')+'</small></span>'+icon('plus')+'</a>').join('')+'</div>':'<p class="empty-inline">아직 참여를 기다리는 듀엣이 없어요. 아래 곡을 골라 첫 파트를 남겨보세요.</p>')+'</section>';

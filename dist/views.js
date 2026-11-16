@@ -77,12 +77,21 @@ function watchCachedNavigation(main){
  return {changed:()=>touched||(window.scrollY||0)!==initialScroll||!!(main.contains(document.activeElement)&&document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]')),cleanup};
 }
 let presentationSerial=0;
-async function render(){
+async function render(event){
  if(window.handleEmbeddedProfile&&await window.handleEmbeddedProfile())return;
  if(typeof handleProfileEditRoute==='function'&&await handleProfileEditRoute())return;
  if(typeof sing!=='undefined'&&sing&&await retainSingRoute(sing))return;
  if(typeof retainRoomRoute==='function'&&retainRoomRoute(location.hash.slice(1)))return;
- const serial=++presentationSerial,main=typeof $==='function'?$('#main'):null,raw=location.hash.slice(1)||'home';
+ const raw=location.hash.slice(1)||'home';
+ if(typeof dmSession!=='undefined'&&dmSession?.owns(raw)&&
+    (raw!==dmSession.route||event?.type==='hashchange')){
+  if(raw!==dmSession.route){
+   cleanupRouteOverlays();
+   await dmSession.select(raw);
+  }
+  return;
+ }
+ const serial=++presentationSerial,main=typeof $==='function'?$('#main'):null;
  const presentation=window.AifectRender;
  const retainPlay=typeof canRefreshPlayRoute==='function'&&canRefreshPlayRoute(raw);
  const retainCommunity=typeof canRefreshCommunityRoute==='function'&&canRefreshCommunityRoute(raw);
@@ -155,7 +164,7 @@ async function renderRoute(showCachedRoute){
  cleanupRouteBindings(main);
  const previous=navigationSnapshots.get(navigationKey(main.dataset.route));if(previous&&main.dataset.account===account)previous.scroll=window.scrollY||0;
  let cached=navigationSnapshots.get(navigationKey(raw));
- const pendingView=(typeof playPendingView==='function'?playPendingView(base,param,raw):null)||(typeof crewPendingView==='function'?crewPendingView(base,param,raw):null)||(typeof communityPendingView==='function'?communityPendingView(base,param,raw):null)||(typeof dmPendingView==='function'?dmPendingView(base,param,raw):null);
+ const pendingView=(typeof playPendingView==='function'?playPendingView(base,param,raw):null)||(typeof crewPendingView==='function'?crewPendingView(base,param,raw):null)||(typeof communityPendingView==='function'?communityPendingView(base,param,raw):null);
  if(!(cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now())&&pendingView?.cached&&canCacheRoute(raw))cached={...pendingView,account,revision:apiRevision,until:Date.now()+60000,explorer:pendingView,scroll:0};
  const restored=canCacheRoute(raw)&&cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now();
  let refreshWatch=null;

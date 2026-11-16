@@ -109,12 +109,24 @@ async function improvementsView(base,param,raw,readApi=api){
   }
   if(base==='payouts')return {html:heading('정산')+earningsHTML(await readApi('/api/studio/earnings'))};
   if(base==='rewards'){const d=await readApi('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 실버','작은 활동을 모아 좋아하는 음악에 응원해보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
-  if(param==='notice')return dmNoticeView(raw,readApi);
-  if(param==='crew')return dmWorkspaceView(await crewChatView(raw,readApi));
-  if(!param){const d=await readApi('/api/dm');return {html:dmInboxHTML(d),inbox:true};}
-  let d;try{d=await readApi('/api/dm/'+encodeURIComponent(param));}catch(e){if(e.status===403){const blocked=await blockedPeopleView(param,null,readApi);if(blocked)return blocked;}throw e;}return dmWorkspaceView({html:'<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+'</a>'+dmProfileLink(d.peer,portrait(d.peer,'producer')+'<div><h1>'+esc(chatNickname(d.peer))+'</h1></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+chatPanelHTML('개인 메시지',d,d.peer),chat:{path:'/api/dm/'+param,peer:d.peer,initial:d}});
+  return dmRouteView(param,raw,readApi);
  }
  return null;
+}
+async function dmRouteView(param,raw,readApi,inbox=null,layout=dmInboxHTML){
+ if(!param){const data=inbox||await readApi('/api/dm');return {html:layout(data),inbox:true};}
+ if(param==='notice')return dmNoticeView(raw,readApi,inbox,layout);
+ if(param==='crew')return dmWorkspaceView(await crewChatView(raw,readApi),layout);
+ const path='/api/dm/'+encodeURIComponent(param);
+ let data;
+ try{data=await readApi(path);}
+ catch(error){
+  if(error.status===403){const blocked=await blockedPeopleView(param,null,readApi,layout);if(blocked)return blocked;}
+  throw error;
+ }
+ const {peer,settings}=data;
+ const header='<header class="dm-thread-header"><a href="#dm" class="small-button dm-back" aria-label="대화 목록으로 돌아가기">'+icon('back')+'</a>'+dmProfileLink(peer,portrait(peer,'producer')+'<div><h1>'+esc(chatNickname(peer))+'</h1></div>','dm-thread-person')+dmThreadActions(peer,settings)+'</header>';
+ return dmWorkspaceView({html:header+chatPanelHTML('개인 메시지',data,peer),chat:{path,peer,initial:data}},layout);
 }
 async function libraryProfileHTML(readApi=api){
  if(!me)return '';const d=await readApi('/api/me/profile'),p=d.profile;

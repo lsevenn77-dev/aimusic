@@ -391,3 +391,14 @@ test('storage read, write, remove and access errors leave in-memory send and dis
   assert.doesNotMatch(f.log.innerHTML,/저장소 장애 중 새 메시지/);assert.equal(posts(f).length,1);assert.ok(attempts,'the failing Storage operation was exercised');
  });
 });
+
+test('an initial read and an overlapping stream update share one pending read receipt',async()=>{
+ let finish;const receipts=[];
+ const f=fixture(async(_path,method,body)=>{
+  if(method==='PATCH'){receipts.push(body.sequence);await new Promise(resolve=>{finish=resolve;});return {};}
+  return {messages:[],has_more:false};
+ });
+ f.context.bindSocialChat(directView('/api/dm/friend',[{id:'unread',sequence:4,sender_id:'friend',body:'hi',created:1}]));
+ f.streams[0].changed();await settleChat();assert.deepEqual(receipts,[4]);
+ finish();await settleChat();assert.deepEqual(receipts,[4]);
+});
