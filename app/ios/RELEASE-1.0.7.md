@@ -33,3 +33,12 @@
 상세 결과는 ANDROID-IOS-SCREEN-AUDIT.md에 기록한다. 실제 기기가 없어 시뮬레이터로 검증한다. 실기기 마이크/이어폰 음질·지연, 실제 결제/광고 및 유료 AI 결과 청취를 통과했다고 보지 않는다. 테스트 캡처는 운영 사용자 자료나 스토어 스크린샷이 아니다.
 
 - 단위 검사 100개 통과. 화면 검사 11종은 변경별 최종 재검사 기준이며, 최종 탭 터치/공통 API AI 비교 2개는 같은 실행에서 통과했다. 공통 서버 편집·생성 복구 검사 11개 통과.
+
+## 배포 상태 · 2026-11-17 01:25 KST
+
+- 앱 소스 `234ec3c`, `origin/ios/from-android-2.5.97` push 완료.
+- Release 아카이브 생성 성공. 경로: `/Users/user/Library/Developer/Xcode/Archives/2026-11-17/AIFECT-1.0.7-17.xcarchive`.
+- `codesign --verify --deep --strict` 통과, 앱 버전 1.0.7/빌드 17/번들 `kr.co.aifect.app` 확인. 앱과 dSYM UUID `85B4475B-1D38-3BF4-9E92-FE24B1672E28` 일치. Release 바이너리에 Debug 테스트 표식 없음.
+- **Apple 업로드 미완료.** `xcodebuild -exportArchive`가 전송 전에 `Failed to Use Accounts`로 종료했다. Mac이 잠겨 Xcode Organizer 화면을 조작하지 못해 사용자에게 잠금 해제를 요청했다. 새 아카이브를 Organizer에서 선택하여 업로드하고 TestFlight 처리 결과를 확인해야 한다.
+- 기존 1.0.6(16)은 App Store Connect에서 심사 대기 중으로 확인했으며 철회·교체하지 않았다. 1.0.7의 업로드/심사/출시 완료로 해석하면 안 된다.
+- 검사가 끝난 iPhone 17 Pro 시뮬레이터는 종료했다. App Store Connect의 기존 탭은 TestFlight 목록에 남겼다.
