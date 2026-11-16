@@ -133,7 +133,8 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
  const c=context(),banners=vm.runInContext("homeBanners.filter(b=>b.id!=='premium')",c);
  for(const [index,banner] of banners.entries()){
   const next=banners[(index+1)%banners.length],html=c.homeBannerHTML(banner,next);
-  const base='/assets/home-banners/wide-20261116/'+banner.id+'-';
+  const asset=banner.id==='crew'?'crew-gaze-v2':banner.id;
+  const base='/assets/home-banners/wide-20261116/'+asset+'-';
   const large=banner.id==='crew'?2148:2840;
   const sources=base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
   for(const width of [801,1024,1440,1920,2560])assert.equal(pictureSourceAt(html,width),sources);

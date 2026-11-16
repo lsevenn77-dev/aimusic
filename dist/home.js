@@ -105,7 +105,8 @@ function homeWideBanner(id){
 }
 function homeBannerDesktopSources(id){
  if(homeWideBanner(id)){
-  const base='/assets/home-banners/wide-20261116/'+id+'-';
+  const asset=id==='crew'?'crew-gaze-v2':id;
+  const base='/assets/home-banners/wide-20261116/'+asset+'-';
   const large=id==='crew'?2148:2840;
   return base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
  }

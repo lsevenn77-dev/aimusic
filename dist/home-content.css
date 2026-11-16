@@ -144,6 +144,13 @@
  #home-release.home-promo-wide [data-wide-banner] .home-promo-original{width:100%;height:100%;object-fit:cover;object-position:center}
  #home-release.home-promo-wide [data-home-banner=crew] .home-promo-desktop,
  #home-release.home-promo-wide [data-home-banner=crew]::before{display:none}
+ /* The crew CTA is part of the photo. Keep keyboard focus on that button. */
+ #home-release.home-promo-wide [data-home-banner=crew]:focus-visible{outline:none}
+ #home-release.home-promo-wide [data-home-banner=crew]:focus-visible::after{
+  content:"";position:absolute;z-index:2;pointer-events:none;
+  left:6.52%;top:55.37%;width:15.18%;height:15.15%;border-radius:999px;
+  outline:2px solid var(--ds-text);outline-offset:3px
+ }
  @container(max-width:840px){
   #home-release.home-promo-wide .home-promo-copy{height:calc(100% - 26px);width:60%;padding-left:9cqi;gap:clamp(3px,.7cqi,6px)}
   #home-release.home-promo-wide .home-promo-headline{font-size:clamp(15px,3cqi,22px);line-height:1.23;white-space:nowrap}
