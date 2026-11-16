@@ -278,6 +278,61 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
     }
   }
 }
+/* The server-driven occupancy is shared; keep the original mobile karaoke header. */
+#main .live-karaoke-room .room-heading .room-population-pc { display: none; }
+@media (min-width:801px) and (min-height:501px), (min-width:801px) and (pointer:fine) {
+  #main[data-room-entered] .voice-room[data-voice-room][data-room-design] {
+    --room-panel-max: 520px;
+    --room-lyric: 19px;
+    /* The root keeps its measured viewport. Only the stage/chat row is capped. */
+    & #voice-content { max-height: var(--room-panel-max); }
+    & .room-header nav button svg { width: 24px; height: 24px; }
+    & .room-heading .room-population-pc { display: inline-flex; }
+    &[data-theme-sku="basic_dark"] {
+      --room-page: #030407;
+      --room-skin: url("/assets/talking-room/turntable-desktop.webp");
+      /* Match the masks to the 2176 × 1672 photograph, including when the
+         viewport is wider than the image. The surrounding surface is the room. */
+      --photo-width: min(100%, calc(var(--voice-viewport, 100dvh) * 2176 / 1672));
+      --photo-top: clamp(0px, 15vh, 160px);
+      --room-skin-size: var(--photo-width) auto;
+      --room-skin-focus: left 0 top var(--photo-top);
+      &::before {
+        background-color: transparent; background-blend-mode: normal;
+        mask-image: linear-gradient(90deg, black 95%, transparent),
+          linear-gradient(transparent var(--photo-top), black calc(var(--photo-top) + 28px), black 96%, transparent);
+        mask-size: var(--photo-width) 100%, 100% 100%;
+        mask-position: left top; mask-repeat: no-repeat;
+      }
+    }
+    & .live-request-area {
+      display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px;
+      box-sizing: border-box; min-height: 64px; padding: 3px 10px;
+      border: 1px solid var(--room-stroke); border-radius: 14px; background: var(--room-glass-fill);
+    }
+    & #live-queue {
+      --room-avatar-slot: 36px; --room-queue-photo: 34px;
+      align-items: center; padding: 1px 2px; border: 0; border-radius: 0; background: none;
+      grid-auto-columns: minmax(max(52px,calc((100% - 20px)/6)),1fr);
+    }
+    & #live-queue > li:not(.live-queue-empty) { align-self: center; padding: 0; gap: 2px; }
+    & #live-queue .room-empty-order { margin: 0; }
+    & #live-queue .room-member-photo:has(> :is(.player-frame-artwork,.decoration-avatar-overlay)) {
+      display: grid; place-items: center; width: var(--room-avatar-slot); height: var(--room-avatar-slot);
+    }
+    & #live-queue .room-member-photo:has(> :is(.player-frame-artwork,.decoration-avatar-overlay)) > .profile-avatar-image {
+      width: calc(var(--room-avatar-slot) / 1.5); height: calc(var(--room-avatar-slot) / 1.5);
+    }
+    & .live-request-area .live-request-button, & .live-request-area .live-request-button:enabled:hover {
+      width: auto; min-width: 0; height: 38px; padding-inline: 14px;
+    }
+    & .live-stage-main #live-lyrics { gap: 0; }
+    & #live-lyrics p.is-current { font-weight: 700; }
+    & .live-stage-main .live-song-progress { display: grid; gap: 3px; inset: auto 12px 6px; max-width: none; }
+    & #live-timer { justify-self: start; }
+    & #live-progress { position: static; display: block; clip-path: none; width: 100%; height: 4px; accent-color: var(--ds-lavender); }
+  }
+}
 @media(max-width:800px) {
   #main[data-room-entered] .voice-room[data-voice-room][data-room-design] {
     --room-lyric: clamp(14px,4.1vw,18px); --room-seat: clamp(44px,12vw,58px); --room-singer: 48px;

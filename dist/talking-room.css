@@ -93,7 +93,8 @@
   & #voice-seats .room-follow-add { top: calc(var(--room-seat) - 15px); left: calc(50% + var(--room-seat) / 2 - 10px); }
   & .talk-central { flex-shrink: 0; }
 
-  /* The photograph is a separate layer on the stage of the free dark talking room. */
+  /* Preserve the original mobile stage composition; desktop artwork belongs to the room. */
+  @media (max-width: 800px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
   &[data-theme-sku="basic_dark"] {
     --talk-photo: url("/assets/talking-room/turntable-desktop.webp");
     --talk-photo-position: center calc(100% + 23cqw - clamp(50px, 5.9vh, 68px) - 10px);
@@ -111,6 +112,7 @@
       linear-gradient(transparent max(0%, var(--talk-photo-top)), black max(9%, calc(var(--talk-photo-top) + 5cqw)), black 94%, transparent);
     mask-composite: intersect;
   }
+  }
 }
 @media (min-width: 801px) {
   #main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
@@ -120,7 +122,25 @@
     & .room-header { min-height: 44px; margin-bottom: clamp(7px, 1.5vh, 16px); }
     & .room-heading h1 { font-size: clamp(24px, 1.7vw, 26px); }
     & .room-header nav button { min-width: 0; }
-    & .room-header nav button svg { width: 21px; height: 21px; }
+    @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+      & .room-header nav button svg { width: 21px; height: 21px; }
+    }
+    @media (min-height: 501px), (pointer: fine) {
+      --room-panel-max: 555px; --talk-player-height: 50px;
+      & #voice-seats {
+        --room-seat: clamp(44px, 19cqw, 80px); --seat-caption: 24px;
+        flex: 0 1 308px; min-height: calc(2 * (var(--room-seat) + var(--seat-caption)));
+        padding-block-start: clamp(4px, 3.8vh, 38px);
+      }
+      & #voice-seats .room-member-photo { display: grid; place-items: center; overflow: visible; }
+      /* Equipped artwork uses a normalized canvas 1.5 times the actual portrait. */
+      & #voice-seats .room-member-photo:has(> :is(.player-frame-artwork,.decoration-avatar-overlay)) > .profile-avatar-image {
+        width: calc(var(--room-seat) / 1.5); height: calc(var(--room-seat) / 1.5);
+      }
+      & #voice-seats .room-muted-mark { inset: auto -3px 0 auto; z-index: 4; }
+      & #voice-seats .voice-seat-occupant:has(.room-follow-add) .room-muted-mark { inset: auto auto 0 -3px; }
+      & #voice-seats .voice-person { width: 100%; max-width: 100%; }
+    }
     & #voice-chat .voice-chat-message :is(b, p) { font-size: 15px; line-height: 1.4; }
     & #voice-chat .voice-chat-system p { font-size: 14px; }
     & .voice-stage { min-height: 0; }
