@@ -279,7 +279,7 @@ function bindDesktopDub(view,root){
  }
  const schedule=()=>{timer=scheduleSearchInput(timer,apply);};
  input.oninput=e=>{if(e.isComposing)clearTimeout(timer);else schedule();};
- input.oncompositionstart=()=>clearTimeout(timer);input.oncompositionend=schedule;
+ const composing=()=>clearTimeout(timer);input.addEventListener('compositionstart',composing);input.addEventListener('compositionend',schedule);
  form.onsubmit=e=>{e.preventDefault();apply();};
  const click=e=>{
   const more=e.target.closest('[data-dub-more]');
@@ -292,5 +292,5 @@ function bindDesktopDub(view,root){
   a.hash=a.hash.split('?')[0]+'?'+params;
  };
  root.addEventListener('click',click);
- root._playListCleanup=()=>{clearTimeout(timer);input.oninput=input.oncompositionstart=input.oncompositionend=null;form.onsubmit=null;root.removeEventListener('click',click);};
+ root._playListCleanup=()=>{clearTimeout(timer);input.oninput=null;input.removeEventListener('compositionstart',composing);input.removeEventListener('compositionend',schedule);form.onsubmit=null;root.removeEventListener('click',click);};
 }
