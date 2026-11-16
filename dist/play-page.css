@@ -485,6 +485,8 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
 
   @media (min-width: 801px) {
     .play-banner-link { padding-left: 11cqi; }
+    .play-banner-link[data-play-banner="song"] .home-feature-description { text-wrap: wrap; }
+    .play-banner-link[data-play-banner="song"] .home-feature-description > span:first-child { display: block; }
     /* Soften the copy-side scenery gradually while preserving the photo crop
        and the sharp person. Both layers use the same background geometry. */
     .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"])::before {
