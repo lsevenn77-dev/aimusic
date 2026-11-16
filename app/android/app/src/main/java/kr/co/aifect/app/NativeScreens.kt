@@ -72,6 +72,7 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   var createWithSong by remember {mutableStateOf<Song?>(null)}
   var createList by remember {mutableStateOf(false)}
   var navigationOpen by remember {mutableStateOf(false)}
+  var myToolsOpen by rememberSaveable(m.user?.optString("id")) {mutableStateOf(false)}
   var homeBackdrop by remember {mutableStateOf<String?>(null)}
   val pages=rememberSaveableStateHolder()
   val pageStack=remember{AppPageStack()}
@@ -130,7 +131,11 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
       IconButton(onClick={if(m.authenticated())m.showNotifications=true}){BadgedBox(badge={if(m.unreadActivities>0)Badge(containerColor=StreamPurple,contentColor=Ink){Text(if(m.unreadActivities>99)"99+" else "${m.unreadActivities}",fontSize=9.sp)}}){Icon(Icons.Rounded.NotificationsNone,"알림 기록",Modifier.size(22.dp),tint=SoftText)}}
       IconButton(onClick={m.selectTab(1)}){Icon(Icons.Rounded.Search,"검색",Modifier.size(22.dp),tint=SoftText)}
      }
-     if(m.tab!=0)IconButton(onClick={if(m.user==null)m.showLogin=true else m.showAccount=true},modifier=Modifier.testTag("account-menu")){Icon(if(m.tab==6)Icons.Outlined.Menu else Icons.Outlined.PersonOutline,if(m.user==null)"로그인" else "계정 메뉴",Modifier.size(22.dp),tint=SoftText)}
+     if(m.tab==6)IconButton(onClick={if(m.authenticated())myToolsOpen=true},modifier=Modifier.testTag("my-settings")){
+      Icon(Icons.Rounded.Settings,"계정 관리",Modifier.size(22.dp),tint=SoftText)
+     }else if(m.tab!=0)IconButton(onClick={if(m.authenticated())m.showAccount=true},modifier=Modifier.testTag("account-menu")){
+      Icon(Icons.Outlined.PersonOutline,if(m.user==null)"로그인" else "계정 메뉴",Modifier.size(22.dp),tint=SoftText)
+     }
 
     }
     if(m.error!=null)Row(Modifier.fillMaxWidth().background(Color(0xFF36261E)).padding(horizontal=20.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically){
@@ -139,11 +144,11 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
     pages.SaveableStateProvider(m.tab){when(m.tab){
      0->ListenScreen(m,sing){homeBackdrop=it}
      1->SearchScreen(m)
-     2->CurrentPlayScreen(m,sing,resumeDraft){navigationOpen=true}
-     3->CurrentCommunityScreen(m){navigationOpen=true}
+     2->CurrentPlayScreen(m,sing,resumeDraft)
+     3->CurrentCommunityScreen(m)
      4->LibraryScreen(m,{createWithSong=null;createList=true},browser)
      5->MessagesSheet(m,embedded=true)
-     6->CurrentMyScreen(m)
+     6->CurrentMyScreen(m,myToolsOpen){myToolsOpen=it}
      7->CreatorStudioScreen(m)
      8->MusicDirectoryScreen(m)
     }
@@ -394,10 +399,12 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
    if(m.busy)LinearProgressIndicator(Modifier.fillMaxWidth().padding(bottom=14.dp).testTag("login-progress"))
    if("google" in m.providers)BrandButton(onClick={social("google")},enabled=!m.busy,colors=ButtonDefaults.buttonColors(containerColor=Color.White,contentColor=Color(0xFF1F1F1F)),modifier=Modifier.fillMaxWidth().height(52.dp)){Text("Google로 계속하기",fontSize=15.sp)}
    if("google" in m.providers){
-    if(BuildConfig.DEBUG&&BuildConfig.APPLICATION_ID.endsWith(".test"))Text("브라우저에서 Google 인증을 마친 뒤 왼쪽 위 닫기(X)를 눌러 테스트 앱으로 돌아오세요.",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=8.dp).testTag("browser-login-help"))
-    else TextButton(onClick={social("google-browser")},enabled=!m.busy){Text("Google 로그인이 안 되나요? 브라우저로 로그인",fontSize=12.sp)}
+    TextButton(onClick={social("google-browser")},enabled=!m.busy){Text("브라우저로 Google 로그인",fontSize=12.sp)}
    }
-   if(m.browserLoginPending)OutlinedButton(onClick={m.finishLogin(reportPending=true)},modifier=Modifier.fillMaxWidth().padding(top=8.dp).testTag("browser-login-check")){Text("로그인 완료 확인")}
+   if(m.browserLoginPending){
+    Text("브라우저에서 인증을 마치면 이 앱으로 돌아와 주세요.",fontSize=12.sp,color=Muted)
+    OutlinedButton(onClick={m.finishLogin(reportPending=true)},modifier=Modifier.fillMaxWidth().padding(top=8.dp).testTag("browser-login-check")){Text("로그인 완료 확인")}
+   }
    if("kakao" in m.providers)BrandButton(onClick={social("kakao")},enabled=!m.busy,colors=ButtonDefaults.buttonColors(containerColor=Color(0xFFFEE500),contentColor=Color.Black),modifier=Modifier.fillMaxWidth().padding(top=10.dp).height(52.dp)){Icon(Icons.Rounded.ChatBubble,null,Modifier.size(18.dp));Text("카카오로 계속하기",Modifier.padding(start=8.dp),fontSize=15.sp)}
    if("apple" in m.providers)OutlinedButton(onClick={social("apple")},enabled=!m.busy,modifier=Modifier.fillMaxWidth().padding(top=10.dp).height(52.dp)){Text("Apple로 계속하기",fontSize=15.sp)}
    if(m.providers.isNotEmpty())Text("카카오톡 미설치 시와 Apple 로그인은 인증 화면을 거쳐 앱으로 돌아와요.",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=9.dp,bottom=22.dp))
@@ -617,6 +624,8 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
 @Composable private fun ProfileSheet(m:MusicModel,p:JSONObject){
  var tab by rememberSaveable(p.optString("id")){mutableStateOf(if(p.optBoolean("show_covers"))"커버" else "전체")}
  var grid by rememberSaveable(p.optString("id")){mutableStateOf(true)}
+ var viewAll by rememberSaveable(p.optString("id")){mutableStateOf<String?>(null)}
+ val dubbings=p.optJSONArray("dubbings").objects()
  val columns=musicGalleryColumns()
  val all=(m.profileSongs+m.profileCovers).distinctBy{it.id}
  val tracks=when(tab){"제작곡"->m.profileSongs;"커버"->m.profileCovers;"듀엣"->m.profileCovers.filter{it.raw.optString("cover_mode")=="duet"};else->all}
@@ -629,13 +638,28 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
    }
    else item{MusicProfileHeader(m,p,m.profileSongs,m.profileCovers,m.profileFollowers,close=m::dismissProfile)}
    if(!m.profileLoading&&m.profileError==null){
-   if(p.optString("profile_kind","producer")=="producer")item{PublicProfileGallery(m,p)}
+   if(p.optString("profile_kind","producer")=="producer"){
+    val originals=m.profileSongs
+    val covers=m.profileCovers
+    val sections=if(p.optBoolean("show_covers"))listOf("creations","original") else listOf("original","creations")
+    sections.forEach{section->
+     val original=section=="original"
+     val works=if(original)referenceWorks(originals,emptyList()) else referenceWorks(covers,dubbings)
+     if(works.isNotEmpty())item(key=section){
+      CurrentPanel(if(original)"제작곡" else "커버 · 듀엣 · 더빙",works.size,"전체보기",{viewAll=section}){ReferenceWorkShelf(works,m)}
+     }
+    }
+    if(originals.isEmpty()&&covers.isEmpty()&&dubbings.isEmpty())item{Text("아직 공개한 작품이 없어요.",Modifier.padding(vertical=12.dp),color=Muted,fontSize=13.sp)}
+    if(p.optJSONArray("gallery").objects().isNotEmpty())item{PublicProfileGallery(m,p)}
+   }else{
    item{Chips(if(p.optString("profile_kind")=="artist")listOf("음악","갤러리")else listOf("전체","제작곡","커버","듀엣"),if(tab=="전체"&&p.optString("profile_kind")=="artist")"음악" else tab){tab=it};if(tab!="갤러리")MusicLayoutControl(tracks.size,grid,{grid=it},"profile")}
    if(tab=="갤러리")item{ArtistPhotoGallery(m,p)}else{
    musicGallery(tracks,m,grid,columns,"profile")
    if(tracks.isEmpty())item{Empty("이 탭에 공개된 음악이 없어요","새로운 음악이 공개되면 여기에서 만나요.")}
    }
    }
+   }
   }
  }
+ viewAll?.let{kind->ReferenceWorksPage(m,kind,m.profileSongs,m.profileCovers,dubbings,p.optString("name")){viewAll=null}}
 }

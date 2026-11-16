@@ -38,19 +38,28 @@ private val cardShape=RoundedCornerShape(15.dp)
 private val pill=RoundedCornerShape(50)
 private fun Modifier.glass(shape:RoundedCornerShape=cardShape)=clip(shape).background(glass).border(1.dp,Color(0xFF35384C),shape)
 
-@Composable private fun DubTab(label:String,on:Boolean,click:()->Unit,modifier:Modifier=Modifier,icon:ImageVector?=null,quiet:Boolean=false){
- Row(modifier.clip(pill).then(if(on)Modifier.background(if(quiet) Color(0xFF342C48) else tabColor) else Modifier)
-  .selectable(on,role=Role.Tab,onClick=click).heightIn(min=34.dp).padding(horizontal=5.dp),
+@Composable private fun DubTab(label:String,on:Boolean,click:()->Unit,modifier:Modifier=Modifier,icon:ImageVector?=null){
+ Row(modifier.clip(pill).then(if(on)Modifier.background(tabColor) else Modifier)
+  .selectable(on,role=Role.Tab,onClick=click).heightIn(min=44.dp).padding(horizontal=5.dp),
   verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center){
-  val tint=if(on && quiet)Color(0xFFF0DFFF) else if(on)Color(0xFF20172B) else SoftText
+  val tint=if(on)Color(0xFF20172B) else SoftText
   if(icon!=null){Icon(icon,null,Modifier.size(16.dp),tint=tint);Spacer(Modifier.width(3.dp))}
   Text(label,color=tint,fontSize=13.sp,fontWeight=if(on)FontWeight.Bold else FontWeight.Medium,maxLines=1)
  }
 }
-@Composable private fun DubModes(done:Boolean,change:(Boolean)->Unit){
- Row(Modifier.fillMaxWidth().glass(pill).padding(2.dp)){
-  DubTab("참여 가능",!done,{change(false)},Modifier.weight(1f).heightIn(min=40.dp).testTag("dub-mode-open"),Icons.Rounded.Mic,quiet=true)
-  DubTab("완성작 보기",done,{change(true)},Modifier.weight(1f).heightIn(min=40.dp).testTag("dub-mode-done"),Icons.Rounded.PlayArrow,quiet=true)
+@Composable internal fun StudioSectionTabs(items:List<Pair<String,String>>,selected:String,tag:String,modifier:Modifier=Modifier,onSelect:(String)->Unit){
+ Row(modifier.fillMaxWidth().glass(pill).padding(2.dp).testTag(tag)){
+  items.forEach{(id,label)->
+   val icon=when(id){
+    "rank","popular"->Icons.Rounded.EmojiEvents
+    "genre"->Icons.Rounded.GridView
+    "new","latest"->Icons.Rounded.AutoAwesome
+    "duets"->Icons.Rounded.PeopleOutline
+    "drafts"->Icons.Rounded.Edit
+    else->null
+   }
+   DubTab(label,id==selected,{onSelect(id)},Modifier.weight(1f).testTag("$tag-$id"),icon)
+  }
  }
 }
 @OptIn(ExperimentalLayoutApi::class)
@@ -85,13 +94,14 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
  else Box(modifier.clip(RoundedCornerShape(10.dp)).background(Panel),contentAlignment=Alignment.Center){Icon(Icons.Rounded.TheaterComedy,null,tint=Muted)}
 }
 @Composable private fun DubPoster(work:DubWork,rank:Int?,open:()->Unit,modifier:Modifier){
- Column(modifier.clickable(onClick=open).testTag((if(rank!=null)"dub-cover-" else "dub-starter-")+work.id),verticalArrangement=Arrangement.spacedBy(4.dp)){
-  Box(Modifier.fillMaxWidth().aspectRatio(3f/4f).clip(RoundedCornerShape(10.dp)).background(Panel)){
+ val tag=(if(rank!=null)"dub-cover-" else "dub-starter-")+work.id
+ Column(modifier.clickable(onClick=open).testTag(tag),verticalArrangement=Arrangement.spacedBy(4.dp)){
+  Box(Modifier.fillMaxWidth().aspectRatio(3f/4f).clip(RoundedCornerShape(10.dp)).background(Panel).testTag("$tag-art")){
    DubArtwork(work,Modifier.fillMaxSize())
    if(rank!=null)Text(rank.toString(),Modifier.align(Alignment.TopStart).padding(5.dp).clip(RoundedCornerShape(5.dp)).background(Color(0xDA101323)).padding(horizontal=5.dp,vertical=1.dp),fontSize=12.sp,fontWeight=FontWeight.Bold,color=rankColor(rank))
   }
   Text(work.title,color=Color.White,fontSize=14.sp,lineHeight=18.sp,maxLines=2,fontWeight=FontWeight.SemiBold,overflow=TextOverflow.Ellipsis)
-  val meta=listOfNotNull(work.genres.firstOrNull(),work.project.optInt("roleCount").takeIf{it>0}?.let{"${it}인극"}).joinToString(" · ")
+  val meta=listOfNotNull(work.genres.firstOrNull(),work.formatLabel.takeIf{it.isNotBlank()}).joinToString(" · ")
   Text(meta,fontSize=11.sp,lineHeight=14.sp,maxLines=1,color=SoftText,overflow=TextOverflow.Ellipsis)
  }
 }
@@ -108,7 +118,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
       Box(Modifier.fillMaxSize().background(Brush.verticalGradient(0f to Color.Transparent,.32f to Color.Transparent,.78f to Color(0xB8080B16),1f to Color(0xF5080B16))))
       Row(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.Bottom,horizontalArrangement=Arrangement.spacedBy(8.dp)){
        Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(3.dp)){
-        Text((w.genres+listOf("${w.project.optInt("roleCount")}인극")).joinToString(" · "),fontSize=12.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
+        Text((w.genres+listOf(w.formatLabel)).joinToString(" · "),fontSize=12.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
         Text(if(w.title=="계약 연애 종료 5분 전") "계약 연애\n종료 5분 전" else w.title,color=Color.White,fontSize=21.sp,lineHeight=25.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
        }
        Text("더빙하기",Modifier.clip(pill).background(Color(0xFF8EDDD2)).padding(horizontal=11.dp,vertical=7.dp),fontWeight=FontWeight.Bold,color=Ink,fontSize=13.sp)
@@ -132,7 +142,7 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
   Column(Modifier.weight(1f),verticalArrangement=Arrangement.spacedBy(2.dp)){
    Text(work.title,fontSize=15.sp,lineHeight=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
    if(rank==null)Text("창작자  "+work.creator,fontSize=11.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
-   Text("${work.project.optInt("roleCount")}인극",fontSize=11.sp,color=SoftText)
+   Text(work.formatLabel,fontSize=11.sp,color=SoftText)
    if(work.finished)Text(work.plays?.let{"재생 ${it}회"}?:"재생 수 미집계",color=Muted,fontSize=11.sp)
    if(rank==null || work.finished || (work.count ?: 0)>0)DubBadge(work.badge,if(work.count==0)Muted else if(rank!=null)Aqua else lavender)
   }
@@ -150,49 +160,52 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
  }
 }
 
-@Composable internal fun DubbingDiscovery(m:MusicModel,menu:()->Unit){
+@Composable internal fun DubbingDiscovery(m:MusicModel){
  var page by rememberSaveable{mutableStateOf("home")}
- var done by rememberSaveable{mutableStateOf(false)}
- var weekly by rememberSaveable(done){mutableStateOf(true)}
- var periodChosen by rememberSaveable(done){mutableStateOf(false)}
+ var weekly by rememberSaveable{mutableStateOf(true)}
+ var periodChosen by rememberSaveable{mutableStateOf(false)}
  var genre by rememberSaveable{mutableStateOf("전체")}
  var query by rememberSaveable{mutableStateOf("")}
  var order by rememberSaveable{mutableStateOf("최신순")}
- var limit by rememberSaveable(page,genre,done,query,weekly){mutableIntStateOf(12)}
+ var limit by rememberSaveable(page,genre,query,weekly){mutableIntStateOf(12)}
  var sortMenu by remember{mutableStateOf(false)}
  var info by remember{mutableStateOf(false)}
  var revision by remember{mutableIntStateOf(0)}
  val account=m.user?.optString("id")
- val cache=remember(account){mutableStateMapOf<Boolean,DubCatalogue>()}
- var loading by remember(done,account){mutableStateOf(true)}
- var editionRoot by rememberSaveable(done,account){mutableStateOf<String?>(null)}
- var error by remember(done,account){mutableStateOf<String?>(null)}
+ var data by remember(account){mutableStateOf(DubCatalogue(
+  m.api.peek("/api/dubbing/projects?tab=open&discovery=1&offset=0")?.optJSONArray("projects").objects()
+   .map{DubWork(it,null,false,it.optInt("weeklyActiveCount"),null,null)}
+ ))}
+ var loading by remember(account){mutableStateOf(true)}
+ var error by remember(account){mutableStateOf<String?>(null)}
  val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
- LaunchedEffect(done,account,revision,lifecycle){
+ LaunchedEffect(account,revision,lifecycle){
   lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){
    loading=true;error=null
-   try{loadDubCatalogue(m.api,done){if(cache[done]==null||it.incomplete||it.works.isEmpty()||it.works.any{w->w.count!=null})cache[done]=it}}
-   catch(e:CancellationException){throw e}catch(e:Exception){error=e.message?:"작품을 불러오지 못했어."}
+   try{loadDubCatalogue(m.api,false){if(data.works.isEmpty()||it.incomplete||it.works.isEmpty()||it.works.any{w->w.count!=null})data=it}}
+   catch(e:CancellationException){throw e}catch(e:Exception){
+    if(e is ApiException&&e.status in listOf(401,403,404))data=DubCatalogue(emptyList())
+    error=e.message?:"작품을 불러오지 못했어."
+   }
    finally{loading=false}
   }
  }
- val data=cache[done]?:DubCatalogue(emptyList())
- LaunchedEffect(done,data,loading){
+ LaunchedEffect(data,loading){
   if(!loading&&!periodChosen&&data.works.isNotEmpty()&&!data.incomplete){
-   weekly=data.ranked(true,done).isNotEmpty()
+   weekly=data.ranked(true,false).isNotEmpty()
    periodChosen=true
   }
  }
  fun setPeriod(value:Boolean){periodChosen=true;weekly=value}
  val originals=remember(data){data.works.filter{it.project.optBoolean("isOfficialOriginal")}.sortedByDescending{it.created}}
- val ranks=remember(data,weekly,done){data.ranked(weekly,done)}
- val filtered=data.works.filter{(genre=="전체"||genre in it.genres)&&(query.trim().let{q->it.title.contains(q,true)||it.creator.contains(q,true)||it.editions.any{p->p.optString("ownerName").contains(q,true) || p.optString("title").contains(q,true)}})}
- val beginners=filtered.filter{it.beginner}.sortedWith(compareByDescending<DubWork>{it.preferredBeginner}.thenByDescending{it.created})
+ val ranks=remember(data,weekly){data.ranked(weekly,false)}
+ val filtered=remember(data,genre,query){data.works.filter{(genre=="전체"||genre in it.genres)&&(query.trim().let{q->it.title.contains(q,true)||it.creator.contains(q,true)||it.editions.any{p->p.optString("ownerName").contains(q,true) || p.optString("title").contains(q,true)}})}}
+ val beginners=remember(filtered){filtered.filter{it.beginner}.sortedWith(compareByDescending<DubWork>{it.preferredBeginner}.thenByDescending{it.created})}
  val list=if(page=="starter")beginners else when(order){"제목순"->filtered.sortedBy{it.title};"인기순"->{
-  val positions=data.ranked(false,done).mapIndexed{i,w->w.id to i}.toMap()
+  val positions=data.ranked(false,false).mapIndexed{i,w->w.id to i}.toMap()
   filtered.sortedBy{positions[it.id]?:Int.MAX_VALUE}
  };else->filtered.sortedByDescending{it.created}}
- val visibleRanks=ranks.filter{w->filtered.any{it.id==w.id}}
+ val visibleRanks=remember(ranks,filtered){val ids=filtered.mapTo(hashSetOf()){it.id};ranks.filter{it.id in ids}}
  val context=androidx.compose.ui.platform.LocalContext.current
  var previewId by remember{mutableStateOf<String?>(null)}
  var player by remember{mutableStateOf<NativeDubbingAudio?>(null)}
@@ -200,44 +213,37 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
  val scope=rememberCoroutineScope()
  var previewJob by remember{mutableStateOf<kotlinx.coroutines.Job?>(null)}
  fun stop(){previewJob?.cancel();previewJob=null;player?.close();player=null;previewId=null}
- DisposableEffect(lifecycle,page,done){
+ DisposableEffect(lifecycle,page){
   val observer=androidx.lifecycle.LifecycleEventObserver{_,event->if(event==androidx.lifecycle.Lifecycle.Event.ON_STOP)stop()}
   lifecycle.addObserver(observer)
   onDispose{lifecycle.removeObserver(observer);stop()}
  }
  val playing=player?.previewing?.collectAsState()?.value==true
- fun open(w:DubWork){stop();if(w.finished)editionRoot=w.rootId else m.openCurrentWorkspace("dubbing/"+w.id,w.title)}
+ fun open(w:DubWork){stop();m.openCurrentWorkspace("dubbing/"+w.id,w.title)}
  fun preview(w:DubWork){
-  if(w.finished && m.current?.dubbing==true && m.current?.id==w.id){m.toggle();return}
   val wasPlaying=previewId==w.id && (playing||previewJob?.isActive==true)
   stop();if(wasPlaying)return
   previewId=w.id
   previewJob=scope.launch{
    try{
     val detail=m.api.call("/api/dubbing/projects/"+w.id).getJSONObject("project")
-    val source=if(w.finished)detail.optJSONObject("recording")?.optJSONObject("final") else detail.optJSONObject("sound")
-    if(source?.optString("state")!="ready"){previewError=if(w.finished)"아직 완성 음원이 준비되지 않았어." else "아직 미리 들을 배경 음원이 없어.";return@launch}
-    val url=source.optString("audioUrl").ifBlank{if(w.finished)"" else "/api/dubbing/projects/"+w.id+"/background"}
-    if(url.isBlank()){previewError="재생할 음원이 없어.";return@launch}
-    if(w.finished){
-     val controller=m.controller?:error("플레이어를 준비하고 있어요.")
-     controller.playDubbingEdition(detail)
-    }else{
-     m.controller?.pause()
-     player=NativeDubbingAudio(context,m.api).also{it.listen(url)}
-    }
+    val sound=detail.optJSONObject("sound")
+    if(sound?.optString("state")!="ready"){previewError="아직 미리 들을 배경 음원이 없어.";return@launch}
+    val url=sound.optString("audioUrl").ifBlank{"/api/dubbing/projects/"+w.id+"/background"}
+    m.controller?.pause()
+    player=NativeDubbingAudio(context,m.api).also{it.listen(url)}
    }catch(e:CancellationException){throw e}catch(e:Exception){previewError=e.message?:"음원을 열 수 없어."}
   }
  }
  fun navigate(target:String){page=target;query="";genre="전체";order="최신순"}
  fun home(){navigate("home")}
- BackHandler(page!="home"&&editionRoot==null){home()}
+ BackHandler(page!="home"){home()}
  Column(Modifier.fillMaxSize().testTag("current-play")){
   if(page=="home"){
-   CurrentTabs(listOf("song" to "노래","dubbing" to "더빙","browse" to "둘러보기"),"dubbing","play-main",actions={IconButton(menu){Icon(Icons.Rounded.Menu,"전체 메뉴")}}){if(it!="dubbing"){m.playMode=it;m.playSection="recommended"}}
+   CurrentTabs(listOf("song" to "노래","dubbing" to "더빙","browse" to "둘러보기"),"dubbing","play-main"){if(it!="dubbing"){m.playMode=it;m.playSection="recommended"}}
   }else Row(Modifier.fillMaxWidth().heightIn(min=48.dp).padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically){
    IconButton(::home){Icon(Icons.AutoMirrored.Rounded.ArrowBack,"더빙 홈으로")}
-   Text(when(page){"rank"->"랭킹";"genre"->"장르별 작품 찾기";"mine"->"내 작업";"starter"->"처음이라면 여기부터";else->if(done)"신규 완성작" else "신규 참여 작품"},Modifier.weight(1f),fontWeight=FontWeight.Bold,fontSize=18.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+   Text(when(page){"rank"->"인기";"genre"->"장르별 작품 찾기";"mine"->"내 작업";"starter"->"처음이라면 여기부터";else->"신규 참여 작품"},Modifier.weight(1f),fontWeight=FontWeight.Bold,fontSize=18.sp,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
    Spacer(Modifier.width(48.dp))
   }
   if(page=="mine"){
@@ -245,29 +251,33 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
    else DubMine(m)
    return@Column
   }
-  val scroller=key(page,done){rememberLazyListState()}
+  val scroller=key(page){rememberLazyListState()}
   LazyColumn(Modifier.fillMaxSize().testTag("dub-list"),state=scroller,contentPadding=PaddingValues(12.dp,8.dp,12.dp,24.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){
    if(page=="genre"){
     item{CurrentSearch(query,{query=it},"작품 제목 또는 창작자 검색","dub-search")}
     item{GenreStrip(genre,{genre=it})}
    }
-   item{DubModes(done){done=it}}
-   if(page=="home"&&!done)item{
-    Row(Modifier.fillMaxWidth().glass(pill).padding(2.dp)){
-     listOf("home" to "추천","rank" to "랭킹","genre" to "장르","new" to "신규").forEach{(p,label)->DubTab(label,p==page,{navigate(p)},Modifier.weight(1f).testTag("dub-nav-$p"),when(p){"rank"->Icons.Rounded.EmojiEvents;"genre"->Icons.Rounded.GridView;"new"->Icons.Rounded.AutoAwesome;else->null})}
+   if(page=="home")item{
+    StudioSectionTabs(listOf("home" to "추천","rank" to "인기","genre" to "장르","new" to "신규"),page,"dub-nav",onSelect=::navigate)
+   }
+   if(page=="home")item{
+    BrandButton({m.openCurrentWorkspace("dubbing/new","더빙 대본 만들기")},modifier=Modifier.fillMaxWidth().heightIn(min=52.dp).testTag("dubbing-create")){
+     Icon(Icons.Rounded.Edit,null,Modifier.size(20.dp));Spacer(Modifier.width(8.dp))
+     Text("더빙 만들기",Modifier.weight(1f),fontSize=17.sp,fontWeight=FontWeight.Bold)
+     Icon(Icons.Rounded.ChevronRight,null)
     }
    }
-   if(page=="home"&&!done&&originals.isNotEmpty())item{DubOriginals(originals,::open)}
+   if(page=="home"&&originals.isNotEmpty())item{DubOriginals(originals,::open)}
    if(page=="rank"){
     item{GenreStrip(genre,{genre=it})}
     item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){CurrentSearch(query,{query=it},"제목 또는 창작자","dub-search",Modifier.weight(1f));DubPeriod(weekly,::setPeriod)}}
    }
-   if(loading&&data.works.isEmpty())item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=lavender)}
+   if(loading&&data.works.isEmpty())item{LoadingRows()}
    if(error!=null||data.incomplete&&!loading)item{Row(verticalAlignment=Alignment.CenterVertically){Text(error?:"일부 작품의 더빙 집계를 불러오지 못했어.",Modifier.weight(1f),fontSize=12.sp,color=Muted);TextButton({revision++}){Text("다시 시도")}}}
    if(page=="home"||page=="rank"){
-    val title=if(done)"완성작 인기 랭킹" else if(page=="rank")"참여 가능 작품 인기 랭킹" else "작품 인기 랭킹"
-    item{DubHeading(title,Icons.Rounded.EmojiEvents,caption=if(done&&!weekly)"좋아요순" else null){
-     if(page=="home"){IconButton({navigate("rank")},Modifier.size(36.dp).testTag("dub-open-ranking")){Icon(Icons.Rounded.ChevronRight,"랭킹 전체보기")};DubPeriod(weekly,::setPeriod)}
+    val title="인기 작품"
+    item{DubHeading(title,Icons.Rounded.EmojiEvents){
+     if(page=="home"){IconButton({navigate("rank")},Modifier.size(36.dp).testTag("dub-open-ranking")){Icon(Icons.Rounded.ChevronRight,"인기 작품 전체보기")};DubPeriod(weekly,::setPeriod)}
      else IconButton({info=true}){Icon(Icons.Rounded.Info,"집계 기준")}
     }}
     if(page=="home"){
@@ -278,55 +288,36 @@ private fun rankColor(n:Int)=when(n){1->Color(0xFFFFCF65);2->Color(0xFFDFE4F6);3
     }
     if((if(page=="home")ranks else visibleRanks).isEmpty()&&!loading&&error==null)item{
      Column(Modifier.fillMaxWidth().glass().padding(12.dp),horizontalAlignment=Alignment.CenterHorizontally){
-      Text(if(weekly)"이번 주 집계된 작품이 없어." else "조건에 맞는 랭킹 작품이 없어.",color=Muted,fontSize=13.sp)
+      Text(if(weekly)"이번 주 집계된 작품이 없어." else "조건에 맞는 인기 작품이 없어.",color=Muted,fontSize=13.sp)
       if(weekly)TextButton({setPeriod(false)}){Text("전체 기간 보기")}
      }
-    }
-   }
-   if(page=="home"&&!done)item{
-    Row(Modifier.fillMaxWidth().glass().clickable{m.openCurrentWorkspace("dubbing/new","더빙 대본 만들기")}.heightIn(min=51.dp).testTag("dubbing-create").padding(horizontal=14.dp),verticalAlignment=Alignment.CenterVertically){
-     Icon(Icons.Rounded.Edit,null,tint=lavender);Text("  + 더빙 대본 만들기",Modifier.weight(1f),color=SoftText,fontSize=17.sp,fontWeight=FontWeight.Bold);Icon(Icons.Rounded.ChevronRight,null,tint=lavender)
     }
    }
    if(page=="home"){
     item{DubHeading("장르별 작품 찾기",Icons.Rounded.Search){TextButton({navigate("genre")}){Text("전체보기 ›",color=Muted)}}}
     item{GenreStrip(genre,{genre=it})}
-    if(done)item{CurrentSearch(query,{query=it},"작품 제목 또는 창작자 검색","dub-search")}
    }
-   if(page=="home"&&!done){
+   if(page=="home"){
     item{DubHeading("처음이라면 여기부터",Icons.Rounded.AutoAwesome){if(beginners.isNotEmpty())TextButton({page="starter"}){Text("전체보기 ›",color=Muted)}}}
     if(beginners.isNotEmpty())item{DubPosterRow(beginners.take(3),null,::open)}
     else if(!loading&&error==null)item{Text("아직 등록된 초보자 추천 작품이 없어요.",color=Muted,fontSize=13.sp)}
    }
    if(page!="rank"){
-    item{DubHeading(when(page){"genre","starter"->"작품 ${list.size}개";else->if(done)"완성작 리스트" else "신규 참여 작품"},Icons.Rounded.Layers){
-     if(page=="home"&&!done)TextButton({navigate("new")}){Text("전체보기 ›",color=Muted)}
+    item{DubHeading(when(page){"genre","starter"->"작품 ${list.size}개";else->"신규 참여 작품"},Icons.Rounded.Layers){
+     if(page=="home")TextButton({navigate("new")}){Text("전체보기 ›",color=Muted)}
      else Box{
       TextButton({sortMenu=true}){Text("$order ⌄",color=SoftText)}
       DropdownMenu(sortMenu,{sortMenu=false},containerColor=Panel){listOf("최신순","인기순","제목순").forEach{label->DropdownMenuItem(text={Text(label)},onClick={order=label;sortMenu=false})}}
      }
     }}
-    items(list.take(if(page=="home"&&!done)3 else limit),key={"list-"+it.id}){w->DubRow(w,null,{open(w)},{preview(w)},(playing&&previewId==w.id)||(m.current?.dubbing==true&&m.current?.id==w.id&&m.playing))}
-    if(list.isEmpty()&&!loading&&error==null)item{CurrentEmpty(if(query.isNotBlank()||genre!="전체")"검색 결과가 없어." else if(done)"아직 공개된 완성작이 없어." else "아직 공개된 대본이 없어.")}
-    if((page!="home"||done)&&list.size>limit)item{MoreDub{limit+=12}}
+    items(list.take(if(page=="home")3 else limit),key={"list-"+it.id}){w->DubRow(w,null,{open(w)},{preview(w)},(playing&&previewId==w.id)||(m.current?.dubbing==true&&m.current?.id==w.id&&m.playing))}
+    if(list.isEmpty()&&!loading&&error==null)item{CurrentEmpty(if(query.isNotBlank()||genre!="전체")"검색 결과가 없어." else "아직 공개된 대본이 없어.")}
+    if((page!="home")&&list.size>limit)item{MoreDub{limit+=12}}
    }
    if(page=="home")item{TextButton({navigate("mine")},Modifier.fillMaxWidth().testTag("dub-mine")){Text("내 더빙 작업",color=Muted)}}
   }
  }
- data.works.firstOrNull{editionRoot!=null && it.rootId==editionRoot}?.let{w->
-  AlertDialog(onDismissRequest={editionRoot=null},title={Text(w.title)},text={
-   LazyColumn(verticalArrangement=Arrangement.spacedBy(6.dp)){
-    item{Text("완성 더빙 ${w.editions.size}개",color=lavender)}
-    items(w.editions,key={it.getString("id")}){p->
-     TextButton({editionRoot=null;m.openCurrentWorkspace("dubbing/"+p.getString("id"),w.title)},Modifier.fillMaxWidth()){
-      Column(Modifier.weight(1f)){Text(p.optString("ownerName"),fontWeight=FontWeight.SemiBold);Text((p.opt("plays") as? Number)?.let{"재생 ${it.toLong()}회"}?:"재생 수 미집계",fontSize=11.sp,color=Muted)}
-      Icon(Icons.Rounded.ChevronRight,"완성본 보기")
-     }
-    }
-   }
-  },confirmButton={TextButton({editionRoot=null}){Text("닫기")}})
- }
- if(info||previewError!=null)AlertDialog(onDismissRequest={info=false;previewError=null},title={Text(if(info)"랭킹 집계 기준" else "미리 듣기")},text={Text(previewError?:if(done){if(weekly)"커뮤니티 더빙 주간 순위를 기준으로 표시해." else "완성된 더빙의 좋아요 순으로 표시해."}else if(weekly)"이번 주 월요일부터 시작된 참여 가능 더빙 수를 기준으로 정렬해." else "작품별로 현재 진행 중인 공개 더빙 수를 기준으로 정렬해.")},confirmButton={TextButton({info=false;previewError=null}){Text("확인")}})
+ if(info||previewError!=null)AlertDialog(onDismissRequest={info=false;previewError=null},title={Text(if(info)"인기 집계 기준" else "미리 듣기")},text={Text(previewError?:if(weekly)"이번 주 월요일부터 시작된 참여 가능 더빙 수를 기준으로 정렬해." else "작품별로 현재 진행 중인 공개 더빙 수를 기준으로 정렬해.")},confirmButton={TextButton({info=false;previewError=null}){Text("확인")}})
 }
 
 @Composable private fun MoreDub(click:()->Unit){OutlinedButton(click,Modifier.fillMaxWidth(),shape=pill){Text("더 많은 작품 보기")}}

@@ -28,27 +28,20 @@ import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.net.URLEncoder
 
-@Composable internal fun MessageInbox(m:MusicModel,conversations:List<JSONObject>,synced:Boolean,modifier:Modifier=Modifier,readAll:()->Unit,clear:()->Unit,refreshInbox:suspend ()->Unit,openProfile:(JSONObject)->Unit){
+@Composable internal fun MessageInbox(m:MusicModel,conversations:List<JSONObject>,synced:Boolean,modifier:Modifier=Modifier,readAll:()->Unit,onConversationDeleted:(String)->Unit,refreshInbox:suspend ()->Unit,openProfile:(JSONObject)->Unit){
  var filter by rememberSaveable{mutableStateOf("전체")}
- var search by rememberSaveable{mutableStateOf("")}
- var searching by rememberSaveable{mutableStateOf(false)}
  var compose by remember{mutableStateOf(false)}
- var management by remember{mutableStateOf(false)}
+ var deleteTarget by remember(m.user?.optString("id")){mutableStateOf<JSONObject?>(null)}
  var welcome by rememberSaveable(m.user?.optString("id")){mutableStateOf(false)}
  val notices=filter=="공지"
  val alerts=filter=="알림"
- fun matches(p:JSONObject)=search.isBlank()||p.optString("name").contains(search,true)||p.optString("last_message").contains(search,true)
- val matching=conversations.filter{p->(!notices||p.isInboxNotice())&&matches(p)}
- val crew=m.inboxCrew?.takeIf{filter=="전체"&&matches(it)}
+ val announcements=conversations.filter{it.isInboxNotice()}.sortedByDescending{it.optLong("updated")}
+ val crew=m.inboxCrew
  Column(modifier.testTag("message-inbox")){
-  Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),horizontalArrangement=Arrangement.End){
-   IconButton(onClick={compose=true},modifier=Modifier.testTag("inbox-compose")){Icon(Icons.Rounded.PersonAddAlt,"새 대화",tint=SoftText)}
-   IconButton(onClick={management=true},modifier=Modifier.testTag("inbox-management")){Icon(Icons.Rounded.Menu,"메시지 관리",tint=SoftText)}
-  }
   Row(Modifier.fillMaxWidth().padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){
    listOf("전체","공지","알림").forEach{label->
     val selected=filter==label
-    val count=when(label){"공지"->conversations.filter{it.isInboxNotice()}.sumOf{it.optInt("unread")};"알림"->m.unreadActivities;else->0}
+    val count=when(label){"공지"->announcements.sumOf{it.optInt("unread")};"알림"->m.unreadActivities;else->0}
     Box(Modifier.weight(1f).heightIn(min=48.dp).selectable(selected,role=Role.Tab,onClick={filter=label}).testTag("inbox-filter-"+label),contentAlignment=Alignment.Center){
      val fill=if(selected)Modifier.background(Brush.horizontalGradient(listOf(Color(0xFF9164AB),Color(0xFF555176),Color(0xFF468D90))),CircleShape) else Modifier
      Box(Modifier.fillMaxWidth().heightIn(min=38.dp).then(fill).border(1.dp,if(selected)Aqua.copy(alpha=.65f) else Stroke,CircleShape).padding(horizontal=3.dp,vertical=5.dp),contentAlignment=Alignment.Center){
@@ -57,41 +50,39 @@ import java.net.URLEncoder
      if(count>0)Box(Modifier.align(Alignment.TopEnd).padding(end=2.dp)){UnreadCount(count,small=true)}
     }
    }
-   IconButton(onClick={searching=!searching;if(!searching)search=""},modifier=Modifier.size(48.dp).testTag("inbox-search-toggle")){
-    Box(Modifier.size(39.dp).border(1.dp,Stroke,CircleShape),contentAlignment=Alignment.Center){Icon(if(searching)Icons.Rounded.Close else Icons.Rounded.Search,"대화 검색",tint=SoftText)}
+   IconButton(onClick={compose=true},modifier=Modifier.size(48.dp).testTag("inbox-compose")){
+    Icon(Icons.Rounded.PersonAddAlt,"새 대화",tint=SoftText)
    }
   }
-  if(searching)OutlinedTextField(search,{search=it},placeholder={Text(when(filter){"공지"->"공지 검색";"알림"->"알림 검색";else->"이름이나 메시지 검색"},fontSize=13.sp)},singleLine=true,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth().padding(horizontal=14.dp).testTag("inbox-search"))
-  val announcements=matching.filter{it.isInboxNotice()}.sortedByDescending{it.optLong("updated")}
   fun openAnnouncement(p:JSONObject){if(p.isWelcomeGuide())welcome=true else filter="공지"}
   if(!notices&&!alerts)announcements.firstOrNull()?.let{p->
    Box(Modifier.fillMaxWidth().padding(start=12.dp,end=12.dp,top=12.dp)){
     NoticeBanner(InboxNotice(p,null),"dm-conversation-"+p.optString("id")){openAnnouncement(p)}
    }
   }
-  val rows:LazyListScope.()->Unit={
+  if(alerts)ActivityFeed(m,embedded=true)
+  else if(notices)NoticeArchive(m,announcements,synced,{welcome=true},refreshInbox)
+  else LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag("inbox-list"),contentPadding=PaddingValues(12.dp,12.dp,12.dp,20.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
    items(announcements.drop(1),key={"dm-"+it.optString("id")}){p->
     NoticeBanner(InboxNotice(p,null),"dm-conversation-"+p.optString("id")){openAnnouncement(p)}
    }
    if(crew!=null)item(key="pinned-crew"){
     InboxCard(crew,true,{m.openCrewMessages(crew.getString("id"))},openProfile)
    }
-   items(matching.filterNot{it.isInboxNotice()},key={"dm-"+it.optString("id")}){p->InboxCard(p,false,{m.messagePeer=p.getString("id")},openProfile)}
-  }
-  if(alerts)ActivityFeed(m,embedded=true,query=search)
-  else if(notices)NoticeArchive(m,conversations.filter{it.isInboxNotice()},synced,search,{welcome=true},refreshInbox)
-  else LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag("inbox-list"),contentPadding=PaddingValues(12.dp,12.dp,12.dp,20.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-   rows()
-   if(matching.isEmpty()&&crew==null)item{
-    val title=when{!synced->"대화를 불러오고 있어요";search.isNotBlank()->"검색 결과가 없어요";notices->"등록된 공지가 없어요";else->"첫 대화를 시작해보세요"}
-    Empty(title,when{search.isNotBlank()->"다른 이름이나 메시지로 검색해보세요.";notices->"아이팩트의 새 공지가 여기에 표시돼요.";else->"오른쪽 위 새 대화에서 음악 친구를 찾아보세요."},Icons.Rounded.ChatBubbleOutline)
+   items(conversations.filterNot{it.isInboxNotice()},key={"dm-"+it.optString("id")}){p->
+    InboxCard(p,false,{m.messagePeer=p.getString("id")},openProfile,onLongClick={deleteTarget=p})
+   }
+   if(conversations.isEmpty()&&crew==null)item{
+    Empty(if(synced)"첫 대화를 시작해보세요" else "대화를 불러오고 있어요","오른쪽 위 새 대화에서 음악 친구를 찾아보세요.",Icons.Rounded.ChatBubbleOutline)
+   }
+   if(m.unreadMessages>0)item(key="read-all"){
+    TextButton(onClick=readAll,modifier=Modifier.fillMaxWidth().testTag("inbox-read-all")){Text("모두 읽음")}
    }
   }
  }
- AppMenuPage("메시지 관리",management,{management=false}){
-  PageMenuItem(text={Text("모두 읽음")},onClick={management=false;readAll()})
-  PageMenuItem(text={Text("알림 기록")},onClick={management=false;m.showNotifications=true})
-  Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("내 DM 전체 삭제",modifier=Modifier.weight(1f).padding(start=12.dp));DmActions(m,null,false,{},clear)}
+ deleteTarget?.let{person->
+  val peer=person.getString("id")
+  DeleteConversationDialog(m,peer,person.optString("name"),dismiss={deleteTarget=null},deleted={onConversationDeleted(peer)})
  }
  if(welcome)WelcomeNotice(m,{welcome=false},refreshInbox)
  if(compose)NewConversationPage(m,{compose=false}){id->compose=false;m.messagePeer=id}
@@ -102,13 +93,16 @@ import java.net.URLEncoder
  Row(modifier.fillMaxWidth().padding(vertical=5.dp).clip(RoundedCornerShape(18.dp)).background(Panel.copy(alpha=.80f)).border(1.dp,Stroke,RoundedCornerShape(18.dp)).padding(horizontal=14.dp,vertical=17.dp),verticalAlignment=Alignment.CenterVertically,content=content)
 }
 
-@Composable private fun InboxCard(p:JSONObject,crew:Boolean,open:()->Unit,openProfile:(JSONObject)->Unit){
+@OptIn(ExperimentalFoundationApi::class)
+@Composable private fun InboxCard(p:JSONObject,crew:Boolean,open:()->Unit,openProfile:(JSONObject)->Unit,onLongClick:(()->Unit)?=null){
  val unread=p.optInt("unread")
  val accent=if(crew)StreamPurple else Aqua
  val shape=RoundedCornerShape(18.dp)
  val id=p.optString("id")
  val name=p.optString("name")
- Surface(onClick=open,shape=shape,color=Panel.copy(alpha=.84f),modifier=Modifier.fillMaxWidth().border(1.dp,Stroke,shape).testTag(if(crew)"inbox-crew" else "dm-conversation-"+id)){
+ Surface(shape=shape,color=Panel.copy(alpha=.84f),modifier=Modifier.fillMaxWidth().clip(shape).border(1.dp,Stroke,shape)
+  .combinedClickable(role=Role.Button,onLongClickLabel=if(onLongClick==null)null else "대화 기록 삭제",onLongClick=onLongClick,onClick=open)
+  .testTag(if(crew)"inbox-crew" else "dm-conversation-"+id)){
   Box(contentAlignment=Alignment.CenterStart){
    if(crew||unread>0)Box(Modifier.padding(start=2.dp).size(3.dp,34.dp).background(accent,CircleShape))
    Row(Modifier.fillMaxWidth().heightIn(min=68.dp).padding(start=19.dp,end=13.dp,top=9.dp,bottom=9.dp),verticalAlignment=Alignment.CenterVertically){
@@ -119,7 +113,7 @@ import java.net.URLEncoder
      }
      if(unread>0)Spacer(Modifier.align(Alignment.TopEnd).size(9.dp).background(StreamPurple,CircleShape))
     }else if(p.isWelcomeGuide())Box(Modifier.size(48.dp).background(StreamPurple.copy(alpha=.18f),CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Rounded.Campaign,null,tint=Aqua)}
-    else Box(Modifier.size(48.dp).testTag("dm-list-profile-"+id).clickable(onClickLabel="상대 페이지 보기"){openProfile(p)}){Avatar(name,p,48)}
+    else Box(Modifier.size(48.dp).testTag("dm-list-profile-"+id).combinedClickable(onClickLabel="상대 페이지 보기",onLongClickLabel="대화 기록 삭제",onLongClick=onLongClick,onClick={openProfile(p)})){Avatar(name,p,48)}
     Column(Modifier.weight(1f).padding(horizontal=12.dp)){
      Row(verticalAlignment=Alignment.CenterVertically){
       Text(name,fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false))
@@ -151,7 +145,7 @@ private data class InboxNotice(val channel:JSONObject,val message:JSONObject?){
  val preview=if(message==null||message.optString("title").isNotBlank())body else body.trim().substringAfter('\n',"").trim().ifBlank{channel.optString("name")}
 }
 
-@Composable private fun NoticeArchive(m:MusicModel,channels:List<JSONObject>,synced:Boolean,search:String,openWelcome:()->Unit,onRead:suspend ()->Unit){
+@Composable private fun NoticeArchive(m:MusicModel,channels:List<JSONObject>,synced:Boolean,openWelcome:()->Unit,onRead:suspend ()->Unit){
  val account=m.user?.optString("id")
  var selected by rememberSaveable(account){mutableStateOf<String?>(null)}
  var depth by rememberSaveable(account){mutableIntStateOf(1)}
@@ -185,15 +179,14 @@ private data class InboxNotice(val channel:JSONObject,val message:JSONObject?){
   }
  }}
  val ordered=notices.distinctBy{it.id}.sortedWith(compareByDescending<InboxNotice>{it.date}.thenByDescending{it.message?.optLong("sequence")?:0L})
- val visible=ordered.filter{search.isBlank()||it.title.contains(search,true)||it.body.contains(search,true)||it.channel.optString("name").contains(search,true)}
  LazyColumn(Modifier.fillMaxSize().testTag("notice-archive"),contentPadding=PaddingValues(12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
-  items(visible,key={it.id}){entry->
+  items(ordered,key={it.id}){entry->
    val tag=if(entry.message==null)"dm-conversation-"+entry.channelId else "notice-item-"+entry.id
    NoticeBanner(entry,tag){if(entry.message==null)openWelcome() else selected=entry.id}
   }
   reads.filter{it.error!=null}.forEach{failed->item{ReadStatus(failed)}}
   if(!synced||reads.any{it.loading})item{LinearProgressIndicator(Modifier.fillMaxWidth())}
-  else if(visible.isEmpty()&&reads.none{it.error!=null})item{Text(if(search.isBlank())"등록된 공지가 없어요" else "검색 결과가 없어요",color=Muted,modifier=Modifier.padding(12.dp))}
+  else if(ordered.isEmpty()&&reads.none{it.error!=null})item{Text("등록된 공지가 없어요",color=Muted,modifier=Modifier.padding(12.dp))}
   if(hasOlder)item{TextButton({depth++},modifier=Modifier.fillMaxWidth()){Text("이전 공지 더 보기")}}
  }
  ordered.firstOrNull{it.id==selected}?.let{entry->

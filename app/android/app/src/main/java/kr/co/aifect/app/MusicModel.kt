@@ -37,7 +37,19 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   }
   workspace=CurrentWorkspace(route,title)
  }
- internal fun openCurrentSong(id:String){if(!CurrentNavigation.safeID(id))return;viewModelScope.launch{while(refreshing)delay(40);val scope=readScope();try{val data=api.call("/api/tracks/$id",fresh=true);ensureRead(scope);openSong(Song(data.getJSONObject("track")))}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope))failure(e)}}}
+ internal fun openCurrentSong(id:String){
+  if(!CurrentNavigation.safeID(id))return
+  viewModelScope.launch{
+   // Initial account resolution precedes the home lists. Optional home prefetch
+   // can continue while a shared song is opened.
+   while(loading)delay(40)
+   val known=(home+latest+recentCovers+singable+duetInvitations+feed).firstOrNull{it.id==id}
+   if(known!=null){openSong(known);return@launch}
+   val scope=readScope()
+   try{val data=api.call("/api/tracks/$id",fresh=true);ensureRead(scope);openSong(Song(data.getJSONObject("track")),refreshTrack=false)}
+   catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope))failure(e)}
+  }
+ }
  var showBilling by mutableStateOf(false)
  var showDiamonds by mutableStateOf(false)
  var billingInitialTab by mutableStateOf("premium")
@@ -61,7 +73,6 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   ownGalleryJob=viewModelScope.launch{try{
    val data=api.call(path,fresh=true);ensureRead(scope)
    ownGallery=data.optJSONArray("photos").objects();ownGalleryRevision=api.readRevision;ownGalleryAt=android.os.SystemClock.elapsedRealtime()
-   ownGallery.orEmpty().take(4).forEach{photo->profileMediaUrl(photo.optString("url"))?.let{profileImages.enqueue(photoRequest(it))}}
   }catch(e:Exception){if(e is CancellationException)throw e;if(user?.optString("id")==account&&e is ApiException&&e.status in listOf(401,403,404))ownGallery=null}}
  }
  var directoryKind by mutableStateOf("artists")
@@ -125,6 +136,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  internal var lastKnownCrewId by mutableStateOf<String?>(null)
  private data class CrewPublicSnapshot(val scope:ReadScope,val at:Long,val source:String)
  private val crewPublicSnapshots=linkedMapOf<String,CrewPublicSnapshot>()
+ private var crewHomeFlight:Pair<ReadScope,Deferred<JSONObject>>?=null
  private val crewDirectoryFlights=mutableMapOf<String,Pair<ReadScope,Deferred<JSONObject>>>()
  private var feedReadScope:ReadScope?=null
  private var feedRequest=0L
@@ -136,6 +148,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var searchResults by mutableStateOf<List<Song>>(emptyList())
  var searchPeople by mutableStateOf<List<JSONObject>>(emptyList())
  var searching by mutableStateOf(false)
+ var nextSearchOffset by mutableStateOf<Int?>(null); private set
  var searched by mutableStateOf(false)
  private var activeUser by mutableStateOf<JSONObject?>(null)
  var user:JSONObject?
@@ -213,7 +226,6 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     check(data.optJSONObject("profile")?.optString("user_id")==scope.account){"내 프로필을 다시 확인해주세요."}
     ownDashboard=data;ownDashboardRevision=api.readRevision;ownDashboardAt=android.os.SystemClock.elapsedRealtime()
     if(ownGallery==null&&data.has("gallery"))ownGallery=data.optJSONArray("gallery").objects()
-    ownGallery.orEmpty().take(4).forEach{photo->profileMediaUrl(photo.optString("url"))?.let{profileImages.enqueue(photoRequest(it))}}
    }catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){ownDashboardError=e.message;if(e is ApiException&&e.status in listOf(401,403,404))ownDashboard=null}}
    finally{if(sameAccount(scope))ownDashboardLoading=false}
   }
@@ -257,7 +269,13 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   refreshLibrary(fresh=true);refreshMyDashboard(fresh=true);if(tab==7)loadStudio()
  }
  var busy by mutableStateOf(false)
- var detail by mutableStateOf<Song?>(null)
+ private var detailState by mutableStateOf<Song?>(null)
+ var detail:Song?
+  get()=detailState
+  set(value){
+   if(value==null){detailJob?.cancel();detailBusy=false}
+   detailState=value
+  }
  var showGifts by mutableStateOf(false)
  var giftTarget by mutableStateOf<Song?>(null)
  var giftPerson by mutableStateOf<JSONObject?>(null)
@@ -265,7 +283,13 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun openGifts(song:Song?=null){if(!authenticated())return;giftPerson=null;giftTarget=song;showGifts=true}
  var detailBusy by mutableStateOf(false)
  var comments by mutableStateOf<List<JSONObject>>(emptyList())
- var selectedList by mutableStateOf<JSONObject?>(null)
+ private var selectedListState by mutableStateOf<JSONObject?>(null)
+ var selectedList:JSONObject?
+  get()=selectedListState
+  set(value){
+   if(value==null){listJob?.cancel();listLoading=false}
+   selectedListState=value
+  }
  var listSongs by mutableStateOf<List<Song>>(emptyList())
  var listLoading by mutableStateOf(false)
  var profile by mutableStateOf<JSONObject?>(null)
@@ -364,7 +388,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null
   invalidateCrewPreviews()
-  search="";searchResults=emptyList();searchPeople=emptyList();searchLists=emptyList();searching=false;searched=false;displayedSearchPath=null
+  nextSearchOffset=null;search="";searchResults=emptyList();searchPeople=emptyList();searchLists=emptyList();searching=false;searched=false;displayedSearchPath=null
   rankOpen=false;rankTracks=emptyList();rankSingers=emptyList();rankHighlights=emptyMap();rankBusy=false;highlightsBusy=false;displayedRankPath=null
   collectionRequest++;rankingRequest++;listRequest++;profileRequest++
   resetLyrics();if(stopPlayback)closePlayer()
@@ -436,8 +460,8 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     try{loadMe(loadPrivate=false,loadGallery=false)}catch(e:Exception){if(e is CancellationException)throw e;failure(e);error="계정 상태를 불러오지 못했어요."}
     if(restoredHomeScope!=null&&restoredHomeScope!=api.catalogScope)clearRestoredHome()
     val scope=readScope();hydratePublic()
-    suspend fun update(path:String,apply:(JSONObject)->Unit){
-     try{val data=api.call(path,fresh=true);ensureRead(scope);apply(data)}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){if(e is ApiException&&e.status in listOf(401,403,404)&&CatalogSnapshot.accepts(path))clearRestoredHome();if(e is ApiException&&e.status==401)failure(e);error=e.message}}
+    suspend fun update(path:String,prefetch:Boolean=false,apply:(JSONObject)->Unit){
+     try{val data=api.call(path,fresh=true,prefetch=prefetch);ensureRead(scope);apply(data)}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)){if(e is ApiException&&e.status in listOf(401,403,404)&&CatalogSnapshot.accepts(path))clearRestoredHome();if(e is ApiException&&e.status==401)failure(e);error=e.message}}
     }
     supervisorScope {
      listOf(
@@ -448,16 +472,16 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     // Give the first screen the connection slots before library, profile, and
     // discovery prefetch. Slow optional lists must not keep Home loading.
     ensureRead(scope);loading=false
-    if(user!=null){refreshLibrary(fresh=true);refreshMyGallery()}
+    if(user!=null)refreshLibrary(fresh=true,prefetch=true)
     supervisorScope {
      listOf(
-      async{update("/api/community?kind=cover"){recentCovers=it.tracks()}},
-      async{update("/api/duets"){duetInvitations=it.tracks();duetError=null}},
-      async{update("/api/karaoke"){singable=it.tracks()}},
-      async{val path=communityPath(feedFilter);update(path){if(communityPath(feedFilter)==path){feed=it.tracks();displayedFeedPath=path}}},
-      async{update("/api/playlists?sort=popular"){publicLists=it.optJSONArray("playlists").objects()}},
-      async{update("/api/catalog?section=producers&limit=20"){people=it.optJSONArray("producers").objects()}},
-      async{update("/api/catalog?section=artists"){aiArtists=it.optJSONArray("artists").objects()}}
+      async{update("/api/community?kind=cover",prefetch=true){recentCovers=it.tracks()}},
+      async{update("/api/duets",prefetch=true){duetInvitations=it.tracks();duetError=null}},
+      async{update("/api/karaoke",prefetch=true){singable=it.tracks()}},
+      async{val path=communityPath(feedFilter);update(path,prefetch=true){if(communityPath(feedFilter)==path){feed=it.tracks();displayedFeedPath=path}}},
+      async{update("/api/playlists?sort=popular",prefetch=true){publicLists=it.optJSONArray("playlists").objects()}},
+      async{update("/api/catalog?section=producers&limit=20",prefetch=true){people=it.optJSONArray("producers").objects()}},
+      async{update("/api/catalog?section=artists",prefetch=true){aiArtists=it.optJSONArray("artists").objects()}}
      ).awaitAll()
     }
    }finally{loading=false;refreshing=false}
@@ -500,19 +524,19 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   googleClientId=me.optString("googleClientId","")
   if(user!=null&&loadPrivate)loadLibrary(fresh=true)
  }
- suspend fun loadLibrary(fresh:Boolean=false){
+ suspend fun loadLibrary(fresh:Boolean=false,prefetch:Boolean=false){
   if(user==null)return
   val scope=readScope();val revision=followRevision
   fun apply(path:String,data:JSONObject){if(!currentRead(scope))return;when(path){
    "/api/library"->{likes=data.tracks("likes");playlists=data.optJSONArray("collections").objects();if(revision==followRevision&&!followPending)follows=data.optJSONArray("follows").objects()}
    "/api/history"->history=data.tracks()
-   "/api/me/profile"->{ownProfile=data;refreshMyDashboard()}
+   "/api/me/profile"->{ownProfile=data;if(tab==6)refreshMyDashboard()}
   }}
   val paths=listOf("/api/library","/api/history","/api/me/profile")
   if(!fresh)paths.forEach{path->api.peek(path)?.let{apply(path,it)}}
   supervisorScope {
    paths.map { path -> async {
-    try { val data=api.call(path,fresh=true);ensureRead(scope);apply(path,data) }
+    try { val data=api.call(path,fresh=fresh,prefetch=prefetch);ensureRead(scope);apply(path,data) }
     catch(e:Exception) {
      if(e is CancellationException)throw e
      if(sameAccount(scope)) {
@@ -527,10 +551,10 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    }}.awaitAll()
   }
  }
- fun refreshLibrary(fresh:Boolean=false){
+ fun refreshLibrary(fresh:Boolean=false,prefetch:Boolean=false){
   if(user==null)return
   if(libraryJob?.isActive==true){if(!fresh)return;libraryJob?.cancel()}
-  libraryJob=viewModelScope.launch{try{loadLibrary(fresh)}catch(e:Exception){if(e is CancellationException)throw e;failure(e)}}
+  libraryJob=viewModelScope.launch{try{loadLibrary(fresh,prefetch)}catch(e:Exception){if(e is CancellationException)throw e;failure(e)}}
  }
  fun selectTab(index:Int) {
   if(collection?.asPage==true)dismissCollection()
@@ -573,7 +597,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   else if(displayedRankPath!=path){rankTracks=emptyList();rankSingers=emptyList()}
   displayedRankPath=path;rankBusy=true;rankError=null
   rankJob=viewModelScope.launch {
-   try{if(debounce&&cached==null)delay(350);val r=api.call(path,fresh=true);ensureRead(scope);if(request==rankingRequest&&rankingPath()==path){rankTracks=r.tracks();rankSingers=r.optJSONArray("singers").objects()}}
+   try{if(debounce)delay(350);val r=api.call(path,fresh=true);ensureRead(scope);if(request==rankingRequest&&rankingPath()==path){rankTracks=r.tracks();rankSingers=r.optJSONArray("singers").objects()}}
    catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)&&request==rankingRequest){if(e is ApiException&&e.status==401)failure(e);if(e is ApiException&&e.status in listOf(403,404)){rankTracks=emptyList();rankSingers=emptyList()};rankError=e.message?:"랭킹을 불러오지 못했어요."}}
    finally{if(sameAccount(scope)&&request==rankingRequest)rankBusy=false}
   }
@@ -629,19 +653,38 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   }
  }
  private fun displaySearch(path:String,data:JSONObject){
-  searchResults=data.tracks();searchPeople=data.optJSONArray("producers").objects().map{JSONObject(it.toString()).put("profile_kind","producer")}+data.optJSONArray("artists").objects().map{JSONObject(it.toString()).put("profile_kind","artist")}
+  searchResults=data.tracks();nextSearchOffset=searchResults.size.takeIf{it>0&&data.optBoolean("has_more")};searchPeople=data.optJSONArray("producers").objects().map{JSONObject(it.toString()).put("profile_kind","producer")}+data.optJSONArray("artists").objects().map{JSONObject(it.toString()).put("profile_kind","artist")}
   searchLists=data.optJSONArray("playlists").objects();displayedSearchPath=path;searched=true
  }
  fun searchFor(value:String){
-  search=value;searchJob?.cancel()
+  search=value;searchJob?.cancel();nextSearchOffset=null
   if(value.isBlank()){searching=false;searched=false;searchResults=emptyList();searchPeople=emptyList();searchLists=emptyList();displayedSearchPath=null;return}
   val scope=readScope();val path="/api/search?q="+URLEncoder.encode(value,"UTF-8");val cached=api.peek(path)
   if(cached!=null)displaySearch(path,cached)else if(displayedSearchPath!=path){searchResults=emptyList();searchPeople=emptyList();searchLists=emptyList();searched=false}
   searching=true
   searchJob=viewModelScope.launch {
-   try{if(cached==null)delay(350);val data=api.call(path,fresh=true);ensureRead(scope);if(search==value)displaySearch(path,data)}
+   try{delay(350);val data=api.call(path);ensureRead(scope);if(search==value)displaySearch(path,data)}
    catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope)&&search==value)failure(e)}
    finally {if(isActive&&sameAccount(scope)&&search==value)searching=false}
+  }
+ }
+ fun loadMoreSearchTracks(){
+  val offset=nextSearchOffset?:return
+  val path=displayedSearchPath?:return
+  if(searching)return
+  val scope=readScope()
+  searching=true
+  searchJob=viewModelScope.launch{
+   try{
+    val page=api.call("$path&offset=$offset")
+    ensureRead(scope)
+    if(displayedSearchPath==path){
+     val songs=page.tracks()
+     searchResults=(searchResults+songs).distinctBy{it.id}
+     nextSearchOffset=(offset+songs.size).takeIf{songs.isNotEmpty()&&page.optBoolean("has_more")}
+    }
+   }catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope))failure(e)}
+   finally{if(isActive&&sameAccount(scope)&&displayedSearchPath==path)searching=false}
   }
  }
  fun community(filter:String,refresh:Boolean=false){
@@ -678,7 +721,38 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   rememberCrewPublic("detail:$id",data,listOf("crew","members","tracks","rules","roles"))
  }
  internal fun forgetCrewDetail(id:String){crewPublicSnapshots.remove("detail:$id");if(lastKnownCrewId==id)lastKnownCrewId=null}
+ // Only directory-visible header fields are retained. Permissions and works are read on entry.
+ internal fun crewHomePreview()=peekCrewPublic("home")
+ internal suspend fun readCrewHome():JSONObject {
+  val scope=readScope()
+  val pending=crewHomeFlight?.takeIf{it.first==scope&&it.second.isActive}?.second
+  val work=pending?:viewModelScope.async(start=CoroutineStart.LAZY){
+   val result=api.call("/api/crews?summary=1&home=1",fresh=true)
+   ensureRead(scope)
+   val crew=result.optJSONObject("detail")?.optJSONObject("crew")
+   if(crew!=null){
+    rememberCrewPublic("home",crew,listOf("id","name","image_version","level","xp","members","capacity","next_xp","progress"))
+   }else if(result.has("crews")){
+    rememberCrewPublic("home",payload("directory" to true),listOf("directory"))
+   }
+   result
+  }.also{created->
+   crewHomeFlight=scope to created
+   created.invokeOnCompletion{viewModelScope.launch{if(crewHomeFlight?.second===created)crewHomeFlight=null}}
+   created.start()
+  }
+  try{
+   val result=work.await()
+   ensureRead(scope)
+   return result
+  }catch(e:ApiException){
+   if(currentRead(scope)&&e.status in listOf(401,403,404))crewPublicSnapshots.remove("home")
+   throw e
+  }
+ }
  internal fun invalidateCrewPreviews(){
+  crewHomeFlight?.second?.cancel()
+  crewHomeFlight=null
   crewPublicSnapshots.clear();crewDirectoryFlights.values.toList().forEach{it.second.cancel()};crewDirectoryFlights.clear()
  }
  internal suspend fun readCrewDirectory(query:String=""):JSONObject {
@@ -815,17 +889,37 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    }
   }
  }
- fun openSong(song:Song){
+ fun openSong(song:Song,refreshTrack:Boolean=true){
   detailJob?.cancel();val scope=readScope();detail=song;comments=emptyList();detailBusy=true
   detailJob=viewModelScope.launch {
-   try{val data=api.call("/api/tracks/${song.id}",fresh=true);val responses=api.call("/api/tracks/${song.id}/comments",fresh=true);ensureRead(scope)
-    if(detail?.id==song.id){detail=Song(data.getJSONObject("track"));comments=responses.optJSONArray("comments").objects()}}
+   try{coroutineScope{
+    val responses=async{api.call("/api/tracks/${song.id}/comments",fresh=true)}
+    if(refreshTrack){
+     val data=api.call("/api/tracks/${song.id}",fresh=true)
+     ensureRead(scope)
+     if(detail?.id==song.id)detail=Song(data.getJSONObject("track"))
+    }
+    val rows=responses.await().optJSONArray("comments").objects()
+    ensureRead(scope)
+    if(detail?.id==song.id)comments=rows
+   }}
    catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope))failure(e)}finally{if(isActive&&sameAccount(scope)&&detail?.id==song.id)detailBusy=false}
   }
  }
  fun like(song:Song) {if(!authenticated())return;action {
-  val liked=likes.any {it.id==song.id};api.call("/api/tracks/${song.id}/like",if(liked)"DELETE" else "PUT");loadLibrary(fresh=true)
+  val scope=readScope()
+  val previous=likes
+  val liked=previous.any{it.id==song.id}
+  likes=if(liked)previous.filterNot{it.id==song.id} else listOf(song)+previous
+  try{
+   api.call("/api/tracks/${song.id}/like",if(liked)"DELETE" else "PUT")
+  }catch(e:Exception){
+   if(sameAccount(scope))likes=previous
+   throw e
+  }
+  if(!sameAccount(scope))return@action
   val fresh=Song(api.call("/api/tracks/${song.id}",fresh=true).getJSONObject("track"))
+  if(!sameAccount(scope))return@action
   feed=feed.map {if(it.id==song.id)fresh else it};home=home.map {if(it.id==song.id)fresh else it}
   latest=latest.map{if(it.id==song.id)fresh else it};recentCovers=recentCovers.map{if(it.id==song.id)fresh else it}
   collection=collection?.let{it.copy(tracks=it.tracks.map{t->if(t.id==song.id)fresh else t})}
@@ -904,7 +998,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     val listener=api.call("/api/followers/$uid",fresh=true).getJSONObject("profile")
     if(!listener.isNull("id")&&listener.optString("id").isNotBlank()){
      val data=api.call("/api/producers/${listener.getString("id")}",fresh=true)
-     ProfilePage(data.getJSONObject("profile").put("profile_kind","producer"),data.tracks(),data.tracks("covers"),data.optInt("followers"))
+     publicProfilePage(data,"producer")
     }else ProfilePage(listener.put("profile_kind","listener"),emptyList(),emptyList(),0)
    }
   }
@@ -912,9 +1006,10 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun openProfile(id:String,kind:String="producer",showCovers:Boolean=false,seed:JSONObject?=null){
   val type=if(kind=="artist")"artist" else "producer"
   val path="/api/${type}s/$id"
-  fun page(data:JSONObject)=ProfilePage(data.getJSONObject("profile").put("profile_kind",type).put("show_covers",showCovers).put("gallery",data.optJSONArray("gallery")).put("invite_crew",data.optJSONObject("invite_crew")).put("can_manage",data.optBoolean("can_manage")),data.tracks(),data.tracks("covers"),data.optInt("followers"))
-  requestProfile("$type:$id:$showCovers",JSONObject(seed?.toString()?:"{}").put("id",id).put("profile_kind",type).put("show_covers",showCovers),api.peek(path)?.let{page(it)}){page(api.call(path,fresh=true))}
+
+  requestProfile("$type:$id:$showCovers",JSONObject(seed?.toString()?:"{}").put("id",id).put("profile_kind",type).put("show_covers",showCovers),api.peek(path)?.let{publicProfilePage(it,type,showCovers)}){publicProfilePage(api.call(path,fresh=true),type,showCovers)}
  }
+ private fun publicProfilePage(data:JSONObject,type:String,showCovers:Boolean=false)=ProfilePage(data.getJSONObject("profile").put("profile_kind",type).put("show_covers",showCovers).put("dubbings",data.optJSONArray("dubbings")).put("gallery",data.optJSONArray("gallery")).put("invite_crew",data.optJSONObject("invite_crew")).put("can_manage",data.optBoolean("can_manage")),data.tracks(),data.tracks("covers"),data.optInt("followers"))
  private fun copyProfile(page:ProfilePage)=ProfilePage(JSONObject(page.person.toString()),page.tracks.map{Song(JSONObject(it.raw.toString()))},page.covers.map{Song(JSONObject(it.raw.toString()))},page.followers)
  private fun requestProfile(key:String,placeholder:JSONObject,snapshot:ProfilePage?=null,fetch:suspend ()->ProfilePage){
   profileJob?.cancel();val request=++profileRequest;val scope=readScope();val cacheKey="${scope.account}:${scope.generation}:${scope.apiRevision}:${scope.mutation}:$key"

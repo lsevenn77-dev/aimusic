@@ -30,6 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
 
@@ -54,22 +56,28 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
  }
 }
 
-@Composable internal fun CurrentCrewDirectory(m:MusicModel){
+@Composable internal fun CurrentCrewDirectory(m:MusicModel,home:CurrentRead?=null,onRankings:()->Unit,onBack:(()->Unit)?=null){
  val list=rememberLazyListState()
- val read=currentRead(m,"/api/crews?summary=1",poll=30000)
+ val read=home?:currentRead(m,"/api/crews?summary=1",poll=30000)
+ if(home!=null){
+  val lifecycle=androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+  LaunchedEffect(home,lifecycle){
+   lifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED){
+    while(true){delay(30000);if(!home.loading)home.retry()}
+   }
+  }
+ }
  var query by rememberSaveable{mutableStateOf("")}
  var interest by rememberSaveable{mutableStateOf("")}
  var recruitment by rememberSaveable{mutableStateOf("")}
  var level by rememberSaveable{mutableStateOf("")}
  var onlyMine by rememberSaveable{mutableStateOf(false)}
  var sort by rememberSaveable{mutableStateOf("recommended")}
- var grid by rememberSaveable{mutableStateOf(true)}
  var filtering by remember{mutableStateOf(false)}
  var creating by remember{mutableStateOf(false)}
  val all=read.data?.optJSONArray("crews").objects()
  val mine=read.data?.clean("mine").orEmpty()
  val selectedFilters=listOf(interest.isNotEmpty(),recruitment.isNotEmpty(),level.isNotEmpty(),onlyMine).count{it}
- val recommended=all.sortedWith(compareByDescending<JSONObject>{it.optInt("match")}.thenByDescending{it.optLong("xp")})
  val filtered=all.filter{c->
   (query.isBlank()||(c.clean("name")+" "+c.clean("description")+" "+c.clean("interests")).contains(query.trim(),true))&&
   (interest.isBlank()||interest in crewInterests(c))&&(recruitment.isBlank()||crewOpen(c)==(recruitment=="open"))&&
@@ -80,63 +88,45 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
   else->list.sortedWith(compareByDescending<JSONObject>{it.optInt("match")}.thenByDescending{it.optLong("xp")})
  }}
  fun open(c:JSONObject){val id=c.clean("id");if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("crew/$id",c.clean("name"))}
- LazyColumn(Modifier.fillMaxSize().testTag("crew-directory-scroll"),state=list,contentPadding=PaddingValues(16.dp,18.dp,16.dp,28.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){
-  item{Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
-   Column(Modifier.weight(1f)){Text("함께하는 음악 모임",fontSize=19.sp,lineHeight=26.sp,fontWeight=FontWeight.Bold);Text("듣고, 부르고, 이야기해요",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}
-   BrandButton(onClick={if(mine.isNotBlank())m.openCurrentWorkspace("crew/$mine","내 크루")else if(m.authenticated())creating=true},enabled=!read.loading,modifier=Modifier.testTag("current-crews-open"),contentPadding=PaddingValues(horizontal=12.dp)){Text(if(mine.isNotBlank())"내 크루" else "크루 만들기",fontSize=12.sp)}
-  }}
-  if(read.loading||read.error!=null)item{ReadStatus(read)}
-  if(recommended.isNotEmpty())item(key="featured-crews"){
-   val featured=recommended.take(5)
-   val pager=rememberAutoCarousel(featured.size,list.layoutInfo.visibleItemsInfo.any{it.key=="featured-crews"})
-   val current=pager.currentPage%featured.size
-   Surface(color=Panel,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Stroke)){
-    Column(Modifier.background(Brush.linearGradient(listOf(Pink.copy(alpha=.06f),Aqua.copy(alpha=.02f)))).padding(vertical=16.dp)){
-     Text("지금 주목할 만한 크루",fontSize=16.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(horizontal=14.dp).padding(bottom=14.dp))
-     BoxWithConstraints(Modifier.fillMaxWidth()){
-      val cardWidth=(maxWidth-44.dp).coerceAtMost(268.dp)
-      HorizontalPager(state=pager,pageSize=PageSize.Fixed(cardWidth),contentPadding=PaddingValues(horizontal=14.dp),pageSpacing=12.dp,modifier=Modifier.fillMaxWidth().testTag("crew-carousel").semantics{stateDescription="${current+1} / ${featured.size}"}){page->
-       val c=featured[page%featured.size];FeaturedCrewCard(c,mine,Modifier.fillMaxWidth()){open(c)}
-      }
-     }
-     if(featured.size>1)Row(Modifier.fillMaxWidth().padding(top=12.dp),horizontalArrangement=Arrangement.Center){repeat(featured.size){page->Box(Modifier.padding(horizontal=3.dp).size(5.dp).clip(CircleShape).background(if(page==current)Pink else Muted.copy(alpha=.35f)))}}
-    }
-   }
-  }
+ LazyColumn(Modifier.fillMaxSize().testTag("crew-directory-scroll"),state=list,contentPadding=PaddingValues(16.dp,4.dp,16.dp,24.dp)){
   item{
-   Row(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
-    CurrentSearch(query,{query=it},"크루명 · 관심사 검색","crew-directory-search",Modifier.weight(1f))
-    OutlinedButton(onClick={filtering=true},modifier=Modifier.heightIn(min=48.dp).testTag("crew-filters"),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,if(selectedFilters>0)Pink else Stroke),contentPadding=PaddingValues(horizontal=10.dp)){
-     Icon(Icons.Rounded.Tune,null,Modifier.size(18.dp),tint=SoftText);Text(if(selectedFilters>0)" $selectedFilters" else " 필터",fontSize=12.sp,color=SoftText)
-    }
+   Row(Modifier.fillMaxWidth().heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically){
+    if(onBack!=null)IconButton(onClick=onBack,modifier=Modifier.size(44.dp)){Icon(Icons.Rounded.ChevronLeft,"내 크루로 돌아가기",tint=Pink)}
+    Text("크루 찾기",Modifier.weight(1f),fontSize=18.sp,fontWeight=FontWeight.Bold,color=Pink)
+    if(onBack==null&&mine.isBlank())TextButton({if(m.authenticated())creating=true},enabled=!read.loading&&read.error==null,modifier=Modifier.testTag("current-crews-open")){Text("크루 만들기",color=Pink)}
    }
+   CurrentSearch(query,{query=it},"크루명 · 관심사 검색","crew-directory-search",Modifier.fillMaxWidth().padding(vertical=6.dp))
+   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+    FilterChip(selected=recruitment=="open",onClick={recruitment=if(recruitment=="open")"" else "open"},label={Text("모집 중")},modifier=Modifier.testTag("crew-open-filter"),
+     colors=FilterChipDefaults.filterChipColors(selectedContainerColor=DiscoveryRose.copy(alpha=.13f),selectedLabelColor=DiscoveryRose))
+    TextButton({filtering=true},modifier=Modifier.testTag("crew-filters")){Icon(Icons.Rounded.Tune,null,Modifier.size(16.dp));Text(if(selectedFilters==0)" 필터" else " 필터 $selectedFilters")}
+   }
+   Row(Modifier.fillMaxWidth().padding(vertical=6.dp),verticalAlignment=Alignment.CenterVertically){
+    Text(if(query.isBlank()&&selectedFilters==0)"전체 크루" else "검색 결과",fontWeight=FontWeight.Bold)
+    Text(" ${filtered.size}",Modifier.weight(1f),color=Pink)
+    val sorts=listOf("recommended" to "추천순","recent" to "최신순","level" to "레벨순","members" to "인원순")
+    CommunityChoice(sorts.first{it.first==sort}.second,"crew-sort",sorts,sort){sort=it}
+   }
+   HorizontalDivider(color=Stroke)
   }
-  item{Column{
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("발견할 크루",fontSize=16.sp,fontWeight=FontWeight.Bold);Text(" ${filtered.size}",fontSize=15.sp,color=Pink);Spacer(Modifier.weight(1f))
-    IconButton(onClick={grid=true},modifier=Modifier.size(44.dp).testTag("crew-layout-grid")){Icon(Icons.Rounded.GridView,"크루 카드로 보기",Modifier.size(20.dp),tint=if(grid)Pink else Muted)}
-    IconButton(onClick={grid=false},modifier=Modifier.size(44.dp).testTag("crew-layout-list")){Icon(Icons.Rounded.ViewList,"크루 목록으로 보기",Modifier.size(20.dp),tint=if(!grid)Pink else Muted)}
+  if(read.loading||read.error!=null)item{ReadStatus(read)}
+  items(filtered,key={it.clean("id")}){c->
+   Row(Modifier.fillMaxWidth().clickable{open(c)}.testTag("crew-discovery-${c.clean("id")}").heightIn(min=78.dp).padding(vertical=9.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+    CommunityPhoto(c.clean("id"),c.clean("name"),c.clean("image_version"),"crew",Modifier.size(52.dp),true)
+    Column(Modifier.weight(1f)){
+     Text(c.clean("name"),fontSize=16.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+     Row(Modifier.padding(top=4.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(5.dp)){
+      val badge=when{c.clean("id")==mine->"내 크루";crewOpen(c)->"모집 중";else->null}
+      if(badge!=null)Text(badge,color=DiscoveryRose,fontSize=10.sp,lineHeight=14.sp,modifier=Modifier.border(.7.dp,DiscoveryRose.copy(alpha=.75f),CircleShape).padding(horizontal=6.dp,vertical=1.dp))
+      Text("멤버 ${c.optInt("members")}명 · Lv.${c.optInt("level",1)}",fontSize=12.sp,color=Muted)
+     }
+    }
+    Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp),tint=Pink)
    }
-   val sorts=listOf("recommended" to "추천순","recent" to "최신순","level" to "레벨순","members" to "인원순")
-   CommunityChoice(sorts.first{it.first==sort}.second,"crew-sort",sorts,sort){sort=it}
-  }}
-  if(grid)items(filtered.chunked(2),key={"grid-"+it.first().clean("id")}){pair->Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){
-   pair.forEach{c->CrewPhotoCard(c,mine,Modifier.weight(1f)){open(c)}};if(pair.size==1)Spacer(Modifier.weight(1f))
-  }}else items(filtered,key={"list-"+it.clean("id")}){c->FeaturedCrewCard(c,mine,Modifier.fillMaxWidth()){open(c)}}
+   HorizontalDivider(color=Stroke.copy(alpha=.6f))
+  }
   if(filtered.isEmpty()&&!read.loading&&read.error==null)item{CurrentEmpty("조건에 맞는 크루가 없어요","검색어나 필터를 바꿔보세요.")}
-  val ranked=read.data?.optJSONArray("rankings").objects().ifEmpty{rankedCrews(all)}.take(5)
-  if(ranked.isNotEmpty())item{
-   Surface(color=Panel,shape=RoundedCornerShape(16.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.testTag("crew-directory-ranking")){
-    Column(Modifier.padding(14.dp)){
-     Text("크루 랭킹",fontSize=16.sp,fontWeight=FontWeight.Bold);Text("레벨순 · 같은 레벨은 누적 경험치순",fontSize=11.sp,color=Muted,modifier=Modifier.padding(top=4.dp,bottom=8.dp))
-     ranked.forEachIndexed{index,c->Row(Modifier.fillMaxWidth().clickable{open(c)}.padding(vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
-      Text("${index+1}",fontSize=15.sp,fontWeight=FontWeight.Bold,color=Pink,modifier=Modifier.width(26.dp))
-      CommunityPhoto(c.clean("id"),c.clean("name"),c.clean("image_version"),"crew",Modifier.size(44.dp),true)
-      Column(Modifier.weight(1f).padding(horizontal=10.dp)){Text(c.clean("name"),fontSize=14.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis);Text("${c.optInt("members")}명",fontSize=12.sp,color=Muted)}
-      Text("LV.${c.optInt("level",1)}",fontSize=12.sp,color=Muted)
-     }}
-    }
-   }
-  }
+  item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){TextButton(onRankings,modifier=Modifier.testTag("crew-directory-ranking")){Text("크루 랭킹 보기",color=Pink);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp),tint=Pink)}}}
  }
  if(filtering)ModalBottomSheet(onDismissRequest={filtering=false},containerColor=Panel){Column(Modifier.fillMaxWidth().padding(horizontal=20.dp).padding(bottom=28.dp),verticalArrangement=Arrangement.spacedBy(14.dp)){
   Row(verticalAlignment=Alignment.CenterVertically){Text("크루 필터",fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));TextButton(onClick={interest="";recruitment="";level="";onlyMine=false}){Text("초기화",color=SoftText)}}
@@ -151,58 +141,19 @@ private fun crewInterests(c:JSONObject)=c.clean("interests").split(',', '·', '#
  }}
 }
 
-@Composable private fun CrewState(c:JSONObject,mine:String){
- val open=crewOpen(c)
- Text(if(c.clean("id")==mine)"내 크루" else if(open)"모집 중" else "모집 마감",fontSize=10.sp,lineHeight=15.sp,color=if(open)Aqua else Muted,modifier=Modifier.border(1.dp,if(open)Aqua.copy(alpha=.35f) else Stroke,CircleShape).padding(horizontal=7.dp,vertical=3.dp))
-}
-@Composable private fun FeaturedCrewCard(c:JSONObject,mine:String,modifier:Modifier,open:()->Unit){
- Surface(onClick=open,color=Ink.copy(alpha=.55f),shape=RoundedCornerShape(14.dp),border=BorderStroke(1.dp,Stroke),modifier=modifier.testTag("crew-featured-${c.clean("id")}")){
-  Column(Modifier.padding(12.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   Row(horizontalArrangement=Arrangement.spacedBy(12.dp)){
-    CommunityPhoto(c.clean("id"),c.clean("name"),c.clean("image_version"),"crew",Modifier.size(84.dp))
-    Column(Modifier.weight(1f)){
-     Text(c.clean("name"),fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
-     Text(c.clean("description").ifBlank{"함께 음악을 나눠요"},fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
-     Text("${c.optInt("members")}명 · LV.${c.optInt("level",1)}",fontSize=11.sp,color=SoftText,modifier=Modifier.padding(top=7.dp))
-    }
-   }
-   Row(verticalAlignment=Alignment.CenterVertically){CrewState(c,mine);Spacer(Modifier.weight(1f));Box(Modifier.clip(RoundedCornerShape(9.dp)).background(BrandGradient).padding(horizontal=14.dp,vertical=8.dp)){Row(verticalAlignment=Alignment.CenterVertically){Text("자세히 보기",fontSize=11.sp,fontWeight=FontWeight.SemiBold,color=Ink);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(15.dp),tint=Ink)}}}
-  }
- }
-}
-@Composable private fun CrewPhotoCard(c:JSONObject,mine:String,modifier:Modifier,open:()->Unit){
- Surface(onClick=open,color=Panel,shape=RoundedCornerShape(16.dp),border=BorderStroke(1.dp,Stroke),modifier=modifier.testTag("crew-discovery-${c.clean("id")}")){
-  Column(Modifier.padding(10.dp)){
-   CommunityPhoto(c.clean("id"),c.clean("name"),c.clean("image_version"),"crew",Modifier.fillMaxWidth().aspectRatio(1f))
-   Text(c.clean("name"),fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=10.dp))
-   Text(c.clean("description").ifBlank{"함께 음악을 나눠요"},fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=2,minLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
-   Text("${c.optInt("members")}명 · LV.${c.optInt("level",1)}",fontSize=11.sp,color=Muted,modifier=Modifier.padding(top=8.dp,bottom=10.dp))
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){CrewState(c,mine);Spacer(Modifier.weight(1f));Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp),tint=Pink)}
-  }
- }
-}
-
-@Composable internal fun CurrentRankings(m:MusicModel){
- var category by rememberSaveable{mutableStateOf("work")}
+@Composable internal fun CurrentRankings(m:MusicModel,category:String,onCategory:(String)->Unit){
  var period by rememberSaveable{mutableStateOf("week")}
  var kind by rememberSaveable{mutableStateOf("solo")}
  val read=currentRead(m,"/api/community/rankings?category=$category&period=$period&workKind=$kind")
  val crews=currentRead(m,"/api/crews?summary=1",enabled=category=="crew")
  val crewPhotos=crews.data?.optJSONArray("crews").objects().associateBy{it.clean("id")}
- val categories=listOf(Triple("work","작품",Icons.Rounded.MusicNote),Triple("aiArtist","AI 아티스트",Icons.Rounded.Person),Triple("crew","크루",Icons.Rounded.Groups),Triple("dubbing","더빙",Icons.Rounded.RecordVoiceOver))
+ val categories=listOf("work" to "작품","aiArtist" to "AI 아티스트","crew" to "크루","dubbing" to "더빙")
  LazyColumn(Modifier.fillMaxSize().testTag("community-rankings-scroll"),contentPadding=PaddingValues(16.dp,16.dp,16.dp,28.dp)){
   item{
-   Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).testTag("ranking-category"),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    categories.forEach{(key,label,icon)->val active=category==key;Column(Modifier.weight(1f).fillMaxHeight().clip(RoundedCornerShape(13.dp)).background(if(active)Violet.copy(alpha=.13f)else Panel).border(1.dp,if(active)Violet else Stroke,RoundedCornerShape(13.dp)).selectable(active,role=Role.Tab){category=key}.testTag("ranking-category-$key").padding(vertical=7.dp),horizontalAlignment=Alignment.CenterHorizontally){
-     Icon(icon,null,Modifier.size(22.dp),tint=if(active)Pink else Muted)
-     Spacer(Modifier.height(7.dp))
-     Box(Modifier.weight(1f).fillMaxWidth().padding(horizontal=1.dp),contentAlignment=Alignment.Center){Text(if(key=="aiArtist")"AI\n아티스트" else label,fontSize=12.sp,lineHeight=16.sp,fontWeight=FontWeight.SemiBold,color=if(active)Pink else SoftText,maxLines=2,modifier=Modifier.fillMaxWidth().testTag("ranking-label-$key"),textAlign=androidx.compose.ui.text.style.TextAlign.Center)}
-    }
-    }
-   }
+   DiscoverySections(categories,category,"ranking-category",onSelect=onCategory)
    Row(Modifier.fillMaxWidth().padding(top=8.dp,bottom=6.dp).testTag("ranking-toolbar"),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
     if(category=="work")Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(6.dp)){
-     listOf("solo" to "솔로","duet" to "듀엣").forEach{(key,label)->val active=kind==key;Box(Modifier.clip(RoundedCornerShape(10.dp)).background(if(active)BrandGradient else Brush.linearGradient(listOf(Panel,Panel))).selectable(active,role=Role.Tab){kind=key}.testTag("ranking-kind-$key").heightIn(min=44.dp).padding(horizontal=15.dp),contentAlignment=Alignment.Center){Text(label,fontSize=13.sp,color=if(active)Ink else SoftText,fontWeight=FontWeight.Medium)}}
+     listOf("solo" to "솔로","duet" to "듀엣").forEach{(key,label)->val active=kind==key;Box(Modifier.clip(RoundedCornerShape(10.dp)).background(if(active)DiscoveryGradient else Brush.linearGradient(listOf(Panel,Panel))).selectable(active,role=Role.Tab){kind=key}.testTag("ranking-kind-$key").heightIn(min=44.dp).padding(horizontal=15.dp),contentAlignment=Alignment.Center){Text(label,fontSize=13.sp,color=if(active)Ink else SoftText,fontWeight=FontWeight.Medium)}}
     }else Text(categories.first{it.first==category}.second+" 랭킹",fontSize=15.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
     CommunityChoice(if(period=="week")"주간" else "월간","ranking-period",listOf("week" to "주간","month" to "월간"),period){period=it}
    }
@@ -272,9 +223,9 @@ internal fun communityRankChange(row:JSONObject,rank:Int):Pair<String,String>{
  val open={if(CurrentNavigation.safeID(id))when(category){"work"->m.openCurrentSong(id);"aiArtist"->m.openProfile(id,"artist");"crew"->m.openCurrentWorkspace("crew/$id",name);"dubbing"->m.openCurrentWorkspace("dubbing/$id",name);else->Unit}}
  val tag="community-rank-$category-$id"
  val shape=RoundedCornerShape(14.dp)
- val accent=when(rank){1->Aqua;2->Violet;else->Pink}
+ val accent=when(rank){1->DiscoveryRose;2->Violet;else->Pink}
  if(podium!=null){
-  Box(podium.clip(shape).background(Panel).clickable(onClick=open).testTag(tag).border(if(rank==1)2.dp else 1.dp,Brush.verticalGradient(listOf(accent,accent.copy(alpha=.32f))),shape)){
+  Box(podium.clip(shape).background(Panel).clickable(onClick=open).testTag(tag).border(1.dp,Brush.verticalGradient(listOf(accent.copy(alpha=.70f),accent.copy(alpha=.28f))),shape)){
    RankingArtwork(row,id,name,category,crew,track,Modifier.fillMaxSize())
    Spacer(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Color.Black.copy(alpha=.18f),Color.Transparent,Ink.copy(alpha=.80f),Ink))))
    Row(Modifier.fillMaxWidth().align(Alignment.TopCenter).padding(7.dp),horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){

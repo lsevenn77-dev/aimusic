@@ -24,6 +24,8 @@ internal data class DubWork(
  val created:Long=project.optLong("created")
  val beginner:Boolean=project.optBoolean("beginnerRecommended") || project.optJSONObject("options")?.optBoolean("beginnerRecommended")==true
  val seconds:Int=project.optInt("duration")
+ val formatLabel:String get()=listOfNotNull(project.optInt("roleCount").takeIf{it>0}?.let{"${it}인극"},
+  seconds.takeIf{it>0}?.let{"%d:%02d".format(java.util.Locale.ROOT,it/60,it%60)}).joinToString(" · ")
  val preferredBeginner:Boolean=project.optInt("roleCount")==2 && seconds in 240..300
  val plays:Long? get()=if(finished && editions.isNotEmpty() && editions.all{it.opt("plays") is Number})editions.sumOf{it.getLong("plays")} else null
  val genres=project.optJSONArray("genres").let{arr->List(arr?.length()?:0){arr!!.optString(it)}}
@@ -48,7 +50,7 @@ internal data class DubCatalogue(val works:List<DubWork>,val incomplete:Boolean=
  }
 }
 
-private suspend fun NativeApi.collectDubPages(path:String,key:String="projects",next:String="nextOffset"):List<JSONObject>{
+private suspend fun NativeApi.collectDubPages(path:String,key:String="projects",next:String="nextOffset",onFirstPage:((List<JSONObject>)->Unit)?=null):List<JSONObject>{
  val rows=linkedMapOf<String,JSONObject>()
  var offset=0
  while(true){
@@ -57,6 +59,7 @@ private suspend fun NativeApi.collectDubPages(path:String,key:String="projects",
    val id=row.optString("id").ifBlank{row.optString("href").substringAfterLast('/')}
    if(CurrentNavigation.safeID(id))rows[id]=row
   }
+  if(offset==0&&!page.isNull(next))onFirstPage?.invoke(rows.values.toList())
   if(page.isNull(next))break
   val following=page.optInt(next,-1)
   if(following<=offset)break
@@ -66,7 +69,9 @@ private suspend fun NativeApi.collectDubPages(path:String,key:String="projects",
 }
 
 internal suspend fun loadDubCatalogue(api:NativeApi,finished:Boolean,show:(DubCatalogue)->Unit)=coroutineScope{
- val list=async{api.collectDubPages("/api/dubbing/projects?tab="+(if(finished)"popular" else "open")+"&discovery=1")}
+ val list=async{api.collectDubPages("/api/dubbing/projects?tab="+(if(finished)"popular" else "open")+"&discovery=1"){first->
+  if(!finished)show(DubCatalogue(first.map{DubWork(it,null,false,0,null,null)}))
+ }}
  val chartRequest=if(finished)async{api.collectDubPages("/api/community/rankings?category=dubbing&period=week","rows","next_offset")} else null
  val projects=list.await()
  if(!finished)show(DubCatalogue(projects.map{DubWork(it,null,false,0,null,null)}))

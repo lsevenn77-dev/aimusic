@@ -280,7 +280,7 @@ public class KaraokeDeviceTest {
         org.junit.Assume.assumeTrue(android.os.Build.HARDWARE.contains("ranchu")||android.os.Build.HARDWARE.contains("goldfish"));
         try(android.os.ParcelFileDescriptor result=InstrumentationRegistry.getInstrumentation().getUiAutomation().executeShellCommand("pm grant "+context.getPackageName()+" android.permission.RECORD_AUDIO")){try(InputStream in=new android.os.ParcelFileDescriptor.AutoCloseInputStream(result)){while(in.read()!=-1){}}}
         DirectMonitor live=DirectMonitor.open(0,0,android.os.Build.VERSION.SDK_INT);assertNotNull("AAudio duplex library opens on the virtual device",live);
-        try{live.settings(new VocalEffects.Settings(0,0,.5f,1,1,.65f,800),false);short[] samples=new short[192];int frames=0;for(int i=0;i<50;i++)frames+=live.read(samples,samples.length);assertTrue("Dry capture is independent of MR and an 800ms saved sync setting",frames>0);assertTrue(live.bufferFrames()>0);live.stop();assertEquals(0,live.read(samples,samples.length));}finally{live.close();}
+        try{live.settings(new VocalEffects.Settings(0,0,.5f,1,1,.65f,800),false,1f);short[] samples=new short[192];int frames=0;for(int i=0;i<50;i++)frames+=live.read(samples,samples.length);assertTrue("Dry capture is independent of MR and an 800ms saved sync setting",frames>0);assertTrue(live.bufferFrames()>0);live.stop();assertEquals(0,live.read(samples,samples.length));}finally{live.close();}
     }
     @Test public void nativeControlsLoadWithoutOpeningMicrophone()throws Exception{
         onView(withContentDescription("이어폰으로 내 목소리 듣기")).check(matches(isDisplayed()));

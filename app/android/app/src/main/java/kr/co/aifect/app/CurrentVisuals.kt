@@ -87,14 +87,14 @@ internal fun currentDubbingImage(p:JSONObject):String {
  }else AsyncImage(url,"더빙 썸네일",modifier,contentScale=ContentScale.Crop)
 }
 
-@Composable internal fun CurrentDubbingCard(p:JSONObject,m:MusicModel){
+@Composable internal fun CurrentDubbingCard(p:JSONObject,onOpen:(String)->Unit){
  val id=p.optString("id")
- fun open(){if(CurrentNavigation.safeID(id))m.openCurrentWorkspace("dubbing/$id",p.optString("title","더빙"))}
+ fun open(){if(CurrentNavigation.safeID(id))onOpen(id)}
  Column(Modifier.fillMaxWidth().testTag("dubbing-project-$id")){
   Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(12.dp)).background(Raised).clickable{open()}){
    Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(32.dp).align(Alignment.Center),tint=Muted)
    DubbingImage(currentDubbingImage(p),Modifier.fillMaxSize())
-   BrandPlayButton("${p.optString("title")} 더빙 듣기",::open,Modifier.align(Alignment.BottomEnd).padding(5.dp),diameter=34.dp)
+   BrandPlayButton("${p.optString("title")} 완성작 보기",::open,Modifier.align(Alignment.BottomEnd).padding(5.dp),diameter=34.dp)
   }
   Row(Modifier.fillMaxWidth().heightIn(min=44.dp).clickable{open()},verticalAlignment=Alignment.CenterVertically){
    Icon(Icons.Rounded.RecordVoiceOver,null,Modifier.size(15.dp),tint=Muted);Spacer(Modifier.width(4.dp))
@@ -103,6 +103,41 @@ internal fun currentDubbingImage(p:JSONObject):String {
   Text(p.optString("ownerName",p.optString("owner_name")),fontSize=13.sp,lineHeight=19.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
   Text("${p.optJSONArray("genres")?.optString(0).orEmpty()} · ${timeLabel((p.optDouble("duration")*1000).toLong())}",fontSize=12.sp,lineHeight=18.sp,color=Muted,modifier=Modifier.padding(top=3.dp))
  }
+}
+
+@Composable internal fun CompletedDubbingDetail(m:MusicModel,id:String,dismiss:()->Unit){
+ val read=currentRead(m,"/api/dubbing/projects/$id")
+ val project=read.data?.optJSONObject("project")
+ val finalAudio=project?.optJSONObject("recording")?.optJSONObject("final")
+ val canPlay=finalAudio?.optString("state")=="ready"&&finalAudio.opt("audioUrl") is String
+ val playing=m.current?.dubbing==true&&m.current?.id==id&&m.playing
+ AlertDialog(onDismissRequest=dismiss,title={Text(project?.optString("title")?:"완성된 더빙")},
+  text={Column(Modifier.verticalScroll(rememberScrollState()).testTag("completed-dubbing-detail"),verticalArrangement=Arrangement.spacedBy(8.dp)){
+   ReadStatus(read)
+   project?.let{p->
+    val description=sequenceOf(p.optJSONObject("options")?.opt("idea"),
+     p.optJSONObject("script")?.optJSONArray("scenes").objects().firstOrNull()?.opt("description"))
+     .filterIsInstance<String>().firstOrNull{it.isNotBlank()}
+    Text(description?:"등록된 작품 소개가 없어요.",color=SoftText)
+    val participants=p.optJSONArray("roles").objects().filter{it.optBoolean("claimed")}
+     .distinctBy{it.opt("participantUserId") as? String?:it.optString("participant")}
+    if(participants.isNotEmpty()){
+     Text("참여자",fontWeight=FontWeight.SemiBold)
+     participants.forEach{role->
+      val userId=role.opt("participantUserId") as? String
+      val name=role.optString("participant","참여자")
+      if(userId!=null&&CurrentNavigation.safeID(userId)){
+       val member=currentRead(m,"/api/member-preview/$userId")
+       val code=member.data?.optJSONObject("profile")?.opt("public_id") as? String
+       Text(if(code.isNullOrBlank())name else "$name · ID $code",color=SoftText)
+       if(member.error!=null)TextButton(member::retry){Text("참여자 ID 다시 불러오기")}
+      }else Text(name,color=SoftText)
+     }
+    }
+   }
+  }},dismissButton={TextButton(dismiss){Text("닫기")}},confirmButton={
+   if(canPlay&&project!=null)TextButton({if(playing)m.controller?.pause() else m.controller?.playDubbingEdition(project)},enabled=m.controller!=null){Text(if(playing)"일시정지" else "완성작 듣기")}
+  })
 }
 
 /** The deployed My page's section surface, rather than a standalone oversized heading. */

@@ -65,7 +65,7 @@ private fun JSONObject.crewText(key:String)=optString(key).takeUnless{it.isBlank
    val w=size.width;val h=size.height
    repeat(4){i->
     val path=Path().apply{moveTo(0f,h*.29f+i);cubicTo(w*.22f,h*1.35f,w*.32f,-h*.35f,w*.51f,h*.50f+i);cubicTo(w*.69f,h*1.25f,w*.87f,0f,w,h*.34f+i)}
-    drawPath(path,Brush.horizontalGradient(listOf(Color.Transparent,Pink.copy(alpha=.22f),Aqua.copy(alpha=.35f),Color.Transparent)),style=Stroke(1.dp.toPx()))
+    drawPath(path,Brush.horizontalGradient(listOf(Color.Transparent,Pink.copy(alpha=.22f),DiscoveryRose.copy(alpha=.28f),Color.Transparent)),style=Stroke(1.dp.toPx()))
    }
   }
  }

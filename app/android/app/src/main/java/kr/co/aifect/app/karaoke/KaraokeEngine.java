@@ -37,6 +37,7 @@ final class KaraokeEngine {
     private AudioFocusRequest focus;
     private final AudioManager.OnAudioFocusChangeListener focusListener=change->{if(change<0)interrupt("다른 오디오가 시작되어 노래를 멈췄어요. 녹음은 다시 들을 수 있어요.");};
 
+    volatile float inputGain=1f;
     boolean fullLengthMix;
     KaraokeEngine(Context context,File mr,File dry,Listener listener){
         this.context=context.getApplicationContext();manager=(AudioManager)context.getSystemService(Context.AUDIO_SERVICE);this.mr=mr;this.dry=dry;this.listener=listener;
@@ -65,7 +66,7 @@ final class KaraokeEngine {
     }
     void setMonitor(boolean enabled){
         AudioDeviceInfo route=headphones();monitor=enabled&&route!=null;
-        DirectMonitor live=direct;if(live!=null)live.settings(settings,monitor);AudioTrack t=track;if(t!=null&&monitor)t.setPreferredDevice(route);
+        DirectMonitor live=direct;if(live!=null)live.settings(settings,monitor,inputGain);AudioTrack t=track;if(t!=null&&monitor)t.setPreferredDevice(route);
     }
     boolean monitoring(){return monitor;}
     double position(){AudioTrack t=track;try{return t==null?frames/(double)PcmFiles.RATE:(startFrame+(t.getPlaybackHeadPosition()&0xffffffffL))/(double)PcmFiles.RATE;}catch(Exception e){return 0;}}
@@ -95,6 +96,11 @@ final class KaraokeEngine {
         AudioTrack t=track;try{if(t!=null){t.setVolume(0);t.pause();t.flush();}}catch(Exception ignored){}
         DirectMonitor live=direct;if(live!=null)live.stop();AudioRecord r=recorder;try{if(r!=null)r.stop();}catch(Exception ignored){}
         InputStream backing=activeBacking;try{if(backing!=null)backing.close();}catch(IOException ignored){}
+    }
+    synchronized void stopInBackground(){
+        Thread session=thread;
+        if(session==null)return;
+        new Thread(()->{synchronized(this){if(thread==session)stop();}},"KaraokeStop").start();
     }
     void close(){stop();Thread t=thread;if(t!=null)try{t.join(3000);}catch(InterruptedException e){Thread.currentThread().interrupt();}}
     private void run(boolean record,boolean guide,File source,AudioAttributes attributes){
@@ -133,7 +139,7 @@ final class KaraokeEngine {
                 if(ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED)throw new SecurityException("Microphone permission denied");
                 AudioDeviceInfo microphone=microphoneFor(route);
                 directMonitoring=false;
-                if(route!=null&&!bluetooth(route)){direct=DirectMonitor.open(route.getId(),microphone==null?0:microphone.getId(),Build.VERSION.SDK_INT);if(direct!=null){direct.settings(settings,monitor);directMonitoring=true;directPerformance=direct.performance();directBufferFrames=direct.bufferFrames();}}
+                if(route!=null&&!bluetooth(route)){direct=DirectMonitor.open(route.getId(),microphone==null?0:microphone.getId(),Build.VERSION.SDK_INT);if(direct!=null){direct.settings(settings,monitor,inputGain);directMonitoring=true;directPerformance=direct.performance();directBufferFrames=direct.bufferFrames();}}
                 if(direct==null){
                 int minIn=AudioRecord.getMinBufferSize(PcmFiles.RATE,AudioFormat.CHANNEL_IN_MONO,AudioFormat.ENCODING_PCM_16BIT);
                 if(minIn<=0)throw new IOException("이 기기의 마이크를 열 수 없어요.");
@@ -159,8 +165,9 @@ final class KaraokeEngine {
             while(running&&frames<total){
                 int count=(int)Math.min(burst,total-frames);
                 VocalEffects.Settings s=settings;
-                if(record){DirectMonitor live=direct;if(live!=null)live.settings(s,monitor&&headphone(output.getRoutedDevice()));int n=live!=null?live.read(captured,count):input.read(captured,0,count,AudioRecord.READ_BLOCKING);if(n<=0){if(!running)break;throw new IOException("마이크 연결이 끊겼어요.");}count=n;
-                    for(int i=0;i<count;i++){vocals[i]=captured[i]/32768f;dryBytes[i*2]=(byte)captured[i];dryBytes[i*2+1]=(byte)(captured[i]>>8);}take.write(dryBytes,0,count*2);
+                if(record){DirectMonitor live=direct;if(live!=null)live.settings(s,monitor&&headphone(output.getRoutedDevice()),inputGain);int n=live!=null?live.read(captured,count):input.read(captured,0,count,AudioRecord.READ_BLOCKING);if(n<=0){if(!running)break;throw new IOException("마이크 연결이 끊겼어요.");}count=n;
+                    float gain=inputGain;
+                    for(int i=0;i<count;i++){captured[i]=kr.co.aifect.app.RecordingGain.scale(captured[i],gain);vocals[i]=captured[i]/32768f;dryBytes[i*2]=(byte)captured[i];dryBytes[i*2+1]=(byte)(captured[i]>>8);}take.write(dryBytes,0,count*2);
                 }else if(!guide)saved.read(frames,vocals,count,s.offsetMs);
                 int n=PcmFiles.read(backing,mrBytes,count*4);count=n/4;if(count==0)break;
                 // Route is verified on the audio thread too. Never send microphone audio to a speaker.

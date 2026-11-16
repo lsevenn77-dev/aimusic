@@ -42,6 +42,9 @@ import org.json.JSONObject
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -98,17 +101,10 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
  var discoveryPanel by rememberSaveable { mutableStateOf<String?>(null) }
  val week = currentRead(m, "/api/catalog?section=tracks&chart=top&period=week")
  val tracks = remember(week.data) { week.data?.tracks().orEmpty() }
- val lastChartPage = ((tracks.size - 1) / 10).coerceAtLeast(0)
- var requestedPage by rememberSaveable(m.user?.optString("id")) { mutableIntStateOf(0) }
- val chartPage = requestedPage.coerceIn(0, lastChartPage)
+ val chartPages = remember(tracks) { tracks.chunked(10) }
+ val chartPager = key(m.user?.optString("id")) { rememberPagerState { chartPages.size.coerceAtLeast(1) } }
  fun go(index:Int) {
   if(index in sections.indices) scope.launch { list.animateScrollToItem(index) }
- }
- fun swipe(index:Int, direction:Int) {
-  if(sections[index] == HomeSection.Chart && chartPage + direction in 0..lastChartPage) {
-   requestedPage = chartPage + direction
-   go(index)
-  } else go(index + direction)
  }
  Column(Modifier.fillMaxSize().padding(horizontal=14.dp)) {
   HomePromotionCarousel(m, onBackdrop)
@@ -123,26 +119,42 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
    LazyColumn(Modifier.fillMaxSize().testTag("listen-scroll"), state=list) {
     itemsIndexed(sections, key={_, section -> section.name}) { index, section ->
      Column(Modifier.fillMaxWidth().then(if(index==sections.lastIndex) Modifier.heightIn(min=bodyHeight) else Modifier)
-      .sectionSwipe { direction -> swipe(index, direction) }.padding(bottom=12.dp)) {
+      .then(if(section == HomeSection.Chart && tracks.isNotEmpty()) Modifier
+            else Modifier.sectionSwipe { direction -> go(index + direction) }).padding(bottom=12.dp)) {
       when(section) {
        HomeSection.Recommended -> {
         StreamingSection("추천 음악",action="모두 보기",onAction={m.showCollection("추천 음악",m.home,twoLineRows=true)})
         m.home.take(5).forEach { song -> TwoLineSongRow(song,m,m.home,referenceHome=true) }
-        if(m.home.isEmpty()) Empty(if(m.loading)"음악을 불러오고 있어요" else "새로운 음악을 기다려요","발견에서 장르와 아티스트를 둘러보세요.")
+        if(m.home.isEmpty()&&m.loading)LoadingRows() else if(m.home.isEmpty()) Empty("새로운 음악을 기다려요","발견에서 장르와 아티스트를 둘러보세요.")
        }
        HomeSection.Chart -> {
-        StreamingSection("인기 차트",action="전체 보기",onAction={m.listenPage="차트"})
-        ReadStatus(week)
-        if(tracks.isEmpty() && !week.loading && week.error==null) Text("아직 집계된 곡이 없어요.",color=Muted)
-        if(tracks.isNotEmpty()) {
-         val start = chartPage * 10
-         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
-          Text("이번 주 · ${start+1}–${minOf(start+10,tracks.size)}위", Modifier.weight(1f),color=Muted,fontSize=13.sp)
-          IconButton({ swipe(index,-1) },enabled=chartPage>0){Icon(Icons.Rounded.ChevronLeft,"이전 10곡")}
-          IconButton({ swipe(index,1) },enabled=chartPage<lastChartPage){Icon(Icons.Rounded.ChevronRight,"다음 10곡")}
+        fun stepChart(direction:Int) {
+         val target=chartPager.currentPage+direction
+         if(target in chartPages.indices) scope.launch { chartPager.animateScrollToPage(target) }
+         else go(index+direction)
+        }
+        Column(if(tracks.isEmpty()) Modifier else Modifier.sectionSwipe(::stepChart)){
+         StreamingSection("인기 차트",action="전체 보기",onAction={m.listenPage="차트"})
+         ReadStatus(week)
+         if(tracks.isEmpty() && !week.loading && week.error==null) Text("아직 집계된 곡이 없어요.",color=Muted)
+         if(tracks.isNotEmpty()) {
+          val chartPage = chartPager.currentPage.coerceIn(chartPages.indices)
+          val start = chartPage * 10
+          Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+           Text("이번 주 · ${start+1}–${minOf(start+10,tracks.size)}위", Modifier.weight(1f),color=Muted,fontSize=13.sp)
+           IconButton({ stepChart(-1) },enabled=chartPage>0){Icon(Icons.Rounded.ChevronLeft,"이전 10곡")}
+           IconButton({ stepChart(1) },enabled=chartPage<chartPages.lastIndex){Icon(Icons.Rounded.ChevronRight,"다음 10곡")}
+          }
          }
-         tracks.drop(start).take(10).forEachIndexed { offset,song ->
-          HomeChartRow(song,m,tracks,song.raw.optInt("chart_rank",start+offset+1))
+        }
+        if(tracks.isNotEmpty()){
+         HorizontalPager(state=chartPager,verticalAlignment=Alignment.Top,
+          modifier=Modifier.fillMaxWidth().testTag("home-chart-pager").chartEdgeSwipe(chartPager){go(index+it)}) { page ->
+          Column(Modifier.fillMaxWidth()) {
+           chartPages[page].forEachIndexed { offset,song ->
+            HomeChartRow(song,m,tracks,song.raw.optInt("chart_rank",page*10+offset+1))
+           }
+          }
          }
         }
        }
@@ -207,6 +219,30 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
   }
  }
  discoveryPanel?.let{panel->AppPage(if(panel=="genre")"장르별로 발견"else "기분별로 발견",{discoveryPanel=null}){LazyColumn(Modifier.fillMaxSize(),contentPadding=PaddingValues(16.dp)){item{if(panel=="genre")GenreGrid(m)else MoodShelf(m)}}}}
+}
+
+/** Observe outward drags at the ends without consuming the pager's drag or the list's vertical scroll. */
+@Composable private fun Modifier.chartEdgeSwipe(pager:PagerState,onStep:(Int)->Unit):Modifier {
+ val latestStep by rememberUpdatedState(onStep)
+ return pointerInput(pager) {
+  awaitEachGesture {
+   val down=awaitFirstDown(requireUnconsumed=false,pass=PointerEventPass.Initial)
+   val atStart=!pager.canScrollBackward
+   val atEnd=!pager.canScrollForward
+   var position=down.position
+   do {
+    val event=awaitPointerEvent(PointerEventPass.Initial)
+    val pointer=event.changes.firstOrNull { it.id==down.id } ?: return@awaitEachGesture
+    if(event.changes.size>1) return@awaitEachGesture
+    position=pointer.position
+   } while(pointer.pressed)
+   val delta=position-down.position
+   if(kotlin.math.abs(delta.x)>kotlin.math.abs(delta.y) && kotlin.math.abs(delta.x)>=36.dp.toPx()) {
+    if(delta.x>0 && atStart) latestStep(-1)
+    if(delta.x<0 && atEnd) latestStep(1)
+   }
+  }
+ }
 }
 
 @Composable internal fun Modifier.sectionSwipe(onStep:(Int)->Unit):Modifier {
@@ -578,9 +614,12 @@ private fun HomePromotion.imageUrl():String {
    Text("제작자와 플레이리스트도 함께 찾아요",fontSize=11.sp,color=Muted,modifier=Modifier.padding(top=8.dp))
   }
   if(m.search.isNotBlank()){
-   item{Spacer(Modifier.height(16.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("전체","곡","사람","플레이리스트")){label->DiscoveryChip(label,selected=category==label,tag="discover-filter-$label"){category=label}}};if(m.searching)LinearProgressIndicator(Modifier.fillMaxWidth().padding(top=12.dp),color=Violet,trackColor=Stroke)}
+   item{Spacer(Modifier.height(16.dp));LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){items(listOf("전체","곡","사람","플레이리스트")){label->DiscoveryChip(label,selected=category==label,tag="discover-filter-$label"){category=label}}};if(m.searching&&!m.searched)LoadingRows()}
    if(category in listOf("전체","곡")&&m.searchResults.isNotEmpty()){
     item{Section("곡 · ${m.searchResults.size}")};items(m.searchResults,key={"song-"+it.id}){TwoLineSongRow(it,m,m.searchResults)}
+   }
+   if(category in listOf("전체","곡")&&m.nextSearchOffset!=null)item{
+    OutlinedButton(onClick=m::loadMoreSearchTracks,enabled=!m.searching,modifier=Modifier.fillMaxWidth()){Text("곡 더 보기")}
    }
    if(category in listOf("전체","사람")&&m.searchPeople.isNotEmpty()){
     item{Section("음악을 만드는 사람들")}
