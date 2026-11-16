@@ -25,7 +25,8 @@ function communityTargetId(raw){try{return decodeURIComponent(raw);}catch{return
 function communityRouteTargetsHTML(raw=''){
  const routes=new Set(['live','voice','community','community/voice','crew','community/crews','community/crews?browse=1','crew?browse=1','community/rankings']);
  for(const route of ['live','voice','community','community/voice'])for(const mode of ['all','karaoke','talk'])routes.add(route+'?mode='+mode);
- for(const category of ['aiArtist','crew','work','dubbing'])for(const workKind of category==='work'?['solo','duet']:['solo'])routes.add(communityRankingHref({category,workKind}).slice(1));
+ for(const category of ['aiArtist','crew','dubbing'])routes.add(communityRankingHref({category}).slice(1));
+ for(const period of ['week','month'])for(const workKind of ['all','solo','duet'])routes.add(communityRankingHref({category:'cover',period,workKind}).slice(1));
  if(raw)routes.add(raw);
  return '<div hidden aria-hidden="true" data-community-route-targets>'+[...new Set([...routes].map(communityTargetId))].map(id=>'<span data-community-route-target id="'+esc(id)+'"></span>').join('')+'</div>';
 }

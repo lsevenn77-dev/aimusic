@@ -1,5 +1,10 @@
 // @ts-check
 // Song-page lists share the existing routes, artwork, player, likes and track menu.
+/** @param {string} trackId @param {string} trackTitle */
+function songCoverPlayButton(trackId,trackTitle,playChild=false){
+ const id=esc(trackId),title=esc(trackTitle);
+ return `<button type="button" class="list-action song-cover-play${playChild?' play-duet-play':''}" data-play="${id}" data-community-toggle data-song-cover-toggle data-title="${title}" title="${title} 재생" aria-label="${title} 재생" aria-pressed="false"><span class="song-cover-play-art">${icon(playChild?'play':'ui-play-action')}<span class="song-cover-pause" hidden>${icon(playChild?'pause':'ui-pause-action')}</span></span></button>`;
+}
 /** @param {SongCover} t */
 function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=false,playChild=false,songPage=false,position=0}={}){
  const id=esc(t.id),title=esc(t.title),duet=t.cover_mode==='duet';
@@ -23,7 +28,7 @@ function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=f
   ${!profile&&!invitation&&!child?`<span class="song-cover-plays" aria-label="재생 ${number(t.plays||0)}회">${icon('ui-plays')}${number(t.plays||0)}</span>`:''}
   <div class="list-actions">
   ${invitation&&t.can_join?`<a class="list-action primary-button song-cover-join${profile?'':' song-cover-join-icon'}" href="#sing/${esc(t.original_id)}?duet=${id}" title="${title} 참여하기" aria-label="${title} 참여하기">${icon('ui-plus-action')}</a>`:''}
-  <button type="button" class="list-action song-cover-play${playChild?' play-duet-play':''}" data-play="${id}" data-community-toggle data-song-cover-toggle data-title="${title}" title="${title} 재생" aria-label="${title} 재생" aria-pressed="false"><span class="song-cover-play-art">${icon(playChild?'play':'ui-play-action')}<span class="song-cover-pause" hidden>${icon(playChild?'pause':'ui-pause-action')}</span></span></button>
+  ${songCoverPlayButton(t.id,t.title,playChild)}
   <button type="button" class="list-action song-cover-more" data-track-menu="${id}" title="${title} 더보기" aria-label="${title} 더보기">${icon('ui-menu-action')}</button></div>
  </article>`;
 }

@@ -2,7 +2,7 @@ import {one,rows,fail,json} from './db.js';
 import {trackList,published,VISIBLE,SINGABLE,COVER_SORTS} from './catalog.js';
 
 // Opt-in song-page projection. Legacy cover consumers keep their existing contract.
-const completed=(t='t')=>`${t}.kind='cover' AND (${t}.cover_mode='solo' OR (${t}.cover_mode='duet' AND ${t}.duet_parent_id IS NOT NULL AND ${t}.duet_open=0))`;
+export const completedCoverSQL=(t='t')=>`${t}.kind='cover' AND (${t}.cover_mode='solo' OR (${t}.cover_mode='duet' AND ${t}.duet_parent_id IS NOT NULL AND ${t}.duet_open=0))`;
 const publication=(t='t')=>`COALESCE(NULLIF(${t}.first_published_at,0),${t}.created)`;
 export async function songCovers(env,detail,params,user){
  const view=params.get('view');
@@ -12,7 +12,7 @@ export async function songCovers(env,detail,params,user){
  const blocked=env.AIFECT_BLOCKED||[];
  const block=(t='t')=>blocked.length?` AND ${t}.user_id NOT IN (${blocked.map(()=>'?').join(',')})`:'';
  const base=`t.original_id=? AND ${VISIBLE()}`;
- const complete=`${base} AND ${completed()}`;
+ const complete=`${base} AND ${completedCoverSQL()}`;
  const invite=`${base} AND t.kind='cover' AND t.cover_mode='duet' AND t.duet_open=1 AND t.duet_parent_id IS NULL AND EXISTS(SELECT 1 FROM tracks d WHERE d.id=t.original_id AND ${VISIBLE('d')} AND ${SINGABLE('d')})${user?' AND t.user_id!=?':''}`;
  const inviteArgs=[detail.id,...(user?[user.id]:[])];
  const [done,open]=await Promise.all([

@@ -11,6 +11,32 @@ function cover(f,id,mode='solo',parent=null,open=0){
  f.sql.prepare(`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,cover_mode,duet_parent_id,duet_open,duration)
  VALUES(?,'owner','artist','producer',?,'Rock','',1,'wav',128,0,'published','cover','one',?,?,?,100)`).run(id,id,mode,parent,open);
 }
+test('cover category ranks only published singing recordings across both modes and the requested KST window',async t=>{
+ const f=await fixture(t);
+ t.mock.method(Date,'now',()=>Date.parse('2026-11-18T03:00:00Z'));
+ const week=communityPeriod('week'),month=communityPeriod('month');
+ f.sql.exec("UPDATE tracks SET karaoke_at=1,duration=100");
+ cover(f,'solo');cover(f,'invite','duet',null,1);cover(f,'duet','duet','invite');cover(f,'earlier');
+ for(const status of ['hidden','deleted','uploading']){
+  cover(f,status+'-cover');
+  f.sql.prepare('UPDATE tracks SET status=? WHERE id=?').run(status,status+'-cover');
+ }
+ const like=(id,at)=>f.sql.prepare("INSERT INTO likes(user_id,track_id,created) VALUES('other',?,?)").run(id,at);
+ for(const id of ['solo','duet','invite','one','hidden-cover','deleted-cover','uploading-cover'])like(id,week.from);
+ like('earlier',month.from);
+ const read=async query=>(await f.call('/api/community/rankings?'+query)).body;
+ const weekly=await read('category=cover&period=week'),monthly=await read('category=cover&period=month');
+ assert.deepEqual(weekly.rows.map(r=>r.id),['duet','solo']);
+ assert.deepEqual(monthly.rows.map(r=>r.id),['duet','earlier','solo']);
+ assert.equal(weekly.from,week.from);assert.equal(monthly.from,month.from);
+ assert.ok(monthly.rows.every(r=>r.kind==='cover'&&r.producer_id==='producer'&&r.score===15));
+ assert.deepEqual((await read('category=work&workKind=duet&period=month')).rows,(await read('category=cover&workKind=duet&period=month')).rows);
+ assert.deepEqual((await read('category=work')).rows,(await read('category=cover&workKind=solo')).rows);
+ assert.deepEqual((await read('category=work&workKind=dubbing')).rows,(await read('category=dubbing')).rows);
+ assert.equal((await f.call('/api/community/rankings?category=cover&workKind=dubbing')).status,400);
+ f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='invite'");
+ assert.deepEqual((await read('category=cover')).rows.map(r=>r.id),['solo']);
+});
 test('completed public solo/duet eligibility, boundary events, owner exclusions and raw audit agree without writes',async t=>{
  const f=await fixture(t);f.sql.exec("UPDATE tracks SET karaoke_at=1,duration=100");
  cover(f,'solo');cover(f,'invitation','duet',null,1);cover(f,'duet','duet','invitation');cover(f,'still-open','duet','invitation',1);
@@ -31,11 +57,11 @@ test('completed public solo/duet eligibility, boundary events, owner exclusions 
  f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");
  assert.deepEqual((await f.call('/api/community/rankings?category=work&workKind=duet')).body.rows,[]);
 });
-test('weekly normalization and pagination preserve complete-population scores and deterministic ordering',async t=>{
+test('monthly normalization and pagination preserve complete-population scores and deterministic ordering',async t=>{
  const f=await fixture(t),at=Math.floor(Date.now()/1000);f.sql.exec("UPDATE tracks SET karaoke_at=1");
  for(let i=0;i<43;i++){const id='cover-'+String(i).padStart(2,'0');cover(f,id);f.sql.prepare("INSERT INTO likes(user_id,track_id,created) VALUES('other',?,?)").run(id,at);}
  const path='/api/community/rankings?category=work&period=month',all=(await f.call(path)).body;
- assert.equal(all.period,'week');assert.equal(all.from,communityPeriod().from);assert.equal(all.rows.length,43);
+ assert.equal(all.period,'month');assert.equal(all.from,communityPeriod('month').from);assert.equal(all.rows.length,43);
  const pages=[];let offset=0;
  do{const d=(await f.call(path+'&limit=20&offset='+offset)).body;assert.equal(d.total,43);pages.push(...d.rows);offset=d.next_offset;}while(offset!==null);
  assert.deepEqual(pages,all.rows);assert.equal((await f.call('/api/community/rankings')).body.rows.length,0);

@@ -400,49 +400,68 @@ async function playBrowseV3(raw,readApi=api){
 }
 function communityRankingOptions(raw){
  const p=new URLSearchParams(raw.split('?')[1]||'');
- let category=['aiArtist','crew','work','dubbing'].includes(p.get('category'))?p.get('category'):'aiArtist';
- if(p.get('workKind')==='dubbing'&&(!p.has('category')||category==='work'))category='dubbing';
- // Older shared cover links predate the category parameter.
- if(!p.has('category')&&(p.has('original_id')||p.has('kind')))category='work';
- return {category,period:'week',workKind:p.get('workKind')==='duet'?'duet':'solo'};
+ const requested=p.get('category'),kind=p.get('workKind');
+ const legacy=requested==='work'||(!requested&&(p.has('original_id')||p.has('kind')));
+ let category=legacy?'cover':['cover','aiArtist','crew','dubbing'].includes(requested)?requested:'aiArtist';
+ if(kind==='dubbing'&&(requested==='work'||!requested))category='dubbing';
+ const period=category==='cover'&&p.get('period')==='month'?'month':'week';
+ const workKind=category!=='cover'?'solo':['solo','duet','all'].includes(kind)?kind:legacy?'solo':'all';
+ return {category,period,workKind};
 }
 function communityRankingHref(options){
- const p=new URLSearchParams({category:options.category,period:'week'});
- if(options.category==='work')p.set('workKind',options.workKind);
+ const cover=options.category==='cover';
+ const p=new URLSearchParams({category:options.category,period:cover&&options.period==='month'?'month':'week'});
+ if(cover&&options.workKind&&options.workKind!=='all')p.set('workKind',options.workKind);
  return '#community/rankings?'+p;
 }
 function communityRankingImage(r){
  const src=typeof r.image_url==='string'&&r.image_url.startsWith('/')&&!r.image_url.startsWith('//')?r.image_url:'/assets/aifect-mark.svg';
  return '<span class="ranking-picture cover"><img src="'+esc(src)+'" alt="" loading="lazy" decoding="async"></span>';
 }
-function communityRankingRow(r,rank){
- return '<li><a class="ranking-row" href="'+esc(r.href)+'" aria-label="'+rank+'위 '+esc(r.name)+'"><span class="ranking-number">'+rank+'</span>'+communityRankingImage(r)+'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a></li>';
+function rankingCoverActions(r){
+ if(r.kind!=='cover')return '';
+ const name=esc(r.producer),title=esc(r.name),id=esc(r.id);
+ return `<div class="ranking-cover-actions">
+  <a class="ranking-performer song-cover-performer" href="#producer/${esc(encodeURIComponent(r.producer_id))}" aria-label="${name} 프로필 보기">${name}</a>
+  <div class="ranking-buttons">${songCoverPlayButton(r.id,r.name)}<button type="button" class="list-action song-cover-like" data-like="${id}" aria-pressed="${liked(r.id)}" aria-label="${title} 좋아요">${icon('ui-heart')}</button></div>
+ </div>`;
 }
-function communityRankingResults(rows){
- if(!rows.length)return '<div class="ranking-empty" role="status"><h2>아직 집계된 순위가 없어요</h2><p>이번 주 유효한 활동이 쌓이면 순위를 표시해요.</p></div>';
- const podium=rows.slice(0,3).map((r,i)=>'<li class="ranking-place ranking-place-'+(i+1)+'"><a href="'+esc(r.href)+'" aria-label="'+(i+1)+'위 '+esc(r.name)+'">'+communityRankingImage(r)+'<span class="ranking-medal" aria-hidden="true">'+(i+1)+'</span><strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a></li>').join('');
+function communityRankingRow(r,rank){
+ return '<li><a class="ranking-row" href="'+esc(r.href)+'" aria-label="'+rank+'위 '+esc(r.name)+'"><span class="ranking-number">'+rank+'</span>'+communityRankingImage(r)+'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a>'+rankingCoverActions(r)+'</li>';
+}
+function communityRankingResults(rows,period='week'){
+ if(!rows.length)return '<div class="ranking-empty" role="status"><h2>아직 집계된 순위가 없어요</h2><p>'+(period==='month'?'이번 달':'이번 주')+' 유효한 활동이 쌓이면 순위를 표시해요.</p></div>';
+ const podium=rows.slice(0,3).map((r,i)=>'<li class="ranking-place ranking-place-'+(i+1)+'"><a href="'+esc(r.href)+'" aria-label="'+(i+1)+'위 '+esc(r.name)+'">'+communityRankingImage(r)+'<span class="ranking-medal" aria-hidden="true">'+(i+1)+'</span><strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a>'+rankingCoverActions(r)+'</li>').join('');
  return '<ol class="ranking-podium" aria-label="상위 3위">'+podium+'</ol><ol class="ranking-list" start="4" aria-label="4위 이하">'+rows.slice(3).map((r,i)=>communityRankingRow(r,i+4)).join('')+'</ol>';
 }
 function communityRankingInfo(d){
  const date=n=>Number.isFinite(Number(n))?new Date(Number(n)*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}):'확인 중';
- return '<details class="ranking-info"><summary>집계 정보 보기 <span aria-hidden="true">⌄</span></summary><dl><div><dt>집계 기준</dt><dd>주간</dd></div><div><dt>집계기간</dt><dd>'+esc(date(d.from))+' ~ '+esc(date(d.until))+' <span>(종료 시각 미포함)</span></dd></div><div><dt>최종 갱신</dt><dd>'+esc(date(d.updated_at))+'</dd></div><div><dt>기준 시간대</dt><dd>KST</dd></div></dl></details>';
+ return '<details class="ranking-info"><summary>집계 정보 보기 <span aria-hidden="true">⌄</span></summary><dl><div><dt>집계 기준</dt><dd>'+(d.period==='month'?'월간':'주간')+'</dd></div><div><dt>집계기간</dt><dd>'+esc(date(d.from))+' ~ '+esc(date(d.until))+' <span>(종료 시각 미포함)</span></dd></div><div><dt>최종 갱신</dt><dd>'+esc(date(d.updated_at))+'</dd></div><div><dt>기준 시간대</dt><dd>KST</dd></div></dl></details>';
 }
 async function communityRankingV3(raw,readApi=api){
  const options=communityRankingOptions(raw),{category,workKind}=options;
- const nav=(items,key,value,cls,label)=>'<nav class="'+cls+'" aria-label="'+label+'">'+items.map(([v,text])=>'<a href="'+esc(communityRankingHref({...options,[key]:v}))+'" '+(value===v?'aria-current="page"':'')+'>'+text+'</a>').join('')+'</nav>';
- let html=communityNavigation('rankings')+'<section class="community-v3 weekly-rankings" aria-label="주간 랭킹">'+nav([['aiArtist','AI 아티스트'],['crew','크루 랭킹'],['work','작품 랭킹'],['dubbing','더빙 랭킹']],'category',category,'ranking-categories','랭킹 카테고리');
- if(category==='work')html+=nav([['solo','솔로'],['duet','듀엣']],'workKind',workKind,'ranking-kinds','작품 유형');
+ const nav=(items,key,value,cls,label)=>'<nav class="'+cls+'" aria-label="'+label+'">'+items.map(([v,text])=>{
+  const next={...options,[key]:v};
+  if(key==='category'&&v==='cover'&&category!=='cover')next.workKind='all';
+  return '<a href="'+esc(communityRankingHref(next))+'" '+(value===v?'aria-current="page"':'')+'>'+text+'</a>';
+ }).join('')+'</nav>';
+ let html=communityNavigation('rankings')+'<section class="community-v3 weekly-rankings" aria-label="커뮤니티 랭킹">'+nav([['aiArtist','AI 아티스트'],['crew','크루 랭킹'],['cover','커버 랭킹'],['dubbing','더빙 랭킹']],'category',category,'ranking-categories','랭킹 카테고리');
+ if(category==='cover'){
+  html+=nav([['week','주간'],['month','월간']],'period',options.period,'ranking-kinds','집계 기간');
+  html+=nav([['all','전체'],['solo','솔로'],['duet','듀엣']],'workKind',workKind,'ranking-kinds','커버 유형');
+ }
  const ranking={options,canonicalHref:communityRankingHref(options),raw,readApi,rows:[],nextOffset:null};
  try{
   const d=await readApi('/api/community/rankings?'+new URLSearchParams({...options,limit:20}));
   ranking.rows=d.rows||[];ranking.nextOffset=d.next_offset??null;ranking.from=d.from;
-  html+='<div class="ranking-results">'+communityRankingResults(ranking.rows)+'</div><div class="ranking-more-area"><button type="button" class="ranking-more" data-ranking-more '+(ranking.nextOffset===null?'hidden':'')+'>더 보기</button><p class="ranking-status" role="status" aria-live="polite"></p></div>'+communityRankingInfo(d);
+  html+='<div class="ranking-results">'+communityRankingResults(ranking.rows,options.period)+'</div><div class="ranking-more-area"><button type="button" class="ranking-more" data-ranking-more '+(ranking.nextOffset===null?'hidden':'')+'>더 보기</button><p class="ranking-status" role="status" aria-live="polite"></p></div>'+communityRankingInfo(d);
  }catch(e){html+='<div class="ranking-empty" role="alert"><h2>랭킹을 불러오지 못했어요</h2><p>'+esc(e.message)+'</p><button type="button" class="ranking-more" data-ranking-retry>다시 시도</button></div>';}
  return {html:html+'</section>',ranking};
 }
 function bindCommunityRanking(view){
  const state=view?.ranking;if(!state)return;
  const root=document.querySelector('.weekly-rankings');if(!root)return;
+ if(state.options.category==='cover')bindSongCoverPlayback();
  const retry=root.querySelector('[data-ranking-retry]');if(retry)retry.onclick=()=>render();
  const more=root.querySelector('[data-ranking-more]');if(!more)return;
  more.onclick=async()=>{
@@ -454,7 +473,8 @@ function bindCommunityRanking(view){
    if(!root.isConnected)return;
    if(d.from!==state.from){render();return;}
    const seen=new Set(state.rows.map(r=>r.id));state.rows.push(...d.rows.filter(r=>!seen.has(r.id)));
-   const added=state.rows.length;root.querySelector('.ranking-results').innerHTML=communityRankingResults(state.rows);
+   const added=state.rows.length;root.querySelector('.ranking-results').innerHTML=communityRankingResults(state.rows,state.options.period);
+   if(state.options.category==='cover'){paintInteractions();syncSongCoverPlayback();}
    state.nextOffset=d.next_offset??null;more.hidden=state.nextOffset===null;status.textContent=added+'위까지 표시했어요.';
   }catch(e){if(root.isConnected)status.textContent='불러오지 못했어요. 더 보기를 눌러 다시 시도해주세요.';}
   finally{more.disabled=false;more.textContent='더 보기';}

@@ -92,7 +92,7 @@ test('community fragment markers cover stable navigation, ranking categories and
  for(const [,href] of c.communityNavigation('live').matchAll(/href="(#[^"]+)"/g))assert.ok(targets.includes(unescape(href).slice(1)),href);
  for(const raw of ['live','voice','community','community/voice','crew','community/crews','community/crews?browse=1'])assert.ok(targets.includes(raw),raw);
  for(const route of ['live','voice','community','community/voice'])for(const mode of ['all','karaoke','talk'])assert.ok(targets.includes(route+'?mode='+mode),route+' mode '+mode);
- for(const category of ['aiArtist','crew','work','dubbing'])for(const workKind of category==='work'?['solo','duet']:['solo']){
+ for(const category of ['aiArtist','crew','cover','dubbing'])for(const workKind of category==='cover'?['all','solo','duet']:['solo']){
   const href=c.communityRankingHref({category,period:'week',workKind});
   assert.ok(targets.includes(href.slice(1)),href+' needs a target before hashchange');
  }
@@ -242,14 +242,14 @@ test('ranking URL normalization retains legacy shared links and validated catego
  for(const [raw,category,workKind] of [
   ['community/rankings?period=month','aiArtist','solo'],
   ['community/rankings?category=crew&period=all','crew','solo'],
-  ['community/rankings?category=work&workKind=duet','work','duet'],
+  ['community/rankings?category=work&workKind=duet','cover','duet'],
   ['community/rankings?category=work&workKind=dubbing','dubbing','solo'],
-  ['community/rankings?kind=singers&original_id=track','work','solo'],
+  ['community/rankings?kind=singers&original_id=track','cover','solo'],
   ['community/rankings?category=invalid&workKind=invalid','aiArtist','solo']
  ]){
   const state=c.communityRankingOptions(raw);
   assert.deepEqual(plain(state),{category,period:'week',workKind});
-  const expected='#community/rankings?category='+category+'&period=week'+(category==='work'?'&workKind='+workKind:'');
+  const expected='#community/rankings?category='+category+'&period=week'+(category==='cover'?'&workKind='+workKind:'');
   assert.equal(c.communityRankingHref(state),expected);
  }
 });
