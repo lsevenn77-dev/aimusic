@@ -25,37 +25,46 @@ async function sendProfileShareBatch(batch,people,send=api,canContinue=()=>true)
   return failed;
  }finally{batch.sending=false;}
 }
-async function shareMemberProfile(p){
- if(!me)return askLogin();
- const body=memberProfileShareBody(p);if(!body){toast('프로필을 먼저 저장해주세요.');return;}
+async function shareMemberProfile(p,popover){
+ if(!me){popover?.hidePopover();return askLogin();}
+ const body=memberProfileShareBody(p);if(!body){popover?.hidePopover();toast('프로필을 먼저 저장해주세요.');return;}
  if(profilePreviewDialog)closeProfilePreview();
- dialog(`<section class="profile-share-panel"><h2>팔로우에게 프로필 보내기</h2><p class="profile-share-summary">${esc(p.name||'회원')}님의 프로필</p><form id="profile-share-form"><label class="profile-share-search">${icon('search')}<input type="search" name="q" maxlength="100" placeholder="팔로우 검색" aria-label="공유할 팔로우 검색"></label><div class="profile-share-people" role="group" aria-label="공유할 팔로우 선택"></div><button type="button" class="text-link" data-profile-share-more hidden>더보기</button><p class="profile-share-result" role="status" aria-live="polite"></p><p class="form-error" role="alert"></p><div class="profile-share-actions"><span data-profile-share-count>0명 선택</span><button type="button" class="primary-button" data-profile-share-send disabled>전송</button></div></form></section>`);
- const panel=$('#dialog'),form=$('#profile-share-form'),list=form.querySelector('.profile-share-people'),submit=form.querySelector('[data-profile-share-send]'),more=form.querySelector('[data-profile-share-more]'),result=form.querySelector('[role=status]'),error=form.querySelector('[role=alert]'),uid=me.id;
+ const html=`<section class="profile-share-panel"><h2>프로필 공유</h2>
+  <p class="profile-share-summary">${esc(p.name||'회원')}님의 프로필을 보낼 팔로워를 선택하세요.</p>
+  <form id="profile-share-form"><label class="brand-search profile-share-search">${icon('search')}<input type="text" inputmode="search" enterkeyhint="search" name="q" maxlength="100" placeholder="팔로워 검색" aria-label="팔로워 검색"></label>
+  <div class="profile-share-people" role="group" aria-label="공유할 팔로워 선택"></div>
+  <button type="button" class="small-button" data-profile-share-more hidden>더보기</button>
+  <p class="profile-share-result" role="status"></p><p class="form-error" role="alert"></p>
+  <div class="profile-share-actions"><span data-profile-share-count aria-live="polite">0명 선택</span><button type="button" class="primary-button" data-profile-share-send disabled>전송</button></div></form></section>`;
+ if(popover)popover.innerHTML=html;else dialog(html);
+ const panel=popover||$('#dialog'),form=panel.querySelector('form'),list=form.querySelector('.profile-share-people'),submit=form.querySelector('[data-profile-share-send]'),more=form.querySelector('[data-profile-share-more]'),result=form.querySelector('[role=status]'),error=form.querySelector('[role=alert]'),uid=me.id;
  const selected=new Map(),people=new Map(),batch={body,requests:new Map(),sent:new Set(),sending:false};
  let alive=true,searchAbort,timer,next=null;
- const active=()=>alive&&form.isConnected&&panel.open&&uid===me?.id;
+ const active=()=>alive&&form.isConnected&&(popover?popover.matches(':popover-open'):panel.open)&&uid===me?.id;
  const count=()=>{form.querySelector('[data-profile-share-count]').textContent=selected.size+'명 선택';submit.disabled=batch.sending||!selected.size;submit.textContent=batch.sending?'전송 중…':'전송';};
  const paint=()=>{
   list.innerHTML=[...people.values()].map(person=>{
    const pid=person.profile_id,sent=batch.sent.has(pid);
-   return `<label class="profile-share-person"><input type="checkbox" data-profile-share-person="${esc(pid||person.key)}" ${pid&&!sent?'':'disabled'} ${selected.has(pid)?'checked':''}>${avatarImage({id:pid,name:person.name,image_version:person.image_version},'producer',false)}<span>${esc(person.name)}${sent?'<small>전송 완료</small>':pid?'':'<small>메시지를 받을 수 없는 프로필</small>'}</span></label>`;
-  }).join('')||'<p class="field-help">검색된 팔로우가 없어요.</p>';
+   return `<label class="profile-share-person"><input type="checkbox" data-profile-share-person="${esc(pid||person.key)}" ${pid&&!sent&&!batch.sending?'':'disabled'} ${selected.has(pid)?'checked':''}>${avatarImage({id:pid,name:person.name,image_version:person.image_version},'producer',false,false)}<span>${esc(person.name)}${sent?'<small>전송 완료</small>':pid?'':'<small>메시지를 받을 수 없는 프로필</small>'}</span></label>`;
+  }).join('')||(form.elements.q.value.trim()?'<p class="field-help">검색된 팔로워가 없어요.</p>':'<p class="field-help">아직 팔로워가 없어요.</p>');
   more.hidden=next===null;count();
  };
  const load=async append=>{
-  searchAbort?.abort();const controller=searchAbort=new AbortController();error.textContent='';
-  if(!append){people.clear();list.textContent='팔로우 목록을 불러오는 중…';more.hidden=true;}
+  searchAbort?.abort();const controller=searchAbort=new AbortController();more.disabled=true;
+  if(!append){people.clear();list.textContent='팔로워 목록을 불러오는 중…';more.hidden=true;}
   try{
-   const data=await api('/api/follow-management?tab=following&kind=producers&sort=name&q='+encodeURIComponent(form.elements.q.value.trim())+'&offset='+(append?next||0:0),'GET',undefined,{signal:controller.signal,fresh:true});
+   const query=new URLSearchParams({tab:'followers',sort:'name',q:form.elements.q.value.trim(),offset:append?next:0});
+   const data=await api('/api/follow-management?'+query,'GET',undefined,{signal:controller.signal,fresh:true});
    if(!active()||controller.signal.aborted)return;
-   next=data.next??null;for(const person of data.items)people.set(person.profile_id||person.key,person);paint();
-  }catch(e){if(active()&&!controller.signal.aborted){list.textContent='목록을 불러오지 못했어요.';error.textContent=e.message;more.textContent='다시 불러오기';more.hidden=false;}}
+   next=data.next??null;for(const person of data.items)people.set(person.profile_id||person.key,person);more.textContent='더보기';paint();
+  }catch(e){if(active()&&!controller.signal.aborted){if(!append)list.textContent='팔로워 목록을 불러오지 못했어요.';more.textContent='다시 불러오기';more.hidden=false;toast(e.message);}}
+  finally{if(active()&&!controller.signal.aborted)more.disabled=false;}
  };
- form.elements.q.oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>load(false),180);};
+ form.elements.q.oninput=()=>{clearTimeout(timer);searchAbort?.abort();more.hidden=true;timer=setTimeout(()=>load(false),180);};
  more.onclick=()=>{more.textContent='더보기';void load(people.size>0);};
  list.onchange=e=>{
   const input=e.target.closest('[data-profile-share-person]'),person=input&&people.get(input.dataset.profileSharePerson);
-  if(!person?.profile_id||batch.sent.has(person.profile_id))return;
+  if(!person?.profile_id||batch.sending||batch.sent.has(person.profile_id))return;
   if(input.checked)selected.set(person.profile_id,person);else selected.delete(person.profile_id);count();
  };
  // Search/IME Enter must never send a message; only the explicit send control does.
@@ -63,15 +72,29 @@ async function shareMemberProfile(p){
  submit.onclick=async()=>{
   if(batch.sending||!selected.size||!active())return;
   error.textContent='';const recipients=[...selected.values()];
-  const pending=sendProfileShareBatch(batch,recipients,api,active);count();
-  const failed=await pending;if(!active()||failed===null)return;
+  popover?.setAttribute('aria-busy','true');
+  let failed;
+  try{
+   const pending=sendProfileShareBatch(batch,recipients,api,active);paint();
+   failed=await pending;
+  }finally{popover?.removeAttribute('aria-busy');}
+  if(!active()||failed===null){
+   if(failed?.length&&uid===me?.id&&panel.isConnected)toast(failed[0].message);
+   return;
+  }
   for(const id of batch.sent)selected.delete(id);
   result.textContent=batch.sent.size+'명에게 프로필을 보냈어요.';
   if(failed.length)error.textContent=failed.map(person=>person.name+': '+person.message).join(' / ')+' 실패한 대상은 다시 전송할 수 있어요.';
   paint();if(typeof refreshMessageBadge==='function')void refreshMessageBadge();
  };
- const dispose=()=>{alive=false;clearTimeout(timer);searchAbort?.abort();panel.removeEventListener('close',dispose);};
- panel.addEventListener('close',dispose);registerRouteCleanup(()=>{dispose();if(form.isConnected)panel.close();});
+ const closed=popover?'beforetoggle':'close';
+ const dispose=registerRouteCleanup(()=>{
+  alive=false;clearTimeout(timer);searchAbort?.abort();panel.removeEventListener(closed,dispose);
+  if(popover)form.closest('section')?.remove();
+  else if(panel.open&&form.isConnected)panel.close();
+ });
+ panel.addEventListener(closed,dispose,{once:true});
+ if(popover&&matchMedia('(min-width:801px)').matches)form.elements.q.focus({preventScroll:true});
  await load(false);
 }
 

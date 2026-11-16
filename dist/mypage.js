@@ -77,13 +77,14 @@ function myProfileHeader(d){
  const banner=p.id&&p.banner_version?'/media/banner/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.banner_version):'';
  const background=`<div class="mp-header-background" aria-hidden="true">${banner||photo?`<img src="${esc(banner||photo)}"${banner&&photo?` data-fallback="${esc(photo)}"`:''} alt="">`:''}</div>`;
  const tools=`<div class="mp-header-tools">
-  <button type="button" class="fan-icon" data-mp-share aria-label="프로필 공유" title="프로필 공유">${icon('share',20)}</button>
+  <button type="button" class="fan-icon" data-mp-share popovertarget="mp-profile-share" aria-haspopup="dialog" aria-label="프로필 공유" title="프로필 공유">${icon('share',20)}</button>
   ${own?`<button type="button" class="fan-icon" data-mp-settings aria-label="프로필 설정" title="프로필 설정" aria-controls="mp-settings-menu" aria-expanded="false">${icon('settings',20)}</button>`:''}
  </div>`;
  const settings=own?`<nav id="mp-settings-menu" class="fan-settings-menu mp-settings-menu" aria-label="프로필 설정" hidden>
   <a href="#membership">${icon('ticket',18)}구독·이용권 관리</a>
-  <a href="#payouts">${icon('wallet',18)}정산내역</a>
+  <a href="#studio/payouts">${icon('wallet',18)}정산내역</a>
   <a href="#account">${icon('settings',18)}계정설정</a>
+  <a href="#follow?tab=blocks">${icon('lock',18)}차단관리</a>
   <button type="button" data-quick-logout>${icon('logout',18)}로그아웃</button>
  </nav>`:'';
  const actions=own?`<div class="mp-header-actions mp-owner-actions">
@@ -99,7 +100,8 @@ function myProfileHeader(d){
    ${p.public_id?`<p class="mp-public-id">ID · ${esc(p.public_id)} <button type="button" class="text-link" data-copy-public-id="${esc(p.public_id)}" aria-label="고유 ID 복사"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></p>`:''}
    ${c?`<div class="mp-crew-line"><a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a></div>`:''}
    </div>${settings}${bio&&bio!=='-'?`<p class="mp-profile-bio">${esc(bio)}</p>`:''}${myProfileStats(d,own)}
-  </div>${actions}</header></div>`;
+  </div>${actions}</header>
+  <div id="mp-profile-share" popover="auto" role="dialog" aria-label="프로필 공유"></div></div>`;
 }
 
 function bindMemberHeader(profile){
@@ -114,7 +116,16 @@ function bindMemberHeader(profile){
   image.addEventListener('error',fallback);
   if(image.complete&&!image.naturalWidth)fallback();
  }
- header.querySelector('[data-mp-share]').onclick=()=>shareMemberProfile(profile);
+ const share=header.parentElement.querySelector('#mp-profile-share');
+ share.onbeforetoggle=event=>{
+  if(event.newState==='open'&&share.getAttribute('aria-busy')==='true'){
+   event.preventDefault();toast('프로필을 전송 중이에요.');
+  }
+ };
+ share.ontoggle=event=>{
+  if(event.newState==='open')void shareMemberProfile(profile,share);
+ };
+ registerRouteCleanup(()=>{if(share.matches(':popover-open'))share.hidePopover();});
  const trigger=header.querySelector('[data-mp-settings]'),menu=header.querySelector('.mp-settings-menu');
  if(!trigger||!menu)return;
  const events=new AbortController();
