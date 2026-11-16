@@ -121,6 +121,10 @@ async function improvementsView(base,param,raw,readApi=api){
 }
 async function dmRouteView(param,raw,readApi,inbox=null,layout=dmInboxHTML){
  if(!param){const data=inbox||await readApi('/api/dm');return {html:layout(data),inbox:true};}
+ if(raw.split('?')[0]==='dm/tools/friends'){
+  const data=inbox||await readApi('/api/dm');
+  return {html:layout(data,dmFriendFinderHTML()),inbox:true,friendFinder:true};
+ }
  if(param==='notice')return dmNoticeView(raw,readApi,inbox,layout);
  if(param==='crew')return dmWorkspaceView(await crewChatView(raw,readApi),layout);
  const path='/api/dm/'+encodeURIComponent(param);

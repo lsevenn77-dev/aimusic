@@ -259,7 +259,7 @@ function bindSocialChat(view){
  if(!view?.inbox&&!view?.chat)return;
  if(!view.inbox){socialCleanup=bindChatThread(view);return;}
  const ticket=renderId,uid=me?.id,root=document.querySelector('.message-workspace');
- let closed=false,threadBinding=null,stopNotice=null,watchedCrew=null,stopCrewInbox=null;
+ let closed=false,threadBinding=null,stopNotice=null,stopFinder=null,returnLog=null,watchedCrew=null,stopCrewInbox=null;
  let inboxData=uid&&dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
  let selection=view.selectedConversation||'',directRevision=0,crewRevision=0;
  const current=()=>!closed&&ticket===renderId&&uid===me?.id;
@@ -273,7 +273,7 @@ function bindSocialChat(view){
   routeTargets.append(target);targets.add(raw);
  };
  const addInboxTargets=d=>{
-  addTarget('dm');addTarget('dm/notice');
+  addTarget('dm');addTarget('dm/notice');addTarget('dm/tools/friends');
   for(const p of d?.conversations||[])addTarget(p.is_notice?'dm/notice?peer='+encodeURIComponent(p.id):'dm/'+p.id);
   if(d?.crew)addTarget('dm/crew/'+d.crew.id);
  };
@@ -325,8 +325,13 @@ function bindSocialChat(view){
   historyCache.clear();threadBinding?.deny?.();
   const error=$('#dm-list-error');if(error)error.textContent='로그인 상태를 다시 확인해주세요.';
  });
- function unbindPanel(){threadBinding?.();threadBinding=null;stopNotice?.();stopNotice=null;}
+ function unbindPanel(){threadBinding?.();threadBinding=null;stopNotice?.();stopNotice=null;stopFinder?.();stopFinder=null;}
  function bindPanel(panelView){
+  if(panelView.friendFinder){
+   const panel=root.querySelector('.message-thread-pane');
+   panel.setAttribute('aria-label','친구 찾기');
+   stopFinder=bindDmFriendFinder(panel,addTarget);
+  }
   if(panelView.chat){
    const route=session.route;
    threadBinding=bindChatThread(panelView,{receipts,read:()=>inboxData,refreshInbox,current:()=>location.hash.slice(1)===route});
@@ -344,7 +349,12 @@ function bindSocialChat(view){
    const active=()=>current()&&!request.signal.aborted&&location.hash.slice(1)===raw&&root.isConnected;
    const param=raw.split('?')[0].split('/')[1];
    const directAt=directRevision,crewAt=crewRevision;
-   unbindPanel();session.route=raw;selection=raw.split('?')[0].slice(3);
+   const finder=raw.split('?')[0]==='dm/tools/friends',leavingFinder=!!stopFinder;
+   const oldLog=pane.querySelector('#chat-log');
+   if(finder&&oldLog)returnLog={route:session.route,top:oldLog.scrollTop,pinned:oldLog.scrollHeight-oldLog.clientHeight-oldLog.scrollTop<90};
+   const restore=leavingFinder&&returnLog?.route===raw?returnLog:null;
+   if(!finder)returnLog=null;
+   unbindPanel();session.route=raw;selection=finder?'':raw.split('?')[0].slice(3);
    root.classList.toggle('has-thread',!!param);
    const notice=inboxData?.conversations.some(p=>p.id===selection&&p.is_notice);
    selectDmRow(root,notice?'notice':selection);
@@ -352,7 +362,7 @@ function bindSocialChat(view){
    window.AifectRender?.syncTarget();
    pane.className=param?'message-thread-pane':'message-welcome';
    if(param)pane.setAttribute('aria-label','선택한 대화');else pane.removeAttribute('aria-label');
-   if(!param){pane.removeAttribute('aria-busy');pane.innerHTML=dmWelcomeHTML();return;}
+   if(!param){pane.removeAttribute('aria-busy');pane.innerHTML=dmWelcomeHTML();if(leavingFinder)root.querySelector('[data-dm-find]')?.focus({preventScroll:true});return;}
    pane.setAttribute('aria-busy','true');
    pane.innerHTML='<p class="message-thread-loading" role="status">대화를 불러오는 중…</p>';
    const timedSignal=AbortSignal.any([request.signal,AbortSignal.timeout(20000)]);
@@ -365,6 +375,9 @@ function bindSocialChat(view){
     const panelView=await dmRouteView(param,raw,read,inboxData,(_inbox,html)=>html);
     if(!active())return;
     pane.innerHTML=panelView.html;bindPanel(panelView);
+    if(restore&&!restore.pinned){
+     const log=pane.querySelector('#chat-log');if(log){log.scrollTop=restore.top;log.dispatchEvent(new Event('scroll'));}
+    }
     if(directRevision!==directAt)threadBinding?.directChanged?.();
     if(crewRevision!==crewAt)threadBinding?.crewChanged?.();
    }catch(error){

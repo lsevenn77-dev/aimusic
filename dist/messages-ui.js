@@ -64,60 +64,54 @@ async function dmNoticeView(raw,readApi=api,knownInbox=null,layout=dmInboxHTML){
  return {html:layout(inbox,'<header class="dm-thread-header">'+back+dmProfileLink(d.peer,'<div><h1>공지</h1><small>'+esc(chatNickname(d.peer))+'</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+channels+chatPanelHTML('공지',d,d.peer),'notice'),inbox:true,refreshInbox:true,selectedConversation:'notice',chat:{path:'/api/dm/'+peer.id,peer:d.peer,initial:d}};
 }
 document.addEventListener('change',event=>{if(event.target.matches('[data-notice-channel]'))location.hash='dm/notice?peer='+encodeURIComponent(event.target.value);});
-// Keep this recipient picker attached to its trigger without changing other dialogs.
-function bindNewDmDialogLayout(modal,trigger,onClose){
- const listeners=new AbortController(),options={signal:listeners.signal},route=location.hash;
- const properties=['--dm-new-left','--dm-new-top','--dm-new-width','--dm-new-max-height'];
- let disposed=false;
- const clearPosition=()=>{modal.removeAttribute('data-dm-anchored');properties.forEach(name=>modal.style.removeProperty(name));};
- const cleanup=(restoreFocus=true)=>{
-  if(disposed)return;disposed=true;listeners.abort();onClose();clearPosition();modal.classList.remove('dm-new-dialog');
-  trigger.setAttribute('aria-expanded','false');
-  if(modal._dmNewLayoutCleanup===cleanup)delete modal._dmNewLayoutCleanup;
-  if(restoreFocus&&!modal.open&&trigger.isConnected&&location.hash===route)trigger.focus({preventScroll:true});
+function dmFriendFinderHTML(){
+ return '<header class="dm-thread-header"><a href="#dm" class="icon-button dm-finder-back" aria-label="뒤로 가기">'+icon('back')+'</a><h1>친구 찾기</h1></header>'+
+  '<section class="dm-friend-finder"><label class="dm-search brand-search">'+icon('search')+'<input type="search" data-dm-friend-query aria-label="닉네임 또는 아이디 검색" placeholder="닉네임 또는 아이디 검색" maxlength="100" autocomplete="off" enterkeyhint="search"></label>'+
+  '<p class="dm-finder-status" role="status" aria-live="polite"></p><button type="button" class="text-link dm-finder-retry" hidden>다시 시도</button><ul class="dm-finder-results" aria-label="회원 검색 결과"></ul></section>';
+}
+function bindDmFriendFinder(panel,addTarget){
+ const input=panel.querySelector('[data-dm-friend-query]'),results=panel.querySelector('.dm-finder-results');
+ const status=panel.querySelector('.dm-finder-status'),retry=panel.querySelector('.dm-finder-retry'),uid=me.id;
+ let timer,controller,version=0;
+ function invalidate(){
+  version++;clearTimeout(timer);controller?.abort();controller=null;
+  results.replaceChildren();results.removeAttribute('aria-busy');retry.hidden=true;status.textContent='';
+ }
+ function schedule(delay=275){
+  invalidate();
+  const query=input.value.trim(),ticket=version;
+  if(!query)return;
+  const current=()=>ticket===version&&uid===me?.id&&panel.isConnected&&location.hash.split('?')[0]==='#dm/tools/friends';
+  timer=setTimeout(async()=>{
+   if(!current())return;
+   controller=new AbortController();results.setAttribute('aria-busy','true');status.textContent='검색 중…';
+   try{
+    const {members}=await api('/api/dm/recipients/search?q='+encodeURIComponent(query),'GET',undefined,{signal:controller.signal,fresh:true});
+    if(!current())return;
+    results.innerHTML=members.map(person=>{
+     const route='dm/'+encodeURIComponent(person.id);addTarget(route);
+     return '<li><a class="dm-finder-person" href="#'+esc(route)+'"><span class="artist-portrait profile-avatar">'+avatarImage({...person,name:person.nickname},'producer',false)+'</span><span class="dm-finder-identity"><strong>'+esc(person.nickname)+'</strong><small>'+esc(person.public_id)+'</small></span></a></li>';
+    }).join('');
+    status.textContent=members.length?'검색 결과 '+members.length+'명':'검색 결과가 없어요.';
+   }catch(error){
+    if(!current())return;
+    status.textContent='검색하지 못했어요. 다시 시도해주세요.';retry.hidden=false;
+   }finally{if(current())results.removeAttribute('aria-busy');}
+  },delay);
+ }
+ input.oninput=event=>{if(event.isComposing)invalidate();else schedule();};
+ input.oncompositionstart=invalidate;input.oncompositionend=()=>schedule();
+ retry.onclick=()=>schedule(0);
+ results.onclick=event=>{
+  const link=event.target.closest('a.dm-finder-person');
+  if(!link||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+  event.preventDefault();history.replaceState(history.state,'',link.hash);void render();
  };
- const position=()=>{
-  if(!modal.open||!trigger.isConnected)return;
-  const mobile=window.AifectMobileInput?.isMobile()??window.matchMedia('(max-width:800px),(max-width:1100px) and (pointer:coarse)').matches;
-  const pane=trigger.closest('.message-list-pane')?.getBoundingClientRect();
-  if(mobile||!pane||pane.width<312){clearPosition();return;}
-  const viewport=window.visualViewport,viewLeft=viewport?.offsetLeft||0,viewTop=viewport?.offsetTop||0;
-  const viewWidth=viewport?.width||innerWidth,viewHeight=viewport?.height||innerHeight,anchor=trigger.getBoundingClientRect();
-  const width=Math.min(360,pane.width-32,viewWidth-32);
-  const left=Math.max(viewLeft+16,Math.min(pane.right-16-width,viewLeft+viewWidth-width-16));
-  const top=Math.max(viewTop+16,Math.min(anchor.bottom+10,viewTop+viewHeight-160));
-  modal.setAttribute('data-dm-anchored','');
-  for(const [name,value] of [['left',left],['top',top],['width',width],['max-height',Math.min(420,viewTop+viewHeight-top-16)]])modal.style.setProperty('--dm-new-'+name,Math.max(0,Math.round(value))+'px');
- };
- modal._dmNewLayoutCleanup=cleanup;modal.classList.add('dm-new-dialog');trigger.setAttribute('aria-expanded','true');
- modal.addEventListener('close',()=>{if(!modal.open)cleanup();},options);
- modal.addEventListener('click',event=>{
-  if(event.target!==modal)return;const rect=modal.getBoundingClientRect();
-  if(event.clientX<rect.left||event.clientX>rect.right||event.clientY<rect.top||event.clientY>rect.bottom)modal.close();
- },options);
- window.addEventListener('resize',position,options);
- window.addEventListener('scroll',position,{...options,passive:true});
- window.visualViewport?.addEventListener('resize',position,options);
- window.visualViewport?.addEventListener('scroll',position,options);
- window.addEventListener('hashchange',()=>{if(modal.open)modal.close();else cleanup(false);},options);
- position();
+ input.focus({preventScroll:true});
+ return invalidate;
 }
 document.addEventListener('click',event=>{
- const trigger=event.target.closest('[data-dm-new]');if(!trigger)return;
- const modal=$('#dialog');
- if(modal.open&&modal.classList.contains('dm-new-dialog')){modal.close();return;}
- modal._dmNewLayoutCleanup?.(false);
- dialog('<section class="dm-new-popup"><h2>채팅추가</h2><form id="dm-new-search" role="search"><label class="dm-new-search-field"><input type="search" name="q" required autocomplete="off" aria-label="닉네임 검색" placeholder="닉네임 검색"></label><button class="dm-new-search-submit" type="submit" aria-label="검색">'+icon('search')+'</button></form><div id="dm-new-results" class="dm-new-results" role="status"><p>닉네임으로 대화 상대를 찾아보세요.</p></div></section>');
- const form=$('#dm-new-search'),result=$('#dm-new-results');let revision=0;
- bindNewDmDialogLayout(modal,trigger,()=>{revision++;});
- form.onsubmit=async e=>{e.preventDefault();const version=++revision,uid=me?.id,q=form.elements.q.value.trim();if(!q)return;
-  result.textContent='찾는 중…';
-  try{const data=await api('/api/search?q='+encodeURIComponent(q));if(version!==revision||uid!==me?.id||!modal.open||!result.isConnected)return;
-   const people=(data.producers||[]).filter(p=>p.id!==me?.profile_id&&p.user_id!==me?.id);
-   result.innerHTML=people.length?people.map(p=>'<a class="dm-new-person" href="#dm/'+esc(p.id)+'" data-close-dialog>'+portrait(p,'producer')+'<strong>'+userNickname(p.name,{profileId:p.id,userId:p.user_id})+'</strong>'+icon('message')+'</a>').join(''):'<p>검색 결과가 없어요.</p>';
-  }catch(error){if(version===revision&&uid===me?.id&&modal.open&&result.isConnected)result.textContent=error.message;}
- };
- form.elements.q.focus({preventScroll:true});
+ if(event.target.closest('[data-dm-find]'))location.hash='dm/tools/friends';
 });
 // Every mobile thread has a real list history entry, including shared URLs and reloads.
 (() => {

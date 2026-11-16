@@ -226,6 +226,19 @@ export async function socialRoute(req,env,path,user){
   if(sent.recipient_id!==p.user_id||sent.crew_invite_id!==cid)fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
   return json({ok:true,peer_id:p.id,message_id:sent.id},201);
  }
+ if(path==='/api/dm/recipients/search'&&method==='GET'){
+  requireUser(user);
+  const term=(url.searchParams.get('q')||'').trim().slice(0,100);
+  if(!term)return json({members:[]});
+  const members=await rows(env,`SELECT p.id,p.user_id,${producerNameSQL()} AS nickname,p.image_version,m.code AS public_id
+   FROM producers p JOIN users u ON u.id=p.user_id JOIN public_profile_ids m ON m.user_id=u.id
+   WHERE u.id<>? AND u.provider<>'deleted' AND u.account_type='human'
+    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=u.id) OR (b.user_id=u.id AND b.blocked_id=?))
+    AND (instr(lower(${producerNameSQL()}),lower(?))>0 OR instr(lower(m.code),lower(?))>0)
+   ORDER BY m.code=? COLLATE NOCASE DESC,nickname=? COLLATE NOCASE DESC,nickname COLLATE NOCASE,p.id LIMIT 40`,
+   user.id,user.id,user.id,term,term,term,term);
+  return json({members});
+ }
  if(path==='/api/dm'&&method==='GET'){
   const summary=await chatSummary(env,user),welcome=await welcomeConversation(env,user.id);return json({...summary,conversations:(await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,${producerNameSQL()} chat_nickname,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)).map(p=>({...p,is_notice:isAdmin(env,{id:p.user_id})})).concat(welcome?[welcome]:[])});
  }
