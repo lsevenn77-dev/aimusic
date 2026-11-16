@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
+import {imageDimensions} from '../server/artist-banner-image.js';
 
 function context(inApp=false){
  const c=vm.createContext({inApp,esc:s=>String(s).replaceAll('&','&amp;').replaceAll('"','&quot;'),icon:()=>'<svg></svg>'});
@@ -134,7 +135,8 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
  for(const [index,banner] of banners.entries()){
   const next=banners[(index+1)%banners.length],html=c.homeBannerHTML(banner,next);
   const slim=['studio','participate','artists','crew'].includes(banner.id);
-  const base='/assets/home-banners/'+(slim?'slim-20261116':'wide-20261116')+'/'+banner.id+'-';
+  const artwork=banner.id==='artists'?'artists-reference':banner.id;
+  const base='/assets/home-banners/'+(slim?'slim-20261116':'wide-20261116')+'/'+artwork+'-';
   const height=slim?300:363;
   const large=banner.id==='crew'?2148:2840;
   const sources=base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
@@ -149,9 +151,12 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
   assert.equal(preload[0].imagesizes,source.sizes);
   for(const width of [1420,large]){
    const bytes=readFileSync(new URL('../dist'+base+width+'.webp',import.meta.url));
-   assert.equal(bytes.toString('ascii',8,16),'WEBPVP8 ');
-   assert.equal(bytes.readUInt16LE(26)&0x3fff,width);
-   assert.equal(bytes.readUInt16LE(28)&0x3fff,Math.round(width*height/1420));
+   assert.equal(bytes.toString('ascii',8,12),'WEBP');
+   assert.deepEqual(imageDimensions(bytes,'image/webp'),{width,height:Math.round(width*height/1420)});
+   if(banner.id==='artists'){
+    const referenceHash=width===1420?'37ea400c4c75c96bfe410d90ba6d67c6047cc91741962ba123f408ca4526b4c8':'4c35a240c7e54f8c4c061697715a69e95d2bcdc0dc00f269f4e18bed60b19e00';
+    assert.equal(createHash('sha256').update(bytes).digest('hex'),referenceHash,'Use the restored reference portrait');
+   }
   }
  }
 });

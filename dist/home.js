@@ -108,7 +108,8 @@ function homeWideBanner(id){
 function homeBannerDesktopSources(id){
  if(homeWideBanner(id)){
   const directory=homeSlimArtwork.has(id)?'slim-20261116':'wide-20261116';
-  const base='/assets/home-banners/'+directory+'/'+id+'-';
+  const artwork=id==='artists'?'artists-reference':id;
+  const base='/assets/home-banners/'+directory+'/'+artwork+'-';
   const large=id==='crew'?2148:2840;
   return base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
  }
