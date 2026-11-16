@@ -32,7 +32,7 @@ enum DubbingWAV {
         return result
     }
     static var failure: APIError { APIError(status: 0, message: "48kHz 모노 녹음 파일을 확인해주세요.") }
-    static func canonical(_ raw: Data, maximum: Double) throws -> Data {
+    static func canonical(_ raw: Data, maximum: Double, gain: Double = 1) throws -> Data {
         let bytes = [UInt8](raw)
         func value(_ at: Int, _ count: Int = 4) -> Int {
             (0..<count).reduce(0) { $0 | Int(bytes[at + $1]) << ($1 * 8) }
@@ -52,7 +52,7 @@ enum DubbingWAV {
             at = from + size + size % 2
         }
         guard valid, let pcm else { throw failure }
-        return try encode(pcm: pcm)
+        return try encode(pcm: RecordingGain.pcm16(pcm, gain: gain))
     }
 }
 
@@ -62,6 +62,8 @@ struct DubbingTake: Codable, Equatable {
     var uploaded: Bool = false
 }
 
+struct DubbingSavedLine: Codable { let line: String; let take: DubbingTake }
+
 final class DubbingDrafts {
     let directory: URL
     private(set) var takes: [String: DubbingTake] = [:]
@@ -70,7 +72,10 @@ final class DubbingDrafts {
     init(owner: String, project: String, sound: String, role: String, root: URL? = nil) throws {
         guard !owner.isEmpty, [project, sound, role].allSatisfy({ SiteWorkspace.validKey($0) }) else { throw DubbingWAV.failure }
         let hash = SHA256.hash(data: Data(owner.utf8)).map { String(format: "%02x", $0) }.joined()
-        let base = root ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("DubbingDrafts")
+        var base = root ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("DubbingDrafts")
+        #if DEBUG
+        if root == nil, FeedbackUIFixture.enabled { base = FeedbackUIFixture.dubbingScriptRoot.appendingPathComponent("Takes") }
+        #endif
         directory = base.appendingPathComponent(hash).appendingPathComponent(project).appendingPathComponent(sound).appendingPathComponent(role)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
         var excluded = directory; var values = URLResourceValues(); values.isExcludedFromBackup = true; try excluded.setResourceValues(values)
@@ -78,6 +83,10 @@ final class DubbingDrafts {
             takes = try JSONDecoder().decode([String: DubbingTake].self, from: data).filter {
                 SiteWorkspace.validKey($0.key) && SiteWorkspace.validKey($0.value.id) && FileManager.default.fileExists(atPath: directory.appendingPathComponent($0.value.id + ".wav").path)
             }
+        }
+        // Migrate the previous single manifest. Each subsequent line commits independently.
+        for url in (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [] where url.lastPathComponent.hasPrefix("line-") && url.pathExtension == "json" {
+            if let data = try? Data(contentsOf: url), let item = try? JSONDecoder().decode(DubbingSavedLine.self, from: data), SiteWorkspace.validKey(item.line), SiteWorkspace.validKey(item.take.id), FileManager.default.fileExists(atPath: directory.appendingPathComponent(item.take.id + ".wav").path) { takes[item.line] = item.take }
         }
         saved = takes
     }
@@ -90,8 +99,19 @@ final class DubbingDrafts {
         takes[line] = take
     }
     func save() throws {
-        try JSONEncoder().encode(takes).write(to: directory.appendingPathComponent("takes.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        for (line, take) in takes where saved[line] != take { try persist(line: line, take: take) }
         saved = takes; cleanup()
+    }
+    private func persist(line: String, take: DubbingTake) throws {
+        try JSONEncoder().encode(DubbingSavedLine(line: line, take: take)).write(to: directory.appendingPathComponent("line-" + line + ".json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+    func commitDurably(line: String, take: DubbingTake) async throws {
+        guard SiteWorkspace.validKey(line), FileManager.default.fileExists(atPath: try file(take).path) else { throw DubbingWAV.failure }
+        let url = directory.appendingPathComponent("line-" + line + ".json")
+        try await Task.detached(priority: .userInitiated) {
+            try JSONEncoder().encode(DubbingSavedLine(line: line, take: take)).write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        }.value
+        takes[line] = take; saved[line] = take
     }
     func uploaded(line: String, takeID: String) throws {
         guard takes[line]?.id == takeID else { return }; takes[line]?.uploaded = true; try save()
@@ -108,6 +128,8 @@ final class DubbingDrafts {
     @Published var capturing = false
     @Published var countdown = 0
     @Published var elapsed = 0.0
+    @Published var timelinePosition = 0.0
+    @Published var microphoneGain = 1.0
     @Published var level = 0.0
     @Published var status = ""
     @Published var error: String?
@@ -232,29 +254,36 @@ final class DubbingDrafts {
                         guard !finishRequested else { return }
                         guard ProcessInfo.processInfo.systemUptime - waiting < maximumWait else { throw APIError(status: 0, message: "배경 음향이 중단됐어요. 완료한 대사는 보관됩니다.") }
                         let remaining = segment.start - background.currentTime
-                        countdown = remaining <= 3 ? max(1, Int(ceil(remaining))) : 0
+                        countdown = 0; timelinePosition = background.currentTime
                         status = "다음 내 대사까지 \(Int(ceil(remaining)))초"
                         try await Task.sleep(for: .milliseconds(10))
                     }
                     try Task.checkCancellation()
                     countdown = 0; capturing = true; status = "녹음 중 · \(index + 1) / \(lines.count)"
                     guard input.record() else { throw APIError(status: 0, message: "마이크를 시작하지 못했어요.") }
+                    let microphoneBegan = ProcessInfo.processInfo.systemUptime
                     while input.isRecording && input.currentTime < segment.duration && !finishRequested {
+                        guard ProcessInfo.processInfo.systemUptime - microphoneBegan < segment.duration + 5 else { throw APIError(status: 0, message: "마이크 입력이 멈췄어요. 완료한 대사는 보관됩니다.") }
+                        timelinePosition = background.currentTime
                         try Task.checkCancellation(); elapsed = input.currentTime; input.updateMeters()
                         level = min(1, pow(10, Double(input.averagePower(forChannel: 0)) / 20) * 5)
                         try await Task.sleep(for: .milliseconds(20))
                     }
                     try Task.checkCancellation()
                     input.stop(); capturing = false; recorder = nil
-                    let data = try DubbingWAV.canonical(Data(contentsOf: raw!), maximum: segment.duration)
-                    try data.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    let source = raw!, gain = microphoneGain
+                    let data = try await Task.detached(priority: .userInitiated) {
+                        let bytes = try DubbingWAV.canonical(Data(contentsOf: source), maximum: segment.duration, gain: gain)
+                        try bytes.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                        return bytes
+                    }.value
                     let recorded = DubbingTake(id: take.id, duration: Double(data.count - 44) / 96000)
-                    try drafts.commit(line: line.string("id"), take: recorded)
+                    try await drafts.commitDurably(line: line.string("id"), take: recorded)
                     try? FileManager.default.removeItem(at: raw!); raw = nil
                     elapsed = recorded.duration; completed()
                     if finishRequested { break }
                 }
-                status = "녹음 완료 · 다시 녹음하거나 다음 대사로 이동하세요"
+                status = "이 기기에 저장했어요"
             } catch is CancellationError { status = "녹음을 중단했어요. 이전 녹음은 그대로 남아 있어요." }
             catch { self.error = error.localizedDescription }
         }
@@ -276,6 +305,7 @@ extension DubbingAudio: AVAudioPlayerDelegate {
     let api: API
     private let sessionRevision: Int
     private let draftRoot: URL?
+    private var saveRequested = false
     var path: String { "/api/dubbing/projects/" + Endpoint.pathID(projectID) }
     var own: [String: Any] { view.object("recording").objects("roles").first { $0.string("roleId") == roleID } ?? [:] }
     var lines: [[String: Any]] { view.objects("lines").filter { $0.string("roleId") == roleID } }
@@ -286,7 +316,9 @@ extension DubbingAudio: AVAudioPlayerDelegate {
     }
     func check() throws { try Task.checkCancellation(); guard sessionRevision == api.sessionRevision else { throw CancellationError() } }
     func prepare(sound: [String: Any], audio: DubbingAudio) async {
-        guard !busy else { return }; busy = true; error = nil; defer { busy = false }
+        while busy || saveRequested { do { try await Task.sleep(for: .milliseconds(100)) } catch { return } }
+        guard !Task.isCancelled else { return }
+        busy = true; error = nil; defer { busy = false }
         do {
             var sound = sound
             if sound.string("state") == "not_started" || sound.isEmpty { sound = try await api.call(path + "/recording/prepare", method: "POST", body: [:]).object("sound") }
@@ -301,15 +333,45 @@ extension DubbingAudio: AVAudioPlayerDelegate {
             // Keep completed local work even when the following background download fails.
             drafts = try DubbingDrafts(owner: owner, project: projectID, sound: sound.string("id"), role: roleID, root: draftRoot)
             try await audio.prepare(path: path + "/background", api: api); try check(); message = "대사를 선택해 녹음하세요"
+            if let drafts, FileManager.default.fileExists(atPath: drafts.directory.appendingPathComponent("pending-upload").path) { try await saveAll(); try? FileManager.default.removeItem(at: drafts.directory.appendingPathComponent("pending-upload")) }
         } catch { if !Task.isCancelled { self.error = error.localizedDescription } }
+    }
+    private static var active: [String: DubbingRecordingSession] = [:]
+    static func shared(owner: String, project: String, role: String) -> DubbingRecordingSession {
+        let key = "\(API.shared.sessionRevision)|\(owner)|\(project)|\(role)"
+        if let existing = active[key], existing.busy || existing.saveRequested { return existing }
+        return DubbingRecordingSession(owner: owner, project: project, role: role)
+    }
+    func startSave(submit: Bool) {
+        guard !busy && !saveRequested else { return }
+        let key = "\(sessionRevision)|\(owner)|\(projectID)|\(roleID)"
+        do { if let drafts { try Data().write(to: drafts.directory.appendingPathComponent("pending-upload"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]) } }
+        catch { self.error = error.localizedDescription; return }
+        Self.active[key] = self
+        saveRequested = true
+        Task {
+            defer { saveRequested = false }
+            var lease = UIBackgroundTaskIdentifier.invalid
+            lease = UIApplication.shared.beginBackgroundTask(withName: "더빙 저장") { if lease != .invalid { UIApplication.shared.endBackgroundTask(lease); lease = .invalid } }
+            await save(submit: submit)
+            if lease != .invalid { UIApplication.shared.endBackgroundTask(lease) }
+            if error == nil, let drafts { try? FileManager.default.removeItem(at: drafts.directory.appendingPathComponent("pending-upload")) }
+            if Self.active[key] === self { Self.active[key] = nil }
+        }
+    }
+    func pendingLines(from index: Int) -> [[String: Any]] {
+        Array(lines.dropFirst(max(0, index))).filter { $0.string("takeId").isEmpty && drafts?.takes[$0.selfID] == nil }
     }
     func saveAll() async throws {
         guard let drafts else { throw DubbingWAV.failure }; try check(); try drafts.save()
         view = try await api.call(path + "/recording")
+        var uploadedCount = 0
+        let total = lines.filter { drafts.takes[$0.selfID] != nil }.count
+        message = "서버 저장 0/\(total)"
         for line in lines {
             try check()
             guard let take = drafts.takes[line.selfID] else { continue }
-            if line.string("takeId") == take.id { try drafts.uploaded(line: line.selfID, takeID: take.id); continue }
+            if line.string("takeId") == take.id { try drafts.uploaded(line: line.selfID, takeID: take.id); uploadedCount += 1; message = "서버 저장 \(uploadedCount)/\(total)"; continue }
             if take.uploaded { throw APIError(status: 409, message: "다른 기기에서 녹음이 변경됐어요. 새로 녹음하거나 저장 상태를 확인해주세요.") }
             // The authoritative server snapshot decides whether an interrupted upload already succeeded.
             let endpoint = path + "/recording/" + Endpoint.pathID(roleID) + "/lines/" + Endpoint.pathID(line.selfID) + "?revision=\(own.int("revision"))&take=" + Endpoint.query(take.id)
@@ -317,6 +379,7 @@ extension DubbingAudio: AVAudioPlayerDelegate {
             try check()
             guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else { throw DubbingWAV.failure }
             view = result; try drafts.uploaded(line: line.selfID, takeID: take.id); revision += 1
+            uploadedCount += 1; message = "서버 저장 \(uploadedCount)/\(total)"
         }
         message = "모든 녹음을 임시 저장했어요"
     }
@@ -351,7 +414,7 @@ struct NativeDubbingRecorder: View {
     @State private var showVolume = false
     init(owner: String, project: [String: Any], role: [String: Any]) {
         self.project = project; self.role = role
-        _session = StateObject(wrappedValue: DubbingRecordingSession(owner: owner, project: project.selfID, role: role.selfID))
+        _session = StateObject(wrappedValue: DubbingRecordingSession.shared(owner: owner, project: project.selfID, role: role.selfID))
     }
     private var current: [String: Any]? { session.lines.indices.contains(selected) ? session.lines[selected] : nil }
     private var script: [[String: Any]] { project.object("script").objects("lines").sorted { $0.int("order") < $1.int("order") } }
@@ -365,15 +428,15 @@ struct NativeDubbingRecorder: View {
                 }; Spacer()
             }.padding(.horizontal, 16)
             Picker("녹음 방식", selection: $continuous) {
-                Text("파트별 녹음").tag(false); Text("연속 녹음").tag(true)
+                Text("한 파트씩").tag(false); Text("이어서 녹음").tag(true)
             }.pickerStyle(.segmented).padding(.horizontal, 16).disabled(audio.running || session.busy)
             HStack(spacing: 8) {
-                Text(continuous ? "선택한 대사부터 내 배역을 이어서 녹음해요" : "대사 하나씩 녹음하고 확인해요").font(.caption).foregroundStyle(AifectDesign.muted)
+                Text(continuous ? "녹음하지 않은 내 대사만 이어서 녹음해요" : "대사 하나씩 녹음하고 확인해요").font(.caption).foregroundStyle(AifectDesign.muted)
                 Spacer(minLength: 0)
-                Button { showVolume = true } label: { Label("볼륨", systemImage: "slider.horizontal.3").font(.subheadline).fixedSize().frame(minWidth: 60, minHeight: 44).contentShape(Rectangle()) }
+                Button { showVolume = true } label: { Label("마이크", systemImage: "mic").font(.subheadline).fixedSize().frame(minWidth: 60, minHeight: 44).contentShape(Rectangle()) }
                     .accessibilityLabel("더빙 볼륨 조절").accessibilityIdentifier("dubbing-volume-open")
             }.padding(.horizontal, 16)
-            if session.busy { ProgressView().tint(Brand.pink) }
+            if session.busy { HStack { ProgressView().tint(Brand.pink); Text(session.message).font(.caption) } }
             if let error = session.error ?? audio.error { Text(error).font(.caption).foregroundStyle(AifectDesign.muted).padding(.horizontal) }
             if session.drafts == nil || session.error != nil {
                 Button("준비 상태 확인") { Task { await session.prepare(sound: project.object("sound"), audio: audio) } }.disabled(session.busy)
@@ -394,11 +457,11 @@ struct NativeDubbingRecorder: View {
             controls.padding(.horizontal, 16).padding(.bottom, 12)
         }.navigationTitle(role.string("name") + " · 녹음").navigationBarTitleDisplayMode(.inline)
             .modifier(FullScreenWorkspace()).navigationBarBackButtonHidden()
-            .toolbar { ToolbarItem(placement: .topBarLeading) { Button { leave() } label: { Image(systemName: "chevron.left").accessibilityLabel("뒤로") }.disabled(session.busy) } }
-            .task { model.player.pause(); await session.prepare(sound: project.object("sound"), audio: audio); selected = session.lines.firstIndex { $0.string("takeId").isEmpty } ?? 0 }
+            .toolbar { ToolbarItem(placement: .topBarLeading) { Button { leave() } label: { Image(systemName: "chevron.left").accessibilityLabel("뒤로") } } }
+            .task { model.player.pause(); await session.prepare(sound: project.object("sound"), audio: audio); selected = session.lines.firstIndex { $0.string("takeId").isEmpty && session.drafts?.takes[$0.selfID] == nil } ?? 0 }
             .onChange(of: scene) { _, phase in if phase != .active { audio.cancel(); do { try session.drafts?.save() } catch { session.error = error.localizedDescription } } }
             .onChange(of: audio.running) { _, running in if leaving && !running { leaving = false; leave() } }
-            .onDisappear { audio.cancel(); session.drafts?.discard() }
+            .onDisappear { audio.cancel() }
             .sheet(isPresented: $showVolume) { DubbingVolumeControls(audio: audio) }
             .alert("진행사항을 저장할까요?", isPresented: $confirmLeave) {
                 Button("저장하고 나가기") { do { try session.drafts?.save(); dismiss() } catch { session.error = error.localizedDescription } }
@@ -409,13 +472,14 @@ struct NativeDubbingRecorder: View {
                 Button("다시 녹음") { beginRecording() }; Button("취소", role: .cancel) { }
             } message: { Text("선택한 대사부터 새로 녹음합니다. 각 대사를 완료할 때 해당 대사만 바뀌고, 중단한 대사는 기존 녹음이 유지됩니다.") }
             .alert("모든 대사를 제출할까요?", isPresented: $confirmSubmit) {
-                Button("동의하고 제출") { Task { await session.save(submit: true) } }
+                Button("동의하고 제출") { session.startSave(submit: true) }
                 Button("취소", role: .cancel) { }
             } message: { Text("내 음성을 함께 만든 더빙 작품으로 공개하는 데 동의합니다. 제출한 녹음은 수정할 수 없어요.") }
     }
     private func beginRecording() {
         guard let current, let drafts = session.drafts else { return }
-        let lines = continuous ? Array(session.lines.dropFirst(selected)) : [current]
+        let lines = continuous ? session.pendingLines(from: selected) : [current]
+        guard !lines.isEmpty else { session.message = "내 대사를 모두 녹음했어요."; return }
         session.message = ""
         audio.record(lines: lines, drafts: drafts, selected: { id in
             selected = session.lines.firstIndex { $0.selfID == id } ?? selected
@@ -436,7 +500,7 @@ struct NativeDubbingRecorder: View {
                     .font(.caption.bold()).foregroundStyle(color).padding(7).background(color.opacity(0.16), in: RoundedRectangle(cornerRadius: 8))
                 VStack(alignment: .leading, spacing: 6) {
                     Text(line.string("text")).font(.system(size: 15, weight: active ? .semibold : .regular)).foregroundStyle(active ? Color.white : AifectDesign.secondaryText)
-                    if take != nil || !remote.isEmpty { Label(take?.uploaded == true || !remote.isEmpty ? "임시 저장됨" : "녹음됨 · 저장 전", systemImage: "checkmark.circle").font(.caption2).foregroundStyle(Brand.aqua) }
+                    if take != nil || !remote.isEmpty { Label(take?.uploaded == true || !remote.isEmpty ? "임시 저장됨" : "이 기기에 저장됨", systemImage: "checkmark.circle").font(.caption2).foregroundStyle(Brand.aqua) }
                 }.frame(maxWidth: .infinity, alignment: .leading)
             }.padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 14))
                 .overlay(RoundedRectangle(cornerRadius: 14).stroke(active ? AifectDesign.violet : AifectDesign.stroke, lineWidth: active ? 1.5 : 1))
@@ -450,7 +514,7 @@ struct NativeDubbingRecorder: View {
                 if audio.countdown > 0 {
                     Button { audio.finish() } label: { Text("\(audio.countdown)").font(.system(size: 46, weight: .bold)).frame(width: 108, height: 108).background(Brand.card, in: Circle()).overlay(Circle().stroke(AifectDesign.violet, lineWidth: 3)) }.accessibilityLabel("녹음 준비 취소")
                 } else if audio.running {
-                    DubbingRecordingProgress(title: audio.capturing ? "녹음 중..." : audio.status, elapsed: audio.elapsed, total: (try? DubbingWindow(current).duration) ?? 0, live: audio.capturing, complete: false)
+                    DubbingRecordingProgress(title: audio.capturing ? "녹음 중..." : audio.status, elapsed: audio.capturing ? audio.elapsed : audio.timelinePosition, total: audio.capturing ? ((try? DubbingWindow(current).duration) ?? 0) : (audio.background?.duration ?? 0), live: audio.capturing, complete: false)
                     Button { audio.finish() } label: { RoundedRectangle(cornerRadius: 5).fill(AifectDesign.secondaryText).frame(width: 24, height: 24).frame(width: 72, height: 72).overlay(Circle().stroke(AifectDesign.violet, lineWidth: 2)) }
                         .buttonStyle(.plain).accessibilityLabel(audio.capturing ? "이 대사 마치기" : "녹음 준비 취소").accessibilityIdentifier("dubbing-record-line")
                 } else {
@@ -460,8 +524,7 @@ struct NativeDubbingRecorder: View {
                     HStack {
                         if !session.submitted {
                             DubbingControlButton(title: continuous ? "연속 녹음 시작" : canListen ? "다시 녹음" : "녹음하기", filled: !canListen) {
-                                let remaining = session.lines.dropFirst(selected)
-                                if continuous && remaining.contains(where: { session.drafts?.takes[$0.selfID] != nil || !$0.string("takeId").isEmpty }) { confirmOverwrite = true }
+                                if continuous && session.pendingLines(from: selected).isEmpty { session.message = "내 대사를 모두 녹음했어요. 한 파트씩에서 다시 녹음할 수 있어요." }
                                 else { beginRecording() }
                             }.disabled(session.busy || session.drafts == nil || session.error != nil).accessibilityIdentifier("dubbing-record-line")
                         }
@@ -482,7 +545,7 @@ struct NativeDubbingRecorder: View {
                 if let progress = session.progress { ProgressView(value: progress); Text("업로드 \(Int(progress * 100))%").font(.caption) }
                 if !session.submitted {
                     HStack {
-                        DubbingControlButton(title: "임시 저장", filled: false) { audio.cancel(); Task { await session.save(submit: false) } }.accessibilityIdentifier("dubbing-save-all")
+                        DubbingControlButton(title: "임시 저장", filled: false) { audio.cancel(); session.startSave(submit: false) }.accessibilityIdentifier("dubbing-save-all")
                         DubbingControlButton(title: "전체 제출", filled: true) { audio.cancel(); confirmSubmit = true }.disabled(session.lines.isEmpty || session.complete != session.lines.count)
                     }.disabled(session.busy || audio.running || session.drafts == nil)
                 }
@@ -498,24 +561,25 @@ private struct DubbingVolumeControls: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    volume("마이크 입력", icon: "mic", value: $audio.microphoneGain, id: "dubbing-microphone-gain", maximum: 2)
                     volume("배경 음향", icon: "music.note", value: Binding(get: { audio.backgroundVolume }, set: audio.setBackgroundVolume), id: "dubbing-background-volume")
                     volume("녹음한 목소리 듣기", icon: "waveform", value: Binding(get: { audio.previewVolume }, set: audio.setPreviewVolume), id: "dubbing-preview-volume")
-                    Text("이 기기에서 듣는 음량만 조절해요. 녹음 원본과 제출 음량은 바뀌지 않아요.")
+                    Text("마이크 입력은 저장되는 목소리 크기예요. 배경과 녹음 듣기 음량은 재생에만 적용돼요.")
                         .font(.caption).foregroundStyle(AifectDesign.muted)
                 }.padding(20)
             }.background(Brand.background).navigationTitle("더빙 볼륨").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("완료") { dismiss() } } }
         }.tint(AifectDesign.violet).preferredColorScheme(.dark)
-            .presentationDetents([.height(340), .large]).presentationDragIndicator(.visible)
+            .presentationDetents([.height(440), .large]).presentationDragIndicator(.visible)
     }
-    private func volume(_ title: String, icon: String, value: Binding<Double>, id: String) -> some View {
+    private func volume(_ title: String, icon: String, value: Binding<Double>, id: String, maximum: Double = 1) -> some View {
         VStack(spacing: 8) {
             HStack {
                 Label(title, systemImage: icon).font(.subheadline)
                 Spacer()
                 Text("\(Int((value.wrappedValue * 100).rounded()))%").font(.subheadline.monospacedDigit()).accessibilityIdentifier(id + "-value")
             }
-            Slider(value: value, in: 0...1, step: 0.01).accessibilityLabel(title)
+            Slider(value: value, in: 0...maximum, step: 0.01).disabled(id == "dubbing-microphone-gain" && audio.running).accessibilityLabel(title)
                 .accessibilityValue("\(Int((value.wrappedValue * 100).rounded()))%")
                 .accessibilityIdentifier(id)
         }

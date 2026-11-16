@@ -2,13 +2,18 @@ import SwiftUI
 
 struct DubbingCover: View {
     let row: [String: Any]
+    static func posterURL(_ row: [String: Any]) -> URL? {
+        let path = row.string("posterUrl")
+        guard path.range(of: #"^/api/dubbing/projects/[A-Za-z0-9_-]+/poster(?:\?v=[A-Za-z0-9_-]+)?$"#, options: .regularExpression) != nil else { return nil }
+        return try? Endpoint.url(path)
+    }
     var body: some View {
         let genres = row["genres"] as? [String] ?? row.object("options")["genres"] as? [String] ?? []
         let slugs = ["SF":"sf", "이세계물":"isekai", "판타지":"fantasy", "사극":"historical", "로맨스":"romance",
                      "액션":"action", "코미디":"comedy", "첩보":"spy", "공포":"horror", "스릴러":"thriller",
                      "미스터리":"mystery", "일상":"daily", "감동":"moving"]
         let slug = slugs[genres.first ?? ""] ?? "daily"
-        RemoteArtwork(url: try? Endpoint.url("/assets/dubbing-genres/" + slug + ".webp")) {
+        RemoteArtwork(url: Self.posterURL(row) ?? (try? Endpoint.url("/assets/dubbing-genres/" + slug + ".webp"))) {
             $0.resizable().scaledToFill()
         } placeholder: { Image(systemName: "theatermasks").foregroundStyle(AifectDesign.violet) }
     }
@@ -78,7 +83,7 @@ struct DubbingProjectPage: View {
                     let final = project.object("recording").object("final")
                     if !final.isEmpty {
                         if final.string("state") == "ready" {
-                            Button(audio.previewing && previewPath == final.string("audioUrl") ? "재생 정지" : "완성된 더빙 듣기") { listen(final.string("audioUrl")) }.buttonStyle(CatalogButtonStyle(filled: true, fullWidth: true))
+                            Button(model.player.dubbingProject?.selfID == project.selfID && model.player.playing ? "일시정지" : "완성된 더빙 듣기") { audio.cancel(); model.player.playDubbing(project) }.buttonStyle(CatalogButtonStyle(filled: true, fullWidth: true))
                         } else { Text("더빙 합성 상태 · " + final.string("state")).font(.subheadline).foregroundStyle(AifectDesign.secondaryText) }
                     }
                     let timeline = lines
@@ -142,7 +147,7 @@ struct DubbingProjectPage: View {
             DubbingBadge(text: "더빙 작품", color: AifectDesign.secondaryText)
             Text(project.string("title")).font(.system(size: 22, weight: .bold)).lineLimit(2)
             Text("\(project.string("ownerName")) · \(timeLabel(project.number("duration")))").font(.system(size: 13)).foregroundStyle(AifectDesign.secondaryText)
-            if !description.isEmpty { Text(description).font(.system(size: 13)).foregroundStyle(AifectDesign.secondaryText).lineLimit(3) }
+            if !description.isEmpty { ExpandableDubbingText(text: description, lines: 3) }
             let sound = project.object("sound")
             HStack(spacing: 10) {
                 Text("배경 음향").font(.system(size: 13, weight: .semibold))
@@ -193,7 +198,7 @@ struct DubbingProjectPage: View {
                         if own { DubbingBadge(text: "내 배역", color: AifectDesign.violet) }
                         else { Text(claimed ? role.string("participant", fallback: "참여 중") : "참여 가능").font(.system(size: 11)).foregroundStyle(claimed ? AifectDesign.muted : Brand.aqua) }
                     }
-                    if !role.string("personality").isEmpty { Text(role.string("personality")).font(.system(size: 13)).foregroundStyle(AifectDesign.muted).lineLimit(2) }
+                    if !role.string("personality").isEmpty { ExpandableDubbingText(text: role.string("personality"), lines: 2) }
                 }.frame(maxWidth: .infinity, alignment: .leading)
                 let canCancel = own && !project.object("recording").objects("roles").contains { $0.string("roleId") == role.selfID }
                 let canStart = project.string("visibility") == "public" && project.string("rootId") == space.key && project.object("sound").string("state") == "ready"
@@ -424,5 +429,239 @@ private struct DubbingRoleArtwork: View {
             shoulders.addQuadCurve(to: CGPoint(x: w * 0.27, y: h * 0.75), control: CGPoint(x: w * 0.5, y: h * 0.82))
             shoulders.closeSubpath(); context.fill(shoulders, with: fill)
         }.background(LinearGradient(colors: [Color(aifectHex: 0x36344D), Color(aifectHex: 0x243D47)], startPoint: .topLeading, endPoint: .bottomTrailing)).accessibilityLabel(name + " 기본 프로필")
+    }
+}
+
+struct ExpandableDubbingText: View {
+    let text: String
+    let lines: Int
+    @State private var expanded = false
+    @State private var availableWidth: CGFloat = 0
+    private var overflows: Bool {
+        guard availableWidth > 0 else { return false }
+        let font = UIFont.systemFont(ofSize: 13)
+        let height = (text as NSString).boundingRect(with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin, .usesFontLeading], attributes: [.font: font], context: nil).height
+        return height > font.lineHeight * CGFloat(lines) + 1
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(text).lineLimit(expanded ? nil : lines).frame(maxWidth: .infinity, alignment: .leading)
+            if overflows { Button(expanded ? "접기" : "더보기") { expanded.toggle() }.frame(minHeight: 32) }
+        }.font(.system(size: 13)).foregroundStyle(AifectDesign.secondaryText)
+            // Measuring the changing height here creates a layout feedback loop on navigation.
+            .onGeometryChange(for: CGFloat.self) { floor($0.size.width) } action: { width in
+                if width > 0 { availableWidth = width }
+            }
+    }
+}
+
+struct DubbingDiscoveryView: View {
+    @EnvironmentObject private var model: AppModel
+    @State private var section: String
+    @State private var rows: [[String: Any]] = []
+    @State private var loading = true
+    @State private var error: String?
+    @State private var genre = "전체"
+    @State private var query = ""
+    @State private var weekly = true
+    @State private var periodChosen = false
+    @State private var order = "최신순"
+    @State private var limit = 12
+    @State private var destination: SiteWorkspace?
+    @StateObject private var audio = DubbingAudio()
+    @State private var previewID: String?
+    @State private var previewTask: Task<Void, Never>?
+    init(initialSection: String = "추천") { _section = State(initialValue: initialSection == "내 작업" ? "내 작업" : "추천") }
+    private let genres = ["전체", "로맨스", "판타지", "스릴러", "공포", "코미디", "액션", "일상", "사극", "SF"]
+    private var filtered: [[String: Any]] { rows.filter { (genre == "전체" || ($0["genres"] as? [String] ?? []).contains(genre)) && (query.isEmpty || $0.string("title").localizedCaseInsensitiveContains(query) || $0.string("ownerName").localizedCaseInsensitiveContains(query)) } }
+    private var ranked: [[String: Any]] {
+        filtered.filter { weekly ? $0.int("weeklyActiveCount") > 0 : $0["activeCount"] is NSNumber }.sorted {
+            let key = weekly ? "weeklyActiveCount" : "activeCount"
+            if $0.int(key) != $1.int(key) { return $0.int(key) > $1.int(key) }
+            if $0.number("created") != $1.number("created") { return $0.number("created") > $1.number("created") }
+            return $0.selfID < $1.selfID
+        }
+    }
+    private var newest: [[String: Any]] {
+        if order == "제목순" { return filtered.sorted { $0.string("title") < $1.string("title") } }
+        if order == "인기순" { return filtered.sorted { $0.int("activeCount") > $1.int("activeCount") } }
+        return filtered.sorted { $0.number("created") > $1.number("created") }
+    }
+    private var beginners: [[String: Any]] { filtered.filter { $0.flag("beginnerRecommended") || $0.object("options").flag("beginnerRecommended") }.sorted { preferred($0) && !preferred($1) || preferred($0) == preferred($1) && $0.number("created") > $1.number("created") } }
+    private func preferred(_ row: [String: Any]) -> Bool { row.int("roleCount") == 2 && (240...300).contains(row.int("duration")) }
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                if section == "내 작업" {
+                    Button { section = "추천" } label: { Label("더빙 홈", systemImage: "chevron.left") }.frame(minHeight: 44)
+                } else { StudioSectionTabs(names: ["추천", "인기", "장르", "신규"], selection: $section) }
+                if section == "추천" {
+                    Button { if model.requireLogin() { destination = SiteWorkspace(area: "dubbing", key: "new", title: "더빙 만들기") } } label: {
+                        HStack { Image(systemName: "square.and.pencil"); Text("더빙 만들기").font(.headline); Spacer(); Image(systemName: "chevron.right") }.padding(.horizontal, 16).frame(minHeight: 52).foregroundStyle(Brand.background).background(Brand.gradient, in: RoundedRectangle(cornerRadius: 14))
+                    }.buttonStyle(.plain).accessibilityIdentifier("dubbing-create")
+                    let originals = rows.filter { $0.flag("isOfficialOriginal") }.sorted { $0.number("created") > $1.number("created") }
+                    if !originals.isEmpty { originalShelf(originals) }
+                }
+                if section == "장르" || section == "인기" { CatalogSearchField(prompt: "작품 제목 또는 창작자 검색", text: $query); genreStrip }
+                if loading && rows.isEmpty { ProgressView().frame(maxWidth: .infinity) }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+                if section == "추천" || section == "인기" {
+                    HStack { Label("인기 작품", systemImage: "trophy").font(.headline); Spacer(); Picker("집계 기간", selection: $weekly) { Text("주간").tag(true); Text("전체").tag(false) }.pickerStyle(.segmented).frame(width: 130) }
+                    if section == "추천" { posterGrid(Array(ranked.prefix(6)), ranks: true) }
+                    else { ForEach(Array(ranked.prefix(limit).enumerated()), id: \.element.selfID) { index, row in workRow(row, rank: index + 1) } }
+                    if ranked.isEmpty && !loading { Text(weekly ? "이번 주 집계된 작품이 없어요." : "조건에 맞는 인기 작품이 없어요.").font(.subheadline).foregroundStyle(AifectDesign.muted) }
+                }
+                if section == "추천" {
+                    heading("장르별 작품 찾기", icon: "magnifyingglass", target: "장르"); genreStrip
+                    heading("처음이라면 여기부터", icon: "sparkles", target: "장르")
+                    posterGrid(Array(beginners.prefix(3)), ranks: false)
+                    if beginners.isEmpty && !loading { Text("아직 등록된 초보자 추천 작품이 없어요.").font(.caption).foregroundStyle(AifectDesign.muted) }
+                }
+                if section != "인기" {
+                    HStack {
+                        Text(section == "내 작업" ? "내 더빙 작업" : section == "장르" ? "작품 \(newest.count)개" : "신규 참여 작품").font(.headline); Spacer()
+                        if section == "추천" { Button("전체보기 ›") { section = "신규" }.font(.caption) }
+                        else { Picker("정렬", selection: $order) { ForEach(["최신순", "인기순", "제목순"], id: \.self) { Text($0) } }.font(.caption) }
+                    }
+                    ForEach(Array(newest.prefix(section == "추천" ? 3 : limit)), id: \.selfID) { workRow($0, rank: nil) }
+                }
+                if section != "추천", (section == "인기" ? ranked.count : newest.count) > limit { Button("더 많은 작품 보기") { limit += 12 }.frame(maxWidth: .infinity, minHeight: 44) }
+                if section == "추천" { Button("내 더빙 작업") { if model.requireLogin() { section = "내 작업" } }.frame(maxWidth: .infinity, minHeight: 44) }
+                if section == "내 작업" && model.user == nil { LoginPrompt(title: "로그인하고 내 작업 보기") }
+            }.padding(12)
+        }.accessibilityIdentifier("dubbing-discovery").refreshable { await load() }
+            .task(id: (model.userID ?? "guest") + "|" + (section == "내 작업" ? "mine" : "open")) { rows = []; await load() }
+            .onChange(of: section) { _, _ in stopPreview(); query = ""; genre = "전체"; limit = 12 }
+            .onChange(of: weekly) { _, _ in periodChosen = true }
+            .onDisappear { stopPreview() }
+            .navigationDestination(item: $destination) { WorkspacePage(space: $0) }
+    }
+    private func heading(_ title: String, icon: String, target: String) -> some View { HStack { Label(title, systemImage: icon).font(.headline); Spacer(); Button("전체보기 ›") { section = target }.font(.caption) } }
+    private var genreStrip: some View { ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 6) { ForEach(genres, id: \.self) { item in Button(item == "사극" ? "시대극" : item) { genre = item }.buttonStyle(ParityPill(color: AifectDesign.violet, filled: genre == item)) } } } }
+    private func metadata(_ row: [String: Any]) -> String { [row.int("roleCount") > 0 ? "\(row.int("roleCount"))인극" : "", row.number("duration") > 0 ? timeLabel(row.number("duration")) : ""].filter { !$0.isEmpty }.joined(separator: " · ") }
+    private func open(_ row: [String: Any]) { stopPreview(); destination = SiteWorkspace(area: "dubbing", key: row.selfID, title: row.string("title")) }
+    private func originalShelf(_ originals: [[String: Any]]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("AIFECT 오리지널").font(.system(size: 19, weight: .bold))
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 9) {
+                    ForEach(originals, id: \.selfID) { row in
+                        Button { open(row) } label: {
+                            Rectangle().fill(Brand.card).aspectRatio(1.55, contentMode: .fit)
+                                .overlay { GeometryReader { geo in DubbingCover(row: row).frame(width: geo.size.width, height: geo.size.height).clipped() } }
+                                .overlay(LinearGradient(colors: [.clear, .black.opacity(0.85)], startPoint: .center, endPoint: .bottom))
+                                .overlay(alignment: .bottomLeading) {
+                                    HStack(alignment: .bottom) {
+                                        VStack(alignment: .leading, spacing: 4) { Text(((row["genres"] as? [String]) ?? []).joined(separator: " · ") + " · " + metadata(row)).font(.caption); Text(row.string("title")).font(.system(size: 21, weight: .bold)).lineLimit(2) }
+                                        Spacer(minLength: 2); Text("더빙하기").font(.system(size: 13, weight: .bold)).foregroundStyle(Brand.background).padding(9).background(Brand.aqua, in: Capsule())
+                                    }.padding(12)
+                                }.clipShape(RoundedRectangle(cornerRadius: 15)).containerRelativeFrame(.horizontal) { width, _ in min(420, width * 0.86) }
+                        }.buttonStyle(.plain).accessibilityIdentifier("dub-feature-" + row.selfID)
+                    }
+                }.scrollTargetLayout()
+            }.scrollTargetBehavior(.viewAligned)
+        }
+    }
+    private func posterGrid(_ entries: [[String: Any]], ranks: Bool) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 10) {
+            ForEach(Array(entries.enumerated()), id: \.element.selfID) { index, row in
+                Button { open(row) } label: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Rectangle().fill(Brand.card).aspectRatio(0.75, contentMode: .fit).overlay { GeometryReader { geo in DubbingCover(row: row).frame(width: geo.size.width, height: geo.size.height).clipped() } }.clipShape(RoundedRectangle(cornerRadius: 10))
+                            .overlay(alignment: .topLeading) { if ranks { Text("\(index + 1)").font(.caption.bold()).padding(5).background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 5)).padding(5) } }
+                        Text(row.string("title")).font(.system(size: 14, weight: .semibold)).lineLimit(2)
+                        Text(metadata(row)).font(.system(size: 11)).foregroundStyle(AifectDesign.muted).lineLimit(1)
+                    }
+                }.buttonStyle(.plain)
+            }
+        }
+    }
+    private func workRow(_ row: [String: Any], rank: Int?) -> some View {
+        HStack(spacing: 7) {
+            Button { open(row) } label: {
+                HStack(spacing: 7) {
+                    if let rank { Text("\(rank)").font(.headline).frame(minWidth: 24).foregroundStyle(rank == 1 ? .yellow : .white) }
+                    DubbingCover(row: row).frame(width: rank == nil ? 83 : 73, height: 65).clipped().clipShape(RoundedRectangle(cornerRadius: 9))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(row.string("title")).font(.system(size: 15, weight: .bold)).lineLimit(2)
+                        if rank == nil { Text("창작자  " + row.string("ownerName")).font(.system(size: 11)).foregroundStyle(AifectDesign.muted).lineLimit(1) }
+                        Text(metadata(row)).font(.system(size: 11)).foregroundStyle(AifectDesign.secondaryText)
+                        if row["activeCount"] is NSNumber { Text(row.int("activeCount") > 0 ? "더빙 \(row.int("activeCount"))개 진행 중" : "진행 중인 더빙 없음").font(.system(size: 10)).foregroundStyle(AifectDesign.violet) }
+                    }.frame(maxWidth: .infinity, alignment: .leading)
+                }.contentShape(Rectangle())
+            }.buttonStyle(.plain)
+            if rank == nil { Button { preview(row) } label: { Image(systemName: previewID == row.selfID && audio.previewing ? "stop.circle" : "play.circle").font(.title2).frame(width: 44, height: 44) }.accessibilityLabel("배경 미리 듣기") }
+            else { Image(systemName: "chevron.right").foregroundStyle(AifectDesign.muted) }
+        }.padding(7).background(Brand.card, in: RoundedRectangle(cornerRadius: 15)).overlay(RoundedRectangle(cornerRadius: 15).stroke(AifectDesign.stroke)).accessibilityIdentifier("dubbing-project-" + row.selfID)
+    }
+    private func stopPreview() { previewTask?.cancel(); audio.cancel(); previewID = nil }
+    private func preview(_ row: [String: Any]) {
+        let wasPlaying = previewID == row.selfID; stopPreview(); if wasPlaying { return }
+        previewID = row.selfID; model.player.pause()
+        previewTask = Task { do { try await audio.listen(path: "/api/dubbing/projects/" + Endpoint.pathID(row.selfID) + "/background", file: nil) } catch is CancellationError { } catch { self.error = error.localizedDescription } }
+    }
+    private func load() async {
+        let mine = section == "내 작업", owner = model.userID
+        guard !mine || owner != nil else { loading = false; return }
+        let endpoint = "/api/dubbing/projects?tab=" + (mine ? "mine" : "open&discovery=1")
+        loading = true; error = nil
+        if let cached = API.shared.peek(endpoint + "&offset=0") { rows = cached.objects("projects") }
+        do {
+            var collected: [[String: Any]] = [], offset = 0, seen = Set<String>()
+            while true {
+                let page = try await API.shared.call(endpoint + "&offset=\(offset)", fresh: true)
+                try Task.checkCancellation(); guard owner == model.userID, mine == (section == "내 작업") else { return }
+                collected += page.objects("projects").filter { !$0.selfID.isEmpty && seen.insert($0.selfID).inserted }; rows = collected
+                guard let next = page["nextOffset"] as? Int, next > offset else { break }; offset = next
+            }
+            if !periodChosen { weekly = rows.contains { $0.int("weeklyActiveCount") > 0 }; periodChosen = true }
+            loading = false
+        } catch is CancellationError { } catch {
+            guard owner == model.userID else { return }
+            if let failure = error as? APIError, [401, 403, 404].contains(failure.status) { rows = [] }
+            self.error = error.localizedDescription; loading = false
+        }
+    }
+}
+
+struct CompletedDubbingView: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let id: String
+    @State private var project: [String: Any] = [:]
+    @State private var error: String?
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if project.isEmpty && error == nil { ProgressView() }
+                    if !project.isEmpty {
+                        DubbingCover(row: project).frame(height: 180).clipped().clipShape(RoundedRectangle(cornerRadius: 16))
+                        Text(project.string("title")).font(.title2.bold())
+                        let idea = project.object("options").string("idea")
+                        Text(idea.isEmpty ? project.object("script").objects("scenes").first?.string("description") ?? "등록된 작품 소개가 없어요." : idea).font(.subheadline).foregroundStyle(AifectDesign.secondaryText)
+                        Text("참여자").font(.headline)
+                        ForEach(project.objects("roles").filter { $0.flag("claimed") }, id: \.selfID) { role in CompletedDubbingParticipant(role: role) }
+                        if project.object("recording").object("final").string("state") == "ready" {
+                            Button("완성작 듣기") { model.player.playDubbing(project); dismiss() }.buttonStyle(CatalogButtonStyle(filled: true, fullWidth: true))
+                        }
+                    }
+                    if let error { RetryCard(message: error) { Task { await load() } } }
+                }.padding(20)
+            }.navigationTitle("완성된 더빙").navigationBarTitleDisplayMode(.inline).background(Brand.background).toolbar { ToolbarItem(placement: .confirmationAction) { Button("닫기") { dismiss() } } }
+                .task(id: model.userID) { await load() }
+        }.preferredColorScheme(.dark).presentationDetents([.medium, .large])
+    }
+    private func load() async { do { let data = try await API.shared.call("/api/dubbing/projects/" + Endpoint.pathID(id)); try Task.checkCancellation(); project = data.object("project"); error = nil } catch is CancellationError { } catch { self.error = error.localizedDescription } }
+}
+private struct CompletedDubbingParticipant: View {
+    let role: [String: Any]
+    @State private var publicID = ""
+    var body: some View {
+        Text(role.string("participant", fallback: "참여자") + (publicID.isEmpty ? "" : " · ID " + publicID)).font(.subheadline)
+            .task {
+                let id = role.string("participantUserId"); guard SiteWorkspace.validKey(id) else { return }
+                if let result = try? await API.shared.call("/api/member-preview/" + Endpoint.pathID(id)) { publicID = result.object("profile").string("public_id") }
+            }
     }
 }

@@ -146,13 +146,14 @@ struct MessagesView: View {
     @State private var working = false
     @State private var clearConfirmation = false
     @State private var error: String?
+    @State private var deleteTarget: CatalogItemSelection?
     private var conversations: [[String: Any]] {
         model.inboxConversations.filter { person in
-            (filter != "공지" || person.flag("is_notice")) && (filter != "안 읽음" || person.int("unread") > 0) && (query.isEmpty || person.displayName().localizedCaseInsensitiveContains(query) || person.string("last_message").localizedCaseInsensitiveContains(query))
+            !person.flag("is_notice") && (query.isEmpty || person.displayName().localizedCaseInsensitiveContains(query) || person.string("last_message").localizedCaseInsensitiveContains(query))
         }
     }
     private var crew: [String: Any]? {
-        guard filter != "공지", let crew = model.inboxCrew,
+        guard filter == "전체", let crew = model.inboxCrew,
               filter != "안 읽음" || crew.int("unread") > 0,
               query.isEmpty || crew.string("name").localizedCaseInsensitiveContains(query) else { return nil }
         return crew
@@ -162,7 +163,6 @@ struct MessagesView: View {
             HStack(spacing: 0) {
                 Text("메시지").font(.title2.bold()).foregroundStyle(AifectDesign.text).frame(maxWidth: .infinity, alignment: .leading)
                 Button { searching.toggle(); if !searching { query = "" } } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }.accessibilityLabel("대화 검색")
-                NavigationLink { NewConversationView().streamingPage() } label: { Image(systemName: "person.badge.plus").frame(width: 44, height: 44) }.accessibilityLabel("새 대화")
                 Menu {
                     Button("모두 읽음") { Task { await manage(clear: false) } }.disabled(working)
                     NavigationLink("알림 기록") { ActivityHistoryView().streamingPage() }
@@ -170,11 +170,19 @@ struct MessagesView: View {
                 } label: { Image(systemName: "line.3.horizontal").frame(width: 44, height: 44) }.accessibilityLabel("메시지 관리")
             }.font(.title3).foregroundStyle(AifectDesign.secondaryText).buttonStyle(.plain).padding(.leading, 16).padding(.trailing, 4).frame(minHeight: 56)
             if searching { TextField("이름 · 메시지 검색", text: $query).padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke)).padding(.horizontal, 14).accessibilityIdentifier("inbox-search") }
-            CatalogTabs(names: ["전체", "안 읽음", "크루", "공지"], selection: $filter)
+            HStack(spacing: 6) {
+                StudioSectionTabs(names: ["전체", "공지", "알림"], selection: $filter)
+                NavigationLink { NewConversationView().streamingPage() } label: { Image(systemName: "person.badge.plus").frame(width: 48, height: 48) }.accessibilityLabel("새 대화")
+            }.padding(.horizontal, 12)
             if model.user == nil { LoginPrompt(title: "로그인하고 메시지 보기") }
+            else if filter == "알림" { ActivityHistoryView() }
+            else if filter == "공지" { InboxNoticeArchive(channels: model.inboxConversations.filter { $0.flag("is_notice") }) }
             else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
+                        ForEach(model.inboxConversations.filter { $0.flag("is_notice") }.sorted { $0.number("updated") > $1.number("updated") }, id: \.selfID) { notice in
+                            Button { filter = "공지" } label: { InboxNoticeBanner(title: notice.displayName(), bodyText: notice.string("last_message"), date: notice.number("updated")) }.buttonStyle(.plain).padding(.vertical, 4)
+                        }
                         if let crew {
                             NavigationLink(value: MessageRoute(id: crew.string("id"), title: crew.string("name"), crew: true)) {
                                 HStack(spacing: 12) {
@@ -198,6 +206,7 @@ struct MessagesView: View {
                                             }
                                         }.contentShape(Rectangle())
                                     }.buttonStyle(.plain).accessibilityIdentifier("inbox-dm-" + person.selfID)
+                                    .highPriorityGesture(LongPressGesture().onEnded { _ in deleteTarget = CatalogItemSelection(payload: person) })
                                 }.padding(.horizontal, 14).padding(.vertical, 17).background(Brand.card.opacity(0.8), in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke)).padding(.vertical, 5)
                             }
                         }
@@ -207,6 +216,10 @@ struct MessagesView: View {
                 }.refreshable { await load() }
             }
         }.task(id: model.userID) { await load() }
+        .confirmationDialog("대화 기록을 삭제할까요?", isPresented: Binding(get: { deleteTarget != nil }, set: { if !$0 { deleteTarget = nil } }), titleVisibility: .visible, presenting: deleteTarget) { target in
+            Button("삭제", role: .destructive) { Task { await deleteConversation(target.payload) } }
+            Button("취소", role: .cancel) { }
+        } message: { target in Text(target.payload.displayName() + " 님과의 내 대화 기록만 삭제해요. 상대방 기록은 유지돼요.") }
         .confirmationDialog("내 DM 전체 삭제", isPresented: $clearConfirmation, titleVisibility: .visible) {
             Button("삭제", role: .destructive) { Task { await manage(clear: true) } }.disabled(working)
         } message: { Text("내 기기와 내 목록에서 대화를 삭제해요. 상대방의 기록은 유지되며 새 메시지는 다시 표시돼요.") }
@@ -222,6 +235,16 @@ struct MessagesView: View {
             if clear { ChatCache.removeAll(owner: owner) }
             await load()
         } catch { if model.userID == owner { self.error = error.localizedDescription } }
+    }
+    private func deleteConversation(_ person: [String: Any]) async {
+        guard let owner = model.userID, !working else { return }; working = true; defer { working = false; deleteTarget = nil }
+        let path = "/api/dm/" + Endpoint.pathID(person.selfID)
+        do {
+            _ = try await API.shared.call(path, method: "DELETE")
+            guard owner == model.userID else { return }
+            ChatCache.remove(owner: owner, path: path)
+            model.inboxConversations.removeAll { $0.selfID == person.selfID }; await load()
+        } catch { if owner == model.userID { self.error = error.localizedDescription } }
     }
     private func load() async { guard model.userID != nil else { return }; await model.refreshInbox(); error = model.inboxError }
 }
@@ -690,6 +713,7 @@ struct MyMusicView: View {
             LazyVStack(alignment: .leading, spacing: 12) {
                 if model.user == nil { LoginPrompt(title: "로그인하고 내 작업을 이어가세요.") }
                 else {
+                    HStack { Text("마이").font(.title2.bold()); Spacer(); NavigationLink { AccountSettingsView().streamingPage() } label: { Image(systemName: "gearshape").frame(width: 44, height: 44) }.accessibilityLabel("계정 설정") }
                     profileCard
                     GeometryReader { bounds in
                         HStack(spacing: 8) {
@@ -727,12 +751,7 @@ struct MyMusicView: View {
                         MusicGrid(songs: allSongs.filter { !$0.isCover })
                         if !allSongs.contains(where: { !$0.isCover }) { Text("등록된 제작곡이 없어요.").font(.caption) }
                         Text("커버 · 듀엣 · 더빙").font(.headline)
-                        MusicGrid(songs: allSongs.filter { $0.isCover })
-                        ForEach(music.objects("dubbings"), id: \.selfID) { item in
-                            if let space = SiteWorkspace(area: "dubbing", key: item.selfID, title: item.string("title")) {
-                                NavigationLink(item.string("title")) { WorkspacePage(space: space) }
-                            }
-                        }
+                        OwnedWorksGrid(songs: allSongs.filter { $0.isCover }, dubbings: music.objects("dubbings"), reload: load)
                         Text("소속 아티스트").font(.headline)
                         ForEach(music.objects("artists"), id: \.selfID) { item in NavigationLink(item.string("name")) { ProfilePage(id: item.selfID, kind: "artist").streamingPage() } }
                     } else if section == "내 보관함" {
@@ -749,7 +768,7 @@ struct MyMusicView: View {
                 }
                 if let error { RetryCard(message: error) { Task { await load() } } }
             }.padding(14).padding(.bottom, 16)
-        }.task(id: "\(model.userID ?? "guest"):\(model.profileRevision)") { await load() }.refreshable { await load(); await model.loadLibrary(); model.walletRevision += 1 }
+        }.task(id: "\(model.userID ?? "guest"):\(model.profileRevision):\(model.selectedTab)") { if model.selectedTab == 4 { await load() } }.refreshable { await load(); await model.loadLibrary(); model.walletRevision += 1 }
             .navigationDestination(isPresented: $account) { AccountView() }
     }
     private func libraryEntry(_ title: String, icon: String, selection: Int, count: String) -> some View {
@@ -1165,5 +1184,167 @@ struct PlayerInventoryView: View {
             guard model.userID == owner, !Task.isCancelled else { return }
             data = value; error = nil; model.profileRevision += 1
         } catch { if model.userID == owner { self.error = error.localizedDescription } }
+    }
+}
+
+struct InboxNoticeBanner: View {
+    let title: String, bodyText: String
+    let date: Double
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: "megaphone").font(.title3).foregroundStyle(Brand.aqua)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack { Text(title).font(.system(size: 15, weight: .bold)).lineLimit(1); Spacer(); if date > 0 { Text(Date(timeIntervalSince1970: date), format: .dateTime.month().day()).font(.system(size: 10)).foregroundStyle(AifectDesign.muted) } }
+                Text(bodyText).font(.system(size: 12)).foregroundStyle(AifectDesign.secondaryText).lineLimit(1)
+            }
+            Image(systemName: "chevron.right").font(.caption).foregroundStyle(AifectDesign.muted)
+        }.padding(12).frame(minHeight: 60).background(Brand.card, in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
+    }
+}
+
+struct InboxNoticeArchive: View {
+    @EnvironmentObject private var model: AppModel
+    let channels: [[String: Any]]
+    @State private var entries: [[String: Any]] = []
+    @State private var selected: CatalogItemSelection?
+    @State private var error: String?
+    @State private var loading = false
+    @State private var depth = 1
+    @State private var hasMore = false
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 7) {
+                ForEach(entries, id: \.selfID) { row in
+                    Button { selected = CatalogItemSelection(payload: row) } label: { InboxNoticeBanner(title: row.string("title"), bodyText: row.string("body"), date: row.number("created")) }.buttonStyle(.plain)
+                }
+                if loading { ProgressView() }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+                if entries.isEmpty && !loading && error == nil { Text("등록된 공지가 없어요").foregroundStyle(AifectDesign.muted).padding() }
+                if hasMore { Button("이전 공지 더 보기") { depth += 1 } }
+            }.padding(12)
+        }.task(id: "\(model.userID ?? "guest")|\(depth)|" + channels.map { $0.selfID + $0.string("last_message") }.joined()) { await load() }
+            .navigationDestination(isPresented: Binding(get: { selected != nil }, set: { if !$0 { selected = nil } })) {
+                if let item = selected { ScrollView { VStack(alignment: .leading, spacing: 16) { Text(item.payload.string("title")).font(.title2.bold()); Text(item.payload.string("body")).font(.body).textSelection(.enabled) }.frame(maxWidth: .infinity, alignment: .leading).padding(20) }.navigationTitle("공지").streamingPage()
+                    .task {
+                        if !item.payload.string("campaign").isEmpty { _ = try? await API.shared.call("/api/notices/welcome", method: "PATCH", body: ["campaign_id": item.payload.string("campaign")]) }
+                        else { _ = try? await API.shared.call("/api/dm/" + Endpoint.pathID(item.payload.string("channel")), method: "PATCH") }
+                        await model.refreshInbox()
+                    } }
+            }
+    }
+    private func load() async {
+        let owner = model.userID; guard let owner else { entries = []; return }
+        loading = true; error = nil; hasMore = false
+        do {
+            var result: [[String: Any]] = []
+            for channel in channels {
+                let id = channel.selfID
+                if channel.string("notice_type") == "welcome" {
+                    let data = try await API.shared.call("/api/notices/welcome")
+                    let guide = data.object("guide")
+                    let paragraphs = ([guide.string("greeting")] + (guide["intro"] as? [String] ?? []) + guide.objects("sections").map { $0.string("title") + "\n" + (($0["paragraphs"] as? [String]) ?? ($0["body"] as? [String]) ?? [$0.string("body")]).joined(separator: "\n") } + (guide["closing"] as? [String] ?? [])).filter { !$0.isEmpty }.joined(separator: "\n\n")
+                    result.append(["id": id, "channel": id, "title": "아이팩트 안내", "body": paragraphs, "created": data.number("created"), "campaign": data.string("campaign_id")]); continue
+                }
+                var cursor: Int?
+                for pageIndex in 0..<depth {
+                    let data = try await API.shared.call("/api/dm/" + Endpoint.pathID(id) + (cursor.map { "?before=\($0)" } ?? ""))
+                    try Task.checkCancellation(); guard owner == model.userID else { return }
+                    let messages = data.objects("messages").filter { $0.string("recipient_id").isEmpty || $0.string("recipient_id") == owner }
+                    for message in messages {
+                        result.append(["id": id + "/" + message.selfID, "channel": id, "title": message.string("title", fallback: channel.displayName()), "body": message.string("body"), "created": message.number("created")])
+                    }
+                    if pageIndex == 0 && messages.isEmpty { result.append(["id": id, "channel": id, "title": channel.displayName(), "body": channel.string("last_message"), "created": channel.number("updated")]) }
+                    guard data.flag("has_more"), let before = messages.map({ $0.int("sequence") }).filter({ $0 > 0 }).min(), cursor == nil || before < cursor! else { break }
+                    cursor = before; if pageIndex == depth - 1 { hasMore = true }
+                }
+            }
+            guard owner == model.userID else { return }
+            var ids = Set<String>(); entries = result.filter { ids.insert($0.selfID).inserted }.sorted { $0.number("created") > $1.number("created") }; loading = false
+        } catch is CancellationError { } catch { if owner == model.userID { self.error = error.localizedDescription; loading = false } }
+    }
+}
+
+struct OwnedWork: Identifiable {
+    let song: Song?
+    let dubbing: [String: Any]?
+    var id: String { song.map { "song-" + $0.id } ?? "dubbing-" + (dubbing?.selfID ?? "") }
+    var title: String { song?.title ?? dubbing?.string("title") ?? "" }
+    var label: String { song.map { $0.coverMode == "duet" ? "듀엣" : "커버" } ?? "더빙" }
+}
+
+@MainActor enum OwnedWorkDeletion {
+    static func remove(_ works: [OwnedWork], api: API, deleted: (String) -> Void) async throws -> Set<String> {
+        let revision = api.sessionRevision
+        var failed = Set<String>()
+        for work in works {
+            try Task.checkCancellation(); guard revision == api.sessionRevision else { throw CancellationError() }
+            do {
+                if let song = work.song { _ = try await api.call("/api/uploads/" + Endpoint.pathID(song.id), method: "DELETE") }
+                else if let project = work.dubbing {
+                    let path = "/api/dubbing/projects/" + Endpoint.pathID(project.selfID)
+                    let fresh = try await api.call(path).object("project")
+                    guard fresh.flag("isOwner") else { throw APIError(status: 403, message: "내 작품만 삭제할 수 있어요.") }
+                    _ = try await api.call(path, method: "DELETE", body: ["revision": fresh.int("revision")])
+                }
+                deleted(work.id)
+            } catch is CancellationError { throw CancellationError() }
+            catch { failed.insert(work.id) }
+        }
+        return failed
+    }
+}
+
+struct OwnedWorksGrid: View {
+    @EnvironmentObject private var model: AppModel
+    let songs: [Song]
+    let dubbings: [[String: Any]]
+    let reload: () async -> Void
+    @State private var selected = Set<String>()
+    @State private var removed = Set<String>()
+    @State private var confirming = false
+    @State private var deleting = false
+    @State private var error: String?
+    @State private var songDestination: Song?
+    @State private var dubbingDestination: SiteWorkspace?
+    private var works: [OwnedWork] { (songs.map { OwnedWork(song: $0, dubbing: nil) } + dubbings.map { OwnedWork(song: nil, dubbing: $0) }).filter { !removed.contains($0.id) } }
+    var body: some View {
+        VStack(spacing: 10) {
+            if !selected.isEmpty {
+                HStack { Text("\(selected.count)개 선택"); Spacer(); Button("취소") { selected = [] }; Button("삭제", role: .destructive) { confirming = true } }.disabled(deleting)
+            }
+            if deleting { ProgressView() }
+            if let error { Text(error).font(.caption).foregroundStyle(AifectDesign.muted) }
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
+                ForEach(works) { work in
+                    VStack(alignment: .leading, spacing: 6) {
+                        Color.clear.aspectRatio(1, contentMode: .fit).overlay { GeometryReader { geo in
+                            if let song = work.song { CoverArt(song: song, size: geo.size.width) }
+                            else if let row = work.dubbing { DubbingCover(row: row).frame(width: geo.size.width, height: geo.size.height).clipped() }
+                        } }.clipShape(RoundedRectangle(cornerRadius: 12)).overlay(alignment: .topTrailing) { if !selected.isEmpty { Image(systemName: selected.contains(work.id) ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(Brand.aqua).padding(8) } }
+                        Text(work.title).font(.subheadline.bold()).lineLimit(1)
+                        Text(work.label).font(.caption).foregroundStyle(AifectDesign.muted)
+                    }.contentShape(Rectangle()).onTapGesture { if !selected.isEmpty { toggle(work.id) } else if let song = work.song { songDestination = song } else if let row = work.dubbing { dubbingDestination = SiteWorkspace(area: "dubbing", key: row.selfID, title: work.title) } }
+                        .onLongPressGesture { if !deleting { toggle(work.id) } }.accessibilityElement(children: .combine).accessibilityAddTraits(.isButton).accessibilityIdentifier("owned-work-" + work.id)
+                        .accessibilityAction(named: "선택") { toggle(work.id) }.disabled(deleting)
+                }
+            }
+        }.confirmationDialog("선택한 \(selected.count)개 작품을 삭제할까요?", isPresented: $confirming, titleVisibility: .visible) {
+            Button("삭제", role: .destructive) { Task { await remove() } }
+        } message: { Text("삭제한 작품은 복구할 수 없어요.") }
+            .navigationDestination(item: $songDestination) { TrackDetailView(song: $0).streamingPage() }
+            .navigationDestination(item: $dubbingDestination) { WorkspacePage(space: $0) }
+            .onChange(of: model.userID) { _, _ in selected = []; removed = []; error = nil }
+    }
+    private func toggle(_ id: String) { if selected.contains(id) { selected.remove(id) } else { selected.insert(id) } }
+    private func remove() async {
+        let owner = model.userID; guard owner != nil, !deleting else { return }
+        deleting = true; error = nil; defer { deleting = false }
+        do {
+            let failed = try await OwnedWorkDeletion.remove(works.filter { selected.contains($0.id) }, api: .shared) { id in removed.insert(id); selected.remove(id) }
+            guard owner == model.userID else { return }
+            selected = failed
+            if !failed.isEmpty { error = "\(failed.count)개 작품을 삭제하지 못했어요. 다시 시도해주세요." }
+            await reload()
+        } catch { if owner == model.userID { self.error = error.localizedDescription } }
     }
 }

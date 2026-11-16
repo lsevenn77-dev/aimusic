@@ -28,6 +28,8 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var user: [String: Any]?
     @Published private(set) var inboxError: String?
     @Published private(set) var inboxUnread = 0
+    @Published private(set) var activityUnread = 0
+    var combinedUnread: Int { inboxUnread + activityUnread }
     @Published var inboxConversations: [[String: Any]] = []
     @Published private(set) var inboxCrew: [String: Any]?
     private var inboxLoading = false
@@ -115,16 +117,21 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         loading = true; error = nil
         defer { loading = false }
         do { try await loadMe() } catch { handle(error) }
-        // Each section can succeed independently when another endpoint is unavailable.
-        for (path, apply) in [
-            ("/api/catalog?section=tracks&limit=40", { self.latest = $0 }),
-            ("/api/catalog?section=tracks&chart=top", { self.chart = $0 }),
-            ("/api/karaoke", { self.singable = $0 }),
-            ("/api/community", { self.feed = $0 })
-        ] as [(String, ([Song]) -> Void)] {
-            do { apply(try await API.shared.call(path).songs()) }
-            catch is CancellationError { return }
-            catch { self.error = error.localizedDescription }
+        // Two requests at a time; primary navigation never waits for secondary shelves.
+        let account = accountRevision
+        let endpoints = ["/api/catalog?section=tracks&limit=40", "/api/catalog?section=tracks&chart=top", "/api/karaoke", "/api/community"]
+        for start in stride(from: 0, to: endpoints.count, by: 2) {
+            await withTaskGroup(of: (Int, [Song]?).self) { group in
+                for index in start..<min(start + 2, endpoints.count) {
+                    let path = endpoints[index]
+                    group.addTask { (index, try? await API.shared.call(path, fresh: true).songs()) }
+                }
+                for await (index, songs) in group {
+                    guard !Task.isCancelled, account == accountRevision else { continue }
+                    guard let songs else { self.error = "일부 음악을 불러오지 못했어요. 다시 시도해주세요."; continue }
+                    switch index { case 0: latest = songs; case 1: chart = songs; case 2: singable = songs; default: feed = songs }
+                }
+            }
         }
     }
     func loadMe() async throws {
@@ -148,6 +155,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
             inboxConversations = data.objects("conversations")
             inboxUnread = data.int("unread")
             inboxCrew = data["crew"] as? [String: Any]; inboxError = nil
+            if let summary = try? await API.shared.call("/api/notifications/summary"), version == accountRevision { activityUnread = summary.int("unread") }
         } catch { if version == accountRevision, !Task.isCancelled { inboxError = error.localizedDescription } }
     }
     func loadLibrary() async {
@@ -160,7 +168,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
             let result = try await API.shared.call("/api/history")
             guard version == accountRevision else { return }
             history = result.songs(); libraryError = nil; libraryLoaded = true
-        } catch { if version == accountRevision { libraryError = error.localizedDescription } }
+        } catch { if version == accountRevision { if let failure = error as? APIError, [401, 403].contains(failure.status) { likes = []; playlists = []; history = []; libraryLoaded = false }; libraryError = error.localizedDescription } }
     }
     func toggleLike(_ song: Song) async {
         guard requireLogin() else { return }
@@ -217,9 +225,10 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         notice = "계정을 삭제했습니다. 업로드 파일도 삭제 처리됩니다."
     }
     private func clearPrivate() {
+        API.shared.invalidateReads()
         messagePath.removeAll(); navigationPath = NavigationPath(); playerPageVisible = false
         libraryError = nil; libraryLoaded = false; followedProducers = []; followRequests = []
-        accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; visibleChats.removeAll(); inboxUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
+        accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; visibleChats.removeAll(); inboxUnread = 0; activityUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
     }
     func handle(_ error: Error) {
         if error is CancellationError { return }

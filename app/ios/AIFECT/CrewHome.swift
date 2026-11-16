@@ -174,7 +174,7 @@ private struct WeeklyCrewBanner: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
                         }.buttonStyle(.plain).accessibilityLabel("이번 주 크루 경쟁 게임: \(game.title). 플레이")
                             .accessibilityIdentifier("crew-weekly-game-banner")
-                        if catalog.string("mode") == "test" { Text("테스트 중").font(.caption2) }
+
                     }
                 } else { Text("이번 주 크루 경쟁 게임을 준비 중이에요.").font(.subheadline).foregroundStyle(AifectDesign.muted) }
             } else { ProgressView() }

@@ -23,6 +23,7 @@ enum PlaybackRepeat {
 
 @MainActor
 final class MusicPlayer: ObservableObject {
+    @Published var dubbingProject: [String: Any]?
     @Published var current: Song?
     @Published var playing = false
     @Published var loading = false
@@ -45,6 +46,7 @@ final class MusicPlayer: ObservableObject {
     private var notifications: [NSObjectProtocol] = []
     private var loadTask: Task<Void, Never>?
     private var listenID = ""
+    private var dubbingPlayRequest: String?
     private var heard = 0.0
     private var lastReport = 0.0
     private var nextLyric = 0.0
@@ -82,7 +84,8 @@ final class MusicPlayer: ObservableObject {
         }
     }
     func play(_ song: Song, queue songs: [Song]) {
-        ListeningAds.shared.trackFinished(heard: heard, duration: duration, preview: preview)
+        if dubbingProject == nil { ListeningAds.shared.trackFinished(heard: heard, duration: duration, preview: preview) }
+        dubbingProject = nil
         loadTask?.cancel(); player.pause(); revision += 1
         let version = revision
         let newQueue = songs.isEmpty ? [song] : songs
@@ -123,9 +126,41 @@ final class MusicPlayer: ObservableObject {
             } catch is CancellationError {} catch { if revision == version { self.error = error.localizedDescription } }
         }
     }
+    func playDubbing(_ project: [String: Any]) {
+        guard SiteWorkspace.validKey(project.selfID), project.object("recording").object("final").string("state") == "ready" else { return }
+        if dubbingProject?.selfID == project.selfID && error == nil { toggle(); return }
+        close(); dubbingProject = project; dubbingPlayRequest = UUID().uuidString.lowercased()
+        var song = Song(["id": "dubbing-" + project.selfID, "title": project.string("title"), "producer": project.string("ownerName"), "duration": project.number("duration")])
+        song.artworkPath = DubbingCover.posterURL(project).map { $0.path + ($0.query.map { "?" + $0 } ?? "") }
+        current = song; duration = project.number("duration"); position = 0; preview = false; loading = true; error = nil
+        let version = revision
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback); try AVAudioSession.sharedInstance().setActive(true)
+            let url = try Endpoint.url("/api/dubbing/projects/" + Endpoint.pathID(project.selfID) + "/final")
+            let item = AVPlayerItem(asset: AVURLAsset(url: url, options: [AVURLAssetHTTPCookiesKey: API.shared.mediaCookies()]))
+            statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+                Task { @MainActor in
+                    guard let self, self.revision == version else { return }
+                    if item.status == .failed { self.error = "완성작을 재생하지 못했어요."; self.loading = false }
+                    if item.status == .readyToPlay { if item.duration.seconds.isFinite { self.duration = item.duration.seconds }; self.loading = false }
+                }
+            }
+            player.replaceCurrentItem(with: item); pendingAutoplay = true; player.play(); nowPlaying()
+        } catch { self.error = error.localizedDescription; loading = false }
+    }
+    func cyclePlaybackMode() {
+        if shuffled { shuffled = false; repeatMode = .off }
+        else if repeatMode == .off { repeatMode = .all }
+        else if repeatMode == .all { repeatMode = .one }
+        else { repeatMode = .off; shuffled = true }
+    }
+    var playbackModeLabel: String { shuffled ? "셔플" : repeatMode == .one ? "한 곡 반복" : repeatMode == .all ? "전체 반복" : "순서대로" }
+    var playbackModeIcon: String { shuffled ? "shuffle" : repeatMode == .one ? "repeat.1" : repeatMode == .all ? "repeat" : "arrow.right" }
     func pause() { pendingAutoplay = false; player.pause() }
     func resume() {
+        if let project = dubbingProject, error != nil { playDubbing(project); return }
         pendingAutoplay = true
+        if dubbingProject != nil && position >= duration - 0.1 { seek(0) }
         guard current != nil, player.currentItem != nil else { return }
         do { try AVAudioSession.sharedInstance().setCategory(.playback); try AVAudioSession.sharedInstance().setActive(true); player.play() }
         catch { self.error = error.localizedDescription }
@@ -142,6 +177,7 @@ final class MusicPlayer: ObservableObject {
         shuffleOrder = [current] + queue.filter { $0.id != current.id }.shuffled()
     }
     private func advance(automatic: Bool) {
+        if dubbingProject != nil { pause(); return }
         let order = playbackOrder
         guard let current, let index = order.firstIndex(where: { $0.id == current.id }) else { return }
         if let next = repeatMode.nextIndex(current: index, count: order.count, automatic: automatic) {
@@ -167,7 +203,7 @@ final class MusicPlayer: ObservableObject {
     func moveQueue(from offsets: IndexSet, to destination: Int) { queue.move(fromOffsets: offsets, toOffset: destination) }
     func close() {
         revision += 1; loadTask?.cancel(); player.pause(); player.replaceCurrentItem(with: nil)
-        current = nil; lyric = ""; queue = []; shuffleOrder = []; pendingAutoplay = false; listenID = ""; playing = false; loading = false
+        current = nil; dubbingProject = nil; dubbingPlayRequest = nil; lyric = ""; queue = []; shuffleOrder = []; pendingAutoplay = false; listenID = ""; playing = false; loading = false
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     private func tick(_ value: Double) {
@@ -175,13 +211,17 @@ final class MusicPlayer: ObservableObject {
         position = min(max(0, value), max(duration, 0))
         if preview && value >= 60 { pause() }
         if playing {
+            if let project = dubbingProject, let requestID = dubbingPlayRequest {
+                dubbingPlayRequest = nil
+                Task { _ = try? await API.shared.call("/api/dubbing/projects/" + Endpoint.pathID(project.selfID) + "/plays", method: "POST", body: ["requestId": requestID]) }
+            }
             heard += 0.5
             if heard - lastReport >= 15, !listenID.isEmpty {
                 lastReport = heard; let id = listenID; let seconds = min(heard, duration)
                 Task { _ = try? await API.shared.call("/api/listens/\(Endpoint.pathID(id))", method: "PATCH", body: ["seconds": seconds]) }
             }
         }
-        if !lyricBusy, value >= nextLyric, value < duration {
+        if dubbingProject == nil, !lyricBusy, value >= nextLyric, value < duration {
             lyricBusy = true; nextLyric = value + 4; let version = revision
             Task {
                 defer { lyricBusy = false }

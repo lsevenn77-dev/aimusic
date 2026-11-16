@@ -12,6 +12,18 @@ final class StreamingUITests: XCTestCase {
     @MainActor private func capture(_ app: XCUIApplication, _ name: String) {
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
+    @MainActor func testBottomTabsReceiveDirectTouchAfterLaunch() {
+        let app = launch()
+        for index in [2, 3, 4, 1, 0, 2] {
+            let tab = app.buttons["main-tab-\(index)"]
+            XCTAssertTrue(tab.isHittable)
+            tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: tab)
+            XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 8), .completed)
+        }
+        XCTAssertTrue(app.buttons["더빙"].firstMatch.exists)
+        capture(app, "bottom-tabs-direct-touch")
+    }
     @MainActor private func back(_ app: XCUIApplication) { app.navigationBars.buttons.element(boundBy: 0).tap() }
     @MainActor private func reveal(_ element: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, towardTop: Bool = false, hasBottomBar: Bool = true) {
         let mini = app.buttons["mini-player-collapse"]
@@ -25,6 +37,43 @@ final class StreamingUITests: XCTestCase {
         }
         XCTFail("화면에서 누를 수 없는 항목: " + element.description)
     }
+    @MainActor func testAndroid143DiscoveryInboxAndInputGain() {
+        let app = launch(["-dubbing-recorder"])
+        app.buttons["main-tab-2"].tap()
+        XCTAssertTrue(app.buttons["인기"].exists)
+        app.buttons["더빙"].firstMatch.tap()
+        let feature = app.buttons["dub-feature-fixture-project"]
+        XCTAssertTrue(feature.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["dubbing-create"].isHittable)
+        XCTAssertTrue(app.staticTexts["AIFECT 오리지널"].exists)
+        capture(app, "android143-dubbing-home")
+        app.buttons["장르"].tap()
+        XCTAssertTrue(app.textFields["작품 제목 또는 창작자 검색"].waitForExistence(timeout: 5))
+        app.buttons["SF"].tap()
+        XCTAssertFalse(app.buttons["dubbing-project-fixture-project"].exists)
+        capture(app, "android143-dubbing-genres")
+        app.buttons["추천"].firstMatch.tap()
+        XCTAssertTrue(feature.waitForExistence(timeout: 5)); feature.tap()
+        app.buttons["claim-role-guide"].tap()
+        XCTAssertTrue(app.buttons["이어서 녹음"].waitForExistence(timeout: 8))
+        app.buttons["dubbing-volume-open"].tap()
+        let gain = app.sliders["dubbing-microphone-gain"]
+        XCTAssertTrue(gain.waitForExistence(timeout: 5)); gain.adjust(toNormalizedSliderPosition: 1)
+        XCTAssertEqual(app.staticTexts["dubbing-microphone-gain-value"].label, "200%")
+        XCTAssertEqual(app.staticTexts["dubbing-background-volume-value"].label, "100%")
+        capture(app, "android143-microphone")
+        app.navigationBars["더빙 볼륨"].buttons["완료"].tap(); back(app); back(app)
+        app.buttons["main-tab-3"].tap()
+        XCTAssertTrue(app.buttons["새 대화"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["공지"].exists); XCTAssertTrue(app.buttons["알림"].exists)
+        capture(app, "android143-inbox")
+        app.buttons["inbox-dm-fixture-peer"].press(forDuration: 1)
+        XCTAssertTrue(app.buttons["삭제"].waitForExistence(timeout: 5)); capture(app, "android143-dm-delete-confirm"); app.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.1)).tap()
+        app.buttons["알림"].tap()
+        XCTAssertTrue(app.staticTexts["내 듀엣에 참여했어요."].waitForExistence(timeout: 5))
+        capture(app, "android143-activity")
+    }
+
     @MainActor func testAndroidRoomThemesAndCreationValidation() {
         let app = launch()
         app.buttons["main-tab-1"].tap()
@@ -259,7 +308,7 @@ final class StreamingUITests: XCTestCase {
         let app = launch()
         app.buttons["main-tab-2"].tap()
         app.buttons["더빙"].firstMatch.tap()
-        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "극본 보기")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["dub-feature-fixture-project"].waitForExistence(timeout: 10)); app.buttons["dub-feature-fixture-project"].tap()
         XCTAssertTrue(app.navigationBars["더빙 스튜디오"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["mini-player-collapse"].exists)
         XCTAssertFalse(app.buttons["main-tab-2"].exists)
@@ -420,10 +469,10 @@ final class StreamingUITests: XCTestCase {
     }
     @MainActor func testFiveTabsInboxFiltersPlayerAndDuetPages() {
         let app = launch()
-        XCTAssertTrue(app.buttons["mini-player-collapse"].waitForExistence(timeout: 15))
-        app.buttons["mini-player-collapse"].tap()
+        XCTAssertTrue(app.buttons["재생 종료"].waitForExistence(timeout: 15))
         XCTAssertTrue(app.staticTexts["mini-player-lyric"].exists)
-        app.buttons["mini-player-collapse"].tap()
+        app.buttons["재생 방식"].tap()
+        XCTAssertEqual(app.buttons["재생 방식"].value as? String, "전체 반복")
         app.buttons["재생 화면 열기"].tap()
         XCTAssertTrue(app.buttons["다음 곡"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["mini-player-collapse"].exists)
@@ -432,14 +481,14 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["라이브"].waitForExistence(timeout: 10))
         capture(app, "05-community")
         app.buttons["main-tab-2"].tap()
-        app.buttons["듀엣참여"].tap()
+        app.buttons["듀엣 참여"].tap()
         XCTAssertTrue(app.buttons["듀엣 참여"].firstMatch.waitForExistence(timeout: 8))
         capture(app, "07-duets")
         app.buttons["내 초안"].tap()
         XCTAssertTrue(app.buttons["이어 편집"].firstMatch.waitForExistence(timeout: 8))
         app.buttons["main-tab-3"].tap()
         XCTAssertTrue(app.buttons["대화 검색"].waitForExistence(timeout: 5))
-        app.buttons["안 읽음"].tap(); capture(app, "08-messages")
+        app.buttons["전체"].firstMatch.tap(); capture(app, "08-messages")
         app.buttons["대화 검색"].tap(); app.textFields["inbox-search"].tap(); app.textFields["inbox-search"].typeText("채팅")
         app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "다음에도 같이 불러요")).firstMatch.tap()
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch.waitForExistence(timeout: 10))
@@ -475,18 +524,18 @@ final class StreamingUITests: XCTestCase {
         capture(app, "13b-provider-choices")
         app.buttons["닫기"].tap()
         app.buttons["main-tab-2"].tap()
-        app.buttons["듀엣참여"].tap()
+        app.buttons["듀엣 참여"].tap()
         XCTAssertTrue(app.buttons["다시 시도"].waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["듀엣 참여"].exists); capture(app, "14-duet-error")
     }
     @MainActor func testNativeDubbingModesScriptNavigationAndSubmission() {
         let app = launch(["-dubbing-recorder"])
         app.buttons["main-tab-2"].tap(); app.buttons["더빙"].firstMatch.tap()
-        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "극본 보기")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["dub-feature-fixture-project"].waitForExistence(timeout: 10)); app.buttons["dub-feature-fixture-project"].tap()
         let claim = app.buttons["claim-role-guide"]
         XCTAssertTrue(claim.waitForExistence(timeout: 8)); claim.tap()
         XCTAssertTrue(app.navigationBars["안내자 · 녹음"].waitForExistence(timeout: 8))
-        XCTAssertTrue(app.buttons["파트별 녹음"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["한 파트씩"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["전체 제출"].waitForExistence(timeout: 8))
         XCTAssertTrue(app.buttons["전체 제출"].isEnabled)
         app.buttons["녹음 확인"].tap()
@@ -502,12 +551,12 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue((45...55).contains(Int(previewLevel.replacingOccurrences(of: "%", with: "")) ?? -1))
         capture(app, "native-dubbing-volume")
         app.navigationBars["더빙 볼륨"].buttons["완료"].tap()
-        app.buttons["연속 녹음"].tap()
+        app.buttons["이어서 녹음"].tap()
         XCTAssertTrue(app.buttons["연속 녹음 시작"].exists)
         app.buttons["다음"].tap()
         XCTAssertTrue(app.staticTexts["2 / 3"].exists)
         capture(app, "native-dubbing-continuous")
-        app.buttons["파트별 녹음"].tap()
+        app.buttons["한 파트씩"].tap()
         XCTAssertTrue(app.buttons["다시 녹음"].exists)
         app.buttons["dubbing-volume-open"].tap()
         XCTAssertEqual(app.staticTexts["dubbing-background-volume-value"].label, "0%")
@@ -526,11 +575,11 @@ final class StreamingUITests: XCTestCase {
     @MainActor func testNativeDubbingContinuousRecordingCompletesSeparateTakes() {
         let app = launch()
         app.buttons["main-tab-2"].tap(); app.buttons["더빙"].firstMatch.tap()
-        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "극본 보기")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["dub-feature-fixture-project"].waitForExistence(timeout: 10)); app.buttons["dub-feature-fixture-project"].tap()
         let claim = app.buttons["claim-role-guide"]
         XCTAssertTrue(claim.waitForExistence(timeout: 8)); claim.tap()
         XCTAssertTrue(app.buttons["녹음하기"].waitForExistence(timeout: 8))
-        app.buttons["연속 녹음"].tap(); app.buttons["연속 녹음 시작"].tap()
+        app.buttons["이어서 녹음"].tap(); app.buttons["연속 녹음 시작"].tap()
         XCTAssertTrue(app.buttons["녹음 준비 취소"].waitForExistence(timeout: 8))
         capture(app, "native-dubbing-countdown")
         XCTAssertTrue(app.staticTexts["내 대사 3 / 3 · 대사를 선택해 녹음하세요"].waitForExistence(timeout: 35))
@@ -540,13 +589,13 @@ final class StreamingUITests: XCTestCase {
         capture(app, "native-dubbing-continuous-recorded")
         // Keep the test local; uploading and submitting use separate fixture scenarios.
         back(app)
-        XCTAssertTrue(app.buttons["저장 안 함"].waitForExistence(timeout: 8)); app.buttons["저장 안 함"].tap()
+        XCTAssertTrue(app.navigationBars["더빙 스튜디오"].waitForExistence(timeout: 8))
     }
 
     @MainActor func testNativeDubbingVolumeAndControlsOnNarrowLayout() {
         let app = launch(["-dubbing-recorder", "-streaming-large"])
         app.buttons["main-tab-2"].tap(); app.buttons["더빙"].firstMatch.tap()
-        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "극본 보기")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["dub-feature-fixture-project"].waitForExistence(timeout: 10)); app.buttons["dub-feature-fixture-project"].tap()
         let claim = app.buttons["claim-role-guide"]
         reveal(claim, in: app.scrollViews["dubbing-project-scroll"], app: app, hasBottomBar: false); claim.tap()
         XCTAssertTrue(app.buttons["전체 제출"].waitForExistence(timeout: 8))
@@ -563,25 +612,88 @@ final class StreamingUITests: XCTestCase {
 
     @MainActor func testNativeDubbingManualScriptCreation() {
         let app = launch()
-        app.buttons["main-tab-2"].tap(); app.buttons["더빙"].firstMatch.tap()
-        app.buttons["더빙 만들기"].tap()
-        XCTAssertTrue(app.navigationBars["더빙 만들기"].waitForExistence(timeout: 8))
-        let manual = app.buttons["직접 대사 쓰기"]
-        reveal(manual, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); manual.tap()
-        let title = app.textFields["dubbing-manual-title"]
-        reveal(title, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); title.tap(); if let value = title.value as? String, value != "작품 제목" { title.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: value.count)) }; title.typeText("검증용 새 극본"); app.toolbars.buttons["완료"].tap()
-        let lines = app.descendants(matching: .any).matching(identifier: "dubbing-manual-lines").firstMatch
-        reveal(lines, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); lines.tap(); lines.typeText("A: 첫 대사\nB: 다음 대사")
-        app.toolbars.buttons["완료"].tap()
-        let arrange = app.buttons["대본으로 정리하기"]
-        reveal(arrange, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); arrange.tap()
-        XCTAssertTrue(app.navigationBars["대본 편집"].waitForExistence(timeout: 8))
-        capture(app, "native-dubbing-editor")
+        app.buttons["main-tab-2"].tap()
+        let dubbingTab = app.buttons["더빙"].firstMatch
+        XCTAssertTrue(dubbingTab.waitForExistence(timeout: 10))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: dubbingTab)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+        dubbingTab.tap()
+        let create = app.buttons["dubbing-create"]
+        XCTAssertTrue(create.waitForExistence(timeout: 15)); create.tap()
+        XCTAssertTrue(app.buttons["직접 대본 작성"].waitForExistence(timeout: 8)); app.buttons["직접 대본 작성"].tap()
+        let title = app.textFields["script-title"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("검증용 새 극본"); app.toolbars.buttons["완료"].tap()
+        let lines = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "dubbing-line-text-"))
+        for i in 0..<2 {
+            let field = lines.element(boundBy: i)
+            reveal(field, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); field.tap(); field.typeText(i == 0 ? "첫 대사" : "다음 대사"); app.toolbars.buttons["완료"].tap()
+        }
+        XCTAssertTrue(app.buttons["script-add-sfx"].isHittable)
+        capture(app, "script-cards-direct")
         let save = app.buttons["대본 저장"]
         reveal(save, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); save.tap()
         XCTAssertTrue(app.navigationBars["더빙 스튜디오"].waitForExistence(timeout: 8))
-        back(app)
-        XCTAssertTrue(app.buttons["더빙 만들기"].waitForExistence(timeout: 8))
+        back(app); XCTAssertTrue(app.buttons["dubbing-create"].waitForExistence(timeout: 8))
+    }
+    @MainActor func testScriptPasteSceneControlsSoundAndRestore() {
+        let app = launch(["-script-cards"])
+        app.buttons["main-tab-2"].tap()
+        let dubbingTab = app.buttons["더빙"].firstMatch
+        XCTAssertTrue(dubbingTab.waitForExistence(timeout: 10))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: dubbingTab)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+        dubbingTab.tap()
+        let create = app.buttons["dubbing-create"]
+        XCTAssertTrue(create.waitForExistence(timeout: 15)); create.tap()
+        app.buttons["기존 대본 붙여넣기"].tap()
+        let field = app.descendants(matching: .any).matching(identifier: "script-import-source").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap()
+        field.typeText("SCENE 01 - Cafe\nA: Hello.\nB: Welcome.\n[SFX: a car passing]\n[BGM: soft piano]\nunknown original text")
+        app.toolbars.buttons["완료"].tap()
+        app.buttons["분석 결과 미리보기"].tap()
+        let apply = app.buttons["확인 후 편집기에 반영"]
+        reveal(apply, in: app.scrollViews.firstMatch, app: app, hasBottomBar: false); capture(app, "script-paste-preview"); apply.tap()
+        XCTAssertTrue(app.navigationBars["대본 편집"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["원문 확인 필요 · 1개"].exists)
+        let acknowledged = app.buttons["편집기에 반영했어요"]
+        reveal(acknowledged, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false)
+        // Keep the original visibly retained; do not silently mark an unclassified line resolved.
+        app.buttons["dubbing-scene-add"].tap()
+        let menu = app.buttons["장면 2 메뉴"]
+        XCTAssertTrue(menu.waitForExistence(timeout: 5)); menu.tap(); app.buttons["장면 위로"].tap()
+        XCTAssertTrue(app.buttons["실행 취소"].exists)
+        app.buttons["script-add-bgm"].tap()
+        capture(app, "script-scene-sound")
+        back(app); app.alerts.buttons["저장하고 나가기"].tap()
+        app.buttons["dubbing-create"].tap()
+        XCTAssertTrue(app.navigationBars["대본 편집"].waitForExistence(timeout: 5))
+        let scene = app.buttons["장면 1 메뉴"]
+        reveal(scene, in: app.scrollViews["native-dubbing-editor"], app: app, towardTop: true, hasBottomBar: false)
+        XCTAssertTrue(scene.isHittable); capture(app, "script-restored-position")
+    }
+    @MainActor func testScriptAIComparisonPreservesOriginalUntilApplied() {
+        let app = launch(["-script-cards"])
+        app.buttons["main-tab-2"].tap()
+        let dubbingTab = app.buttons["더빙"].firstMatch
+        XCTAssertTrue(dubbingTab.waitForExistence(timeout: 10))
+        let ready = XCTNSPredicateExpectation(predicate: NSPredicate(format: "hittable == true"), object: dubbingTab)
+        XCTAssertEqual(XCTWaiter.wait(for: [ready], timeout: 10), .completed)
+        dubbingTab.tap()
+        let create = app.buttons["dubbing-create"]
+        XCTAssertTrue(create.waitForExistence(timeout: 15)); create.tap()
+        app.buttons["기존 대본 붙여넣기"].tap()
+        let field = app.descendants(matching: .any).matching(identifier: "script-import-source").firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap(); field.typeText("A: Hello.\nB: Welcome."); app.toolbars.buttons["완료"].tap()
+        app.buttons["분석 결과 미리보기"].tap(); app.buttons["확인 후 편집기에 반영"].tap()
+        let menu = app.buttons.matching(NSPredicate(format: "identifier BEGINSWITH %@", "script-line-menu-")).firstMatch
+        reveal(menu, in: app.scrollViews["native-dubbing-editor"], app: app, hasBottomBar: false); menu.tap(); app.buttons["AI · 자연스럽게"].tap()
+        app.alerts.buttons["작성 1회 사용"].tap()
+        XCTAssertTrue(app.navigationBars["AI 수정 비교"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.staticTexts["Hello."].exists); XCTAssertTrue(app.staticTexts["Hello, it is good to see you."].exists)
+        capture(app, "script-ai-compare"); app.buttons["확인하고 적용"].tap()
+        XCTAssertTrue(app.navigationBars["대본 편집"].waitForExistence(timeout: 5))
+        let updated = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@ AND value == %@", "dubbing-line-text-", "Hello, it is good to see you.")).firstMatch
+        XCTAssertTrue(updated.exists)
     }
 
     @MainActor func testAndroidStudioChoicesArtistAndMR() {
@@ -617,7 +729,7 @@ final class StreamingUITests: XCTestCase {
     @MainActor func testAndroidDubbingManagementAndChoices() {
         let app = launch(["-dubbing-management"])
         app.buttons["main-tab-2"].tap(); app.buttons["더빙"].firstMatch.tap()
-        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "극본 보기")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["dub-feature-fixture-project"].waitForExistence(timeout: 10)); app.buttons["dub-feature-fixture-project"].tap()
         let roleMenu = app.buttons["dubbing-role-menu-guide"]
         XCTAssertTrue(roleMenu.waitForExistence(timeout: 10)); roleMenu.tap(); app.buttons["배역 취소"].tap()
         XCTAssertTrue(app.buttons["claim-role-guide"].waitForExistence(timeout: 8))

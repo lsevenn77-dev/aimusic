@@ -172,17 +172,11 @@ struct StudioView: View {
                                     if let issue = studio.guideIssue { Text(issue).font(.caption).foregroundStyle(Brand.pink) }
                                 }
                             }
-                            if studio.duetParentID != nil { Button("듀엣 파트 보기") { showDuetEditor = true }.buttonStyle(.bordered) }
-                            VStack(alignment: .leading, spacing: 10) {
-                                Toggle("모니터링", isOn: $studio.monitorEnabled).tint(Brand.pink)
-                                Text("청음 음량 · \(Int(studio.monitorVolume * 100))%").font(.caption)
-                                Slider(value: $studio.monitorVolume, in: 0...1).tint(Brand.pink).accessibilityLabel("청음 음량")
-                                Text("내 목소리 · \(Int(studio.voiceVolume * 100))%").font(.caption)
-                                Slider(value: $studio.voiceVolume, in: 0...1.5).tint(Brand.pink).accessibilityLabel("목소리 음량")
-                                Text("반주 음량 · \(Int(studio.backingVolume * 100))%").font(.caption)
-                                Slider(value: $studio.backingVolume, in: 0...1).tint(Brand.aqua).accessibilityLabel("녹음 중 반주 음량")
-                                Text(studio.monitorMessage ?? "이어폰 연결 시 내 목소리를 들을 수 있어요. 연결 방식에 따라 지연이 생길 수 있습니다.").font(.caption).foregroundStyle(.secondary)
-                            }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 22))
+                            if studio.duetParentID != nil {
+                                Button("듀엣 파트 보기") { showDuetEditor = true }.buttonStyle(.bordered)
+                                Button(studio.partnerPreviewing ? "미리듣기 멈춤" : "상대 파트 미리듣기") { studio.togglePartnerPreview() }.buttonStyle(.bordered).disabled(studio.recording || studio.starting || studio.processing)
+                            }
+                            microphoneControls
                             VStack(spacing: 16) {
                                 Text(timeLabel(studio.elapsed)).font(.system(size: 48, weight: .light, design: .monospaced)).foregroundStyle(Brand.aqua)
                                 ProgressView(value: Double(studio.level), total: 1).tint(Brand.aqua).accessibilityLabel("마이크 입력 레벨")
@@ -263,7 +257,7 @@ struct StudioView: View {
                         VStack(spacing: 6) {
                             if let progress = studio.progress ?? uploadProgress {
                                 ProgressView(value: progress)
-                                Text("\(studio.processing ? studio.processingTitle : "업로드") · \(Int(progress * 100))%").font(.caption.bold()).monospacedDigit()
+                                Text(progressLabel(progress)).font(.caption.bold()).monospacedDigit()
                             } else { ProgressView(studio.processing ? studio.processingTitle : "서버 확인 중…") }
                             Text("원본 녹음은 기기에 보관됩니다").font(.caption2).foregroundStyle(.secondary)
                         }.padding(14).frame(maxWidth: .infinity).background(Brand.card).accessibilityIdentifier("pinned-audio-progress")
@@ -289,6 +283,21 @@ struct StudioView: View {
                     Button("합성 후 공개하기") { editingDescription = false; publishTask = Task { await publish() } }
                 }
         }
+    }
+    private func progressLabel(_ value: Double) -> String { (studio.processing ? studio.processingTitle : "업로드") + " · " + String(Int(value * 100)) + "%" }
+    private var microphoneControls: some View {
+VStack(alignment: .leading, spacing: 10) {
+                                Text("마이크 입력 · \(Int(studio.microphoneGain * 100))%").font(.caption)
+                                Slider(value: $studio.microphoneGain, in: 0...2, step: 0.01).tint(Brand.pink).accessibilityLabel("마이크 입력").disabled(studio.recording || studio.starting)
+                                Toggle("모니터링", isOn: $studio.monitorEnabled).tint(Brand.pink)
+                                Text("청음 음량 · \(Int(studio.monitorVolume * 100))%").font(.caption)
+                                Slider(value: $studio.monitorVolume, in: 0...1).tint(Brand.pink).accessibilityLabel("청음 음량")
+                                Text("내 목소리 · \(Int(studio.voiceVolume * 100))%").font(.caption)
+                                Slider(value: $studio.voiceVolume, in: 0...1.5).tint(Brand.pink).accessibilityLabel("목소리 음량")
+                                Text("반주 음량 · \(Int(studio.backingVolume * 100))%").font(.caption)
+                                Slider(value: $studio.backingVolume, in: 0...1).tint(Brand.aqua).accessibilityLabel("녹음 중 반주 음량")
+                                Text(studio.monitorMessage ?? "이어폰 연결 시 내 목소리를 들을 수 있어요. 연결 방식에 따라 지연이 생길 수 있습니다.").font(.caption).foregroundStyle(.secondary)
+                            }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 22))
     }
     @ViewBuilder private var recordingControls: some View {
         if studio.countdown > 0 {
@@ -473,7 +482,7 @@ struct MobilePlayView: View {
     @EnvironmentObject private var model: AppModel
     @State private var mode: String
     @State private var section: String
-    init(initialMode: String = "노래", initialSection: String = "추천곡") {
+    init(initialMode: String = "노래", initialSection: String = "추천") {
         _mode = State(initialValue: initialMode); _section = State(initialValue: initialSection)
     }
     @State private var kind = "all"
@@ -484,11 +493,12 @@ struct MobilePlayView: View {
     @State private var busy = true
     @State private var retry = 0
     @State private var space: SiteWorkspace?
+    @State private var completed: String?
     private var sections: [String] {
         switch mode {
         case "더빙": return ["작품찾기", "더빙참여", "내 작업"]
         case "둘러보기": return ["추천", "팔로잉", "인기", "최신"]
-        default: return ["추천곡", "듀엣참여", "최신곡", "내 초안"]
+        default: return ["추천", "인기", "듀엣 참여", "내 초안"]
         }
     }
     private var path: String {
@@ -497,13 +507,13 @@ struct MobilePlayView: View {
             let tab = ["추천":"recommended","팔로잉":"following","인기":"popular","최신":"latest"][section] ?? "recommended"
             return "/api/play/works?tab=" + tab + "&type=" + kind
         }
-        return ["듀엣참여":"/api/duets","최신곡":"/api/community?kind=cover"][section] ?? "/api/karaoke"
+        return ["듀엣 참여":"/api/duets","인기":"/api/play/songs?tab=recommended"][section] ?? "/api/karaoke"
     }
     private var gated: Bool { model.user == nil && ["내 초안","내 작업","팔로잉"].contains(section) }
     private var visible: [[String: Any]] {
         rows.filter { row in
             let song = Song(row)
-            if section == "듀엣참여" && (song.duetOpen != true || (model.userID != nil && model.userID == song.ownerID)) { return false }
+            if section == "듀엣 참여" && (song.duetOpen != true || (model.userID != nil && model.userID == song.ownerID)) { return false }
             if section == "최신곡" && !song.isCover { return false }
             return query.isEmpty || ["title","name","artist","producer","ownerName","owner_name"].contains { row.string($0).localizedCaseInsensitiveContains(query) }
         }
@@ -512,19 +522,9 @@ struct MobilePlayView: View {
         VStack(spacing: 0) {
             CatalogHeader(title: "플레이")
             CatalogTabs(names: ["노래","더빙","둘러보기"], selection: $mode)
-            HStack(spacing: 6) {
-                ForEach(sections, id: \.self) { name in
-                    Button { section = name } label: {
-                        VStack(spacing: 5) {
-                            Image(systemName: ["추천곡":"sparkles","듀엣참여":"person.2","최신곡":"clock","내 초안":"square.and.pencil","작품찾기":"magnifyingglass","더빙참여":"mic","내 작업":"folder","추천":"sparkles","팔로잉":"person.2","인기":"chart.bar","최신":"clock"][name] ?? "music.note")
-                            Text(name).font(.caption)
-                        }.frame(maxWidth: .infinity, minHeight: 60)
-                            .background(section == name ? AifectDesign.violet.opacity(0.14) : Brand.card, in: RoundedRectangle(cornerRadius: 12))
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(section == name ? AifectDesign.violet : AifectDesign.stroke))
-                    }.buttonStyle(.plain)
-                }
-            }.padding(.horizontal, 16).padding(.vertical, 8)
-            if gated { LoginPrompt(title: "로그인하고 내 작업을 이어가세요."); Spacer() }
+            if mode != "더빙" { StudioSectionTabs(names: sections, selection: $section).padding(.horizontal, 12).padding(.vertical, 8) }
+            if mode == "더빙" { DubbingDiscoveryView(initialSection: section) }
+            else if gated { LoginPrompt(title: "로그인하고 내 작업을 이어가세요."); Spacer() }
             else if section == "내 초안" { RecordingDraftsView() }
             else {
                 ScrollView {
@@ -563,8 +563,9 @@ struct MobilePlayView: View {
             .onChange(of: section) { _, _ in query = "" }
             .task(id: "\(model.userID ?? "guest")|\(mode)|\(section)|\(kind)|\(retry)") {
                 rows = []; next = nil; error = nil
-                if !gated && section != "내 초안" { await fetch(offset: 0) }
+                if mode != "더빙" && !gated && section != "내 초안" { await fetch(offset: 0) }
             }.navigationDestination(item: $space) { WorkspacePage(space: $0) }
+            .sheet(isPresented: Binding(get: { completed != nil }, set: { if !$0 { completed = nil } })) { if let completed { CompletedDubbingView(id: completed) } }
     }
     private func isDubbing(_ row: [String: Any]) -> Bool {
         mode == "더빙" || row.string("type") == "dubbing" || row.string("kind") == "dubbing"
@@ -572,7 +573,7 @@ struct MobilePlayView: View {
     @ViewBuilder private func card(_ row: [String: Any], queue: [Song]) -> some View {
         let song = Song(row)
         if isDubbing(row) {
-            let open = { space = SiteWorkspace(area: "dubbing", key: row.string("id"), title: row.string("title")) }
+            let open = { if mode == "둘러보기" { completed = row.selfID } else { space = SiteWorkspace(area: "dubbing", key: row.string("id"), title: row.string("title")) } }
             VStack(alignment: .leading, spacing: 0) {
                 Button(action: open) {
                     Color.clear.aspectRatio(1, contentMode: .fit).overlay { GeometryReader { bounds in DubbingCover(row: row).frame(width: bounds.size.width, height: bounds.size.height).clipped() } }.clipShape(RoundedRectangle(cornerRadius: 12)).contentShape(Rectangle())
@@ -593,14 +594,16 @@ struct MobilePlayView: View {
             }
 
         } else {
-            CatalogSongTile(song: song, queue: queue, singTitle: mode == "노래" ? (section == "듀엣참여" ? "듀엣 참여" : "노래하기") : nil)
+            CatalogSongTile(song: song, queue: queue, singTitle: mode == "노래" ? (section == "듀엣 참여" ? "듀엣 참여" : "노래하기") : nil)
         }
     }
     @MainActor private func fetch(offset: Int) async {
         let target = path, account = model.userID
         busy = true
         do {
-            let data = try await API.shared.call(target + (target.contains("?") ? "&" : "?") + "offset=\(offset)")
+            let endpoint = target + (target.contains("?") ? "&" : "?") + "offset=\(offset)"
+            if offset == 0, let cached = API.shared.peek(endpoint) { rows = cached.objects(mode == "둘러보기" ? "works" : "tracks") }
+            let data = try await API.shared.call(endpoint, fresh: true)
             try Task.checkCancellation()
             guard path == target, account == model.userID else { return }
             let incoming = data.objects(mode == "더빙" ? "projects" : mode == "둘러보기" ? "works" : "tracks")
@@ -610,6 +613,7 @@ struct MobilePlayView: View {
             error = nil; busy = false
         } catch {
             guard !Task.isCancelled, path == target, account == model.userID else { return }
+            if let failure = error as? APIError, [401, 403, 404].contains(failure.status) { rows = [] }
             self.error = error.localizedDescription; busy = false
         }
     }

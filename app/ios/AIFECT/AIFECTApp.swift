@@ -188,6 +188,9 @@ struct RootView: View {
             if model.selectedTab == 0 || model.selectedTab == 4 { StreamingRootHeader(account: $account) }
             content().id(model.userID ?? "guest")
         }.scrollContentBackground(.hidden).background { CatalogBackdrop() }
+            // Each tab supplies its own preference; applying this only to the
+            // TabView can leave the system tab bar's touch surface over our bar.
+            .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -340,27 +343,33 @@ struct SongActions: View {
 struct MiniPlayer: View {
     @ObservedObject var player: MusicPlayer
     @EnvironmentObject private var model: AppModel
-    @State private var collapsed = false
+    @State private var dubbingDetail = false
     var body: some View {
         if let song = player.current {
-            HStack(spacing: 0) {
-                Button { model.navigationPath.append(AppRoute.player) } label: {
-                    HStack(spacing: 10) {
-                        if !collapsed { CoverArt(song: song, size: 42) }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(song.title).font(.subheadline.bold()).lineLimit(1)
-                            if !collapsed { Text(song.credit).font(.caption).foregroundStyle(AifectDesign.muted).lineLimit(1) }
-                            if !player.lyric.isEmpty { Text(player.lyric).font(.caption).foregroundStyle(Brand.aqua).lineLimit(1).accessibilityIdentifier("mini-player-lyric") }
-                        }.frame(maxWidth: .infinity, alignment: .leading)
-                    }.frame(minHeight: 44)
-                }.buttonStyle(.plain).accessibilityLabel("재생 화면 열기")
-                if player.loading { ProgressView().frame(width: 44) }
-                else { Button { player.toggle() } label: { Image(systemName: player.playing ? "pause.fill" : "play.fill").font(.title3).frame(width: 44, height: 44) }.accessibilityLabel(player.playing ? "일시정지" : "재생") }
-                if !collapsed { Button { player.next() } label: { Image(systemName: "forward.end.fill").font(.subheadline).frame(width: 44, height: 44) }.foregroundStyle(AifectDesign.muted).accessibilityLabel("다음 곡") }
-                Button { collapsed.toggle() } label: { Image(systemName: collapsed ? "chevron.up" : "chevron.down").font(.system(size: 10)).frame(width: 44, height: 44) }.foregroundStyle(AifectDesign.muted).accessibilityLabel(collapsed ? "재생바 펼치기" : "재생바 접기").accessibilityIdentifier("mini-player-collapse")
-            }.foregroundStyle(AifectDesign.text).padding(.leading, 7).padding(.vertical, 6)
+            VStack(spacing: 0) {
+                HStack(spacing: 0) {
+                    Button { if player.dubbingProject != nil { dubbingDetail = true } else { model.navigationPath.append(AppRoute.player) } } label: {
+                        HStack(spacing: 9) { CoverArt(song: song, size: 42); VStack(alignment: .leading, spacing: 3) { Text(song.title).font(.subheadline.bold()).lineLimit(1); Text(player.error ?? song.credit).font(.caption).foregroundStyle(AifectDesign.muted).lineLimit(1) }.frame(maxWidth: .infinity, alignment: .leading) }.frame(minHeight: 44)
+                    }.buttonStyle(.plain).accessibilityLabel("재생 화면 열기")
+                    if player.loading { ProgressView().frame(width: 44) }
+                    else { Button { player.toggle() } label: { Image(systemName: player.playing ? "pause.fill" : "play.fill").font(.title3).frame(width: 44, height: 44) }.accessibilityLabel(player.playing ? "일시정지" : "재생") }
+                    if player.dubbingProject == nil { Button { player.next() } label: { Image(systemName: "forward.end.fill").frame(width: 44, height: 44) }.accessibilityLabel("다음 곡") }
+                    Button { player.close() } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("재생 종료")
+                }
+                if player.dubbingProject == nil {
+                    HStack(spacing: 2) {
+                        Button { Task { await model.toggleLike(song) } } label: { Image(systemName: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart").frame(width: 40, height: 36) }.accessibilityLabel("좋아요")
+                        Text(player.lyric.isEmpty ? "음악과 함께하는 순간" : player.lyric).font(.system(size: 11)).foregroundStyle(AifectDesign.muted).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).accessibilityIdentifier("mini-player-lyric")
+                        SaveMusicButton(song: song, compact: true)
+                        Button { player.cyclePlaybackMode() } label: { Image(systemName: player.playbackModeIcon).frame(width: 40, height: 36) }.accessibilityLabel("재생 방식").accessibilityValue(player.playbackModeLabel)
+                    }
+                } else {
+                    HStack { Text(timeLabel(player.position)).font(.caption2); Slider(value: Binding(get: { player.position }, set: player.seek), in: 0...max(1, player.duration)).accessibilityLabel("더빙 재생 위치"); Text(timeLabel(player.duration)).font(.caption2) }
+                }
+            }.foregroundStyle(AifectDesign.text).padding(.horizontal, 7).padding(.vertical, 5)
                 .background(LinearGradient(colors: [Color(aifectHex: 0x25243C), StreamStyle.panel], startPoint: .topLeading, endPoint: .bottomTrailing), in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(StreamStyle.purple.opacity(0.6), lineWidth: 1)).padding(.horizontal, 10).padding(.top, 4)
+                .overlay(RoundedRectangle(cornerRadius: 12).stroke(StreamStyle.purple.opacity(0.6))).padding(.horizontal, 10).padding(.top, 4)
+                .sheet(isPresented: $dubbingDetail) { if let project = player.dubbingProject { CompletedDubbingView(id: project.selfID) } }
         }
     }
 }

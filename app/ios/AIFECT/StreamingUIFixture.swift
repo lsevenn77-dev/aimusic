@@ -33,7 +33,7 @@ enum StreamingUIFixture {
     static func response(_ request: URLRequest, body: [String: Any]) -> (Int, String, Data)? {
         let path = request.url!.path
         let args = ProcessInfo.processInfo.arguments
-        if path.hasPrefix("/assets/dubbing-genres/") || path.hasPrefix("/assets/genres/") || path.hasPrefix("/assets/chat-stickers/") {
+        if path.hasSuffix("/poster") || path.hasPrefix("/assets/dubbing-genres/") || path.hasPrefix("/assets/genres/") || path.hasPrefix("/assets/chat-stickers/") {
             return (200, "image/png", UIImage(named: "CommunityStudio")?.pngData() ?? Data())
         }
         if path.hasPrefix("/media/"), !path.hasSuffix("/mr") && !path.hasSuffix("/stream") {
@@ -144,11 +144,15 @@ enum StreamingUIFixture {
             }
             result = ["lines": lines, "recording": ["roles": [["roleId":"guide", "revision":1, "state": dubbingSubmitted ? "submitted" : "draft"]]]]
         case "/api/dubbing/projects/fixture-project/comments": result = ["comments": []]
-        case "/api/dubbing/config": result = ["aiAvailable": true, "quota": ["remaining": 1]]
+        case "/api/dubbing/generations" where args.contains("-script-cards"):
+            let edit = body.object("edit"), rows = edit.objects("lines")
+            guard rows.count == 1, edit.string("mode") == "natural", rows[0].string("speaker") == "A" else { return (400, "application/json", Data()) }
+            result = ["id": body.string("requestId"), "state": "ready", "suggestions": [["id": rows[0].selfID, "text": "Hello, it is good to see you."]], "edit": edit, "options": body.object("options")]
+        case "/api/dubbing/config": result = ["refinementAvailable": args.contains("-script-cards"), "aiAvailable": true, "quota": ["remaining": 1]]
         case "/api/dubbing/projects" where request.httpMethod == "POST":
             guard body.object("script").string("title") == "검증용 새 극본", body.object("script").objects("lines").count == 2, body.object("options").int("roleCount") == 2 else { return (400, "application/json", Data()) }
             result = ["project": ["id": "fixture-project"]]
-        case "/api/dubbing/projects", "/api/play/participate": result = ["projects": [["id":"fixture-project","title":"더빙 연습","roleCount":2,"participants":1,"state":"recruiting"]]]
+        case "/api/dubbing/projects", "/api/play/participate": result = ["projects": [["id":"fixture-project","title":"더빙 연습","ownerName":"검증 창작자","roleCount":2,"participants":1,"state":"recruiting","duration":195,"activeCount":3,"weeklyActiveCount":2,"isOfficialOriginal":true,"beginnerRecommended":true,"genres":["판타지"],"posterUrl":"/api/dubbing/projects/fixture-project/poster?v=1"]]]
         case "/api/playlists":
             if request.httpMethod == "POST" { createdPlaylist = ["id": "fixture-created", "name": body.string("name"), "user_id": "fixture-user", "tracks": 0, "is_public": body.flag("is_public"), "active": true] }
             result = ["playlists": libraryPlaylists]
@@ -186,6 +190,7 @@ enum StreamingUIFixture {
         case "/api/dm":
             if request.httpMethod == "DELETE" { dmCleared = true; result = ["ok": true] }
             else { result = ["conversations": dmCleared ? [] : [["id": "fixture-peer", "name": "채팅 테스트", "image_version": "fixture", "last_message": "다음에도 같이 불러요", "updated": Date().timeIntervalSince1970 - 60, "unread": dmRead ? 0 : 1]], "crew": ["id": "fixture-crew", "name": "검증 크루", "unread": 2], "unread": dmRead || dmCleared ? 2 : 3] }
+        case "/api/notifications/summary": result = ["unread": 1]
         case "/api/notifications": result = ["items": [["id": "fixture-notification", "actor_name": "듀엣 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": "duet", "source_title": "검증용 밤의 산책", "target": "fixture-duet", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": 0]], "unread": 1]
         case "/api/notifications/read": result = ["ok": true]
         case "/api/producers/fixture-own-profile": result = ["profile": ["id": "fixture-own-profile", "name": "검증 계정"], "tracks": [original], "covers": [cover]]

@@ -73,6 +73,13 @@ final class API {
     private(set) var cookie: String
     private let session: URLSession
     private var generation = 0
+    private var readGeneration = 0
+    private var reads: [String: (data: Data, at: Date)] = [:]
+    func invalidateReads() { readGeneration += 1; reads.removeAll() }
+    func peek(_ path: String) -> [String: Any]? {
+        guard ReadPolicy.ttl(path) != nil, let entry = reads[path], Date().timeIntervalSince(entry.at) < 90 else { return nil }
+        return try? JSONSerialization.jsonObject(with: entry.data) as? [String: Any]
+    }
     var sessionRevision: Int { generation }
     init(configuration: URLSessionConfiguration = .ephemeral, cookie: String? = nil) {
         #if DEBUG
@@ -90,19 +97,39 @@ final class API {
         session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
     }
     func clearSession() {
-        generation += 1; cookie = ""
+        generation += 1; cookie = ""; invalidateReads()
         try? SessionVault.write("")
     }
-    func call(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> [String: Any] {
+    func call(_ path: String, method: String = "GET", body: [String: Any]? = nil, fresh: Bool = false) async throws -> [String: Any] {
+        try Task.checkCancellation()
+        let ttl = method == "GET" ? ReadPolicy.ttl(path) : nil
+        if !fresh, let ttl, let entry = reads[path], Date().timeIntervalSince(entry.at) < ttl,
+           let value = try? JSONSerialization.jsonObject(with: entry.data) as? [String: Any] { return value }
+        let revision = readGeneration
         let bytes = try body.map { try JSONSerialization.data(withJSONObject: $0) }
-        let data = try await request(path, method: method, bytes: bytes, type: "application/json")
-        guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw APIError(status: 0, message: "서버 응답을 읽지 못했습니다.")
+        do {
+            let data = try await request(path, method: method, bytes: bytes, type: "application/json")
+            guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw APIError(status: 0, message: "서버 응답을 읽지 못했습니다.")
+            }
+            if ttl != nil {
+                guard revision == readGeneration else { throw CancellationError() }
+                if data.count <= 1_048_576 {
+                    reads[path] = (data, Date())
+                    while reads.count > 64 || reads.values.reduce(0, { $0 + $1.data.count }) > 8_388_608 {
+                        if let oldest = reads.min(by: { $0.value.at < $1.value.at })?.key { reads.removeValue(forKey: oldest) }
+                    }
+                }
+            }
+            return result
+        } catch {
+            if let error = error as? APIError, [401, 403, 404].contains(error.status) { reads.removeValue(forKey: path) }
+            throw error
         }
-        return result
     }
     func request(_ path: String, method: String = "GET", bytes: Data? = nil, type: String = "application/octet-stream", progress: (@MainActor (Double) -> Void)? = nil) async throws -> Data {
         let scope = generation
+        if ReadPolicy.invalidates(path, method: method) { invalidateReads() }
         var request = URLRequest(url: try Endpoint.url(path))
         request.httpMethod = method; request.httpBody = bytes
         request.setValue(Endpoint.origin.absoluteString, forHTTPHeaderField: "Origin")
@@ -122,9 +149,12 @@ final class API {
            let sessionCookie = HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie": value], for: Endpoint.origin).first(where: { $0.name == "aifect_session" }) {
             let next = sessionCookie.value.isEmpty || (sessionCookie.expiresDate ?? .distantFuture) < Date() ? "" : "aifect_session=\(sessionCookie.value)"
             try SessionVault.write(next)
-            if next != cookie { generation += 1 }
+            if next != cookie { generation += 1; invalidateReads() }
             cookie = next
         }
+        // A read may finish while a mutation is in flight. Drop it again after
+        // the server commits the write so the next screen sees the new value.
+        if ReadPolicy.invalidates(path, method: method) { invalidateReads() }
         return data
     }
     func chatEvents(query: String, onChange: @MainActor () async -> Void) async throws {
@@ -231,3 +261,23 @@ func timeLabel(_ seconds: Double) -> String {
 
 // Matches shared/genres.js; server taxonomy is authoritative.
 let musicGenreOptions = ["K-POP","Pop","Dark Pop","Ballad","R&B","Soul","Hip-Hop","Rock","Alternative","Indie Pop","EDM","Electronic","Synth Pop","City Pop","Lo-fi","Jazz","Blues","Folk","Acoustic","Country","Classical","Ambient","Fusion","Korean Folklore Fusion","World Music","국악","트로트","J-POP","OST","Instrumental","Dance","Funk","Disco","Metal","Punk","Reggae","Latin","Reggaeton","Afrobeats","House","Techno","Trance","Drum & Bass","Trap","Gospel","New Age","Chillout","Cinematic","Orchestral","Children"]
+
+
+enum ReadPolicy {
+    static func ttl(_ path: String) -> TimeInterval? {
+        guard path.hasPrefix("/api/"), !path.contains(".."), !path.contains("#") else { return nil }
+        let base = String(path.split(separator: "?")[0])
+        if ["/api/library", "/api/history", "/api/follows", "/api/duets", "/api/me/profile"].contains(base) { return 10 }
+        if ["/api/play/works", "/api/play/songs", "/api/karaoke", "/api/catalog", "/api/search", "/api/community", "/api/community/rankings", "/api/playlists", "/api/cover-rankings"].contains(base) { return 20 }
+        if base == "/api/dubbing/projects", let query = URLComponents(string: path)?.queryItems, query.contains(where: { $0.name == "tab" && ["open", "popular"].contains($0.value ?? "") }) { return 10 }
+        if base.range(of: #"^/api/(producers|artists|followers|playlists)/[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil { return 20 }
+        if base.range(of: #"^/api/tracks/[A-Za-z0-9_-]+/covers$"#, options: .regularExpression) != nil { return 20 }
+        return nil
+    }
+    static func invalidates(_ path: String, method: String) -> Bool {
+        guard !["GET", "HEAD"].contains(method), !path.hasPrefix("/api/push/") else { return false }
+        if ["POST", "PATCH"].contains(method), path.range(of: #"^/api/dm/[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil { return false }
+        if method == "POST", path.range(of: #"^/api/crews/[A-Za-z0-9_-]+/messages$"#, options: .regularExpression) != nil { return false }
+        return true
+    }
+}

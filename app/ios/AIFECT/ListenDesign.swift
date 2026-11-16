@@ -4,6 +4,7 @@ struct ListenView: View {
     @EnvironmentObject private var model: AppModel
     @State private var page = "추천"
     @State private var detail: Song?
+    @State private var chartPage = 0
     @State private var coverURL: URL?
     @State private var publicLists: [[String: Any]] = []
     @State private var artists: [[String: Any]] = []
@@ -38,12 +39,12 @@ struct ListenView: View {
             if page == "추천" {
                 GeometryReader { geo in
                     RemoteArtwork(url: coverURL) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
-                        .frame(width: geo.size.width, height: min(450, geo.size.height)).blur(radius: 36).opacity(0.5)
+                        .frame(width: geo.size.width, height: geo.size.height).blur(radius: 36).opacity(0.5)
                         .overlay(LinearGradient(stops: [.init(color: Brand.background.opacity(0.35), location: 0), .init(color: Brand.background.opacity(0.6), location: 0.5), .init(color: Brand.background, location: 1)], startPoint: .top, endPoint: .bottom))
                         .clipped().accessibilityHidden(true)
                 }.allowsHitTesting(false)
             }
-        }.navigationDestination(item: $detail) { TrackDetailView(song: $0) }.task(id: model.userID) { await loadShelves() }
+        }.navigationDestination(item: $detail) { TrackDetailView(song: $0) }.task(id: "\(model.userID ?? "guest")|\(model.selectedTab)") { if model.selectedTab == 0 { await loadShelves() } }
     }
     private func latestPlaybackButton(shuffle: Bool) -> some View {
         Button {
@@ -87,9 +88,11 @@ struct ListenView: View {
             Spacer()
             Button("전체 보기") { page = "차트" }.font(.caption).frame(minHeight: 44)
         }
-        ForEach(Array(model.chart.prefix(3).enumerated()), id: \.element.id) { offset, song in
-            HomeTrackRow(song: song, queue: model.chart, player: model.player, rank: offset + 1)
-        }
+        TabView(selection: $chartPage) {
+            ForEach(0..<max(1, (min(15, model.chart.count) + 2) / 3), id: \.self) { page in
+                VStack(spacing: 0) { ForEach(Array(model.chart.dropFirst(page * 3).prefix(3).enumerated()), id: \.element.id) { offset, song in HomeTrackRow(song: song, queue: model.chart, player: model.player, rank: page * 3 + offset + 1) } }.tag(page).padding(.bottom, 18)
+            }
+        }.tabViewStyle(.page(indexDisplayMode: .automatic)).frame(height: 235).animation(.easeInOut(duration: 0.25), value: chartPage).accessibilityIdentifier("home-chart-pages")
         HStack {
             Text("최신곡").font(.headline); Spacer()
             Button("모두 보기") { page = "최신곡" }.font(.caption).frame(minHeight: 44)
@@ -136,11 +139,11 @@ struct ListenView: View {
     private func loadShelves() async {
         let owner = model.userID
         await withTaskGroup(of: (String, [String: Any]?).self) { group in
-            for path in ["/api/community?kind=cover", "/api/playlists?sort=popular", "/api/discovery/profiles?kind=artist&sort=popular", "/api/catalog?section=producers&limit=30"] {
-                group.addTask { (path, try? await API.shared.call(path)) }
-            }
+            var paths = ["/api/community?kind=cover", "/api/playlists?sort=popular", "/api/discovery/profiles?kind=artist&sort=popular", "/api/catalog?section=producers&limit=30"].makeIterator()
+            for _ in 0..<2 { if let path = paths.next() { group.addTask { (path, try? await API.shared.call(path)) } } }
             var failed = false
             for await (path, result) in group {
+                if !Task.isCancelled, let next = paths.next() { group.addTask { (next, try? await API.shared.call(next)) } }
                 guard !Task.isCancelled, owner == model.userID else { continue }
                 guard let result else { failed = true; continue }
                 if path.hasPrefix("/api/community") { covers = Array(result.songs().prefix(10)) }
@@ -168,19 +171,12 @@ private struct HomeTrackRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(song.title).font(.system(size: 15, weight: .semibold))
                     Text(song.credit).font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
-                    if rank == nil {
-                        HStack(spacing: 8) {
-                            Label("\(song.plays ?? 0)", systemImage: "play")
-                            Label("\(song.likes)", systemImage: "heart")
-                            Label("\(song.comments)", systemImage: "bubble.left")
-                        }.font(.system(size: 10)).foregroundStyle(AifectDesign.secondaryText)
-                    }
                 }.lineLimit(1).frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
             }.accessibilityLabel("\(song.title) 상세")
             Button { if player.current?.id == song.id { player.toggle() } else { player.play(song, queue: queue) } } label: {
                 Image(systemName: active ? "pause.fill" : "play.fill").font(.system(size: 14)).frame(width: 32, height: 32).background { Circle().fill(active ? AnyShapeStyle(Brand.gradient) : AnyShapeStyle(Brand.background.opacity(0.7))) }.overlay(Circle().stroke(Brand.gradient, lineWidth: 1)).frame(minWidth: 48, minHeight: 48)
             }.foregroundStyle(active ? Brand.background : Brand.pink).accessibilityLabel("\(song.title) \(active ? "일시정지" : "재생")")
-            NavigationLink { SongMenuView(song: song).streamingPage() } label: { Image(systemName: "line.3.horizontal").font(.system(size: 18)).frame(width: 44, height: 48) }.accessibilityLabel("\(song.title) 더보기")
+            Menu { Button("상세 보기") { model.navigationPath.append(song) }; Button("좋아요") { Task { await model.toggleLike(song) } }; Button("음악 메뉴") { model.navigationPath.append(song) } } label: { Image(systemName: "ellipsis").font(.system(size: 18)).frame(width: 44, height: 48) }.accessibilityLabel("\(song.title) 더보기")
         }.buttonStyle(.plain).padding(.horizontal, rank == nil ? 9 : 0).padding(.vertical, 7)
             .background(rank == nil ? Brand.card.opacity(0.72) : .clear, in: RoundedRectangle(cornerRadius: 15))
             .overlay { if rank == nil { RoundedRectangle(cornerRadius: 15).stroke(AifectDesign.stroke, lineWidth: 1) } }

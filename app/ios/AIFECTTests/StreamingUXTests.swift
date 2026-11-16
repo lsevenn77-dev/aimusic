@@ -292,3 +292,277 @@ final class NativeDubbingTests: XCTestCase {
     }
 
 }
+
+final class Android143ParityTests: XCTestCase {
+    func testMicrophoneGainClampsPCMAndLeavesHeaderIntact() throws {
+        let pcm = Data([0x20, 0x4E, 0xE0, 0xB1, 0, 0]) // +20000, -20000, 0
+        XCTAssertEqual(RecordingGain.pcm16(pcm, gain: 2), Data([0xFF, 0x7F, 0, 0x80, 0, 0]))
+        XCTAssertEqual(RecordingGain.pcm16(pcm, gain: 0), Data(count: 6))
+        XCTAssertEqual(RecordingGain.pcm16(pcm, gain: .nan), pcm)
+        let wav = try DubbingWAV.encode(pcm: Data(repeating: 0x10, count: 9600))
+        let result = try DubbingWAV.canonical(wav, maximum: 0.1, gain: 0)
+        XCTAssertEqual(result.prefix(44), wav.prefix(44)); XCTAssertEqual(result.dropFirst(44), Data(count: 9600))
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".wav")
+        defer { try? FileManager.default.removeItem(at: file) }
+        try wav.write(to: file); try RecordingGain.apply(to: file, gain: 0)
+        XCTAssertEqual(try Data(contentsOf: file), result)
+    }
+    @MainActor func testDurableLineSurvivesReopenWithoutExplicitSave() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let drafts = try DubbingDrafts(owner: "owner", project: "work", sound: "sound", role: "role", root: root)
+        let first = DubbingTake(id: UUID().uuidString, duration: 0.1)
+        try DubbingWAV.encode(pcm: Data(count: 9600)).write(to: drafts.file(first))
+        try await drafts.commitDurably(line: "line-1", take: first)
+        XCTAssertFalse(drafts.changed)
+        let restored = try DubbingDrafts(owner: "owner", project: "work", sound: "sound", role: "role", root: root)
+        XCTAssertEqual(restored.takes["line-1"], first)
+        let second = DubbingTake(id: UUID().uuidString, duration: 0.1)
+        try DubbingWAV.encode(pcm: Data(count: 9600)).write(to: drafts.file(second))
+        try await restored.commitDurably(line: "line-2", take: second)
+        XCTAssertEqual(try DubbingDrafts(owner: "owner", project: "work", sound: "sound", role: "role", root: root).takes.count, 2)
+        XCTAssertTrue(try DubbingDrafts(owner: "other", project: "work", sound: "sound", role: "role", root: root).takes.isEmpty)
+    }
+    @MainActor func testContinuousOnlySelectsUnrecordedOwnLines() {
+        let session = DubbingRecordingSession(owner: "owner", project: "work", role: "A")
+        session.view = ["lines": [["id": "a1", "roleId": "A", "takeId": "saved"], ["id": "b1", "roleId": "B"], ["id": "a2", "roleId": "A"], ["id": "a3", "roleId": "A"]]]
+        XCTAssertEqual(session.pendingLines(from: 0).map(\.selfID), ["a2", "a3"])
+        XCTAssertEqual(session.pendingLines(from: 2).map(\.selfID), ["a3"])
+        XCTAssertEqual(session.complete, 1)
+    }
+    func testSensitiveReadsNeverUseListCache() {
+        for path in ["/api/me", "/api/gold", "/api/notifications", "/api/dubbing/projects/work/recording", "/api/dubbing/projects?tab=mine", "/api/dubbing/projects/work", "/api/voice/join", "/api/playback/song"] { XCTAssertNil(ReadPolicy.ttl(path), path) }
+        XCTAssertEqual(ReadPolicy.ttl("/api/dubbing/projects?tab=open&discovery=1&offset=0"), 10)
+        XCTAssertEqual(ReadPolicy.ttl("/api/play/songs?tab=recommended"), 20)
+        XCTAssertTrue(ReadPolicy.invalidates("/api/crews/a/join", method: "POST"))
+        XCTAssertFalse(ReadPolicy.invalidates("/api/dm/person", method: "POST"))
+        XCTAssertTrue(ReadPolicy.invalidates("/api/dm/person", method: "DELETE"))
+    }
+    @MainActor func testListCacheIsFilterScopedAndClearedOnMutationAndAccountChange() async throws {
+        let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [MockURLProtocol.self]
+        let api = API(configuration: config, cookie: "fixture-only")
+        var requests = 0, denied = false
+        MockURLProtocol.handler = { request in
+            requests += 1
+            return denied ? (403, Data("{\"error\":\"접근 거부\"}".utf8)) : (200, Data("{\"tracks\":[]}".utf8))
+        }
+        _ = try await api.call("/api/catalog?section=tracks")
+        _ = try await api.call("/api/catalog?section=tracks")
+        XCTAssertEqual(requests, 1)
+        XCTAssertNotNil(api.peek("/api/catalog?section=tracks"))
+        XCTAssertNil(api.peek("/api/catalog?section=albums"))
+        _ = try await api.call("/api/catalog?section=albums")
+        XCTAssertEqual(requests, 2)
+        _ = try await api.call("/api/tracks/song/like", method: "PUT")
+        XCTAssertNil(api.peek("/api/catalog?section=tracks"))
+        _ = try await api.call("/api/catalog?section=tracks")
+        api.clearSession(); XCTAssertNil(api.peek("/api/catalog?section=tracks"))
+        _ = try await api.call("/api/catalog?section=tracks")
+        denied = true
+        do { _ = try await api.call("/api/catalog?section=tracks", fresh: true); XCTFail("Denied list must not be shown") } catch { }
+        XCTAssertNil(api.peek("/api/catalog?section=tracks"))
+    }
+    @MainActor func testRequestedUploadContinuesAfterCallerLeavesAndReopenDoesNotDuplicate() async throws {
+        let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [MockURLProtocol.self]
+        let api = API(configuration: config, cookie: "fixture-only")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var accepted = "", uploads = 0
+        func snapshot() -> [String: Any] { ["lines": [["id":"line", "roleId":"role", "start":0, "end":1, "takeId":accepted]], "recording": ["roles": [["roleId":"role", "revision": accepted.isEmpty ? 1 : 2, "state":"draft"]]]] }
+        MockURLProtocol.handler = { request in
+            if request.url!.path.hasSuffix("background") { return (200, try DubbingWAV.encode(pcm: Data(count: 96000))) }
+            if request.httpMethod == "PUT" {
+                Thread.sleep(forTimeInterval: 0.15); uploads += 1
+                accepted = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "take" }?.value ?? ""
+            }
+            return (200, try JSONSerialization.data(withJSONObject: snapshot()))
+        }
+        var session: DubbingRecordingSession? = DubbingRecordingSession(owner: "owner", project: "work", role: "role", api: api, draftRoot: root)
+        let audio = DubbingAudio()
+        await session!.prepare(sound: ["id":"sound", "state":"ready"], audio: audio)
+        let drafts = try XCTUnwrap(session!.drafts)
+        let take = DubbingTake(id: UUID().uuidString, duration: 1)
+        try DubbingWAV.encode(pcm: Data(count: 96000)).write(to: drafts.file(take))
+        try await drafts.commitDurably(line: "line", take: take)
+        session!.startSave(submit: false)
+        weak var retained = session; session = nil; audio.cancel()
+        for _ in 0..<100 {
+            if drafts.takes["line"]?.uploaded == true { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        XCTAssertEqual(uploads, 1); XCTAssertEqual(drafts.takes["line"]?.uploaded, true)
+        let reopened = DubbingRecordingSession(owner: "owner", project: "work", role: "role", api: api, draftRoot: root)
+        await reopened.prepare(sound: ["id":"sound", "state":"ready"], audio: DubbingAudio())
+        await reopened.save(submit: false)
+        XCTAssertEqual(uploads, 1); XCTAssertNil(reopened.error)
+        _ = retained // The screen no longer owns the upload session.
+    }
+    @MainActor func testBulkDeletionKeepsFailuresAndChecksDubbingOwnership() async throws {
+        let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [MockURLProtocol.self]
+        let api = API(configuration: config, cookie: "fixture-only")
+        var deletes: [String] = [], removed: [String] = []
+        MockURLProtocol.handler = { request in
+            let path = request.url!.path
+            if request.httpMethod == "DELETE" { deletes.append(path) }
+            if path == "/api/uploads/failed" { return (503, Data("{\"error\":\"retry\"}".utf8)) }
+            if path == "/api/dubbing/projects/not-mine" { return (200, Data("{\"project\":{\"isOwner\":false}}".utf8)) }
+            return (200, Data("{}".utf8))
+        }
+        let works = [OwnedWork(song: Song(["id":"ok"]), dubbing: nil), OwnedWork(song: Song(["id":"failed"]), dubbing: nil), OwnedWork(song: nil, dubbing: ["id":"not-mine"])]
+        let failed = try await OwnedWorkDeletion.remove(works, api: api) { removed.append($0) }
+        XCTAssertEqual(removed, ["song-ok"])
+        XCTAssertEqual(failed, ["song-failed", "dubbing-not-mine"])
+        XCTAssertFalse(deletes.contains("/api/dubbing/projects/not-mine"))
+    }
+    func testRegisteredDubbingPosterPathOnly() {
+        XCTAssertNotNil(DubbingCover.posterURL(["posterUrl": "/api/dubbing/projects/work-1/poster?v=2"]))
+        XCTAssertNil(DubbingCover.posterURL(["posterUrl": "https://other.invalid/poster"]))
+        XCTAssertNil(DubbingCover.posterURL(["posterUrl": "/api/dubbing/projects/../poster"]))
+    }
+}
+
+final class ScriptCardEditorTests: XCTestCase {
+    let options: [String: Any] = ["genres": ["일상"], "roleCount": 2, "minutes": 1.0, "mood": "랜덤", "ending": "랜덤", "idea": ""]
+    let source = "SCENE 01 — 카페 앞\n\n[상황]\n늦은 밤, 두 사람이 마주 서 있다.\n\n서준: 우리 계약, 이제 끝나는 거지?\n지연: 응. 그런데 넌 정말 아무렇지도 않아?\n[SFX: 자동차가 지나가는 소리]\n[BGM: 잔잔한 피아노]\n분류할 수 없는 원문 ★"
+    func testPastePreservesOriginalAndUnknownTextWhileSeparatingActorsScenesAndSound() {
+        let parsed = DubbingScriptEditing.parse(source, title: "계약", options: options)
+        XCTAssertEqual(parsed.source, source)
+        XCTAssertEqual(parsed.script.objects("roles").map { $0.string("name") }, ["서준", "지연"])
+        XCTAssertEqual(parsed.script.objects("scenes")[0].string("title"), "카페 앞")
+        XCTAssertEqual(parsed.script.objects("scenes")[0].string("description"), "늦은 밤, 두 사람이 마주 서 있다.")
+        XCTAssertEqual(parsed.script.objects("lines").map { $0.string("text") }, ["우리 계약, 이제 끝나는 거지?", "응. 그런데 넌 정말 아무렇지도 않아?"])
+        XCTAssertEqual(parsed.script.objects("soundCues").map { $0.string("kind") }, ["sfx", "bgm"])
+        XCTAssertEqual(parsed.unresolved.map { $0.string("text") }, ["분류할 수 없는 원문 ★"])
+    }
+    func testParserDoesNotDropEmptyScenesOrRewriteUnclassifiedProse() {
+        let raw = "SCENE 01 — 빈 장면\nSCENE 02 — 두 번째\nA: 안녕\n원래 줄을 보존해줘\nB: 반가워"
+        let parsed = DubbingScriptEditing.parse(raw, title: "테스트", options: options)
+        XCTAssertEqual(parsed.script.objects("scenes").count, 2)
+        XCTAssertEqual(parsed.unresolved[0].string("text"), "원래 줄을 보존해줘")
+        XCTAssertTrue(DubbingScriptEditing.issues(parsed.script).contains { $0.contains("빈 장면") })
+    }
+    @MainActor func testSceneDuplicateMoveDeleteUndoPreservesIDsAndSoundAnchors() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = DubbingScriptEditorModel(owner: "cards", existing: nil, root: root)
+        model.acceptImport(DubbingScriptEditing.parse(source, title: "계약", options: options))
+        let first = model.script.objects("scenes")[0].selfID, oldLines = model.script.objects("lines")
+        model.duplicateScene(first)
+        XCTAssertEqual(model.script.objects("scenes").count, 2)
+        let copy = model.script.objects("scenes")[1].selfID
+        XCTAssertNotEqual(copy, first)
+        let copyLines = model.script.objects("lines").filter { $0.string("sceneId") == copy }
+        XCTAssertEqual(Set(model.script.objects("lines").map(\.selfID)).count, 4)
+        XCTAssertEqual(copyLines.map { $0.string("text") }, oldLines.map { $0.string("text") })
+        XCTAssertTrue(model.script.objects("soundCues").filter { $0.string("sceneId") == copy }.allSatisfy { cue in copyLines.contains { $0.selfID == cue.string("lineId") } })
+        model.moveScene(copy, by: -1)
+        XCTAssertEqual(model.script.objects("lines").first?.string("sceneId"), copy)
+        model.removeScene(copy); XCTAssertEqual(model.script.objects("lines").map(\.selfID), oldLines.map(\.selfID))
+        model.undo(); XCTAssertEqual(model.script.objects("scenes").count, 2)
+    }
+    @MainActor func testAutomaticDraftPreservesPasteAndPositionAcrossReentryAndOtherAccount() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = DubbingScriptEditorModel(owner: "cards", existing: nil, root: root)
+        model.acceptImport(DubbingScriptEditing.parse(source, title: "계약", options: options))
+        model.selectedSceneID = "scene_1"; model.editingLineID = model.script.objects("lines")[1].selfID; model.collapsedScenes = ["scene_1"]
+        model.field("title").wrappedValue = "자동 저장된 새 제목"
+        try await Task.sleep(for: .milliseconds(1100))
+        let restored = DubbingScriptEditorModel(owner: "cards", existing: nil, root: root)
+        XCTAssertEqual(restored.script.string("title"), "자동 저장된 새 제목")
+        XCTAssertEqual(restored.importSource, source); XCTAssertEqual(restored.unresolved.count, 1)
+        XCTAssertEqual(restored.editingLineID, model.editingLineID); XCTAssertEqual(restored.collapsedScenes, ["scene_1"])
+        XCTAssertTrue(DubbingScriptEditorModel(owner: "other", existing: nil, root: root).script.isEmpty)
+    }
+    @MainActor func testRemoteRevisionConflictKeepsLocalTextAndCanBecomeSeparatePrivateCopy() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let script = DubbingScriptEditing.parse(source, title: "원래 제목", options: options).script
+        let existing: [String: Any] = ["id": "project", "revision": 1, "options": options, "script": script]
+        let model = DubbingScriptEditorModel(owner: "cards", existing: existing, root: root)
+        model.field("title").wrappedValue = "네트워크가 끊긴 동안 쓴 제목"; try model.persist()
+        var remote = existing; remote["revision"] = 2
+        let restored = DubbingScriptEditorModel(owner: "cards", existing: remote, root: root)
+        XCTAssertTrue(restored.conflict); XCTAssertEqual(restored.script.string("title"), "네트워크가 끊긴 동안 쓴 제목")
+        restored.saveConflictAsCopy(); XCTAssertFalse(restored.conflict); XCTAssertNotEqual(restored.projectID, "project")
+    }
+    @MainActor func testAIProposalNeverOverwritesNewerTypingAndAppliesOnlyAfterExplicitChoice() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let model = DubbingScriptEditorModel(owner: "cards", existing: nil, root: root)
+        model.beginBlank(); let before = model.script
+        var after = before; after["title"] = "수정안"
+        model.proposal = ["refinement": ["script": before], "script": after]
+        model.field("title").wrappedValue = "새로 입력"
+        model.applyProposal(); XCTAssertEqual(model.script.string("title"), "새로 입력"); XCTAssertFalse(model.proposal.isEmpty)
+        model.script = before; model.applyProposal(); XCTAssertEqual(model.script.string("title"), "수정안"); XCTAssertTrue(model.proposal.isEmpty)
+        model.undo(); XCTAssertEqual(model.script.string("title"), before.string("title"))
+    }
+    @MainActor func testFailedAIRefinementKeepsOriginalAndStillAllowsPrivateSave() async throws {
+        let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [MockURLProtocol.self]
+        let api = API(configuration: config, cookie: "fixture-only")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { MockURLProtocol.handler = nil; try? FileManager.default.removeItem(at: root) }
+        let model = DubbingScriptEditorModel(owner: "cards", existing: nil, api: api, root: root)
+        model.acceptImport(DubbingScriptEditing.parse("A: Hello.\nB: Welcome.", title: "Preserved", options: options))
+        model.config = ["refinementAvailable": true]
+        let original = model.script
+        var saved = false
+        MockURLProtocol.handler = { request in
+            if request.url?.path == "/api/dubbing/generations" { return (429, Data("{\"error\":\"Daily quota used\"}".utf8)) }
+            var bytes = request.httpBody ?? Data()
+            if let stream = request.httpBodyStream { stream.open(); defer { stream.close() }; var buffer = [UInt8](repeating: 0, count: 4096); while stream.hasBytesAvailable { let n = stream.read(&buffer, maxLength: buffer.count); if n <= 0 { break }; bytes.append(buffer, count: n) } }
+            let body = try JSONSerialization.jsonObject(with: bytes) as! [String: Any]
+            XCTAssertNil(body["generationId"])
+            XCTAssertTrue(NSDictionary(dictionary: original).isEqual(to: body.object("script")))
+            saved = true
+            return (200, Data("{\"project\":{\"id\":\"saved-private\"}}".utf8))
+        }
+        await model.refine(action: "natural", target: model.script.objects("lines")[0].selfID)
+        XCTAssertFalse(model.pending); XCTAssertTrue(NSDictionary(dictionary: original).isEqual(to: model.script))
+        let id = await model.save()
+        XCTAssertEqual(id, "saved-private"); XCTAssertTrue(saved)
+    }
+    func testSharedWebEditPayloadAndSuggestionsPreserveAllUnselectedData() throws {
+        let original = DubbingScriptEditing.parse(source, title: "계약", options: options).script
+        let target = original.objects("lines")[0].selfID
+        let request: [String: Any] = ["script": original, "action": "shorten", "target": target]
+        let payload = DubbingScriptEditing.editPayload(request)
+        XCTAssertEqual(payload.string("mode"), "shorter")
+        XCTAssertEqual(payload.objects("lines").count, 1)
+        XCTAssertEqual(payload.objects("lines")[0].string("speaker"), "서준")
+        let edited = try DubbingScriptEditing.applyingSuggestions([["id": target, "text": "계약은 끝났어?"]], request: request)
+        XCTAssertEqual(edited.objects("lines")[0].string("text"), "계약은 끝났어?")
+        XCTAssertTrue(NSDictionary(dictionary: original.objects("lines")[1]).isEqual(to: edited.objects("lines")[1]))
+        XCTAssertEqual(NSArray(array: original.objects("soundCues")), NSArray(array: edited.objects("soundCues")))
+        XCTAssertThrowsError(try DubbingScriptEditing.applyingSuggestions([["id": "other", "text": "교체"]], request: request))
+        XCTAssertThrowsError(try DubbingScriptEditing.applyingSuggestions([], request: request))
+    }
+    @MainActor func testLegacyServerCannotReceiveAnEditAsAnAccidentalNewStory() async throws {
+        let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [MockURLProtocol.self]
+        let api = API(configuration: config, cookie: "fixture-only")
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { MockURLProtocol.handler = nil; try? FileManager.default.removeItem(at: root) }
+        var supportsDrafts = false
+        MockURLProtocol.handler = { request in
+            if request.url?.path == "/api/dubbing/config" { return (200, Data("{\"aiAvailable\":true}".utf8)) }
+            XCTAssertEqual(request.httpMethod, "GET")
+            XCTAssertEqual(request.url?.path, "/api/dubbing/editor-drafts")
+            return supportsDrafts ? (200, Data("{\"items\":[]}".utf8)) : (404, Data("{\"error\":\"Not found\"}".utf8))
+        }
+        let model = DubbingScriptEditorModel(owner: "cards", existing: nil, api: api, root: root)
+        await model.load(); XCTAssertFalse(model.config.flag("refinementAvailable"))
+        supportsDrafts = true
+        await model.load(); XCTAssertTrue(model.config.flag("refinementAvailable"))
+    }
+    func testServerCompatibleLimitsIncludeBGMInTwentyFourCuesAndMusicEndInDuration() {
+        var script = DubbingScriptEditing.parse(source, title: "한도", options: options).script
+        let row = script.objects("lines")[0]
+        script["soundCues"] = (0..<25).map { _ in DubbingScriptEditing.cue(kind: "sfx", scene: row.string("sceneId"), line: row.selfID, prompt: "소리") }
+        XCTAssertTrue(DubbingScriptEditing.issues(script).contains { $0.contains("24") })
+        var long = row; long["durationSeconds"] = 40.0; long["gapSeconds"] = 8.0
+        script["lines"] = (0..<7).map { i in var value = long; value["id"] = "line-\(i)"; return value }; script["soundCues"] = []
+        XCTAssertGreaterThan(DubbingScriptEditing.duration(script), 300)
+        XCTAssertTrue(DubbingScriptEditing.issues(script).contains { $0.contains("5분") })
+    }
+}

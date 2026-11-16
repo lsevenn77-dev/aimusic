@@ -7,9 +7,9 @@ struct CatalogHeader: View {
         HStack {
             Text(title).font(.system(size: 24, weight: .bold))
             Spacer()
-            NavigationLink(value: AppRoute.menu) {
+            if !["플레이", "커뮤니티"].contains(title) { NavigationLink(value: AppRoute.menu) {
                 Image(systemName: "line.3.horizontal").frame(width: 48, height: 48)
-            }.accessibilityLabel("전체 메뉴")
+            }.accessibilityLabel("전체 메뉴") }
         }.padding(.leading, 20).padding(.trailing, 8).frame(minHeight: 56)
     }
 }
@@ -268,5 +268,23 @@ struct ChartFilterTabs: View {
                 }
             }
         }.overlay(alignment: .bottom) { Divider() }
+    }
+}
+
+
+struct StudioSectionTabs: View {
+    let names: [String]
+    @Binding var selection: String
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(names, id: \.self) { name in
+                Button { selection = name } label: {
+                    Text(name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.85)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .foregroundStyle(selection == name ? Color(aifectHex: 0x20172B) : AifectDesign.secondaryText)
+                        .background(selection == name ? Color(aifectHex: 0xD7B8EF) : .clear, in: Capsule())
+                }.buttonStyle(.plain).accessibilityAddTraits(selection == name ? .isSelected : [])
+            }
+        }.padding(2).background(Brand.card, in: Capsule()).overlay(Capsule().stroke(AifectDesign.stroke))
     }
 }

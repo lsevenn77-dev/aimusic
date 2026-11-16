@@ -76,16 +76,33 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
     private var finishTask: Task<Void, Never>?
     @Published var exportURL: URL?
     @Published var previewing = false
+    @Published var microphoneGain: Double = 1 { didSet { liveMonitor.inputGain = microphoneGain } }
+    @Published var partnerPreviewing = false
+    private var partnerPlayer: AVAudioPlayer?
+    private var takeGain = 1.0
+    func stopPartnerPreview() { partnerPlayer?.stop(); partnerPlayer = nil; partnerPreviewing = false }
+    func togglePartnerPreview() {
+        if partnerPreviewing { stopPartnerPreview(); return }
+        guard duetParentID != nil, ready, !recording, !starting, !processing else { return }
+        monitorEnabled = false
+        do {
+            let session = AVAudioSession.sharedInstance(); try session.setCategory(.playback); try session.setActive(true)
+            let player = try AVAudioPlayer(contentsOf: folder.appendingPathComponent("backing.m4a"))
+            player.currentTime = elapsed; player.volume = backingVolume; player.delegate = self
+            guard player.play() else { throw URLError(.cannotOpenFile) }
+            partnerPlayer = player; partnerPreviewing = true
+        } catch { self.error = error.localizedDescription }
+    }
     @Published var voiceVolume: Float = 1 { didSet { settingsChanged() } }
     @Published var backingVolume: Float = 0.8 { didSet { backing?.volume = backingVolume; settingsChanged() } }
     @Published var reverb: Float = 12 { didSet { settingsChanged() } }
     @Published var sync = 0.0 { didSet { settingsChanged() } }
     @Published var effects = VocalSettings() { didSet { settingsChanged() } }
     @Published var countdown = 0
-    private var starting = false
+    @Published private(set) var starting = false
     private var countdownGeneration = 0
     private func saveSettings() {
-        if let bytes = try? JSONEncoder().encode(currentSettings) { try? bytes.write(to: folder.appendingPathComponent("settings.json"), options: .atomic) }
+        if let bytes = try? JSONEncoder().encode(currentSettings) { let url = folder.appendingPathComponent("settings.json"); if (try? Data(contentsOf: url)) != bytes { try? bytes.write(to: url, options: .atomic) } }
     }
     var currentSettings: VocalSettings { var value = effects; value.voice = voiceVolume; value.backing = backingVolume; value.offset = sync; value.room = reverb; return value }
     private func settingsChanged() {
@@ -209,6 +226,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         #endif
         guard ready, !recording, !starting, !processing, draft == nil, !closed else { return }
         if let guideIssue { error = guideIssue; return }
+        stopPartnerPreview(); takeGain = RecordingGain.clamp(microphoneGain)
         starting = true
         error = nil
         countdownGeneration += 1
@@ -275,11 +293,12 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         guard duration > 0.1, let takeURL else { return }
         elapsed = max(priorLength, takeStart + duration)
         processing = true; processingTitle = "초안 저장 중"; progress = 0
-        let folder = folder, start = takeStart, prior = priorLength
+        let folder = folder, start = takeStart, prior = priorLength, gain = takeGain
         finishTask = Task {
             do {
                 let length = try await Task.detached(priority: .userInitiated) {
-                    try RecordingSplice.merge(folder: folder, take: takeURL, start: start, priorLength: prior) { value in Task { @MainActor [weak self] in self?.progress = value } }
+                    try RecordingGain.apply(to: takeURL, gain: gain)
+                    return try RecordingSplice.merge(folder: folder, take: takeURL, start: start, priorLength: prior) { value in Task { @MainActor [weak self] in self?.progress = value } }
                 }.value
                 elapsed = length; priorLength = length
                 let saved = RecordingDraft(id: folder.lastPathComponent, owner: owner, song: song, date: Date(), length: length, duetParentID: duetParentID, duetFirst: duetFirst, duetLines: duetMode == "lyrics" ? duetLines : [], duetMode: duetMode)
@@ -375,7 +394,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         } catch { self.error = error.localizedDescription }
     }
     func resume() { closed = false }
-    func shutdown() { closed = true; monitorEnabled = false; cancelCountdown(); monitorTask?.cancel(); liveMonitor.stop(); workControl?.cancel(); finish(); stopPreview(); saveSettings(); timer?.invalidate() }
+    func shutdown() { stopPartnerPreview(); closed = true; monitorEnabled = false; cancelCountdown(); monitorTask?.cancel(); liveMonitor.stop(); workControl?.cancel(); finish(); stopPreview(); saveSettings(); timer?.invalidate() }
     private func tick() {
         guard recording, !paused else { return }
         elapsed = takeStart + (recorder?.currentTime ?? 0)
@@ -404,7 +423,7 @@ final class RecordingStudio: NSObject, ObservableObject, AVAudioPlayerDelegate {
         } catch is CancellationError { exportURL = nil } catch { self.error = error.localizedDescription }
     }
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor in self.previewing = false }
+        Task { @MainActor in self.previewing = false; self.partnerPreviewing = false }
     }
     deinit {
         timer?.invalidate()
@@ -500,8 +519,9 @@ final class LiveVocalMonitor {
     private var engine: AVAudioEngine?
     private var effects: VocalEffectChain?
     private var settings = VocalSettings()
+    var inputGain = 1.0 { didSet { applyVolume() } }
     var volume: Float = 1 { didSet { applyVolume() } }
-    private func applyVolume() { engine?.mainMixerNode.outputVolume = min(1, max(0, volume * settings.voice)) }
+    private func applyVolume() { effects?.tone.globalGain = Float(20 * log10(max(0.00001, RecordingGain.clamp(inputGain)))); engine?.mainMixerNode.outputVolume = min(1, max(0, volume * settings.voice)) }
     func update(_ settings: VocalSettings) { self.settings = settings; effects?.apply(settings); applyVolume() }
     func start(volume: Float, settings: VocalSettings) throws {
         stop()
@@ -514,7 +534,7 @@ final class LiveVocalMonitor {
         effects.connect(input, engine: engine, format: format); effects.apply(settings)
         self.settings = settings; self.volume = min(1, max(0, volume))
         engine.mainMixerNode.outputVolume = min(1, max(0, self.volume * settings.voice))
-        engine.prepare(); try engine.start(); self.engine = engine; self.effects = effects
+        engine.prepare(); try engine.start(); self.engine = engine; self.effects = effects; applyVolume()
     }
     func stop() { engine?.stop(); engine = nil; effects = nil }
 }
