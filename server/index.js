@@ -159,7 +159,9 @@ async function fetchRequest(req,env,ctx){
   // Some ingress requests expose an empty stream for HEAD/GET (Content-Length: 0).
   // Rebuilding those with a body throws before the public media handler runs.
   const profileMultipart=path==='/api/me/profile'&&req.method==='PUT'&&req.headers.get('content-type')?.startsWith('multipart/form-data');
-  if(!['GET','HEAD'].includes(req.method)&&!binary&&!profileMultipart&&req.body){
+  // The official producer upload handler checks the manifest digest and enforces its own byte limits.
+  const officialAudioUpload=req.method==='PUT'&&/^\/api\/dubbing\/projects\/[\w-]+\/sound\/official-rebuild\/(?:manifest|asset\/[\w-]+)$/.test(path);
+  if(!['GET','HEAD'].includes(req.method)&&!binary&&!profileMultipart&&!officialAudioUpload&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,'요청이 너무 큽니다.');
    const reader=req.body.getReader(),chunks=[];let size=0;
    try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxJson){await reader.cancel().catch(()=>{});fail(413,'요청이 너무 큽니다.');}chunks.push(value);}}finally{reader.releaseLock();}
