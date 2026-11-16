@@ -100,13 +100,15 @@ const homeBanners=[
 ].filter(b=>b.id!=='premium'||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false);
 function homeBannerImage(id,width){return '/assets/home-banners/'+(id==='crew'?'seamless-20261109/':'mobile-20261109/')+id+'-'+width+'.webp';}
 const homeBannerDesktopSizes='(max-width: 1150px) calc(100vw - 275px), min(1420px, calc(100vw - 305px))';
+// The remaining PC photos already have enough space above and below the subject.
+const homeSlimArtwork=new Set(['studio','participate','artists','crew']);
 function homeWideBanner(id){
  return (typeof inApp==='undefined'||!inApp)&&id!=='premium';
 }
 function homeBannerDesktopSources(id){
  if(homeWideBanner(id)){
-  const asset=id==='crew'?'crew-gaze-v2':id;
-  const base='/assets/home-banners/wide-20261116/'+asset+'-';
+  const directory=homeSlimArtwork.has(id)?'slim-20261116':'wide-20261116';
+  const base='/assets/home-banners/'+directory+'/'+id+'-';
   const large=id==='crew'?2148:2840;
   return base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
  }
@@ -134,12 +136,15 @@ function homeBannerText(text){
 }
 function homeBannerHTML(b,next){
  const sizes='(max-width: 800px) 100vw, '+(b.id==='artists'?'680':b.id==='crew'?'718':b.id==='talking'?'598':'544')+'px';
+ const wide=homeWideBanner(b.id);
+ const desktopWidth=wide?1420:b.id==='crew'?1672:1536;
+ const desktopHeight=wide?(homeSlimArtwork.has(b.id)?300:363):b.id==='crew'?505:768;
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
  const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
  const sides=id=>homeWideBanner(id)||id==='crew'?[]:['left','right'];
  const scenery=id=>sides(id).map(side=>`<span class="home-promo-scenery home-promo-scenery-${side}" aria-hidden="true" style="--home-promo-scenery:url('${homeBannerBackgroundImage(id,side)}')"></span>`).join('');
  const preload=next?sides(next.id).map(side=>`<link rel="preload" as="image" href="${homeBannerBackgroundImage(next.id,side)}" media="(min-width: 801px)" fetchpriority="low">`).join('')+`<link rel="preload" as="image" imagesrcset="${homeBannerDesktopSources(next.id)}" ${homeWideBanner(next.id)?'imagesizes="'+homeBannerDesktopSizes+'"':''} media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:'';
- return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" ${homeWideBanner(b.id)?'data-wide-banner':''} href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${homeWideBanner(b.id)?'sizes="'+homeBannerDesktopSizes+'" width="1420" height="363"':b.id==='crew'?'width="1672" height="505"':'width="1536" height="768"'}><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
+ return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" ${wide?'data-wide-banner':''} href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${wide?'sizes="'+homeBannerDesktopSizes+'"':''} width="${desktopWidth}" height="${desktopHeight}"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
 }
 // A jump to an unvisited desktop slide can outrun the next-image preload.
 function prepareHomeBanner(b){

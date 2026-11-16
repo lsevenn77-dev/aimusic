@@ -133,15 +133,16 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
  const c=context(),banners=vm.runInContext("homeBanners.filter(b=>b.id!=='premium')",c);
  for(const [index,banner] of banners.entries()){
   const next=banners[(index+1)%banners.length],html=c.homeBannerHTML(banner,next);
-  const asset=banner.id==='crew'?'crew-gaze-v2':banner.id;
-  const base='/assets/home-banners/wide-20261116/'+asset+'-';
+  const slim=['studio','participate','artists','crew'].includes(banner.id);
+  const base='/assets/home-banners/'+(slim?'slim-20261116':'wide-20261116')+'/'+banner.id+'-';
+  const height=slim?300:363;
   const large=banner.id==='crew'?2148:2840;
   const sources=base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
   for(const width of [801,1024,1440,1920,2560])assert.equal(pictureSourceAt(html,width),sources);
   for(const width of [390,768,800])assert.equal(pictureSourceAt(html,width),c.homeBannerImage(banner.id,1536));
   assert.doesNotMatch(html,/home-promo-scenery/);
   const source=attributes(html.match(/<source\b[^>]*>/)[0]);
-  assert.equal(source.width,'1420');assert.equal(source.height,'363');
+  assert.equal(source.width,'1420');assert.equal(source.height,String(height));
   const preload=Array.from(html.matchAll(/<link\b[^>]*>/g),m=>attributes(m[0])).filter(tag=>tag.media==='(min-width: 801px)');
   assert.equal(preload.length,1);
   assert.equal(preload[0].imagesrcset,pictureSourceAt(c.homeBannerHTML(next),1440));
@@ -150,7 +151,7 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
    const bytes=readFileSync(new URL('../dist'+base+width+'.webp',import.meta.url));
    assert.equal(bytes.toString('ascii',8,16),'WEBPVP8 ');
    assert.equal(bytes.readUInt16LE(26)&0x3fff,width);
-   assert.equal(bytes.readUInt16LE(28)&0x3fff,Math.round(width*363/1420));
+   assert.equal(bytes.readUInt16LE(28)&0x3fff,Math.round(width*height/1420));
   }
  }
 });
