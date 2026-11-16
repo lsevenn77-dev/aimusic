@@ -142,15 +142,6 @@
  #home-release.home-promo-wide > .home-feature{position:absolute;inset:0;width:100%;height:100%;padding:0;margin:0;border:0;box-shadow:none}
  #home-release.home-promo-wide [data-wide-banner] .home-promo-picture{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;mask-image:none;-webkit-mask-image:none}
  #home-release.home-promo-wide [data-wide-banner] .home-promo-original{width:100%;height:100%;object-fit:cover;object-position:50% var(--banner-photo-y,50%)}
- #home-release.home-promo-wide [data-home-banner=artists] .home-promo-picture{container-type:size}
- #home-release.home-promo-wide [data-home-banner=artists] .home-promo-picture::after{
-  /* Follow the centered cover crop of the 2840 × 600 photograph, including narrow desktop widths. */
-  --photo-pixel:max(calc(100cqw / 2840),calc(100cqh / 600));
-  content:"";position:absolute;pointer-events:none;
-  left:calc(50% + 36 * var(--photo-pixel));top:calc(50% - 212 * var(--photo-pixel));
-  width:calc(384 * var(--photo-pixel));aspect-ratio:384 / 416;
-  background:url('/assets/home-banners/slim-20261116/artist-hair-still-f803dabc8e.webp') center / contain no-repeat;
- }
  #home-release.home-promo-wide [data-home-banner=play]{--banner-photo-y:4%}
  #home-release.home-promo-wide [data-home-banner=karaoke]{--banner-photo-y:10%}
  #home-release.home-promo-wide [data-home-banner=talking]{--banner-photo-y:23%}
@@ -177,11 +168,6 @@
   #home-release.home-promo-wide .home-feature-arrow{width:34px;height:44px;top:calc(50% - 22px);bottom:auto}
   #home-release.home-promo-wide .home-feature-prev{left:0}
   #home-release.home-promo-wide .home-feature-next{right:0}
- }
-}
-@media (min-width:801px) and (prefers-reduced-motion:no-preference){
- #home-release.home-promo-wide [data-home-banner=artists] .home-promo-picture::after{
-  background-image:url('/assets/home-banners/slim-20261116/artist-hair-breeze-6b86b08de0.webp');
  }
 }
 @media(prefers-reduced-motion:reduce){

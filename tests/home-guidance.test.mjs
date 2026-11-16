@@ -130,33 +130,12 @@ test('the native app retains its original portrait, scenery and preload at every
  }
 });
 
-test('the artist hair layer includes moving WebP frames and a transparent still',()=>{
- const css=readFileSync(new URL('../dist/home-content.css',import.meta.url),'utf8');
- for(const name of ['breeze','still']){
-  const path=css.match(new RegExp("url\\('(/assets/home-banners/[^']+/artist-hair-"+name+"-[a-f0-9]+\\.webp)'\\)"))?.[1];
-  assert.ok(path,'missing '+name+' artwork');
-  const bytes=readFileSync(new URL('../dist'+path,import.meta.url));
-  assert.equal(bytes.toString('ascii',8,12),'WEBP');
-  let frames=0,alpha=false;
-  for(let p=12;p+8<=bytes.length;){
-   const tag=bytes.toString('ascii',p,p+4),size=bytes.readUInt32LE(p+4);
-   if(tag==='ANMF')frames++;
-   if(tag==='VP8X')alpha=Boolean(bytes[p+8]&0x10);
-   if(tag==='VP8L')alpha=Boolean(bytes[p+12]&0x10);
-   p+=8+size+(size&1);
-  }
-  assert.ok(alpha,'only the added hair should be opaque');
-  if(name==='breeze')assert.ok(frames>1,'hair must visibly move');
-  else assert.equal(frames,0,'the reduced-motion image is static');
- }
-});
-
 test('public PC slides fill one wide frame and preload the same responsive WebP as the picture',()=>{
  const c=context(),banners=vm.runInContext("homeBanners.filter(b=>b.id!=='premium')",c);
  for(const [index,banner] of banners.entries()){
   const next=banners[(index+1)%banners.length],html=c.homeBannerHTML(banner,next);
   const slim=['studio','participate','artists','crew'].includes(banner.id);
-  const artwork=banner.id==='artists'?'artists-reference':banner.id;
+  const artwork=banner.id==='artists'?'artists-mobile-photo':banner.id;
   const base='/assets/home-banners/'+(slim?'slim-20261116':'wide-20261116')+'/'+artwork+'-';
   const height=slim?300:363;
   const large=banner.id==='crew'?2148:2840;
@@ -175,8 +154,9 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
    assert.equal(bytes.toString('ascii',8,12),'WEBP');
    assert.deepEqual(imageDimensions(bytes,'image/webp'),{width,height:Math.round(width*height/1420)});
    if(banner.id==='artists'){
-    const referenceHash=width===1420?'37ea400c4c75c96bfe410d90ba6d67c6047cc91741962ba123f408ca4526b4c8':'4c35a240c7e54f8c4c061697715a69e95d2bcdc0dc00f269f4e18bed60b19e00';
-    assert.equal(createHash('sha256').update(bytes).digest('hex'),referenceHash,'Use the restored reference portrait');
+    assert.equal(bytes.toString('ascii',12,16),'VP8L','Use a single lossless frame for the mobile portrait on desktop');
+    const referenceHash=width===1420?'e3f8f975559450cfbffbe3d820bbebefb8cb66bd731cd8f3b604f335c29f796d':'cc2d3167d4e26faf82cee6830aee707d5e7a3554608b3c02dde572448729683d';
+    assert.equal(createHash('sha256').update(bytes).digest('hex'),referenceHash,'Use the static portrait taken from the mobile banner');
    }
   }
  }
