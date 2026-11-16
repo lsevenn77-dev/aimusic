@@ -37,7 +37,7 @@ await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
 await cp('dist/song-sidebar.css','dist/client/song-sidebar.css');
 for(const file of ['song-covers.js','song-covers.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['song-detail.js','song-detail.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['dubbing-casting.js','dubbing-casting.css','dubbing-community.js','dubbing.js','dubbing.css','dubbing-rewarded.js','dubbing-recording.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['dubbing-casting.js','dubbing-casting.css','dubbing-editor.css','dubbing-editor-storage.js','dubbing-editor-view.js','dubbing-editor-commands.js','dubbing-editor.js','dubbing-editor-embed.js','dubbing-community.js','dubbing.js','dubbing.css','dubbing-rewarded.js','dubbing-recording.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 for(const file of ['mobile-ux.js','mobile-ux.css','player-shell.js','player-shell.css','public-music.css','design-system.css','design-system.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await cp('dist/footer-layout.js','dist/client/footer-layout.js');
 for(const file of ['mobile-topbar.js','mobile-topbar.css'])await cp('dist/'+file,'dist/client/'+file);

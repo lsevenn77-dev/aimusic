@@ -23,8 +23,8 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
  if(!['sound','background'].includes(action))return null;
  if(action==='background'&&['GET','HEAD'].includes(req.method)){
   const j=await one(env,"SELECT output_key FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready'",p.id,p.script_key);
-  const object=j?.output_key&&await env.BUCKET.get(j.output_key);if(!object)fail(404,'배경 오디오가 아직 준비되지 않았습니다.');
-  return new Response(req.method==='HEAD'?null:object.body,{headers:{'content-type':'audio/mp4','cache-control':'private, no-store','x-content-type-options':'nosniff',...(object.size?{'content-length':String(object.size)}:{})}});
+  if(!j?.output_key)fail(404,'배경 오디오가 아직 준비되지 않았습니다.');
+  return objectResponse(req,env,j.output_key,'audio/mp4');
  }
  if(action!=='sound')fail(405,'지원하지 않는 요청입니다.');
  if(req.method==='GET')return json({sound:await dubbingSoundStatus(env,p)});
@@ -226,3 +226,4 @@ export async function dubbingSoundInternalRoute(req,env,path){
  }
  fail(405,'지원하지 않는 요청입니다.');
 }
+import {objectResponse} from './storage.js';

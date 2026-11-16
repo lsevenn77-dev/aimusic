@@ -18,10 +18,11 @@ function dubbingBeforeRoute(raw){
  if(dubbingRewardOperation)dubbingStopReward();
  if(!dubbingEditor||raw===dubbingEditor.route)return true;
  if(dubbingEditor.busy){history.replaceState(null,'','#'+dubbingEditor.route);toast('진행 중인 저장 또는 대본 생성이 끝난 뒤 이동해주세요.');return false;}
- if(dubbingEditor.dirty&&!confirm('아직 저장하지 않은 대본이 있습니다. 저장하지 않고 이동할까요?')){history.replaceState(null,'','#'+dubbingEditor.route);return false;}
+ if(dubbingEditor.unsynced){dubWriteLocal(dubbingEditor);void dubSyncDraft(dubbingEditor);}
+ if(dubbingEditor.dirty&&!dubWriteLocal(dubbingEditor)&&!confirm('아직 저장하지 않은 대본이 있습니다. 저장하지 않고 이동할까요?')){history.replaceState(null,'','#'+dubbingEditor.route);return false;}
  dubbingEditor=null;return true;
 }
-window.addEventListener('beforeunload',e=>{if(dubbingEditor?.dirty){e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{if(dubbingEditor?.dirty&&!dubWriteLocal(dubbingEditor)){e.preventDefault();e.returnValue='';}});
 function dubbingShell(content,showModeNav=true){return `<div class="dubbing-page">${showModeNav?dubbingModeNav():''}${content}</div>`;}
 function dubbingEmpty(title,description,action=true){return `<div class="dubbing-empty">${icon('mic')}<h3>${title}</h3><p>${description}</p>${action?'<a class="primary-button" href="#dubbing/new?mode=manual">첫 대본 만들기</a>':''}</div>`;}
 function dubbingCard(p,i){
@@ -51,7 +52,7 @@ function dubbingOptionsHTML(config,mode,genre=''){
  <div class="dubbing-create-layout"><form id="dubbing-options-form" class="dubbing-panel">
  <fieldset><legend><b class="dubbing-step-number" aria-hidden="true">01</b><span>이야기의 장르</span><small>최대 2개</small></legend><div class="dubbing-chips">${D.DUBBING_GENRES.map(g=>`<label><input type="checkbox" name="genres" value="${g}" ${g===(genre||'일상')?'checked':''}><span>${g}</span></label>`).join('')}</div></fieldset>
  <fieldset><legend><b class="dubbing-step-number" aria-hidden="true">02</b><span>인원과 대본 시간</span></legend><div class="dubbing-form-grid"><label>참여 인원<select name="roleCount">${[1,2,3,4,5,6].map(n=>`<option value="${n}" ${n===2?'selected':''}>${n}명</option>`).join('')}</select></label><label>대본 시간<select name="minutes">${D.DUBBING_LENGTHS.map(n=>`<option value="${n}" ${n===1?'selected':''}>${dubbingLengthLabel(n)}</option>`).join('')}</select></label></div><small class="dubbing-muted">30초부터 5분까지, 30초 단위로 선택해요.</small></fieldset>
- <fieldset><legend class="dubbing-idea-heading"><b class="dubbing-step-number" aria-hidden="true">03</b><span>이야기의 세부사항</span><small id="dubbing-random-hint">‘랜덤’ 또는 ‘무작위’로 맡기면 대본이 완성된 뒤 이야기를 확인할 수 있어요.</small></legend><button type="button" class="small-button dubbing-random" id="dubbing-random-idea">${icon('shuffle')} 이야기 랜덤 생성</button><label>어떤 이야기를 만들까요?<textarea name="idea" rows="5" maxlength="1500" aria-describedby="dubbing-random-hint" placeholder="등장인물, 장소, 상황, 원하는 분위기와 결말을 자유롭게 적어주세요.&#10;예: 마지막 지하철에서 우연히 만난 두 친구. 어색하게 시작하지만 마지막에는 웃으며 화해하는 이야기."></textarea></label><input type="hidden" name="mood" value="랜덤"><input type="hidden" name="ending" value="랜덤"></fieldset>
+ <fieldset><legend class="dubbing-idea-heading"><b class="dubbing-step-number" aria-hidden="true">03</b><span>이야기의 세부사항</span><small id="dubbing-random-hint">‘랜덤’ 또는 ‘무작위’로 맡기면 대본이 완성된 뒤 이야기를 확인할 수 있어요.</small></legend><button type="button" class="small-button dubbing-random" id="dubbing-random-idea">${icon('shuffle')} 이야기 랜덤 생성</button><label>어떤 이야기를 만들까요?<textarea name="idea" rows="5" maxlength="1500" aria-describedby="dubbing-random-hint" placeholder="등장인물, 장소, 상황, 원하는 분위기와 결말을 자유롭게 적어주세요.&#10;예: 마지막 지하철에서 우연히 만난 두 친구. 어색하게 시작하지만 마지막에는 웃으며 화해하는 이야기."></textarea></label><details><summary>분위기와 결말</summary><label>분위기<select name="mood">${dubChoices(D.DUBBING_MOODS.map(v=>[v,v]),"랜덤")}</select></label><label>결말<select name="ending">${dubChoices(D.DUBBING_ENDINGS.map(v=>[v,v]),"랜덤")}</select></label></details></fieldset>
  <div id="dubbing-quota">${dubbingQuotaHTML(config.quota)}</div>
  <p class="dubbing-generation-estimate">${dubbingGenerationEstimate}<small>대본 길이와 요청량에 따라 달라질 수 있어요.</small></p><p class="dubbing-feedback" role="status" aria-live="polite"></p><div class="dubbing-form-actions"><button class="primary-button dubbing-ai-button" name="create" value="ai" type="submit" disabled>${icon('sparkles')} 대본 작성하기</button><button class="small-button" name="create" value="manual" type="submit">직접 대사 쓰기</button><button type="button" class="small-button" id="dubbing-recover" hidden>이전 AI 생성 결과 확인</button></div>
  ${config.aiAvailable?'':`<p class="dubbing-muted">AI 대본은 연동 대기 중입니다. 직접 작성한 대본은 지금 저장할 수 있어요.</p>`}
@@ -64,7 +65,8 @@ async function dubbingView(base,param,raw,readApi=api){
  if(!config.enabled)return {html:dubbingShell(dubbingEmpty('더빙 스튜디오를 준비하고 있어요.','이야기를 함께 연기하는 새로운 공간으로 곧 만나요.',false)),dubbing:true};
  if((param==='new'||new URLSearchParams(raw.split('?')[1]).get('tab')==='mine')&&!me){returnRoute=location.hash;return {html:gate(),dubbing:true,creationRoute:param==='new'?raw:null};}
  if(param==='new'){
-  const mode=new URLSearchParams(raw.split('?')[1]).get('mode')==='manual'?'manual':'ai';
+  const mode=new URLSearchParams(raw.split('?')[1]).get('mode')||'start';
+  if(mode!=='ai')return {html:dubbingShell(dubStartHTML(),false),dubbing:true,dubbingStart:mode,config,route:raw};
   const requestedGenre=new URLSearchParams(raw.split('?')[1]).get('genre'),genre=AifectDubbing.DUBBING_GENRES.includes(requestedGenre)?requestedGenre:'';
   return {html:dubbingShell(dubbingOptionsHTML(config,mode,genre),false),dubbing:true,dubbingCreate:true,creationRoute:raw,config,route:raw};
  }
@@ -264,92 +266,6 @@ function dubbingPendingKey(){return 'aifect-dubbing-generation:'+(me?.id||'guest
 function dubbingPending(){try{return JSON.parse(sessionStorage.getItem(dubbingPendingKey())||'null');}catch{return null;}}
 function dubbingRememberPending(v){try{if(v)sessionStorage.setItem(dubbingPendingKey(),JSON.stringify(v));else sessionStorage.removeItem(dubbingPendingKey());}catch{}}
 function dubbingMessage(root,message){const el=root.querySelector('.dubbing-feedback');if(el)el.textContent=message;}
-function dubbingEditorHTML(e){
- const s=e.script;
- return `<a class="dubbing-back" href="${e.project?'#dubbing/'+esc(e.id):'#dubbing'}">← ${e.project?'작품으로':'더빙 스튜디오'}</a><header class="dubbing-editor-heading"><div><span class="eyebrow">SCRIPT EDITOR</span><h1>당신의 말투로 다듬어보세요.</h1><p>대본은 비공개로 저장됩니다. 저장 후 배역 모집을 시작할 수 있어요.</p></div><span class="dubbing-tag" id="dubbing-save-state">${e.dirty?'저장하지 않은 변경':'저장된 대본'}</span></header>
- <form id="dubbing-editor-form"><div class="dubbing-editor-layout"><section class="dubbing-panel dubbing-editor-main"><label class="dubbing-title-field">작품 제목<input name="title" data-db-title maxlength="100" required value="${esc(s.title)}" placeholder="이야기의 제목을 적어주세요"></label>
- <div class="dubbing-section-heading"><h2>장면과 대사</h2><button type="button" class="small-button" data-db-editor-mode>${e.detailed?'간단히 쓰기':'세부 설정'}</button><button type="button" class="small-button" data-db-add-scene>장면 추가</button></div>
- ${s.scenes.map((sc,si)=>`<section class="dubbing-editor-scene"><div class="dubbing-scene-heading"><span>SCENE ${si+1}</span><label>장면 제목<input data-db-scene="${esc(sc.id)}" data-field="title" maxlength="80" required value="${esc(sc.title)}"></label><label>장면 설명<textarea data-db-scene="${esc(sc.id)}" data-field="description" maxlength="500" rows="2" placeholder="시간, 장소, 상황을 적어주세요">${esc(sc.description)}</textarea></label></div>
- ${!e.detailed?`<label class="dubbing-simple-label">대사 쓰기<textarea class="dubbing-simple-text" data-db-simple="${esc(sc.id)}" rows="11" spellcheck="false" placeholder="A: 안녕, 오늘 어땠어?&#10;B: 너를 기다리고 있었어.&#10;A: 정말?" aria-describedby="dubbing-simple-help">${esc(e.simpleDrafts?.[sc.id]??AifectDubbing.simpleDubbingText(s,sc.id))}</textarea></label><p class="dubbing-muted" id="dubbing-simple-help">A: 대사 · B: 대사처럼 한 줄씩 적어주세요. 배역 이름은 오른쪽에서 바꿀 수 있어요.</p>`:` ${s.lines.filter(l=>l.sceneId===sc.id).map(l=>`<article class="dubbing-edit-line"><div class="dubbing-line-top"><span>${String(s.lines.indexOf(l)+1).padStart(2,'0')}</span><label class="dubbing-select-role">배역<select data-db-line="${esc(l.id)}" data-field="roleId">${s.roles.map(r=>`<option value="${esc(r.id)}" ${l.roleId===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}</select></label><button type="button" class="dubbing-icon-button" data-db-move="${esc(l.id)}" data-step="-1" aria-label="대사 위로">↑</button><button type="button" class="dubbing-icon-button" data-db-move="${esc(l.id)}" data-step="1" aria-label="대사 아래로">↓</button><button type="button" class="dubbing-icon-button" data-db-remove="${esc(l.id)}" aria-label="대사 삭제">×</button></div><label>대사<textarea data-db-line="${esc(l.id)}" data-field="text" rows="3" maxlength="700" required placeholder="이 배역이 할 말을 적어주세요">${esc(l.text)}</textarea></label>
- <div class="dubbing-line-directions"><label>감정<input data-db-line="${esc(l.id)}" data-field="emotion" maxlength="80" value="${esc(l.emotion)}" placeholder="차분하게"></label><label>연기 지시<input data-db-line="${esc(l.id)}" data-field="direction" maxlength="240" value="${esc(l.direction)}" placeholder="한 박자 쉬고"></label></div><details><summary>대사 시간과 여유 조절</summary><div class="dubbing-form-grid"><label>예상 발화 (초)<input type="number" min="1" max="40" step=".1" data-db-line="${esc(l.id)}" data-field="durationSeconds" value="${l.durationSeconds}" required></label><label>다음 대사까지 (초)<input type="number" min=".3" max="8" step=".1" data-db-line="${esc(l.id)}" data-field="gapSeconds" value="${l.gapSeconds}" required></label></div></details></article>`).join('')}
- <div class="dubbing-form-actions"><button type="button" class="small-button" data-db-add-line="${esc(sc.id)}">+ 대사 추가</button>${s.scenes.length>1?`<button type="button" class="small-button" data-db-remove-scene="${esc(sc.id)}">빈 장면 삭제</button>`:''}</div>`}
-</section>`).join('')}</section>
- <aside><section class="dubbing-panel"><span class="eyebrow">CHARACTERS</span><h2>${s.roles.length}개의 목소리</h2>${s.roles.map((r,i)=>`<div class="dubbing-edit-role"><span class="dubbing-role-avatar">${String.fromCharCode(65+i)}</span><div><label>배역 이름<input data-db-role="${esc(r.id)}" data-field="name" maxlength="40" required value="${esc(r.name)}"></label><label>캐릭터 성별<select data-db-role="${esc(r.id)}" data-field="gender">${AifectDubbing.DUBBING_GENDERS.map(g=>`<option value="${g}" ${(r.gender||'unspecified')===g?'selected':''}>${AifectDubbing.dubbingGenderLabel(g)}</option>`).join('')}</select></label><label>성격<textarea data-db-role="${esc(r.id)}" data-field="personality" maxlength="240" rows="2" placeholder="이 인물은 어떤 사람인가요?">${esc(r.personality)}</textarea></label></div></div>`).join('')}</section>
- <section class="dubbing-panel"><h3>대본 정보</h3><p>${esc(e.options.genres.join(' · '))} · 목표 ${dubbingLengthLabel(e.options.minutes)}</p><p id="dubbing-duration">예상 길이 계산 중</p><p class="dubbing-muted">음향과 녹음 여유를 포함해 최대 5분까지 저장할 수 있어요.</p>
- <button type="button" class="small-button" id="dubbing-regenerate" ${e.config.aiAvailable?'':'disabled'}>AI로 대본 전체 다시 만들기</button><p class="dubbing-muted">${e.config.aiAvailable?dubbingGenerationEstimate+'. 새 대본이 완성되면 현재 편집 내용이 교체됩니다.':'AI 대본 연동 대기 중'}</p></section>
- <section class="dubbing-panel dubbing-next"><h3>음향 연출</h3><p>${s.soundCues.length?`${s.soundCues.length}개의 음향 연출 위치가 대본에 연결되어 있어요.`:'필요한 음향은 다음 단계에서 AI가 대본을 분석해 구성해요.'}</p>${s.lines.map(l=>dubbingCueHTML(s,l.id)).join('')}<p class="dubbing-muted">오디오 생성은 아직 시작하지 않았어요.</p></section></aside></div>
- <div class="dubbing-save-bar"><div><p class="dubbing-feedback" role="status" aria-live="polite"></p><span class="dubbing-muted">비공개 저장 · 골드 차감 없음</span></div><button type="submit" class="primary-button" id="dubbing-save">${icon('save')} 대본 저장</button></div></form>`;
-}
-function dubbingMarkDirty(e){e.dirty=true;const badge=$('#dubbing-save-state');if(badge)badge.textContent='저장하지 않은 변경';dubbingDuration(e);}
-function dubbingDuration(e){const el=$('#dubbing-duration');if(el){try{el.textContent='예상 길이 '+time(AifectDubbing.dubbingTimeline(e.script).duration);}catch{el.textContent='대사 시간을 확인해주세요.';}}}
-function dubbingMountEditor(e){
- dubbingEditor=e;const root=$('#main .dubbing-page');if(!root)return;
- root.innerHTML=dubbingModeNav()+dubbingEditorHTML(e);icons();dubbingDuration(e);
- const form=$('#dubbing-editor-form');
- form.oninput=event=>{
-  const el=event.target;
-  if(el.dataset.dbSimple){
-   e.simpleDrafts??={};e.simpleDrafts[el.dataset.dbSimple]=el.value;
-   try{e.script=AifectDubbing.applySimpleDubbingText(e.script,el.dataset.dbSimple,el.value);dubbingMessage(form,'');}catch(err){dubbingMessage(form,err.message);}
-   dubbingMarkDirty(e);return;
-  }
-  if(el.matches('[data-db-title]'))e.script.title=el.value;
-  const target=el.dataset.dbLine?e.script.lines.find(l=>l.id===el.dataset.dbLine):el.dataset.dbRole?e.script.roles.find(r=>r.id===el.dataset.dbRole):el.dataset.dbScene?e.script.scenes.find(s=>s.id===el.dataset.dbScene):null;
-  if(target&&el.dataset.field)target[el.dataset.field]=el.type==='number'?Number(el.value):el.value;
-  if(el.dataset.dbRole&&el.dataset.field==='name')form.querySelectorAll(`[data-field="roleId"] option`).forEach(opt=>{if(opt.value===el.dataset.dbRole)opt.textContent=el.value;});
-  dubbingMarkDirty(e);
- };
- form.onclick=event=>{
-  const b=event.target.closest('button');if(!b||!form.contains(b)||e.busy)return;
-  try{dubbingApplySimpleDrafts(e);}catch(err){dubbingMessage(form,err.message);return;}
-  if(b.hasAttribute('data-db-editor-mode')){e.detailed=!e.detailed;dubbingMountEditor(e);return;}
-  const s=e.script;
-  if(b.hasAttribute('data-db-add-scene')){
-   if(s.scenes.length>=12){dubbingMessage(form,'장면은 최대 12개까지 추가할 수 있어요.');return;}
-   s.scenes.push({id:crypto.randomUUID(),title:'새 장면',description:''});
-  }else if(b.dataset.dbAddLine){
-   if(s.lines.length>=120){dubbingMessage(form,'대사는 최대 120개까지 추가할 수 있어요.');return;}
-   const sceneId=b.dataset.dbAddLine,last=s.lines.findLastIndex(l=>l.sceneId===sceneId);
-   const next={id:crypto.randomUUID(),order:0,sceneId,roleId:s.roles[0].id,text:'',emotion:'자연스럽게',direction:'',durationSeconds:5,gapSeconds:1};
-   s.lines.splice(last<0?s.lines.length:last+1,0,next);
-  }else if(b.dataset.dbRemove){
-   s.lines=s.lines.filter(l=>l.id!==b.dataset.dbRemove);s.soundCues=s.soundCues.filter(c=>c.lineId!==b.dataset.dbRemove&&c.endLineId!==b.dataset.dbRemove);
-  }else if(b.dataset.dbMove){
-   const i=s.lines.findIndex(l=>l.id===b.dataset.dbMove),j=i+Number(b.dataset.step);
-   if(j<0||j>=s.lines.length||s.lines[j].sceneId!==s.lines[i].sceneId)return;
-   [s.lines[i],s.lines[j]]=[s.lines[j],s.lines[i]];
-  }else if(b.dataset.dbRemoveScene){
-   if(s.lines.some(l=>l.sceneId===b.dataset.dbRemoveScene)){dubbingMessage(form,'대사가 없는 장면만 삭제할 수 있어요.');return;}
-   s.scenes=s.scenes.filter(sc=>sc.id!==b.dataset.dbRemoveScene);
-  }else return;
-  s.lines.forEach((l,i)=>l.order=i+1);dubbingMarkDirty(e);dubbingMountEditor(e);
- };
- form.onsubmit=async event=>{
-  event.preventDefault();if(e.busy)return;
-  try{dubbingApplySimpleDrafts(e);e.script=AifectDubbing.validateDubbingScript(e.script,e.options);}catch(err){dubbingMessage(form,err.message);return;}
-  e.busy=true;form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);
-  dubbingMessage(form,'대본을 저장하고 있어요…');
-  try{
-   const body={id:e.id,options:e.options,script:e.script,generationId:e.generationId,revision:e.project?.revision};
-   const result=await api('/api/dubbing/projects'+(e.project?'/'+e.id:''),e.project?'PUT':'POST',body);
-   e.dirty=false;e.project=result.project;dubbingEditor=null;location.hash='dubbing/'+e.id;
-  }catch(err){dubbingMessage(form,err.message+' 입력한 대본은 이 화면에 유지됩니다.');}
-  finally{e.busy=false;if(form.isConnected){form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=false);$('#dubbing-regenerate').disabled=!e.config.aiAvailable;}}
- };
- $('#dubbing-regenerate').onclick=async()=>{
-  if(e.busy||!confirm('AI가 새 대본을 완성하면 현재 편집 내용이 교체됩니다. 다시 만들까요?'))return;
-  e.busy=true;const b=$('#dubbing-regenerate');b.disabled=true;
-  form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);
-  try{
-   const pending={requestId:crypto.randomUUID(),options:e.options};dubbingRememberPending(pending);dubbingMessage(form,'새 대본을 만들고 있어요. '+dubbingGenerationEstimate+'.');
-   const result=await dubbingWaitForGeneration(await api('/api/dubbing/generations','POST',pending),form);
-   if(result.recoverable===false)dubbingRememberPending(null);
-   if(result.state!=='ready')throw new Error(result.message||'생성 중입니다. 대본 만들기 화면에서 결과를 다시 확인할 수 있어요.');
-   if(dubbingEditor!==e)return;
-   dubbingRememberPending(null);e.script=result.script;e.simpleDrafts={};e.generationId=result.id;e.dirty=true;dubbingMountEditor(e);
-  }catch(err){dubbingMessage(form,err.message);}finally{e.busy=false;if(form.isConnected)form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=false);}
- };
-}
 function dubbingListenButton(project){
  return '<button type="button" class="small-button" data-final-edition-play="'+esc(project.id)+'" aria-pressed="false">'+icon('ui-play-action')+' 완성 더빙 듣기</button>';
 }
@@ -372,13 +288,21 @@ function bindDubbing(view){
  if(!view?.dubbing)return;
  if(view.creationRoute&&typeof bindDesktopDubCreation==='function')bindDesktopDubCreation(view.creationRoute);
  const root=$('#main .dubbing-page');if(!root)return;
+ if(view.dubbingStart){void dubStart(view,root,view.dubbingStart).catch(err=>dubbingMessage(root,err.message));return;}
  if(view.recordingData){bindDubbingRecorder(view,root);return;}
  if(view.editing){const p=view.project;dubbingMountEditor({id:p.id,project:p,script:structuredClone(p.script),options:p.options,config:view.config,route:view.route,dirty:false});return;}
  if(view.dubbingCreate){
   const form=$('#dubbing-options-form'),recover=$('#dubbing-recover');let busy=false;
   const updateCreate=()=>{form.querySelector('[value=ai]').disabled=busy||!!dubbingRewardOperation||!view.config.aiAvailable||!form.elements.idea.value.trim()||(view.config.quota?.remaining??1)<1;form.querySelector('[value=manual]').disabled=busy;$('#dubbing-random-idea').disabled=busy;recover.disabled=busy;};
   const refreshQuota=async()=>{try{view.config=await api('/api/dubbing/config');if(!form.isConnected)return;$('#dubbing-quota').innerHTML=dubbingQuotaHTML(view.config.quota);bindDubbingReward(view,form,updateCreate);}catch{}if(form.isConnected)updateCreate();};
-  form.oninput=updateCreate;updateCreate();
+  const optionsKey=dubDraftKey('ai-options');
+  try{
+   const previous=JSON.parse(localStorage.getItem(optionsKey));
+   if(previous){for(const box of form.querySelectorAll('[name=genres]'))box.checked=previous.genres.includes(box.value);
+    for(const key of ['roleCount','minutes','mood','ending','idea'])if(previous[key]!=null)form.elements[key].value=previous[key];}
+  }catch{}
+  const rememberOptions=()=>{const data=new FormData(form);try{localStorage.setItem(optionsKey,JSON.stringify({...Object.fromEntries(data),genres:data.getAll('genres')}));}catch{}};
+  form.oninput=()=>{rememberOptions();updateCreate();};updateCreate();
   $('#dubbing-random-idea').onclick=()=>{
    const options={genres:[...form.querySelectorAll('[name=genres]:checked')].map(e=>e.value),roleCount:Number(form.elements.roleCount.value),minutes:Number(form.elements.minutes.value)};
    if(!options.genres.length){dubbingMessage(form,'장르를 먼저 골라주세요.');return;}
@@ -412,7 +336,7 @@ function bindDubbing(view){
    const pending={requestId:crypto.randomUUID(),options};dubbingRememberPending(pending);
    busy=true;form.querySelectorAll('button').forEach(b=>b.disabled=true);dubbingMessage(form,'이야기와 배역, 음향 연출을 구성하고 있어요… '+dubbingGenerationEstimate+'.');
    try{await show(await api('/api/dubbing/generations','POST',pending));}
-   catch(err){dubbingMessage(form,err.message+' 결과 확인 버튼으로 기존 요청을 확인할 수 있어요.');recover.hidden=false;}
+   catch(err){const rejected=[400,401,403,404,429].includes(err.status);if(rejected)dubbingRememberPending(null);dubbingMessage(form,err.message+(rejected?'':' 결과 확인 버튼으로 기존 요청을 확인할 수 있어요.'));recover.hidden=rejected;}
    finally{busy=false;if(form.isConnected)await refreshQuota();}
   };return;
  }
@@ -441,5 +365,3 @@ function bindDubbing(view){
  const more=$('#dubbing-load-more');
  if(more)more.onclick=async()=>{more.disabled=true;try{const d=await api('/api/dubbing/projects?'+dubbingListQuery(view.tab,view.genre,view.nextOffset));$('#dubbing-cards').insertAdjacentHTML('beforeend',d.projects.map((p,i)=>dubbingCard(p,i+view.cardCount)).join(''));view.cardCount+=d.projects.length;view.nextOffset=d.nextOffset;more.hidden=d.nextOffset===null;icons();}catch(err){toast(err.message);}finally{more.disabled=false;}};
 }
-
-function dubbingApplySimpleDrafts(e){for(const [sceneId,text] of Object.entries(e.simpleDrafts||{}))e.script=AifectDubbing.applySimpleDubbingText(e.script,sceneId,text);e.simpleDrafts={};}

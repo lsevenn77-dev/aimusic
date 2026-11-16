@@ -135,3 +135,5 @@ export const DUBBING_SCRIPT_SCHEMA=object({
   endLineId:{type:['string','null']},anchor:{type:'string',enum:['before','after','start','scene']},offsetSeconds:number,generationSeconds:number,durationSeconds:number,volume:number,fadeInSeconds:number,fadeOutSeconds:number}))
 });
 export {randomDubbingIdea,simpleDubbingText,applySimpleDubbingText} from './dubbing-writing.js';
+
+export {editorLine,editorCue,duplicateEditorScene,parseDubbingPaste,orderEditorLines} from './dubbing-editor.js';

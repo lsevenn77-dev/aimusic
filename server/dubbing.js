@@ -1,4 +1,6 @@
 import {officialEpisodeSoundRevision} from './dubbing-episode-sound-revision.js';
+import {dubbingEditorDraftRoute} from './dubbing-editor-drafts.js';
+import {dubbingEditInput} from './dubbing-edit-ai.js';
 import {officialRebuild} from './dubbing-original-rebuild.js';
 import {dubbingPosterSQL,projectPoster} from './dubbing-poster.js';
 import {recordDubbingPlay,dubbingPlayCountSQL} from './dubbing-plays.js';
@@ -66,6 +68,7 @@ export async function dubbingRoute(req,env,path,user){
  if(!path.startsWith('/api/dubbing/'))return null;
  if(path==='/api/dubbing/config'&&req.method==='GET')return json({enabled:env.DUBBING_ENABLED==='true',aiAvailable:env.DUBBING_ENABLED==='true'&&dubbingAIAvailable(env),model:DUBBING_MODEL,recordingAvailable:recordingEnabled(env),soundAvailable:env.DUBBING_ENABLED==='true'&&env.DUBBING_SOUND_ENABLED==='true',pikaAvailable:pikaAvailable(env),soundPriceGold:(await dubbingSettings(env)).soundGold,goldChargingEnabled:dubbingGoldEnabled(env),quota:env.DUBBING_ENABLED==='true'&&user?{...await dubbingQuota(env,user.id),rewardedAdAvailable:dubbingRewardAvailable(req,env)}:null});
  if(env.DUBBING_ENABLED!=='true')fail(503,'더빙 스튜디오를 준비하고 있습니다.');
+ const draft=await dubbingEditorDraftRoute(req,env,path,user);if(draft)return draft;
  const casting=await dubbingCastingRoute(req,env,path,user);if(casting)return casting;
  const reward=await dubbingRewardRoute(req,env,path,user);if(reward)return reward;
  const url=new URL(req.url),method=req.method;
@@ -107,7 +110,8 @@ export async function dubbingRoute(req,env,path,user){
   }),nextOffset:list.length===25?offset+25:null});
  }
  if(path==='/api/dubbing/generations'&&method==='POST'){
-  requireUser(user);await assertDubbingCreator(env,user.id);const body=await req.json(),gid=uuid(body.requestId),options=dubbingOptions(body.options),inputHash=await hash(JSON.stringify(options));
+  requireUser(user);await assertDubbingCreator(env,user.id);const body=await req.json(),gid=uuid(body.requestId),options=dubbingOptions(body.options),edit=dubbingEditInput(body.edit);
+  const inputHash=edit?'edit:'+await hash(JSON.stringify([options,edit])):await hash(JSON.stringify(options));
   let g=await one(env,'SELECT * FROM dubbing_generations WHERE id=?',gid);
   if(g){if(g.user_id!==user.id)fail(404,'생성 요청을 찾을 수 없습니다.');if(g.input_hash!==inputHash)conflict();return generationResult(env,g);}
   if(!dubbingAIAvailable(env))fail(503,'AI 대본 연동 대기 중입니다. 직접 대본을 작성할 수 있어요.');
@@ -115,12 +119,12 @@ export async function dubbingRoute(req,env,path,user){
   const reserved=await reserveDubbingGeneration(env,user.id,gid,inputHash);
   if(!reserved){g=await one(env,'SELECT * FROM dubbing_generations WHERE id=? AND user_id=?',gid,user.id);if(!g)fail(429,`오늘의 대본 작성 횟수를 모두 사용했어요. 광고 보상은 하루 최대 ${DUBBING_DAILY_AD_LIMIT}회까지 받을 수 있습니다.`);if(g.input_hash!==inputHash)conflict();return generationResult(env,g);}
   try{
-   await run(env,"UPDATE dubbing_generations SET result_json=? WHERE id=? AND state='running'",JSON.stringify({options}),gid);
+   await run(env,"UPDATE dubbing_generations SET result_json=? WHERE id=? AND state='running'",JSON.stringify({options,...(edit?{edit}:{})}),gid);
    const recent=await rows(env,"SELECT result_json FROM dubbing_generations WHERE user_id=? AND state='ready' ORDER BY created DESC LIMIT 6",user.id);
    const previousStories=recent.map(r=>JSON.parse(r.result_json).script).filter(Boolean).map(s=>({title:s.title,scenes:s.scenes.map(sc=>({title:sc.title,description:sc.description}))}));
-   const result=await generateDubbingScript(env,options,fetch,previousStories);
+   const result=await generateDubbingScript(env,options,fetch,previousStories,edit);
    await run(env,"UPDATE dubbing_generations SET state=?,result_json=?,usage_json=?,provider_id=?,updated=? WHERE id=? AND state='running'",
-    result.state==='running'?'running':'ready',JSON.stringify({options,...(result.script?{script:result.script,model:result.model}:{})}),JSON.stringify(result.usage||{}),result.providerRequestId,now(),gid);
+    result.state==='running'?'running':'ready',JSON.stringify({options,...(edit?{edit}:{}),...(result.suggestions?{suggestions:result.suggestions}:{}),...(result.script?{script:result.script,model:result.model}:{})}),JSON.stringify(result.usage||{}),result.providerRequestId,now(),gid);
   }catch(e){
    // Unknown includes network failures after the provider may have accepted a request.
    const state=e.status?'failed':'unknown',message=e.status?e.message:'응답을 확인하지 못했습니다. 자동 재요청하지 않았습니다.';
@@ -135,7 +139,7 @@ export async function dubbingRoute(req,env,path,user){
  }
  if(path==='/api/dubbing/generations/latest'&&method==='GET'){
   requireUser(user);
-  const g=await one(env,"SELECT * FROM dubbing_generations WHERE user_id=? AND input_hash NOT LIKE 'sound-plan:%' ORDER BY created DESC,id DESC LIMIT 1",user.id);
+  const g=await one(env,"SELECT * FROM dubbing_generations WHERE user_id=? AND input_hash NOT LIKE 'sound-plan:%' AND input_hash NOT LIKE 'edit:%' ORDER BY created DESC,id DESC LIMIT 1",user.id);
   return g?generationResult(env,g):json({id:null});
  }
  const generationMatch=path.match(/^\/api\/dubbing\/generations\/([^/]+)$/);

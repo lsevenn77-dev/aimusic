@@ -1,6 +1,7 @@
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {one,rows,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
+import {objectResponse} from './storage.js';
 import {dubbingRecordingWindows,validateDubbingTake} from '../shared/dubbing-recording.js';
 import {dubbingSoundStatus} from './dubbing-sound.js';
 import {dubbingTimeline} from '../shared/dubbing.js';
@@ -12,8 +13,8 @@ const active=`${dubbingVisibleSQL()} AND EXISTS(SELECT 1 FROM users WHERE id=p.o
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
 const conflict=()=>fail(409,'녹음이 다른 창에서 변경됐어요. 저장된 내용을 다시 불러와주세요.');
 async function audioResponse(req,env,key,type='audio/wav'){
- const obj=key&&await env.BUCKET.get(key);if(!obj)fail(404,'오디오 파일을 찾을 수 없습니다.');
- return new Response(req.method==='HEAD'?null:obj.body,{headers:{'content-type':type,'cache-control':'private, no-store','x-content-type-options':'nosniff',...(obj.size?{'content-length':String(obj.size)}:{})}});
+ if(!key)fail(404,'오디오 파일을 찾을 수 없습니다.');
+ return objectResponse(req,env,key,type);
 }
 export async function dubbingRecordingStatus(env,p,user){
  const recordings=await rows(env,`SELECT r.id,r.role_id,r.user_id,r.state,r.revision,(SELECT visibility FROM dubbing_recording_permissions v WHERE v.recording_id=r.id) casting_visibility,(SELECT COUNT(*) FROM dubbing_recording_lines l WHERE l.recording_id=r.id) saved FROM dubbing_recordings r JOIN users u ON u.id=r.user_id WHERE r.project_id=? AND u.provider!='deleted'`,p.id);

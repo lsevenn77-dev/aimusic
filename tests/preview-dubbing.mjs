@@ -30,7 +30,7 @@ if(process.argv.includes('--generation-fixture')){
   if(!url.startsWith('https://api.openai.com/v1/responses'))throw new Error('External requests disabled in local generation fixture');
   if(init.method==='POST'){selected=JSON.parse(JSON.parse(init.body).input);gets=0;return Response.json({id:'resp_local',status:'queued'});}
   if(++gets<2)return Response.json({id:'resp_local',status:'in_progress'});
-  const script=sampleScript();script.genres=selected.genres;
+  const script=selected.mode?{lines:selected.lines.map(l=>({id:l.id,text:l.text+' (수정)'}))}:sampleScript();if(!selected.mode)script.genres=selected.genres;
   return Response.json({id:'resp_local',status:'completed',output:[{type:'message',content:[{type:'output_text',text:JSON.stringify(script)}]}],usage:{}});
  };
 }

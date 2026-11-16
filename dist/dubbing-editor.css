@@ -1,0 +1,28 @@
+/* Script authoring only. The work area scrolls independently from its add menu. */
+.dub-start,.dub-editor{color:var(--text);margin-inline:auto;max-width:1180px}
+.dub-start{padding:clamp(16px,4vw,36px)}.dub-start h1,.dub-editor h1{margin:0;font-size:clamp(22px,2vw,30px)}.dub-start-modes,.dub-actions,[data-editor-recents]>div{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-block:12px}
+.dub-start-modes .small-button{min-height:48px;flex:1 1 180px}.dub-editor [hidden]{display:none!important}
+.dub-editor{display:flex;flex-direction:column;height:min(82dvh,940px);min-height:260px;background:var(--surface,#131b29);border-radius:16px;overflow:hidden;padding:clamp(10px,1.6vw,22px);gap:8px}
+.dub-editor-head,.dub-line-head,.dub-addbar,.dub-edit-dialog footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dub-editor-head [data-editor-status]{margin-inline-start:auto;color:var(--mint,#8eddd2);font-size:13px}.dub-editor-head button,.dub-addbar button{white-space:nowrap;min-height:44px}.dub-editor-head [data-edit-action=save]{background:linear-gradient(115deg,#c9b6ff,#8eddd2);color:#16182b}
+.dub-editor-layout{display:grid;grid-template-columns:minmax(108px,170px) minmax(0,1fr);gap:16px;min-height:0;flex:1;overflow:auto;scroll-padding:12px;overscroll-behavior:contain}
+.dub-editor-layout.with-info{grid-template-columns:minmax(104px,155px) minmax(0,1fr) minmax(172px,245px)}
+.dub-index,.dub-info{align-self:start;min-width:0}.dub-index{position:sticky;top:0;display:grid;gap:5px;max-height:100%;overflow:auto}.dub-index button{text-align:start;overflow-wrap:anywhere}
+.dub-cards,.dub-info,.dub-scene-body,.dub-line,.dub-cue{min-width:0;display:grid;align-content:start;gap:10px}
+.dub-cards label,.dub-info label,.dub-edit-dialog label{display:grid;gap:4px;font-size:14px}
+.dub-cards :is(input,textarea,select),.dub-info :is(input,textarea,select),.dub-edit-dialog :is(textarea,select){width:100%;min-width:0;box-sizing:border-box;border:1px solid var(--line,#3d4961);border-radius:8px;padding:9px;background:var(--bg,#101624);color:inherit;font:inherit}
+.dub-info{padding-inline:8px}.dub-info fieldset{margin:0;padding:5px;border:0}.dub-info label.dub-check{display:inline-flex;align-items:center;margin:4px;gap:3px}.dub-info .dub-check input{width:auto}
+.dub-scene{margin-bottom:4px;border-top:1px solid var(--line,#3d4961);scroll-margin:8px}
+.dub-scene>summary{display:flex;gap:8px;align-items:baseline;padding:12px 0;cursor:pointer}.dub-scene>summary:before{content:'▸'}.dub-scene[open]>summary:before{content:'▾'}.dub-scene>summary span,.dub-scene>summary small{color:var(--mint,#8eddd2);font-size:13px;white-space:nowrap}.dub-scene>summary b{overflow-wrap:anywhere}.dub-scene>summary small{margin-inline-start:auto}
+.dub-line,.dub-cue{border-inline-start:2px solid #b6a5df;padding:8px 12px;background:var(--surface-2,#1c2433);border-radius:4px 10px 10px 4px}.dub-cue{border-color:#8eddd2}.dub-line-head{justify-content:space-between}.dub-line-head label{display:flex;align-items:center}.dub-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(140px,100%),1fr));gap:8px;margin-top:8px}
+.dub-editor details>summary,.dub-edit-dialog summary{cursor:pointer}.dub-editor .dubbing-feedback:empty{display:none}.dub-editor .dubbing-feedback{margin:0;color:var(--mint,#8eddd2)}
+.dub-addbar{flex:none;justify-content:center;border-top:1px solid var(--line,#3d4961);padding:8px 0 0}.dub-edit-dialog{box-sizing:border-box;width:min(540px,94vw);max-height:85dvh;background:var(--surface,#161c2b);color:var(--text,#f5f3ff);border:1px solid var(--line,#46526c);border-radius:16px;padding:16px}.dub-edit-dialog::backdrop{background:#050815ba}.dub-edit-dialog form{display:flex;flex-direction:column;max-height:calc(82dvh - 32px);gap:10px}.dub-edit-dialog h2{margin:0}.dub-dialog-body{overflow:auto;overscroll-behavior:contain;white-space:pre-wrap}.dub-dialog-body pre{white-space:pre-wrap}.dub-edit-dialog footer>*{flex:1;min-height:44px}
+@media(max-width:760px){
+ .dub-editor{height:min(var(--dub-available,80dvh),100dvh);min-height:160px;border-radius:10px;padding:8px}.dub-editor-layout,.dub-editor-layout.with-info{grid-template-columns:minmax(0,1fr);gap:6px}.dub-index{display:none}.dub-info{grid-row:1}.dub-editor-head h1{font-size:20px}.dub-editor-head{gap:5px}.dub-editor-head [data-editor-status]{font-size:13px}.dub-editor .small-button{padding:6px 9px;min-height:42px}.dub-addbar{gap:4px;padding-bottom:env(safe-area-inset-bottom,0px)}.dub-addbar button{flex:1;padding:6px 4px!important}.dub-editor :is(input,select,textarea),.dub-edit-dialog :is(textarea,select){font-size:16px}.dub-line,.dub-cue{padding:7px}.dub-cards{padding-bottom:10px}
+}
+html.aifect-script-embedded :is(.site-footer,#sidebar,#topbar,.mobile-bottom-nav,.business-footer,#player,.dubbing-mode){display:none!important}
+html.aifect-script-embedded #main{padding:0!important;margin:0!important;max-width:none!important}
+html.aifect-script-embedded .dub-editor{height:var(--dub-available,100dvh);border-radius:0}
+html.aifect-script-embedded :is(.topbar,.page-footer,.player-bar,.mobile-nav,.common-player){display:none!important}
+html.aifect-script-embedded .workspace{margin:0;padding:0}
+

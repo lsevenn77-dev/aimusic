@@ -1,6 +1,7 @@
 import {DUBBING_MODEL,DUBBING_SCRIPT_SCHEMA,dubbingOptions,validateDubbingScript,dubbingTimeline} from '../shared/dubbing.js';
 import {normalizeGeneratedDubbingScript} from '../shared/dubbing-language.js';
 import {isRandomDubbingIdea,randomDubbingIdea} from '../shared/dubbing-writing.js';
+import {dubbingEditPrompt,readDubbingEdit} from './dubbing-edit-ai.js';
 import {fail} from './db.js';
 
 const instructions=`당신은 AIFECT의 한국어 오디오 드라마 작가 겸 음향감독입니다.
@@ -73,25 +74,25 @@ export async function generateDubbingSoundPlan(env,script,options,fetcher=fetch)
   return {script:result,usage,providerRequestId:data.id||''};
  }catch{throw Object.assign(new Error('AI 음향 연출 검증에 실패했습니다.'),{status:502,usage,providerRequestId:data.id||'',planFailureCode});}
 }
-export async function generateDubbingScript(env,input,fetcher=fetch,previousStories=[]){
+export async function generateDubbingScript(env,input,fetcher=fetch,previousStories=[],edit=null){
  if(!dubbingAIAvailable(env))fail(503,'AI 대본 연동 대기 중입니다. 직접 대본을 작성할 수 있어요.');
  const options=dubbingOptions(input);
  // Fixed provider origin. Never send the reused key to a client-controlled base URL.
  const response=await fetcher('https://api.openai.com/v1/responses',{
   method:'POST',headers:{Authorization:`Bearer ${env.OPENAI_API_KEY||env.LLM_API_KEY}`,'Content-Type':'application/json'},
-  body:JSON.stringify({model:DUBBING_MODEL,store:false,background:true,instructions,
+  body:JSON.stringify({model:DUBBING_MODEL,store:false,background:true,...(edit?dubbingEditPrompt(edit):{instructions,
    input:JSON.stringify({...options,...(isRandomDubbingIdea(options.idea)?{
     creativeDirection:randomDubbingIdea(options),
     avoidRepeating:previousStories,
     varietyInstruction:'최근 작품과 장소·핵심 갈등·관계·반전이 겹치지 않게 창작하세요. 매번 편지/잃어버린 기억/따뜻한 화해로 귀결하지 마세요.'
    }:{})}),max_output_tokens:12000,
-   text:{format:{type:'json_schema',name:'aifect_dubbing_script',strict:true,schema:DUBBING_SCRIPT_SCHEMA}}}),
+   text:{format:{type:'json_schema',name:'aifect_dubbing_script',strict:true,schema:DUBBING_SCRIPT_SCHEMA}}})}),
   signal:AbortSignal.timeout(30000),redirect:'manual'
  });
  if(!response.ok)fail(502,'AI 대본 생성에 실패했습니다. 자동 재요청하지 않았습니다.');
- return readDubbingResponse(await response.json(),options);
+ return readDubbingResponse(await response.json(),options,edit);
 }
-export async function retrieveDubbingScript(env,providerId,options,fetcher=fetch){
+export async function retrieveDubbingScript(env,providerId,options,fetcher=fetch,edit=null){
  if(!/^resp_[a-zA-Z0-9_-]{1,200}$/.test(providerId))fail(502,'대본 조회 번호를 확인할 수 없습니다.');
  const response=await fetcher('https://api.openai.com/v1/responses/'+providerId,{
   headers:{Authorization:`Bearer ${env.OPENAI_API_KEY||env.LLM_API_KEY}`},
@@ -99,9 +100,9 @@ export async function retrieveDubbingScript(env,providerId,options,fetcher=fetch
  });
  if(response.status===404||response.status===410)throw Object.assign(new Error('이전 생성 결과의 보관 시간이 지나 불러올 수 없어요.'),{status:502,providerRequestId:providerId,expired:true});
  if(!response.ok)throw new Error('대본 결과 조회에 잠시 연결하지 못했어요.');
- return readDubbingResponse(await response.json(),options);
+ return readDubbingResponse(await response.json(),options,edit);
 }
-function readDubbingResponse(data,options){
+function readDubbingResponse(data,options,edit){
  if(['queued','in_progress'].includes(data.status)){
   if(!/^resp_[a-zA-Z0-9_-]{1,200}$/.test(data.id||''))fail(502,'대본 조회 번호를 받지 못했습니다.');
   return {state:'running',providerRequestId:data.id};
@@ -112,6 +113,12 @@ function readDubbingResponse(data,options){
  if(data.status!=='completed')reject('대본 생성이 완료되지 않았습니다. 자동 재요청하지 않았습니다.');
  const contents=(data.output||[]).filter(o=>o.type==='message').flatMap(o=>o.content||[]);
  if(contents.some(c=>c.type==='refusal'))reject('이 설정으로 대본을 만들 수 없습니다. 이야기 설정을 바꿔주세요.',422);
+ if(edit){
+  try{
+   const raw=JSON.parse(contents.filter(c=>c.type==='output_text').map(c=>c.text).join(''));
+   return {suggestions:readDubbingEdit(raw,edit),usage,model:DUBBING_MODEL,providerRequestId:data.id||''};
+  }catch{reject('대사 수정안 검증에 실패했습니다. 원문을 유지했어요.');}
+ }
  let script;
  try{script=validateDubbingScript(dubbingReactionCues(normalizeGeneratedDubbingScript(validateDubbingScript(JSON.parse(contents.filter(c=>c.type==='output_text').map(c=>c.text).join('')),options))),options);}
  catch{reject('AI 대본 형식 검증에 실패했습니다. 자동 재요청하지 않았습니다.');}

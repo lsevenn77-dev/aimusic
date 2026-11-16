@@ -9,11 +9,11 @@ export async function reconcileDubbingGeneration(env,g){
   const locked=await query(env,"UPDATE dubbing_generations SET updated=? WHERE id=? AND state='running' AND updated<=? RETURNING id",now(),g.id,now()-4).first();
   if(locked){
    try{
-    const options=JSON.parse(g.result_json).options;
+    const {options,edit}=JSON.parse(g.result_json);
     if(!options)throw new Error('Missing saved settings');
-    const result=await retrieveDubbingScript(env,g.provider_id,options);
+    const result=await retrieveDubbingScript(env,g.provider_id,options,fetch,edit);
     if(result.state!=='running')await run(env,"UPDATE dubbing_generations SET state='ready',result_json=?,usage_json=?,error='',updated=? WHERE id=? AND state='running'",
-     JSON.stringify({script:result.script,model:result.model,options}),JSON.stringify(result.usage),now(),g.id);
+     JSON.stringify({script:result.script,model:result.model,options,...(edit?{edit,suggestions:result.suggestions}:{})}),JSON.stringify(result.usage),now(),g.id);
    }catch(e){
     if(e.status)await run(env,"UPDATE dubbing_generations SET state='failed',error=?,usage_json=?,updated=? WHERE id=? AND state='running'",
      e.message,JSON.stringify(e.usage||{}),now(),g.id);

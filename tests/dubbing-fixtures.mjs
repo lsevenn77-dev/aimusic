@@ -12,10 +12,16 @@ export function sampleScript(){
  return s;
 }
 export function memoryBucket(){
- const objects=new Map();
+ const objects=new Map(),metadata=new Map();
  const size=v=>typeof v==='string'?new TextEncoder().encode(v).length:v?.byteLength||0;
- return {objects,async put(k,v){objects.set(k,v);},async delete(k){for(const key of Array.isArray(k)?k:[k])objects.delete(key);},
-  async list({prefix=''}){return {objects:[...objects.keys()].filter(k=>k.startsWith(prefix)).map(key=>({key})),truncated:false};},
-  async head(k){return objects.has(k)?{size:size(objects.get(k))}:null;},
-  async get(k){return objects.has(k)?{body:objects.get(k),size:size(objects.get(k))}:null;}};
+ const head=key=>objects.has(key)?{key,size:size(objects.get(key)),...metadata.get(key)}:null;
+ let version=0;
+ return {objects,async put(key,body,{onlyIf,customMetadata}={}){
+  const prior=head(key);
+  if(onlyIf?.has('If-Match')&&onlyIf.get('If-Match')!=='"'+prior?.etag+'"'||onlyIf?.has('If-None-Match')&&prior)return null;
+  objects.set(key,body);metadata.set(key,{etag:String(++version),uploaded:new Date(),customMetadata});return head(key);
+ },async delete(k){for(const key of Array.isArray(k)?k:[k]){objects.delete(key);metadata.delete(key);}},
+ async list({prefix=''}){return {objects:[...objects.keys()].filter(k=>k.startsWith(prefix)).map(head),truncated:false};},
+ async head(key){return head(key);},
+ async get(key,{range}={}){if(!objects.has(key))return null;let body=objects.get(key);if(range){const bytes=typeof body==='string'?new TextEncoder().encode(body):new Uint8Array(body.buffer??body,body.byteOffset??0,body.byteLength);body=bytes.slice(range.offset,range.offset+range.length);}return {...head(key),body,json:async()=>JSON.parse(body)};}};
 }
