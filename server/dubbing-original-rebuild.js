@@ -51,7 +51,13 @@ export async function officialRebuild(req,env,root,user,operation) {
  const prefix=contentRoot(c),key=prefix+'manifest.json';
  const completed=await one(env,"SELECT id FROM dubbing_projects WHERE id=? AND root_id=? AND owner_id=? AND visibility='public' AND state='complete' AND deleted_at=0",c.edition,c.root,owner);
  if(completed)return json({public:true,id:c.edition});
- checked(root.revision===c.rootRevision&&root.visibility==='public');
+ checked(root.visibility==='public'&&root.revision>=c.rootRevision);
+ if(root.revision!==c.rootRevision){
+  // Joining an existing role legitimately increments revision during a long audio upload.
+  // Compare the backed-up editorial content before accepting that independent change.
+  const original=[root.title,root.source,JSON.parse(root.options_json),JSON.parse(root.script_json),root.poster_version||''];
+  checked(await sha(new TextEncoder().encode(JSON.stringify(original)))===c.sourceDigest);
+ }
  const old=await one(env,"SELECT p.id FROM dubbing_projects p WHERE p.id=? AND p.root_id=? AND p.owner_id=? AND p.revision=? AND p.state='complete' AND p.visibility='public' AND "+dubbingVisibleSQL(),c.oldEdition,c.oldRoot,owner,c.editionRevision);
  checked(old);
  if(step==='manifest'&&req.method==='PUT'){
