@@ -27,6 +27,7 @@
 - [App Store Connect 심사 상태](https://appstoreconnect.apple.com/apps/6819654764/distribution/reviewsubmissions/details/64a735ee-a4f3-44b4-b464-d8c9f5b60d06)
 - 승인 후 자동 출시 및 모든 사용자에게 즉시 업데이트 출시 설정을 확인했다. 실제 출시와 심사 승인은 아직 대기 중이다.
 - GoogleMobileAds/UserMessagingPlatform 배포 SDK의 dSYM 누락 경고는 남았지만 앱 업로드는 성공했다.
+- 2026-11-17 09:40 KST App Store Connect에서 **배포 준비됨** 상태를 확인했다. 후속 1.0.7(17)은 09:43 KST 별도 업데이트로 심사 제출했다. 자세한 내용은 [1.0.7 릴리스 기록](RELEASE-1.0.7.md)을 참고한다.
 
 ## 검증 범위
 

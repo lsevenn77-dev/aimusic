@@ -17,7 +17,7 @@
 
 공통 API는 운영 Sites v791의 `5398022` 서버를 재사용한다. 요청의 `edit.mode/scene/description/lines`와 응답의 `suggestions`를 연결한다. 배역·시간·음향은 수정 결과에 포함시키지 않으며 iOS가 선택한 대사의 text만 적용한다. 구형 서버에 수정 요청을 신규 이야기 생성으로 보내지 않도록 인증된 `/api/dubbing/editor-drafts` 조회 성공을 먼저 확인한다. 새 DB migration 및 모델/API 키·과금 정책 변경 없음. 실제 유료 AI 호출은 실행하지 않고 로컬 모의 공급자로 검사한다.
 
-## App Store 업데이트 설명 초안
+## App Store 업데이트 설명
 
 더빙 제작을 더 편하게 개선했습니다.
 
@@ -27,6 +27,7 @@
 • 선택한 대사나 장면의 AI 수정안을 비교한 뒤 적용할 수 있어요.
 • 파트별/이어서 녹음, 마이크 입력과 볼륨 조절을 개선했습니다.
 • 플레이·더빙 탐색·메시지 화면과 목록 로딩을 개선했습니다.
+• 하단 메뉴의 터치 동작을 안정적으로 개선했습니다.
 
 ## 검증 범위
 
@@ -34,13 +35,17 @@
 
 - 단위 검사 100개 통과. 화면 검사 11종은 변경별 최종 재검사 기준이며, 최종 탭 터치/공통 API AI 비교 2개는 같은 실행에서 통과했다. 공통 서버 편집·생성 복구 검사 11개 통과.
 
-## 배포 상태 · 2026-11-17 02:01 KST
+## 배포 상태 · 2026-11-17 09:43 KST
 
 - 앱 소스 `234ec3c`, `origin/ios/from-android-2.5.97` push 완료.
 - Release 아카이브 생성 성공. 경로: `/Users/user/Library/Developer/Xcode/Archives/2026-11-17/AIFECT-1.0.7-17.xcarchive`.
 - `codesign --verify --deep --strict` 통과, 앱 버전 1.0.7/빌드 17/번들 `kr.co.aifect.app` 확인. 앱과 dSYM UUID `85B4475B-1D38-3BF4-9E92-FE24B1672E28` 일치. Release 바이너리에 Debug 테스트 표식 없음.
 - **Apple 업로드 및 빌드 처리 완료.** Mac 잠금 해제 후 Xcode Organizer에서 01:58 KST **Uploaded to Apple**을 확인했다. App Store Connect에는 01:59 KST 업로드로 표시되며, 02:01 KST TestFlight의 1.0.7(17)이 **제출 준비 완료** 상태임을 확인했다. 빌드 ID: `de6e6bd6-e370-4934-a0b2-aa03705fcd35`.
 - CLI의 `Failed to Use Accounts`는 전송 전 실패였으며 Organizer의 기존 계정으로 업로드했다. GoogleMobileAds/UMP 공급업체 dSYM 누락 경고 2건은 기존과 같고 앱 자체 dSYM은 포함되어 있다.
-- 기존 1.0.6(16)은 App Store Connect에서 심사 대기 중으로 확인했으며 철회·교체하지 않았다. **1.0.7은 업로드 완료이며 아직 App Review에 제출하거나 공개 출시하지 않았다.**
+- 02:01 KST에는 기존 1.0.6(16)이 심사 대기 중이었다. 사용자가 1.0.7로 교체 제출을 요청한 뒤, 09:40 KST 재접속 시 1.0.6이 이미 **배포 준비됨** 상태였으므로 철회 없이 새 업데이트 1.0.7을 생성했다.
+- 한국어 업데이트 설명 및 1.0.7 심사 메모를 저장하고 빌드 17을 연결했다. 기존 스크린샷 6장, 한국어 이름·키워드, 심사 계정·연락처를 유지했다. 승인 후 자동 출시, 모든 사용자에게 즉시 업데이트, 기존 평가 유지 설정을 확인했다.
+- **2026-11-17 09:43 KST 최종 심사 제출 완료.** Apple의 **1개의 항목 제출됨** 안내 및 **심사 대기 중** 상태를 확인했다. 제출 ID: `6993e62e-6c9f-40fc-acf4-7321e08972b5`. 1.0.7의 심사 승인·공개 출시는 아직 대기 중이다.
+- [App Store Connect 심사 상태](https://appstoreconnect.apple.com/apps/6819654764/distribution/reviewsubmissions/details/6993e62e-6c9f-40fc-acf4-7321e08972b5)
 - 업로드 증빙: `../work/ios-1.0.7-17-uploaded.png`, TestFlight 처리 완료 증빙: `../work/ios-1.0.7-17-testflight.png` (저장소 루트 기준 경로).
-- 검사가 끝난 iPhone 17 Pro 시뮬레이터는 종료했다. App Store Connect의 기존 탭은 TestFlight 목록에 남겼다.
+- 심사 제출 증빙: `../work/ios-1.0.7-17-review-submitted.png`, `../work/ios-1.0.7-17-waiting-review.png` (저장소 루트 기준 경로).
+- 검사가 끝난 iPhone 17 Pro 시뮬레이터와 Xcode Organizer는 종료했다. App Store Connect의 기존 탭 하나는 1.0.7 심사 상태에 남겼다.
