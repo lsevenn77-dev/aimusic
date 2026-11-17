@@ -158,7 +158,7 @@ struct MessagesView: View {
                                 if filter == name { LinearGradient(colors: [Color(aifectHex: 0x9164AB), Color(aifectHex: 0x555176), Color(aifectHex: 0x468D90)], startPoint: .leading, endPoint: .trailing).clipShape(Capsule()) }
                             }.overlay(Capsule().stroke(filter == name ? Brand.aqua.opacity(0.65) : AifectDesign.stroke))
                             .frame(minHeight: 48).overlay(alignment: .topTrailing) { unread(count) }
-                    }.buttonStyle(.plain).accessibilityIdentifier("inbox-filter-" + name).accessibilityAddTraits(filter == name ? .isSelected : [])
+                    }.buttonStyle(.plain).accessibilityIdentifier("inbox-filter-" + name).accessibilityAddTraits(filter == name ? .isSelected : []).accessibilityValue(count > 0 ? "읽지 않음 \(count)개" : "읽지 않음 없음")
                 }
                 NavigationLink { NewConversationView().streamingPage() } label: { Image(systemName: "person.badge.plus").frame(width: 48, height: 48) }.accessibilityLabel("새 대화")
             }.padding(.horizontal, 12)

@@ -8,6 +8,14 @@ enum StreamingUIFixture {
     static var artistFollowed = false
     static var dmRead = false
     static var dmCleared = false
+    static var notificationReadThrough = 0
+    static var notificationReadFailed = false
+    static var notificationSnapshot: Int {
+        let args = ProcessInfo.processInfo.arguments
+        if args.contains("-notification-auto-read") { return args.contains("-notification-new-arrival") && notificationReadThrough >= 55 ? 56 : 55 }
+        return args.contains("-notification-kinds") ? 4 : 1
+    }
+    static var notificationUnread: Int { max(0, notificationSnapshot - notificationReadThrough) }
     static var claimedDubbingRole = ProcessInfo.processInfo.arguments.contains("-dubbing-management")
     static var dubbingSubmitted = false
     static var removedDubbingProject = false
@@ -199,16 +207,32 @@ enum StreamingUIFixture {
         case "/api/dm":
             if request.httpMethod == "DELETE" { dmCleared = true; result = ["ok": true] }
             else { result = ["conversations": dmCleared ? [] : [["id": "fixture-peer", "name": "채팅 테스트", "image_version": "fixture", "last_message": "다음에도 같이 불러요", "updated": Date().timeIntervalSince1970 - 60, "unread": dmRead ? 0 : 1]], "crew": ["id": "fixture-crew", "name": "검증 크루", "unread": 2], "unread": dmRead || dmCleared ? 2 : 3] }
-        case "/api/notifications/summary": result = ["unread": 1]
+        case "/api/notifications/summary": result = ["unread": notificationUnread]
+        case "/api/notifications" where args.contains("-notification-auto-read"):
+            let older = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.contains { $0.name == "before" } == true
+            let ids = older ? ["older"] : ["comment", "duet"]
+            let items: [[String: Any]] = ids.map { id in
+                ["id": "fixture-" + id, "actor_name": id == "older" ? "이전 알림 가수" : "알림 검증 가수", "kind": id == "duet" ? "duet" : "comment", "source_title": "검증용 밤의 산책", "target": "fixture-original", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": notificationReadThrough >= 55 ? 1 : 0]
+            }
+            result = ["items": items, "unread": notificationUnread, "read_through": notificationSnapshot, "next": older ? NSNull() : "fixture-duet"]
         case "/api/notifications" where args.contains("-notification-kinds"):
             let kinds = ["comment", "duet", "cover", "future-event"]
             let filter = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "filter" }?.value ?? "all"
             let items: [[String: Any]] = kinds.filter { filter == "all" || (filter == "participation" && ["duet", "cover"].contains($0)) }.map { kind in
-                ["id": "fixture-" + kind, "actor_name": "알림 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": kind, "source_title": "검증용 밤의 산책", "target": kind == "duet" || kind == "cover" ? "fixture-duet" : "fixture-original", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": 0]
+                ["id": "fixture-" + kind, "actor_name": "알림 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": kind, "source_title": "검증용 밤의 산책", "target": kind == "duet" || kind == "cover" ? "fixture-duet" : "fixture-original", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": notificationReadThrough >= 4 ? 1 : 0]
             }
-            result = ["items": items, "unread": items.count]
-        case "/api/notifications": result = ["items": [["id": "fixture-notification", "actor_name": "듀엣 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": "duet", "source_title": "검증용 밤의 산책", "target": "fixture-duet", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": 0]], "unread": 1]
-        case "/api/notifications/read": result = ["ok": true]
+            result = ["items": items, "unread": notificationUnread, "read_through": notificationSnapshot]
+        case "/api/notifications": result = ["items": [["id": "fixture-notification", "actor_name": "듀엣 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": "duet", "source_title": "검증용 밤의 산책", "target": "fixture-duet", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": notificationReadThrough >= 1 ? 1 : 0]], "unread": notificationUnread, "read_through": notificationSnapshot]
+        case "/api/notifications/read":
+            if args.contains("-notification-read-failure"), !notificationReadFailed {
+                notificationReadFailed = true; status = 503; result = ["error": "알림 읽음 처리 연결을 확인해주세요."]
+            } else {
+                if let through = body["through"] as? Int {
+                    guard through == notificationSnapshot else { return (400, "application/json", Data()) }
+                    notificationReadThrough = through
+                } else if args.contains("-notification-auto-read") { return (400, "application/json", Data()) }
+                result = ["ok": true, "unread": notificationUnread]
+            }
         case "/api/producers/fixture-own-profile": result = ["profile": ["id": "fixture-own-profile", "name": "검증 계정"], "tracks": [original], "covers": [cover]]
         case "/api/producers/fixture-own-profile/gallery": result = ["photos": [], "can_manage": true, "limit": 30]
         default: return nil

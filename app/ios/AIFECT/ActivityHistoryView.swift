@@ -29,7 +29,6 @@ struct ActivityHistoryView: View {
                             Text(ActivityNotificationText.subject(item)).font(.caption).foregroundStyle(.secondary)
                             HStack {
                                 if item.int("available") == 1 && ActivityNotificationText.canOpen(item) { Button("자세히 보기") { Task { await open(item) } }.disabled(loading).accessibilityIdentifier("notification-open-" + item.selfID) }
-                                if item.number("read_at") == 0 { Button("읽음") { Task { await mark(item) } }.disabled(loading) }
                             }.font(.caption).frame(minHeight: 44)
                         }.padding(14).background(StreamStyle.panel, in: RoundedRectangle(cornerRadius: 16))
                     }
@@ -50,13 +49,24 @@ struct ActivityHistoryView: View {
             let result = try await API.shared.call("/api/notifications?filter=\(requestedFilter)" + (older ? next.map { "&before=\(Endpoint.query($0))" } ?? "" : ""))
             guard owner == model.userID, requestedFilter == filterKey, !Task.isCancelled else { return }
             var seen = Set<String>(); entries = ((older ? entries : []) + result.objects("items")).filter { seen.insert($0.selfID).inserted }
-            next = (result["next"] as? String).flatMap { $0.isEmpty ? nil : $0 }; loading = false
+            next = (result["next"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            if !older {
+                // The server snapshot covers all filters and pages, but excludes later arrivals.
+                guard let through = result["read_through"] as? Int, through >= 0 else {
+                    throw APIError(status: 0, message: "알림 읽음 처리를 완료하지 못했어요. 다시 시도해주세요.")
+                }
+                try await model.markActivityRead(through: through)
+                guard owner == model.userID, requestedFilter == filterKey, !Task.isCancelled else { return }
+                let readAt = Date().timeIntervalSince1970
+                entries = entries.map { $0.merging(["read_at": readAt]) { _, value in value } }
+            }
+            loading = false
         } catch { if owner == model.userID, requestedFilter == filterKey, !Task.isCancelled { self.error = error.localizedDescription; loading = false } }
     }
     private func mark(_ item: [String: Any]) async {
         let owner = model.userID
         do {
-            _ = try await API.shared.call("/api/notifications/read", method: "POST", body: ["ids": [item.selfID]])
+            try await model.markActivityRead(ids: [item.selfID])
             guard owner == model.userID else { return }
             if let index = entries.firstIndex(where: { $0.selfID == item.selfID }) { entries[index]["read_at"] = Date().timeIntervalSince1970 }
         } catch { if owner == model.userID { self.error = error.localizedDescription } }

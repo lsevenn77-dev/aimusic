@@ -114,6 +114,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     }
     #endif
     private var accountRevision = 0
+    private var activityReadRevision = 0
     var userID: String? { user?.string("id") }
     func requireLogin() -> Bool {
         if user == nil { showLogin = true; return false }; return true
@@ -165,11 +166,25 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
             let crew = data["crew"] as? [String: Any]
             if !NSDictionary(dictionary: inboxCrew ?? [:]).isEqual(to: crew ?? [:]) { inboxCrew = crew }
             if inboxError != nil { inboxError = nil }
-            if let summary = try? await API.shared.call("/api/notifications/summary"), version == accountRevision {
+            let readVersion = activityReadRevision
+            if let summary = try? await API.shared.call("/api/notifications/summary"), version == accountRevision, readVersion == activityReadRevision, !Task.isCancelled {
                 let unread = summary.int("unread")
                 if activityUnread != unread { activityUnread = unread }
             }
         } catch { if version == accountRevision, !Task.isCancelled { inboxError = error.localizedDescription } }
+    }
+    func markActivityRead(through: Int? = nil, ids: [String] = []) async throws {
+        guard userID != nil else { throw CancellationError() }
+        let version = accountRevision
+        activityReadRevision += 1
+        let readVersion = activityReadRevision
+        let body: [String: Any] = through.map { ["through": $0] } ?? ["ids": ids]
+        let result = try await API.shared.call("/api/notifications/read", method: "POST", body: body)
+        guard version == accountRevision, !Task.isCancelled else { throw CancellationError() }
+        guard readVersion == activityReadRevision else { return }
+        // Discard summaries requested before this acknowledgement finished.
+        activityReadRevision += 1
+        activityUnread = max(0, result.int("unread"))
     }
     func loadLibrary() async {
         guard user != nil else { return }

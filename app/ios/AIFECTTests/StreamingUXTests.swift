@@ -363,6 +363,8 @@ final class Android143ParityTests: XCTestCase {
         XCTAssertTrue(ReadPolicy.invalidates("/api/crews/a/join", method: "POST"))
         XCTAssertFalse(ReadPolicy.invalidates("/api/dm/person", method: "POST"))
         XCTAssertTrue(ReadPolicy.invalidates("/api/dm/person", method: "DELETE"))
+        XCTAssertNil(ReadPolicy.ttl("/api/notifications/summary"))
+        XCTAssertFalse(ReadPolicy.invalidates("/api/notifications/read", method: "POST"), "Opening notifications must preserve music caches and in-flight catalog loads")
     }
     @MainActor func testListCacheIsFilterScopedAndClearedOnMutationAndAccountChange() async throws {
         let config = URLSessionConfiguration.ephemeral; config.protocolClasses = [MockURLProtocol.self]
@@ -379,6 +381,9 @@ final class Android143ParityTests: XCTestCase {
         XCTAssertNil(api.peek("/api/catalog?section=albums"))
         _ = try await api.call("/api/catalog?section=albums")
         XCTAssertEqual(requests, 2)
+        _ = try await api.call("/api/notifications/read", method: "POST", body: ["through": 55])
+        _ = try await api.call("/api/catalog?section=tracks")
+        XCTAssertEqual(requests, 3, "Reading notifications does not force music to download again")
         _ = try await api.call("/api/tracks/song/like", method: "PUT")
         XCTAssertNil(api.peek("/api/catalog?section=tracks"))
         _ = try await api.call("/api/catalog?section=tracks")

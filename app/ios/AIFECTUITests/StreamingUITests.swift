@@ -175,9 +175,61 @@ final class StreamingUITests: XCTestCase {
         app.buttons["‹ 내 크루로 돌아가기"].tap()
         XCTAssertTrue(app.buttons["crew-section-작품"].waitForExistence(timeout: 5))
     }
+    @MainActor private func expectActivityUnread(_ app: XCUIApplication, _ count: Int) {
+        let value = count > 0 ? "읽지 않음 \(count)개" : "읽지 않음 없음"
+        let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: app.buttons["inbox-filter-알림"])
+        XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed)
+    }
+    @MainActor func testEnteringNotificationsReadsAllPagesAndUpdatesBadge() {
+        let app = launch(["-notification-auto-read"])
+        app.buttons["main-tab-3"].tap()
+        expectActivityUnread(app, 55)
+        app.buttons["inbox-filter-알림"].tap()
+        expectActivityUnread(app, 0)
+        XCTAssertFalse(app.buttons["읽음"].exists)
+        XCTAssertFalse(app.staticTexts["NEW"].exists)
+        let more = app.buttons["이전 알림 더 보기"]
+        XCTAssertTrue(more.waitForExistence(timeout: 5)); more.tap()
+        XCTAssertTrue(app.staticTexts["이전 알림 가수"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["NEW"].exists, "Read-through covers records outside the first page")
+        capture(app, "build21-notifications-auto-read")
+        app.buttons["inbox-filter-전체"].tap()
+        XCTAssertTrue(app.staticTexts["채팅 테스트"].waitForExistence(timeout: 5))
+        app.buttons["inbox-filter-알림"].tap()
+        expectActivityUnread(app, 0)
+        XCTAssertFalse(app.staticTexts["NEW"].exists)
+    }
+    @MainActor func testNotificationReadFailurePreservesUnreadAndCanRetry() {
+        let app = launch(["-notification-auto-read", "-notification-read-failure"])
+        app.buttons["main-tab-3"].tap()
+        expectActivityUnread(app, 55)
+        app.buttons["inbox-filter-알림"].tap()
+        let retry = app.buttons["다시 시도"]
+        XCTAssertTrue(retry.waitForExistence(timeout: 8))
+        expectActivityUnread(app, 55)
+        XCTAssertTrue(app.staticTexts["NEW"].firstMatch.exists)
+        retry.tap()
+        expectActivityUnread(app, 0)
+        XCTAssertFalse(app.staticTexts["NEW"].exists)
+        XCTAssertFalse(retry.exists)
+    }
+    @MainActor func testNotificationReadKeepsLaterArrivalUnreadUntilReentry() {
+        let app = launch(["-notification-auto-read", "-notification-new-arrival"])
+        app.buttons["main-tab-3"].tap()
+        expectActivityUnread(app, 55)
+        app.buttons["inbox-filter-알림"].tap()
+        expectActivityUnread(app, 1)
+        XCTAssertFalse(app.staticTexts["NEW"].exists)
+        app.buttons["inbox-filter-전체"].tap()
+        app.buttons["inbox-filter-알림"].tap()
+        expectActivityUnread(app, 0)
+    }
     @MainActor func testCommentNotificationsShowCorrectMessageAndOpenOriginalSong() {
         let app = launch(["-notification-kinds"])
-        app.buttons["main-tab-3"].tap(); app.buttons["inbox-filter-알림"].tap()
+        XCTAssertTrue(app.staticTexts["mini-player-lyric"].waitForExistence(timeout: 10))
+        app.buttons["main-tab-3"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["inbox-filter-알림"].waitForExistence(timeout: 8))
+        app.buttons["inbox-filter-알림"].tap()
         XCTAssertTrue(app.staticTexts["내 음악에 댓글을 남겼어요."].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["내 듀엣에 참여했어요."].exists)
         capture(app, "build20-comment-notification")

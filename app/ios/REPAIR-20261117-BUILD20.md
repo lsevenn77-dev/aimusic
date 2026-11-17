@@ -39,7 +39,7 @@
 - 연결된 iPhone 12에 업데이트 설치 성공. `devicectl device info apps`가 1.0.7 / 20을 반환했다. 기존 앱 데이터는 유지한다.
 - 처음 실행 명령은 `Locked` 오류를 반환했다. 사용자 잠금 해제 후 `devicectl` 실행 성공(PID 1259)을 확인했다. 실기기 음질/연속 송출 검증은 별도로 남아 있다.
 - 웹 v801(`b815006d8d8961cd3bc452d4b42fa5d0314cc67b`)의 추가 변경을 충돌 없이 합친 후 전체 2,148개 검사 중 2,146개 통과 / 2개 기존 skip / 실패 0. 빌드와 격리된 공개 경로 검사, `release:check` 통과.
-- 별도 Cloudflare Worker는 Wrangler 인증이 없어 배포 대기 중이다. 전체 재송출 수정이 운영에서 검증됐다고 간주하지 않는다.
+- 별도 Cloudflare Worker 인증 승인과 배포를 완료했다. 아래 버전과 응답 확인 결과를 기록한다. 운영 SFU 연속 송출의 실사용 음질 검증은 남아 있다.
 
 ### 공용 웹 게시 완료
 
@@ -49,4 +49,5 @@
 - 실제 도메인: https://aifect.co.kr . Sites URL: https://wavv-music-design-lseve.sassy-auk-0975.chatgpt.site . 기존 공개 범위 유지, DB migration 없음.
 - 최초 아카이브는 원본 dist와 dist/client 자산이 중복되어 expanded 256 MiB 제한으로 거절됐다. 검증한 dist/client·dist/server·dist/.openai만 별도 staging에 그대로 복사한 후 공식 package-site 도구로 172.4 MiB 실행 산출물을 포장했다. 검증한 소스/빌드의 fingerprint는 변하지 않았다.
 - `release:verify`는 최초 전파 중 origin revision 불일치 후, Cafe24 shell 동기화가 완료된 상태에서 재검사 통과. 정확한 renderer revision·client bundle·공개 곡·익명 음원 HEAD·ads.txt·익명 MCP 거부를 확인했다. 설치된 AIFECT 관리자 플러그인의 인증된 읽기 조회도 성공했다.
-- 별도 `aifect-voice-rooms` Worker 수정은 위 웹 게시에 포함되어 배포되지 않는다. 원본에는 저장됐지만 Cloudflare 인증 승인 후 별도 배포가 필요하다.
+- 별도 `aifect-voice-rooms` Worker는 사용자 승인 후 Wrangler로 2026-11-17 14:51 KST 배포 완료. 버전 `cd02117f-def8-48f0-b266-97c8cb3c13a7`에 트래픽 100% 적용을 확인했다. 이전 버전은 `e2400bca-dd76-43de-a127-235f4adbfdb8`이다.
+- Workers URL의 GET은 예상대로 405, 서명 없는 POST는 401을 반환했다. 기존 D1·Durable Object·비밀 설정 연결은 유지했으며 DB migration을 실행하지 않았다. 이것은 실제 마이크·SFU 음성의 종단간 검증을 대신하지 않는다.
