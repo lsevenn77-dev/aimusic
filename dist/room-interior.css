@@ -291,7 +291,7 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
     /* The root keeps its measured viewport. Only the stage/chat row is capped. */
     & #voice-content { max-height: var(--room-panel-max); }
     &[data-room-pc-controls] {
-      --room-column: clamp(230px, 36.5%, 540px);
+      --room-column: clamp(240px, 36.5%, 540px);
       --room-gap: clamp(14px, 1.5vw, 26px);
       --room-tracks: minmax(0,1fr) var(--room-column);
       --room-visible: var(--voice-viewport, 100dvh);
