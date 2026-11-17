@@ -7,6 +7,8 @@
  try{root.toggleAttribute('data-mobile-topbar-collapsed',localStorage.getItem('aifect-mobile-topbar-collapsed')==='1');}catch{}
  root.dataset.renderState='loading';
  let epoch=0,timer,expired=false,assetsFailed=false,retry=null,cancel=null,initialized=false;
+ let readyRetry=null,pendingTarget=null,pendingTargetURL=null;
+ function clearReadyRetry(){clearTimeout(readyRetry);readyRetry=null;pendingTarget=null;pendingTargetURL=null;}
  const state=()=>root.dataset.renderState;
  function mount(){
   const message=document.getElementById('route-pending-message');
@@ -20,11 +22,20 @@
  }
  function fail(id=epoch){
   if(id!==epoch||state()==='error')return;
-  expired=true;clearTimeout(timer);cancel?.();
+  expired=true;clearTimeout(timer);clearReadyRetry();cancel?.();
   root.dataset.renderState='error';mount();
  }
  // CSS :target tracks URL changes before hashchange callbacks can run.
  // Keep this hidden marker ahead of page IDs; it never participates in layout.
+ function retarget(target){
+  if(target.matches(':target'))return true;
+  // WKWebView finishes same-fragment navigation after its native policy callback.
+  // Request it once, then wait for :target instead of continually replacing it.
+  if(pendingTarget!==target||pendingTargetURL!==location.href){
+   pendingTarget=target;pendingTargetURL=location.href;location.replace(location.href);
+  }
+  return target.matches(':target');
+ }
  function syncTarget(){
   const marker=document.querySelector?.('[data-render-target]');
   if(!marker)return true;
@@ -39,14 +50,25 @@
   const tabTarget=[...(document.querySelectorAll?.('[data-play-route-target],[data-community-route-target],[data-mypage-route-target],[data-chart-route-target],[data-dm-route-target]')||[])].find(target=>target.id===targetId);
   if(tabTarget){
    if(marker.id)marker.removeAttribute('id');
-   if(!tabTarget.matches(':target'))location.replace(location.href);
-   return tabTarget.matches(':target');
+   return retarget(tabTarget);
   }
   marker.id=targetId;
   // Updating an ID alone does not update :target. Same-fragment replacement
   // retargets without a new history entry, document reload or hashchange event.
-  if(!marker.matches(':target'))location.replace(location.href);
-  return marker.matches(':target');
+  return retarget(marker);
+ }
+ function ready(id){
+  if(id!==epoch||expired||assetsFailed)return;
+  if(!syncTarget()){
+   const raw=location.hash.slice(1)||'home';
+   if(document.getElementById('main')?.dataset.route===raw&&readyRetry===null){
+    readyRetry=setTimeout(()=>{readyRetry=null;ready(id);},16);
+   }
+   return;
+  }
+  clearTimeout(timer);clearReadyRetry();cancel=null;initialized=true;
+  root.dataset.renderState='ready';mount();
+  document.getElementById('main')?.removeAttribute('aria-busy');
  }
  function arm(){clearTimeout(timer);timer=setTimeout(()=>fail(epoch),20000);}
  window.AifectRender={
@@ -54,18 +76,13 @@
   syncTarget,
   connect(callback){retry=callback;},
   begin(raw,previous,onTimeout,options={}){
-   ++epoch;expired=false;cancel=onTimeout;
+   ++epoch;clearReadyRetry();expired=false;cancel=onTimeout;
    // Retention is opt-in by a router that can update an already mounted shell.
    // It never reveals incomplete bootstrap or bypasses a previous failure.
    if(state()!=='ready'||raw!==previous&&!options.retain){root.dataset.renderState='loading';mount();}
    arm();return epoch;
   },
-  ready(id){
-   if(id!==epoch||expired||assetsFailed||!syncTarget())return;
-   clearTimeout(timer);cancel=null;initialized=true;
-   root.dataset.renderState='ready';mount();
-   document.getElementById('main')?.removeAttribute('aria-busy');
-  },
+  ready,
   fail
  };
  // A missing/invalid bundle or stylesheet cannot leave an indefinite skeleton.

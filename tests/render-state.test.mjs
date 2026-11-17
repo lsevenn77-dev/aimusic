@@ -3,16 +3,16 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync('dist/render-state.js','utf8');
-function boot({marker=null,playTargets=[],communityTargets=[],mypageTargets=[],chartTargets=[],hash='#home',route='home'}={}){
- const handlers=new Map(),timers=new Map(),nodes=new Map();let sequence=0,reloads=0,replacements=0;
+function boot({deferRetarget=false,marker=null,playTargets=[],communityTargets=[],mypageTargets=[],chartTargets=[],hash='#home',route='home'}={}){
+ const handlers=new Map(),timers=new Map(),nodes=new Map();let sequence=0,reloads=0,replacements=0;const pendingTargets=[];
  const root={dataset:{},toggleAttribute(name,on){this[name]=on;}},main={dataset:{route},inert:false,setAttribute(){},removeAttribute(){}};
  for(const id of ['route-pending-message','route-pending-actions','route-retry'])nodes.set(id,{});nodes.set('main',main);
- const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;const allTargets=[...playTargets,...communityTargets,...mypageTargets,...chartTargets],playTarget=allTargets.find(target=>'#'+target.id===location.hash);if(marker)marker.targeted=!playTarget;for(const target of allTargets)target.targeted=target===playTarget;}};
+ const location={hash,pathname:'/',search:'',href:'https://aifect.test/'+hash,reload(){reloads++;},replace(){replacements++;const allTargets=[...playTargets,...communityTargets,...mypageTargets,...chartTargets],playTarget=allTargets.find(target=>'#'+target.id===location.hash);const apply=()=>{if(marker)marker.targeted=!playTarget;for(const target of allTargets)target.targeted=target===playTarget;};if(deferRetarget)pendingTargets.push(apply);else apply();}};
  const history={state:{retained:true},replaceState(state,title,url){this.state=state;location.href='https://aifect.test'+url;location.hash=url.slice(url.indexOf('#'));}};
  const targetGroups=[['[data-play-route-target]',playTargets],['[data-community-route-target]',communityTargets],['[data-mypage-route-target]',mypageTargets],['[data-chart-route-target]',chartTargets]];
- const context=vm.createContext({URLSearchParams,document:{documentElement:root,getElementById:id=>nodes.get(id),querySelector:()=>marker,querySelectorAll:selector=>targetGroups.filter(([key])=>selector.split(',').map(part=>part.trim()).includes(key)).flatMap(([,targets])=>targets)},location,history,window:{addEventListener(name,fn){handlers.set(name,fn);}},setTimeout(fn){const id=++sequence;timers.set(id,fn);return id;},clearTimeout(id){timers.delete(id);}});
+ const context=vm.createContext({URLSearchParams,document:{documentElement:root,getElementById:id=>nodes.get(id),querySelector:()=>marker,querySelectorAll:selector=>targetGroups.filter(([key])=>selector.split(',').map(part=>part.trim()).includes(key)).flatMap(([,targets])=>targets)},location,history,window:{addEventListener(name,fn){handlers.set(name,fn);}},setTimeout(fn,delay){const id=++sequence;timers.set(id,{fn,delay});return id;},clearTimeout(id){timers.delete(id);}});
  vm.runInContext(source,context);const api=context.window.AifectRender;
- return {api,root,main,nodes,handlers,location,history,win:context.window,get replacements(){return replacements;},tick(){const tasks=[...timers.values()];timers.clear();tasks.forEach(fn=>fn());},get reloads(){return reloads;},get timers(){return timers.size;}};
+ return {api,root,main,nodes,handlers,location,history,win:context.window,get replacements(){return replacements;},tick(){const tasks=[...timers.values()];timers.clear();tasks.forEach(({fn})=>fn());},commitTarget(){pendingTargets.splice(0).forEach(fn=>fn());},retryTarget(){for(const [id,{fn,delay}] of [...timers])if(delay===16){timers.delete(id);fn();}},get reloads(){return reloads;},get timers(){return timers.size;}};
 }
 test('head establishes loading before any body or application request',()=>{
  const c=boot();assert.equal(c.root.dataset.renderState,'loading');c.api.mount();assert.equal(c.main.inert,true);
@@ -166,4 +166,30 @@ test('browser resize delivery notices during bootstrap do not mask a valid route
   const c=boot(),epoch=c.api.begin('home','',()=>{});c.handlers.get('error')({target:c.win,message,error:null});c.api.ready(epoch);assert.equal(c.root.dataset.renderState,'ready');
  }
  const c=boot();c.handlers.get('error')({target:c.win,message:'Uncaught TypeError',error:new TypeError('bad bootstrap')});assert.equal(c.root.dataset.renderState,'error');
+});
+
+
+test('WebKit delayed fragment navigation reveals the completed route without another render',()=>{
+ for(const tab of [false,true]){
+  const marker={id:'',targeted:false,matches(){return this.targeted;},removeAttribute(){this.id='';}};
+  const page={...marker,id:'crew-jump/preview'},c=boot({marker,deferRetarget:true,playTargets:tab?[page]:[],hash:'#crew-jump/preview',route:'crew-jump/preview'});
+  const epoch=c.api.begin('crew-jump/preview','home',()=>{});
+  c.api.ready(epoch);c.api.ready(epoch);
+  assert.equal(c.root.dataset.renderState,'loading');assert.equal(c.main.inert,true);
+  c.retryTarget();assert.equal(c.replacements,1,'pending native navigation must not be restarted');
+  c.commitTarget();c.retryTarget();
+  assert.equal(c.root.dataset.renderState,'ready');assert.equal(c.main.inert,false);assert.equal(c.timers,0);
+ }
+});
+
+test('delayed fragment completion cannot reveal a newer route or undo a timeout',()=>{
+ const marker={id:'',targeted:false,matches(){return this.targeted;}};
+ const c=boot({marker,deferRetarget:true,hash:'#crew-jump/preview',route:'crew-jump/preview'});
+ const old=c.api.begin('crew-jump/preview','home',()=>{});c.api.ready(old);
+ c.location.hash='#home';c.location.href='https://aifect.test/#home';
+ c.api.begin('home','crew-jump/preview',()=>{});
+ c.commitTarget();c.retryTarget();c.api.ready(old);
+ assert.equal(c.root.dataset.renderState,'loading');assert.equal(c.main.inert,true);
+ c.tick();c.commitTarget();c.retryTarget();
+ assert.equal(c.root.dataset.renderState,'error');assert.equal(c.timers,0);
 });
