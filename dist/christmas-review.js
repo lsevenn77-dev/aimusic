@@ -1,12 +1,12 @@
-// The review URL affects presentation in this tab only. The server still owns room themes.
+// Present the seasonal backdrop in rooms using the built-in skins.
 (() => {
-  if (new URLSearchParams(location.search).get('themePreview') !== 'christmas-v61') return;
   if (window.Capacitor?.isNativePlatform?.()) return;
 
   const root = '/assets/themes/christmas-v61/';
   const landscape = matchMedia('(min-width: 801px) and (min-height: 480px) and (orientation: landscape)');
   const portrait = matchMedia('(orientation: portrait)');
-  const enabled = () => authConfig?.admin === true;
+  const isBasic = sku => sku === 'basic_dark' || sku === 'basic_light';
+  const roomSkin = room => room?.theme?.sku || room?.theme_sku || room?.background;
   const widths = [256, 512, 768, 1024, 1254];
   const srcset = widths.map(w => root + 'assets/christmas-tree-card-' + w + '.webp ' + w + 'w').join(', ');
   const blank = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
@@ -19,9 +19,8 @@
     if (cover) (cover.closest('[data-christmas-shop]') || cover).remove();
   }, true);
 
-  function bindRoom(host, signal) {
-    if (!enabled()) return;
-    let fx, generation = 0, skin, maskFrame = 0;
+  function bindRoom(host, signal, room) {
+    let fx, generation = 0, skin = roomSkin(room), maskFrame = 0;
     const protectedNodes = host.querySelectorAll('.room-header,.voice-chat-panel,#voice-music-player,.talk-central,#live-current');
     const refreshMask = () => {
       if (!fx?.ready || maskFrame) return;
@@ -44,6 +43,7 @@
     }
     async function sync() {
       clear();
+      if (!isBasic(skin)) return;
       if (!landscape.matches) {
         if (portrait.matches) host.dataset.themeAssetState = 'portrait-source-required';
         return;
@@ -79,9 +79,11 @@
     window.addEventListener('aifect:room-theme', event => {
       const room = event.detail?.room;
       if (room?.id !== host.dataset.voiceRoom) return;
-      const next = room.theme_sku || room.background || room.theme?.sku;
-      if (skin && next && skin !== next) end();
-      if (next) skin = next;
+      const next = roomSkin(room);
+      if (!next || skin === next) return;
+      const needsSync = isBasic(next) !== isBasic(skin);
+      skin = next;
+      if (needsSync) void sync();
     }, options);
     host.addEventListener('focusin', event => {
       if (fx?.w && event.target.matches('input,textarea,[contenteditable="true"]')) fx.setLayoutLock({width:fx.w, height:fx.h});
@@ -98,8 +100,8 @@
   }
   globalThis.AifectChristmasReview = {
     bindRoom, landscape,
-    roomArt: () => enabled() ? picture('af-review-cover') : '',
-    shopCard: () => enabled() ? '<article class="shop-card" data-christmas-shop data-shop-category="themes" data-shop-name="크리스마스 테마"><div class="shop-card-select">' +
-      picture('af-review-shop-art') + '<strong class="shop-card-name">크리스마스 테마</strong></div><small>운영자 미리보기</small></article>' : ''
+    roomArt: room => isBasic(roomSkin(room) || 'basic_dark') ? picture('af-review-cover') : '',
+    shopCard: () => '<article class="shop-card" data-christmas-shop data-shop-category="themes" data-shop-name="크리스마스 테마"><div class="shop-card-select">' +
+      picture('af-review-shop-art') + '<strong class="shop-card-name">크리스마스 테마</strong></div><small>기본 방에 시즌 적용</small></article>'
   };
 })();
