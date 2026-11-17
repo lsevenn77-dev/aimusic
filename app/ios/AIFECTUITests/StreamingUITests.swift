@@ -138,6 +138,28 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(web.buttons["계속하기"].firstMatch.waitForExistence(timeout: 5), app.debugDescription)
         capture(app, "iphone12-real-jump-paused")
     }
+    // Start scripts/jump-site-fixture.mjs against the current web checkout first.
+    @MainActor func testJumpEntryThroughAuthenticatedSiteShell() {
+        let app = launch(["-crew-parity", "-workspace-test-url", "http://127.0.0.1:4188/preview"])
+        app.buttons["main-tab-1"].tap()
+        app.buttons["크루"].firstMatch.tap()
+        let game = app.buttons["crew-weekly-game-banner"]
+        XCTAssertTrue(game.waitForExistence(timeout: 10)); game.tap()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 15))
+        let practice = web.buttons["연습하기 · 랭킹 미반영"]
+        // Check visible, interactive content, not just text hidden behind the
+        // site's render-state gate. WKWebView completes fragment policy asynchronously.
+        XCTAssertTrue(practice.waitForExistence(timeout: 15), app.debugDescription)
+        for _ in 0..<7 { if practice.isHittable { break }; web.swipeUp() }
+        XCTAssertTrue(practice.isHittable)
+        capture(app, "iphone12-authenticated-jump-lobby")
+        practice.tap()
+        // Let this isolated practice run reach its first obstacle. Waiting for
+        // idle before a pause tap can race the continuously animating game.
+        XCTAssertTrue(web.buttons["다시 연습"].firstMatch.waitForExistence(timeout: 25), app.debugDescription)
+        capture(app, "iphone12-authenticated-jump-practice-result")
+    }
     @MainActor func testChartSwipesAndRetainsPositionAcrossTabs() {
         let app = launch(["-home-density", "-chart-swipe"])
         let chartTab = app.buttons["home-section-인기 차트"]
