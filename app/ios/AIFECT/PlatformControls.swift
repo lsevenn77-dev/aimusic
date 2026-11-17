@@ -188,6 +188,46 @@ struct WorkspaceBrowser: UIViewRepresentable {
             window.webkit.messageHandlers.roomOverlay.postMessage(path);
         }, true);
         """
+    // Older site shells call ready before WKWebView completes same-fragment
+    // navigation. Retry that exact ready request only after its URL target is
+    // active. The site's epoch, asset-error and timeout checks still own reveal.
+    static let gameRenderCompatibilityScript = """
+        (() => {
+            const gate = window.AifectRender;
+            if (!gate || gate.nativeTargetRetry || typeof gate.ready !== 'function' || typeof gate.begin !== 'function') return;
+            const originalReady = gate.ready, originalBegin = gate.begin, originalFail = gate.fail;
+            let generation = 0, timer = null, activeEpoch = null;
+            const cancel = () => { ++generation; clearTimeout(timer); timer = null; };
+            const route = () => location.hash.slice(1) || 'home';
+            const loading = raw => document.documentElement.dataset.renderState === 'loading'
+                && route() === raw && document.getElementById('main')?.dataset.route === raw;
+            gate.begin = function(...args) { cancel(); activeEpoch = originalBegin.apply(this, args); return activeEpoch; };
+            if (typeof originalFail === 'function') gate.fail = function(...args) {
+                if (activeEpoch !== null && args[0] !== undefined && args[0] !== activeEpoch) return originalFail.apply(this, args);
+                cancel(); return originalFail.apply(this, args);
+            };
+            gate.ready = function(...args) {
+                if (activeEpoch !== null && args[0] !== activeEpoch) return originalReady.apply(this, args);
+                cancel();
+                const result = originalReady.apply(this, args), raw = route(), current = generation, receiver = this;
+                if (!loading(raw)) return result;
+                const resume = () => {
+                    timer = null;
+                    if (current !== generation || window.AifectRender !== gate || !loading(raw)) return;
+                    const targets = document.querySelectorAll('[data-render-target],[data-play-route-target],[data-community-route-target],[data-mypage-route-target],[data-chart-route-target],[data-dm-route-target]');
+                    if ([...targets].some(target => target.matches(':target'))) {
+                        originalReady.apply(receiver, args);
+                        return;
+                    }
+                    timer = setTimeout(resume, 16);
+                };
+                timer = setTimeout(resume, 16);
+                return result;
+            };
+            gate.nativeTargetRetry = true;
+            window.addEventListener('pagehide', cancel, {once: true});
+        })();
+        """
     static let gameCSS = """
         :root { color-scheme:dark; --sidebar:0px }
         html,body { margin:0; padding:0; max-width:100%; overscroll-behavior:none }
@@ -211,6 +251,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
         config.userContentController.addUserScript(WKUserScript(source: Self.roomOverlayScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         config.applicationNameForUserAgent = "AIFECT-Mobile/" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
         if space.area.hasPrefix("game/") {
+            config.userContentController.addUserScript(WKUserScript(source: Self.gameRenderCompatibilityScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
             let style = """
                 (() => {
                     const css = document.createElement('style'); css.id = 'aifect-native-game';

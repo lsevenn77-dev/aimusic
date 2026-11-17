@@ -203,6 +203,31 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(web.buttons["다시 연습"].firstMatch.waitForExistence(timeout: 25), app.debugDescription)
         capture(app, "iphone12-authenticated-jump-practice-result")
     }
+    // Explicit opt-in only: uses the phone's existing session and unranked
+    // practice. No fixture login, official attempt, scores or account writes.
+    @MainActor func testDeviceJumpPracticeWithExistingAccount() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["AIFECT_DEVICE_LIVE_JUMP"] == "1")
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launch()
+        if app.buttons["onboarding-skip"].waitForExistence(timeout: 3) { app.buttons["onboarding-skip"].tap() }
+        XCTAssertTrue(app.buttons["main-tab-1"].waitForExistence(timeout: 20))
+        app.buttons["main-tab-1"].tap()
+        XCTAssertTrue(app.buttons["크루"].firstMatch.waitForExistence(timeout: 10))
+        app.buttons["크루"].firstMatch.tap()
+        let game = app.buttons["crew-weekly-game-banner"]
+        XCTAssertTrue(game.waitForExistence(timeout: 20)); game.tap()
+        let web = app.webViews.firstMatch
+        let practice = web.buttons["연습하기 · 랭킹 미반영"]
+        XCTAssertTrue(practice.waitForExistence(timeout: 25))
+        for _ in 0..<7 { if practice.isHittable { break }; web.swipeUp() }
+        XCTAssertTrue(practice.isHittable)
+        capture(app, "device-live-jump-lobby")
+        practice.tap()
+        XCTAssertTrue(web.buttons["다시 연습"].firstMatch.waitForExistence(timeout: 30))
+        capture(app, "device-live-jump-practice-result")
+    }
     @MainActor func testChartSwipesAndRetainsPositionAcrossTabs() {
         let app = launch(["-home-density", "-chart-swipe"])
         let chartTab = app.buttons["home-section-인기 차트"]
