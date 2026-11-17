@@ -4,6 +4,7 @@
   const main = document.querySelector('#main, .legal-content');
   const footer = document.querySelector('.page-wrap > .page-footer, .legal-site > .page-footer');
   if (!main || !footer) return;
+  const footerSlot = document.createComment('page footer');
   const overlays = [...document.querySelectorAll('.player, .mobile-navigation, .social-mobile-navigation')];
   const header = document.querySelector('.topbar, .legal-header');
   const set = (element, name, value) => {
@@ -13,6 +14,14 @@
   function align() {
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
+      // Hash routes share one shell. Detach the same footer even during room entry.
+      const route = main.dataset.route || location.hash.slice(1);
+      if (main.id === 'main' && /^(voice|live)\/[^/?#]+/.test(route)
+          && typeof roomUsesDesktopControls === 'function' && roomUsesDesktopControls()) {
+        if (footer.isConnected) footer.replaceWith(footerSlot);
+        return;
+      }
+      if (footerSlot.isConnected) footerSlot.replaceWith(footer);
       const fullscreen = main.hasAttribute('data-room-focus') || footer.parentElement.hasAttribute('data-room-focus')
         || /^sing\//.test(main.dataset.route || '') || !!main.querySelector('#sing.web-studio, .dubbing-record-layout, .voice-room.talking-room');
       if (fullscreen) {

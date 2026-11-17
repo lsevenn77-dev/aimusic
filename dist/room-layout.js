@@ -1,4 +1,8 @@
 // Room geometry has one owner. Width fixes the stage; only the transcript flexes.
+function roomUsesDesktopControls(){
+ return !!window.matchMedia?.('(min-width:801px) and (hover:hover) and (pointer:fine)')?.matches
+  && !window.Capacitor?.isNativePlatform?.();
+}
 function bindRoomViewport(client){
  client.roomLayoutEvents?.abort();client.roomResizeObserver?.disconnect();
  const events=client.roomLayoutEvents=new AbortController(),options={signal:events.signal};
@@ -23,7 +27,6 @@ function bindRoomViewport(client){
   if(gift||button.type==='submit')button.innerHTML=roomFilledIcon(gift?'gift':'send');
  }
  const shell=[...document.querySelectorAll('.topbar,.mobile-navigation,#player,.player')];
- const desktop=window.matchMedia?.('(min-width:801px) and (hover:hover) and (pointer:fine)');
  const write=(node,key,value)=>{if(node?.style.getPropertyValue(key)!==value)node?.style.setProperty(key,value);};
  const measure=()=>{
   client.roomLayoutFrame=0;if(client.closed||!room.isConnected)return;
@@ -46,7 +49,7 @@ function bindRoomViewport(client){
   if(!mobile)start=Math.max(start,box.top);
   write(main,'--voice-top',start+'px');
   write(room,'--voice-viewport',Math.max(0,end-start)+'px');
-  const pc=!!desktop?.matches&&!window.Capacitor?.isNativePlatform?.();
+  const pc=roomUsesDesktopControls();
   room.toggleAttribute?.('data-room-pc-controls',pc);
   if(pc)write(room,'--room-display-ratio',String(window.devicePixelRatio || 1));
   if(composerHeight)write(room,'--room-composer',composerHeight+'px');

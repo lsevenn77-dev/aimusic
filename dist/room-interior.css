@@ -244,9 +244,6 @@
 }
 body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast { --ds-text: #171a2c; --ds-body: #303344; --ds-progress: #326858; color: var(--ds-text)!important; background: rgb(250 249 253 / .96)!important; border-color: rgb(99 101 128 / .29); }
 @media(min-width:801px) {
-  /* The live room also has a scrollable site footer. Keep its scrollbar gutter
-     out of the shared room width, while leaving the page and transcript scrollable. */
-  html:has(#main[data-room-entered] > .voice-room[data-room-pc-controls]) { scrollbar-width: none; }
   #main[data-room-entered]:has(> .voice-room[data-room-design]) { --main-frame-max: none; --main-frame-gutter: 0px; --main-frame-top: 0px; width: 100%; max-width: none; margin: 0; padding: 0; }
   #main[data-room-entered] .voice-room[data-voice-room][data-room-design] {
     --room-column: clamp(272px, 35.25%, 620px);
@@ -297,15 +294,17 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
       --room-tracks: minmax(0,1fr) var(--room-column);
       --room-visible: var(--voice-viewport, 100dvh);
       --af-room-bottom-gap: 140px;
-      --room-content-min: 510px;
-      --room-lyric: 22px;
-      min-height: var(--room-content-min);
+      --room-content-min: 550px;
+      --room-lyric: 24px;
+      --room-lyric-line: 40px;
+      --room-count-space: calc(18px + 15px + 20px);
+      min-height: 0;
       /* Keep the visible gap consistent at browser zoom and give short rooms the space first. */
-      padding-block: 26px clamp(0px, calc(var(--room-visible) - var(--room-content-min)), calc(var(--af-room-bottom-gap) / var(--room-display-ratio, 1)));
+      padding-block: 28px clamp(0px, calc(var(--room-visible) - var(--room-content-min)), calc(var(--af-room-bottom-gap) / var(--room-display-ratio, 1)));
       padding-inline: max(2.8%, calc((100% - 1540px) / 2)) max(1.3%, calc((100% - 1540px) / 2));
       & .room-header {
         grid-template-columns: var(--room-tracks);
-        min-height: 40px; margin-bottom: clamp(4px, .65vh, 8px);
+        min-height: 42px; margin-bottom: 18px;
       }
       & .room-heading {
         display: grid; grid-template-columns: minmax(0,min(48%,16rem)) max-content max-content;
@@ -313,7 +312,7 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
       }
       & .room-heading .room-meta { display: contents; }
       & .room-heading h1 {
-        --pc-font-page: clamp(23px,1.6vw,24px);
+        --pc-font-page: 24px;
         display: block; font-size: var(--pc-font-page); font-weight: 700; line-height: 1.25;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
@@ -344,32 +343,57 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
       & .live-request-area { height: 88px; min-height: 88px; grid-template-columns: minmax(0,1fr) auto; }
       & .live-request-area #live-queue { grid-area: 1 / 1; }
       & .live-request-area .live-request-button { grid-area: 1 / 2; height: 44px; min-height: 44px; font-size: 15px; }
+      & .live-request-area .live-request-button strong { font-size: 15px; }
       & #live-queue .room-empty-order { width: 38px; height: 38px; font-size: 15px; }
       & #live-queue > li { --room-avatar-slot: 40px; --room-queue-photo: 38px; }
       & #live-queue strong { font-size: 15px; }
       & #live-queue li strong { display: flex; align-items: center; justify-content: center; }
       & #live-queue li strong > span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
       & #live-timer { font-size: 14px; font-variant-numeric: tabular-nums; }
+      /* The frame and its animated layer share a centered canvas 1.5 times the portrait. */
+      & #live-current { padding-top: calc(var(--room-singer) / 4); }
+      & #live-current strong { font-size: 17px; font-weight: 600; line-height: 24px; margin-top: calc(var(--room-singer) / 4 + 10px); }
+      & #live-current strong > span:last-child { white-space: nowrap; }
       & .live-stage-main #live-lyrics {
-        height: 144px; grid-template-rows: repeat(4,36px);
-        width: 100%; min-width: 0; margin-top: max(22px,var(--singer-lyrics-gap,16px));
+        height: calc(4 * var(--room-lyric-line)); grid-template-rows: repeat(4,var(--room-lyric-line));
+        width: 100%; min-width: 0; margin-top: var(--room-count-space);
       }
-      & #live-lyrics p, & #live-lyrics p.is-current { line-height: 36px; }
-      /* Zoom reduces the available CSS height. Keep four equal lines clear of the clock. */
+      & #live-lyrics p, & #live-lyrics p.is-current { line-height: var(--room-lyric-line); }
+      & .live-stage-main {
+        overflow-y: auto; overscroll-behavior-y: contain; scrollbar-width: thin;
+        padding: clamp(8px,2.4vh,32px) 12px 6px;
+      }
+      & .live-stage-main .live-song-progress {
+        position: static; align-self: stretch; flex: none; width: auto; margin-top: auto; padding-top: 6px;
+      }
       @media (max-height: 820px) {
+        --room-lyric: 22px; --room-lyric-line: 38px;
         & .live-stage-main { padding-top: 8px; }
-        & #live-current strong { margin-top: 4px; }
+      }
+      @media (max-height: 770px) {
+        & .live-stage-main { padding-block: 2px; }
+        & #live-current strong { margin-top: calc(var(--room-singer) / 4 + 8px); }
+        & .live-stage-main .live-song-progress { padding-top: 2px; }
+      }
+      @media (max-height: 600px) {
+        padding-top: 12px;
+        & .room-header { margin-bottom: 14px; }
+        & #voice-seats {
+          min-height: 0; overflow-y: auto; overscroll-behavior-y: contain;
+          grid-template-rows: repeat(2,minmax(calc(var(--room-seat) + var(--seat-caption)),1fr));
+          align-content: start; padding-block: 4px;
+        }
       }
       /* Use the existing space between singer and lyrics without moving either. */
       & #live-countdown.live-countdown:not([hidden]) {
         position: relative; inset: auto; translate: none; transform: none;
         align-self: center; flex: 0 0 0; width: max-content; height: 0; min-height: 0;
         padding: 0; margin: 0; border: 0; background: none; box-shadow: none;
-        overflow: visible; display: flex; align-items: flex-start; gap: 8px;
+        overflow: visible; display: flex; align-items: flex-start; gap: 9px;
       }
       & #live-countdown :is(svg,strong) { display: none; }
       & #live-countdown .live-start-dot {
-        display: block; width: 11px; height: 11px; margin-top: 5px; border-radius: 50%;
+        display: block; width: 15px; height: 15px; margin-top: 18px; border-radius: 50%;
         background: var(--ds-lavender); transition: opacity 160ms linear;
       }
       & #live-countdown .live-start-dot:first-of-type { background: var(--room-mint); }
