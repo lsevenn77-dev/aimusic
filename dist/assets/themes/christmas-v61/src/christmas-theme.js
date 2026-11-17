@@ -151,6 +151,12 @@ export class AifectChristmasTheme {
       const src=this.sprites.get(name);if(!src)return null;
       const cv=document.createElement('canvas');cv.width=bw;cv.height=bh;
       const c=cv.getContext('2d');c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(src,0,0,bw,bh);
+      // High-quality downsampling can round a bokeh edge back to alpha 1/255.
+      // Enforce the transparent border once on the cached raster.
+      if(name.startsWith('bokeh-') && bw>2 && bh>2){
+        c.clearRect(0,0,bw,1);c.clearRect(0,bh-1,bw,1);
+        c.clearRect(0,1,1,bh-2);c.clearRect(bw-1,1,1,bh-2);
+      }
       this.scaled.set(key,cv);
     }
     return this.scaled.get(key);
