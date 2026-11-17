@@ -100,6 +100,8 @@
 .guide-clauses{min-width:0;max-width:86ch}.guide-clauses>p:first-child{margin-top:0}
 .guide-clauses section{scroll-margin-top:20px;border-top:1px solid var(--ds-line);padding-top:22px;margin-top:24px}
 .guide-clauses p{line-height:1.85}
+.guide-clauses>section:first-child{margin-top:0;padding-top:0;border-top:0}
+.guide-clauses>.callout{padding:14px 18px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--guide-panel);color:var(--ds-text)}
 .guide-main :is(.table-scroll,.legal-table-wrap){overflow-x:auto;overscroll-behavior-inline:contain;min-width:0;margin:14px 0;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input)}
 .guide-main table{width:100%;border-collapse:collapse;background:var(--guide-panel);text-align:left;line-height:1.7;font-size:15px}
 .guide-main :is(td,th){padding:13px 16px;vertical-align:top;border-bottom:1px solid var(--ds-line)}

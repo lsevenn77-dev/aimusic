@@ -16,15 +16,26 @@ test('privacy retains the exact effective note, complete disclosure and anchors,
   assert.ok(page.includes(date));assert.ok(page.includes('<article class="guide-clauses">'+legal+'</article>'));
   for(const [,id] of legal.matchAll(/<section id="([^"]+)"/g)) assert.ok(page.includes('href="#'+id+'"'));
 });
-test('three branded documents retain SEO, shared links and canonical current tabs; other routes keep their original',()=>{
-  for(const path of ['/privacy','/contact','/pricing']){
+test('terms and refunds retain every byte of the effective notice and policy body, including nested anchors and the refund formula',()=>{
+  for(const path of ['/terms','/refund']){
+    const src=original(path), html=render(path);
+    const [,date,body]=src.match(/<\/nav>(<p class="legal-fine">[^<]+<\/p>)([\s\S]*?)<\/main>/);
+    assert.ok(html.includes(date));
+    assert.ok(html.includes('<article class="guide-clauses">'+body+'</article>'));
+    for(const [,id] of body.matchAll(/<section id="([^"]+)"/g)){
+      assert.ok(html.includes('href="#'+id+'"'));
+    }
+  }
+});
+test('five branded documents retain SEO, shared links and canonical current tabs; other routes keep their original',()=>{
+  for(const path of ['/privacy','/contact','/pricing','/terms','/refund']){
     const src=original(path),html=guidePresentation(src,path+'/');
     assert.ok(html.includes('class="legal-site guide-page"'));
     for(const regex of [/<title>.*?<\/title>/,/<meta name="description"[^>]+>/,/<link rel="canonical"[^>]+>/,/<footer[\s\S]*?<\/footer>/])assert.ok(html.includes(src.match(regex)[0]));
     assert.ok(html.includes('href="'+path+'" aria-current="page"'));
     for(const link of links(src))assert.ok(links(html).includes(link),link);
   }
-  for (const path of ['/terms','/refund','/business','/pricing/app']) assert.equal(render(path),original(path));
+  for (const path of ['/business','/pricing/app']) assert.equal(render(path),original(path));
 });
 test('comparison discloses both channel prices without enabling recurring sales; review links are separate from real products',()=>{
   const html=render('/pricing');

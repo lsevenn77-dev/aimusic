@@ -4,7 +4,7 @@ import { WEB_GOLD_PACKS, WEB_GOLD_BONUS_PERCENT } from '../shared/gifts.js';
 import { playlistLimit } from './membership.js';
 import { uploadQuotaResult } from './upload-limits.js';
 
-const routes = new Set(['/pricing','/privacy','/contact']);
+const routes = new Set(['/pricing','/privacy','/contact','/terms','/refund']);
 export const isGuidePath = path => routes.has(path.replace(/\/$/,''));
 const arrow = icon('arrow-right');
 const money = n => n.toLocaleString('ko-KR');
@@ -13,19 +13,25 @@ const more = (label,body) => `<details class="guide-fold"><summary>${label}</sum
 const link = (href,text) => `<a class="guide-link" href="${href}">${text}${arrow}</a>`;
 const tag = text => `<span class="guide-tag">${text}</span>`;
 
-function privacy(body) {
+const privacyIndexLabels = {
+  data: '수집 항목과 처리 목적',
+  overseas: '국외 이전·처리',
+  officer: '보호책임자 및 연락처',
+};
+
+function policyDocument(body, title, {label = title, indexLabels = {}} = {}) {
   const clauses = [...body.matchAll(/<section id="([\w-]+)"><h2>([^<]+)<\/h2>/g)];
   if (!clauses.length) return null;
   const intro = body.slice(0,clauses[0].index);
   const date = intro.match(/^<p class="legal-fine">[^<]+<\/p>/)?.[0] || '';
-  const links = clauses.map(([,id,title])=>{
-    const m = title.match(/^(\d+)\. (.+)$/);
-    const name = id==='data'?'수집 항목과 처리 목적':id==='overseas'?'국외 이전·처리':id==='officer'?'보호책임자 및 연락처':m?.[2]||title;
-    return `<a href="#${id}"><span aria-hidden="true">${m?m[1].padStart(2,'0'):'＋'}</span>${esc(name)}</a>`;
+  const links = clauses.map(([,id,heading])=>{
+    const numbered = heading.match(/^(\d+)\. (.+)$/);
+    const name = indexLabels[id] ?? numbered?.[2] ?? heading;
+    return `<a href="#${id}"><span aria-hidden="true">${numbered ? numbered[1].padStart(2,'0') : '＋'}</span>${esc(name)}</a>`;
   }).join('');
   const toc = `<nav aria-label="조항 목차" class="guide-index">${links}</nav>`;
-  return {title:'개인정보처리방침',label:'개인정보',meta:date,
-    body:`<div class="guide-reading"><aside class="guide-rail"><div class="guide-desktop-toc"><h2>${icon('list-music')}조항 목차</h2>${toc}</div><details class="guide-mobile-toc"><summary>전체 목차 보기</summary>${toc}</details></aside><article class="guide-clauses">${intro.slice(date.length)}${body.slice(clauses[0].index)}</article></div>`};
+  return {title, label, meta:date,
+    body:`<div class="guide-reading"><aside class="guide-rail"><div class="guide-desktop-toc"><h2>${icon('list-music')}조항 목차</h2>${toc}</div><details class="guide-mobile-toc"><summary>전체 목차 보기</summary>${toc}</details></aside><article class="guide-clauses">${body.slice(date.length)}</article></div>`};
 }
 
 function plan(paid) {
@@ -86,11 +92,17 @@ function support() {
 export function guidePresentation(html,path) {
   path=path.replace(/\/$/,'');
   if (!routes.has(path)) return html;
-  const shell=/<header class="legal-header">(<a class="legal-brand"[\s\S]*?<\/a>)(<a href="[^"]+">[^<]+<\/a>)<\/header><main class="legal-content">[\s\S]*?<p class="legal-lead">([^<]+)<\/p>(<nav class="legal-toc"[^>]*>[\s\S]*?<\/nav>)([\s\S]*?)<\/main>/;
+  const shell=/<header class="legal-header">(<a class="legal-brand"[\s\S]*?<\/a>)(<a href="[^"]+">[^<]+<\/a>)<\/header><main class="legal-content">[\s\S]*?<h1>([^<]+)<\/h1><p class="legal-lead">([^<]+)<\/p>(<nav class="legal-toc"[^>]*>[\s\S]*?<\/nav>)([\s\S]*?)<\/main>/;
   const match=html.match(shell);
   if (!match) return html;
-  const [,brand,back,lead,nav,body]=match;
-  const page=path==='/privacy'?privacy(body):path==='/pricing'?pricing(body):support();
+  const [,brand,back,title,lead,nav,body]=match;
+  let page;
+  switch (path) {
+    case '/pricing': page = pricing(body); break;
+    case '/contact': page = support(); break;
+    case '/privacy': page = policyDocument(body, title, {label:'개인정보', indexLabels:privacyIndexLabels}); break;
+    default: page = policyDocument(body, title);
+  }
   if (!page) return html;
   const menu=nav.replace('legal-toc','guide-nav').replace(/ aria-current="page"/g,'').replace(`href="${path}"`,`href="${path}" aria-current="page"`);
   const header=`<header class="guide-header"><div class="guide-wrap guide-bar">${brand}${back.replace('<a ','<a class="guide-back" ').replace('>음악',`>${icon('headphones')}음악`)}</div></header><div class="guide-nav-shell"><div class="guide-wrap">${menu}</div></div>`;
@@ -99,7 +111,7 @@ export function guidePresentation(html,path) {
     .replace('<script defer src="/footer-layout.js"></script>','')
     .replace('<script defer src="/scroll-top.js"></script>','')
     .replace('family=Manrope:wght@200&family=Noto+Sans+KR:wght@400','family=DM+Sans:wght@400;500;600;700&amp;family=Noto+Sans+KR:wght@400;500;600;700')
-    .replace('</head>','<link rel="stylesheet" href="/ui-region-scale.css"><link rel="stylesheet" href="/guide-pages.css?v=1"><script defer src="/guide-pages.js?v=1"></script></head>')
+    .replace('</head>','<link rel="stylesheet" href="/ui-region-scale.css"><link rel="stylesheet" href="/guide-pages.css?v=2"><script defer src="/guide-pages.js?v=1"></script></head>')
     .replace('<header class="guide-header">','<header id="guide-top" class="guide-header">')
     .replace('</main>','<a class="guide-up guide-btn" href="#guide-top">↑ 맨 위로</a></main>');
 }
