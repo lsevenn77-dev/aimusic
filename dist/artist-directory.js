@@ -1,18 +1,40 @@
-// Directory and dashboard cards share visuals, retaining their own actions.
-function artistAffiliation(a,producerName=''){
- const name=a.producer_name||producerName;
- return `<p class="directory-creator artist-ui-affiliation" title="소속 ${esc(name)}"><span>소속</span> ${userNickname(name,{profileId:a.producer_id})}</p>`;
+// Both directories use the same portrait, name and information panel.
+function directoryArtistCard(artist, {management = false, owner = false} = {}) {
+ const id = esc(artist.id), name = esc(artist.name);
+ const href = '#artist/' + encodeURIComponent(artist.id);
+ const key = 'artist/' + id;
+ const details = management ? '' : `
+  <p class="artist-ui-affiliation" title="소속 ${esc(artist.producer_name)}">소속 ${userNickname(artist.producer_name,{profileId:artist.producer_id})}</p>
+  <a class="directory-followers" href="#follow?tab=artists&amp;artist=${encodeURIComponent(artist.id)}" data-followers="${key}" data-count="${Number(artist.followers)||0}">팔로워 <span data-follow-count>${number(artist.followers)}</span></a>`;
+ let actions = '';
+ if (!management) {
+  actions = `<button type="button" class="directory-follow" data-follow-presentation="profile" data-follow="${key}" aria-pressed="${followed('artist',artist.id)}">${icon('user',14)}<span data-follow-label>팔로우</span></button>`;
+ } else if (owner) {
+  actions = `<div class="directory-card-actions">
+   <button type="button" class="directory-card-action" data-directory-edit="${id}" aria-label="${name} 편집">편집</button>
+   <button type="button" class="directory-card-action" data-directory-delete="${id}" aria-label="${name} 삭제">삭제</button>
+  </div>`;
+ }
+ return `<article class="directory-artist">
+  <a class="directory-photo" href="${href}" aria-label="${name} 프로필 보기" aria-haspopup="dialog">${avatarImage(artist,'artist',false)}</a>
+  <div class="directory-card-info">
+   <div class="directory-name"><a href="${href}" title="${name}" aria-haspopup="dialog">${name}</a></div>
+   ${details}${actions}
+  </div>
+ </article>`;
 }
-function directoryArtistCard(a,{owner=false,producerName='',member=false,showFollowerCount=true}={}){
- const kind=member?'producer':'artist',key=kind+'/'+a.id,following=followed(kind,a.id);
- return `<article class="directory-artist artist-ui-card"><a class="directory-photo" href="#${kind}/${esc(a.id)}" aria-label="${esc(a.name)} 상세">${portrait(a,kind)}</a><div class="directory-name"><a href="#${kind}/${esc(a.id)}" title="${esc(a.name)}">${esc(a.name)}</a>${owner?`<button type="button" data-directory-edit="${esc(a.id)}" aria-label="${esc(a.name)} 수정">${icon('edit',16)}</button>`:''}</div>${member?(a.role==='owner'?'<small class="crew-owner-tag">크루장</small>':''):artistAffiliation(a,producerName)}<div class="directory-social">${showFollowerCount?`<a href="#follow?${member?'tab=followers&amp;user='+encodeURIComponent(a.user_id):'tab=artists&amp;artist='+encodeURIComponent(a.id)}" class="directory-followers" data-followers="${esc(key)}" data-count="${Number(a.followers)||0}">팔로워 <span data-follow-count>${number(a.followers)}</span></a>`:''}<button type="button" class="directory-follow" ${member?'':'data-follow-presentation="profile"'} ${member&&me?.id===a.user_id?'hidden':''} data-follow="${esc(key)}" aria-pressed="${following}">${icon('user',14)}<span data-follow-label>${member&&following?'팔로잉':'팔로우'}</span></button></div></article>`;
-}
-function profileArtistCard(a,owner){
- return `<article class="directory-artist artist-ui-card directory-profile-card"><a class="directory-photo" href="#artist/${esc(a.id)}" aria-label="${esc(a.name)} 상세">${portrait(a,'artist')}</a><div class="directory-name"><a href="#artist/${esc(a.id)}" title="${esc(a.name)}">${userNickname(a.name,{artistId:a.id,entityType:'artist'})}</a></div>${owner?`<div class="directory-card-actions"><button type="button" class="directory-card-action" data-directory-edit="${esc(a.id)}" aria-label="${esc(a.name)} 편집">편집</button><button type="button" class="directory-card-action" data-directory-delete="${esc(a.id)}" aria-label="${esc(a.name)} 삭제">삭제</button></div>`:''}</article>`;
+function directoryAddCard() {
+ return `<button type="button" class="directory-artist directory-add-card" data-mp-artist-add>
+  <span class="directory-add-content">
+   <span class="directory-add-symbol" aria-hidden="true">${icon('plus',36)}</span>
+   <strong>아티스트 추가</strong>
+   <span>새 프로필을 등록하세요.</span>
+  </span>
+ </button>`;
 }
 function ownedArtistDirectory(d,pins,pid){
  const owner=!!pins.can_manage&&me?.id===d.profile.user_id;
- return `<section class="artist-directory artist-directory-owned" data-can-manage="${owner}"><header class="directory-heading"><div><h1>소속 아티스트</h1><p>${owner?'내가 제작하고 관리하는 AI 아티스트입니다.':esc(d.profile.name)+'의 AI 아티스트입니다.'}</p></div><div class="directory-controls"><span>총 ${number(d.artists.length)}명</span>${owner?`<button type="button" class="primary-button directory-add" data-mp-artist-add>${icon('plus',18)} 아티스트 추가</button>`:''}</div></header><div class="directory-grid">${d.artists.map(a=>profileArtistCard(a,owner)).join('')}${owner?`<button type="button" class="directory-artist artist-ui-card directory-add-card" data-mp-artist-add><span class="directory-add-symbol">${icon('plus',56)}</span><strong>아티스트 추가</strong><span>새로운 AI 아티스트를 생성하고<br>나만의 음악 세계를 확장해보세요.</span></button>`:''}</div>${!d.artists.length&&!owner?'<p class="directory-empty">등록된 아티스트가 없어요.</p>':''}</section>`;
+ return `<section class="artist-directory artist-directory-owned" data-can-manage="${owner}"><header class="directory-heading"><div><h1>소속 아티스트</h1><p>${owner?'내가 제작하고 관리하는 AI 아티스트입니다.':esc(d.profile.name)+'의 AI 아티스트입니다.'}</p></div><div class="directory-controls"><span>총 ${number(d.artists.length)}명</span>${owner?`<button type="button" class="primary-button directory-add" data-mp-artist-add>${icon('plus',18)} 아티스트 추가</button>`:''}</div></header><div class="directory-grid">${d.artists.map(a=>directoryArtistCard(a,{management:true,owner})).join('')}${owner?directoryAddCard():''}</div>${!d.artists.length&&!owner?'<p class="directory-empty">등록된 아티스트가 없어요.</p>':''}</section>`;
 }
 function publicArtistDirectory(d){
  const sort=d.sort||'popular';
