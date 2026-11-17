@@ -482,6 +482,7 @@ struct MobilePlayView: View {
     @EnvironmentObject private var model: AppModel
     @State private var mode: String
     @State private var section: String
+    @State private var requestedSection: String?
     init(initialMode: String = "노래", initialSection: String = "추천") {
         _mode = State(initialValue: initialMode); _section = State(initialValue: initialSection)
     }
@@ -520,7 +521,6 @@ struct MobilePlayView: View {
     }
     var body: some View {
         VStack(spacing: 0) {
-            CatalogHeader(title: "플레이")
             CatalogTabs(names: ["노래","더빙","둘러보기"], selection: $mode)
             if mode != "더빙" { StudioSectionTabs(names: sections, selection: $section).padding(.horizontal, 12).padding(.vertical, 8) }
             if mode == "더빙" { DubbingDiscoveryView(initialSection: section) }
@@ -556,15 +556,20 @@ struct MobilePlayView: View {
                         if busy { ProgressView() }
                         else if list.isEmpty && error == nil { Text(query.isEmpty ? "아직 표시할 작품이 없어요" : "검색 결과가 없어요") }
                         if let next { Button("더 보기") { Task { await fetch(offset: next) } }.disabled(busy) }
-                    }.padding(16)
+                    }.padding(.horizontal, 16).padding(.top, 4).padding(.bottom, 24)
                 }.scrollDismissesKeyboard(.interactively)
             }
-        }.onChange(of: mode) { _, _ in section = sections[0]; query = "" }
+        }.onChange(of: mode) { _, _ in section = requestedSection ?? sections[0]; requestedSection = nil; query = "" }
             .onChange(of: section) { _, _ in query = "" }
             .task(id: "\(model.userID ?? "guest")|\(mode)|\(section)|\(kind)|\(retry)") {
                 rows = []; next = nil; error = nil
                 if mode != "더빙" && !gated && section != "내 초안" { await fetch(offset: 0) }
-            }.navigationDestination(item: $space) { WorkspacePage(space: $0) }
+            }.onChange(of: model.homePlayRequest, initial: true) { _, value in
+            if let value {
+                if mode != "노래" { requestedSection = value; mode = "노래" }
+                section = value; model.homePlayRequest = nil
+            }
+        }.navigationDestination(item: $space) { WorkspacePage(space: $0) }
             .sheet(isPresented: Binding(get: { completed != nil }, set: { if !$0 { completed = nil } })) { if let completed { CompletedDubbingView(id: completed) } }
     }
     private func isDubbing(_ row: [String: Any]) -> Bool {

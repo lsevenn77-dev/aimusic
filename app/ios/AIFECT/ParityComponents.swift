@@ -55,10 +55,11 @@ struct ParityChips: View {
 struct AlbumArtwork: View {
     let song: Song
     var ratio: CGFloat = 1
+    var maxPixelSize = 1024
     var body: some View {
         Color.clear.aspectRatio(ratio, contentMode: .fit).overlay {
             GeometryReader { bounds in
-                RemoteArtwork(url: song.artURL) { $0.resizable().scaledToFill() } placeholder: {
+                RemoteArtwork(url: song.artURL, maxPixelSize: maxPixelSize) { $0.resizable().scaledToFill() } placeholder: {
                     ZStack { AifectDesign.raised; Image(systemName: song.isCover ? "mic" : "music.note").font(.largeTitle).foregroundStyle(AifectDesign.secondaryText.opacity(0.45)) }
                 }.frame(width: bounds.size.width, height: bounds.size.height).clipped()
             }
@@ -289,17 +290,18 @@ struct MainBottomBar: View {
         HStack(spacing: 0) {
             ForEach(0..<5) { index in
                 Button { model.selectTab(index) } label: {
-                    VStack(spacing: 4) {
+                    VStack(spacing: 1) {
                         Image(systemName: icons[index] + (selection == index && index != 2 ? ".fill" : "")).font(.system(size: 21)).frame(width: 30, height: 30)
                             .background(index == 2 ? AifectDesign.secondaryText.opacity(0.12) : .clear, in: Circle())
                             .foregroundStyle(selection == index ? StreamStyle.purple : AifectDesign.muted)
 
                             .overlay(alignment: .topTrailing) { if index == 3 && model.inboxUnread > 0 { Text(model.inboxUnread > 99 ? "99+" : "\(model.inboxUnread)").font(.system(size: 10, weight: .bold)).foregroundStyle(Brand.background).padding(3).background(StreamStyle.purple, in: Capsule()).offset(x: 2, y: -3) } }
-                        Text(AifectDesign.mainTabs[index]).font(.system(size: 11, weight: selection == index ? .bold : .regular)).foregroundStyle(selection == index ? AifectDesign.violet : AifectDesign.muted)
-                    }.frame(maxWidth: .infinity).frame(height: 62).contentShape(Rectangle())
+                        Text(AifectDesign.mainTabs[index]).font(.system(size: 11, weight: selection == index ? .bold : .regular)).foregroundStyle(selection == index ? Brand.pink : AifectDesign.muted)
+                        Capsule().fill(selection == index ? Brand.pink : .clear).frame(width: 28, height: 2)
+                    }.frame(maxWidth: .infinity).frame(height: 52).contentShape(Rectangle())
                 }.buttonStyle(.plain).accessibilityIdentifier("main-tab-\(index)").accessibilityLabel(AifectDesign.mainTabs[index]).accessibilityAddTraits(selection == index ? .isSelected : [])
             }
-        }.frame(minHeight: 66).background(LinearGradient(colors: [Color(aifectHex: 0x181B34), Brand.background, Color(aifectHex: 0x20213B)], startPoint: .leading, endPoint: .trailing), in: UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24))
+        }.frame(minHeight: 52).background(LinearGradient(colors: [Color(aifectHex: 0x181B34), Brand.background, Color(aifectHex: 0x20213B)], startPoint: .leading, endPoint: .trailing), in: UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24))
     }
 }
 
@@ -321,7 +323,7 @@ struct StreamingRootHeader: View {
                 Button { account = true } label: { Image(systemName: "line.3.horizontal").frame(width: 44, height: 44) }.accessibilityLabel("계정 설정")
             }
         }.font(.system(size: 21)).foregroundStyle(AifectDesign.secondaryText).buttonStyle(.plain)
-            .padding(.leading, 14).padding(.trailing, 4).frame(minHeight: 52)
+            .padding(.leading, 14).padding(.trailing, 4).frame(minHeight: 50)
     }
 }
 

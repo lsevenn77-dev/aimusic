@@ -33,6 +33,9 @@ enum StreamingUIFixture {
     static func response(_ request: URLRequest, body: [String: Any]) -> (Int, String, Data)? {
         let path = request.url!.path
         let args = ProcessInfo.processInfo.arguments
+        if path.hasPrefix("/assets/home-banners/"), let name = path.split(separator: "/").last?.replacingOccurrences(of: "-768.webp", with: ""), let bytes = UIImage(named: "HomePromotion-" + name)?.pngData() {
+            return (200, "image/png", bytes)
+        }
         if path.hasSuffix("/poster") || path.hasPrefix("/assets/dubbing-genres/") || path.hasPrefix("/assets/genres/") || path.hasPrefix("/assets/chat-stickers/") {
             return (200, "image/png", UIImage(named: "CommunityStudio")?.pngData() ?? Data())
         }
@@ -66,6 +69,7 @@ enum StreamingUIFixture {
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
             if query.contains(where: { $0.name == "section" && $0.value == "producers" }) || path == "/api/search" {
                 result = ["producers": [["id": "fixture-peer", "user_id": "peer-user", "name": "선물 받을 친구"]]]
+            } else if args.contains("-home-density") { result = ["tracks": (0..<5).map { n in original.merging(["id": "density-\(n)", "title": ["한 입만", "DDALGAK", "별일 아닌 것처럼", "어서 오세요", "휴먼 에러"][n], "producer": ["유이현", "Sasha Lindqvist", "Vibe", "MC.AI", "MC.AI"][n], "plays": 10 + n, "likes": n, "comments": n]) { _, value in value } }]
             } else { result = ["tracks": args.contains("-playlist-management") || query.contains(where: { $0.name == "chart" && $0.value == "newcomers" }) ? [original, cover] : [original], "chart": ["comparison": ["available": true]]] }
         case "/api/studio":
             result = ["producer": ["id": "fixture-own-profile", "name": "검증 계정"], "tracks": [studioTrack], "artists": args.contains("-studio-parity") ? [studioArtist] : [], "upload_quota": ["used": 1, "limit": 3, "remaining": 2]]

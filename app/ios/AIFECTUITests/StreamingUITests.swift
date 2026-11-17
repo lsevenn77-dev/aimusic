@@ -24,6 +24,69 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["더빙"].firstMatch.exists)
         capture(app, "bottom-tabs-direct-touch")
     }
+    @MainActor func testIPhoneHomeKeepsAndroidBannerAndSectionProportions() {
+        let app = launch(["-home-density"])
+        let banner = app.buttons["home-promotion-studio"]
+        XCTAssertTrue(banner.waitForExistence(timeout: 10))
+        let before = banner.frame
+        XCTAssertEqual(before.width, app.frame.width - 28, accuracy: 2)
+        XCTAssertEqual(before.height, max(142, before.width / 2.45), accuracy: 2)
+        let chart = app.buttons["home-section-인기 차트"]
+        XCTAssertTrue(chart.isHittable)
+        XCTAssertTrue(app.descendants(matching: .any)["stream-song-density-4"].firstMatch.isHittable, "Five recommendation rows fit the iPhone 12 viewport")
+        capture(app, "iphone12-home-fixed-promotion")
+        chart.tap()
+        XCTAssertTrue(app.buttons["전체 보기"].waitForExistence(timeout: 5))
+        XCTAssertEqual(banner.frame.minY, before.minY, accuracy: 1, "Banner stays fixed when selecting a section")
+        XCTAssertTrue(app.staticTexts["이번 주 · 1–5위"].waitForExistence(timeout: 8), app.debugDescription)
+        capture(app, "iphone12-home-weekly-chart")
+        app.buttons["home-section-추천"].tap()
+        for index in [2, 1, 3, 4, 0] {
+            let tab = app.buttons["main-tab-\(index)"]
+            let start = Date()
+            tab.tap()
+            XCTAssertTrue(tab.isSelected)
+            print("TAB_RESPONSE \(index) \(Date().timeIntervalSince(start))s (includes XCTest input delivery)")
+        }
+    }
+    @MainActor func testPrimaryScreensUseAndroidContentDensity() {
+        let app = launch(["-home-density", "-dubbing-recorder"])
+        app.buttons["main-tab-2"].tap()
+        XCTAssertLessThan(app.buttons["노래"].firstMatch.frame.minY, 60, "No extra Play title block")
+        capture(app, "iphone12-play-density")
+        app.buttons["더빙"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["dub-feature-fixture-project"].waitForExistence(timeout: 10))
+        capture(app, "iphone12-dubbing-density")
+        app.buttons["main-tab-1"].tap()
+        XCTAssertLessThan(app.buttons["라이브"].firstMatch.frame.minY, 60, "No extra Community title block")
+        capture(app, "iphone12-community-density")
+        app.buttons["main-tab-4"].tap()
+        XCTAssertTrue(app.buttons["edit-my-profile"].waitForExistence(timeout: 10), app.debugDescription)
+        let profile = app.descendants(matching: .any)["my-compact-profile"].firstMatch
+        XCTAssertLessThan(profile.frame.height, 150)
+        XCTAssertTrue(app.buttons["edit-my-profile"].isHittable)
+        capture(app, "iphone12-my-density")
+    }
+    @MainActor func testRealJumpGamePracticeOnIPhoneViewport() {
+        let app = launch(["-crew-parity", "-workspace-test-url", "http://127.0.0.1:4188/jump-test.html"])
+        app.buttons["main-tab-1"].tap()
+        app.buttons["크루"].firstMatch.tap()
+        let game = app.buttons["crew-weekly-game-banner"]
+        XCTAssertTrue(game.waitForExistence(timeout: 10)); game.tap()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.waitForExistence(timeout: 15))
+        let practice = web.buttons["연습하기 · 랭킹 미반영"]
+        XCTAssertTrue(practice.waitForExistence(timeout: 20), app.debugDescription)
+        for _ in 0..<7 { if practice.isHittable { break }; web.swipeUp() }
+        capture(app, "iphone12-real-jump-lobby")
+        practice.tap()
+        let pause = web.buttons["일시정지"].firstMatch
+        XCTAssertTrue(pause.waitForExistence(timeout: 12), app.debugDescription)
+        pause.tap()
+        capture(app, "iphone12-real-jump-running")
+        XCTAssertTrue(web.buttons["계속하기"].firstMatch.waitForExistence(timeout: 5), app.debugDescription)
+        capture(app, "iphone12-real-jump-paused")
+    }
     @MainActor private func back(_ app: XCUIApplication) { app.navigationBars.buttons.element(boundBy: 0).tap() }
     @MainActor private func reveal(_ element: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, towardTop: Bool = false, hasBottomBar: Bool = true) {
         let mini = app.buttons["mini-player-collapse"]

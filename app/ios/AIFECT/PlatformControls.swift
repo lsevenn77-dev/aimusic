@@ -114,69 +114,101 @@ struct WebWorkspacePage: View {
     let space: SiteWorkspace
     @EnvironmentObject private var model: AppModel
     @State private var error: String?
+    @State private var progress = 0.0
     @State private var attempt = 0
     var body: some View {
-        Group {
-            if let error { RetryCard(message: error) { self.error = nil; attempt += 1 } }
-            else { WorkspaceBrowser(space: space, error: $error).id("\(model.userID ?? "guest")-\(space.id)-\(attempt)") }
-        }.navigationTitle(space.title).modifier(FullScreenWorkspace())
+        ZStack(alignment: .top) {
+            if let error { RetryCard(message: error) { self.error = nil; progress = 0; attempt += 1 }.padding() }
+            else {
+                WorkspaceBrowser(space: space, error: $error, progress: $progress).id("\(model.userID ?? "guest")-\(space.id)-\(attempt)")
+                if progress < 1 {
+                    VStack(spacing: 8) {
+                        ProgressView(value: progress).tint(Brand.pink)
+                        Text("화면을 불러오는 중…").font(.caption).padding(.bottom, 8)
+                    }.background(Brand.background).allowsHitTesting(false).accessibilityIdentifier("workspace-loading")
+                }
+            }
+        }.frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle(space.title).modifier(FullScreenWorkspace())
     }
 }
 
-private struct WorkspaceBrowser: UIViewRepresentable {
+struct WorkspaceBrowser: UIViewRepresentable {
     let space: SiteWorkspace
     @Binding var error: String?
-    func makeCoordinator() -> Coordinator { Coordinator(error: $error) }
+    @Binding var progress: Double
+    private var target: URL {
+        #if DEBUG
+        // Real game source runs on a local fixture server in UI tests. Never enabled in Release.
+        let args = ProcessInfo.processInfo.arguments
+        if FeedbackUIFixture.enabled, let index = args.firstIndex(of: "-workspace-test-url"), index + 1 < args.count,
+           let url = URL(string: args[index + 1]), url.scheme == "http", url.host == "127.0.0.1", url.port == 4188 {
+            return url
+        }
+        #endif
+        return URL(string: Endpoint.origin.absoluteString + space.path)!
+    }
+    func makeCoordinator() -> Coordinator { Coordinator(error: $error, progress: $progress, origin: target) }
+    static let gameCSS = """
+        :root { color-scheme:dark; --sidebar:0px }
+        html,body { margin:0; padding:0; max-width:100%; overscroll-behavior:none }
+        .sidebar,.topbar,.page-footer,.mobile-navigation,#menu-backdrop,#player,body>.player { display:none!important }
+        .page-wrap { margin:0!important; padding:0!important; width:100%!important; min-height:0!important }
+        #main { margin:0!important; padding:12px!important; width:100%!important; max-width:none!important; min-height:0!important; box-sizing:border-box }
+        .wrap { width:100%!important; max-width:100%!important; box-sizing:border-box }
+        .cgl-nav { flex-wrap:wrap }
+        .arcade-lobby { padding:12px }
+        button,a,input,select { touch-action:manipulation }
+        button,input,select { min-height:44px }
+        canvas,[data-jump],.lane,.touch-controls,.race-controls { touch-action:none!important; -webkit-user-select:none }
+        dialog:not(.jump-wide-dialog) { max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); overflow:auto; box-sizing:border-box }
+        @media(max-width:600px) { .cgl-layout { grid-template-columns:minmax(0,1fr)!important } .cgl-start { min-height:48px } }
+        """
     func makeUIView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.allowsInlineMediaPlayback = true
+        config.applicationNameForUserAgent = "AIFECT-Mobile/" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
         if space.area.hasPrefix("game/") {
             let style = """
-                if (location.origin === '\(Endpoint.origin.absoluteString)' &&
-                    (location.pathname + location.search + location.hash) === '\(space.path)') {
-                    const css = document.createElement('style');
-                    css.textContent = `
-                        :root { color-scheme:dark; --sidebar:0px }
-                        html,body { margin:0; max-width:100%; overscroll-behavior:none }
-                        .sidebar,.topbar,.page-footer,.mobile-navigation,#menu-backdrop,body>.player { display:none!important }
-                        .page-wrap,#main { margin:0!important; width:100%!important; max-width:none!important; min-height:0!important }
-                        #main { padding:12px!important; box-sizing:border-box }
-                        .cgl-nav { flex-wrap:wrap }
-                        button,a,input,select { touch-action:manipulation }
-                        canvas,[data-jump],.lane,.touch-controls,.race-controls { touch-action:none!important; -webkit-user-select:none }
-                        @media(max-width:600px) { .cgl-layout { grid-template-columns:minmax(0,1fr)!important } .cgl-start { min-height:48px } }
-                    `;
+                (() => {
+                    const css = document.createElement('style'); css.id = 'aifect-native-game';
+                    css.textContent = `\(Self.gameCSS)`;
                     document.head.append(css);
-                    const viewport = document.querySelector('meta[name=viewport]');
-                    if (viewport) viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
+                    let viewport = document.querySelector('meta[name=viewport]');
+                    if (!viewport) { viewport = document.createElement('meta'); viewport.name = 'viewport'; document.head.append(viewport); }
+                    viewport.content = 'width=device-width, initial-scale=1, viewport-fit=cover';
                     window.dispatchEvent(new Event('resize'));
-                }
+                })();
                 """
             config.userContentController.addUserScript(WKUserScript(source: style, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
         }
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
+        view.uiDelegate = context.coordinator
         view.isOpaque = false
         view.backgroundColor = UIColor(Brand.background)
+        view.scrollView.backgroundColor = UIColor(Brand.background)
+        view.scrollView.contentInsetAdjustmentBehavior = .never
+        view.accessibilityIdentifier = "crew-game-browser"
+        context.coordinator.observation = view.observe(\.estimatedProgress, options: [.new]) { [weak coordinator = context.coordinator] view, _ in
+            Task { @MainActor in coordinator?.progress = view.estimatedProgress }
+        }
+        let target = target
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("-feedback-ui-test") {
-            view.navigationDelegate = nil
-            view.loadHTMLString("<meta name='viewport' content='width=device-width,initial-scale=1'><body style='background:#0b1024;color:white;font-family:system-ui;padding:24px'>검증용 작업 화면</body>", baseURL: nil)
+        if FeedbackUIFixture.enabled {
+            if target.host == "127.0.0.1" { view.load(URLRequest(url: target)) }
+            else { context.coordinator.error = "게임 실행 검증에는 실제 게임 소스를 제공하는 로컬 서버가 필요합니다." }
             return view
         }
         #endif
         let cookies = API.shared.mediaCookies()
-        let url = Endpoint.origin.absoluteString + space.path
         context.coordinator.start = Task { @MainActor in
             for cookie in cookies {
                 var properties = cookie.properties ?? [:]
                 properties[HTTPCookiePropertyKey("HttpOnly")] = "TRUE"
-                if let value = HTTPCookie(properties: properties) {
-                    await config.websiteDataStore.httpCookieStore.setCookie(value)
-                }
+                if let value = HTTPCookie(properties: properties) { await config.websiteDataStore.httpCookieStore.setCookie(value) }
             }
-            guard !Task.isCancelled, let target = URL(string: url) else { return }
+            guard !Task.isCancelled else { return }
             view.load(URLRequest(url: target))
         }
         return view
@@ -184,23 +216,55 @@ private struct WorkspaceBrowser: UIViewRepresentable {
     func updateUIView(_ view: WKWebView, context: Context) {}
     static func dismantleUIView(_ view: WKWebView, coordinator: Coordinator) {
         coordinator.start?.cancel()
-        view.navigationDelegate = nil
+        coordinator.observation?.invalidate()
+        view.navigationDelegate = nil; view.uiDelegate = nil
         view.stopLoading()
     }
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         @Binding var error: String?
+        @Binding var progress: Double
+        let origin: URL
         var start: Task<Void, Never>?
-        init(error: Binding<String?>) { _error = error }
+        var observation: NSKeyValueObservation?
+        init(error: Binding<String?>, progress: Binding<Double>, origin: URL) { _error = error; _progress = progress; self.origin = origin }
+        func permits(_ url: URL) -> Bool {
+            url.scheme == origin.scheme && url.host == origin.host && (url.port ?? (url.scheme == "https" ? 443 : 80)) == (origin.port ?? (origin.scheme == "https" ? 443 : 80)) && url.user == nil && url.password == nil
+        }
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            guard let url = action.request.url, url.scheme == "https", url.host == Endpoint.origin.host,
-                  url.port == nil || url.port == 443, url.user == nil, url.password == nil else { decisionHandler(.cancel); return }
+            // Embedded game frames may use blob/about URLs; restrict top-level navigation, as Android does.
+            if action.targetFrame?.isMainFrame == false { decisionHandler(.allow); return }
+            guard let url = action.request.url, permits(url) else { decisionHandler(.cancel); return }
             decisionHandler(.allow)
         }
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError failure: Error) {
-            if (failure as NSError).code != NSURLErrorCancelled { error = failure.localizedDescription }
+        func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
+            if response.isForMainFrame, let http = response.response as? HTTPURLResponse, !(200..<400).contains(http.statusCode) {
+                error = [401, 403].contains(http.statusCode) ? "로그인 상태를 확인한 뒤 다시 열어주세요." : "화면을 불러오지 못했어요. 다시 시도해주세요. (\(http.statusCode))"
+                decisionHandler(.cancel); return
+            }
+            decisionHandler(.allow)
         }
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError failure: Error) {
-            if (failure as NSError).code != NSURLErrorCancelled { error = failure.localizedDescription }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { progress = 1 }
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError failure: Error) { failed(failure) }
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError failure: Error) { failed(failure) }
+        private func failed(_ failure: Error) { if (failure as NSError).code != NSURLErrorCancelled { error = failure.localizedDescription } }
+        func webViewWebContentProcessDidTerminate(_ webView: WKWebView) { error = "작업 화면이 종료됐어요. 다시 열어주세요." }
+        private func presenter(_ view: WKWebView) -> UIViewController? {
+            var controller = view.window?.rootViewController
+            while let presented = controller?.presentedViewController { controller = presented }
+            return controller
+        }
+        func webView(_ webView: WKWebView, runJavaScriptAlertPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping () -> Void) {
+            guard let presenter = presenter(webView) else { completionHandler(); return }
+            let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in completionHandler() })
+            presenter.present(alert, animated: true)
+        }
+        func webView(_ webView: WKWebView, runJavaScriptConfirmPanelWithMessage message: String, initiatedByFrame frame: WKFrameInfo, completionHandler: @escaping (Bool) -> Void) {
+            guard let presenter = presenter(webView) else { completionHandler(false); return }
+            let alert = UIAlertController(title: nil, message: message, preferredStyle: .alert)
+            alert.addAction(UIAlertAction(title: "취소", style: .cancel) { _ in completionHandler(false) })
+            alert.addAction(UIAlertAction(title: "확인", style: .default) { _ in completionHandler(true) })
+            presenter.present(alert, animated: true)
         }
     }
 }

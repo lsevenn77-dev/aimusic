@@ -6,13 +6,14 @@ struct LiveCommunity: View {
     @State private var space: SiteWorkspace?
     var body: some View {
         VStack(spacing: 0) {
-            CatalogHeader(title: "커뮤니티")
             CatalogTabs(names: ["라이브","크루","랭킹"], selection: $tab)
             switch tab {
             case "크루": CrewHome(space: $space).id(model.userID)
             case "랭킹": CommunityRankings(space: $space)
             default: LiveLobby(space: $space)
             }
+        }.onChange(of: model.homeCommunityRequest, initial: true) { _, value in
+            if let value { tab = value; model.homeCommunityRequest = nil }
         }.navigationDestination(item: $space) { WorkspacePage(space: $0) }
     }
 }

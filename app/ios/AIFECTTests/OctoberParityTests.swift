@@ -243,6 +243,27 @@ final class OctoberParityTests: XCTestCase {
         _ = try await isolated.image(at: url)
         XCTAssertEqual(cookies, ["aifect_session=isolated-test", ""])
     }
+    @MainActor func testArtworkCoalescesConcurrentRequestsAndDownsamplesThumbnails() async throws {
+        let repository = ArtworkRepository(api: api())
+        let png = UIGraphicsImageRenderer(size: CGSize(width: 2048, height: 1024)).image { $0.fill(CGRect(x: 0, y: 0, width: 2048, height: 1024)) }.pngData()!
+        let requests = NSLock()
+        var count = 0
+        MockURLProtocol.handler = { _ in requests.lock(); count += 1; requests.unlock(); return (200, png) }
+        let url = try Endpoint.url("/media/song/shared-cover?v=one")
+        let images = try await withThrowingTaskGroup(of: UIImage.self, returning: [UIImage].self) { group in
+            for _ in 0..<12 { group.addTask { try await repository.image(at: url, maxPixelSize: 192) } }
+            var images: [UIImage] = []
+            for try await image in group { images.append(image) }
+            return images
+        }
+        XCTAssertEqual(images.count, 12)
+        XCTAssertEqual(count, 1, "Visible rows must share one image request and decode")
+        for image in images { XCTAssertLessThanOrEqual(image.size.width * image.scale, 192) }
+        let large = try await repository.image(at: url, maxPixelSize: 1024)
+        XCTAssertGreaterThan(large.size.width * large.scale, 192)
+        XCTAssertLessThanOrEqual(large.size.width * large.scale, 1024)
+    }
+
     func testArtistGalleryAcceptsOnlyReturnedSameOriginPhotoPath() throws {
         let photo = try XCTUnwrap(ArtistGalleryPhoto(["id": "one", "url": "/media/artist-gallery/one?v=current"]))
         XCTAssertEqual(photo.url.query, "v=current")

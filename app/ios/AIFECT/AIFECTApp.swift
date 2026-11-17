@@ -106,7 +106,7 @@ enum Brand {
 struct CoverArt: View {
     let song: Song
     var size: CGFloat = 58
-    var body: some View { AlbumArtwork(song: song).frame(width: size, height: size).accessibilityHidden(true) }
+    var body: some View { AlbumArtwork(song: song, maxPixelSize: Int(size * 3)).frame(width: size, height: size).accessibilityHidden(true) }
 }
 
 struct RootView: View {

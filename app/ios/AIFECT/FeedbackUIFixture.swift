@@ -166,7 +166,7 @@ struct FeedbackUITestView: View {
             .onChange(of: model.userID) { _, owner in
                 // Account loading intentionally clears the player. Seed it only
                 // after that boundary so this fixture cannot race sign-in.
-                if owner == "fixture-user", (ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") || ProcessInfo.processInfo.arguments.contains("-streaming-ui-test")) {
+                if owner == "fixture-user", !ProcessInfo.processInfo.arguments.contains("-home-density"), (ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") || ProcessInfo.processInfo.arguments.contains("-streaming-ui-test")) {
                     model.player.current = FeedbackUIFixture.song; model.player.duration = 20; model.player.lyric = "검증용 현재 가사 한 줄"
                 }
             }

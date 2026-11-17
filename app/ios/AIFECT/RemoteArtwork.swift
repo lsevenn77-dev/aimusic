@@ -69,6 +69,8 @@ struct CatalogFrame {
     static let shared = ArtworkRepository()
     private let cache = NSCache<NSString, UIImage>()
     private let api: API
+    private var pending: [String: Task<UIImage, Error>] = [:]
+    private static let decodingQueue = DispatchQueue(label: "kr.co.aifect.artwork", qos: .userInitiated)
     private lazy var catalogSession: URLSession = {
         let config = URLSessionConfiguration.ephemeral
         config.httpCookieStorage = nil
@@ -80,41 +82,54 @@ struct CatalogFrame {
     }()
     init(api: API? = nil) {
         self.api = api ?? .shared
-        cache.totalCostLimit = 32 * 1024 * 1024
+        cache.totalCostLimit = 48 * 1024 * 1024
         cache.countLimit = 80
     }
-    func image(at url: URL, catalog: Bool = false) async throws -> UIImage {
+    func image(at url: URL, catalog: Bool = false, maxPixelSize: Int = 1024) async throws -> UIImage {
         let sameOrigin = url.scheme == "https" && url.host == Endpoint.origin.host && url.port == nil && url.user == nil && url.password == nil
         guard sameOrigin || (catalog && CatalogArtwork.url(url.absoluteString) != nil) else {
             throw APIError(status: 0, message: "이미지 주소를 확인할 수 없습니다.")
         }
         let scope = api.sessionRevision
-        let key = "\(scope):\(url.absoluteString)" as NSString
-        if let image = cache.object(forKey: key) { return image }
-        let bytes: Data
-        if sameOrigin {
-            let path = String(url.absoluteString.dropFirst(Endpoint.origin.absoluteString.count))
-            bytes = try await api.request(path)
-        } else {
-            let (data, response) = try await catalogSession.data(from: url)
-            guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else { throw URLError(.badServerResponse) }
-            bytes = data
+        let limit = max(64, min(1600, maxPixelSize))
+        let key = "\(scope):\(limit):\(url.absoluteString)"
+        if let image = cache.object(forKey: key as NSString) { return image }
+        // One request/decode per account, URL and size, even across simultaneously visible shelves.
+        if let task = pending[key] { return try await task.value }
+        let task = Task { @MainActor in
+            defer { pending[key] = nil }
+            let bytes: Data
+            if sameOrigin {
+                let path = String(url.absoluteString.dropFirst(Endpoint.origin.absoluteString.count))
+                bytes = try await api.request(path)
+            } else {
+                let (data, response) = try await catalogSession.data(from: url)
+                guard let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) else { throw URLError(.badServerResponse) }
+                bytes = data
+            }
+            guard scope == api.sessionRevision else { throw CancellationError() }
+            guard bytes.count <= 8 * 1024 * 1024 else { throw APIError(status: 0, message: "이미지를 불러오지 못했습니다.") }
+            let decoded: UIImage? = await withCheckedContinuation { continuation in
+                Self.decodingQueue.async {
+                    continuation.resume(returning: Self.decode(bytes, maxPixelSize: limit))
+                }
+            }
+            guard scope == api.sessionRevision else { throw CancellationError() }
+            guard let image = decoded else { throw APIError(status: 0, message: "이미지를 불러오지 못했습니다.") }
+            cache.setObject(image, forKey: key as NSString, cost: Int(image.size.width * image.scale * image.size.height * image.scale * 4))
+            return image
         }
-        guard scope == api.sessionRevision else { throw CancellationError() }
-        guard bytes.count <= 8 * 1024 * 1024,
-              let image = Self.decode(bytes) else {
-            throw APIError(status: 0, message: "이미지를 불러오지 못했습니다.")
-        }
-        cache.setObject(image, forKey: key, cost: Int(image.size.width * image.scale * image.size.height * image.scale * 4))
-        return image
+        pending[key] = task
+        return try await task.value
     }
-    static func decode(_ bytes: Data) -> UIImage? {
-        if let image = SDImageWebPCoder.shared.decodedImage(with: bytes, options: [.decodeFirstFrameOnly: true, .decodeThumbnailPixelSize: CGSize(width: 1600, height: 1600)]) { return image }
+    nonisolated static func decode(_ bytes: Data, maxPixelSize: Int = 1024) -> UIImage? {
+        if let image = SDImageWebPCoder.shared.decodedImage(with: bytes, options: [.decodeFirstFrameOnly: true, .decodeThumbnailPixelSize: CGSize(width: maxPixelSize, height: maxPixelSize)]) { return image }
         guard let source = CGImageSourceCreateWithData(bytes as CFData, nil),
               let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                 kCGImageSourceCreateThumbnailFromImageAlways: true,
                 kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: 1600
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
               ] as CFDictionary) else { return nil }
         return UIImage(cgImage: thumbnail)
     }
@@ -124,10 +139,11 @@ struct RemoteArtwork<Content: View, Placeholder: View>: View {
     @EnvironmentObject private var model: AppModel
     let url: URL?
     var catalog = false
+    var maxPixelSize = 1024
     @ViewBuilder var content: (Image) -> Content
     @ViewBuilder var placeholder: () -> Placeholder
     @State private var image: UIImage?
-    private var scope: String { "\(model.userID ?? "guest"):\(url?.absoluteString ?? "")" }
+    private var scope: String { "\(model.userID ?? "guest"):\(maxPixelSize):\(url?.absoluteString ?? "")" }
     var body: some View {
         Group {
             if let image { content(Image(uiImage: image)) } else { placeholder() }
@@ -136,7 +152,7 @@ struct RemoteArtwork<Content: View, Placeholder: View>: View {
             guard let url else { return }
             for attempt in 0..<2 {
                 do {
-                    let loaded = try await ArtworkRepository.shared.image(at: url, catalog: catalog)
+                    let loaded = try await ArtworkRepository.shared.image(at: url, catalog: catalog, maxPixelSize: maxPixelSize)
                     try Task.checkCancellation()
                     image = loaded; return
                 } catch is CancellationError { return }

@@ -38,6 +38,8 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var notice: String?
     @Published var visibleChats: Set<UUID> = []
     @Published var visibleWorkspaces: Set<UUID> = []
+    @Published var homePlayRequest: String?
+    @Published var homeCommunityRequest: String?
     @Published var selectedTab = 0
     @Published var navigationPath = NavigationPath()
     @Published var playerPageVisible = false
@@ -152,10 +154,17 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         do {
             let data = try await API.shared.call("/api/dm")
             guard version == accountRevision, !Task.isCancelled else { return }
-            inboxConversations = data.objects("conversations")
-            inboxUnread = data.int("unread")
-            inboxCrew = data["crew"] as? [String: Any]; inboxError = nil
-            if let summary = try? await API.shared.call("/api/notifications/summary"), version == accountRevision { activityUnread = summary.int("unread") }
+            let conversations = data.objects("conversations")
+            if !NSArray(array: inboxConversations).isEqual(to: conversations) { inboxConversations = conversations }
+            let unread = data.int("unread")
+            if inboxUnread != unread { inboxUnread = unread }
+            let crew = data["crew"] as? [String: Any]
+            if !NSDictionary(dictionary: inboxCrew ?? [:]).isEqual(to: crew ?? [:]) { inboxCrew = crew }
+            if inboxError != nil { inboxError = nil }
+            if let summary = try? await API.shared.call("/api/notifications/summary"), version == accountRevision {
+                let unread = summary.int("unread")
+                if activityUnread != unread { activityUnread = unread }
+            }
         } catch { if version == accountRevision, !Task.isCancelled { inboxError = error.localizedDescription } }
     }
     func loadLibrary() async {

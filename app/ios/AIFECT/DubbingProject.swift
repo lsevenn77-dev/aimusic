@@ -491,7 +491,7 @@ struct DubbingDiscoveryView: View {
     private func preferred(_ row: [String: Any]) -> Bool { row.int("roleCount") == 2 && (240...300).contains(row.int("duration")) }
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 12) {
+            LazyVStack(alignment: .leading, spacing: 9) {
                 if section == "내 작업" {
                     Button { section = "추천" } label: { Label("더빙 홈", systemImage: "chevron.left") }.frame(minHeight: 44)
                 } else { StudioSectionTabs(names: ["추천", "인기", "장르", "신규"], selection: $section) }
@@ -528,7 +528,7 @@ struct DubbingDiscoveryView: View {
                 if section != "추천", (section == "인기" ? ranked.count : newest.count) > limit { Button("더 많은 작품 보기") { limit += 12 }.frame(maxWidth: .infinity, minHeight: 44) }
                 if section == "추천" { Button("내 더빙 작업") { if model.requireLogin() { section = "내 작업" } }.frame(maxWidth: .infinity, minHeight: 44) }
                 if section == "내 작업" && model.user == nil { LoginPrompt(title: "로그인하고 내 작업 보기") }
-            }.padding(12)
+            }.padding(.horizontal, 12).padding(.top, 8).padding(.bottom, 24)
         }.accessibilityIdentifier("dubbing-discovery").refreshable { await load() }
             .task(id: (model.userID ?? "guest") + "|" + (section == "내 작업" ? "mine" : "open")) { rows = []; await load() }
             .onChange(of: section) { _, _ in stopPreview(); query = ""; genre = "전체"; limit = 12 }
