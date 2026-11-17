@@ -4,6 +4,7 @@ import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
 import {publicPath,tryPublicOrigin} from './cafe24-origin.js';
 import {brandAliases,brandPublicDocument} from '../shared/web-brand.js';
+import {publicDiscoveryRoute} from './public-discovery.js';
 import {aboutPresentation} from './about-presentation.js';
 import {queueLyricAnalysis,runLyricBatch,lyricAnalysisAdmin} from './lyric-analysis.js';
 import {followManagement} from './follow-management.js';
@@ -130,7 +131,7 @@ async function fetchRequest(req,env,ctx){
   if(brandAliases.has(path)&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL(brandAliases.get(path),url),302);
   const songPath=path.match(/^\/song\/([\w-]+)\/?$/);
   if(songPath&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/#song/'+songPath[1]+url.search,url),302);
-  const originPage=await tryPublicOrigin(req,env,path);if(originPage)return originPage;
+  const originPage=await publicDiscoveryRoute(req,env,path)??await tryPublicOrigin(req,env,path);if(originPage)return originPage;
   const accountPage=accountPageRoute(req,path);if(accountPage)return accountPage;
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});

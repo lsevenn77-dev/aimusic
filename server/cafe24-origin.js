@@ -10,12 +10,12 @@ export async function originRequest(env, action, body, contentType, ms, fetcher=
  if(!env.CAFE24_ORIGIN_KEY||(action!=='webp'&&!version))return null;
  return fetcher(base+(action==='webp'?'v1':version)+'/'+action,{method:'POST',headers:{authorization:'Bearer '+env.CAFE24_ORIGIN_KEY,'content-type':contentType},body,redirect:'manual',signal:AbortSignal.timeout(ms)});
 }
-export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest){
+export async function tryPublicOrigin(req,env,path,requestOrigin=originRequest,provided){
  if(!env.CAFE24_ORIGIN_KEY||!publicPath(path)||!['GET','HEAD'].includes(req.method))return null;
  const url=new URL(req.url),q=new URLSearchParams();
- if(path==='/music')for(const key of ['q','genre','kind','page'])if(url.searchParams.has(key))q.set(key,url.searchParams.get(key).slice(0,100));
+ if(path==='/music')for(const key of ['q','genre','kind','page','sort'])if(url.searchParams.has(key))q.set(key,url.searchParams.get(key).slice(0,100));
  const target=path+(q.size?'?'+q:'');
- const data=await readPublicMusicData(req,env,path);
+ const data=provided??await readPublicMusicData(req,env,path);
  if(path.replace(/\/$/,'')==='/pricing')data.checkoutOpen=checkoutEnabled(env);
  try{
   const r=await requestOrigin(env,'page',JSON.stringify({target,data}),'application/json',1800);
