@@ -128,9 +128,14 @@
     @media (min-height: 501px), (pointer: fine) {
       --room-panel-max: 555px; --talk-player-height: 50px;
       &[data-room-pc-controls] {
-        --talk-player-height: 58px;
+        --talk-player-height: 60px;
+        & #voice-music-player > div > button svg { width: 22px; height: 22px; }
+        & #voice-seats .voice-person strong { font-size: 15px; }
+        & #voice-seats .room-host-crown svg { width: 15px; height: 15px; }
+        & #voice-seats .room-muted-mark { width: 20px; height: 20px; }
+        & #voice-seats .room-muted-mark svg { width: 15px; height: 15px; }
         & #voice-seats {
-          --room-seat: clamp(44px, 22cqw, 80px);
+          --room-seat: clamp(44px, 22cqw, 82px);
           flex-basis: clamp(314px, 38vh, 358px); row-gap: 14px;
           padding-block-start: max(0px, calc(clamp(4px, 3.8vh, 38px) - 8px));
         }

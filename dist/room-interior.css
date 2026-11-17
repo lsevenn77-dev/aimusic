@@ -173,6 +173,7 @@
   & #live-actions svg { width: 18px; height: 18px; }
   & #live-actions [data-voice="karaoke-retry"] { width: auto; border-radius: 12px; }
   & .room-key { background: var(--room-field); border-color: var(--room-stroke); }
+  &:not([data-room-pc-controls]) .room-key { display: none; }
   & #voice-sound .room-echo-buttons { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
   & #voice-sound .room-echo-buttons button { width: 100%; height: 36px; min-height: 36px; padding: 0 4px; border-radius: 8px; }
   & #voice-sound .room-listen-volume { display: block; }
@@ -296,10 +297,11 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
       --room-tracks: minmax(0,1fr) var(--room-column);
       --room-visible: var(--voice-viewport, 100dvh);
       --af-room-bottom-gap: 140px;
-      --room-content-min: 484px;
+      --room-content-min: 510px;
+      --room-lyric: 22px;
       min-height: var(--room-content-min);
       /* Keep the visible gap consistent at browser zoom and give short rooms the space first. */
-      padding-block: 24px clamp(0px, calc(var(--room-visible) - var(--room-content-min)), calc(var(--af-room-bottom-gap) / var(--room-display-ratio, 1)));
+      padding-block: 26px clamp(0px, calc(var(--room-visible) - var(--room-content-min)), calc(var(--af-room-bottom-gap) / var(--room-display-ratio, 1)));
       padding-inline: max(2.8%, calc((100% - 1540px) / 2)) max(1.3%, calc((100% - 1540px) / 2));
       & .room-header {
         grid-template-columns: var(--room-tracks);
@@ -311,38 +313,52 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
       }
       & .room-heading .room-meta { display: contents; }
       & .room-heading h1 {
-        --pc-font-page: clamp(22px,1.6vw,24px);
+        --pc-font-page: clamp(23px,1.6vw,24px);
         display: block; font-size: var(--pc-font-page); font-weight: 700; line-height: 1.25;
         white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
       }
       & .room-heading small {
         display: inline-flex; align-items: center; gap: 5px; padding-inline: clamp(8px,1vw,14px);
-        font-size: 14px; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums;
+        font-size: 15px; line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums;
       }
       & .room-heading small:last-child { padding-right: 0; }
       & .room-heading small svg { width: 1em; height: 1em; }
       & .room-header nav { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; justify-items: center; container-type: inline-size; }
-      & .room-header nav button { width: 40px; min-width: 0; height: 40px; min-height: 40px; }
-      & .room-header nav button svg { width: 22px; height: 22px; }
-      & .room-header nav button + button::before { left: calc(20px - 100cqw / 12); }
+      & .room-header nav button { width: 42px; min-width: 0; height: 42px; min-height: 42px; }
+      & .room-header nav button svg { width: 24px; height: 24px; }
+      & .room-header nav button + button::before { left: calc(21px - 100cqw / 12); }
       & #voice-content { max-height: none; }
       & .voice-columns { grid-template-columns: var(--room-tracks); }
       & .voice-columns > .voice-stage { grid-area: 1 / 1; }
       & .voice-columns > .voice-chat-panel { grid-area: 1 / 2; }
       /* The open sticker tray borrows space from the transcript, above the composer. */
       &[data-room-stickers] #voice-chat-form { order: 1; }
-      & .live-request-area { min-height: 78px; grid-template-columns: minmax(0,1fr) auto; }
+      & #voice-chat .voice-chat-message p { font-size: 15px; }
+      & #voice-chat .voice-chat-system p { font-size: 13px; }
+      & #voice-chat-form #voice-message { font-size: 15px!important; }
+      & #voice-chat-form .chat-ui-field button svg { width: 20px; height: 20px; }
+      & #voice-chat-form > [data-voice="gift"] svg { width: 22px; height: 22px; }
+      & .talk-central :is([data-voice="release-mic"],[data-voice="toggle-mic"]) { height: 40px; min-height: 40px; font-size: 15px; }
+      & .talk-central button svg, & .live-request-area .live-request-button svg { width: 18px; height: 18px; }
+      & .live-stage-main .room-key button { min-width: 36px; height: 36px; font-size: 15px; }
+      & .live-request-area { height: 88px; min-height: 88px; grid-template-columns: minmax(0,1fr) auto; }
       & .live-request-area #live-queue { grid-area: 1 / 1; }
-      & .live-request-area .live-request-button { grid-area: 1 / 2; }
-      & #live-queue .room-empty-order { width: 34px; height: 34px; font-size: 14px; }
-      & #live-queue strong { font-size: 14px; }
-      & .live-stage-main #live-lyrics { margin-top: max(22px,var(--singer-lyrics-gap,16px)); }
+      & .live-request-area .live-request-button { grid-area: 1 / 2; height: 44px; min-height: 44px; font-size: 15px; }
+      & #live-queue .room-empty-order { width: 38px; height: 38px; font-size: 15px; }
+      & #live-queue > li { --room-avatar-slot: 40px; --room-queue-photo: 38px; }
+      & #live-queue strong { font-size: 15px; }
+      & #live-queue li strong { display: flex; align-items: center; justify-content: center; }
+      & #live-queue li strong > span:last-child { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      & #live-timer { font-size: 14px; font-variant-numeric: tabular-nums; }
+      & .live-stage-main #live-lyrics {
+        height: 144px; grid-template-rows: repeat(4,36px);
+        width: 100%; min-width: 0; margin-top: max(22px,var(--singer-lyrics-gap,16px));
+      }
+      & #live-lyrics p, & #live-lyrics p.is-current { line-height: 36px; }
       /* Zoom reduces the available CSS height. Keep four equal lines clear of the clock. */
       @media (max-height: 820px) {
         & .live-stage-main { padding-top: 8px; }
         & #live-current strong { margin-top: 4px; }
-        & .live-stage-main #live-lyrics { height: 6em; grid-template-rows: repeat(4,1.5em); }
-        & #live-lyrics p, & #live-lyrics p.is-current { line-height: 1.5; }
       }
       /* Use the existing space between singer and lyrics without moving either. */
       & #live-countdown.live-countdown:not([hidden]) {

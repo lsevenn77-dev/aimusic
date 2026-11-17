@@ -166,6 +166,7 @@ test('mute, changed device, turn handoff and capture fallback cannot leave an ol
 
 test('live room wraps the current template while preserving chat, gifts, settings and participants',()=>{
  const {c}=context(),html=vm.runInContext('liveKaraokeRoomHTML("live-room")',c);
+ assert.deepEqual([...html.matchAll(/data-voice="karaoke-key" data-target="([^"]+)"/g)].map(match=>match[1]),['-1','reset','1']);
  for(const id of ['live-lyrics','live-search','voice-chat','voice-gift-form','voice-settings-form','voice-members'])assert.equal((html.match(new RegExp('id="'+id+'"','g'))||[]).length,1,id);
  assert.match(html,/class="voice-room live-karaoke-room"/);assert.match(html,/data-voice-room="live-room"/);
  assert.doesNotMatch(html,/class="voice-back"/);assert.match(html,/id="voice-title">라이브 노래방/);
