@@ -22,6 +22,11 @@ test('catalogue uses public credits, honours legacy cover links and excludes hid
  assert.match(duet,/완성 듀엣/);assert.doesNotMatch(duet,/href="\/music\/solo"|리스너 other|private OAuth name/);
  assert.match(await result('?kind=cover'),/href="\/music\/solo"/);
  assert.match(await result('?q=private'),/조건에 맞는 공개 음악이 없습니다/);
+ sql.exec("UPDATE producers SET name='리스너 other',nickname_confirmed=1 WHERE id='singer'");
+ assert.doesNotMatch(await result('?kind=solo'),/리스너 other/);
+ assert.match(await result('?q=other'),/조건에 맞는 공개 음악이 없습니다/);
+ sql.exec("UPDATE producers SET name='리스너 abcdef12' WHERE id='singer'");
+ assert.match(await result('?kind=solo'),/리스너 abcdef12/);
  sql.exec("UPDATE tracks SET status='hidden' WHERE id='first'");
  assert.match(await result('?kind=duet'),/조건에 맞는 공개 음악이 없습니다/);
  sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");

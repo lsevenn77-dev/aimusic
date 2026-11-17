@@ -35,7 +35,10 @@ function catalogURL(filters) {
  return '/music' + (params.size ? '?' + params : '');
 }
 export async function discoverTracks(env,filters) {
- const displayName = alias => `CASE WHEN ${alias}.nickname_confirmed=1 THEN ${alias}.name
+ // Some older first-cover/social profiles persisted the generated public name, even as confirmed.
+ // Match the profile's own ID, so a similar-looking chosen nickname is preserved.
+ const displayName = alias => `CASE WHEN ${alias}.name='리스너 '||substr(${alias}.user_id,1,8) THEN '리스너'
+  WHEN ${alias}.nickname_confirmed=1 THEN ${alias}.name
   WHEN ${alias}.name IN (${alias}.user_id,${alias}.id) OR (${producerNameSQL(alias)})!=${alias}.name THEN '리스너'
   ELSE ${alias}.name END`;
  const artistName=`CASE WHEN ${namedArtistSQL()} THEN a.name END`;
