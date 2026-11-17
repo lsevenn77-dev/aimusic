@@ -30,10 +30,32 @@
  gap:16px;
 }
 .artist-directory .directory-artist {
+ --artist-active-border:color-mix(in srgb,var(--ds-mint) 36%,var(--ds-line));
  display:flex; flex-direction:column; min-width:0; box-sizing:border-box;
  padding:0; margin:0; border:1px solid var(--ds-line); border-radius:12px;
  background:color-mix(in srgb,var(--ds-panel) 78%,transparent);
  color:var(--ds-text); text-align:center;
+}
+.artist-directory .directory-artist:is(:focus-visible,:has(:focus-visible)) {
+ border-color:var(--artist-active-border);
+}
+@media (min-width:801px) and (hover:hover) and (pointer:fine) {
+ .artist-directory .directory-artist:hover {
+  border-color:var(--artist-active-border);
+  box-shadow:0 6px 16px rgb(0 0 0 / 22%);
+ }
+ @media (prefers-reduced-motion:no-preference) {
+  .artist-directory .directory-artist {
+   --artist-lift:4px;
+   position:relative;
+   transition:transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+  }
+  .artist-directory .directory-artist:hover {transform:translateY(calc(-1 * var(--artist-lift)))}
+  /* Keep the original bottom edge under the mouse while the card rises. */
+  .artist-directory .directory-artist:hover > :is(.directory-card-info,.directory-add-content)::after {
+   content:""; position:absolute; top:100%; inset-inline:0; height:calc(var(--artist-lift) + 1px);
+  }
+ }
 }
 .artist-directory .directory-photo,
 .artist-directory .directory-add-card::before {
