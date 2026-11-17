@@ -264,9 +264,8 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
 .live-directory .talk-scroll {
  --room-gap:14px;--room-columns:5;--grid-width:100cqw;
  --card-width:calc((var(--grid-width) - (var(--room-columns) - 1) * var(--room-gap)) / var(--room-columns));
- --room-height:calc(var(--card-width) * 1.28);
  --row-gap:var(--room-gap);
- --three-rows:calc(3 * var(--room-height) + 2 * var(--row-gap));
+ --three-rows:calc(3 * var(--card-width) + 2 * var(--row-gap));
  flex:0 1 auto;min-height:0;min-width:0;max-height:var(--three-rows);
  margin:var(--list-spacing) 0 0;
  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
@@ -404,29 +403,44 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="ь╗ды
 .live-directory :is(.live-filters,.v3-room-copy) .live-type-karaoke {mask-size:132%}
 .live-directory :is(.live-filters,.v3-room-copy) .live-type-talk {mask-size:118%}
 .live-directory .v3-room-card {
- display:grid;grid-template-rows:36px minmax(0,1fr) 42px;
- background:#111b31;border-color:var(--ds-line);border-radius:15px;
+ --bar-height:clamp(32px,17%,48px);
+ display:block;position:relative;isolation:isolate;box-sizing:border-box;
+ width:100%;aspect-ratio:1 / 1;overflow:hidden;border-radius:18px;
+ background:#111b31;border-color:rgb(183 182 255 / 40%);
+}
+@media (hover:hover) and (prefers-reduced-motion:no-preference) {
+ /* Leave room above the first row for its raised border inside the scrollport. */
+ .live-directory .talk-scroll:has(.v3-room-card) {
+  padding-top:2px;margin-top:calc(var(--list-spacing) - 2px);max-height:calc(var(--three-rows) + 2px);
+ }
+ .live-directory .v3-room-card {transition:transform 180ms ease}
+ .live-directory .v3-room-card:hover {transform:translateY(-2px)}
 }
 .live-directory .live-card-head,.live-directory .v3-room-copy {
- display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0;padding-inline:10px;
+ position:absolute;z-index:1;inset-inline:0;
+ display:flex;align-items:center;justify-content:space-between;gap:6px;
+ min-width:0;height:var(--bar-height);box-sizing:border-box;padding:0 10px;
+ color:var(--ds-text);background:rgb(26 33 54 / 66%);
+ -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
 }
+.live-directory .live-card-head {top:0;border-bottom:1px solid rgb(214 205 255 / 18%)}
+.live-directory .v3-room-copy {bottom:0;border-top:1px solid rgb(214 205 255 / 25%)}
 .live-directory .talk-host {
  display:flex;align-items:center;gap:5px;margin:0;padding:0;background:none;color:var(--ds-text);font-size:13px;
 }
 .live-directory .talk-host img {width:24px;height:24px;flex:none;object-fit:cover;border-radius:50%}
 .live-directory .talk-host span,.live-directory .v3-room-copy h3 {min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
-.live-directory .v3-room-count {position:static;flex:none;background:rgb(8 14 27 / 84%);font-size:12px}
-.live-directory .v3-room-art {height:100%;min-height:0;aspect-ratio:auto}
-.live-directory .v3-room-copy {height:auto}
+.live-directory .v3-room-count {position:static;flex:none;background:rgb(10 17 33 / 62%);border:1px solid rgb(221 226 252 / 25%);font-size:12px}
+.live-directory .v3-room-art {position:absolute;inset:0;height:100%;min-height:0;aspect-ratio:auto}
 .live-directory .v3-room-copy h3 {display:block;font-size:15px;line-height:1.4}
 .live-directory .v3-room-copy > span {display:flex;flex:none;--live-icon:20px}
-.live-directory .talk-follows {position:absolute;left:7px;bottom:3px;display:flex;pointer-events:none}
+.live-directory .talk-follows {position:absolute;left:7px;bottom:calc(var(--bar-height) + 4px);display:flex;pointer-events:none}
 .live-directory .talk-follows > img {width:29px;height:29px;border:1px solid var(--ds-panel);border-radius:50%;object-fit:cover}
 .live-directory .talk-follows > img + img {margin-left:-9px}
 #main .live-directory .v3-room-grid {
  /* Fill the scrollport; a scrollbar consumes space only when the list overflows. */
  width:100%;zoom:1;grid-template-columns:repeat(var(--room-columns),minmax(0,1fr));
- grid-auto-rows:var(--room-height);gap:var(--row-gap) var(--room-gap);align-content:start;
+ grid-auto-rows:auto;gap:var(--row-gap) var(--room-gap);align-content:start;
 }
 @container (max-width:980px) {
  .live-directory .talk-scroll {--room-columns:4}
