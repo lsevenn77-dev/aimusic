@@ -91,7 +91,7 @@ function homePlaceholder(){return '<div class="release-placeholder" role="status
 const homeBanners=[
  {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',subtitle:'완성한 음악을 직접 공개해요.',cta:'제작곡 올리기',href:'#upload'},
  {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',subtitle:'내 목소리로 커버곡을 남겨요.',cta:'노래하러 가기',href:'#karaoke'},
- {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해보세요',subtitle:'원하는 파트에 목소리를 더해요.',cta:'참여하기',href:'#karaoke/duets',chooseParticipation:true},
+ {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해보세요',subtitle:'원하는 파트에 목소리를 더해요.',cta:'참여하기',href:'#karaoke/dubbing?tab=discover'},
  {id:'artists',title:'AI 아티스트',headline:'AI 아티스트를 팔로우하고 응원해보세요',subtitle:'팬라운지에서 응원을 전해요.',cta:'아티스트 만나기',href:'#artists'},
  {id:'karaoke',title:'노래방',headline:'노래방에서 사람들과 함께 노래해보세요',subtitle:'노래를 나누고 서로 응원해요.',cta:'노래방 가기',href:'#live?mode=karaoke'},
  {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해보세요',subtitle:'취향을 나누고 친구를 만나요.',cta:'토킹룸 가기',href:'#voice?mode=talk'},
@@ -149,7 +149,7 @@ function homeBannerHTML(b,next){
  const sides=id=>homeWideBanner(id)||id==='crew'?[]:['left','right'];
  const scenery=id=>sides(id).map(side=>`<span class="home-promo-scenery home-promo-scenery-${side}" aria-hidden="true" style="--home-promo-scenery:url('${homeBannerBackgroundImage(id,side)}')"></span>`).join('');
  const preload=next?sides(next.id).map(side=>`<link rel="preload" as="image" href="${homeBannerBackgroundImage(next.id,side)}" media="(min-width: 801px)" fetchpriority="low">`).join('')+`<link rel="preload" as="image" imagesrcset="${homeBannerDesktopSources(next.id)}" ${homeWideBanner(next.id)?'imagesizes="'+homeBannerDesktopSizes+'"':''} media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:'';
- return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" ${wide?'data-wide-banner':''} href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}${b.chooseParticipation?' · 듀엣 또는 더빙 선택':''}" ${b.chooseParticipation?'data-home-participate aria-haspopup="dialog"':''} draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${wide?'sizes="'+homeBannerDesktopSizes+'"':''} width="${desktopWidth}" height="${desktopHeight}"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
+ return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" ${wide?'data-wide-banner':''} href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}" draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${wide?'sizes="'+homeBannerDesktopSizes+'"':''} width="${desktopWidth}" height="${desktopHeight}"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
 }
 // A jump to an unvisited desktop slide can outrun the next-image preload.
 function prepareHomeBanner(b){
@@ -158,9 +158,6 @@ function prepareHomeBanner(b){
  image.sizes=homeBannerDesktopSizes;
  image.srcset=homeBannerDesktopSources(b.id);
  return image.decode();
-}
-function homeParticipationHTML(){
- return '<div class="home-participation"><h2>함께 만들 작품을 골라보세요</h2><div class="home-participation-options"><a class="small-button" href="#karaoke/duets">듀엣 참여하기 '+icon('chevron')+'</a><a class="small-button" href="#karaoke/dubbing?tab=join">더빙 참여하기 '+icon('chevron')+'</a></div></div>';
 }
 function homeRailHTML(id,label,content,kind){return `<div class="home-rail-shell">${kind==='profile'||id==='home-playlist-rail'?'':`<div class="home-rail-controls"><button type="button" data-home-scroll="-1" aria-controls="${id}" aria-label="${esc(label)} 이전 보기">${icon('chevron')}</button><button type="button" data-home-scroll="1" aria-controls="${id}" aria-label="${esc(label)} 다음 보기">${icon('chevron')}</button></div>`}<div id="${id}" class="home-rail home-${kind}-rail" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}" tabindex="0">${content}</div></div>`;}
 function homePlaylistCard(p,tracks=null,{compact=false,footer=''}={}){
@@ -434,13 +431,10 @@ function renderHome(ticket){
   try{show(await api(path,'GET',undefined,{signal:controller.signal}));}catch{if(active(target)&&sequence===profileRequests[kind]&&!cached){paint(target,'<div class="home-load-error" role="alert"><p>프로필을 불러오지 못했어요.</p><button type="button" class="small-button" data-home-profile-retry="'+kind+'">다시 시도</button></div>');}}
  };
  if(main.addEventListener){
-  main.addEventListener('click',async e=>{
-   const participation=e.target.closest('[data-home-participate]');
-   if(participation&&!e.defaultPrevented&&!e.metaKey&&!e.ctrlKey&&!e.shiftKey&&!e.altKey){e.preventDefault();dialog(homeParticipationHTML());return;}
+  main.addEventListener('click',e=>{
    const retry=e.target.closest('[data-home-profile-retry]');
    if(retry)void loadProfiles(retry.dataset.homeProfileRetry);
   },{signal:controller.signal});
-
  }
  for(const kind of ['artist','producer'])void loadProfiles(kind);
  const slotsFor=()=>Math.min(64,Math.max(8,2**Math.ceil(Math.log2(capacities().music))));

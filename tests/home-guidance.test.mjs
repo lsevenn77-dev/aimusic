@@ -38,7 +38,7 @@ test('all eight service banners expose a whole-banner link and responsive WebP a
   }
  }
  const routes=Object.fromEntries(banners.map(b=>[b.id,b.href]));
- assert.deepEqual(routes,{studio:'#upload',play:'#karaoke',participate:'#karaoke/duets',artists:'#artists',karaoke:'#live?mode=karaoke',talking:'#voice?mode=talk',crew:'#community/crews?browse=1',premium:'#membership'});
+ assert.deepEqual(routes,{studio:'#upload',play:'#karaoke',participate:'#karaoke/dubbing?tab=discover',artists:'#artists',karaoke:'#live?mode=karaoke',talking:'#voice?mode=talk',crew:'#community/crews?browse=1',premium:'#membership'});
 });
 
 test('each banner renders one subtitle and includes it in the accessible link name',()=>{
@@ -54,13 +54,11 @@ test('each banner renders one subtitle and includes it in the accessible link na
  }
 });
 
-test('participation exposes a choice of open duet or dubbing projects, not completed works',()=>{
- const c=context(),choice=vm.runInContext('homeBanners.find(b=>b.id==="participate")',c);
- assert.match(c.homeBannerHTML(choice),/data-home-participate aria-haspopup="dialog"/);
- const html=c.homeParticipationHTML();
- assert.match(html,/href="#karaoke\/duets"/);
- assert.match(html,/href="#karaoke\/dubbing\?tab=join"/);
- assert.doesNotMatch(html,/href="#karaoke\/browse"|data-pay|data-follow|data-record/);
+test('the participation artwork and CTA share a direct link to dubbing discovery',()=>{
+ const c=context(),banner=vm.runInContext('homeBanners.find(b=>b.id==="participate")',c);
+ const html=c.homeBannerHTML(banner);
+ assert.match(html,/<a\b[^>]*href="#karaoke\/dubbing\?tab=discover"[^>]*>[\s\S]*?<picture\b[\s\S]*?class="home-promo-cta">참여하기[\s\S]*?<\/a>/);
+ assert.doesNotMatch(html,/aria-haspopup|data-home-participate|듀엣 또는 더빙 선택/);
 });
 
 test('mobile retains the seven approved photos and uses the new full-frame crew scene',()=>{

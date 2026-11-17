@@ -79,8 +79,6 @@
 #home-release.home-promo-carousel .home-promo-cta{display:inline-flex;align-items:center;justify-content:center;gap:16px;min-height:44px;padding:8px 24px;border:0;border-radius:999px;background:linear-gradient(100deg,var(--ds-mint),var(--ds-lavender),var(--ds-lilac));color:var(--ds-ink);font-size:16px;line-height:1.4;font-weight:750;text-shadow:none;white-space:nowrap;box-shadow:none}
 #home-release.home-promo-carousel .home-promo-cta svg{width:20px;height:20px;flex:none}
 #home-release.home-promo-carousel .home-promo-link:focus-visible .home-promo-cta{outline:2px solid var(--ds-text);outline-offset:3px}
-.home-participation-options{display:grid;gap:12px;margin-top:20px}
-.home-participation-options .small-button{display:flex;justify-content:space-between;min-height:48px;text-decoration:none}
 @container(max-width:790px){
  #home-release.home-promo-carousel .home-promo-copy{width:60%;padding-left:clamp(54px,9cqi,72px);gap:8px}
  #home-release.home-promo-carousel .home-promo-headline{font-size:22px}
