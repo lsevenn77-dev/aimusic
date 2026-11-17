@@ -4,6 +4,7 @@ import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
 import {publicPath,tryPublicOrigin} from './cafe24-origin.js';
 import {brandAliases,brandPublicDocument} from '../shared/web-brand.js';
+import {aboutPresentation} from './about-presentation.js';
 import {queueLyricAnalysis,runLyricBatch,lyricAnalysisAdmin} from './lyric-analysis.js';
 import {followManagement} from './follow-management.js';
 import {expireDubbingCombinations} from './dubbing-casting.js';
@@ -250,7 +251,9 @@ async function serve(req,env,ctx){
  }
  if(req.method==='GET' && publicPath(new URL(req.url).pathname) && response.body){
   headers.delete('content-length');
-  return new Response(brandPublicDocument(await response.text()),{status:response.status,statusText:response.statusText,headers});
+  const branded=brandPublicDocument(await response.text());
+  const html=new URL(req.url).pathname==='/about' && response.status===200 ? aboutPresentation(branded) : branded;
+  return new Response(html,{status:response.status,statusText:response.statusText,headers});
  }
  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
