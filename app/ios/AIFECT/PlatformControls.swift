@@ -391,7 +391,7 @@ struct StudioSectionTabs: View {
     let names: [String]
     @Binding var selection: String
     static func icon(_ name: String) -> String? {
-        ["인기": "trophy", "장르": "square.grid.2x2", "신규": "sparkles", "최신": "sparkles", "듀엣 참여": "person.2", "내 초안": "pencil"][name]
+        ["팔로잉": "person.2", "인기": "trophy", "장르": "square.grid.2x2", "신규": "sparkles", "최신": "sparkles", "듀엣 참여": "person.2", "내 초안": "pencil"][name]
     }
     var body: some View {
         HStack(spacing: 0) {
@@ -410,20 +410,39 @@ struct StudioSectionTabs: View {
     }
 }
 
-struct PlayDiscoveryTabs: View {
-    let names: [String]
-    @Binding var selection: String
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(names, id: \.self) { name in
-                Button { selection = name } label: {
-                    VStack(spacing: 2) {
-                        Image("Orbit-" + (["추천":"recommended", "팔로잉":"following", "인기":"popular", "최신":"latest"][name] ?? "recommended")).resizable().frame(width: 30, height: 30)
-                        Text(name).font(.system(size: 12, weight: selection == name ? .bold : .medium))
-                        Circle().fill(selection == name ? AifectDesign.violet : .clear).frame(width: 4, height: 4)
-                    }.frame(maxWidth: .infinity, minHeight: 62).foregroundStyle(selection == name ? Brand.pink : AifectDesign.secondaryText)
-                }.buttonStyle(.plain).accessibilityLabel(name).accessibilityIdentifier("browse-section-" + name).accessibilityAddTraits(selection == name ? .isSelected : [])
-            }
+
+/// End text entry without consuming the tapped control or changing navigation.
+struct OutsideInputDismissal: UIViewRepresentable {
+    func makeUIView(context: Context) -> Surface { Surface() }
+    func updateUIView(_ view: Surface, context: Context) { }
+    static func dismantleUIView(_ view: Surface, coordinator: ()) { view.detach() }
+
+    final class Surface: UIView, UIGestureRecognizerDelegate {
+        private weak var attachedWindow: UIWindow?
+        private lazy var tap: UITapGestureRecognizer = {
+            let gesture = UITapGestureRecognizer(target: self, action: #selector(finishInput))
+            gesture.cancelsTouchesInView = false
+            gesture.delegate = self
+            return gesture
+        }()
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            detach()
+            attachedWindow = window
+            window?.addGestureRecognizer(tap)
         }
+        func detach() { attachedWindow?.removeGestureRecognizer(tap); attachedWindow = nil }
+        @objc private func finishInput() { attachedWindow?.endEditing(true) }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            var target = touch.view
+            while let view = target {
+                // Keep text selection intact. Navigation/keyboard controls handle their own
+                // action before focus changes, so Back only ends an active edit.
+                if view is UITextField || view is UITextView || view is WKWebView || view is UIControl || view is UINavigationBar || view is UIToolbar { return false }
+                target = view.superview
+            }
+            return true
+        }
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
     }
 }

@@ -346,6 +346,7 @@ struct NativeDubbingEditor: View {
     @State private var confirmDelete: String?
     @State private var refineRequest: String?
     @FocusState private var focusedLine: String?
+    @State private var keyboardVisible = false
     @State private var choosing = ""
     @State private var confirmLeave = false
     @State private var destination: SiteWorkspace?
@@ -369,6 +370,8 @@ struct NativeDubbingEditor: View {
                 }
             }
             .onChange(of: scene) { _, phase in if phase != .active { editor.cache() } }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in keyboardVisible = true }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardVisible = false }
             .onDisappear { if destination == nil { editor.cache() } }
             .navigationDestination(item: $destination) { DubbingProjectPage(space: $0) }
             .onChange(of: editor.script.isEmpty) { _, empty in if !empty { withAnimation { proxy.scrollTo("dubbing-editor-top", anchor: .top) } } }
@@ -391,7 +394,7 @@ struct NativeDubbingEditor: View {
         }.accessibilityIdentifier("native-dubbing-editor").scrollDismissesKeyboard(.interactively)
             .navigationTitle(editor.script.isEmpty ? "더빙 만들기" : "대본 편집").navigationBarTitleDisplayMode(.inline).modifier(FullScreenWorkspace()).navigationBarBackButtonHidden()
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) { Button { if editor.hasChanges || editor.pending { confirmLeave = true } else { dismiss() } } label: { Image(systemName: "chevron.left").accessibilityLabel("뒤로") }.disabled(editor.busy) }
+                ToolbarItem(placement: .topBarLeading) { Button { if keyboardVisible { focusedLine = nil; UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) } else if editor.hasChanges || editor.pending { confirmLeave = true } else { dismiss() } } label: { Image(systemName: "chevron.left").accessibilityLabel("뒤로") }.disabled(editor.busy) }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if editor.undoAvailable { Button { editor.undo() } label: { Image(systemName: "arrow.uturn.backward") }.accessibilityLabel("실행 취소").disabled(editor.busy || editor.pending) }
                     Button("기기에 저장") { do { try editor.saveDraft() } catch { editor.error = error.localizedDescription } }.disabled(editor.busy)
@@ -624,7 +627,10 @@ struct NativeDubbingEditor: View {
                     }
                 }.padding(16)
             }.scrollDismissesKeyboard(.interactively).background(Brand.background).navigationTitle("기존 대본 붙여넣기").navigationBarTitleDisplayMode(.inline)
-                .toolbar { ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("완료") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) } } }
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("취소") { importing = false } }
+                    ToolbarItemGroup(placement: .keyboard) { Spacer(); Button("완료") { UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil) } }
+                }
         }.presentationDetents([.large]).presentationDragIndicator(.visible)
     }
     private func optionField(_ label: String, key: String, value: String) -> some View {

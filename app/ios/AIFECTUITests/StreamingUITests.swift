@@ -104,6 +104,20 @@ final class StreamingUITests: XCTestCase {
         XCTAssertFalse(web.staticTexts["LEAVE CONFIRMATION"].exists)
     }
 
+    @MainActor func testWorkspaceTextInputKeepsKeyboardAndDraft() {
+        let app = launch(["-crew-parity", "-workspace-test-url", "http://127.0.0.1:4188/room-overlay-test.html"])
+        app.buttons["main-tab-1"].tap()
+        app.buttons["크루"].firstMatch.tap()
+        let game = app.buttons["crew-weekly-game-banner"]
+        XCTAssertTrue(game.waitForExistence(timeout: 10)); game.tap()
+        let field = app.webViews.firstMatch.textFields["Room topic"]
+        XCTAssertTrue(field.waitForExistence(timeout: 15)); field.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5))
+        field.typeText("Keep this draft")
+        let committed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "Keep this draft"), object: field)
+        XCTAssertEqual(XCTWaiter.wait(for: [committed], timeout: 5), .completed)
+        XCTAssertTrue(app.keyboards.firstMatch.exists)
+    }
     @MainActor func testRealJumpGamePracticeOnIPhoneViewport() {
         let app = launch(["-crew-parity", "-workspace-test-url", "http://127.0.0.1:4188/jump-test.html"])
         app.buttons["main-tab-1"].tap()
@@ -146,7 +160,7 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["이번 주 · 11–20위"].waitForExistence(timeout: 5))
         capture(app, "build19-chart-returned-with-position")
     }
-    @MainActor func testCrewActionsOpenSeparateDestinations() {
+    @MainActor func testCrewActionsSwitchInlineBelowMenu() {
         let app = launch(["-crew-parity"])
         app.buttons["main-tab-1"].tap()
         XCTAssertTrue(app.buttons["크루"].firstMatch.waitForExistence(timeout: 5), app.debugDescription)
@@ -166,11 +180,22 @@ final class StreamingUITests: XCTestCase {
         firstRow[0].tap(); XCTAssertTrue(app.staticTexts["크루 작품  2"].waitForExistence(timeout: 5))
         capture(app, "build20-crew-six-menus")
         notices.tap()
-        XCTAssertTrue(app.staticTexts["이번 주 크루 공지"].waitForExistence(timeout: 8)); back(app)
+        XCTAssertTrue(app.staticTexts["이번 주 크루 공지"].waitForExistence(timeout: 8))
+        XCTAssertTrue(notices.isSelected)
+        XCTAssertTrue(firstRow[0].isHittable, "Crew menu stays on the same page")
+        capture(app, "build23-crew-inline-notices")
         app.buttons["crew-membership-open"].tap()
         XCTAssertTrue(app.staticTexts["내 역할"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["crew-membership-leave"].exists); back(app)
-        app.buttons["crew-directory-open"].tap()
+        XCTAssertTrue(app.buttons["crew-membership-open"].isSelected)
+        XCTAssertTrue(firstRow[0].isHittable)
+        XCTAssertFalse(app.staticTexts["이번 주 크루 공지"].exists)
+        capture(app, "build23-crew-inline-management")
+        let leave = app.buttons["crew-membership-leave"]
+        reveal(leave, in: app.scrollViews.firstMatch, app: app)
+        XCTAssertTrue(leave.exists)
+        let directory = app.buttons["crew-directory-open"]
+        reveal(directory, in: app.scrollViews.firstMatch, app: app, towardTop: true)
+        directory.tap()
         XCTAssertTrue(app.buttons["‹ 내 크루로 돌아가기"].waitForExistence(timeout: 5))
         app.buttons["‹ 내 크루로 돌아가기"].tap()
         XCTAssertTrue(app.buttons["crew-section-작품"].waitForExistence(timeout: 5))
@@ -251,8 +276,10 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["studio-section-듀엣 참여"].exists)
         capture(app, "build19-play-icons")
         app.buttons["둘러보기"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["browse-section-추천"].exists)
-        capture(app, "build19-browse-icons")
+        XCTAssertTrue(app.buttons["studio-section-추천"].exists)
+        XCTAssertTrue(app.buttons["studio-section-팔로잉"].exists)
+        XCTAssertTrue(app.buttons["studio-section-최신"].exists)
+        capture(app, "build23-browse-icons")
         app.buttons["main-tab-3"].tap()
         XCTAssertTrue(app.buttons["inbox-filter-전체"].waitForExistence(timeout: 8))
         XCTAssertLessThan(app.buttons["inbox-filter-전체"].frame.minY, 65)
@@ -867,7 +894,16 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(create.waitForExistence(timeout: 15)); create.tap()
         XCTAssertTrue(app.buttons["직접 대본 작성"].waitForExistence(timeout: 8)); app.buttons["직접 대본 작성"].tap()
         let title = app.textFields["script-title"]
-        XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("검증용 새 극본"); app.toolbars.buttons["완료"].tap()
+        XCTAssertTrue(title.waitForExistence(timeout: 5)); title.tap(); title.typeText("검증용 새 극본")
+        title.coordinate(withNormalizedOffset: CGVector(dx: -0.03, dy: 0.5)).tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["대본 편집"].exists)
+        XCTAssertEqual(title.value as? String, "검증용 새 극본")
+        title.tap()
+        app.buttons["뒤로"].tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForNonExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["대본 편집"].exists)
+        XCTAssertFalse(app.alerts["진행사항을 저장할까요?"].exists)
         let lines = app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH %@", "dubbing-line-text-"))
         for i in 0..<2 {
             let field = lines.element(boundBy: i)
@@ -894,7 +930,11 @@ final class StreamingUITests: XCTestCase {
         let field = app.descendants(matching: .any).matching(identifier: "script-import-source").firstMatch
         XCTAssertTrue(field.waitForExistence(timeout: 5)); field.tap()
         field.typeText("SCENE 01 - Cafe\nA: Hello.\nB: Welcome.\n[SFX: a car passing]\n[BGM: soft piano]\nunknown original text")
-        app.toolbars.buttons["완료"].tap()
+        app.navigationBars["기존 대본 붙여넣기"].buttons["취소"].tap()
+        XCTAssertTrue(app.buttons["기존 대본 붙여넣기"].waitForExistence(timeout: 5))
+        app.buttons["기존 대본 붙여넣기"].tap()
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue((field.value as? String ?? "").contains("A: Hello."))
         app.buttons["분석 결과 미리보기"].tap()
         let apply = app.buttons["확인 후 편집기에 반영"]
         reveal(apply, in: app.scrollViews.firstMatch, app: app, hasBottomBar: false); capture(app, "script-paste-preview"); apply.tap()

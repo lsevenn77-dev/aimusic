@@ -164,6 +164,7 @@ struct RootView: View {
                 }.background(Brand.background).zIndex(1)
             }
         }
+        .background(OutsideInputDismissal().allowsHitTesting(false))
         .onReceive(NotificationCenter.default.publisher(for: UIScene.didEnterBackgroundNotification)) { _ in
             UIApplication.shared.ignoreSnapshotOnNextApplicationLaunch()
         }
