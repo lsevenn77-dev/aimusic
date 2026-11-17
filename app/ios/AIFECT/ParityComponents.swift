@@ -53,13 +53,14 @@ struct ParityChips: View {
     }
 }
 struct AlbumArtwork: View {
+    @Environment(\.displayScale) private var displayScale
     let song: Song
     var ratio: CGFloat = 1
     var maxPixelSize = 1024
     var body: some View {
         Color.clear.aspectRatio(ratio, contentMode: .fit).overlay {
             GeometryReader { bounds in
-                RemoteArtwork(url: song.artURL, maxPixelSize: maxPixelSize) { $0.resizable().scaledToFill() } placeholder: {
+                RemoteArtwork(url: song.artURL, maxPixelSize: min(maxPixelSize, Int(ceil(max(bounds.size.width, bounds.size.height) * displayScale / 32)) * 32)) { $0.resizable().scaledToFill() } placeholder: {
                     ZStack { AifectDesign.raised; Image(systemName: song.isCover ? "mic" : "music.note").font(.largeTitle).foregroundStyle(AifectDesign.secondaryText.opacity(0.45)) }
                 }.frame(width: bounds.size.width, height: bounds.size.height).clipped()
             }

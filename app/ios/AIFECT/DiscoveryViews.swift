@@ -249,10 +249,11 @@ struct CatalogDirectory: View {
 
 struct ArtistArtwork: View {
     let artist: [String: Any]
+    var maxPixelSize = 1024
     var body: some View {
         let version = artist.string("image_version")
         let url = version.isEmpty || version == "0" ? nil : try? Endpoint.url("/media/artist/\(Endpoint.pathID(artist.selfID))?v=\(Endpoint.query(version))")
-        RemoteArtwork(url: url) { $0.resizable().scaledToFill() } placeholder: { ZStack { Brand.card; Image(systemName: "person.fill").foregroundStyle(Brand.pink) } }
+        RemoteArtwork(url: url, maxPixelSize: maxPixelSize) { $0.resizable().scaledToFill() } placeholder: { ZStack { Brand.card; Image(systemName: "person.fill").foregroundStyle(Brand.pink) } }
     }
 }
 private struct ArtistDirectoryCard: View {

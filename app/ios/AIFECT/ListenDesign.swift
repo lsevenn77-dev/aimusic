@@ -43,7 +43,7 @@ struct ListenView: View {
             else {
                 ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
+                    LazyVStack(alignment: .leading, spacing: 12) {
                         if let error = model.error { RetryCard(message: error) { Task { await model.refresh() } } }
                         if page == "추천" { recommended }
                         else {
@@ -70,7 +70,7 @@ struct ListenView: View {
         }.background {
             if page == "추천" {
                 GeometryReader { geo in
-                    RemoteArtwork(url: coverURL) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
+                    RemoteArtwork(url: coverURL, maxPixelSize: 256) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
                         .frame(width: geo.size.width, height: geo.size.height).blur(radius: 36).opacity(0.5)
                         .overlay(LinearGradient(stops: [.init(color: Brand.background.opacity(0.35), location: 0), .init(color: Brand.background.opacity(0.6), location: 0.5), .init(color: Brand.background, location: 1)], startPoint: .top, endPoint: .bottom))
                         .clipped().accessibilityHidden(true)
@@ -185,15 +185,15 @@ struct ListenView: View {
         case "AI 아티스트":
             StreamingHeading(title: "지금 뜨는 AI 아티스트") { CatalogDirectory(artists: true) }
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 14) { ForEach(artists, id: \.selfID) { artist in
+                LazyHStack(alignment: .top, spacing: 14) { ForEach(artists, id: \.selfID) { artist in
                     NavigationLink { ProfilePage(id: artist.selfID, kind: "artist").streamingPage() } label: {
-                        VStack(spacing: 8) { ArtistArtwork(artist: artist).frame(width: 74, height: 74).clipShape(Circle()).overlay(Circle().stroke(AifectDesign.stroke)); Text(artist.displayName()).font(.system(size: 13, weight: .semibold)).lineLimit(1) }.frame(width: 84).padding(.vertical, 4)
+                        VStack(spacing: 8) { ArtistArtwork(artist: artist, maxPixelSize: 224).frame(width: 74, height: 74).clipShape(Circle()).overlay(Circle().stroke(AifectDesign.stroke)); Text(artist.displayName()).font(.system(size: 13, weight: .semibold)).lineLimit(1) }.frame(width: 84).padding(.vertical, 4)
                     }.buttonStyle(.plain).accessibilityIdentifier("home-artist-" + artist.selfID)
                 } }
             }
         default:
             MusicSectionHeading(title: "음악 뒤의 사람들")
-            ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 12) { ForEach(people, id: \.selfID) { person in NavigationLink { ProfilePage(id: person.selfID).streamingPage() } label: { CreatorPreviewCard(person: person) }.buttonStyle(.plain) } } }
+            ScrollView(.horizontal, showsIndicators: false) { LazyHStack(spacing: 12) { ForEach(people, id: \.selfID) { person in NavigationLink { ProfilePage(id: person.selfID).streamingPage() } label: { CreatorPreviewCard(person: person) }.buttonStyle(.plain) } } }
         }
     }
     private func loadShelves(force: Bool = false) async {
@@ -322,7 +322,7 @@ struct StreamingArtworkShelf: View {
     private var width: CGFloat { compact ? min(102, max(76, (availableWidth - 24) / 4)) : min(170, (availableWidth - 16) / 2.15) }
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: compact ? 8 : 10) {
+            LazyHStack(alignment: .top, spacing: compact ? 8 : 10) {
                 ForEach(songs) { song in
                     VStack(alignment: .leading, spacing: compact ? 5 : 7) {
                         Button { if compact { model.player.play(song, queue: songs) } else { onDetail(song) } } label: {
@@ -343,7 +343,7 @@ struct HomePlaylistShelf: View {
     let lists: [[String: Any]]
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 14) { ForEach(lists, id: \.selfID) { list in
+            LazyHStack(alignment: .top, spacing: 14) { ForEach(lists, id: \.selfID) { list in
                 NavigationLink { PlaylistView(id: list.selfID, title: list.string("name")).streamingPage() } label: {
                     VStack(alignment: .leading, spacing: 8) {
                         PlaylistArtwork(list: list).frame(width: 160, height: 160).clipShape(RoundedRectangle(cornerRadius: 16))
@@ -367,7 +367,7 @@ struct HomeDiscoveryTiles: View {
                         .padding(.horizontal, 12).frame(minHeight: 58)
                         .background {
                             GeometryReader { geometry in
-                                if songs.indices.contains(index) { RemoteArtwork(url: songs[index].artURL) { $0.resizable().scaledToFill() } placeholder: { Color.clear }.frame(width: geometry.size.width, height: geometry.size.height).opacity(0.25).clipped() }
+                                if songs.indices.contains(index) { RemoteArtwork(url: songs[index].artURL, maxPixelSize: 384) { $0.resizable().scaledToFill() } placeholder: { Color.clear }.frame(width: geometry.size.width, height: geometry.size.height).opacity(0.25).clipped() }
                             }
                         }
                         .background(Brand.card).clipShape(RoundedRectangle(cornerRadius: 10)).overlay(RoundedRectangle(cornerRadius: 10).stroke(Brand.gradient, lineWidth: 0.7))

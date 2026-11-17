@@ -1045,17 +1045,18 @@ final class StreamingUITests: XCTestCase {
     }
     @MainActor func testAndroidHomeShelvesAndArtistFollow() {
         let app = launch()
+        let home = app.scrollViews["listen-scroll"]
         let genre = app.buttons["home-discover-genre"]
-        reveal(genre, in: app.scrollViews.firstMatch, app: app)
+        reveal(genre, in: home, app: app)
         capture(app, "parity-home-latest-discovery")
         genre.tap()
         XCTAssertTrue(app.buttons["discover-genre-K-POP"].waitForExistence(timeout: 8))
         capture(app, "parity-home-genres"); back(app)
         let artist = app.buttons["home-artist-fixture-artist"]
-        reveal(artist, in: app.scrollViews.firstMatch, app: app)
+        reveal(artist, in: home, app: app)
         capture(app, "parity-home-community-shelves")
         let more = app.buttons["section-more-지금 뜨는 AI 아티스트"]
-        reveal(more, in: app.scrollViews.firstMatch, app: app); more.tap()
+        reveal(more, in: home, app: app); more.tap()
         let follow = app.buttons["artist-follow-fixture-artist"]
         XCTAssertTrue(follow.waitForExistence(timeout: 8)); follow.tap()
         XCTAssertEqual(app.staticTexts["artist-followers-fixture-artist"].label, "4")

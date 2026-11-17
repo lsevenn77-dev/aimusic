@@ -141,6 +141,9 @@ final class API {
         }
     }
     func request(_ path: String, method: String = "GET", bytes: Data? = nil, type: String = "application/octet-stream", progress: (@MainActor (Double) -> Void)? = nil) async throws -> Data {
+        try await response(path, method: method, bytes: bytes, type: type, progress: progress).0
+    }
+    func response(_ path: String, method: String = "GET", bytes: Data? = nil, type: String = "application/octet-stream", progress: (@MainActor (Double) -> Void)? = nil) async throws -> (Data, HTTPURLResponse) {
         let scope = generation
         if ReadPolicy.invalidates(path, method: method) { invalidateReads() }
         var request = URLRequest(url: try Endpoint.url(path))
@@ -168,7 +171,7 @@ final class API {
         // A read may finish while a mutation is in flight. Drop it again after
         // the server commits the write so the next screen sees the new value.
         if ReadPolicy.invalidates(path, method: method) { invalidateReads() }
-        return data
+        return (data, response)
     }
     func chatEvents(query: String, onChange: @MainActor () async -> Void) async throws {
         let scope = generation

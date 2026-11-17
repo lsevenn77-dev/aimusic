@@ -3,7 +3,7 @@ import UIKit
 @testable import AIFECT
 
 final class OctoberParityTests: XCTestCase {
-    override func tearDown() { MockURLProtocol.handler = nil; super.tearDown() }
+    override func tearDown() { MockURLProtocol.handler = nil; MockURLProtocol.responseHeaders = nil; super.tearDown() }
     @MainActor private func api() -> API {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MockURLProtocol.self]
@@ -262,6 +262,74 @@ final class OctoberParityTests: XCTestCase {
         let large = try await repository.image(at: url, maxPixelSize: 1024)
         XCTAssertGreaterThan(large.size.width * large.scale, 192)
         XCTAssertLessThanOrEqual(large.size.width * large.scale, 1024)
+        XCTAssertEqual(count, 1, "Opening a larger cover must reuse the original bytes")
+    }
+
+    @MainActor func testArtworkSharesDownloadsAcrossConcurrentSizesAndRetriesInvalidBytes() async throws {
+        let repository = ArtworkRepository(api: api())
+        let png = UIGraphicsImageRenderer(size: CGSize(width: 1200, height: 1200)).image { $0.fill(CGRect(x: 0, y: 0, width: 1200, height: 1200)) }.pngData()!
+        let lock = NSLock()
+        var count = 0
+        MockURLProtocol.handler = { _ in lock.lock(); count += 1; let attempt = count; lock.unlock(); return (200, attempt == 1 ? Data("invalid image".utf8) : png) }
+        let url = try Endpoint.url("/media/mixed-size/cover?v=one")
+        do { _ = try await repository.image(at: url); XCTFail("Invalid bytes must not be cached") } catch {}
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for size in [160, 192, 256, 384, 512, 1024, 160, 512] {
+                group.addTask {
+                    let image = try await repository.image(at: url, maxPixelSize: size)
+                    XCTAssertLessThanOrEqual(image.size.width * image.scale, CGFloat(size))
+                    XCTAssertGreaterThan(image.size.width * image.scale, CGFloat(size) / 2)
+                }
+            }
+            try await group.waitForAll()
+        }
+        XCTAssertEqual(count, 2, "One failed response followed by one shared download for all sizes")
+    }
+
+    @MainActor func testPublicArtworkSurvivesNewRepositoryButVersionChangeDownloadsAgain() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("artwork-test-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let publicCache = PublicArtworkCache(directory: directory)
+        let client = api()
+        let png = UIGraphicsImageRenderer(size: CGSize(width: 32, height: 32)).image { $0.fill(CGRect(x: 0, y: 0, width: 32, height: 32)) }.pngData()!
+        var count = 0
+        MockURLProtocol.responseHeaders = ["Content-Type": "image/png", "Cache-Control": "public, max-age=86400, immutable", "Vary": "X-Aifect-Image-Mirror", "Set-Cookie": "__cf_bm=test-cdn-cookie; Path=/; Secure; HttpOnly"]
+        MockURLProtocol.handler = { _ in count += 1; return (200, png) }
+        let url = try Endpoint.url("/media/persisted-cover/cover?v=one")
+        _ = try await ArtworkRepository(api: client, publicCache: publicCache).image(at: url)
+        let stored = await publicCache.load(url)
+        XCTAssertEqual(stored?.0, png)
+        XCTAssertNil(stored?.1.value(forHTTPHeaderField: "Set-Cookie"), "CDN cookies must not be stored with public artwork")
+        _ = try await ArtworkRepository(api: client, publicCache: PublicArtworkCache(directory: directory)).image(at: url, maxPixelSize: 192)
+        XCTAssertEqual(count, 1, "A new repository must reuse the public disk cache")
+        _ = try await ArtworkRepository(api: client, publicCache: publicCache).image(at: Endpoint.url("/media/persisted-cover/cover?v=two"))
+        XCTAssertEqual(count, 2, "A replacement cover must not reuse the old version")
+    }
+
+    func testPublicArtworkCacheExpiresAndRejectsPrivateOrPersonalizedResponses() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("artwork-policy-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let cache = PublicArtworkCache(directory: directory)
+        let url = try Endpoint.url("/media/cache-policy/cover?v=one")
+        let now = Date()
+        let data = Data([1, 2, 3])
+        let publicResponse = try XCTUnwrap(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil,
+            headerFields: ["Content-Type": "image/webp", "Cache-Control": "public, max-age=60", "Age": "50"]))
+        await cache.store(data, response: publicResponse, for: url, now: now)
+        let fresh = await cache.load(url, now: now.addingTimeInterval(9))
+        XCTAssertEqual(fresh?.0, data)
+        let expired = await cache.load(url, now: now.addingTimeInterval(11))
+        XCTAssertNil(expired)
+        for extra in [["Cache-Control": "private, max-age=60"], ["Cache-Control": "public, no-store, max-age=60"],
+                      ["Cache-Control": "public, no-cache, max-age=60"], ["Cache-Control": "max-age=60"],
+                      ["Vary": "Cookie"], ["Vary": "*"], ["Set-Cookie": "session=private"], ["Content-Type": "application/json"], ["Age": "60"]] {
+            let headers = ["Content-Type": "image/webp", "Cache-Control": "public, max-age=60"].merging(extra) { _, new in new }
+            let response = try XCTUnwrap(HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: headers))
+            XCTAssertNil(PublicArtworkCache.lifetime(response), "\(extra)")
+            await cache.store(data, response: response, for: url)
+            let cached = await cache.load(url)
+            XCTAssertNil(cached, "Private or personalized responses must never be persisted")
+        }
     }
 
     func testArtistGalleryAcceptsOnlyReturnedSameOriginPhotoPath() throws {
