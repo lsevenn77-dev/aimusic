@@ -14,7 +14,7 @@ This candidate preserves the existing Sites identity, storage bindings, room the
 1. Under the user’s 2026-11-01 standing authorization, publish after all required validation succeeds. There is no DB change.
 2. Publish the saved Sites version first. The client tolerates the previous Worker's ready phase. Verify the published client assets.
 3. Refresh existing karaoke tabs before the Worker switch: previously loaded clients do not have the invitation acceptance button. Avoid switching during an active karaoke performance. Capture the current deployed Worker version for rollback.
-4. Deploy **realtime/worker-live-karaoke.js** using **realtime/wrangler.jsonc** explicitly. Its main defaults to the older worker.js, so do not invoke an unqualified deploy. Preserve the current account, ROOMS Durable Object namespace, ROOM_DB and secrets; do not apply migrations.
+4. Deploy with **realtime/wrangler.jsonc**. Its main is **worker-live-karaoke.js**, the operational entrypoint for both room types. Preserve the current account, ROOMS Durable Object namespace, ROOM_DB and secrets.
 5. Verify song request, invitation acceptance/expiry and audio with two real devices. Local fixtures verify server state and UI, but do not replace real SFU/microphone/MR validation.
 6. On failure, restore the recorded prior realtime Worker version and the prior Sites deployment (362 at implementation start). Existing persisted ready/singing state is preserved; invitation state is additive. Have affected karaoke rooms re-enter/recreate if rolling back an in-flight invitation. Never restore/delete user/payment data as part of this rollback.
 

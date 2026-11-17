@@ -1,8 +1,7 @@
 import {DatabaseSync} from 'node:sqlite';
 import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
-import voiceWorker from '../realtime/worker.js';
-import {VoiceRoom} from '../realtime/room.js';
+import voiceWorker,{VoiceRoom} from '../realtime/worker-live-karaoke.js';
 export async function decorationsFixture(t,{gold=10000,voice=false}={}){
  const extra={VOICE_SERVICE_URL:'https://voice-fixture.test',VOICE_BRIDGE_SECRET:'local-decoration-bridge-secret-0001'};
  const f=await fixture(t,voice?extra:{});

@@ -108,6 +108,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const {theme_sku,background,...settings}=b;
   const selected=await assertRoomTheme(env,user.id,theme_sku||background||(await resolveRoomDecoration(env,current.room)).sku);
   const data=await result(await voiceCall(env,actor,room,'settings',{...settings,theme_sku:selected}));
+  if(settings.mode && data.room?.mode!==settings.mode)fail(502,'방 유형 변경이 확인되지 않았어요. 방 설정을 다시 열어주세요.');
   await saveRoomTheme(env,actor,data.room,selected);return json(await decorateRoomResult(env,data));
  }
  if(action==='invite') {

@@ -162,7 +162,10 @@ var VoiceRoom = class {
   }
   async save() {
     await this.ctx.storage.put("room", this.data);
-    if (Object.keys(this.data.members).length || this.data.cleanup.length || this.data.directoryDirty || this.data.hostReconnectUntil > Date.now()) await this.ctx.storage.setAlarm(Date.now() + 15e3);
+    if (!Object.keys(this.data.members).length && !this.data.cleanup.length && !this.data.directoryDirty && !(this.data.hostReconnectUntil > Date.now())) return;
+    const now = Date.now(), due = this.data.cleanup.filter((job) => !this.cleaning.has(job.sessionId)).map((job) => Math.max(now + 250, job.after));
+    const next = Math.min(now + 15e3, ...due), current = await this.ctx.storage.getAlarm?.();
+    if (!current || current <= now || next < current) await this.ctx.storage.setAlarm(next);
   }
   async syncDirectory() {
     if (!this.data.directoryDirty) return;
@@ -288,6 +291,7 @@ var VoiceRoom = class {
         c.tries++;
         c.after = Date.now() + Math.min(6e4, 2e3 * 2 ** Math.min(c.tries, 5));
       }
+      this.cleaning.delete(job.sessionId);
       await this.save();
     })).finally(() => this.cleaning.delete(job.sessionId));
     this.ctx.waitUntil?.(work);
@@ -1047,7 +1051,11 @@ VoiceRoom.prototype.save=async function(...a){
  const k=d.karaoke;
  if(k?.phase==='invited')due.push(k.inviteExpiresAt);
  if(k?.phase==='ready')due.push(k.readyExpiresAt);
- if(due.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(Date.now()+15000,...due.filter(Number.isFinite))));
+ if(due.length){
+  const now=Date.now(),next=Math.max(now+1,Math.min(now+15000,...due.filter(Number.isFinite)));
+  const current=await this.ctx.storage.getAlarm?.();
+  if(!current||current<=now||next<current)await this.ctx.storage.setAlarm(next);
+ }
 };
 const originalSnapshot=VoiceRoom.prototype.snapshot;
 VoiceRoom.prototype.snapshot=function(actor){

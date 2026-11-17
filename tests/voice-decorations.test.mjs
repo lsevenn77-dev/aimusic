@@ -95,6 +95,7 @@ test('room mode and catalog artwork survive settings, listener entry and directo
  const save=(body,session,user='owner')=>f.call(root+'settings','POST',{generation:session.generation,revision:session.room.settings_revision||0,...body},user);
  assert.equal((await save({theme_sku:'basic_dark'},guest,'other')).status,403);
  const switched=await save({mode:'karaoke'},owner);assert.equal(switched.status,200);
+ assert.equal(switched.body.room.mode,'karaoke');
  assert.equal(switched.body.room.theme.uiMode,'light');assert.equal(switched.body.room.id,id);
  const dark=await save({theme_sku:'basic_dark'},{...owner,room:switched.body.room});assert.equal(dark.status,200);
  assert.equal((await f.call(root+'theme','GET',null,'other')).body.theme.uiMode,'dark');

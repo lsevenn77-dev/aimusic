@@ -130,7 +130,8 @@
       &[data-room-pc-controls] {
         --talk-player-height: 58px;
         & #voice-seats {
-          flex-basis: 314px; row-gap: 14px;
+          --room-seat: 80px;
+          flex-basis: clamp(314px, 38vh, 358px); row-gap: 14px;
           padding-block-start: max(0px, calc(clamp(4px, 3.8vh, 38px) - 8px));
         }
       }

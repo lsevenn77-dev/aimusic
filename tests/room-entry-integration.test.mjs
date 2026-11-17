@@ -3,6 +3,17 @@ import assert from 'node:assert/strict';
 import {liveFixture} from './live-karaoke-fixture.mjs';
 import {VoiceRoom} from '../realtime/worker-live-karaoke.js';
 
+test('settings rejects a successful upstream reply that did not apply the requested room type',async t=>{
+ const f=await liveFixture(t),r=await f.create({mode:'talk'}),command=r.room.command;
+ t.mock.method(r.room,'command',function(action,actor,...args){
+  if(action==='settings')return this.snapshot(actor);
+  return command.call(this,action,actor,...args);
+ });
+ const reply=await f.call(r.root+'settings','POST',{generation:r.state.generation,mode:'karaoke'});
+ assert.equal(reply.status,502);
+ assert.equal(r.room.data.config.mode,'talk');
+});
+
 test('saved mode reaches every connected member and survives room reload without replacing common data',async t=>{
  const f=await liveFixture(t),r=await f.create({title:'유지할 방 제목',visibility:'private',announcement:'유지할 공지'});
  f.sql.exec("INSERT INTO follows VALUES('owner','producer','friend',0)");

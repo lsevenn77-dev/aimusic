@@ -154,7 +154,11 @@ VoiceRoom.prototype.save=async function(...a){
  const k=d.karaoke;
  if(k?.phase==='invited')due.push(k.inviteExpiresAt);
  if(k?.phase==='ready')due.push(k.readyExpiresAt);
- if(due.length)await this.ctx.storage.setAlarm(Math.max(Date.now()+1,Math.min(Date.now()+15000,...due.filter(Number.isFinite))));
+ if(due.length){
+  const now=Date.now(),next=Math.max(now+1,Math.min(now+15000,...due.filter(Number.isFinite)));
+  const current=await this.ctx.storage.getAlarm?.();
+  if(!current||current<=now||next<current)await this.ctx.storage.setAlarm(next);
+ }
 };
 const originalSnapshot=VoiceRoom.prototype.snapshot;
 VoiceRoom.prototype.snapshot=function(actor){

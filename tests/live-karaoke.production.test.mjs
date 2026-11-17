@@ -169,6 +169,8 @@ test('leaving an invitation advances immediately and an expired accept cannot re
 
 test('operational worker keeps the archived talking-room base and exactly appends the maintained add-on',()=>{
  const root=new URL('../realtime/',import.meta.url);
+ const config=JSON.parse(readFileSync(new URL('wrangler.jsonc',root),'utf8'));
+ assert.equal(config.main,'worker-live-karaoke.js','the deployed entrypoint must implement both room types');
  const worker=readFileSync(new URL('worker-live-karaoke.js',root),'utf8');
  const addon=readFileSync(new URL('live-karaoke-addon.js',root),'utf8');
  assert.equal(worker.slice(worker.indexOf('// Production add-on:')),addon);
