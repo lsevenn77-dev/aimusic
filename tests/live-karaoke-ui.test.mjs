@@ -177,6 +177,24 @@ test('live room wraps the current template while preserving chat, gifts, setting
  assert.match(html,/id="voice-monitor"/);
 });
 
+test('live cards resolve the selected basic cover independently of room mode and preserve other covers',()=>{
+ const {c}=context();
+ const card=room=>{
+  c.room={id:'room',title:'Room',...room};
+  return vm.runInContext('talkingRoomCard(room)',c);
+ };
+ const cover=room=>card(room).match(/class="talk-cover" src="([^"]+)"/)?.[1];
+ const base='/assets/themes/v20261117/';
+ const customPath='/assets/themes/custom/cover.webp';
+ assert.equal(cover({theme:{sku:'basic_dark'},mode:'talk'}),base+'aifect_turntable_background.webp');
+ assert.equal(cover({background:'basic_light',mode:'karaoke'}),base+'aifect_headphones_background.webp');
+ assert.equal(cover({theme:{sku:'custom',assets:{roomCard:customPath}},background:'basic_dark'}),customPath);
+ assert.equal(cover({theme:{assets:{roomCard:customPath}}}),customPath);
+ assert.equal(cover({}),undefined);
+ assert.equal(cover({background:'night'}),undefined);
+ assert.equal(cover({theme:{sku:'custom',assets:{roomCard:customPath}},themeUntil:1}),undefined);
+});
+
 test('unified directory links each real type to its original room and exposes the same settings',()=>{
  const {c}=context();
  const talk=vm.runInContext("talkingRoomCard({id:'chat',title:'Talk'})",c);

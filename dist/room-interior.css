@@ -13,7 +13,7 @@
   .live-directory .v3-room-card:has(> .af-review-cover) .v3-room-art { background:transparent; }
   .v3-room-card:has(> .af-review-cover) .v3-room-art > .talk-cover { visibility:hidden; }
   .live-directory .v3-room-card:has(> .af-review-cover) :is(.live-card-head,.v3-room-copy) {
-    position:relative; background:rgb(38 28 29 / 68%);
+    background:rgb(38 28 29 / 68%);
   }
 }
 #main[data-route]:has(> [data-voice-room])::before,
