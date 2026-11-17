@@ -6,6 +6,7 @@ function roomUsesDesktopControls(){
 function bindRoomViewport(client){
  client.roomLayoutEvents?.abort();client.roomResizeObserver?.disconnect();
  const events=client.roomLayoutEvents=new AbortController(),options={signal:events.signal};
+ globalThis.AifectChristmasReview?.bindRoom(client.host, events.signal);
  const back=()=>{
   if(client.closed)return false;
   if(client.talkPopup?.open)client.closeRoomPopup();

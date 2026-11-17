@@ -1,4 +1,21 @@
 /* Keep global artwork off the room canvas, including the load/entry screen. */
+/* The review layer sits in the existing room's background stacking level. */
+#main .voice-room[data-christmas-review] > .af-theme-underlay { z-index:-1; }
+#main .voice-room[data-christmas-review="loading"] > .af-theme-underlay { visibility:hidden; }
+#main[data-room-entered] .voice-room[data-voice-room][data-room-design][data-christmas-review="active"][data-theme-asset-state="ready"]::before { content:none; }
+.af-review-cover { display:none; }
+.af-review-shop-art, .af-review-shop-art img { display:block; width:100%; aspect-ratio:1; object-fit:cover; }
+.shop-page [data-christmas-shop] .shop-card-select { cursor:default; }
+@media (min-width:801px) and (min-height:480px) and (orientation:landscape) {
+  .live-directory .v3-room-card:has(> .af-review-cover) { position:relative; isolation:isolate; }
+  .live-directory .af-review-cover { display:block; position:absolute; inset:0; pointer-events:none; }
+  .af-review-cover img { display:block; width:100%; height:100%; object-fit:cover; }
+  .live-directory .v3-room-card:has(> .af-review-cover) .v3-room-art { background:transparent; }
+  .v3-room-card:has(> .af-review-cover) .v3-room-art > .talk-cover { visibility:hidden; }
+  .live-directory .v3-room-card:has(> .af-review-cover) :is(.live-card-head,.v3-room-copy) {
+    position:relative; background:rgb(38 28 29 / 68%);
+  }
+}
 #main[data-route]:has(> [data-voice-room])::before,
 .page-wrap:has(> #main > [data-voice-room])::before { content: none; display: none; background: none; }
 
