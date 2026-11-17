@@ -124,6 +124,13 @@
       border:0;border-radius:0;background:none!important;color:inherit;
     }
     .studio-preset-icon svg { width:20px;height:20px;color:inherit; }
+    .studio-space-presets {
+      grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:4px!important;
+    }
+    .studio-space-presets .studio-preset-tile {
+      flex-direction:column;gap:4px;min-height:66px!important;padding:6px 1px!important;
+      word-break:keep-all;font-size:clamp(11px,3.2vw,14px)!important;line-height:1.3;
+    }
     .studio-extra-presets { display:flex;margin:8px 0 0; }
     .studio-extra-presets .studio-preset-tile { width:100%;min-height:44px!important;margin:0; }
     :is(.sing-effect-details,.studio-advanced) {

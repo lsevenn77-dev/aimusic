@@ -135,3 +135,20 @@ test('final part picker exposes checkboxes and two modes, and removes the paused
  assert.ok(html.includes('랜덤 지정'));assert.ok(html.includes('함께 부르기'));
  assert.ok(!html.includes('자유롭게 부르기'));assert.ok(!source.includes('data-sing-review'));assert.ok(!source.includes('편집 화면으로 돌아가기'));
 });
+
+test('live space tiles keep preset IDs, remember adjusted strengths and restore the owner’s saved selection',()=>{
+ const storage=new Map();
+ const c=sandbox({localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
+ const run=code=>vm.runInContext(code,c);
+ run("canEditPaid=()=>true;sing={owner:'singer',mix:K().defaultVocalMix()};control={closest:()=>true}");
+ const html=run('spaceEffectsHTML(sing.mix,true)');
+ assert.deepEqual([...html.matchAll(/data-vocal-preset="([^"]+)"/g)].map(m=>m[1]),['original','studio','hall','karaoke','custom']);
+ assert.ok(html.includes('효과 없음'));
+ run("sing.mix=spacePreset(sing.mix,'hall',.78);sing.mix=spacePreset(sing.mix,'original');rememberRecordingSpace(control)");
+ assert.equal(run("preferredRecordingMix('singer').preset"),'original');
+ assert.equal(run("spacePreset(preferredRecordingMix('singer'),'hall').strength"),.78);
+ assert.equal(run("preferredRecordingMix('other').preset"),'studio');
+ run("sing.mix=K().editVocalMix(spacePreset(sing.mix,'custom'),'room',.64);sing.mix=K().editVocalMix(sing.mix,'tone',.21);sing.mix=spacePreset(sing.mix,'original');rememberRecordingSpace(control)");
+ const custom=run("spacePreset(preferredRecordingMix('singer'),'custom')");
+ assert.equal(custom.room,.64);assert.equal(custom.tone,.21);
+});

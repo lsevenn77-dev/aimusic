@@ -206,9 +206,9 @@ function singHTML(d){
 function liveStudioSettingsHTML(m){return `<section class="studio-setting-card"><h2>${studioIcon('headphones')} 오디오 설정</h2>${studioRangeHTML(m,'voice','마이크 볼륨',0,2,.01)}${studioRangeHTML(m,'mr','반주 볼륨',0,1.5,.01)}<label class="sing-monitor"><span>이어폰 모니터링<small>내 목소리를 실시간으로 듣기</small></span><input id="sing-monitor" type="checkbox" role="switch" aria-label="이어폰으로 내 목소리 듣기"></label></section><section class="studio-setting-card"><h2>${icon('list')} 노래 설정</h2>${singingKeyHTML()}<div class="studio-size"><span>가사 크기</span>${lyricSizeControlsHTML()}</div></section>${spaceEffectsHTML(m,true)}`;}
 function spaceEffectsHTML(m,live=false){
  const title=`<h2>${icon('sparkles')} 공간 효과</h2>`;
- const header=live?`<div class="studio-space-header">${title}<button type="button" class="studio-original-pill" data-vocal-preset="original" aria-pressed="${m.preset==='original'}">원음</button></div>`:title;
  const presets=[['studio','스튜디오'],['hall','홀'],['karaoke','노래방'],['custom','사용자 설정']];
- return `<section class="studio-setting-card studio-space">${header}
+ if(live)presets.unshift(['original','효과 없음']);
+ return `<section class="studio-setting-card studio-space">${title}
   <div class="studio-space-presets" role="group" aria-label="목소리 효과 선택">${presets.map(([id,name])=>vocalPresetButtonHTML(id,name,m.preset===id)).join('')}</div>
   ${live?liveSpaceControlsHTML(m):`<div class="studio-extra-presets">${vocalPresetButtonHTML('original','원음',m.preset==='original')}</div>${reviewSpaceControlsHTML(m)}`}</section>`;
 }
@@ -217,7 +217,7 @@ function reviewSpaceControlsHTML(m){return `<p class="field-help" data-preset-de
 const singStartHTML=(message='')=>`${message?`<p class="form-error">${esc(message)}</p>`:''}${nativeSinging()?`<p class="field-help">에코 · 룸 리버브와 실시간 이어폰 청음을 지원해요.</p><button class="primary-button" data-sing-start>${icon('mic')} 노래방 열기</button>`:''}`;
 function bindSing(id){
  cleanupSing();if(!$('#sing')||!routeSing)return;
- sing={id,routeHash:location.hash,historyKey:window.navigation?.currentEntry?.key,owner:me?.id,data:routeSing,state:'loading',cursor:0,keySemitones:0,mix:K().defaultVocalMix(),mode:routeSing.mode||'solo',part:routeSing.part||'male',parent:routeSing.duet?.parent_id||null};if(!canEditPaid())sing.mix.tone=0;sing.duetGuide=sing.parent?routeSing.duet?.guide||null:{version:1,mode:'free',lines:[]};
+ sing={id,routeHash:location.hash,historyKey:window.navigation?.currentEntry?.key,owner:me?.id,data:routeSing,state:'loading',cursor:0,keySemitones:0,mix:preferredRecordingMix(me?.id),mode:routeSing.mode||'solo',part:routeSing.part||'male',parent:routeSing.duet?.parent_id||null};if(!canEditPaid())sing.mix.tone=0;sing.duetGuide=sing.parent?routeSing.duet?.guide||null:{version:1,mode:'free',lines:[]};
  const s=sing,wheel=$('#sing-wheel'),seek=$('#sing-seek');
  // Re-anchor after viewport, font or lyric-size changes, without touching cue data.
  s.lyricResize=new ResizeObserver(()=>{if(sing===s&&!s.scrubbing){s.shownLine=null;drawLyrics(s.cursor||0);}});s.lyricResize.observe(wheel);
@@ -314,7 +314,7 @@ async function resumeSingContext(s){
 async function prepareVocalContext(s){
  const ctx=await resumeSingContext(s);
  if(!s.vocalWorklet){
-  s.vocalPreparation||=ctx.audioWorklet.addModule('/vocal-worklet.js?v=20261017-tone-range');
+  s.vocalPreparation||=ctx.audioWorklet.addModule('/vocal-worklet.js?v=20261117-space-bypass');
   try{await s.vocalPreparation;s.vocalWorklet=true;}finally{s.vocalPreparation=null;}
  }
  return ctx;
@@ -453,23 +453,45 @@ function refreshEffectControls(){
  document.querySelectorAll('[data-preset-description]').forEach(note=>note.textContent=K().vocalPresets.find(p=>p.id===m.preset)?.description||'사용자 설정 · 직접 조절한 효과를 사용하고 있어요.');
 }
 function applyMixChange(key){const s=sing;if(!s.settingsOpen)queueSingDraft(s);s.run?.effects?.update(s.mix);if(s.standbyMonitor){s.standbyMonitor.effects.update?.(s.mix);s.standbyMonitor.gain?.gain.setTargetAtTime(s.mix.voice,s.ctx.currentTime,.015);}if(s.run){s.run.voiceGain.gain.setTargetAtTime(s.mix.voice,s.ctx.currentTime,.015);s.run.gain.gain.setTargetAtTime(s.mix.mr,s.ctx.currentTime,.015);}if(s.state==='backing')s.previewMixUpdate?.(s.mix);if(s.state==='playing'){if(key==='offset'||key==='reset')previewMix(s.ctx.currentTime-s.previewAt,s.previewUntil??Infinity);else{s.previewMixUpdate?.(s.mix);if(!['voice','mr','partner'].includes(key))refreshPreviewEffects(s);}}if(key==='offset'){refreshVocalGuide(s);renderDuetGuide();}refreshEffectControls();}
-function spacePreset(m,id,strength){return {...K().presetMix(m,id,strength),tone:canEditPaid()?m.tone:0};}
+const recordingSpaceFields=['preset','strength','presetStrengths','custom','echo','room','size','tone','noise','roomScaleVersion'];
+function preferredRecordingMix(owner){
+ const base=K().defaultVocalMix();
+ try{
+  const saved=JSON.parse(localStorage.getItem('aifect-recording-space:'+owner));
+  if(!saved||!['custom',...K().vocalPresets.map(p=>p.id)].includes(saved.preset))return base;
+  const space=Object.fromEntries(recordingSpaceFields.filter(key=>key in saved).map(key=>[key,saved[key]]));
+  return {...base,...K().restoreVocalMix({...base,...space})};
+ }catch{return base;}
+}
+function rememberRecordingSpace(control){
+ if(!control.closest('#sing-live-settings,.recording-settings'))return;
+ const settings=Object.fromEntries(recordingSpaceFields.map(key=>[key,sing.mix[key]]));
+ try{localStorage.setItem('aifect-recording-space:'+sing.owner,JSON.stringify(settings));}catch{}
+}
+function spacePreset(m,id,strength){
+ const presetStrengths={...m.presetStrengths,[m.preset]:m.strength};
+ const level=strength??presetStrengths[id]??(id==='original'?m.strength:.5);
+ const next=K().presetMix(m,id,level);
+ return {...next,presetStrengths,tone:canEditPaid()?(id==='custom'?next.tone:m.tone):0};
+}
 function bindMixControls(){
  document.querySelectorAll('[data-vocal-tone]').forEach(button=>button.onclick=()=>{if(singBusy(sing)||!canEditPaid())return;sing.mix=K().editVocalMix(sing.mix,'tone',Number(button.dataset.vocalTone));applyMixChange('tone');});
- document.querySelectorAll('[data-vocal-preset]').forEach(button=>button.onclick=()=>{if(singBusy(sing))return;sing.mix=spacePreset(sing.mix,button.dataset.vocalPreset,.5);applyMixChange('preset');});
+ document.querySelectorAll('[data-vocal-preset]').forEach(button=>button.onclick=()=>{if(singBusy(sing))return;sing.mix=spacePreset(sing.mix,button.dataset.vocalPreset);rememberRecordingSpace(button);applyMixChange('preset');});
  document.querySelectorAll('[data-vocal-noise]').forEach(button=>button.onclick=()=>{if(singBusy(sing))return;sing.mix=K().editVocalMix(sing.mix,'noise',Number(button.dataset.vocalNoise));applyMixChange('noise');});
- document.querySelectorAll('[data-mix]').forEach(input=>input.oninput=()=>{if(singBusy(sing))return;const s=sing,k=input.dataset.mix;if(k==='tone'&&!canEditPaid()||k==='partner'&&!s.partnerStem)return;if(k==='strength')s.mix=spacePreset(s.mix,s.mix.preset,Number(input.value));else s.mix=K().editVocalMix(s.mix,k,Number(input.value));applyMixChange(k);});
+ document.querySelectorAll('[data-mix]').forEach(input=>input.oninput=()=>{if(singBusy(sing))return;const s=sing,k=input.dataset.mix;if(k==='tone'&&!canEditPaid()||k==='partner'&&!s.partnerStem)return;if(k==='strength')s.mix=spacePreset(s.mix,s.mix.preset,Number(input.value));else s.mix=K().editVocalMix(s.mix,k,Number(input.value));if(recordingSpaceFields.includes(k))rememberRecordingSpace(input);applyMixChange(k);});
  refreshEffectControls();
 }
 function bindReview(){
  const form=$('#sing-upload-form');bindWorkPhoto(form,sing);form.addEventListener('invalid',()=>{const section=form.querySelector('.studio-publication');if(section)section.open=true;},true);form.elements.description.value=sing.description||'';form.elements.description.oninput=()=>{sing.description=form.elements.description.value;queueSingDraft(sing);};form.onsubmit=busyForm(form,uploadSung);
 }
 function voiceBuffer(s){
- const source=vocalPlaybackBuffer(s),key=vocalEffectKey(s.mix);if(s.processed?.key===key&&s.processed.source===source)return s.processed.buffer;
+ const source=vocalPlaybackBuffer(s);
+ if(s.mix.preset==='original')return source;
+ const key=vocalEffectKey(s.mix);if(s.processed?.key===key&&s.processed.source===source)return s.processed.buffer;
  const buffer=s.ctx.createBuffer(1,source.length,source.sampleRate);buffer.copyToChannel(K().renderVocals(source.getChannelData(0),source.sampleRate,s.mix),0);s.processed={key,source,buffer};return buffer;
 }
 function connectEffects(ctx,source,destination,m){
- const fx=new AudioWorkletNode(ctx,'aifect-vocal',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:'explicit',processorOptions:{mix:m}});source.connect(fx).connect(destination);const nodes=[fx];nodes.update=m=>fx.port.postMessage(m);return nodes;
+ const fx=new AudioWorkletNode(ctx,'aifect-vocal',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:'explicit',processorOptions:{mix:m,recording:true}});source.connect(fx).connect(destination);const nodes=[fx];nodes.update=m=>fx.port.postMessage(m);return nodes;
 }
 function protectOutput(ctx,connect=true){const c=ctx.createDynamicsCompressor();c.threshold.value=-3;c.knee.value=0;c.ratio.value=20;c.attack.value=.001;c.release.value=.08;if(connect)c.connect(ctx.destination);return c;}
 function scheduleMix(ctx,from,at,s=sing,until=Infinity){

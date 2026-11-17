@@ -5,6 +5,7 @@ function cancelVocalEffects(s){
  clearTimeout(s?.effectTimer);if(!s?.effectJob)return;const job=s.effectJob;s.effectJob=null;job.worker.terminate();job.reject(Object.assign(new Error('효과 설정이 변경됐어요.'),{cancelled:true}));
 }
 async function prepareVocalEffects(s,source=vocalPlaybackBuffer(s)){
+ if(s.mix.preset==='original'){cancelVocalEffects(s);return source;}
  const key=vocalEffectKey(s.mix);
  if(s.processed?.source===source&&s.processed.key===key)return s.processed.buffer;
  if(s.effectJob?.source===source&&s.effectJob.key===key)return s.effectJob.promise;

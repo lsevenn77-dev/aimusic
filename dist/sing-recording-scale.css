@@ -146,16 +146,12 @@
       > .studio-setting-card:nth-child(1), > .studio-setting-card:nth-child(2) { min-height: 0; }
       .studio-space { height: auto; align-self: start; }
     }
-    /* At narrow desktop widths, controls retain their size and reflow. */
+    /* Keep settings in one row per control as the desktop viewport narrows. */
     @media(max-width:1279px) {
-      #sing-live-settings .studio-range { grid-template-columns: minmax(0,1fr) 55px; }
-      #sing-live-settings .studio-range .studio-control-name { grid-column: 1; grid-row: 1; white-space: normal; }
-      #sing-live-settings .studio-range output { grid-column: 2; grid-row: 1; }
-      #sing-live-settings .studio-range input { grid-column: 1 / -1; grid-row: 2; }
-      #sing-live-settings :is(.studio-key,.studio-size) { grid-template-columns: minmax(0,1fr); }
-      #sing-live-settings .studio-space-presets { grid-template-columns: repeat(2,minmax(0,1fr)); }
-      #sing-live-settings .sing-monitor { flex-wrap: wrap; }
+      #sing-live-settings .studio-range { grid-template-columns:minmax(80px,.65fr) minmax(0,1fr) 42px; }
+      #sing-live-settings :is(.studio-key,.studio-size) { grid-template-columns:80px minmax(0,1fr); }
     }
+
   }
 }
 
