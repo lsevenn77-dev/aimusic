@@ -19,14 +19,15 @@ test('Android PLAY navigation keeps every existing route, selected state and cre
   const s={mode,tab,type:'duet'},html=c.playShell(s,c.playToolbar(s));
   const main=html.match(/<nav[^>]*play-main-tabs[\s\S]*?<\/nav>/)[0];
   assert.doesNotMatch(main,/<svg/,'main navigation stays text-only');
-  assert.equal((html.match(/aria-selected="true"/g)||[]).length,2,'one selection in each level');
+  const mine=mode==='dubbing'&&tab==='mine';
+  assert.equal((html.match(/aria-selected="true"/g)||[]).length,mine?1:2,'one selection in each level');
   assert.equal((html.match(/tabindex="0"/g)||[]).length,2);
-  assert.ok(html.includes('href="'+c.playHref(mode,tab,'duet').replaceAll('&','&amp;')+'"'));
+  if(!mine)assert.ok(html.includes('href="'+c.playHref(mode,tab,'duet').replaceAll('&','&amp;')+'"'));
   if(mode==='dubbing'){
    const menu=html.match(/<nav[^>]*play-category-tabs[\s\S]*?<\/nav>/)[0];
-   assert.deepEqual([...menu.matchAll(/<span>(.*?)<\/span>/g)].map(m=>m[1]),['더빙 만들기','작품찾기','더빙참여','내 작업']);
+   assert.deepEqual([...menu.matchAll(/<span>(.*?)<\/span>/g)].map(m=>m[1]),['추천더빙','인기더빙','더빙참여','대본제작']);
    assert.equal((menu.match(/href="#dubbing\/new"/g)||[]).length,1);
-   assert.equal((menu.match(/aria-selected="true"/g)||[]).length,1);
+   assert.equal((menu.match(/aria-selected="true"/g)||[]).length,mine?0:1);
    assert.ok(html.indexOf(menu)<html.indexOf('id="play-search"'));
   }
   assert.doesNotMatch(html,/play-create/,'the standalone creation row is removed');

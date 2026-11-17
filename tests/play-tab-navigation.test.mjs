@@ -68,7 +68,7 @@ test('the stable shell supplies a fragment target for every internal tab and dir
     if(href==='#dubbing/new')continue;
     assert.ok(targets.includes(href.slice(1)),href+' needs a stable target before hashchange');
    }
-   assert.equal((shell.match(/aria-selected="true"/g)||[]).length,2,'one selected tab at each level');
+   assert.equal((shell.match(/aria-selected="true"/g)||[]).length,mode==='dubbing'&&tab==='mine'?1:2,'selected tabs match the visible route');
   }
  }
 });

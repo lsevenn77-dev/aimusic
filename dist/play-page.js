@@ -25,9 +25,32 @@ function playHref(mode='song',tab=playSections[mode][0][0],type='all'){
  if(mode==='song')return '#karaoke'+(tab==='recommended'?'':'/'+tab);
  return '#karaoke/'+mode+'?'+new URLSearchParams({tab,...(mode==='browse'?{type}:{})});
 }
+function dubSettings(raw=''){
+ const params=new URLSearchParams(raw.split('?')[1]);
+ return {sort:params.get('sort'),genre:params.get('genre')||'전체',query:params.get('q')||''};
+}
+const dubMenu=[['discover','추천더빙','sparkles'],['popular','인기더빙','trending-up'],['join','더빙참여','mic'],['create','대본제작','file-pen-line']];
+function dubSelection(s,raw=''){
+ if(raw.split('?')[0]==='dubbing/new')return 'create';
+ if(s.tab==='discover'&&dubSettings(raw).sort==='popular')return 'popular';
+ return s.tab==='discover'&&new URLSearchParams(raw.split('?')[1]).has('project')?'join':s.tab;
+}
+function dubURL(tab,query='',genre='전체'){
+ if(tab==='create')return '#dubbing/new';
+ const href=playHref('dubbing',tab==='popular'?'discover':tab);
+ const params=new URLSearchParams(href.split('?')[1]);
+ if(tab==='popular')params.set('sort','popular');
+ if(query)params.set('q',query);
+ if(genre!=='전체')params.set('genre',genre);
+ return href.split('?')[0]+'?'+params;
+}
+function dubTabs(s,raw){
+ const state=dubSettings(raw),selected=dubSelection(s,raw);
+ return playTabs(dubMenu,selected,'플레이 하위 메뉴',tab=>dubURL(tab,state.query,state.genre),'play-category-tabs dub-hub-tabs');
+}
 function playAlias(hash){
  const [route,query='']=hash.replace(/^#/,'').split('?'),q=new URLSearchParams(query);
- if(route==='karaoke/dubbing'&&typeof desktopDubActive==='function'&&desktopDubActive()&&q.get('tab')!=='mine'&&!q.has('project')){
+ if(route==='karaoke/dubbing'&&q.get('tab')!=='mine'&&!q.has('project')){
   if(q.get('section')==='rank')return communityRankingHref({category:'dubbing',period:'week'});
   if(q.get('view')==='complete')return playHref('browse','latest','dubbing');
  }
@@ -58,25 +81,25 @@ function playRouteTargetsHTML(raw=''){
   for(const [type] of mode==='browse'?playTypes:[['all']])routes.add(playHref(mode,tab,type));
  }
  for(const [kind] of dubbingCastingKinds)routes.add('#karaoke/dubbing?tab=mine&kind='+kind);
+ routes.add(dubURL('popular'));
  if(raw)routes.add('#'+raw.replace(/^#/,''));
  return '<div data-play-route-targets hidden aria-hidden="true">'+[...routes].map(href=>'<span data-play-route-target id="'+esc(href.slice(1))+'"></span>').join('')+'</div>';
 }
 function playSubtabs(s,raw=''){
- if(s.mode==='dubbing'&&typeof desktopDubActive==='function'&&desktopDubActive())return desktopDubTabs(s,raw);
- const menu=s.mode==='dubbing'?[['create','더빙 만들기','plus'],...playSections.dubbing]:playSections[s.mode];
- return playTabs(menu,s.tab,'플레이 하위 메뉴',t=>s.mode==='dubbing'&&t==='create'?'#dubbing/new':playHref(s.mode,t,s.type),'play-category-tabs'+(s.mode==='dubbing'?' play-dubbing-tabs':''));
+ if(s.mode==='dubbing')return dubTabs(s,raw);
+ return playTabs(playSections[s.mode],s.tab,'플레이 하위 메뉴',t=>playHref(s.mode,t,s.type),'play-category-tabs');
 }
 function playTypeIcon(type){
  const label={solo:'솔로',duet:'듀엣',dubbing:'더빙'}[type];
  return `<span class="play-type-icon${type==='duet'?' play-duet-icon':type==='dubbing'?' play-dubbing-icon':''}" role="img" aria-label="${label}">${type==='duet'?icon('mic')+icon('mic'):type==='dubbing'?icon('message')+icon('waveform'):icon('mic')}</span>`;
 }
 function playTabs(items,active,label,href,extra=''){
- const primary=extra==='play-main-tabs';
- return `<nav class="tabs play-tabs ${extra}${primary?' aifect-main-tabs':''}" role="tablist" aria-label="${label}">${items.map(([key,title,symbol],index)=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" tabindex="${active===key?'0':'-1'}" ${active===key?'aria-current="page"':''} ${primary?`data-tab-tone="${['pink','mint','purple'][index]}"`:''} href="${esc(href(key))}">${symbol?icon(symbol):''}<span>${title}</span></a>`).join('')}</nav>`;
+ const primary=extra==='play-main-tabs',hasSelection=items.some(([key])=>key===active);
+ return `<nav class="tabs play-tabs ${extra}${primary?' aifect-main-tabs':''}" role="tablist" aria-label="${label}">${items.map(([key,title,symbol],index)=>`<a class="tab ${active===key?'active':''}" role="tab" aria-selected="${active===key}" tabindex="${active===key||!hasSelection&&index===0?'0':'-1'}" ${active===key?'aria-current="page"':''} ${primary?`data-tab-tone="${['pink','mint','purple'][index]}"`:''} href="${esc(href(key))}">${symbol?icon(symbol):''}<span>${title}</span></a>`).join('')}</nav>`;
 }
 function playPanelLabel(s,raw){
- if(s.mode==='dubbing'&&typeof desktopDubActive==='function'&&desktopDubActive()){
-  const tab=desktopDubSelection(s,raw),entry=desktopDubMenu.find(([key])=>key===tab);
+ if(s.mode==='dubbing'){
+  const tab=dubSelection(s,raw),entry=dubMenu.find(([key])=>key===tab);
   if(entry)return entry[1];
  }
  return playSections[s.mode].find(([key])=>key===s.tab)[1];
@@ -181,7 +204,7 @@ function playDraftRows(drafts){
 }
 function playResults(view){
  const s=view.play,items=view.items;
- if(view.discovery)return view.discovery.desktop?desktopDubHTML(view):dubDiscoveryHTML(view);
+ if(view.discovery)return dubDiscoveryHTML(view);
  if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다려요':'아직 표시할 작품이 없어요',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모여요.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모여요.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
  if(s.mode==='dubbing')return s.tab==='mine'?playProjectRows(items,s.tab):dubbingCastingHTML(view);
  if(s.mode==='song')return `<div class="play-song-unified">${playSongRows(items,s.tab)}</div>`;
@@ -191,8 +214,7 @@ const playNavigationCache=new Map();
 const playCacheAccount=()=>typeof me==='undefined'?'guest':me?.id||'guest';
 const playCacheRevision=()=>typeof apiRevision==='number'?apiRevision:0;
 function playViewKey(raw,account=playCacheAccount()){
- const desktop=raw.startsWith('karaoke/dubbing')&&typeof desktopDubActive==='function'&&desktopDubActive();
- return account+':'+(desktop?'desktop:':'')+raw;
+ return account+':'+raw;
 }
 function cachedPlayView(raw){
  const key=playViewKey(raw),entry=playNavigationCache.get(key);
@@ -214,7 +236,7 @@ function playListHTML(view){
  if(view.play.mode==='song'&&view.play.tab==='drafts')return playDraftRows(view.drafts||[]);
  return (view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+playResults(view);
 }
-function playToolsHidden(view){return (view.discovery&&!view.discovery.desktop)||view.gated||view.play.mode==='song'&&view.play.tab==='drafts';}
+function playToolsHidden(view){return view.gated||view.play.mode==='song'&&view.play.tab==='drafts';}
 function playExtraHTML(view){return !view.gated&&view.play.mode==='dubbing'&&view.play.tab==='mine'?castingMineTabs(view.play.kind):'';}
 function playContentHTML(view){
  return `<div data-play-tools ${playToolsHidden(view)?'hidden':''}>${playToolbar(view.play)}</div><div data-play-extra>${playExtraHTML(view)}</div><div id="play-results" aria-live="polite"${view.pending?' aria-busy="true"':''}>${playListHTML(view)}</div><button class="small-button play-more" id="play-more" ${(view.nextOffset==null||view.pending||view.error||view.gated)?'hidden':''}>더 보기</button>`;
@@ -277,8 +299,7 @@ function paintPlayRoute(view,raw){
  root._playListCleanup?.();root._playView=view;
  root.dataset.playMode=s.mode;
  playSetTabState(root.querySelector('.play-main-tabs'),s.mode);
- const desktopTabs=s.mode==='dubbing'&&typeof desktopDubActive==='function'&&desktopDubActive();
- if(changedMode||desktopTabs||root.querySelector('.dub-desktop-tabs'))root.querySelector('.play-subbar').innerHTML=playSubtabs(s,raw);
+ if(changedMode||s.mode==='dubbing'||root.querySelector('.dub-hub-tabs'))root.querySelector('.play-subbar').innerHTML=playSubtabs(s,raw);
  else playSetTabState(root.querySelector('.play-category-tabs'),s.tab,s.mode,s.type);
  const tools=root.querySelector('[data-play-tools]');
  if(changedMode)tools.innerHTML=playToolbar(s);
@@ -354,8 +375,6 @@ function bindPlay(view){
   window.addEventListener('scroll',scroll,{passive:true});
   if(typeof registerRouteCleanup==='function')registerRouteCleanup(()=>{window.removeEventListener('scroll',scroll);root._playListCleanup?.();});
  }
- root.classList?.toggle('dub-discovery-active',typeof isDubDiscovery==='function'&&isDubDiscovery(view)&&!(typeof desktopDubActive==='function'&&desktopDubActive()));
- if(view.discovery?.desktop){bindDesktopDub(view,root);return;}
  if(view.discovery){bindDubDiscovery(view,root);return;}
  if(!view.pending&&!view.error&&!view.gated&&view.play.mode==='dubbing'&&view.play.tab!=='mine')bindDubbingCasting(view,root);
  root.querySelectorAll('img.play-dubbing-art').forEach(image=>{if(image instanceof HTMLImageElement&&image.complete&&!image.naturalWidth)playDubbingArtworkError({target:image});});

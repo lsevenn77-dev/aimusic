@@ -1,5 +1,5 @@
 /* Scoped layout only; home tokens, card controls and the global shell remain authoritative. */
-.play-page[data-play-mode="song"],.play-page .dub-desktop-tabs{--play-accent:#FF75B4}
+.play-page[data-play-mode="song"],.play-page .dub-hub-tabs{--play-accent:#FF75B4}
 .play-page[data-play-mode="dubbing"]{--play-accent:#B7A0FF}
 .play-page[data-play-mode="browse"]{--play-accent:#80E0D3}
 /* Paint on the full-width shell, outside the capped main content. Each layer
@@ -48,24 +48,6 @@
 .play-page .play-category-tabs .tab svg{width:24px;height:24px;flex-shrink:0;stroke-width:1.6}
 .play-page .play-category-tabs .tab.active{border-color:var(--play-accent);background:color-mix(in srgb,var(--play-accent) 8%,var(--ds-panel));color:var(--play-accent)}
 .play-page .play-category-tabs .tab:hover{color:var(--ds-text)}
-/* Creation reuses the existing route and the same menu cell as the three lists. */
-#main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs {
- grid-template-columns:repeat(4,minmax(0,1fr));
- grid-auto-flow:row;
- overflow:visible;
-}
-@media(max-width:600px){
- /* Match the song menu's single row; let the creation label keep its full width. */
- #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs {
-  grid-template-columns:none;
-  grid-auto-flow:column;
-  grid-auto-columns:minmax(max-content,1fr);
-  gap:4px;
- }
- #main > .play-page[data-play-mode="dubbing"] .play-dubbing-tabs.play-category-tabs .tab {
-  padding-inline:2px;
- }
-}
 .play-page .play-search{max-width:none;width:100%;margin:0 0 24px;display:flex;align-items:center;gap:12px}
 .play-page .play-search input{width:100%;min-width:0}
 .play-page .play-search button{white-space:nowrap;min-height:0}

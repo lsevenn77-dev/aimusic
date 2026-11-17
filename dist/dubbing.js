@@ -66,7 +66,7 @@ async function dubbingView(base,param,raw,readApi=api){
  if((param==='new'||new URLSearchParams(raw.split('?')[1]).get('tab')==='mine')&&!me){returnRoute=location.hash;return {html:gate(),dubbing:true,creationRoute:param==='new'?raw:null};}
  if(param==='new'){
   const mode=new URLSearchParams(raw.split('?')[1]).get('mode')||'start';
-  if(mode!=='ai')return {html:dubbingShell(dubStartHTML(),false),dubbing:true,dubbingStart:mode,config,route:raw};
+  if(mode!=='ai')return {html:dubbingShell(dubStartHTML(),false),dubbing:true,dubbingStart:mode,creationRoute:raw,config,route:raw};
   const requestedGenre=new URLSearchParams(raw.split('?')[1]).get('genre'),genre=AifectDubbing.DUBBING_GENRES.includes(requestedGenre)?requestedGenre:'';
   return {html:dubbingShell(dubbingOptionsHTML(config,mode,genre),false),dubbing:true,dubbingCreate:true,creationRoute:raw,config,route:raw};
  }
@@ -286,7 +286,7 @@ function bindFinalDubbingPlay(root,project){
 
 function bindDubbing(view){
  if(!view?.dubbing)return;
- if(view.creationRoute&&typeof bindDesktopDubCreation==='function')bindDesktopDubCreation(view.creationRoute);
+ if(view.creationRoute&&typeof bindDubCreation==='function')bindDubCreation(view.creationRoute);
  const root=$('#main .dubbing-page');if(!root)return;
  if(view.dubbingStart){void dubStart(view,root,view.dubbingStart).catch(err=>dubbingMessage(root,err.message));return;}
  if(view.recordingData){bindDubbingRecorder(view,root);return;}
