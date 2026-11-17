@@ -6,17 +6,16 @@ import {mountOutfitShop} from './crew-jump-art/outfit-shop.js';
 
 export function mount(root,{crew,viewer,api,esc}){
  const url='/api/crews/'+encodeURIComponent(crew)+'/jump';
- root.innerHTML=`<link rel="stylesheet" href="/crew-jump.css"><section class="jump-club"><header><a class="text-link" href="#crew/${encodeURIComponent(crew)}">‹ 크루로</a><div><button class="small-button" data-pause hidden>일시정지</button> <button class="small-button" data-rules>게임 규칙</button></div></header>
+ root.innerHTML=`<link rel="stylesheet" href="/crew-jump.css"><section class="jump-club"><header class="jump-heading"><a class="text-link" href="#crew/${encodeURIComponent(crew)}" aria-label="크루로 돌아가기">‹</a><b>점프러시</b><div><button class="small-button" data-pause hidden>일시정지</button> <button class="small-button" data-rules>게임 규칙</button></div></header>
  <section class="jump-lobby" aria-label="크루게임 대기실">
-   <nav class="arc-game-choice" aria-label="크루게임 선택"><b>별빛 점프</b><a class="small-button" href="/crew-rhythm/?crew=${encodeURIComponent(crew)}">♫ 리듬게임 · Double Tap ›</a></nav>
-   <div class="arc-top">
-    <h1 class="arc-intro"><img src="/crew-jump-art/arcade-intro.webp" width="315" height="546" alt="AIFECT 크루 점프게임. 장애물을 넘고 별 젤리를 모으며 달려요."></h1>
-    <section class="jump-board" aria-label="주간 순위판"><p>순위를 불러오는 중…</p></section>
-   </div>
+   <section class="jump-cover" aria-labelledby="jump-title">
+    <div class="jump-hero-copy"><h1 id="jump-title">별빛 점프</h1><p>장애물을 넘고 별 젤리를 모아 최고 기록에 도전하세요.</p>
+     <div class="jump-start-actions" aria-live="polite">도전 정보를 불러오는 중…</div></div>
+   </section>
+   <div class="jump-brief" aria-live="polite"></div>
+   <section class="jump-board" aria-label="주간 순위판"><p>순위를 불러오는 중…</p></section>
+   <nav class="arc-game-choice" aria-label="다른 크루게임"><a href="/crew-rhythm/?crew=${encodeURIComponent(crew)}"><img src="/crew-rhythm/cover.webp" alt="" width="60" height="60" loading="lazy"><b>리듬게임 · Double Tap</b><span aria-hidden="true">›</span></a></nav>
    <div class="arc-bottom">
-    <section class="jump-cover" aria-label="게임 시작">
-     <div class="jump-start-actions" aria-live="polite"><img class="arc-start-art" src="/crew-jump-art/arcade-start.webp" width="556" height="352" alt="게임 준비 중"></div>
-    </section>
     <section class="jump-shop arc-tile" aria-labelledby="jump-shop-title">
      <h2 id="jump-shop-title">의상 상점</h2>
      <div class="arc-look-window" aria-hidden="true"><img src="/crew-jump-art/outfits/street.webp" alt=""><img src="/crew-jump-art/outfits/idol.webp" alt=""><img src="/crew-jump-art/outfits/princess.webp" alt=""></div>
@@ -24,7 +23,7 @@ export function mount(root,{crew,viewer,api,esc}){
     </section>
     <section class="arc-result arc-tile" aria-label="내 게임 결과"><h2>✧ 게임 결과 ✧</h2><div data-result-card></div></section>
    </div>
-   <div class="jump-brief" aria-live="polite">내 도전 정보를 불러오는 중…</div>
+   <dl class="jump-personal" aria-label="내 도전 기록"></dl>
   </section>
   <dialog class="surface jump-dialog compact-popup arc-store-dialog" aria-labelledby="arc-store-title"><header><h2 id="arc-store-title">의상 상점</h2><button type="button" class="small-button" data-shop-close>닫기</button></header>
    <p class="arc-look-balance" data-shop-balance></p><div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
@@ -96,15 +95,12 @@ export function mount(root,{crew,viewer,api,esc}){
   phase='lobby';$('[data-shop]').disabled=false;$('[data-pause]').hidden=true;$('[data-rules]').disabled=false;hud.hidden=true;
   const official=info.open&&info.remaining>0;
   const label=official?'공식 도전 시작':info.remaining<=0?'오늘 공식 도전 완료':'공식 도전 마감';
-  $('.jump-start-actions').innerHTML = '<button type="button" class="arc-start" data-do="official"'+(official?'':' disabled')+' aria-label="'+label+'"><img class="arc-start-art" src="/crew-jump-art/arcade-start.webp" width="556" height="352" alt=""><span class="arc-start-status">'+label+'<small>'+(info.remaining<=0?'한국시간 자정에 '+(info.dailyLimit??3)+'회 초기화':'오늘 남은 횟수 '+info.remaining+' / '+(info.dailyLimit??3)+'회')+'</small></span></button>';
-  $('.jump-brief').innerHTML = `<div class="jump-session">
-    <strong>${label}</strong>${btn('practice','연습하기 · 랭킹 미반영')}
-    <span>공식 도전은 시작할 때 1회 차감돼요. 연습은 횟수 제한이 없어요.</span>
-   </div><dl>
-    <div><dt>오늘 남은 공식 도전</dt><dd>${info.remaining} / ${info.dailyLimit??3}회</dd></div>
+  $('.jump-start-actions').innerHTML = '<button type="button" class="arc-start" data-do="official"'+(official?'':' disabled')+'>'+label+'</button>';
+  $('.jump-brief').innerHTML = `<span>공식 도전 남은 횟수 <b>${info.remaining} / ${info.dailyLimit??3}회</b></span>${btn('practice','연습하기 · 랭킹 미반영')}`;
+  $('.jump-personal').innerHTML = `
     <div><dt>내 주간 최고점</dt><dd>${info.best == null ? '기록 없음' : Number(info.best).toLocaleString()+'점'}</dd></div>
     <div><dt>오늘의 참여 미션</dt><dd>${info.participated ? '공식 도전 완료' : '공식 도전 1회'}</dd></div>
-   </dl>`;
+   `;
  }
  async function refresh(show=true){
   try{const res=await api(url,'GET',undefined,{fresh:true});if(dead)return;info=res;if(show)lobby();}

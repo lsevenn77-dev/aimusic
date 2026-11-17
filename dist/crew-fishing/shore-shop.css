@@ -30,15 +30,3 @@
 @keyframes fs-notice{0%,82%{opacity:1}100%{opacity:0;visibility:hidden}}
 @media(max-width:350px){.fs-item{grid-template-columns:62px minmax(0,1fr) auto;column-gap:6px}.fs-action{padding-inline:7px}.fs-wallet{gap:8px}}
 @media(min-width:660px){.fs-section{padding:14px}.fs-art,.fs-art img{height:87px}.fs-item{column-gap:16px}}
-
-
- body:has(#app > .phone-rod-stage){display:flex;flex-direction:column;height:100dvh}
- body:has(.phone-rod-stage)>header{flex:none}
- #app:has(>.phone-rod-stage){flex:1;display:grid;min-height:0;width:100%;max-width:none;padding:0;margin:0}
- #app>.phone-rod-stage{min-height:0;border:0;border-radius:0}
- .phone-rod-stage .stagefoot>div{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr)}
- .phone-rod-stage .stagefoot>div::before,.phone-rod-stage #pullfeedback{grid-area:1 / 1}
- /* Measure the longest reel prompt at the current font size so the gauge stays still. */
- .phone-rod-stage .stagefoot>div::before{content:"줄이 느슨해졌어요. 다시 당겨보세요.";visibility:hidden;font-size:.9rem;line-height:1.6}
- .phone-rod-stage .stagefoot small{grid-row:2}
-
