@@ -67,6 +67,13 @@
     const controls = new AbortController();
     const options = { signal: controls.signal };
     function end() { controls.abort(); clear(); }
+    function screenChanged() {
+      // A landscape tablet's on-screen keyboard can cross the minimum height.
+      // Keep the pre-focus backdrop until the keyboard closes or the width changes.
+      const lock = fx?.layoutLock;
+      if (lock && !portrait.matches && Math.abs(host.getBoundingClientRect().width - lock.width) < 2) return;
+      void sync();
+    }
     signal.addEventListener('abort', end, { once: true });
     host.addEventListener('aifect-theme-error', end, options);
     window.addEventListener('aifect:room-theme', event => {
@@ -79,10 +86,14 @@
     host.addEventListener('focusin', event => {
       if (fx?.w && event.target.matches('input,textarea,[contenteditable="true"]')) fx.setLayoutLock({width:fx.w, height:fx.h});
     }, options);
-    host.addEventListener('focusout', () => fx?.setLayoutLock(null), options);
+    host.addEventListener('focusout', () => {
+      if (!fx?.layoutLock) return;
+      fx.setLayoutLock(null);
+      if (!landscape.matches) void sync();
+    }, options);
     window.addEventListener('aifect:topbar-layout', refreshMask, options);
-    landscape.addEventListener('change', sync, options);
-    portrait.addEventListener('change', () => { if (!landscape.matches) sync(); }, options);
+    landscape.addEventListener('change', screenChanged, options);
+    portrait.addEventListener('change', () => { if (!landscape.matches) screenChanged(); }, options);
     void sync();
   }
   globalThis.AifectChristmasReview = {
