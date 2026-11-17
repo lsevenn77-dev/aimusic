@@ -7,6 +7,11 @@ struct AIFECTApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var model = AppModel()
     init() {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-onboarding-ui-test"), ProcessInfo.processInfo.arguments.contains("-onboarding-reset") {
+            UserDefaults(suiteName: "kr.co.aifect.onboarding-uitest")?.removePersistentDomain(forName: "kr.co.aifect.onboarding-uitest")
+        }
+        #endif
         if let key = Bundle.main.object(forInfoDictionaryKey: "KakaoNativeAppKey") as? String {
             KakaoSDK.initSDK(appKey: key)
         }
@@ -25,20 +30,30 @@ struct AIFECTApp: App {
             #if DEBUG
             if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
                 Color.clear
+            } else if ProcessInfo.processInfo.arguments.contains("-onboarding-ui-test") {
+                OnboardingGate(defaults: onboardingTestDefaults) { FeedbackUITestView() }
+                    .environment(\.dynamicTypeSize, ProcessInfo.processInfo.arguments.contains("-onboarding-large") ? .accessibility1 : .large)
             } else if FeedbackUIFixture.enabled {
                 FeedbackUITestView()
             } else if ProcessInfo.processInfo.arguments.contains("-ad-integration-test") {
                 AdIntegrationTestView()
             } else {
-                RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua)
+                OnboardingGate { RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua) }
                     .onOpenURL(perform: handleURL)
             }
             #else
-            RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua)
+            OnboardingGate { RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua) }
                 .onOpenURL(perform: handleURL)
             #endif
         }
     }
+    #if DEBUG
+    private var onboardingTestDefaults: UserDefaults {
+        let name = "kr.co.aifect.onboarding-uitest"
+        let defaults = UserDefaults(suiteName: name)!
+        return defaults
+    }
+    #endif
 }
 
 /// Android parity values from NativeScreens.kt. This is an importable UI foundation,

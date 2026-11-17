@@ -1,6 +1,49 @@
 import XCTest
 
 final class StreamingUITests: XCTestCase {
+    @MainActor private func onboardingApp(reset: Bool = true, largeText: Bool = false) -> XCUIApplication {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["-feedback-ui-test", "-streaming-ui-test", "-home-density", "-onboarding-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        if reset { app.launchArguments += ["-onboarding-reset"] }
+        if largeText { app.launchArguments += ["-onboarding-large"] }
+        app.launch()
+        return app
+    }
+    @MainActor func testOnboardingFivePagesAndCompletionPersistAcrossLaunches() {
+        let app = onboardingApp()
+        XCTAssertTrue(app.staticTexts["onboarding-title-0"].waitForExistence(timeout: 15))
+        XCTAssertFalse(app.buttons["main-tab-0"].exists, "Home does not load or request consent over onboarding")
+        for index in 0..<5 {
+            XCTAssertTrue(app.staticTexts["onboarding-title-\(index)"].waitForExistence(timeout: 5))
+            capture(app, "onboarding-page-\(index + 1)")
+            let next = app.buttons["onboarding-next"]
+            XCTAssertTrue(next.isHittable)
+            if index == 4 { XCTAssertEqual(next.label, "아이팩트 시작하기") }
+            next.tap()
+        }
+        XCTAssertTrue(app.buttons["main-tab-0"].waitForExistence(timeout: 15))
+        app.terminate()
+        let relaunched = onboardingApp(reset: false)
+        XCTAssertTrue(relaunched.buttons["main-tab-0"].waitForExistence(timeout: 15))
+        XCTAssertFalse(relaunched.buttons["onboarding-skip"].exists)
+    }
+    @MainActor func testOnboardingSwipeSkipAndLargeText() {
+        let app = onboardingApp(largeText: true)
+        XCTAssertTrue(app.staticTexts["onboarding-title-0"].waitForExistence(timeout: 15))
+        app.swipeLeft()
+        XCTAssertTrue(app.staticTexts["onboarding-title-1"].waitForExistence(timeout: 5))
+        app.swipeRight()
+        XCTAssertTrue(app.staticTexts["onboarding-title-0"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["onboarding-next"].isHittable)
+        capture(app, "onboarding-large-text")
+        app.buttons["onboarding-skip"].tap()
+        XCTAssertTrue(app.buttons["main-tab-0"].waitForExistence(timeout: 15))
+        app.terminate()
+        let relaunched = onboardingApp(reset: false)
+        XCTAssertTrue(relaunched.buttons["main-tab-0"].waitForExistence(timeout: 15))
+        XCTAssertFalse(relaunched.buttons["onboarding-skip"].exists)
+    }
     @MainActor private func launch(_ extra: [String] = []) -> XCUIApplication {
         continueAfterFailure = false
         let app = XCUIApplication()

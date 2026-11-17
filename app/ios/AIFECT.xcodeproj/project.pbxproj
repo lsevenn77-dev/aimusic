@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C491A3C828544294A1240001 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C491A3C828544294A1240002 /* OnboardingView.swift */; };
 		BEA290BA706C4D6C972A7643 /* DubbingEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7C4C45CB5354E218B95377F /* DubbingEditor.swift */; };
 		853FE3A519BB4948A0933D16 /* DubbingRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE34259F2E0843899212C586 /* DubbingRecorder.swift */; };
 		05D64240A81CDAF648FE80CC /* OriginalUploadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16C453242CAB3752B8952F6E /* OriginalUploadView.swift */; };
@@ -92,6 +93,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		C491A3C828544294A1240002 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		D7C4C45CB5354E218B95377F /* DubbingEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DubbingEditor.swift; sourceTree = "<group>"; };
 		BE34259F2E0843899212C586 /* DubbingRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DubbingRecorder.swift; sourceTree = "<group>"; };
 		0BC8C5348BA6132EB25880E5 /* StreamingUX.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingUX.swift; sourceTree = "<group>"; };
@@ -197,6 +199,7 @@
 				7987C4D98B799C70EEC77E8F /* AdIntegrationTestView.swift */,
 				B2C391BE165B0A488446D971 /* AIFECT.entitlements */,
 				50CC9C90B0D2AE84A105616B /* AIFECTApp.swift */,
+				C491A3C828544294A1240002 /* OnboardingView.swift */,
 				E3FD1FC593F82FCD57C1DE90 /* API.swift */,
 				5A05FBFEF3A9822E5ADD9F83 /* AppModel.swift */,
 				22F2F18350B0C2F9FB1FF4BE /* ArtistGallery.swift */,
@@ -468,6 +471,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				52A7434910B3DC5143EAF7FA /* AIFECTApp.swift in Sources */,
+				C491A3C828544294A1240001 /* OnboardingView.swift in Sources */,
 				476075E9B72FF322A178D7CB /* API.swift in Sources */,
 				C6C2A62361928A4B062C91AA /* AccountViews.swift in Sources */,
 				4A5BF9245B17B6F99007466D /* ActivityHistoryView.swift in Sources */,
@@ -574,7 +578,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 23;
+				CURRENT_PROJECT_VERSION = 24;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 3KJFQS7Q83;
 				ENABLE_NS_ASSERTIONS = NO;
@@ -721,7 +725,7 @@
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 23;
+				CURRENT_PROJECT_VERSION = 24;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				DEVELOPMENT_TEAM = 3KJFQS7Q83;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
