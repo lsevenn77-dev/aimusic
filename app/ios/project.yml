@@ -1,5 +1,14 @@
 name: AIFECT
 schemes:
+  AIFECTDeviceGame:
+    build:
+      targets:
+        AIFECT: all
+    run:
+      config: Release
+    test:
+      config: Release
+      targets: [AIFECTUITests]
   AIFECTPaymentsTest:
     build:
       targets:
