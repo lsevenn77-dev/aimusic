@@ -66,18 +66,26 @@ test('participation exposes a choice of open duet or dubbing projects, not compl
 test('mobile retains the seven approved photos and uses the new full-frame crew scene',()=>{
  const c=context(),banners=vm.runInContext('homeBanners',c);
  const original=JSON.parse(readFileSync(new URL('../dist/assets/home-banners/mobile-20261109/manifest.json',import.meta.url),'utf8'));
- const approved=JSON.parse(readFileSync(new URL('../dist/assets/home-banners/seamless-20261109/manifest.json',import.meta.url),'utf8'));
+ const crewHashes={768:'69763d20a7dd0d76388f4e9898c9663829b4a6e39df22a785e4ab51288e7054f',1536:'f21798a7067a9ad5cd963413e6c7275641e5859cd6c970e02eeb6e3462fa5f00'};
  assert.equal(banners.filter(banner=>banner.id!=='crew').length,7);
  for(const width of [768,1536]){
   const hashes=new Set();
   for(const banner of banners){
-   const asset=(banner.id==='crew'?approved.assets:original.banners).find(item=>item.id===banner.id);
+   if(banner.id==='crew'){
+    const url='/assets/home-banners/rooms-20261117/crew-mobile-'+width+'.webp';
+    assert.equal(c.homeBannerImage('crew',width),url);
+    const bytes=readFileSync(new URL('../dist'+url,import.meta.url));
+    assert.deepEqual(imageDimensions(bytes,'image/webp'),{width,height:width/2});
+    const hash=createHash('sha256').update(bytes).digest('hex');
+    assert.equal(hash,crewHashes[width]);hashes.add(hash);
+    continue;
+   }
+   const asset=original.banners.find(item=>item.id===banner.id);
    assert.ok(asset,'missing reviewed mobile scene for '+banner.id);
    const output=asset.outputs.find(item=>item.width===width);
    assert.ok(output,'missing mobile variant for '+banner.id+' at '+width);
    assert.equal(output.filename,banner.id+'-'+width+'.webp');
-   const expectedDirectory=banner.id==='crew'?'seamless-20261109':'mobile-20261109';
-   assert.equal(c.homeBannerImage(banner.id,width),'/assets/home-banners/'+expectedDirectory+'/'+output.filename);
+   assert.equal(c.homeBannerImage(banner.id,width),'/assets/home-banners/mobile-20261109/'+output.filename);
    assert.equal(c.homeBannerImage(banner.id,width),output.url,'rendered mobile photo must match its reviewed manifest');
    const bytes=readFileSync(new URL('../dist'+output.url,import.meta.url));
    const hash=createHash('sha256').update(bytes).digest('hex');
@@ -89,7 +97,23 @@ test('mobile retains the seven approved photos and uses the new full-frame crew 
  }
 });
 
-test('the native app retains its original portrait, scenery and preload at every width',()=>{
+test('released mobile apps and newer clients can both fetch the cropped native crew campaign',()=>{
+ const assets=new URL('../dist/assets/home-banners/',import.meta.url);
+ for(const [filename,width,height,sha] of [
+  ['seamless-20261109/crew-768.webp',768,314,'1481ba399024ce1c5386448e3b7f0ea4377d6db675d06238bdc59cbe57a85e75'],
+  ['rooms-20261117/crew-native-980.webp',980,400,'91e25c7b370126df65959d66f0a92cc9fe8a9564173af2561ce0276611395170']
+ ]){
+  const image=readFileSync(new URL(filename,assets));
+  assert.deepEqual(imageDimensions(image,'image/webp'),{width,height});
+  assert.equal(createHash('sha256').update(image).digest('hex'),sha);
+ }
+ const archived=JSON.parse(readFileSync(new URL('seamless-20261109/manifest.json',assets),'utf8'))
+  .assets.find(a=>a.id==='crew').outputs.find(o=>o.width===768);
+ const bytes=readFileSync(new URL('../dist'+archived.url,import.meta.url));
+ assert.equal(createHash('sha256').update(bytes).digest('hex'),archived.sha256);
+});
+
+test('the native webview selects its dedicated crew composition and preserves other scenes and preloads',()=>{
  const c=context(true),banners=vm.runInContext('homeBanners',c);
  for(const [index,banner] of banners.entries()){
   const original=c.homeBannerImage(banner.id,1536);
@@ -97,7 +121,7 @@ test('the native app retains its original portrait, scenery and preload at every
   const picture=html.match(/<picture\b[^>]*>[\s\S]*?<\/picture>/)?.[0];
   assert.ok(picture,banner.id+' needs the original photo as a separate layer');
   const base='/assets/home-banners/portraits-20261116/'+banner.id+'-';
-  const desktop=banner.id==='crew'?'/assets/home-banners/portraits-20261116/aifect-crew-banner-final.webp':base+'896.webp 1x, '+base+'1536.webp 2x';
+  const desktop=banner.id==='crew'?'/assets/home-banners/rooms-20261117/crew-app-1672.webp':base+'896.webp 1x, '+base+'1536.webp 2x';
   for(const width of [320,390,768,800])assert.equal(pictureSourceAt(html,width),original);
   for(const width of [801,860,1150,1151,1440,1920])assert.equal(pictureSourceAt(html,width),desktop);
   if(banner.id!=='crew'){
@@ -115,7 +139,8 @@ test('the native app retains its original portrait, scenery and preload at every
   if(banner.id==='crew'){
    assert.equal(scenery.length,0);
    const final=readFileSync(new URL('../dist'+desktop,import.meta.url));
-   assert.equal(createHash('sha256').update(final).digest('hex'),'0c4569cdf4a19992107be35e1f55557476f8557ae6f4fe4007ac88b0d863d7b2');
+   assert.deepEqual(imageDimensions(final,'image/webp'),{width:1672,height:505});
+   assert.equal(createHash('sha256').update(final).digest('hex'),'fe093920886eadd29cac7dc9c1d985c43eae619fbce672dae7f67ee375f951f0');
    continue;
   }
   assert.equal(scenery.length,2,'both exposed sides need their own matching outpaint');
@@ -136,7 +161,8 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
   const next=banners[(index+1)%banners.length],html=c.homeBannerHTML(banner,next);
   const slim=['studio','participate','artists','crew'].includes(banner.id);
   const artwork=banner.id==='artists'?'artists-mobile-photo':banner.id;
-  const base='/assets/home-banners/'+(slim?'slim-20261116':'wide-20261116')+'/'+artwork+'-';
+  const dir=['crew','karaoke','talking'].includes(banner.id)?'rooms-20261117':slim?'slim-20261116':'wide-20261116';
+  const base='/assets/home-banners/'+dir+'/'+artwork+'-';
   const height=slim?300:363;
   const large=banner.id==='crew'?2148:2840;
   const sources=base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
@@ -153,6 +179,10 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
    const bytes=readFileSync(new URL('../dist'+base+width+'.webp',import.meta.url));
    assert.equal(bytes.toString('ascii',8,12),'WEBP');
    assert.deepEqual(imageDimensions(bytes,'image/webp'),{width,height:Math.round(width*height/1420)});
+   if(banner.id==='talking'){
+    const approved=readFileSync(new URL('../dist/assets/home-banners/wide-20261116/talking-'+width+'.webp',import.meta.url));
+    assert.ok(bytes.equals(approved),'retain the approved velvet sofa at both resolutions');
+   }
    if(banner.id==='artists'){
     assert.equal(bytes.toString('ascii',12,16),'VP8L','Use a single lossless frame for the mobile portrait on desktop');
     const referenceHash=width===1420?'e3f8f975559450cfbffbe3d820bbebefb8cb66bd731cd8f3b604f335c29f796d':'cc2d3167d4e26faf82cee6830aee707d5e7a3554608b3c02dde572448729683d';
@@ -173,7 +203,8 @@ test('desktop scenery matches reviewed WebP files and records the unchanged orig
  for(const banner of banners){
   const asset=manifest.assets.find(item=>item.id===banner.id);
   assert.ok(asset,'missing scene extensions for '+banner.id);
-  assert.equal(asset.source_url,c.homeBannerImage(banner.id,1536));
+  const historicalSource=banner.id==='crew'?'/assets/home-banners/seamless-20261109/crew-1536.webp':c.homeBannerImage(banner.id,1536);
+  assert.equal(asset.source_url,historicalSource);
   const original=readFileSync(new URL('../dist'+asset.source_url,import.meta.url));
   assert.equal(createHash('sha256').update(original).digest('hex'),asset.source.sha256,'background provenance must identify the actual unchanged mobile photo');
   assert.equal(original.length,asset.source.bytes);

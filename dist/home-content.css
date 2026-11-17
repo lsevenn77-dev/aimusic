@@ -55,27 +55,20 @@
 #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-bg:#2f1b36;--home-promo-accent:var(--ds-accent-pink)}
 #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-bg:#222655;--home-promo-accent:var(--ds-accent-mint)}
 #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-bg:#0f2033;--home-promo-accent:var(--ds-accent-mint);--home-promo-shade-end:55%;--home-promo-focus:80% 20%}
-#home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-bg:var(--ds-panel);--home-promo-accent:var(--ds-accent-mint);--home-promo-shade-end:55%;--home-promo-focus:63% 20%}
+#home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-bg:var(--ds-panel);--home-promo-accent:#aa5af8;--home-promo-shade-end:55%;--home-promo-focus:center}
 #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-bg:#202545;--home-promo-accent:#edca7e}
 @media(min-width:801px){
  #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-end:52%}
- /* All slides reserve one height. The crew artwork contains its own copy and arrows. */
+ /* Wide app WebViews share a stable frame across the carousel. */
  #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature,
  #home-release.home-promo-carousel:not(.home-promo-wide) .release-placeholder{--home-feature-height:clamp(174px,30.20335cqi,360px);height:var(--home-feature-height)}
- #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew]{background:linear-gradient(90deg,#09212a,#141124)}
  #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-picture{inset:0;width:100%;height:100%;aspect-ratio:auto;mask-image:none;-webkit-mask-image:none}
- #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-desktop,
- #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew]::before{display:none}
- #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]){
-  --crew-art-width:min(100%,calc(var(--home-feature-height) * 1672 / 505));
-  --crew-arrow-inset:max(0px,calc(50% - var(--crew-art-width) * .47 - 22px));
+ #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-original{object-fit:cover}
+ @container (min-width:541px) and (max-width:650px){
+  #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-copy{padding-left:66px;gap:5px}
+  #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-headline{font-size:17px;line-height:1.25}
+  #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-cta{min-height:36px;padding:6px 14px;font-size:13px}
  }
- #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-arrow{
-  top:calc(50% - min(var(--home-feature-height),30.20335cqi) * .045 - 22px);bottom:auto
- }
- #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-prev{left:var(--crew-arrow-inset)}
- #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-next{right:var(--crew-arrow-inset)}
- #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature:has(.home-feature-stage > [data-home-banner=crew]) > .home-feature-arrow svg{visibility:hidden}
 }
 #home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;box-sizing:border-box;height:100%;width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
 #home-release.home-promo-carousel .home-promo-headline{font-size:clamp(22px,3.2cqi,36px);line-height:1.35;font-weight:750;font-style:italic;letter-spacing:-.04em;word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 2px 5px color-mix(in srgb,var(--ds-bg) 50%,transparent),0 4px 16px color-mix(in srgb,var(--ds-bg) 38%,transparent)}
@@ -128,7 +121,10 @@
  #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-mobile-head-top:24%;--home-promo-mobile-second-size:.94em}
  #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-mobile-head-top:23%;--home-promo-mobile-second-size:.9em;--home-promo-shade-end:51%}
  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-mobile-head-top:17%;--home-promo-mobile-title-size:4.1cqi;--home-promo-mobile-second-size:.88em;--home-promo-shade-end:41%}
- #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-mobile-head-top:18%;--home-promo-shade-end:49%}
+ #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-mobile-head-top:18%}
+ #home-release.home-promo-carousel [data-home-banner=crew]::before{background:linear-gradient(90deg,#100e1bd9 0%,#100e1bc9 26%,#100e1b96 33%,transparent 44%);mask-image:none;-webkit-mask-image:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-copy{left:4%;width:36%}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-subtitle{white-space:normal;word-break:keep-all}
  #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-mobile-head-top:18%;--home-promo-shade-end:51%}
  #home-release.home-promo-carousel .home-feature-pagination{position:static;grid-row:2;transform:none;width:100%;min-width:0}
  #home-release.home-promo-carousel .home-feature-autoplay{width:44px;flex:0 0 44px}
@@ -145,7 +141,6 @@
  #home-release.home-promo-wide [data-home-banner=play]{--banner-photo-y:4%}
  #home-release.home-promo-wide [data-home-banner=karaoke]{--banner-photo-y:10%}
  #home-release.home-promo-wide [data-home-banner=talking]{--banner-photo-y:23%}
- #home-release.home-promo-wide [data-home-banner=crew]{--home-promo-accent:#aa5af8}
  #home-release.home-promo-wide [data-home-banner=crew] .home-promo-cta{background:linear-gradient(100deg,#9bf9e8,#b9c1fd,#cd98fc)}
  #home-release.home-promo-wide [data-wide-banner]:focus-visible{outline:none}
  /* All seven public slides use the same two-line title, subtitle and CTA. */

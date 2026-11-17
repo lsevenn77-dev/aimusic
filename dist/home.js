@@ -98,7 +98,11 @@ const homeBanners=[
  {id:'crew',title:'크루',headline:'크루에 가입하고 함께 즐겨보세요',subtitle:'음악을 나누고 게임도 함께해요.',cta:'크루 둘러보기',href:'#community/crews?browse=1'},
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',subtitle:'고음질로 음악을 더 깊이 즐겨요.',cta:'프리미엄 혜택 보기',href:'#membership'}
 ].filter(b=>b.id!=='premium'||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false);
-function homeBannerImage(id,width){return '/assets/home-banners/'+(id==='crew'?'seamless-20261109/':'mobile-20261109/')+id+'-'+width+'.webp';}
+const homeRoomsArtwork='rooms-20261117';
+function homeBannerImage(id,width){
+ const scene=id==='crew'?homeRoomsArtwork+'/crew-mobile':'mobile-20261109/'+id;
+ return '/assets/home-banners/'+scene+'-'+width+'.webp';
+}
 const homeBannerDesktopSizes='(max-width: 1150px) calc(100vw - 275px), min(1420px, calc(100vw - 305px))';
 // The remaining PC photos already have enough space above and below the subject.
 const homeSlimArtwork=new Set(['studio','participate','artists','crew']);
@@ -107,13 +111,13 @@ function homeWideBanner(id){
 }
 function homeBannerDesktopSources(id){
  if(homeWideBanner(id)){
-  const directory=homeSlimArtwork.has(id)?'slim-20261116':'wide-20261116';
+  const directory=['crew','karaoke','talking'].includes(id)?homeRoomsArtwork:homeSlimArtwork.has(id)?'slim-20261116':'wide-20261116';
   const artwork=id==='artists'?'artists-mobile-photo':id;
   const base='/assets/home-banners/'+directory+'/'+artwork+'-';
   const large=id==='crew'?2148:2840;
   return base+'1420.webp 1420w, '+base+large+'.webp '+large+'w';
  }
- if(id==='crew')return '/assets/home-banners/portraits-20261116/aifect-crew-banner-final.webp';
+ if(id==='crew')return '/assets/home-banners/'+homeRoomsArtwork+'/crew-app-1672.webp';
  const base='/assets/home-banners/portraits-20261116/'+id+'-';
  return base+'896.webp 1x, '+base+'1536.webp 2x';
 }
