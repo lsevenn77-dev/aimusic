@@ -24,10 +24,10 @@
 
 .artist-directory .directory-grid {
  display:grid;
- grid-template-columns:repeat(5,minmax(0,240px));
+ grid-template-columns:repeat(6,minmax(0,1fr));
  grid-auto-rows:1fr;
  align-items:stretch;
- gap:16px;
+ gap:14px;
 }
 .artist-directory .directory-artist {
  --artist-active-border:color-mix(in srgb,var(--ds-mint) 36%,var(--ds-line));
@@ -78,7 +78,7 @@
 .artist-directory .directory-card-info,
 .artist-directory .directory-add-card::after {
  box-sizing:border-box; display:grid; flex:1; grid-template-rows:var(--artist-info-rows);
- gap:4px; padding:12px; min-width:0;
+ gap:4px; padding:10px 8px; min-width:0;
 }
 .artist-directory .directory-name,
 .artist-directory .artist-ui-affiliation {
@@ -86,7 +86,15 @@
 }
 .artist-directory .directory-name {font-size:var(--pc-font-card,16px); line-height:22px; font-weight:600; color:var(--ds-text)}
 .artist-directory .artist-ui-affiliation {margin:0; color:#BB9AD7; font-size:var(--pc-font-meta,13px); line-height:20px}
-.artist-directory .directory-followers {justify-self:center; max-width:100%; color:var(--ds-body); font-size:var(--pc-font-meta,13px); line-height:20px; font-variant-numeric:tabular-nums}
+.artist-directory .directory-stats {
+ grid-row:3; display:flex; justify-content:center; align-items:center; gap:4px;
+ min-width:0; color:var(--ds-body); font-size:var(--pc-font-meta,13px); line-height:20px;
+ font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.artist-directory .directory-stats>[aria-hidden] {color:var(--ds-muted)}
+.artist-directory .directory-stats>:is(span:first-child,.directory-followers) {
+ min-width:0; overflow:hidden; text-overflow:ellipsis;
+}
 .artist-directory .directory-follow,
 .artist-directory .directory-card-actions {grid-row:4; align-self:end}
 .artist-directory .directory-card-actions {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px}
@@ -117,14 +125,21 @@
 .artist-directory .directory-empty {padding:32px 16px; text-align:center; color:var(--ds-body); font-size:14px}
 .artist-directory .directory-pagination {display:flex; justify-content:center; gap:12px; margin-top:24px}
 @container artist-directory (max-width:1039px) {
- .artist-directory .directory-grid {grid-template-columns:repeat(4,minmax(0,240px))}
+ .artist-directory .directory-grid {grid-template-columns:repeat(5,minmax(0,1fr))}
 }
-@container artist-directory (max-width:815px) {
+@container artist-directory (max-width:849px) {
+ .artist-directory .directory-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@container artist-directory (max-width:699px) {
  .artist-directory .directory-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
 }
-@container artist-directory (max-width:599px) {
- .artist-directory .directory-grid {grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
- .artist-directory .directory-controls {gap:8px}
+/* When the sidebar collapses the content widens; keep the tablet at three columns. */
+@media (max-width:800px) {
+ .artist-directory .directory-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+ @container artist-directory (max-width:539px) {
+  .artist-directory .directory-grid {grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+  .artist-directory .directory-controls {gap:8px}
+ }
 }
 @media (pointer:coarse) {
  #main .artist-directory {--artist-action-height:44px}

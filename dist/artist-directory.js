@@ -3,9 +3,7 @@ function directoryArtistCard(artist, {management = false, owner = false} = {}) {
  const id = esc(artist.id), name = esc(artist.name);
  const href = '#artist/' + encodeURIComponent(artist.id);
  const key = 'artist/' + id;
- const details = management ? '' : `
-  <p class="artist-ui-affiliation" title="소속 ${esc(artist.producer_name)}">소속 ${userNickname(artist.producer_name,{profileId:artist.producer_id})}</p>
-  <a class="directory-followers" href="#follow?tab=artists&amp;artist=${encodeURIComponent(artist.id)}" data-followers="${key}" data-count="${Number(artist.followers)||0}">팔로워 <span data-follow-count>${number(artist.followers)}</span></a>`;
+ const affiliation = management ? '' : `<p class="artist-ui-affiliation" title="소속 ${esc(artist.producer_name)}">소속 ${userNickname(artist.producer_name,{profileId:artist.producer_id})}</p>`;
  let actions = '';
  if (!management) {
   actions = `<button type="button" class="directory-follow" data-follow-presentation="profile" data-follow="${key}" aria-pressed="${followed('artist',artist.id)}">${icon('user',14)}<span data-follow-label>팔로우</span></button>`;
@@ -19,7 +17,13 @@ function directoryArtistCard(artist, {management = false, owner = false} = {}) {
   <a class="directory-photo" href="${href}" aria-label="${name} 프로필 보기" aria-haspopup="dialog">${avatarImage(artist,'artist',false)}</a>
   <div class="directory-card-info">
    <div class="directory-name"><a href="${href}" title="${name}" aria-haspopup="dialog">${name}</a></div>
-   ${details}${actions}
+   ${affiliation}
+   <div class="directory-stats">
+    <span>곡 <span>${number(artist.track_count)}</span></span>
+    <span aria-hidden="true">|</span>
+    <a class="directory-followers" href="#follow?tab=artists&amp;artist=${encodeURIComponent(artist.id)}" data-followers="${key}" data-count="${Number(artist.followers)||0}">팔로워 <span data-follow-count>${number(artist.followers)}</span></a>
+   </div>
+   ${actions}
   </div>
  </article>`;
 }

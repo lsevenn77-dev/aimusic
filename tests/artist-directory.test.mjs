@@ -20,3 +20,31 @@ test('artist directory counts all public artists, sorts real follows and paginat
  assert.equal((await f.call('/api/catalog?section=artists&directory=1')).body.artists.find(a=>a.id==='directory-0')?.followers,undefined); // moved to later page after unfollow
 });
 
+test('both artist cards count only credited public songs and visible artist follows',async t=>{
+ const f=await fixture(t);
+ f.sql.exec(`INSERT INTO artists(id,producer_id,name,created) VALUES('empty','producer','New artist',0);
+  UPDATE tracks SET karaoke_at=1 WHERE id='one';
+  UPDATE tracks SET kind='cover',original_id='one' WHERE id='two';
+  UPDATE tracks SET status='draft' WHERE id='three';
+  INSERT INTO follows VALUES('other','artist','artist',0),('other','producer','producer',0);`);
+ async function counts(viewer){
+  const [list,profile]=await Promise.all([
+   f.call('/api/catalog?section=artists&directory=1','GET',undefined,viewer),
+   f.call('/api/producers/producer?dashboard=1','GET',undefined,viewer)
+  ]);
+  assert.equal(list.status,200);assert.equal(profile.status,200);
+  const stats=artist=>[artist.track_count,artist.followers];
+  assert.deepEqual(stats(profile.body.artists.find(a=>a.id==='empty')),[0,0]);
+  const publicCard=list.body.artists.find(a=>a.id==='artist');
+  const managed=stats(profile.body.artists.find(a=>a.id==='artist'));
+  if(publicCard)assert.deepEqual(stats(publicCard),managed);
+  return [!!publicCard,...managed];
+ }
+ assert.deepEqual(await counts('owner'),[true,1,1]);
+ assert.deepEqual(await counts(null),[true,1,1]);
+ f.sql.exec("INSERT INTO artist_follow_blocks VALUES('artist','other','fan',0)");
+ assert.deepEqual(await counts('owner'),[true,1,0]);
+ f.sql.exec("UPDATE tracks SET status='deleted' WHERE id='one'");
+ assert.deepEqual(await counts('owner'),[false,0,0]);
+});
+

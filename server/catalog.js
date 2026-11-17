@@ -33,6 +33,19 @@ import {profileDiscovery} from './profile-discovery.js';
 export {GENRES};
 // A cover is public only while its original is public and still offered for karaoke (terms: hiding the original hides its covers).
 export const VISIBLE=(t='t')=>`(${t}.status='published' AND (${t}.original_id IS NULL OR EXISTS(SELECT 1 FROM tracks v WHERE v.id=${t}.original_id AND v.status='published' AND v.karaoke_at>0)) AND (${t}.duet_parent_id IS NULL OR EXISTS(SELECT 1 FROM tracks dp WHERE dp.id=${t}.duet_parent_id AND dp.status='published' AND dp.cover_mode='duet' AND dp.duet_parent_id IS NULL)))`;
+// Artist pages credit original releases. A cover retains the source artist's
+// foreign key, but is performed by the cover uploader.
+const publicArtistSongs = () => `FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND ${VISIBLE()}`;
+// Both directory queries join artist a to producer p and bind the viewer at ?1.
+export const artistCardCountsSQL = () => `
+ (SELECT count(*) ${publicArtistSongs()}) track_count,
+ (SELECT count(*) FROM follows f JOIN users fan ON fan.id=f.user_id
+  WHERE f.kind='artist' AND f.target_id=a.id AND fan.provider!='deleted'
+  AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE
+   (b.user_id=f.user_id AND b.blocked_id IN (?1,p.user_id)) OR
+   (b.blocked_id=f.user_id AND b.user_id IN (?1,p.user_id)))
+  AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks ab WHERE ab.artist_id=a.id AND ab.user_id=f.user_id)
+ ) followers`;
 // A song can be sung once its MR and word timings are built and its creator still offers it for karaoke.
 export const SINGABLE=(t='t')=>`(${t}.kind='original' AND ${t}.karaoke_at>0 AND EXISTS(SELECT 1 FROM karaoke_jobs k WHERE k.track_id=${t}.id AND k.state='ready' AND k.mr_ready=1 AND k.words_state IN ('ready','attention')))`;
 // Covers keep the original's AI artist in artist_id; their performer is the uploader's profile.
@@ -71,9 +84,11 @@ export async function catalogRoute(req,env,path,user){
   if(url.searchParams.get('section')==='producers'&&url.searchParams.get('sort')==='popular')return json({producers:await profileDiscovery(env,'producer','popular',100)});
   if(url.searchParams.get('section')==='artists'&&url.searchParams.get('directory')==='1'){
    const sort=url.searchParams.get('sort')==='recent'?'recent':'popular',offset=Math.max(0,Math.floor(Number(url.searchParams.get('offset'))||0)),size=50;
-   const where=`${namedArtistSQL()} AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published')`;
+   const where=`${namedArtistSQL()} AND EXISTS(SELECT 1 ${publicArtistSongs()})`;
    const [artists,count]=await Promise.all([
-    rows(env,`SELECT a.*,${producerNameSQL()} producer_name,(SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a JOIN producers p ON p.id=a.producer_id WHERE ${where} ORDER BY ${sort==='popular'?'followers DESC,':''}a.created DESC,a.id LIMIT ? OFFSET ?`,size,offset),
+    rows(env,`SELECT a.*,${producerNameSQL()} producer_name,${artistCardCountsSQL()}
+     FROM artists a JOIN producers p ON p.id=a.producer_id WHERE ${where}
+     ORDER BY ${sort==='popular'?'followers DESC,':''}a.created DESC,a.id LIMIT ?2 OFFSET ?3`,user?.id||'',size,offset),
     one(env,`SELECT count(*) n FROM artists a WHERE ${where}`)
    ]);
    return json({artists,total:count.n,sort,offset,nextOffset:offset+artists.length<count.n?offset+size:null});
