@@ -410,8 +410,8 @@ private val promotions=listOf(
  HomePromotion("crew","크루","크루에 가입하고 함께 즐겨보세요",R.drawable.home_promo_crew)
 )
 private fun HomePromotion.imageUrl():String {
- val directory=if(id=="crew") "seamless-20261109" else "mobile-20261109"
- return "https://aifect.co.kr/assets/home-banners/$directory/$id-768.webp"
+ if(id=="crew") return "https://aifect.co.kr/assets/home-banners/rooms-20261117/crew-native-980.webp"
+ return "https://aifect.co.kr/assets/home-banners/mobile-20261109/$id-768.webp"
 }
 @Composable private fun HomePromotionCarousel(m:MusicModel,onBackdrop:(String?)->Unit) {
  val pager=rememberAutoCarousel(promotions.size,intervalMillis=4500)
