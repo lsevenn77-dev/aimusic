@@ -36,15 +36,6 @@ function dubOriginals(items){
   '<span class="dub-feature-foot"><span class="dub-feature-copy"><small>'+esc([...(p.genres||[]),p.roleCount+'인극'].join(' · '))+'</small><strong>'+esc(p.title)+'</strong></span>'+
   '<span class="dub-feature-action">더빙하기</span></span></a>').join('')+'</div></section>';
 }
-function bindDubCreation(raw){
- const main=document.querySelector('#main'),play={mode:'dubbing',tab:'discover'};
- const content=[...main.children].filter(el=>!el.matches('h1.sr-only'));
- main.insertAdjacentHTML('beforeend',playShell(play,'',raw));
- const shell=main.lastElementChild;
- shell.querySelector('[data-play-route-targets]').remove();
- shell.querySelector('.play-content').append(...content);
- shell.addEventListener('keydown',playTabKeydown);bindPlayBanner(play,shell);
-}
 function dubCard(project,tab){
  const join=tab==='join';
  const href=join?playHref('dubbing','join')+'&project='+encodeURIComponent(project.id):'#dubbing/'+encodeURIComponent(project.id);

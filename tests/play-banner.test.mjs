@@ -65,11 +65,13 @@ function setup(reduced=false){
  return {context,window,document,timers,globalEvents,open,bind,resolveList,navigate,clickTab,tick,current,pressed,rolling,get banner(){return page.banner;},get page(){return page;}};
 }
 
-for(const [mode,sequence] of Object.entries({song:['song','dubbing','browse','song'],dubbing:['dubbing','browse','song','dubbing'],browse:['browse','song','dubbing','browse']})){
+const slideOrder=['song','dubbing','browse','script'];
+for(const mode of ['song','dubbing','browse']){
  test(mode+' starts by data ID and rolls every four seconds without changing the selected tab',()=>{
   const f=setup(),selection={mode},banner=f.open(mode);
-  for(const id of sequence){
-   assert.equal(f.current(),id);assert.deepEqual(f.pressed(),[['song','dubbing','browse'].indexOf(id)]);assert.equal(f.rolling().length,1);
+  for(let step=0;step<=slideOrder.length;step++){
+   const index=(slideOrder.indexOf(mode)+step)%slideOrder.length,id=slideOrder[index];
+   assert.equal(f.current(),id);assert.deepEqual(f.pressed(),[index]);assert.equal(f.rolling().length,1);
    f.tick(3999);assert.equal(f.current(),id);f.tick(1);
   }
   assert.equal(selection.mode,mode);assert.equal(f.page._playView.play.mode,mode);assert.equal(f.banner,banner);
@@ -124,7 +126,7 @@ test('top tab clicks select the matching banner immediately and start a full int
  const f=setup(),banner=f.open('song');
  const handlers=[...banner.feature.events].map(([name,list])=>[name,[...list]]);
  f.tick(3999);
- for(const [mode,next] of [['dubbing','browse'],['browse','song'],['song','dubbing']]){
+ for(const [mode,next] of [['dubbing','browse'],['browse','script'],['song','dubbing']]){
   const event=f.clickTab(mode);
   assert.equal(event.defaultPrevented,false,'native tab navigation remains available');
   assert.equal(f.current(),mode);assert.deepEqual(f.pressed(),[['song','dubbing','browse'].indexOf(mode)]);
@@ -179,9 +181,9 @@ test('mode history and rapid top-tab changes reuse one carousel and leave only o
  const f=setup(),banner=f.open('song');f.tick(3999);
  // Back/forward and direct route changes have no preceding top-tab click.
  f.navigate('#karaoke/browse?tab=latest&type=duet');assert.equal(f.current(),'browse');
- f.tick(3999);assert.equal(f.current(),'browse');f.tick(1);assert.equal(f.current(),'song');
+ f.tick(3999);assert.equal(f.current(),'browse');f.tick(1);assert.equal(f.current(),'script');
  const deadline=f.rolling()[0];f.navigate('#karaoke/browse?tab=popular&type=solo');
- assert.equal(f.current(),'song');assert.equal(f.rolling()[0],deadline);
+ assert.equal(f.current(),'script');assert.equal(f.rolling()[0],deadline);
  for(let i=0;i<30;i++){
   const mode=['dubbing','browse','song'][i%3];
   f.clickTab(mode);f.navigate(f.context.playHref(mode));f.bind(mode);
@@ -227,7 +229,7 @@ test('swipes and dots agree with actual banner IDs and restart a complete four-s
  fire('pointerdown',{pointerId:1,pointerType:'touch',clientX:200,clientY:30});assert.equal(f.rolling().length,0);f.tick(1000);assert.equal(f.current(),'dubbing');
  fire('pointermove',{pointerId:1,clientX:80,clientY:34});fire('pointerup',{pointerId:1,clientX:80,clientY:34});assert.equal(f.current(),'browse');assert.deepEqual(f.pressed(),[2]);
  let blocked=0;fire('click',{detail:1,preventDefault(){blocked++;},stopPropagation(){blocked++;}});assert.equal(blocked,2);
- f.tick(3999);assert.equal(f.current(),'browse');f.tick(1);assert.equal(f.current(),'song');
+ f.tick(3999);assert.equal(f.current(),'browse');f.tick(1);assert.equal(f.current(),'script');
  const dot={matches:()=>false,hasAttribute:n=>n==='data-home-slide',dataset:{homeSlide:'1'}};
  fire('click',{target:{closest:()=>dot}});assert.equal(f.current(),'dubbing');assert.deepEqual(f.pressed(),[1]);
  f.tick(3999);assert.equal(f.current(),'dubbing');f.tick(1);assert.equal(f.current(),'browse');

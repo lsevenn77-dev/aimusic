@@ -22,6 +22,7 @@
 }
 html.aifect-script-embedded :is(.site-footer,#sidebar,#topbar,.mobile-bottom-nav,.business-footer,#player,.dubbing-mode){display:none!important}
 html.aifect-script-embedded #main{padding:0!important;margin:0!important;max-width:none!important}
+html.aifect-script-embedded #main > .dubbing-page{padding:0}
 html.aifect-script-embedded .dub-editor{height:var(--dub-available,100dvh);border-radius:0}
 html.aifect-script-embedded :is(.topbar,.page-footer,.player-bar,.mobile-nav,.common-player){display:none!important}
 html.aifect-script-embedded .workspace{margin:0;padding:0}
