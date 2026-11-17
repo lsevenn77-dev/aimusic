@@ -7,6 +7,26 @@ const c=vm.createContext({URLSearchParams,esc:String,icon:name=>'<svg data-icon=
 for(const file of ['play-page','dub-discovery'])vm.runInContext(readFileSync(new URL('../dist/'+file+'.js',import.meta.url),'utf8'),c);
 const work=i=>({id:'r'+i,title:'작품 '+i,ownerName:'작가 '+i,genres:['로맨스'],created:i,roleCount:2,duration:270,activeCount:i,completedCount:0,state:'recruiting',reusable:true,visibility:'public',availableRoles:['서연']});
 const viewOf=(projects,query='')=>({raw:'karaoke/dubbing?tab=discover'+query,play:{mode:'dubbing',tab:'discover'},discovery:{projects}});
+test('opening a script mounts the authoring screen directly; browsing keeps the mode navigation',async()=>{
+ const root={children:[]},started=[];
+ const ctx=vm.createContext({URLSearchParams,window:{addEventListener(){}},me:{id:'owner'},
+  document:{querySelector:()=>root},$:()=>root,icon:()=>'',dubStartHTML:()=>'<section>새 대본 작성</section>',
+  dubStart:async(_view,element,mode)=>{assert.equal(element,root);started.push(mode);},
+  playShell:()=>assert.fail('The authoring screen mounted the Play carousel')});
+ for(const file of ['dub-discovery','dubbing'])vm.runInContext(readFileSync(new URL('../dist/'+file+'.js',import.meta.url),'utf8'),ctx);
+ const read=async path=>path==='/api/dubbing/config'?{enabled:true}:{project:{id:'one',canEdit:true}};
+ for(const mode of ['start','manual','paste']){
+  const view=await ctx.dubbingView('dubbing','new','dubbing/new?mode='+mode,read);
+  assert.doesNotMatch(view.html,/class="dubbing-mode"/);
+  ctx.bindDubbing(view);
+ }
+ assert.deepEqual(started,['start','manual','paste']);
+ const edit=await ctx.dubbingView('dubbing','one','dubbing/one?edit=1',read);
+ assert.match(edit.html,/dubbing-editor-root/);assert.doesNotMatch(edit.html,/class="dubbing-mode"/);
+ ctx.dubbingDetailHTML=()=>'<article>작품 소개</article>';
+ const detail=await ctx.dubbingView('dubbing','one','dubbing/one',read);
+ assert.match(detail.html,/class="dubbing-mode"/);assert.match(detail.html,/작품 소개/);
+});
 test('the beginner shelf has exactly three editorial slots; real titles precede inert vacancies',()=>{
  for(let n=0;n<=4;n++){
   const projects=Array.from({length:n},(_,i)=>({...work(i),beginnerRecommended:true})),snapshot=JSON.stringify(projects);

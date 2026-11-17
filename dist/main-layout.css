@@ -13,7 +13,7 @@
 
 /* Fullscreen rooms and production workspaces retain their own geometry.
    Exclude by rendered content as well as route, including loading transitions. */
-#main:not([data-room-focus]):not([data-route^="sing/"]):not([data-route^="dubbing/record/"]):not(:has(#sing.web-studio,.dubbing-record-layout,#dubbing-editor-root,.studio-edit-workspace,.studio-edit-panel)) {
+:where(html:not(.aifect-script-embedded)) #main:not([data-room-focus]):not([data-route^="sing/"]):not([data-route^="dubbing/record/"]):not(:has(#sing.web-studio,.dubbing-record-layout,#dubbing-editor-root,.studio-edit-workspace,.studio-edit-panel)) {
  box-sizing:border-box;
  width:100%;
  min-width:0;

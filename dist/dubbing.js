@@ -63,12 +63,12 @@ async function dubbingView(base,param,raw,readApi=api){
  if(base!=='dubbing')return null;
  const config=await readApi('/api/dubbing/config');
  if(!config.enabled)return {html:dubbingShell(dubbingEmpty('더빙 스튜디오를 준비하고 있어요.','이야기를 함께 연기하는 새로운 공간으로 곧 만나요.',false)),dubbing:true};
- if((param==='new'||new URLSearchParams(raw.split('?')[1]).get('tab')==='mine')&&!me){returnRoute=location.hash;return {html:gate(),dubbing:true,creationRoute:param==='new'?raw:null};}
+ if((param==='new'||new URLSearchParams(raw.split('?')[1]).get('tab')==='mine')&&!me){returnRoute=location.hash;return {html:gate(),dubbing:true};}
  if(param==='new'){
   const mode=new URLSearchParams(raw.split('?')[1]).get('mode')||'start';
-  if(mode!=='ai')return {html:dubbingShell(dubStartHTML(),false),dubbing:true,dubbingStart:mode,creationRoute:raw,config,route:raw};
+  if(mode!=='ai')return {html:dubbingShell(dubStartHTML(),false),dubbing:true,dubbingStart:mode,config,route:raw};
   const requestedGenre=new URLSearchParams(raw.split('?')[1]).get('genre'),genre=AifectDubbing.DUBBING_GENRES.includes(requestedGenre)?requestedGenre:'';
-  return {html:dubbingShell(dubbingOptionsHTML(config,mode,genre),false),dubbing:true,dubbingCreate:true,creationRoute:raw,config,route:raw};
+  return {html:dubbingShell(dubbingOptionsHTML(config,mode,genre),false),dubbing:true,dubbingCreate:true,config,route:raw};
  }
  if(param){
   const {project:p}=await readApi('/api/dubbing/projects/'+encodeURIComponent(param));
@@ -79,7 +79,7 @@ async function dubbingView(base,param,raw,readApi=api){
    return {html:dubbingShell(dubbingRecordingHTML(p,recordingData,mine)),dubbing:true,recordingData,recordingRole:mine.id,project:p,config,route:raw};
   }
   const editing=new URLSearchParams(raw.split('?')[1]).get('edit')==='1'&&p.canEdit;
-  return {html:dubbingShell(editing?'<div id="dubbing-editor-root"></div>':dubbingDetailHTML(p)),dubbing:true,project:p,editing,config,route:raw};
+  return {html:dubbingShell(editing?'<div id="dubbing-editor-root"></div>':dubbingDetailHTML(p),!editing),dubbing:true,project:p,editing,config,route:raw};
  }
  const query=new URLSearchParams(raw.split('?')[1]),tab=dubbingTabs.some(t=>t[0]===query.get('tab'))?query.get('tab'):'open';
  const genre=AifectDubbing.DUBBING_GENRES.includes(query.get('genre'))?query.get('genre'):'';
@@ -286,7 +286,6 @@ function bindFinalDubbingPlay(root,project){
 
 function bindDubbing(view){
  if(!view?.dubbing)return;
- if(view.creationRoute&&typeof bindDubCreation==='function')bindDubCreation(view.creationRoute);
  const root=$('#main .dubbing-page');if(!root)return;
  if(view.dubbingStart){void dubStart(view,root,view.dubbingStart).catch(err=>dubbingMessage(root,err.message));return;}
  if(view.recordingData){bindDubbingRecorder(view,root);return;}
