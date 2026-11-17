@@ -158,7 +158,7 @@ async function finalGiftShopView(category,readApi=api){
  return '<div class="shop-page" data-shop-active="'+active+'"><section class="shop-banner home-content-refresh" id="shop-banner" aria-label="AIFECT 상점 배너" data-shop-banners="'+esc(JSON.stringify(shopBannerSlides(products)))+'"></section>'+
  '<header class="shop-heading"><h1 class="shop-title">'+shopIcon('cart')+'<span>상점</span></h1><nav class="shop-actions" aria-label="상점 관리"><a href="#gold">'+shopIcon('wallet')+'<span>골드 충전</span></a><a href="#gifts/rewards">'+shopCoin('S')+'<span>실버 받기</span></a><a href="#inventory">'+shopIcon('inventory')+'<span>인벤토리</span></a></nav><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div></header>'+
  '<div class="shop-toolbar"><div class="shop-tabs aifect-main-tabs" role="tablist" aria-label="상점 카테고리">'+tabs.map(([id,label,glyph],index)=>'<button type="button" role="tab" id="shop-tab-'+id+'" data-shop-tab="'+id+'" data-tab-tone="'+['pink','mint','purple'][index]+'" aria-controls="shop-products" aria-selected="'+(id===active)+'" tabindex="'+(id===active?'0':'-1')+'">'+shopIcon(glyph)+'<span>'+label+'</span></button>').join('')+'</div><label class="shop-item-search">'+shopIcon('search')+'<input type="search" placeholder="아이템 검색" aria-label="아이템 검색" autocomplete="off"></label></div>'+
- '<div id="shop-products" class="shop-products" role="tabpanel" aria-labelledby="shop-tab-'+active+'" tabindex="0">'+shopCards(products,d.periods)+'</div><p class="shop-empty" role="status" hidden>검색 결과가 없어요.</p></div>';
+ '<div id="shop-products" class="shop-products" role="tabpanel" aria-labelledby="shop-tab-'+active+'" tabindex="0">'+(globalThis.AifectChristmasReview?.shopCard()||'')+shopCards(products,d.periods)+'</div><p class="shop-empty" role="status" hidden>검색 결과가 없어요.</p></div>';
 }
 let shopLayoutCleanup=()=>{};
 function bindShopShelves(){
@@ -169,7 +169,7 @@ function bindShopShelves(){
  const cards=[...root.querySelectorAll('.shop-card')].map(card=>({card,name:shopNormalizeSearch(card.dataset.shopName)}));
  const update=()=>{
   const active=root.dataset.shopActive,query=shopNormalizeSearch(input.value);let count=0;
-  for(const {card,name} of cards){card.hidden=card.dataset.shopCategory!==active||!name.includes(query);if(!card.hidden)count++;}
+  for(const {card,name} of cards){card.hidden=(card.dataset.christmasShop!==undefined&&!globalThis.AifectChristmasReview.landscape.matches)||card.dataset.shopCategory!==active||!name.includes(query);if(!card.hidden)count++;}
   for(const tab of tabs){const selected=tab.dataset.shopTab===active;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;}
   root.querySelector('#shop-products').setAttribute('aria-labelledby','shop-tab-'+active);
   root.querySelector('.shop-empty').hidden=count>0;
@@ -190,6 +190,7 @@ function bindShopShelves(){
   if(!link||link.getAttribute('href')!==location.hash)return;
   event.preventDefault();root.dataset.shopActive=link.dataset.shopBanner;input.value='';update();
  },{signal:controller.signal});
+ globalThis.AifectChristmasReview?.landscape.addEventListener('change',update,{signal:controller.signal});
  update();shopLayoutCleanup=()=>{controller.abort();bannerCleanup?.();};
  if(typeof registerRouteCleanup==='function')shopLayoutCleanup=registerRouteCleanup(shopLayoutCleanup);
 }

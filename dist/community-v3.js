@@ -6,17 +6,23 @@ function liveRoomTypeFields(){
  return '<fieldset class="live-mode"><legend>방 유형</legend><div>'+Object.entries(liveRoomLabels).map(([mode,label])=>
   `<label><input type="radio" name="mode" value="${mode}">${liveTypeIcon(mode)}${label}</label>`).join('')+'</div></fieldset>';
 }
+// These square covers belong to the live directory; room settings share the original catalogue artwork.
+const liveBasicCovers=new Map([
+ ['basic_dark','/assets/themes/v20261117/aifect_turntable_background.webp'],
+ ['basic_light','/assets/themes/v20261117/aifect_headphones_background.webp']
+]);
 function talkingRoomCard(room){
  const mode=room.mode==='karaoke'?'karaoke':'talk',host=room.host_name||'';
  const profiles=me?.id?(room.followed_profiles||[]).slice(0,3):[];
  const restricted=!!room.visibility&&room.visibility!=='public';
- const path=room.theme?.assets?.roomCard;
+ const selectedTheme=room.theme?.sku||room.background;
+ const path=liveBasicCovers.get(selectedTheme)||room.theme?.assets?.roomCard;
  const art=path&&/^\/assets\/[\w/-]+\.webp$/.test(path)&&(!room.themeUntil||room.themeUntil>Date.now())
   ?`<img class="talk-cover" src="${esc(path)}" alt="" loading="lazy" decoding="async">`:'';
  return `<a class="v3-room-card" data-talk-id="${esc(room.id)}" data-room-mode="${mode}" href="#${mode==='karaoke'?'live':'voice'}/${esc(room.id)}">
-  <div class="live-card-head"><span class="talk-host">${avatarImage(room.host_profile||{name:host},'producer',false,false)}<span title="${esc(host)}">${userNickname(host,{profileId:room.host_profile?.profile_id||room.host_profile?.id,userId:room.host_profile?.user_id||room.host_id})}</span></span>
+  ${globalThis.AifectChristmasReview?.roomArt()||''}<div class="live-card-head"><span class="talk-host">${avatarImage(room.host_profile||{name:host},'producer',false,false)}<span title="${esc(host)}">${userNickname(host,{profileId:room.host_profile?.profile_id||room.host_profile?.id,userId:room.host_profile?.user_id||room.host_id})}</span></span>
    ${Number.isInteger(room.member_count)&&Number.isInteger(room.max_members)?`<span class="v3-room-count" aria-label="${restricted?'입장 제한, ':''}참여 ${room.member_count}명, 정원 ${room.max_members}명">${icon(restricted?'lock':'users')}${room.member_count}/${room.max_members}</span>`:''}
-  </div><div class="v3-room-art" data-theme="${esc(room.theme?.sku||room.background||AifectPlayer.DEFAULT_ROOM_SKIN.sku)}">${art}
+  </div><div class="v3-room-art" data-theme="${esc(selectedTheme||AifectPlayer.DEFAULT_ROOM_SKIN.sku)}">${art}
    ${profiles.length?`<span class="talk-follows" role="group" aria-label="팔로우한 참여자">${profiles.map(p=>avatarImage(p,'producer',false,false)).join('')}</span>`:''}
   </div><div class="v3-room-copy"><h3 title="${esc(room.title)}">${esc(room.title)}</h3><span role="img" aria-label="${liveRoomLabels[mode]}">${liveTypeIcon(mode)}</span></div></a>`;
 }

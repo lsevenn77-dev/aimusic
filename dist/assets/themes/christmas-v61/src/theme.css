@@ -1,0 +1,10 @@
+/* Component-local. Does not alter page navigation, audio, scroll, or global typography. */
+.af-theme-scene{position:relative;isolation:isolate}
+.af-theme-underlay{position:absolute;inset:0;overflow:hidden;z-index:0;pointer-events:none;user-select:none;contain:paint}
+.af-theme-underlay[hidden]{display:none}
+.af-theme-photo{position:absolute;max-width:none;object-fit:fill;pointer-events:none;user-select:none}
+.af-theme-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(28,17,15,.12),rgba(30,19,17,0) 42%,rgba(26,16,14,.10));pointer-events:none}
+.af-theme-fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.af-theme-ui{position:relative;z-index:1}
+/* Host-owned controls always sit above effects. The host chooses its glass opacity. */
+@media(prefers-reduced-motion:reduce){.af-theme-photo{transition:none}}
