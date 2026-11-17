@@ -127,6 +127,13 @@
     }
     @media (min-height: 501px), (pointer: fine) {
       --room-panel-max: 555px; --talk-player-height: 50px;
+      &[data-room-pc-controls] {
+        --talk-player-height: 58px;
+        & #voice-seats {
+          flex-basis: 314px; row-gap: 14px;
+          padding-block-start: max(0px, calc(clamp(4px, 3.8vh, 38px) - 8px));
+        }
+      }
       & #voice-seats {
         --room-seat: clamp(44px, 19cqw, 80px); --seat-caption: 24px;
         flex: 0 1 308px; min-height: calc(2 * (var(--room-seat) + var(--seat-caption)));

@@ -278,6 +278,7 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
     }
   }
 }
+#live-countdown .live-start-dot { display: none; }
 /* The server-driven occupancy is shared; keep the original mobile karaoke header. */
 #main .live-karaoke-room .room-heading .room-population-pc { display: none; }
 @media (min-width:801px) and (min-height:501px), (min-width:801px) and (pointer:fine) {
@@ -286,6 +287,41 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
     --room-lyric: 19px;
     /* The root keeps its measured viewport. Only the stage/chat row is capped. */
     & #voice-content { max-height: var(--room-panel-max); }
+    &[data-room-pc-controls] {
+      & #voice-content { max-height: var(--room-control-height, var(--room-panel-max)); }
+      /* The open sticker tray borrows space from the transcript, above the composer. */
+      &[data-room-stickers] #voice-chat-form { order: 1; }
+      & .live-request-area { min-height: 78px; }
+      & #live-queue .room-empty-order { width: 34px; height: 34px; font-size: 14px; }
+      & #live-queue strong { font-size: 14px; }
+      & .live-stage-main #live-lyrics { margin-top: max(22px,var(--singer-lyrics-gap,16px)); }
+      /* Zoom reduces the available CSS height. Keep four equal lines clear of the clock. */
+      @media (max-height: 820px) {
+        & .live-stage-main { padding-top: 8px; }
+        & #live-current strong { margin-top: 4px; }
+        & .live-stage-main #live-lyrics { height: 6em; grid-template-rows: repeat(4,1.5em); }
+        & #live-lyrics p, & #live-lyrics p.is-current { line-height: 1.5; }
+      }
+      /* Use the existing space between singer and lyrics without moving either. */
+      & #live-countdown.live-countdown:not([hidden]) {
+        position: relative; inset: auto; translate: none; transform: none;
+        align-self: center; flex: 0 0 0; width: max-content; height: 0; min-height: 0;
+        padding: 0; margin: 0; border: 0; background: none; box-shadow: none;
+        overflow: visible; display: flex; align-items: flex-start; gap: 8px;
+      }
+      & #live-countdown :is(svg,strong) { display: none; }
+      & #live-countdown .live-start-dot {
+        display: block; width: 11px; height: 11px; margin-top: 5px; border-radius: 50%;
+        background: var(--ds-lavender); transition: opacity 160ms linear;
+      }
+      & #live-countdown .live-start-dot:first-of-type { background: var(--room-mint); }
+      & #live-countdown[data-beats="2"] .live-start-dot:last-child,
+      & #live-countdown[data-beats="1"] .live-start-dot:not(:first-of-type),
+      & #live-countdown[data-ending] .live-start-dot { opacity: 0; }
+      @media (prefers-reduced-motion: reduce) {
+        & #live-countdown .live-start-dot { transition: none; }
+      }
+    }
     & .room-header nav button svg { width: 24px; height: 24px; }
     & .room-heading .room-population-pc { display: inline-flex; }
     &[data-theme-sku="basic_dark"] {

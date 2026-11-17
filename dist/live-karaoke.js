@@ -35,7 +35,7 @@ function liveKaraokeRoomHTML(id){
  const stage=`<div id="live-karaoke-stage"><section class="live-stage-main">
   <div class="room-key" role="group" aria-label="반주 키"><button type="button" data-voice="karaoke-key" data-target="-1" aria-label="키 낮추기">−</button><button type="button" data-voice="karaoke-key" data-target="reset" aria-label="원키로 복원">원키</button><button type="button" data-voice="karaoke-key" data-target="1" aria-label="키 높이기">+</button></div><div class="live-stage-top"><span id="live-phase" role="status">가창자 기다리는 중</span></div>
   <div id="live-current" class="live-current"><span>${icon('mic')}</span><strong>다음 가창자를 기다리는 중</strong></div>
-  <div id="live-countdown" class="live-countdown" hidden aria-label="노래 시작 카운트"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" pathLength="100"/></svg><strong></strong></div><div id="live-lyrics" class="live-lyrics" aria-live="off"><p>노래가 시작되면 가사가 여기에 나와요.</p></div>
+  <div id="live-countdown" class="live-countdown" hidden aria-label="노래 시작 카운트"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" pathLength="100"/></svg><strong></strong><i class="live-start-dot" aria-hidden="true"></i><i class="live-start-dot" aria-hidden="true"></i><i class="live-start-dot" aria-hidden="true"></i></div><div id="live-lyrics" class="live-lyrics" aria-live="off"><p>노래가 시작되면 가사가 여기에 나와요.</p></div>
   <div id="live-actions" class="live-actions"></div><div id="live-invite" class="live-start-popup" hidden role="status"><p>15초 이내로 시작을 눌러주세요.</p><output id="live-invite-count"></output><div id="room-turn-action"></div></div>
   <div class="live-song-progress"><span id="live-timer">0:00 / 0:00</span><progress id="live-progress" max="100" value="0" aria-label="곡 진행률"></progress></div>
 
@@ -417,9 +417,14 @@ function liveSync(c){
  if(countdown){
   if(c.liveStartClock?.turn!==active.invitation_id&&k.phase==='singing')c.liveStartClock={turn:active.invitation_id,at:(c.levelContext?.currentTime||0)+Math.max(0,(k.startsAt-now)/1000)};
   const first=c.liveWords?.[0]?.w?.[0]?.s||0;
-  const left=waiting&&k.phase==='singing'?(c.levelContext?.state==='running'?c.liveStartClock.at-c.levelContext.currentTime:(k.startsAt-now)/1000):first-audible;
-  countdown.hidden=k.phase!=='singing'||left<=0||left>3;
-  if(!countdown.hidden){countdown.querySelector('strong').textContent=String(Math.ceil(left));countdown.querySelector('circle').style.strokeDashoffset=String(100*(1-left/3));}
+  const pc=c.host.hasAttribute?.('data-room-pc-controls');
+  const left=pc?(k.startsAt-now)/1000:waiting&&k.phase==='singing'?(c.levelContext?.state==='running'?c.liveStartClock.at-c.levelContext.currentTime:(k.startsAt-now)/1000):first-audible;
+  countdown.hidden=k.phase!=='singing'||!(left>0&&left<=3);
+  if(!countdown.hidden){
+   const beat=String(Math.ceil(left));
+   if(pc){countdown.dataset.beats=beat;countdown.toggleAttribute('data-ending',left<=.2);}
+   countdown.querySelector('strong').textContent=beat;countdown.querySelector('circle').style.strokeDashoffset=String(100*(1-left/3));
+  }
  }
  if(audio&&k.phase==='singing'&&!waiting){timer.textContent=time(audible)+' / '+time(duration);progress.value=audible;}
  if(c.liveError)c.host.querySelector('#live-stage-note').textContent=c.liveError;
