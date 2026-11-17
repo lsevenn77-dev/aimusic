@@ -31,15 +31,15 @@
     border-radius: 8.75px;
   }
   .sing-recording .studio-transport {
-    grid-template-columns: repeat(3,minmax(70px,100px)) !important;
+    grid-template-columns: auto auto auto !important;
+    justify-items: center;
     gap: clamp(12.5px,3vw,40px) !important;
-    min-height: 120px;
+    min-height: 90px;
     max-width: 100%;
   }
-  .studio-transport button { height: 120px; grid-template-rows: 92.5px 22.5px; min-width: 0; }
+  .studio-transport button { width: max-content; height: auto; min-width: 44px; min-height: 44px; grid-template-rows: auto; border-radius: 50%; }
   .studio-transport button svg { width: 60px !important; height: 60px !important; }
   .studio-transport .studio-record svg { width: 90px !important; height: 90px !important; }
-  .studio-transport button span { line-height: 22.5px; }
   .sing-status.show-notice {
     inset: auto auto 135px 25px;
     width: min(calc(100% - 50px),550px);
@@ -57,7 +57,6 @@
     .studio-preset-tile { min-height: 75px; white-space: normal; overflow-wrap: anywhere; }
     .studio-preset-icon { width: 25px; height: 25px; }
     .studio-preset-icon svg { width: 26.25px; height: 26.25px; }
-    .studio-extra-presets .studio-preset-tile { min-height: 44px; }
     .sing-monitor { min-height: 60px; }
     .sing-monitor input {
       flex-basis: 55px; width: 55px; min-width: 55px;
@@ -131,7 +130,7 @@
     .sing-head { min-width: 0; flex-wrap: wrap; }
     .studio-song-meta { flex: 1 1 140px; }
     .sing-header-mode { margin-left: auto; }
-    .sing-recording { min-height: 0; grid-template-rows: 55px 15px 35px 40px minmax(0,1fr) 135px; }
+    .sing-recording { min-height: 0; grid-template-rows: 55px 15px 35px 40px minmax(0,1fr) 105px; }
     #sing-live-settings {
       min-height: 0;
       grid-template-rows: repeat(3,max-content);
@@ -168,11 +167,9 @@
     .sing-artwork { width: 55px; height: 55px; flex-basis: 55px; }
     .sing-recording { grid-template-rows: 44px 0px 28px 24px minmax(0,1fr) 96px; }
     .sing-progress, .sing-progress input[type=range] { height: 44px; min-height: 44px; }
-    .sing-recording .studio-transport { min-height: 96px; }
-    .studio-transport button { height: 96px; min-height: 96px; grid-template-rows: 72px 20px; }
+    .sing-recording .studio-transport { min-height: 72px; }
     .studio-transport button svg { width: 48px !important; height: 48px !important; padding: calc(10px * var(--sing-scale)) !important; }
     .studio-transport .studio-record svg { width: 72px !important; height: 72px !important; padding: calc(16px * var(--sing-scale)) !important; }
-    .studio-transport button span { line-height: 20px; }
   }
 }
 
@@ -199,7 +196,7 @@
       .sing-header-mode { grid-column: 2 / -1; justify-content: flex-end; }
     }
     #duet-guide button { min-width: 0; padding-inline: clamp(10px,5vw,22.5px); }
-    .sing-recording { min-height: 0; grid-template-rows: 57.5px 24px 0px 55.5px minmax(0,1fr) 120px; }
+    .sing-recording { min-height: 0; grid-template-rows: 57.5px 24px 0px 55.5px minmax(0,1fr) 90px; }
     .sing-recording-info {
       display: flex; grid-row: 2; align-items: center; justify-content: space-between;
       min-width: 0; width: 100%; gap: clamp(4px,1.5vw,12px);
@@ -241,17 +238,15 @@
       &::after { flex: 0 0 var(--record-window-after,calc(var(--record-line) * 3)); }
     }
     .sing-recording .studio-transport {
-      grid-template-columns: repeat(3,minmax(0,102.5px)) !important;
+      grid-template-columns: auto auto auto !important;
       gap: clamp(10px,5vw,42.5px) !important;
     }
     @media(max-height:580px) {
       padding-block: max(env(safe-area-inset-top),4px) max(env(safe-area-inset-bottom),4px) !important;
       .sing-recording { grid-template-rows: 44px 22px 0px 48px minmax(0,1fr) 88px; }
-      .sing-recording .studio-transport { min-height: 88px; }
-      .studio-transport button { height: 88px; min-height: 88px; grid-template-rows: 64px 20px; }
+      .sing-recording .studio-transport { min-height: 64px; }
       .studio-transport button svg { width: 44px !important; height: 44px !important; }
       .studio-transport .studio-record svg { width: 64px !important; height: 64px !important; }
-      .studio-transport button span { line-height: 20px; }
       @media(min-width:480px) {
         .sing-head:has(#duet-guide button) { grid-template-columns: 44px 55px minmax(0,1fr) auto; }
         .sing-head:has(#duet-guide button) .sing-header-mode { grid-column: auto; }

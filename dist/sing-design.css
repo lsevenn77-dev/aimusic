@@ -53,9 +53,6 @@
     border-color:var(--ds-line);color:var(--ds-body);box-shadow:none!important;
   }
   .sing-recording .studio-transport .studio-record svg { border-color:transparent;color:var(--ds-text); }
-  .sing-recording .studio-transport button span {
-    color:var(--ds-muted);font-size:var(--pc-font-control,14px)!important;font-weight:500;
-  }
   .sing-recording .studio-transport button:not(:disabled):hover svg { filter:brightness(1.12); }
   .sing-recording .studio-transport button:disabled { opacity:.4;cursor:default; }
   .sing-status.show-notice {
@@ -77,6 +74,19 @@
 }
 #main #sing.web-studio #sing-live-settings h2 svg { color:var(--ds-muted); }
 :is(#main #sing.web-studio #sing-live-settings,#dialog.recording-settings-dialog .recording-settings) {
+  .studio-space-header {
+    display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;
+  }
+  .studio-space-header h2 { margin:0; }
+  .studio-original-pill {
+    flex:none;min-width:44px;padding:4px 12px;border:1px solid var(--ds-line);
+    border-radius:999px;background:var(--ds-bg);color:var(--ds-body);font:inherit;
+    font-size:var(--pc-font-control,14px);line-height:1.5;cursor:pointer;
+  }
+  .studio-original-pill:hover { background:var(--ds-soft); }
+  .studio-original-pill[aria-pressed=true] {
+    color:var(--ds-selected);background:var(--ds-soft);border-color:var(--ds-selected);font-weight:600;
+  }
   .studio-control-name,.studio-key,.studio-size,.sing-monitor {
     color:var(--ds-body);font-size:var(--pc-font-control,14px)!important;
     font-weight:400;line-height:1.5;

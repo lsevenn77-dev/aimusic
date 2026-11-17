@@ -192,14 +192,26 @@ function singHTML(d){
  <div class="sing-recording"><div class="sing-punch-record-header" hidden><strong>선택 구간 녹음</strong><span data-punch-record-range></span><button type="button" class="small-button" data-punch-cancel>취소</button></div>${nativeSinging()?'':window.AifectMicrophoneCheck?.html()||''}<div class="sing-recording-info"><span data-record-mic role="status">${nativeSinging()?'앱에서 마이크 확인':'마이크 확인 필요'}</span>${duetLegendHTML(d.mode||'solo')}</div>
  <div class="sing-wheel" id="sing-wheel" aria-label="가사와 녹음 위치" tabindex="0">${(d.words||[]).map((line,i)=>`<button type="button" data-sing-line="${i}" data-second="${line.s}" aria-label="${time(line.s)} ${esc(line.w.map(w=>w.t).join(' '))}"><small>${time(line.s)}</small><span class="sing-line-text">${line.w.map((w,j)=>`<span data-word="${j}">${esc(w.t)}</span>`).join(' ')}</span></button>`).join('')||'<p class="field-help">싱크 가사가 없는 곡이에요. 아래 막대로 부를 위치를 골라주세요.</p>'}</div>
  <div class="sing-progress"><span id="sing-now">0:00</span><input class="sing-seek" id="sing-seek" type="range" min="0" max="${t.duration}" step=".05" value="0" aria-label="노래 위치"><span id="sing-duration">${time(t.duration)}</span></div>
- <div class="sing-countdown" aria-live="polite" aria-hidden="true" data-active="false"><strong data-punch-countdown data-count="0" aria-label="녹음 대기">${'<i aria-hidden="true"></i>'.repeat(3)}</strong></div><div class="sing-transport studio-transport"><div class="studio-record-slot"><button type="button" data-sing-start class="studio-record">${icon('mic')}<span>녹음 시작</span></button></div><button type="button" data-sing-stop disabled>${studioIcon('check')}<span>완료</span></button><button type="button" data-sing-redo-live>${icon('restart')}<span>다시 시작</span></button></div>
+ <div class="sing-countdown" aria-live="polite" aria-hidden="true" data-active="false"><strong data-punch-countdown data-count="0" aria-label="녹음 대기">${'<i aria-hidden="true"></i>'.repeat(3)}</strong></div>
+ <div class="sing-transport studio-transport">
+  <button type="button" data-sing-redo-live aria-label="다시 시작" title="다시 시작">${icon('restart')}</button>
+  <div class="studio-record-slot"><button type="button" data-sing-start class="studio-record" aria-label="녹음 시작" title="녹음 시작">${icon('mic')}</button></div>
+  <button type="button" data-sing-stop aria-label="완료" title="완료" disabled>${studioIcon('check')}</button>
+ </div>
  <p class="studio-position-help">가사를 누르면 일시정지하고 소절을 선택할 수 있어요.</p></div>
  <aside id="sing-live-settings" class="studio-sidebar" aria-label="녹음 설정">${liveStudioSettingsHTML(K().defaultVocalMix())}</aside>
  <p class="sing-status" id="sing-status" role="status">${d.duet?'파트너 녹음을 먼저 듣고, 내 파트를 이어 불러주세요.':'가사를 확인하고 녹음을 시작하세요.'}</p><div id="sing-panel">${singStartHTML()}</div>
  <p class="field-help sing-local-note">초안 저장을 선택하면 녹음과 효과를 이 기기에 보관해요.</p></section>`;
 }
 function liveStudioSettingsHTML(m){return `<section class="studio-setting-card"><h2>${studioIcon('headphones')} 오디오 설정</h2>${studioRangeHTML(m,'voice','마이크 볼륨',0,2,.01)}${studioRangeHTML(m,'mr','반주 볼륨',0,1.5,.01)}<label class="sing-monitor"><span>이어폰 모니터링<small>내 목소리를 실시간으로 듣기</small></span><input id="sing-monitor" type="checkbox" role="switch" aria-label="이어폰으로 내 목소리 듣기"></label></section><section class="studio-setting-card"><h2>${icon('list')} 노래 설정</h2>${singingKeyHTML()}<div class="studio-size"><span>가사 크기</span>${lyricSizeControlsHTML()}</div></section>${spaceEffectsHTML(m,true)}`;}
-function spaceEffectsHTML(m,live=false){return `<section class="studio-setting-card studio-space"><h2>${icon('sparkles')} 공간 효과</h2><div class="studio-space-presets" role="group" aria-label="목소리 효과 선택">${[['studio','스튜디오'],['hall','홀'],['karaoke','노래방'],['custom','사용자 설정']].map(([id,name])=>vocalPresetButtonHTML(id,name,m.preset===id)).join('')}</div><div class="studio-extra-presets">${vocalPresetButtonHTML('original','원음',m.preset==='original')}</div>${live?liveSpaceControlsHTML(m):reviewSpaceControlsHTML(m)}</section>`;}
+function spaceEffectsHTML(m,live=false){
+ const title=`<h2>${icon('sparkles')} 공간 효과</h2>`;
+ const header=live?`<div class="studio-space-header">${title}<button type="button" class="studio-original-pill" data-vocal-preset="original" aria-pressed="${m.preset==='original'}">원음</button></div>`:title;
+ const presets=[['studio','스튜디오'],['hall','홀'],['karaoke','노래방'],['custom','사용자 설정']];
+ return `<section class="studio-setting-card studio-space">${header}
+  <div class="studio-space-presets" role="group" aria-label="목소리 효과 선택">${presets.map(([id,name])=>vocalPresetButtonHTML(id,name,m.preset===id)).join('')}</div>
+  ${live?liveSpaceControlsHTML(m):`<div class="studio-extra-presets">${vocalPresetButtonHTML('original','원음',m.preset==='original')}</div>${reviewSpaceControlsHTML(m)}`}</section>`;
+}
 function liveSpaceControlsHTML(m){return `<div data-preset-strength>${studioRangeHTML(m,'strength','효과 강도',0,1,.01)}</div><div data-post-custom hidden>${studioRangeHTML(m,'room','잔향감',0,1,.01)}${studioRangeHTML(m,'size','룸 크기',0,1,.01)}${studioRangeHTML(m,'tone','음색 선명도',-1,2,.01)}</div>`;}
 function reviewSpaceControlsHTML(m){return `<p class="field-help" data-preset-description></p><div data-preset-strength>${studioRangeHTML(m,'strength','효과 강도',0,1,.01)}</div><details class="sing-effect-details" data-custom-controls><summary>사용자 설정</summary>${studioRangeHTML(m,'echo','에코 효과',0,.65,.001)}${studioRangeHTML(m,'size','룸 크기',0,1,.01)}${studioRangeHTML(m,'room','리버브 강도',0,1,.01)}</details>`;}
 const singStartHTML=(message='')=>`${message?`<p class="form-error">${esc(message)}</p>`:''}${nativeSinging()?`<p class="field-help">에코 · 룸 리버브와 실시간 이어폰 청음을 지원해요.</p><button class="primary-button" data-sing-start>${icon('mic')} 노래방 열기</button>`:''}`;
@@ -242,7 +254,14 @@ function updateTransport(){
  $('#sing').classList.toggle('is-reviewing',reviewing);$('#sing').classList.toggle('is-live',live);$('#sing').classList.toggle('is-idle',!live&&!reviewing);
  $('.sing-recording').hidden=reviewing||subpage;$('#sing-live-settings').hidden=reviewing||subpage||!!s.punchRange;$('#sing-panel').hidden=!subpage&&!!s.voice&&!reviewing;$('#sing').classList.toggle('is-punch-page',subpage);$('#sing').classList.toggle('is-punch-recording',!!s.punchRange);document.querySelectorAll('[data-editor-caption]').forEach(el=>el.hidden=!reviewing);const redo=$('[data-sing-redo-live]');if(redo){redo.hidden=!!s.punchRange;redo.disabled=locked;}updateSingPreparation();
  const player=$('.studio-audio');if(player){player.querySelector('[data-sing-preview]').hidden=s.state==='playing';player.querySelector('[data-sing-pause]').hidden=s.state!=='playing';}
- $('#sing-seek').disabled=locked||!!s.punchRange;const start=$('.sing-transport [data-sing-start]'),stop=$('.sing-transport [data-sing-stop]');if(start){start.hidden=false;start.disabled=locked;start.innerHTML=live?studioIcon('pause')+'<span>일시정지</span>':icon('mic')+'<span>'+(s.voice&&!singPreparationVisible(s)?'재개':'녹음 시작')+'</span>';}if(stop){stop.hidden=false;stop.disabled=locked||!(live||s.voice);}
+ $('#sing-seek').disabled=locked||!!s.punchRange;
+ const start=$('.sing-transport [data-sing-start]'),stop=$('.sing-transport [data-sing-stop]');
+ if(start){
+  const label=live?'일시정지':s.voice&&!singPreparationVisible(s)?'재개':'녹음 시작';
+  start.hidden=false;start.disabled=locked;start.title=label;start.setAttribute('aria-label',label);
+  start.innerHTML=live?studioIcon('pause'):icon('mic');
+ }
+ if(stop){stop.hidden=false;stop.disabled=locked||!(live||s.voice);}
  if(reviewing){s.monitorSerial=(s.monitorSerial||0)+1;stopStandbyMonitor(s);$('#sing-monitor').checked=false;document.querySelectorAll('[data-monitor-toggle]').forEach(b=>b.setAttribute('aria-pressed','false'));}document.querySelectorAll('[data-monitor-toggle],#sing-monitor').forEach(b=>b.disabled=locked);refreshEffectControls();updateKeyControls();
 }
 async function prepareSing(s,live=false){

@@ -72,9 +72,14 @@ dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;backgr
 #sing.web-studio #duet-guide button{font-size:12px;min-height:44px;padding:6px 12px}
 #sing.web-studio:not(.is-reviewing) .sing-wheel{grid-row:3;min-height:0;height:100%!important;max-height:none!important;overflow-y:hidden!important;overscroll-behavior:contain;padding:100px 8px 200px!important;margin:0;scroll-behavior:auto;mask-image:linear-gradient(transparent,#000 8%,#000 92%,transparent)}
 #sing.web-studio .sing-wheel button,#sing.web-studio .sing-wheel button.current{--line-color:var(--ds-muted);min-height:50px!important;line-height:1.55!important;padding:8px 12px!important;box-shadow:none!important;text-shadow:none!important;transform:none!important;letter-spacing:normal!important}
-#sing.web-studio[data-lyric-size=small] .sing-wheel button,#sing.web-studio[data-lyric-size=small] .sing-wheel button.current{font-size:18px!important}
-#sing.web-studio[data-lyric-size=normal] .sing-wheel button,#sing.web-studio[data-lyric-size=normal] .sing-wheel button.current{font-size:22px!important}
-#sing.web-studio[data-lyric-size=large] .sing-wheel button,#sing.web-studio[data-lyric-size=large] .sing-wheel button.current{font-size:27px!important}
+/* User-selected sizes must bypass the build's desktop typography role mapping. */
+#sing.web-studio[data-lyric-size=small]{--record-lyric-size:18px}
+#sing.web-studio[data-lyric-size=normal]{--record-lyric-size:24px}
+#sing.web-studio[data-lyric-size=large]{--record-lyric-size:30px}
+#sing.web-studio[data-lyric-size] .sing-wheel button,
+#sing.web-studio[data-lyric-size] .sing-wheel button.current{font-size:var(--record-lyric-size)!important}
+#sing.web-studio .sing-line-text{max-width:100%;white-space:normal;overflow-wrap:anywhere}
+#sing.web-studio .sing-line-text [data-word]{white-space:inherit;overflow-wrap:inherit}
 #sing.web-studio .sing-wheel button.current{background:color-mix(in srgb,var(--ds-body) 9%,transparent)!important}
 #sing.web-studio .sing-wheel button:not([data-part-role]){color:var(--ds-muted)!important}
 #sing.web-studio .sing-wheel button.current:not([data-part-role]){color:var(--ds-white)!important}
@@ -173,9 +178,6 @@ dialog.duet-editor-dialog{width:min(860px,calc(100% - 24px));padding:24px;backgr
  #sing.web-studio .studio-transport button svg{width:40px!important;height:40px!important;padding:10px!important}
  #sing.web-studio .studio-transport .studio-record svg{width:50px!important;height:50px!important;padding:13px!important}
  #sing.web-studio .studio-transport button{min-height:70px;min-width:44px}
- #sing.web-studio[data-lyric-size=small] .sing-wheel button,#sing.web-studio[data-lyric-size=small] .sing-wheel button.current{font-size:16px!important}
- #sing.web-studio[data-lyric-size=normal] .sing-wheel button,#sing.web-studio[data-lyric-size=normal] .sing-wheel button.current{font-size:18px!important}
- #sing.web-studio[data-lyric-size=large] .sing-wheel button,#sing.web-studio[data-lyric-size=large] .sing-wheel button.current{font-size:22px!important}
  #sing.web-studio .sing-wheel button,#sing.web-studio .sing-wheel button.current{min-height:44px!important}
  #sing.web-studio:not(.is-reviewing) .sing-wheel{padding:70px 4px 160px!important}
  .recording-settings-dialog{margin:auto auto 0;max-height:calc(100dvh - 16px);width:100%;border-radius:16px 16px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px))!important}
@@ -361,7 +363,6 @@ dialog.duet-editor-dialog{height:auto;max-height:80dvh;padding:20px;border-radiu
  #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) [data-record-mic].is-connected{color:#8eddd2}
  #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .duet-color-key{gap:clamp(20px,14vw,58px)}
  #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-wheel{padding:0!important;margin-top:8px}
- #main #sing.web-studio[data-lyric-size=normal] .sing-wheel button,#main #sing.web-studio[data-lyric-size=normal] .sing-wheel button.current{font-size:19px!important}
  #main #sing.web-studio:not(.is-reviewing):not(.is-punch-page) .sing-recording .studio-transport{width:100%;grid-template-columns:repeat(3,minmax(56px,82px))!important;gap:clamp(8px,8vw,34px)!important}
  .recording-settings h2{font-size:18px}
 }
