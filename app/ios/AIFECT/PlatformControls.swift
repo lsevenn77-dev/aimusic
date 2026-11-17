@@ -241,6 +241,26 @@ struct WorkspaceBrowser: UIViewRepresentable {
         button,input,select { min-height:44px }
         canvas,[data-jump],.lane,.touch-controls,.race-controls { touch-action:none!important; -webkit-user-select:none }
         dialog:not(.jump-wide-dialog) { max-width:calc(100vw - 24px); max-height:calc(100dvh - 24px); overflow:auto; box-sizing:border-box }
+        .jump-club .arc-game-choice { display:none!important }
+        .jump-club .jump-lobby { grid-template-areas:"hero board" "brief board" "extras extras" "personal personal"!important }
+        @container jump-page (max-width:820px) {
+            .jump-club .jump-lobby { grid-template-areas:"hero" "brief" "board" "extras" "personal"!important }
+        }
+        .jump-club dialog.arc-store-dialog { width:min(640px,calc(100vw - 24px))!important; max-width:calc(100vw - 24px)!important; max-height:calc(100dvh - 24px)!important; padding:16px!important; overflow:auto; overscroll-behavior:contain }
+        .jump-club .arc-store-dialog>header h2 { padding-inline-end:0!important }
+        .jump-club .arc-store-dialog [data-shop-close] { min-height:44px!important; flex-shrink:0 }
+        .jump-club .arc-look-shelves { grid-template-columns:minmax(0,1fr); gap:12px; margin-top:12px }
+        .jump-club .arc-outfit-group h3 { margin-bottom:6px }
+        .jump-club .arc-outfit-group>div { grid-auto-flow:row; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px }
+        /* Compact-popup's generic button rule otherwise forces a 44px horizontal
+           flex row, squeezing the outfit name and price beside the artwork. */
+        .jump-club .arc-store-dialog button.arc-look { display:grid!important; grid-template-columns:minmax(0,1fr); grid-template-rows:auto auto auto; justify-items:center; align-content:start; gap:4px; width:100%!important; height:auto!important; min-height:44px!important; padding:6px 4px 8px!important; white-space:normal; overflow-wrap:normal!important; box-sizing:border-box }
+        .jump-club .arc-store-dialog .arc-look img { display:block; width:100%; height:auto; aspect-ratio:1; object-fit:contain; object-position:center; min-width:0 }
+        .jump-club .arc-store-dialog .arc-look :is(b,span) { display:block; width:100%; min-width:0; padding:0; font-size:13px; line-height:1.4; text-align:center; word-break:keep-all; overflow-wrap:normal }
+        .jump-club .arc-store-dialog .arc-look span { white-space:nowrap; font-variant-numeric:tabular-nums }
+        .jump-club .arc-store-dialog .arc-fitting { gap:12px; padding:8px }
+        .jump-club .arc-store-dialog .arc-run-model { width:min(96px,27vw); flex-shrink:0 }
+        .jump-club .arc-store-dialog .arc-look-actions { margin-top:12px }
         @media(max-width:600px) { .cgl-layout { grid-template-columns:minmax(0,1fr)!important } .cgl-start { min-height:48px } }
         """
     func makeUIView(context: Context) -> WKWebView {

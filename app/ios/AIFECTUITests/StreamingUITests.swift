@@ -203,6 +203,48 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(web.buttons["다시 연습"].firstMatch.waitForExistence(timeout: 25), app.debugDescription)
         capture(app, "iphone12-authenticated-jump-practice-result")
     }
+    @MainActor func testJumpShopShowsFullOutfitsAndNoRhythmLink() {
+        let app = launch(["-crew-parity", "-workspace-test-url", "http://127.0.0.1:4188/preview"])
+        app.buttons["main-tab-1"].tap()
+        app.buttons["크루"].firstMatch.tap()
+        let game = app.buttons["crew-weekly-game-banner"]
+        XCTAssertTrue(game.waitForExistence(timeout: 10)); game.tap()
+        let web = app.webViews.firstMatch
+        let shop = web.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "둘러보기")).firstMatch
+        XCTAssertTrue(shop.waitForExistence(timeout: 20), app.debugDescription)
+        XCTAssertFalse(web.links.matching(NSPredicate(format: "label CONTAINS %@", "Double Tap")).firstMatch.exists)
+        for _ in 0..<7 { if shop.isHittable { break }; web.swipeUp() }
+        XCTAssertTrue(shop.isHittable); shop.tap()
+        let names = ["기본 의상", "육상선수룩", "스트릿룩", "아이돌룩", "정장룩", "공주룩"]
+        for name in names {
+            // WebKit exposes aria-pressed outfit choices as switches.
+            let outfit = web.switches.matching(NSPredicate(format: "label CONTAINS %@", name)).firstMatch
+            XCTAssertTrue(outfit.waitForExistence(timeout: 10), app.debugDescription)
+            // Portrait cards, not the old 44px row with clipped vertical labels.
+            XCTAssertGreaterThan(outfit.frame.height, outfit.frame.width)
+            XCTAssertGreaterThanOrEqual(outfit.frame.width, 80)
+            XCTAssertGreaterThanOrEqual(outfit.frame.minX, web.frame.minX)
+            XCTAssertLessThanOrEqual(outfit.frame.maxX, web.frame.maxX)
+            if web.frame.height > 650 { XCTAssertLessThanOrEqual(outfit.frame.maxY, web.frame.maxY - 24, "All six names and prices fit on iPhone 12") }
+        }
+        capture(app, "jump-shop-full-outfits")
+        let princess = web.switches.matching(NSPredicate(format: "label CONTAINS %@", "공주룩")).firstMatch
+        for _ in 0..<5 { if princess.isHittable && princess.frame.maxY < web.frame.maxY - 24 { break }; web.swipeUp() }
+        XCTAssertTrue(princess.isHittable); princess.tap()
+        XCTAssertEqual(princess.value as? String, "1")
+        // Only selects the preview; the fixture blocks purchases and account writes.
+        for _ in 0..<5 { if web.staticTexts["200 G"].firstMatch.exists { break }; web.swipeDown() }
+        XCTAssertTrue(web.staticTexts["200 G"].firstMatch.waitForExistence(timeout: 5))
+        capture(app, "jump-shop-princess-selected")
+        for _ in 0..<5 { if princess.frame.maxY < web.frame.maxY - 24 { break }; web.swipeUp() }
+        XCTAssertLessThanOrEqual(princess.frame.maxY, web.frame.maxY - 24, "Small screens can scroll to the full gold row")
+        capture(app, "jump-shop-gold-prices")
+        let close = web.buttons["닫기"].firstMatch
+        for _ in 0..<5 { if close.isHittable { break }; web.swipeDown() }
+        XCTAssertTrue(close.isHittable); close.tap()
+        XCTAssertTrue(shop.waitForExistence(timeout: 5))
+        XCTAssertFalse(princess.exists)
+    }
     // Explicit opt-in only: uses the phone's existing session and unranked
     // practice. No fixture login, official attempt, scores or account writes.
     @MainActor func testDeviceJumpPracticeWithExistingAccount() throws {
