@@ -49,3 +49,4 @@
 - 업로드 증빙: `../work/ios-1.0.7-17-uploaded.png`, TestFlight 처리 완료 증빙: `../work/ios-1.0.7-17-testflight.png` (저장소 루트 기준 경로).
 - 심사 제출 증빙: `../work/ios-1.0.7-17-review-submitted.png`, `../work/ios-1.0.7-17-waiting-review.png` (저장소 루트 기준 경로).
 - 검사가 끝난 iPhone 17 Pro 시뮬레이터와 Xcode Organizer는 종료했다. App Store Connect의 기존 탭 하나는 1.0.7 심사 상태에 남겼다.
+- 2026-11-17 10:41 KST 연결된 iPhone 12에 제출에 사용한 동일 Release 아카이브를 직접 설치했다. 기기 포함 프로비저닝과 코드 서명 검증 후 `devicectl` 설치·실행 성공 및 설치 버전 **1.0.7 / 17**을 확인했다. 이번 확인은 설치와 실행이며 실기기 오디오·결제·광고 전체 기능 검증은 아니다.
