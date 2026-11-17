@@ -20,3 +20,12 @@
 - 전체 사이트 로컬 fixture는 실제 Worker와 빌드 client를 사용하되 운영 HTML의 이전 게이트를 주입한다. 계정·크루는 임시 SQLite이며 쓰기 요청은 차단한다.
 - 1차 iPhone 12 시뮬레이터 UI 검사: 크루 배너 → 표시·터치 가능한 대기실 → 연습 → 결과 화면 통과(35.878초). 이전 epoch의 실패 처리 보강을 포함한 최종 검사도 통과(26.763초, `../work/ios-jump25-final.xcresult`). 실제 [대기실](parity/jump25/lobby.png)과 [연습 결과](parity/jump25/practice-result.png)를 확인했다.
 - 실제 기기 검사는 `testDeviceJumpPracticeWithExistingAccount`로 별도 opt-in한다. 기존 로그인 상태를 사용하며 공식 도전·점수 전송 없이 연습만 실행한다. 일반 테스트에서는 skip한다.
+
+## 기기 빌드·설치
+
+- Release 앱 빌드와 엄격한 codesign 검증을 통과했으며 실행 파일에 새 호환 스크립트가 포함된 것을 확인했다. 버전 `1.0.7(25)`.
+- 기존 기본 테스트 scheme은 Release에서 `@testable` 단위 테스트를 함께 빌드해 실패했다. 앱의 릴리스 설정을 바꾸지 않고 UI 검사만 포함하는 `AIFECTDeviceGame` scheme을 추가해 `build-for-testing`을 성공시켰다.
+- 2026-11-17 23:11 iPhone 12 업데이트 설치 성공. 기존 사용자 데이터를 유지했다. 23:14:09 별도 앱 실행도 성공했다.
+- 실기기 검사 결과 `../work/ios-jump25-device-live.xcresult`: 앱 검사 시작 전 XCTest runner가 `Timed out while enabling automation mode`로 실패했다. 이 시점의 기기 잠금은 해제 상태였다. 게임 자체의 실기기 통과를 의미하지 않는다.
+- 사용자에게 대기실·연습 실행 여부를 확인 요청했다. 실기기 확인은 응답 대기 중이다.
+- 이번 작업에서 운영 웹·DB·공식 게임 도전·App Store 심사 빌드를 변경하지 않았다.
