@@ -141,8 +141,8 @@ export async function mediaRoute(req,env,path,user){
     const type=t.cover_version?(t.artwork_id===t.id?t.cover_type:t.original_cover_type):'image/jpeg';
     return objectResponse(req,env,key,type,!!t.visible,{imageVersion:t.cover_version||'original'});
    }
-   const fallback=await env.ASSETS.fetch(new Request(new URL('/assets/aifect-mark.svg',req.url),{method:req.method}));
-   const headers=new Headers(fallback.headers);headers.set('cache-control',imageCacheControl(req,!!t.visible,'aifect-mark'));
+   const fallback=await env.ASSETS.fetch(new Request(new URL('/assets/brand/20261117/aifect-icon-512.png',req.url),{method:req.method}));
+   const headers=new Headers(fallback.headers);headers.set('cache-control',imageCacheControl(req,!!t.visible,'brand-20261117'));
    return new Response(fallback.body,{status:fallback.status,headers});
   }
   return objectResponse(req,env,`${kind}/${t.id}.m4a`,'audio/mp4');

@@ -124,7 +124,7 @@ test('only the other two featured covers are preloaded and image fallback covers
  f.c.bindHomeImages(f.feature);let writes=0;
  for(const wrapper of ['home-track-art','home-chart-backdrop']){
   let src='/broken-cover.webp';const img={tagName:'IMG',closest:selector=>selector.includes('.'+wrapper)?{}:null,getAttribute:()=>src,set src(value){writes++;src=value;}};
-  f.fire('error',{target:img});assert.equal(src,'/assets/aifect-mark.svg');
+  f.fire('error',{target:img});assert.equal(src,'/assets/brand/20261117/aifect-icon-512.png');
   const after=writes;f.fire('error',{target:img});assert.equal(writes,after,'A broken fallback must not create an error loop');
  }
  assert.equal(writes,2);f.fire('error',{target:{tagName:'IMG',closest:()=>null,set src(_){assert.fail('Unrelated images must keep their own fallback');}}});

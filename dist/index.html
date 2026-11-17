@@ -15,12 +15,16 @@
   <meta property="og:site_name" content="AIFECT 아이팩트">
   <meta property="og:title" content="AIFECT -아이팩트- AI음악소셜 플랫폼">
   <meta property="og:description" content="AIFECT(아이팩트)는 AI 음악 소셜 플랫폼입니다. AI 음원과 커버곡을 듣고, 솔로·듀엣·더빙에 참여하며 음악으로 소통하세요.">
-  <meta property="og:image" content="https://aifect.co.kr/assets/aifect-logo.png">
+  <meta property="og:image" content="https://aifect.co.kr/assets/brand/20261117/aifect-share.webp">
+  <meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
   <meta property="og:locale" content="ko_KR">
   <script type="application/ld+json">
     {"@context":"https://schema.org","@type":"WebSite","name":"AIFECT 아이팩트","alternateName":["아이팩트","AIFECT"],"url":"https://aifect.co.kr/","inLanguage":"ko-KR"}
   </script>
-  <link rel="icon" type="image/svg+xml" href="/assets/aifect-symbol.svg?v=20261007-reference">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/brand/20261117/aifect-icon-32.png">
+  <link rel="icon" type="image/png" sizes="48x48" href="/assets/brand/20261117/aifect-icon-48.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/brand/20261117/aifect-icon-180.png">
+  <link rel="manifest" href="/assets/brand/20261117/site.webmanifest">
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@200&family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=20260930-premium">
@@ -116,8 +120,8 @@
   <aside class="sidebar" id="sidebar">
     <a href="#home" class="brand" aria-label="AIFECT 홈">
       <span class="aifect-lockup">
-        <img class="aifect-wordmark-logo" src="/assets/aifect-wordmark.svg?v=20261007-reference" width="148" height="36" alt="AIFECT">
-        <img class="home-header-logo" src="/assets/aifect-home-header-ad0e7527a911.webp" width="1012" height="195" loading="lazy" alt="AIFECT">
+        <img class="aifect-wordmark-logo" src="/assets/brand/20261117/aifect-wordmark-horizontal.webp" width="1044" height="227" alt="AIFECT">
+        <img class="home-header-logo" src="/assets/brand/20261117/aifect-wordmark-horizontal.webp" width="1044" height="227" loading="lazy" alt="AIFECT">
       </span>
     </a>
     <nav class="nav-primary" aria-label="주 메뉴">
@@ -148,7 +152,7 @@
     <header class="topbar">
       <div id="common-topbar-content">
       <button class="icon-button mobile-menu" aria-label="메뉴 열기" id="menu-toggle" aria-controls="sidebar" aria-expanded="false"><i data-icon="menu"></i></button>
-      <a href="#home" class="mobile-brand" aria-label="AIFECT 홈"><span class="aifect-lockup"><img class="aifect-wordmark-logo" src="/assets/aifect-wordmark.svg?v=20261007-reference" width="148" height="36" alt="AIFECT"></span><img class="mobile-brand-symbol" src="/assets/aifect-symbol.svg" width="28" height="28" alt=""></a><div class="crumb">상상이 음악이 되는 곳</div>
+      <a href="#home" class="mobile-brand" aria-label="AIFECT 홈"><span class="aifect-lockup"><img class="aifect-wordmark-logo" src="/assets/brand/20261117/aifect-wordmark-horizontal.webp" width="1044" height="227" alt="AIFECT"></span><img class="mobile-brand-symbol" src="/assets/brand/20261117/aifect-symbol-transparent-1024.png" width="28" height="28" alt=""></a><div class="crumb">상상이 음악이 되는 곳</div>
       <form id="global-search" class="search-box" role="search"><i data-icon="search"></i><input type="search" name="q" maxlength="100" aria-label="곡, 아티스트, 제작자 검색" placeholder="곡, 아티스트, 제작자 검색"><button type="submit" class="search-submit" aria-label="검색">검색</button></form>
       <div class="top-actions"><span class="design-badge">FREE STREAMING</span><a href="#account" class="header-login">로그인</a><button type="button" class="header-search icon-button" aria-label="통합검색" aria-controls="global-search" aria-expanded="false"><i data-icon="search"></i></button><a href="#dm" class="header-messages" aria-label="내 메시지"><i data-icon="message"></i></a><a href="#notifications" class="header-activity" aria-label="알림 기록"><i data-icon="bell"></i><span class="activity-badge" hidden></span></a><a href="#upload" class="upload-button" aria-label="음원 업로드"><i data-icon="plus"></i><span>음원 업로드</span></a></div>
       </div>
@@ -167,7 +171,7 @@
   <section class="player" data-player-view="none" data-player-layout="compact" aria-label="음악 플레이어" hidden>
 <div class="player-extension" id="player-extension" hidden><a id="player-lyric" class="player-lyric" hidden></a><section id="player-action-panel" aria-label="현재 곡 기능" hidden><div id="player-actions" class="player-actions" aria-label="현재 곡 메뉴"></div></section></div>
 <div class="timeline"><input id="seek" type="range" min="0" max="0" step="0.1" value="0" aria-label="재생 위치"></div>
-<div class="player-track"><div class="now-playing" id="now-playing"><div class="mini-cover cover cover-lime">A</div><div><strong>새로운 음악을 만나보세요</strong><span>곡을 선택하면 재생됩니다</span></div></div><div class="player-track-details"><span class="player-clock"><span id="elapsed">0:00</span> / <span id="duration">0:00</span></span><span id="player-genre"></span></div></div>
+<div class="player-track"><div class="now-playing" id="now-playing"><div class="mini-cover cover cover-lime"><img src="/assets/brand/20261117/aifect-icon-192.png" width="48" height="48" alt=""></div><div><strong>새로운 음악을 만나보세요</strong><span>곡을 선택하면 재생됩니다</span></div></div><div class="player-track-details"><span class="player-clock"><span id="elapsed">0:00</span> / <span id="duration">0:00</span></span><span id="player-genre"></span></div></div>
 <div class="player-center"><div class="player-buttons"><button class="icon-button" id="shuffle" aria-label="섞어 듣기 꺼짐" title="섞어 듣기 꺼짐" aria-pressed="false"><i data-icon="shuffle"></i></button><button class="icon-button" id="previous" title="이전 곡" aria-label="이전 곡"><i data-icon="previous"></i></button><button class="play-button" id="play-toggle" title="재생·일시정지" aria-label="재생"><i data-icon="player-play"></i></button><button class="icon-button" id="next" title="다음 곡" aria-label="다음 곡"><i data-icon="next"></i></button><button class="icon-button" id="repeat" aria-label="반복 끔" aria-pressed="false"><i data-icon="repeat"></i></button></div></div>
 <div class="player-controls"><div class="player-volume-box"><button type="button" id="player-volume-toggle" class="icon-button" aria-label="음소거" title="음소거" aria-pressed="false"><i data-icon="volume"></i></button><input id="volume" class="design-range" type="range" min="0" max="1" step="0.01" value="0.75" aria-label="볼륨"><div id="player-utility-panel" class="player-utility-panel" aria-label="재생 옵션"><div class="player-utility-buttons"><button type="button" id="queue-toggle" aria-label="재생목록 열기" aria-haspopup="dialog" title="재생목록 보기 · 곡 순서 편집"><i data-icon="list"></i><span>재생목록</span><span id="queue-count" aria-hidden="true" hidden>0</span></button></div></div></div><div id="player-inline-actions"></div><button type="button" id="player-lyrics-toggle" class="icon-button" aria-label="현재 재생곡 가사 보기" title="현재 재생곡 가사 보기" aria-pressed="false" aria-expanded="false" aria-controls="player-lyric">가사</button><button type="button" class="icon-button" id="player-more" aria-label="추가 기능 열기·닫기" title="추가 기능 열기·닫기" aria-pressed="false" aria-expanded="false" aria-controls="player-action-panel"><i data-icon="plus"></i></button><button type="button" class="icon-button player-close" id="player-close" aria-label="재생 종료 및 플레이바 전체 닫기" title="플레이바 전체 닫기"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button><span class="free-listen" id="listen-mode">회원은 전체곡 무료</span></div></section>
   <div class="toast" id="toast" role="status"></div>

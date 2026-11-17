@@ -46,7 +46,7 @@ test('completed public solo/duet eligibility, boundary events, owner exclusions 
  f.sql.prepare("INSERT INTO likes(user_id,track_id,created) VALUES('other','solo',?)").run(until);
  const solo=(await f.call('/api/community/rankings?category=work&workKind=solo')).body;
  assert.deepEqual(solo.rows.map(r=>r.id),['solo']);assert.equal(solo.rows[0].listeners,1);assert.equal(solo.rows[0].reactions,0);
- assert.equal(solo.rows[0].image_url,'/assets/aifect-mark.svg');
+ assert.equal(solo.rows[0].image_url,'/assets/brand/20261117/aifect-icon-512.png');
  const duet=(await f.call('/api/community/rankings?category=work&workKind=duet')).body;assert.deepEqual(duet.rows.map(r=>r.id),['duet']);
  const before=f.sql.prepare('SELECT total_changes() n').get().n,audit=await rankingAudit({DB:f.DB},at);
  assert.equal(audit.published_cover_count,4);assert.equal(audit.periods[0].candidate_count,2);assert.equal(audit.periods[0].ranked_count,2);

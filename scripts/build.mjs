@@ -4,6 +4,7 @@ import {builtinModules} from 'node:module';
 import { build, transform } from 'esbuild';
 import { mkdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
 import {resolve,sep} from 'node:path';
+import {brandPublicMarkup} from '../shared/web-brand.js';
 import {businessFooterHTML} from '../shared/site-info.js';
 import {pathToFileURL} from 'node:url';
 import {bundleClient} from './client-bundle.mjs';
@@ -136,7 +137,7 @@ await build({entryPoints:['shared/lyrics.js'],outfile:'dist/client/lyrics-core.j
 // Sites serves matching static assets before the Worker. Keep the app shell at
 // a non-index path so / and /index.html always reach the live catalog renderer.
 // A .txt asset avoids HTML canonical redirects when fetched through ASSETS.
-await writeFile('dist/client/aifect-shell.txt',await bundleClient((await buildPublicImageAssets(indexHTML)).replace('<!--BUSINESS_FOOTER-->',businessFooterHTML()),pathToFileURL(resolve('dist/client')+sep)));
+await writeFile('dist/client/aifect-shell.txt',await bundleClient((await buildPublicImageAssets(indexHTML)).replace('<!--BUSINESS_FOOTER-->',brandPublicMarkup(businessFooterHTML())),pathToFileURL(resolve('dist/client')+sep)));
 for(const file of ['nickname-profile-host.js','profile-embed.js'])await cp('dist/'+file,'dist/client/'+file);
 await writeFile('dist/client/aifect-profile-shell.txt',(await readFile('dist/client/aifect-shell.txt','utf8')).replace('<head>','<head><script src="/profile-embed.js"></script>'));
 await rm('dist/client/_headers',{force:true}); // Remove the obsolete generated asset rules on incremental builds.

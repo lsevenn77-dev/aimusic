@@ -49,7 +49,7 @@
     const gate=$('#access-gate');
     gate.hidden=false;
     gate.innerHTML='<form class="admin-login" id="admin-login-form">'+
-      '<img src="/assets/aifect-wordmark.svg" alt="AIFECT">'+
+      '<img src="/assets/brand/20261117/aifect-wordmark-horizontal.webp" alt="AIFECT">'+
       '<h1>관리자 로그인</h1><p>관리자 비밀번호를 입력해주세요.</p>'+
       '<label>비밀번호<input id="admin-password" name="password" type="password" autocomplete="current-password" maxlength="256" required></label>'+
       '<p id="login-error" class="login-error" role="alert">'+esc(message)+'</p>'+
@@ -200,7 +200,7 @@
   }
 
   function cover(track){
-    const src=track.artwork_id?'/media/'+encodeURIComponent(track.artwork_id)+'/cover?artwork=track&v='+encodeURIComponent(track.cover_version||'original'):'/assets/aifect-mark.svg';
+    const src=track.artwork_id?'/media/'+encodeURIComponent(track.artwork_id)+'/cover?artwork=track&v='+encodeURIComponent(track.cover_version||'original'):'/assets/brand/20261117/aifect-icon-512.png';
     return '<img class="album-thumb" src="'+esc(src)+'" alt="">';
   }
 

@@ -10,3 +10,8 @@ export function trackArtworkSQL(){
 export function artworkURL(track){
  return track.artwork_id?`/media/${encodeURIComponent(track.artwork_id)}/cover?artwork=track&v=${encodeURIComponent(track.cover_version||'original')}`:'/assets/aifect-mark.svg';
 }
+
+// Latest media URL for API consumers, including the web and native players.
+export function currentArtworkURL(track){
+ return track.artwork_id ? artworkURL(track) : '/assets/brand/20261117/aifect-icon-512.png';
+}

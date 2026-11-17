@@ -1,3 +1,4 @@
+import {brandPublicMarkup} from '../shared/web-brand.js';
 import {PREMIUM, businessDetailsHTML, businessFooterHTML, policyLinks, escapeHTML as esc} from '../shared/site-info.js';
 
 const routes=new Set(['/checkout/toss','/checkout/toss/success','/checkout/toss/fail']);
@@ -22,7 +23,7 @@ function paymentPage(){
 </head>
 <body class="checkout-site">
  <header class="checkout-header">
-  <a class="checkout-brand" href="/#home" aria-label="AIFECT 홈"><span class="aifect-lockup"><img class="aifect-wordmark-logo" src="/assets/aifect-wordmark.svg?v=20261007-reference" width="148" height="36" alt="AIFECT"></span></a>
+  <a class="checkout-brand" href="/#home" aria-label="AIFECT 홈"><span class="aifect-lockup"><img class="aifect-wordmark-logo" src="/assets/brand/20261117/aifect-wordmark-horizontal.webp" width="1044" height="227" alt="AIFECT"></span></a>
   <a href="/#home">음악으로 돌아가기</a>
  </header>
  <main class="checkout-main">
@@ -84,7 +85,7 @@ function paymentPage(){
    <details class="checkout-merchant"><summary>판매자 · 고객센터 정보</summary>${businessDetailsHTML()}</details>
   </section>
  </main>
- <footer class="page-footer">${businessFooterHTML()}</footer>
+ <footer class="page-footer">${brandPublicMarkup(businessFooterHTML())}</footer>
 </body>
 </html>`;
 }

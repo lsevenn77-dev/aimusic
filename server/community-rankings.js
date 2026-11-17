@@ -4,7 +4,7 @@ import {VISIBLE} from './catalog.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {producerNameSQL} from './identity.js';
 import {completedCoverSQL} from './song-covers.js';
-import {trackArtworkSQL,artworkURL} from './track-artwork.js';
+import {trackArtworkSQL,currentArtworkURL} from './track-artwork.js';
 import {dubbingGenreArtwork} from '../shared/dubbing.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 export const RANK_WEIGHTS=Object.freeze({listeners:30,completion:20,reactions:15,gold:25,silver:10});
@@ -40,7 +40,7 @@ export async function communityRankingRoute(req,env,path){
  if(category==='relationship')return page({message:'관계별 XP와 양측 공개 동의 집계 연결을 준비하고 있어요.'},[]);
  if(category==='crew'){
   const data=await rows(env,`SELECT c.id,c.name,c.image_version,(SELECT count(*) FROM crew_members WHERE crew_id=c.id) members,COUNT(DISTINCT x.user_id) participants,COALESCE(sum(min(x.amount,100)),0) xp FROM crews c JOIN crew_xp x ON x.crew_id=c.id JOIN crew_members m ON m.crew_id=c.id AND m.user_id=x.user_id WHERE x.created>=? AND x.created<? AND x.id NOT LIKE 'gift:%' GROUP BY c.id`,period.from,period.until);
-  return page({},data.filter(r=>r.members&&r.xp>0).map(r=>({...r,image_url:r.image_version?'/media/crew/'+encodeURIComponent(r.id)+'?v='+encodeURIComponent(r.image_version):'/assets/aifect-mark.svg',score:Math.round(r.xp*r.participants/r.members*100)/100,href:'#crew/'+r.id,detail:r.members+'명 · 활동 참여 '+r.participants+'명'})).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id)));
+  return page({},data.filter(r=>r.members&&r.xp>0).map(r=>({...r,image_url:r.image_version?'/media/crew/'+encodeURIComponent(r.id)+'?v='+encodeURIComponent(r.image_version):'/assets/brand/20261117/aifect-icon-512.png',score:Math.round(r.xp*r.participants/r.members*100)/100,href:'#crew/'+r.id,detail:r.members+'명 · 활동 참여 '+r.participants+'명'})).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id)));
  }
  if(category==='dubbing'){
   // Dubbing has no paid-support/listening ledger. Do not fabricate those metrics.
@@ -48,7 +48,7 @@ export async function communityRankingRoute(req,env,path){
   return page({message:'이번 주 공개된 완성 더빙에 유효한 활동이 쌓이면 순위를 표시해요.'},scoreWorks(data).map(({options_json,...r})=>({...r,image_url:r.posterUrl||dubbingGenreArtwork(JSON.parse(options_json||'{}').genres),href:'#dubbing/'+r.id,detail:'더빙 · '+(r.creator||'제작자')+' · '+r.participants+'명 참여'+(r.participant_names?' ('+r.participant_names+')':'')+' · 유효 좋아요 집계'})));
  }
  const data=await workRankingData(env,period,category,kind);
- const scored=scoreWorks(data);return page({weights:RANK_WEIGHTS},category==='aiArtist'?rankArtists(scored):scored.map(r=>({...r,image_url:artworkURL(r),href:'#song/'+r.id,detail:r.cover_mode==='duet'?'듀엣':'솔로'})));
+ const scored=scoreWorks(data);return page({weights:RANK_WEIGHTS},category==='aiArtist'?rankArtists(scored):scored.map(r=>({...r,image_url:currentArtworkURL(r),href:'#song/'+r.id,detail:r.cover_mode==='duet'?'듀엣':'솔로'})));
 }
 
 export async function workRankingData(env,period,category='work',kind='solo'){

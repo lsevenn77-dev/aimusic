@@ -63,7 +63,7 @@ function trackArtworkPath(t){
   if((t.work_has_cover??t.has_cover)&&!version?.startsWith('profile-'))source=t.id;
   else if(t.original_has_cover&&!t.original_cover_version?.startsWith('profile-')){source=t.original_id;version=t.original_cover_version;}
  }
- return source?`/media/${encodeURIComponent(source)}/cover?artwork=track&v=${encodeURIComponent(version||'original')}`:'/assets/aifect-mark.svg';
+ return source?`/media/${encodeURIComponent(source)}/cover?artwork=track&v=${encodeURIComponent(version||'original')}`:'/assets/brand/20261117/aifect-icon-512.png';
 }
 function cover(t,cls='album-art'){
  return `<div class="${cls} cover cover-custom"><img decoding="async" src="${esc(trackArtworkPath(t))}" alt="${esc(t.title||'작품')} 커버" loading="lazy"></div>`;
@@ -149,7 +149,7 @@ function avatarImage(p={},kind='producer',allowPreview=true,decorate=true){
 // Keep every photo surface usable when an old or unavailable upload fails to load.
 document.addEventListener('error',event=>{
  const image=event.target;
- if(image.matches?.('.cover img:not(.profile-avatar-image)')&&image.getAttribute('src')!=='/assets/aifect-mark.svg'){image.src='/assets/aifect-mark.svg';return;}
+ if(image.matches?.('.cover img:not(.profile-avatar-image)')&&image.getAttribute('src')!=='/assets/brand/20261117/aifect-icon-512.png'){image.src='/assets/brand/20261117/aifect-icon-512.png';return;}
  if(!image.matches?.('img.profile-avatar-image'))return;
  if(image.getAttribute('src')!==DEFAULT_AVATAR)image.src=DEFAULT_AVATAR;
  else image.hidden=true;

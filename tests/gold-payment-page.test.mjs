@@ -1,3 +1,4 @@
+import {brandPublicMarkup} from '../shared/web-brand.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -49,11 +50,11 @@ test('Gold page applies checkout-only security policy and loads external code wi
 });
 
 test('Gold page reuses merchant, policy and exact brand assets and exposes accessible result states',async()=>{
- const page=await html();assert.ok(page.includes(businessDetailsHTML()));assert.ok(page.includes(businessFooterHTML()));
+ const page=await html();assert.ok(page.includes(businessDetailsHTML()));assert.ok(page.includes(brandPublicMarkup(businessFooterHTML())));
  for(const [url] of policyLinks)assert.ok(page.includes(`href="${url}"`));
  for(const url of ['/refund#gold','/terms#gold'])assert.ok(page.includes(`href="${url}"`));
  assert.doesNotMatch(page,/href="\/checkout\/toss"|Premium 테스트/,'Gold review must not advertise recurring-card testing');
- assert.ok(page.includes('/assets/aifect-wordmark.svg'));
+ assert.ok(page.includes('/assets/brand/20261117/aifect-wordmark-horizontal.webp'));
  assert.match(page,/src="\/assets\/aifect-gold-product\.svg"[^>]+alt="AIFECT 골드 충전 상품"/);
  const asset=readFileSync(new URL('../dist/assets/aifect-gold-product.svg',import.meta.url),'utf8');assert.match(asset,/<svg\b/);assert.match(asset,/AIFECT 골드 충전 상품/);
  assert.match(page,/id="checkout-status" role="status"/);assert.match(page,/id="checkout-error" role="alert" hidden/);assert.match(page,/id="checkout-result"[^>]* hidden/);assert.match(page,/id="result-retry"[^>]* hidden/);

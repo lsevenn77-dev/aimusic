@@ -415,7 +415,7 @@ function communityRankingHref(options){
  return '#community/rankings?'+p;
 }
 function communityRankingImage(r){
- const src=typeof r.image_url==='string'&&r.image_url.startsWith('/')&&!r.image_url.startsWith('//')?r.image_url:'/assets/aifect-mark.svg';
+ const src=typeof r.image_url==='string'&&r.image_url.startsWith('/')&&!r.image_url.startsWith('//')?r.image_url:'/assets/brand/20261117/aifect-icon-512.png';
  return '<span class="ranking-picture cover"><img src="'+esc(src)+'" alt="" loading="lazy" decoding="async"></span>';
 }
 function rankingCoverActions(r){

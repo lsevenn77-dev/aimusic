@@ -1,3 +1,4 @@
+import {brandPublicMarkup} from '../shared/web-brand.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -105,9 +106,9 @@ test('test disclosure, callback states and client selectors preserve the existin
  assert.match(page,/id="result-retry"[^>]* hidden/);
  for(const text of ['TEST ONLY','실제 청구 없음','실제 청구, 자동결제, Premium 이용권 지급은 발생하지 않습니다','테스트 카드 등록 인증 후 돌아온 요청','sessionStorage','20분','AIFECT는 카드번호를 수집하지 않습니다'])assert.ok(page.includes(text),text);
  assert.ok(page.includes(businessDetailsHTML()));
- assert.ok(page.includes(businessFooterHTML()));
+ assert.ok(page.includes(brandPublicMarkup(businessFooterHTML())));
  for(const [url] of policyLinks)assert.ok(page.includes(`href="${url}"`));
- assert.ok(page.includes('/assets/aifect-wordmark.svg'));
+ assert.ok(page.includes('/assets/brand/20261117/aifect-wordmark-horizontal.webp'));
  assert.doesNotMatch(page,/NICEPAY|AUTHNICE|name="(?:cardNumber|card|billingKey)"/);
  const existing=readFileSync(new URL('../dist/gold-checkout.js',import.meta.url),'utf8');
  assert.match(existing,/window\.AUTHNICE\.requestPay/);

@@ -8,7 +8,7 @@ import {fixture} from './fixture.mjs';
 
 const origin='https://aifect.test';
 const png=readFileSync(new URL('../dist/assets/default-avatar.png',import.meta.url));
-const mark=readFileSync(new URL('../dist/assets/aifect-mark.svg',import.meta.url));
+const mark=readFileSync(new URL('../dist/assets/brand/20261117/aifect-icon-512.png',import.meta.url));
 
 async function setup(t){
  const files=new Map([['images/track/one/original-art',Buffer.from('original')],['images/producer/producer/photo',Buffer.from('profile')]]);
@@ -17,7 +17,7 @@ async function setup(t){
   async get(key){return {body:files.get(key)};},
   async put(key,data){files.set(key,Buffer.from(data));},
  };
- const ASSETS={async fetch(req){assert.equal(new URL(req.url).pathname,'/assets/aifect-mark.svg');return new Response(req.method==='HEAD'?null:mark,{headers:{'content-type':'image/svg+xml'}});}};
+ const ASSETS={async fetch(req){assert.equal(new URL(req.url).pathname,'/assets/brand/20261117/aifect-icon-512.png');return new Response(req.method==='HEAD'?null:mark,{headers:{'content-type':'image/png'}});}};
  const f=await fixture(t,{BUCKET,ASSETS});
  f.sql.exec("UPDATE tracks SET karaoke_at=1,has_cover=1,cover_version='original-art',cover_type='image/png' WHERE id='one'; UPDATE producers SET image_version='photo',image_type='image/png'; INSERT INTO producers(id,user_id,name,created,image_version,image_type) VALUES('singer','other','Singer',0,'other-photo','image/png'); INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,has_cover,cover_version,cover_type) VALUES('work','other','artist','singer','Recording','Rock','',1,'wav',128,1,'published','cover','one',1,'profile-old','image/png'); INSERT INTO playlists(id,user_id,name,created,is_public) VALUES('list','owner','Covers',0,1);INSERT INTO playlist_tracks(playlist_id,track_id,position,created) VALUES('list','work',0,0)");
  const request=(path,method='GET',user=null,body=null,headers={})=>worker.fetch(new Request(origin+path,{method,headers:{Origin:origin,...(user?{Cookie:'aifect_session='+user}:{}),...(body?{'content-type':'image/png'}:{}),...headers},body}),{DB:f.DB,BUCKET,ASSETS},{waitUntil(p){p.catch(()=>{});}});
@@ -96,6 +96,6 @@ test('all web thumbnails use the same resolver including older cached artwork pa
   const old={id:'work',kind:'cover',has_cover:1,cover_version:'profile-old',original_id:'one',original_has_cover:1,original_cover_version:'art'};
   assert.equal(resolve(old),'/media/one/cover?artwork=track&v=art');
   assert.equal(resolve({...old,work_has_cover:1,work_cover_version:'custom'}),'/media/work/cover?artwork=track&v=custom');
-  assert.equal(resolve({...old,artwork_id:null}),'/assets/aifect-mark.svg');
+  assert.equal(resolve({...old,artwork_id:null}),'/assets/brand/20261117/aifect-icon-512.png');
  }
 });

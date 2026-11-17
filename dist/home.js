@@ -213,7 +213,7 @@ function releaseHTML(t,next){
 function bindHomeImages(root){
  homeImagesCleanup?.();homeImagesCleanup=null;
  if(!root?.addEventListener)return;
- const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art,.home-feature-background,.home-chart-backdrop'))return;if(img.getAttribute('src')!=='/assets/aifect-mark.svg')img.src='/assets/aifect-mark.svg';};
+ const fallback=event=>{const img=event.target;if(img.tagName!=='IMG'||!img.closest('.home-track-art,.home-feature-background,.home-chart-backdrop'))return;if(img.getAttribute('src')!=='/assets/brand/20261117/aifect-icon-512.png')img.src='/assets/brand/20261117/aifect-icon-512.png';};
  root.addEventListener('error',fallback,true);
  homeImagesCleanup=()=>root.removeEventListener('error',fallback,true);
 }

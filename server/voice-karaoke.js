@@ -1,4 +1,4 @@
-import {artworkURL} from './track-artwork.js';
+import {currentArtworkURL} from './track-artwork.js';
 // Live karaoke uses the existing authorised MR/word-timing catalogue.
 // Never send a caller-provided track object to the room coordinator.
 import {json,fail,rows} from './db.js';
@@ -8,7 +8,7 @@ import {producerNameSQL} from './identity.js';
 import {identifier} from '../realtime/protocol.js';
 
 const readable=t=>({id:t.id,title:t.title,artist:t.artist||t.producer,artist_id:t.artist_id,has_ai_artist:t.has_ai_artist,producer:t.producer,producer_id:t.producer_id,user_id:t.user_id,duration:t.duration,
- cover:artworkURL(t)});
+ cover:currentArtworkURL(t)});
 // Reuse the creator's recorded AIFECT karaoke MR/cover permission, without
 // widening it to unconsented, unavailable, or unsupported-length recordings.
 const eligible=()=>`${VISIBLE()} AND ${SINGABLE()} AND t.rights_accepted>0 AND t.duration>0 AND t.duration<=600`;

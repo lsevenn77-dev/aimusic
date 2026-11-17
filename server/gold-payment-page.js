@@ -1,3 +1,4 @@
+import {brandPublicMarkup} from '../shared/web-brand.js';
 import {WEB_GOLD_PACKS} from '../shared/gifts.js';
 import {businessDetailsHTML,businessFooterHTML,policyLinks} from '../shared/site-info.js';
 
@@ -13,7 +14,7 @@ function goldPaymentPage(){
  <link rel="stylesheet" href="/brand.css?v=20261007-reference"><link rel="stylesheet" href="/design-system.css?v=20261017-lavender-mint"><link rel="stylesheet" href="/policies.css"><link rel="stylesheet" href="/payment-checkout.css"><link rel="stylesheet" href="/gold-payment-checkout.css">
  <script type="module" src="/gold-payment-checkout.js"></script>
 </head><body class="checkout-site checkout-gold-site">
- <header class="checkout-header"><a class="checkout-brand" href="/#home" aria-label="AIFECT 홈"><span class="aifect-lockup"><img class="aifect-wordmark-logo" src="/assets/aifect-wordmark.svg?v=20261007-reference" width="148" height="36" alt="AIFECT"></span></a><a href="/#home">음악으로 돌아가기</a></header>
+ <header class="checkout-header"><a class="checkout-brand" href="/#home" aria-label="AIFECT 홈"><span class="aifect-lockup"><img class="aifect-wordmark-logo" src="/assets/brand/20261117/aifect-wordmark-horizontal.webp" width="1044" height="227" alt="AIFECT"></span></a><a href="/#home">음악으로 돌아가기</a></header>
  <main class="checkout-main">
   <header class="checkout-heading"><p class="checkout-kicker">TOSS PAYMENTS · TEST ONLY</p><h1>골드 단건결제 테스트</h1><p class="checkout-lead">골드 상품과 토스페이먼츠의 테스트 카드 결제 흐름을 확인하세요.</p></header>
   <div class="checkout-test-note" id="checkout-test-note"><strong>테스트 전용 · 실제 청구 없음</strong><p>카드 인증 화면 확인용입니다. 결제 승인을 요청하지 않으며 실제 청구·골드 지급·선물 발송·창작자 정산은 발생하지 않습니다. 자동충전·정기결제는 없습니다.</p></div>
@@ -35,7 +36,7 @@ function goldPaymentPage(){
   <section class="checkout-result" id="checkout-result" aria-labelledby="result-title" hidden><p class="checkout-kicker">TEST ONLY</p><h2 id="result-title">골드 결제 테스트 결과 확인</h2><p id="result-copy">테스트 카드 인증 후 돌아온 요청을 확인하고 있습니다.</p><dl class="checkout-result-details"><div><dt>테스트 주문번호</dt><dd id="result-order-id">—</dd></div><div><dt>실제 청구 금액</dt><dd id="result-amount">0원</dd></div></dl><p class="checkout-field-help">실제 청구·골드 지급·선물 발송·정기결제는 발생하지 않습니다.</p><div class="checkout-result-actions"><button class="checkout-primary" id="result-retry" type="button" hidden>테스트 결과 다시 확인</button><a class="checkout-secondary" href="/checkout/toss/gold">새 골드 결제 테스트</a><a href="/#home">음악으로 돌아가기</a></div></section>
   <noscript><p class="checkout-error">테스트 결제를 확인하려면 브라우저의 JavaScript를 켜주세요.</p></noscript>
   <section class="checkout-information" aria-labelledby="checkout-info-title"><h2 id="checkout-info-title">골드와 테스트 안내</h2><p>골드는 공개 음악·회원에게 선물하거나 AI 더빙 음향 제작에 사용하는 재화입니다. 음향 제작 요청 전 표시된 골드 비용을 확인하며, 제작 실패 시 차감한 골드는 자동 환급됩니다. 골드 구매 가격은 창작자의 정산 단가와 다르며, 선물을 받은 창작자 수익은 세금·실제 결제 수수료·수익 배분 기준을 반영해 별도로 계산합니다. 이 테스트에서는 골드를 지급하거나 수익을 적립하지 않습니다.</p><h3>충전 후 사용과 환불</h3><p>토스로 충전한 웹 골드는 결제시점부터 1년 이내에 사용하거나 환불을 신청할 수 있습니다. 다른 회원에게 골드 잔액을 양도할 수 없습니다. 환불은 결제에 사용한 카드로만 처리합니다.</p><p><a href="/#home">공개 음악 선택</a> → 곡의 선물하기 → 골드 선물과 수량 선택 → 보내기. <a href="/#gifts">선물 종류 보기</a></p><h3>테스트 정보 처리</h3><p>카드 정보는 토스페이먼츠의 테스트 결제창에서 처리하며 이 화면에서 AIFECT는 카드번호를 수집하지 않습니다. 테스트 확인 쿠키는 최대 30분, 브라우저 sessionStorage의 서명된 요청 정보는 20분 동안만 유효합니다. 인증 후 돌아온 결제 식별값은 저장하거나 결제 승인에 사용하지 않습니다. 취소·반환 확인 시 세션 요청 정보를 지우며 실제 결제·골드 잔액·정산 기록을 생성하지 않습니다.</p><nav class="checkout-policy-links" aria-label="골드 결제 및 개인정보 안내"><a href="/terms#gold">골드 이용 안내</a><a href="/refund#gold">골드 환불 안내</a>${policyLinks.map(([url,label])=>`<a href="${url}">${label}</a>`).join('')}</nav><details class="checkout-merchant"><summary>판매자 · 고객센터 정보</summary>${businessDetailsHTML()}</details></section>
- </main><footer class="page-footer">${businessFooterHTML()}</footer>
+ </main><footer class="page-footer">${brandPublicMarkup(businessFooterHTML())}</footer>
 </body></html>`;
 }
 

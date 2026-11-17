@@ -2,7 +2,8 @@ import {queuePlaylistCleanup} from './playlist-cleanup.js';
 import {queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
 import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
-import {tryPublicOrigin} from './cafe24-origin.js';
+import {publicPath,tryPublicOrigin} from './cafe24-origin.js';
+import {brandAliases,brandPublicDocument} from '../shared/web-brand.js';
 import {queueLyricAnalysis,runLyricBatch,lyricAnalysisAdmin} from './lyric-analysis.js';
 import {followManagement} from './follow-management.js';
 import {expireDubbingCombinations} from './dubbing-casting.js';
@@ -125,7 +126,7 @@ async function fetchRequest(req,env,ctx){
    const data=path.startsWith('/.well-known/')?[{relation:['delegate_permission/common.handle_all_urls'],target:{namespace:'android_app',package_name:'kr.co.aifect.app',sha256_cert_fingerprints:['06:35:DF:33:94:55:E1:E8:E4:B3:6A:B0:23:BD:ED:41:9F:37:F1:DB:0B:C2:6E:9D:1B:BA:83:F7:0D:1A:8C:BF']}}]:{minimum_version_code:Math.max(1,Number.parseInt(env.ANDROID_MIN_VERSION_CODE,10)||1)};
    return new Response(req.method==='HEAD'?null:JSON.stringify(data),{headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'public, max-age=300','X-Content-Type-Options':'nosniff'}});
   }
-  if(path==='/favicon.ico'&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/assets/aifect-symbol.svg',url),301);
+  if(brandAliases.has(path)&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL(brandAliases.get(path),url),302);
   const songPath=path.match(/^\/song\/([\w-]+)\/?$/);
   if(songPath&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/#song/'+songPath[1]+url.search,url),302);
   const originPage=await tryPublicOrigin(req,env,path);if(originPage)return originPage;
@@ -246,6 +247,10 @@ async function serve(req,env,ctx){
  if(!headers.has('content-security-policy')){
   headers.set('content-security-policy',"frame-ancestors 'none'");
   headers.set('content-security-policy-report-only',"default-src 'self'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; report-uri /security/csp-report");
+ }
+ if(req.method==='GET' && publicPath(new URL(req.url).pathname) && response.body){
+  headers.delete('content-length');
+  return new Response(brandPublicDocument(await response.text()),{status:response.status,statusText:response.statusText,headers});
  }
  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }

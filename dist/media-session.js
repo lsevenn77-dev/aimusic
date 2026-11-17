@@ -9,7 +9,7 @@
  const absolute=path=>new URL(path,location.origin).href;
  function artwork(t){
   const src=trackArtworkPath(t);
-  return [{src:absolute(src||'/assets/aifect-mark.svg'),sizes:'512x512',...(src?{}:{type:'image/svg+xml'})}];
+  return [{src:absolute(src||'/assets/brand/20261117/aifect-icon-512.png'),sizes:'512x512',...(src && src!=='/assets/brand/20261117/aifect-icon-512.png'?{}:{type:'image/png'})}];
  }
  let shownId=null,lastPosition=0;
  window.addEventListener('aifect-ad-start',()=>{if(web){web.metadata=new MediaMetadata({title:'음성광고',artist:'AIFECT',album:'무료 음악 감상'});try{web.setPositionState();}catch{}web.playbackState='playing';}});
