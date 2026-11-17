@@ -23,7 +23,6 @@ function bindRoomViewport(client){
   if(gift||button.type==='submit')button.innerHTML=roomFilledIcon(gift?'gift':'send');
  }
  const shell=[...document.querySelectorAll('.topbar,.mobile-navigation,#player,.player')];
- const columns=room.querySelector('#voice-content');
  const desktop=window.matchMedia?.('(min-width:801px) and (hover:hover) and (pointer:fine)');
  const write=(node,key,value)=>{if(node?.style.getPropertyValue(key)!==value)node?.style.setProperty(key,value);};
  const measure=()=>{
@@ -49,17 +48,6 @@ function bindRoomViewport(client){
   write(room,'--voice-viewport',Math.max(0,end-start)+'px');
   const pc=!!desktop?.matches&&!window.Capacitor?.isNativePlatform?.();
   room.toggleAttribute?.('data-room-pc-controls',pc);
-  if(pc&&columns&&window.outerHeight>0&&window.outerWidth>0){
-   // Leave the part of the reference window below Y=780 empty. Use the
-   // actual column start and viewport, so title/toolbar heights stay native.
-   const frameWidth=window.outerWidth-innerWidth;
-   const atNaturalWidth=frameWidth>=0&&frameWidth<=24;
-   const viewportScale=atNaturalWidth?1:innerWidth/window.outerWidth;
-   const bottomFrame=atNaturalWidth?frameWidth/2:0;
-   const reserve=(window.outerHeight-780-bottomFrame)*viewportScale;
-   const available=Math.min(end,innerHeight-Math.max(0,reserve))-columns.getBoundingClientRect().top;
-   write(room,'--room-control-height',Math.max(0,available)+'px');
-  }
   if(composerHeight)write(room,'--room-composer',composerHeight+'px');
   const composerTop=composer?.getBoundingClientRect().top??end;
   // Preserve the mobile bottom anchor, but keep short-screen sheets below the
