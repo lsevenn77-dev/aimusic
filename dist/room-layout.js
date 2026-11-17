@@ -48,6 +48,7 @@ function bindRoomViewport(client){
   write(room,'--voice-viewport',Math.max(0,end-start)+'px');
   const pc=!!desktop?.matches&&!window.Capacitor?.isNativePlatform?.();
   room.toggleAttribute?.('data-room-pc-controls',pc);
+  if(pc)write(room,'--room-display-ratio',String(window.devicePixelRatio || 1));
   if(composerHeight)write(room,'--room-composer',composerHeight+'px');
   const composerTop=composer?.getBoundingClientRect().top??end;
   // Preserve the mobile bottom anchor, but keep short-screen sheets below the
