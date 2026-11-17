@@ -13,7 +13,7 @@ final class StreamingUITests: XCTestCase {
         let attachment = XCTAttachment(screenshot: app.screenshot()); attachment.name = name; attachment.lifetime = .keepAlways; add(attachment)
     }
     @MainActor func testBottomTabsReceiveDirectTouchAfterLaunch() {
-        let app = launch()
+        let app = launch(["-home-density"])
         for index in [2, 3, 4, 1, 0, 2] {
             let tab = app.buttons["main-tab-\(index)"]
             XCTAssertTrue(tab.isHittable)
@@ -87,8 +87,77 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(web.buttons["계속하기"].firstMatch.waitForExistence(timeout: 5), app.debugDescription)
         capture(app, "iphone12-real-jump-paused")
     }
+    @MainActor func testChartSwipesAndRetainsPositionAcrossTabs() {
+        let app = launch(["-home-density", "-chart-swipe"])
+        let chartTab = app.buttons["home-section-인기 차트"]
+        capture(app, "build19-chart-before-selection")
+        chartTab.tap()
+        XCTAssertTrue(chartTab.isSelected, app.debugDescription)
+        XCTAssertTrue(app.staticTexts["이번 주 · 1–10위"].waitForExistence(timeout: 10))
+        let pager = app.descendants(matching: .any)["home-chart-pages"].firstMatch
+        pager.swipeLeft()
+        XCTAssertTrue(app.staticTexts["이번 주 · 11–20위"].waitForExistence(timeout: 5))
+        pager.swipeLeft()
+        XCTAssertTrue(app.staticTexts["이번 주 · 21–23위"].waitForExistence(timeout: 5))
+        capture(app, "build19-chart-swiped-last-page")
+        app.buttons["main-tab-3"].tap()
+        XCTAssertFalse(app.buttons["home-section-인기 차트"].isHittable, "Previous tab cannot capture touches")
+        XCTAssertFalse(app.staticTexts["순위 검증 21"].exists, "Previous tab is removed from accessibility")
+        app.buttons["main-tab-0"].tap()
+        XCTAssertTrue(app.staticTexts["이번 주 · 21–23위"].waitForExistence(timeout: 8), "Returning to the tab does not reset the chart")
+        pager.swipeRight()
+        XCTAssertTrue(app.staticTexts["이번 주 · 11–20위"].waitForExistence(timeout: 5))
+        capture(app, "build19-chart-returned-with-position")
+    }
+    @MainActor func testCrewActionsOpenSeparateDestinations() {
+        let app = launch(["-crew-parity"])
+        app.buttons["main-tab-1"].tap(); app.buttons["크루"].firstMatch.tap()
+        let notices = app.buttons["crew-notices-open"]
+        XCTAssertTrue(notices.waitForExistence(timeout: 10))
+        capture(app, "build19-crew-action-links")
+        notices.tap()
+        XCTAssertTrue(app.staticTexts["이번 주 크루 공지"].waitForExistence(timeout: 8))
+        capture(app, "build19-crew-notices"); back(app)
+        app.buttons["crew-membership-open"].tap()
+        XCTAssertTrue(app.staticTexts["내 역할"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["crew-membership-leave"].exists)
+        capture(app, "build19-crew-membership"); back(app)
+        app.buttons["crew-chat-open"].tap()
+        XCTAssertTrue(app.textFields["chat-input"].waitForExistence(timeout: 8) || app.textViews["chat-input"].exists, app.debugDescription)
+        back(app)
+        app.buttons["main-tab-1"].tap()
+        app.buttons["crew-directory-open"].tap()
+        XCTAssertTrue(app.buttons["‹ 내 크루로 돌아가기"].waitForExistence(timeout: 5))
+        capture(app, "build19-crew-directory")
+    }
+    @MainActor func testPlayInboxAndMyFollowAndroidNavigation() {
+        let app = launch()
+        app.buttons["main-tab-2"].tap()
+        XCTAssertTrue(app.buttons["studio-section-인기"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.buttons["studio-section-듀엣 참여"].exists)
+        capture(app, "build19-play-icons")
+        app.buttons["둘러보기"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["browse-section-추천"].exists)
+        capture(app, "build19-browse-icons")
+        app.buttons["main-tab-3"].tap()
+        XCTAssertTrue(app.buttons["inbox-filter-전체"].waitForExistence(timeout: 8))
+        XCTAssertLessThan(app.buttons["inbox-filter-전체"].frame.minY, 65)
+        XCTAssertFalse(app.buttons["메시지 관리"].exists)
+        XCTAssertTrue(app.buttons["새 대화"].exists)
+        capture(app, "build19-message-header")
+        app.buttons["main-tab-4"].tap()
+        XCTAssertTrue(app.buttons["edit-my-profile"].waitForExistence(timeout: 10))
+        let gallery = app.buttons["my-gallery-open"]
+        reveal(gallery, in: app.scrollViews.firstMatch, app: app)
+        capture(app, "build19-my-shelves")
+        gallery.tap()
+        XCTAssertTrue(app.buttons["사진 추가"].waitForExistence(timeout: 8), app.debugDescription)
+        XCTAssertFalse(app.staticTexts["음악 프로필"].exists)
+        capture(app, "build19-my-gallery")
+    }
     @MainActor private func back(_ app: XCUIApplication) { app.navigationBars.buttons.element(boundBy: 0).tap() }
     @MainActor private func reveal(_ element: XCUIElement, in scroll: XCUIElement, app: XCUIApplication, towardTop: Bool = false, hasBottomBar: Bool = true) {
+        let scroll = scroll.isHittable ? scroll : app.scrollViews.allElementsBoundByIndex.first { $0.isHittable && $0.frame.height > 100 } ?? scroll
         let mini = app.buttons["mini-player-collapse"]
         let bottomTab = app.buttons["main-tab-0"]
         for _ in 0..<10 {
@@ -348,7 +417,7 @@ final class StreamingUITests: XCTestCase {
         app.buttons["크루 찾기"].tap()
         XCTAssertTrue(app.textFields["crew-search"].waitForExistence(timeout: 8))
         app.buttons["‹ 내 크루로 돌아가기"].tap()
-        app.buttons["공지 · 채팅 · 크루 관리"].tap()
+        app.buttons["크루 자세히 보기"].tap()
         XCTAssertTrue(app.staticTexts["crew-detail-name"].waitForExistence(timeout: 8))
         back(app)
         app.buttons["랭킹"].tap()
@@ -401,15 +470,15 @@ final class StreamingUITests: XCTestCase {
         app.buttons["main-tab-4"].tap()
         let gifts = app.buttons["my-gift-ranking"]
         XCTAssertTrue(gifts.waitForExistence(timeout: 10))
-        let edit = app.buttons["프로필 수정"]
-        let studio = app.buttons["스튜디오 바로가기"]
-        XCTAssertGreaterThan(studio.frame.width, edit.frame.width)
-        XCTAssertEqual(studio.frame.midY, edit.frame.midY, accuracy: 2)
+        let edit = app.buttons["edit-my-profile"]
+        XCTAssertTrue(edit.isHittable)
+        edit.tap()
+        XCTAssertTrue(app.textFields["profile-name"].waitForExistence(timeout: 5)); back(app)
         capture(app, "my-profile-actions")
         gifts.tap()
         XCTAssertTrue(app.navigationBars["선물 랭킹 TOP 50"].waitForExistence(timeout: 8))
         back(app)
-        app.buttons["계정 관리"].tap()
+        app.buttons["계정 설정"].tap()
         XCTAssertTrue(app.navigationBars["계정"].waitForExistence(timeout: 8))
     }
     @MainActor func testCrewDirectoryForNonmember() {
@@ -425,7 +494,7 @@ final class StreamingUITests: XCTestCase {
             let button = app.buttons[tab].firstMatch
             XCTAssertTrue(button.waitForExistence(timeout: 10)); button.tap(); capture(app, "home-" + tab)
         }
-        for (index, names) in [(1,["라이브","크루","랭킹"]), (2,["노래","더빙","둘러보기"]), (3,["전체","안 읽음","크루","공지"]), (4,["내 작품","내 보관함","인벤토리"])] {
+        for (index, names) in [(1,["라이브","크루","랭킹"]), (2,["노래","더빙","둘러보기"]), (3,["전체","공지","알림"]), (4,["내 작품","내 보관함","인벤토리"])] {
             app.buttons["main-tab-\(index)"].tap()
             for name in names {
                 let button = app.buttons[name].firstMatch
@@ -550,14 +619,13 @@ final class StreamingUITests: XCTestCase {
         app.buttons["내 초안"].tap()
         XCTAssertTrue(app.buttons["이어 편집"].firstMatch.waitForExistence(timeout: 8))
         app.buttons["main-tab-3"].tap()
-        XCTAssertTrue(app.buttons["대화 검색"].waitForExistence(timeout: 5))
-        app.buttons["전체"].firstMatch.tap(); capture(app, "08-messages")
-        app.buttons["대화 검색"].tap(); app.textFields["inbox-search"].tap(); app.textFields["inbox-search"].typeText("채팅")
-        app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "다음에도 같이 불러요")).firstMatch.tap()
+        XCTAssertTrue(app.buttons["inbox-filter-전체"].waitForExistence(timeout: 5))
+        capture(app, "08-messages")
+        app.buttons["inbox-dm-fixture-peer"].tap()
         XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch.waitForExistence(timeout: 10))
         XCTAssertFalse(app.buttons["main-tab-3"].exists)
         back(app)
-        XCTAssertEqual(app.textFields["inbox-search"].value as? String, "채팅")
+        XCTAssertTrue(app.buttons["inbox-filter-전체"].isSelected)
         app.buttons["공지"].tap(); capture(app, "09-notices")
     }
     @MainActor func testNarrowLargeTextAndEmptyLibrary() {
@@ -847,18 +915,16 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Hello [웃음]"].waitForExistence(timeout: 8))
         capture(app, "parity-chat-sticker-message")
         back(app)
-        app.buttons["메시지 관리"].tap(); app.buttons["모두 읽음"].tap()
-        app.buttons["안 읽음"].tap()
-        XCTAssertFalse(app.buttons["inbox-dm-fixture-peer"].exists)
+        app.buttons["inbox-read-all"].tap()
+        XCTAssertTrue(app.buttons["inbox-dm-fixture-peer"].exists)
         XCTAssertTrue(app.buttons["inbox-crew"].exists)
-        app.buttons["전체"].tap()
         app.buttons["새 대화"].tap()
         let search = app.textFields["new-conversation-search"]
         XCTAssertTrue(search.waitForExistence(timeout: 8)); search.tap(); search.typeText("friend")
         let friend = app.buttons["new-conversation-fixture-peer"]
         XCTAssertTrue(friend.waitForExistence(timeout: 8)); capture(app, "parity-new-conversation"); friend.tap()
         XCTAssertTrue(input.waitForExistence(timeout: 8)); back(app); back(app)
-        app.buttons["메시지 관리"].tap(); app.buttons["내 DM 전체 삭제"].tap(); app.buttons["삭제"].tap()
+        app.buttons["inbox-dm-fixture-peer"].press(forDuration: 0.8); app.buttons["삭제"].tap()
         XCTAssertTrue(app.buttons["inbox-crew"].waitForExistence(timeout: 8))
         let gone = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: app.buttons["inbox-dm-fixture-peer"])
         XCTAssertEqual(XCTWaiter.wait(for: [gone], timeout: 8), .completed)
@@ -894,11 +960,13 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["크루 필터"].waitForExistence(timeout: 8))
         capture(app, "parity-crew-filters")
         app.buttons["crew-filter-apply"].tap()
-        let list = app.buttons["크루 목록으로 보기"]
-        reveal(list, in: app.scrollViews.firstMatch, app: app); list.tap()
-        capture(app, "parity-crew-list")
-        app.buttons["크루 카드로 보기"].tap()
-        capture(app, "parity-crew-grid")
+        let crew = app.buttons["crew-card-fixture-crew"]
+        XCTAssertTrue(crew.exists)
+        capture(app, "parity-crew-compact-list")
+        let ranking = app.buttons["crew-directory-ranking"]
+        reveal(ranking, in: app.scrollViews.firstMatch, app: app); ranking.tap()
+        XCTAssertTrue(app.buttons["ranking-category-크루"].waitForExistence(timeout: 8))
+        capture(app, "parity-crew-ranking-destination")
     }
 
 }

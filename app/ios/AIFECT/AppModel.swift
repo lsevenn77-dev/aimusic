@@ -44,9 +44,13 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var navigationPath = NavigationPath()
     @Published var playerPageVisible = false
     func selectTab(_ tab: Int) {
-        navigationPath = NavigationPath()
-        playerPageVisible = false
-        selectedTab = tab
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            if !navigationPath.isEmpty { navigationPath = NavigationPath() }
+            if playerPageVisible { playerPageVisible = false }
+            if selectedTab != tab { selectedTab = tab }
+        }
     }
     @Published var messagePath: [MessageRoute] = []
     func openCrewMessages(id: String, title: String) {

@@ -308,13 +308,14 @@ struct MainBottomBar: View {
 struct StreamingRootHeader: View {
     @EnvironmentObject private var model: AppModel
     @Binding var account: Bool
+    var isHome = true
     var body: some View {
         HStack(spacing: 0) {
-            if model.selectedTab == 0 {
+            if isHome {
                 NavigationLink(value: AppRoute.menu) { AifectWordmark() }.accessibilityLabel("전체 메뉴")
             } else { AifectWordmark() }
             Spacer(minLength: 8)
-            if model.selectedTab == 0 {
+            if isHome {
                 NavigationLink { ActivityHistoryView().streamingPage() } label: { Image(systemName: "bell").frame(width: 44, height: 44) }.accessibilityLabel("알림 기록")
                 NavigationLink { SearchView().navigationTitle("검색").streamingPage() } label: { Image(systemName: "magnifyingglass").frame(width: 44, height: 44) }.accessibilityLabel("검색")
 

@@ -50,10 +50,7 @@ struct CrewHome: View {
             } else if let mine, !browsing {
                 memberHome(id: mine)
             } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    if mine != nil { Button("‹ 내 크루로 돌아가기") { browsing = false }.padding(.horizontal) }
-                    CrewsView()
-                }
+                CrewsView(onBack: mine == nil ? nil : { browsing = false })
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: model.userID) { await load() }
@@ -87,11 +84,12 @@ struct CrewHome: View {
                     ProgressView(value: min(1, max(0, crew.number("progress")))).tint(Brand.aqua)
                 }
                 CatalogTabs(names: ["작품", "멤버", "소개"], selection: $section)
-                HStack {
-                    NavigationLink("공지 · 채팅 · 크루 관리") { CrewPage(id: id).streamingPage() }
-                    Spacer()
-                    Button("크루 찾기") { browsing = true }
-                }.font(.subheadline)
+                HStack(spacing: 0) {
+                    NavigationLink("공지") { CrewNoticesView(id: id).streamingPage() }.accessibilityIdentifier("crew-notices-open")
+                    Button("채팅") { model.openCrewMessages(id: id, title: crew.string("name")) }.accessibilityIdentifier("crew-chat-open")
+                    NavigationLink("크루 관리") { CrewMembershipView(id: id, detail: data) { Task { await load() } }.streamingPage() }.accessibilityIdentifier("crew-membership-open")
+                    Button("크루 찾기") { browsing = true }.accessibilityIdentifier("crew-directory-open")
+                }.font(.system(size: 13)).buttonStyle(CrewActionStyle())
                 switch section {
                 case "멤버":
                     ForEach(data.objects("members"), id: \.selfID) { person in
@@ -131,7 +129,7 @@ struct CrewHome: View {
                         }.buttonStyle(.plain)
                     }
                 }
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(18)
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18).padding(.top, 14).padding(.bottom, 24)
         }.refreshable { await load() }
     }
 
@@ -148,6 +146,91 @@ struct CrewHome: View {
             if mine != id { section = "작품"; browsing = false }
             mine = id; data = result; ready = true; error = nil
         } catch { if !Task.isCancelled, model.userID == owner { self.error = error.localizedDescription } }
+    }
+}
+
+private struct CrewActionStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
+            .foregroundStyle(Brand.pink).opacity(configuration.isPressed ? 0.6 : 1)
+    }
+}
+
+struct CrewNoticesView: View {
+    let id: String
+    @EnvironmentObject private var model: AppModel
+    @State private var data: [String: Any] = [:]
+    @State private var error: String?
+    @State private var loading = true
+    @State private var editing = false
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 14) {
+                if loading && data.isEmpty { ProgressView() }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+                if data.flag("can_manage") { Button("공지 관리") { editing = true }.frame(minHeight: 44) }
+                ForEach(data.objects("items"), id: \.selfID) { item in
+                    VStack(alignment: .leading, spacing: 8) {
+                        if item.flag("is_pinned") { Text("고정 공지").font(.system(size: 12)).foregroundStyle(Brand.pink) }
+                        Text(item.string("title")).font(.system(size: 18, weight: .bold))
+                        HStack { Text(item.string("author_name")); if item.number("created") > 0 { Text(Date(timeIntervalSince1970: item.number("created")), style: .date) } }.font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+                        Text(item.string("body")).font(.system(size: 15)).lineSpacing(6)
+                        ForEach(item.objects("images"), id: \.selfID) { photo in
+                            RemoteArtwork(url: try? Endpoint.url(photo.string("url"))) { $0.resizable().scaledToFit() } placeholder: { Color.clear }
+                        }
+                    }.frame(maxWidth: .infinity, alignment: .leading).padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
+                }
+                if !loading && error == nil && data.objects("items").isEmpty { ContentUnavailableView("등록된 공지가 없어요", systemImage: "megaphone", description: Text("새 공지가 올라오면 여기에 표시돼요.")) }
+            }.padding(18)
+        }.navigationTitle("크루 공지").accessibilityIdentifier("crew-notices-page")
+            .task(id: id + (model.userID ?? "")) { await load() }.refreshable { await load() }
+            .navigationDestination(isPresented: $editing) {
+                if let workspace = SiteWorkspace(crewNotices: id) { WebWorkspacePage(space: workspace) }
+            }.onChange(of: editing) { _, open in if !open { Task { await load() } } }
+    }
+    private func load() async {
+        let owner = model.userID
+        do {
+            let result = try await API.shared.call("/api/crews/\(Endpoint.pathID(id))/notices")
+            guard !Task.isCancelled, owner == model.userID else { return }
+            data = result; error = nil; loading = false
+        } catch { if !Task.isCancelled, owner == model.userID { self.error = error.localizedDescription; loading = false } }
+    }
+}
+
+struct CrewMembershipView: View {
+    let id: String
+    let detail: [String: Any]
+    let onLeft: () -> Void
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var leaving = false
+    @State private var busy = false
+    @State private var error: String?
+    private var role: String { detail.object("membership").string("role") }
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(detail.object("crew").string("name")).font(.system(size: 22, weight: .bold))
+                VStack(spacing: 14) {
+                    HStack { Text("내 역할").foregroundStyle(AifectDesign.muted); Spacer(); Text(["owner":"크루장", "deputy":"부크루장", "operator":"운영자", "manager":"매니저", "member":"크루원"][role] ?? "확인할 수 없음") }
+                    HStack { Text("가입일").foregroundStyle(AifectDesign.muted); Spacer(); if detail.object("membership").number("joined") > 0 { Text(Date(timeIntervalSince1970: detail.object("membership").number("joined")), style: .date) } else { Text("확인할 수 없음") } }
+                }.padding(16).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
+                if role == "owner" { Text("크루장을 위임한 후 탈퇴할 수 있어요.").foregroundStyle(AifectDesign.muted) }
+                Button("크루 탈퇴") { leaving = true }.buttonStyle(ParityPill()).disabled(busy || role.isEmpty || role == "owner").accessibilityIdentifier("crew-membership-leave")
+                if let error { Text(error).foregroundStyle(AifectDesign.muted) }
+            }.padding(18)
+        }.navigationTitle("크루 관리").accessibilityIdentifier("crew-membership-page")
+            .confirmationDialog("크루를 탈퇴할까요?", isPresented: $leaving, titleVisibility: .visible) { Button("탈퇴", role: .destructive) { Task { await leave() } } } message: { Text(detail.object("crew").string("name") + "에서 탈퇴합니다.") }
+    }
+    private func leave() async {
+        guard let account = model.userID, !busy, !role.isEmpty, role != "owner" else { return }
+        busy = true; defer { busy = false }
+        do {
+            _ = try await API.shared.call("/api/crews/\(Endpoint.pathID(id))/leave", method: "POST")
+            guard account == model.userID else { return }
+            await model.refreshInbox(); model.profileRevision += 1; onLeft(); dismiss()
+        } catch { if account == model.userID { self.error = error.localizedDescription } }
     }
 }
 

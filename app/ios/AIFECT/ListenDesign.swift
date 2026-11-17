@@ -2,11 +2,11 @@ import SwiftUI
 
 struct ListenView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var page = "추천"
+    @Binding var page: String
     @State private var detail: Song?
-    @State private var chartPage = 0
+    @Binding var chartPage: Int
     @State private var weeklyChart: [Song] = []
-    @State private var homeSection: String? = "추천"
+    @Binding var homeSection: String?
     @State private var homeWidth: CGFloat = 362
     @State private var promotion: HomePromotion?
     @State private var coverURL: URL?
@@ -15,6 +15,14 @@ struct ListenView: View {
     @State private var people: [[String: Any]] = []
     @State private var covers: [Song] = []
     @State private var discoveryError: String?
+    @State private var shelvesLoaded: Date?
+    init(page: Binding<String>, chartPage: Binding<Int>, homeSection: Binding<String?>) {
+        _page = page; _chartPage = chartPage; _homeSection = homeSection
+        _weeklyChart = State(initialValue: API.shared.peek("/api/catalog?section=tracks&chart=top&period=week")?.songs() ?? [])
+        _covers = State(initialValue: Array((API.shared.peek("/api/community?kind=cover")?.songs() ?? []).prefix(10)))
+        _publicLists = State(initialValue: Array((API.shared.peek("/api/playlists?sort=popular")?.objects("playlists") ?? []).filter { $0.int("tracks") > 0 }.prefix(10)))
+        _people = State(initialValue: Array((API.shared.peek("/api/catalog?section=producers&limit=30")?.objects("producers") ?? []).prefix(12)))
+    }
     var body: some View {
         VStack(spacing: 0) {
             if page == "추천" {
@@ -33,8 +41,9 @@ struct ListenView: View {
             if page == "발견" { SearchView(discovery: true, onPopularChart: { page = "차트" }) }
             else if page == "차트" { PopularChartView() }
             else {
+                ScrollViewReader { proxy in
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 12) {
                         if let error = model.error { RetryCard(message: error) { Task { await model.refresh() } } }
                         if page == "추천" { recommended }
                         else {
@@ -48,8 +57,15 @@ struct ListenView: View {
                         }
                         if model.loading && model.latest.isEmpty { ProgressView("음악을 불러오는 중").frame(maxWidth: .infinity).padding(44) }
                         else if model.latest.isEmpty && model.error == nil { ContentUnavailableView("새로운 음악을 기다려요", systemImage: "music.note") }
-                    }.scrollTargetLayout().padding(.horizontal, 14).padding(.top, 4).padding(.bottom, 24)
-                }.scrollPosition(id: $homeSection, anchor: .top).accessibilityIdentifier("listen-scroll").id(page).refreshable { await model.refresh(); await model.loadLibrary(); await loadShelves() }
+                    }.padding(.horizontal, 14).padding(.top, 4).padding(.bottom, 24)
+                }.accessibilityIdentifier("listen-scroll").id(page).refreshable { await model.refresh(); await model.loadLibrary(); await loadShelves(force: true) }
+                    .onChange(of: homeSection) { _, section in
+                        withAnimation(.easeInOut(duration: 0.22)) { proxy.scrollTo(section ?? "추천", anchor: .top) }
+                    }
+                    .task(id: weeklyChart.count) {
+                        if page == "추천" { proxy.scrollTo(homeSection ?? "추천", anchor: .top) }
+                    }
+                }
             }
         }.background {
             if page == "추천" {
@@ -110,7 +126,7 @@ struct ListenView: View {
         ForEach(sections, id: \.self) { section in
             VStack(alignment: .leading, spacing: section == "추천" ? 0 : 10) { homeContent(section) }.id(section)
         }
-        if let discoveryError { RetryCard(message: discoveryError) { Task { await loadShelves() } } }
+        if let discoveryError { RetryCard(message: discoveryError) { Task { await loadShelves(force: true) } } }
     }
     @ViewBuilder private func homeContent(_ section: String) -> some View {
         let releases = model.latest.isEmpty ? model.chart : model.latest
@@ -128,7 +144,21 @@ struct ListenView: View {
                     Button { chartPage = max(0, chartPage - 1) } label: { Image(systemName: "chevron.left").frame(width: 44, height: 44) }.disabled(chartPage == 0).accessibilityLabel("이전 10곡")
                     Button { chartPage += 1 } label: { Image(systemName: "chevron.right").frame(width: 44, height: 44) }.disabled(start + 10 >= weeklyChart.count).accessibilityLabel("다음 10곡")
                 }
-                VStack(spacing: 0) { ForEach(Array(weeklyChart.dropFirst(start).prefix(10).enumerated()), id: \.element.id) { offset, song in HomeTrackRow(song: song, queue: weeklyChart, player: model.player, rank: start + offset + 1) } }.accessibilityIdentifier("home-chart-pages")
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 0) {
+                    ForEach(0..<max(1, (weeklyChart.count + 9) / 10), id: \.self) { page in
+                        VStack(spacing: 0) {
+                            ForEach(Array(weeklyChart.dropFirst(page * 10).prefix(10).enumerated()), id: \.element.id) { offset, song in
+                                HomeTrackRow(song: song, queue: weeklyChart, player: model.player, rank: song.chartRank ?? page * 10 + offset + 1)
+                            }
+                            Spacer(minLength: 0)
+                        }.containerRelativeFrame(.horizontal).id(page).accessibilityIdentifier("home-chart-page-\(page)")
+                    }
+                    }.scrollTargetLayout()
+                }.scrollTargetBehavior(.paging)
+                    .scrollPosition(id: Binding<Int?>(get: { chartPage }, set: { if let page = $0 { chartPage = page } }))
+                    .frame(height: CGFloat(min(10, weeklyChart.count)) * 66).clipped().contentShape(Rectangle())
+                    .accessibilityIdentifier("home-chart-pages")
             } else { Text("아직 집계된 곡이 없어요.").font(.subheadline).foregroundStyle(AifectDesign.muted) }
         case "최신곡":
             HStack { Text("최신곡").font(.headline); Spacer(); Button("모두 보기") { page = "최신곡" }.font(.caption).frame(minHeight: 44) }
@@ -166,14 +196,15 @@ struct ListenView: View {
             ScrollView(.horizontal, showsIndicators: false) { HStack(spacing: 12) { ForEach(people, id: \.selfID) { person in NavigationLink { ProfilePage(id: person.selfID).streamingPage() } label: { CreatorPreviewCard(person: person) }.buttonStyle(.plain) } } }
         }
     }
-    private func loadShelves() async {
+    private func loadShelves(force: Bool = false) async {
+        if !force, let shelvesLoaded, Date().timeIntervalSince(shelvesLoaded) < 30 { return }
         let owner = model.userID
         await withTaskGroup(of: (String, [String: Any]?).self) { group in
             var paths = ["/api/catalog?section=tracks&chart=top&period=week", "/api/community?kind=cover", "/api/playlists?sort=popular", "/api/discovery/profiles?kind=artist&sort=popular", "/api/catalog?section=producers&limit=30"].makeIterator()
-            for _ in 0..<2 { if let path = paths.next() { group.addTask { (path, try? await API.shared.call(path)) } } }
+            for _ in 0..<2 { if let path = paths.next() { group.addTask { (path, try? await API.shared.call(path, fresh: force)) } } }
             var failed = false
             for await (path, result) in group {
-                if !Task.isCancelled, let next = paths.next() { group.addTask { (next, try? await API.shared.call(next)) } }
+                if !Task.isCancelled, let next = paths.next() { group.addTask { (next, try? await API.shared.call(next, fresh: force)) } }
                 guard !Task.isCancelled, owner == model.userID else { continue }
                 guard let result else { failed = true; continue }
                 if path.contains("period=week") { weeklyChart = result.songs(); chartPage = min(chartPage, max(0, (weeklyChart.count - 1) / 10)) }
@@ -182,7 +213,10 @@ struct ListenView: View {
                 else if path.hasPrefix("/api/discovery") { artists = Array(result.objects("profiles").prefix(12)) }
                 else { people = Array(result.objects("producers").prefix(12)) }
             }
-            if !Task.isCancelled, owner == model.userID { discoveryError = failed ? "일부 추천 목록을 불러오지 못했어요." : nil }
+            if !Task.isCancelled, owner == model.userID {
+                discoveryError = failed ? "일부 추천 목록을 불러오지 못했어요." : nil
+                if !failed { shelvesLoaded = Date() }
+            }
         }
     }
 }
@@ -243,7 +277,8 @@ struct HomePromotionCarousel: View {
     @State private var index = 0
     @State private var width: CGFloat = 362
     var body: some View {
-        TabView(selection: $index) {
+        ScrollView(.horizontal, showsIndicators: false) {
+            LazyHStack(spacing: 0) {
             ForEach(Array(HomePromotion.all.enumerated()), id: \.element.id) { offset, item in
                 Button { open(item) } label: {
                     ZStack(alignment: .leading) {
@@ -257,9 +292,13 @@ struct HomePromotionCarousel: View {
                             Text(item.headline).font(.system(size: 18, weight: .bold)).lineSpacing(2).lineLimit(3)
                         }.padding(.leading, 16).padding(.trailing, 4).padding(.bottom, 6).frame(width: width * 0.63, alignment: .leading)
                     }.foregroundStyle(.white).clipShape(RoundedRectangle(cornerRadius: 6)).contentShape(Rectangle())
-                }.buttonStyle(.plain).accessibilityIdentifier("home-promotion-" + item.id).tag(offset)
+                }.buttonStyle(.plain).frame(width: width, height: max(142, width / 2.45))
+                    .accessibilityIdentifier("home-promotion-" + item.id).id(offset)
             }
-        }.tabViewStyle(.page(indexDisplayMode: .never)).frame(height: max(142, width / 2.45))
+            }.scrollTargetLayout()
+        }.scrollTargetBehavior(.paging)
+            .scrollPosition(id: Binding<Int?>(get: { index }, set: { if let value = $0 { index = value } }))
+            .frame(height: max(142, width / 2.45)).clipped().contentShape(Rectangle())
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
             .onChange(of: index, initial: true) { _, value in coverURL = HomePromotion.all[value].url }
             .overlay(alignment: .bottom) { HStack(spacing: 5) { ForEach(HomePromotion.all.indices, id: \.self) { n in Circle().fill(.white.opacity(index == n ? 1 : 0.45)).frame(width: 5, height: 5) } }.padding(.bottom, 9).allowsHitTesting(false) }

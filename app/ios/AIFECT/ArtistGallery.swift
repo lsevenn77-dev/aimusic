@@ -4,10 +4,10 @@ import PhotosUI
 struct ArtistGalleryPhoto: Identifiable, Hashable {
     let id: String
     let url: URL
-    init?(_ value: [String: Any]) {
+    init?(_ value: [String: Any], kind: String = "artist") {
         let id = value.string("id")
         guard !id.isEmpty, let url = try? Endpoint.url(value.string("url")),
-              url.path == "/media/artist-gallery/\(id)" else { return nil }
+              url.path == "/media/\(kind == "producer" ? "profile" : "artist")-gallery/\(id)" else { return nil }
         self.id = id; self.url = url
     }
 }
@@ -17,12 +17,13 @@ struct ArtistGallerySection: View {
     let artistID: String
     let profile: [String: Any]
     let reload: () async -> Void
+    var kind = "artist"
     @State private var picked: PhotosPickerItem?
     @State private var enlarged: ArtistGalleryPhoto?
     @State private var removal: ArtistGalleryPhoto?
     @State private var busy = false
     @State private var error: String?
-    private var photos: [ArtistGalleryPhoto] { profile.objects("gallery").compactMap(ArtistGalleryPhoto.init) }
+    private var photos: [ArtistGalleryPhoto] { profile.objects("gallery").compactMap { ArtistGalleryPhoto($0, kind: kind) } }
     private var canManage: Bool { model.userID != nil && profile.flag("can_manage") }
     private var limit: Int { min(30, max(1, profile.int("gallery_limit") == 0 ? 30 : profile.int("gallery_limit"))) }
     var body: some View {
@@ -57,7 +58,7 @@ struct ArtistGallerySection: View {
                           let raw = try await item.loadTransferable(type: Data.self) else { return }
                     let bytes = try ChatImageEncoder.encode(raw)
                     guard owner == model.userID, !Task.isCancelled else { return }
-                    _ = try await API.shared.request("/api/artists/\(Endpoint.pathID(artistID))/gallery", method: "PUT", bytes: bytes, type: "image/webp")
+                    _ = try await API.shared.request("/api/\(kind)s/\(Endpoint.pathID(artistID))/gallery", method: "PUT", bytes: bytes, type: "image/webp")
                     guard owner == model.userID else { return }
                     error = nil; await reload()
                 } catch { self.error = error.localizedDescription }
@@ -81,9 +82,42 @@ struct ArtistGallerySection: View {
         guard canManage, let owner = model.userID, !busy else { return }
         busy = true; defer { busy = false; removal = nil }
         do {
-            _ = try await API.shared.call("/api/artists/\(Endpoint.pathID(artistID))/gallery/\(Endpoint.pathID(photo.id))", method: "DELETE")
+            _ = try await API.shared.call("/api/\(kind)s/\(Endpoint.pathID(artistID))/gallery/\(Endpoint.pathID(photo.id))", method: "DELETE")
             guard owner == model.userID else { return }
             error = nil; await reload()
         } catch { self.error = error.localizedDescription }
+    }
+}
+
+struct ProfileGalleryPage: View {
+    let id: String
+    @EnvironmentObject private var model: AppModel
+    @State private var data: [String: Any] = [:]
+    @State private var error: String?
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                ArtistGallerySection(artistID: id, profile: data, reload: load, kind: "producer")
+                if let error { RetryCard(message: error) { Task { await load() } } }
+            }.padding(20)
+        }.navigationTitle("갤러리").accessibilityIdentifier("my-gallery-page").task(id: id + (model.userID ?? "")) { await load() }
+    }
+    private func load() async {
+        let owner = model.userID
+        do {
+            let value = try await API.shared.call("/api/producers/\(Endpoint.pathID(id))/gallery")
+            guard !Task.isCancelled, model.userID == owner else { return }
+            data = ["gallery": value.objects("photos"), "can_manage": value.flag("can_manage"), "gallery_limit": value.int("limit")]
+            error = nil; model.profileRevision += 1
+        } catch { if !Task.isCancelled, model.userID == owner { self.error = error.localizedDescription } }
+    }
+}
+
+struct ProfileImagePage: View {
+    let title: String
+    let url: URL?
+    var body: some View {
+        RemoteArtwork(url: url, maxPixelSize: 1600) { $0.resizable().scaledToFit() } placeholder: { Image(systemName: "person.crop.circle").font(.system(size: 100)).foregroundStyle(AifectDesign.muted) }
+            .frame(maxWidth: .infinity, maxHeight: .infinity).background(Brand.background).navigationTitle(title).navigationBarTitleDisplayMode(.inline)
     }
 }

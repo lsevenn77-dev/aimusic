@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LiveCommunity: View {
     @EnvironmentObject private var model: AppModel
-    @State private var tab = "라이브"
+    @Binding var tab: String
     @State private var space: SiteWorkspace?
     var body: some View {
         VStack(spacing: 0) {
@@ -245,7 +245,7 @@ private struct RoomChoiceSegments: View {
     }
 }
 
-private struct CommunityRankings: View {
+struct CommunityRankings: View {
     @Binding var space: SiteWorkspace?
     @EnvironmentObject private var model: AppModel
     @State private var crews: [String: [String: Any]] = [:]
@@ -256,6 +256,9 @@ private struct CommunityRankings: View {
     @State private var rows: [[String: Any]] = []
     @State private var error: String?
     @State private var loading = true
+    init(space: Binding<SiteWorkspace?>, initialCategory: String = "작품") {
+        _space = space; _category = State(initialValue: initialCategory)
+    }
     private let names = ["작품","AI 아티스트","크루","더빙"]
     private var path: String {
         let key = ["작품":"work","AI 아티스트":"aiArtist","크루":"crew","더빙":"dubbing"][category] ?? "work"

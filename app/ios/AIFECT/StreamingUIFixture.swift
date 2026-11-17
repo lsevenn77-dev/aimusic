@@ -67,7 +67,9 @@ enum StreamingUIFixture {
         case "/api/me": result = ["user": args.contains("-streaming-guest") ? NSNull() : ["id": "fixture-user", "name": "검증 계정"], "providers": ["google", "apple", "kakao"]]
         case "/api/catalog", "/api/search":
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems ?? []
-            if query.contains(where: { $0.name == "section" && $0.value == "producers" }) || path == "/api/search" {
+            if args.contains("-chart-swipe"), query.contains(where: { $0.name == "period" && $0.value == "week" }) {
+                result = ["tracks": (1...23).map { n in original.merging(["id": "swipe-\(n)", "title": "순위 검증 \(n)", "chart_rank": n]) { _, value in value } }]
+            } else if query.contains(where: { $0.name == "section" && $0.value == "producers" }) || path == "/api/search" {
                 result = ["producers": [["id": "fixture-peer", "user_id": "peer-user", "name": "선물 받을 친구"]]]
             } else if args.contains("-home-density") { result = ["tracks": (0..<5).map { n in original.merging(["id": "density-\(n)", "title": ["한 입만", "DDALGAK", "별일 아닌 것처럼", "어서 오세요", "휴먼 에러"][n], "producer": ["유이현", "Sasha Lindqvist", "Vibe", "MC.AI", "MC.AI"][n], "plays": 10 + n, "likes": n, "comments": n]) { _, value in value } }]
             } else { result = ["tracks": args.contains("-playlist-management") || query.contains(where: { $0.name == "chart" && $0.value == "newcomers" }) ? [original, cover] : [original], "chart": ["comparison": ["available": true]]] }
@@ -108,7 +110,9 @@ enum StreamingUIFixture {
         case "/api/crews/fixture-crew" where args.contains("-crew-parity"):
             result = ["crew": FeedbackURLProtocol.crew.merging(["progress": 0.35]) { _, value in value },
                       "tracks": [original, cover], "members": [["id": "fixture-peer", "name": "봄밤", "role": "owner"]],
-                      "membership": ["role": "member"]]
+                      "membership": ["role": "member", "joined": 1_790_000_000]]
+        case "/api/crews/fixture-crew/notices":
+            result = ["can_manage": false, "items": [["id": "fixture-notice", "title": "이번 주 크루 공지", "body": "공지 전용 화면 연결을 확인합니다.", "author_name": "크루장", "created": 1_790_000_000, "is_pinned": true]]]
         case "/api/crews/fixture-crew/games" where args.contains("-crew-parity"):
             result = ["games": CrewGame.allCases.map { ["id": $0.rawValue, "route": "game/\($0.rawValue)/fixture-crew"] }]
         case "/api/dubbing/projects/fixture-project/claims/guide" where request.httpMethod == "DELETE":
@@ -190,6 +194,7 @@ enum StreamingUIFixture {
         case "/api/tracks/fixture-original/like": liked = request.httpMethod != "DELETE"; result = ["ok": true]
         case "/api/tracks/fixture-original": result = ["track": original]
         case "/api/tracks/fixture-duet": result = ["track": cover]
+        case "/api/dm/fixture-peer" where request.httpMethod == "DELETE": dmCleared = true; result = ["ok": true]
         case "/api/dm/read-all": dmRead = true; result = ["ok": true]
         case "/api/dm":
             if request.httpMethod == "DELETE" { dmCleared = true; result = ["ok": true] }
@@ -198,6 +203,7 @@ enum StreamingUIFixture {
         case "/api/notifications": result = ["items": [["id": "fixture-notification", "actor_name": "듀엣 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": "duet", "source_title": "검증용 밤의 산책", "target": "fixture-duet", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": 0]], "unread": 1]
         case "/api/notifications/read": result = ["ok": true]
         case "/api/producers/fixture-own-profile": result = ["profile": ["id": "fixture-own-profile", "name": "검증 계정"], "tracks": [original], "covers": [cover]]
+        case "/api/producers/fixture-own-profile/gallery": result = ["photos": [], "can_manage": true, "limit": 30]
         default: return nil
         }
         return (status, "application/json", (try? JSONSerialization.data(withJSONObject: result)) ?? Data())

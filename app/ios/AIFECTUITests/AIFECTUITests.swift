@@ -32,7 +32,7 @@ final class AIFECTUITests: XCTestCase {
 
         app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
         if app.buttons["크루 찾기"].waitForExistence(timeout: 5) { app.buttons["크루 찾기"].tap() }
-        let crew = app.buttons["crew-featured-fixture-crew"]
+        let crew = app.buttons["crew-card-fixture-crew"]
         XCTAssertTrue(crew.waitForExistence(timeout: 8)); crew.tap()
         let entry = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "크루 채팅방")).firstMatch
         // SwiftUI reports a partially visible row as hittable even under the
@@ -354,7 +354,7 @@ final class AIFECTUITests: XCTestCase {
         let myShot = XCTAttachment(screenshot: app.screenshot()); myShot.name = "My profile settings and balances"; myShot.lifetime = .keepAlways; add(myShot)
         app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
         if app.buttons["크루 찾기"].waitForExistence(timeout: 5) { app.buttons["크루 찾기"].tap() }
-        XCTAssertTrue(app.buttons["crew-featured-fixture-crew"].waitForExistence(timeout: 10)); app.buttons["crew-featured-fixture-crew"].tap()
+        XCTAssertTrue(app.buttons["crew-card-fixture-crew"].waitForExistence(timeout: 10)); app.buttons["crew-card-fixture-crew"].tap()
         XCTAssertTrue(app.staticTexts["crew-detail-name"].waitForExistence(timeout: 10))
         let crewShot = XCTAttachment(screenshot: app.screenshot()); crewShot.name = "Crew hero and experience"; crewShot.lifetime = .keepAlways; add(crewShot)
         let content = app.scrollViews["crew-content"]

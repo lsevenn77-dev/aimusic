@@ -114,6 +114,10 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var account = false
     @State private var keyboardVisible = false
+    @State private var homePage = "추천"
+    @State private var homeChartPage = 0
+    @State private var homeSection: String? = "추천"
+    @State private var communityTab = "라이브"
     private var integrationEnabled: Bool {
         #if DEBUG
         return !FeedbackUIFixture.enabled
@@ -123,14 +127,19 @@ struct RootView: View {
     }
     @ObservedObject private var push = PushNotifications.shared
     var body: some View {
+        VStack(spacing: 0) {
         NavigationStack(path: $model.navigationPath) {
-            TabView(selection: $model.selectedTab) {
-                page { ListenView() }.tag(0)
-                page { LiveCommunity() }.tag(1)
-                page { MobilePlayView() }.tag(2)
-                page { MessagesView() }.tag(3)
-                page { MyMusicView() }.tag(4)
-            }
+            // Only the active page is mounted. UIKit-backed scroll/paging views
+            // must leave the hierarchy to avoid stale hit targets and tab snapshots.
+            page(tab: model.selectedTab) {
+                switch model.selectedTab {
+                case 0: ListenView(page: $homePage, chartPage: $homeChartPage, homeSection: $homeSection)
+                case 1: LiveCommunity(tab: $communityTab)
+                case 2: MobilePlayView()
+                case 3: MessagesView()
+                default: MyMusicView()
+                }
+            }.animation(nil, value: model.selectedTab)
             .toolbar(.hidden, for: .tabBar)
             .navigationTitle("").navigationBarTitleDisplayMode(.inline)
             .toolbar(.hidden, for: .navigationBar)
@@ -147,13 +156,12 @@ struct RootView: View {
                 ChatPage(path: route.crew ? "/api/crews/\(Endpoint.pathID(route.id))/messages" : "/api/dm/\(Endpoint.pathID(route.id))", title: route.title, crew: route.crew).streamingPage()
             }
             .navigationDestination(isPresented: $account) { AccountView().streamingPage() }
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
+        }.clipped().zIndex(0)
             if !keyboardVisible && !model.chatOpen && model.visibleWorkspaces.isEmpty {
                 VStack(spacing: 0) {
                     if !model.playerPageVisible { MiniPlayer(player: model.player) }
                     MainBottomBar(selection: $model.selectedTab)
-                }.background(Brand.background)
+                }.background(Brand.background).zIndex(1)
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: UIScene.didEnterBackgroundNotification)) { _ in
@@ -183,11 +191,12 @@ struct RootView: View {
             try? await model.loadMe()
         }
     }
-    private func page<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+    private func page<Content: View>(tab: Int, @ViewBuilder content: () -> Content) -> some View {
         VStack(spacing: 0) {
-            if model.selectedTab == 0 || model.selectedTab == 4 { StreamingRootHeader(account: $account) }
+            if tab == 0 || tab == 4 { StreamingRootHeader(account: $account, isHome: tab == 0) }
             content().id(model.userID ?? "guest")
-        }.scrollContentBackground(.hidden).background { CatalogBackdrop() }
+        }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).clipped().contentShape(Rectangle())
+            .scrollContentBackground(.hidden).background { CatalogBackdrop() }.background(Brand.background)
             // Each tab supplies its own preference; applying this only to the
             // TabView can leave the system tab bar's touch surface over our bar.
             .toolbar(.hidden, for: .tabBar)

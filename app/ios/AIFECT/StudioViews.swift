@@ -522,7 +522,8 @@ struct MobilePlayView: View {
     var body: some View {
         VStack(spacing: 0) {
             CatalogTabs(names: ["노래","더빙","둘러보기"], selection: $mode)
-            if mode != "더빙" { StudioSectionTabs(names: sections, selection: $section).padding(.horizontal, 12).padding(.vertical, 8) }
+            if mode == "노래" { StudioSectionTabs(names: sections, selection: $section).padding(.horizontal, 12).padding(.vertical, 8) }
+            else if mode == "둘러보기" { PlayDiscoveryTabs(names: sections, selection: $section).padding(.horizontal, 16).padding(.vertical, 7) }
             if mode == "더빙" { DubbingDiscoveryView(initialSection: section) }
             else if gated { LoginPrompt(title: "로그인하고 내 작업을 이어가세요."); Spacer() }
             else if section == "내 초안" { RecordingDraftsView() }

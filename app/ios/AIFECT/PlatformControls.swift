@@ -64,9 +64,14 @@ struct SiteWorkspace: Identifiable, Hashable {
     let title: String
     var id: String { area + "/" + key }
     var path: String {
+        if area == "crew-notices" { return "/#crew/" + key + "?tab=notice" }
         if area == "game/jump" { return "/#crew-jump/" + key }
         if area.hasPrefix("game/") { return "/crew-" + area.dropFirst(5) + "/?crew=" + key + "&from=crew" }
         return "/#" + id
+    }
+    init?(crewNotices id: String) {
+        guard Self.validKey(id) else { return nil }
+        area = "crew-notices"; key = id; title = "공지 관리"
     }
     init?(game: CrewGame, crew: String, route: String) {
         guard route == "game/" + game.rawValue + "/" + crew, Self.validKey(crew) else { return nil }
@@ -339,16 +344,40 @@ struct ChartFilterTabs: View {
 struct StudioSectionTabs: View {
     let names: [String]
     @Binding var selection: String
+    static func icon(_ name: String) -> String? {
+        ["인기": "trophy", "장르": "square.grid.2x2", "신규": "sparkles", "최신": "sparkles", "듀엣 참여": "person.2", "내 초안": "pencil"][name]
+    }
     var body: some View {
         HStack(spacing: 0) {
             ForEach(names, id: \.self) { name in
                 Button { selection = name } label: {
-                    Text(name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.85)
+                    HStack(spacing: 3) {
+                        if let icon = Self.icon(name) { Image(systemName: icon).font(.system(size: 16)).accessibilityIdentifier("studio-icon-" + name) }
+                        Text(name).font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.85)
+                    }
                         .frame(maxWidth: .infinity, minHeight: 44)
                         .foregroundStyle(selection == name ? Color(aifectHex: 0x20172B) : AifectDesign.secondaryText)
                         .background(selection == name ? Color(aifectHex: 0xD7B8EF) : .clear, in: Capsule())
-                }.buttonStyle(.plain).accessibilityAddTraits(selection == name ? .isSelected : [])
+                }.buttonStyle(.plain).accessibilityLabel(name).accessibilityIdentifier("studio-section-" + name).accessibilityAddTraits(selection == name ? .isSelected : [])
             }
         }.padding(2).background(Brand.card, in: Capsule()).overlay(Capsule().stroke(AifectDesign.stroke))
+    }
+}
+
+struct PlayDiscoveryTabs: View {
+    let names: [String]
+    @Binding var selection: String
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(names, id: \.self) { name in
+                Button { selection = name } label: {
+                    VStack(spacing: 2) {
+                        Image("Orbit-" + (["추천":"recommended", "팔로잉":"following", "인기":"popular", "최신":"latest"][name] ?? "recommended")).resizable().frame(width: 30, height: 30)
+                        Text(name).font(.system(size: 12, weight: selection == name ? .bold : .medium))
+                        Circle().fill(selection == name ? AifectDesign.violet : .clear).frame(width: 4, height: 4)
+                    }.frame(maxWidth: .infinity, minHeight: 62).foregroundStyle(selection == name ? Brand.pink : AifectDesign.secondaryText)
+                }.buttonStyle(.plain).accessibilityLabel(name).accessibilityIdentifier("browse-section-" + name).accessibilityAddTraits(selection == name ? .isSelected : [])
+            }
+        }
     }
 }

@@ -269,6 +269,38 @@ final class OctoberParityTests: XCTestCase {
         XCTAssertEqual(photo.url.query, "v=current")
         XCTAssertNil(ArtistGalleryPhoto(["id": "one", "url": "https://example.com/one"]))
         XCTAssertNil(ArtistGalleryPhoto(["id": "one", "url": "/media/artist-gallery/two?v=current"]))
+        XCTAssertNotNil(ArtistGalleryPhoto(["id": "one", "url": "/media/profile-gallery/one?v=2"], kind: "producer"))
+        XCTAssertNil(ArtistGalleryPhoto(["id": "one", "url": "/media/artist-gallery/one?v=2"], kind: "producer"))
+    }
+
+    @MainActor func testConcurrentListReadsShareRequestButMutationsAndAccountsInvalidateIt() async throws {
+        let client = api()
+        let lock = NSLock()
+        var calls = 0
+        MockURLProtocol.handler = { _ in
+            lock.lock(); calls += 1; lock.unlock()
+            Thread.sleep(forTimeInterval: 0.05)
+            return (200, Data("{\"tracks\":[]}".utf8))
+        }
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for _ in 0..<12 { group.addTask { _ = try await client.call("/api/catalog?section=tracks", fresh: true) } }
+            try await group.waitForAll()
+        }
+        XCTAssertEqual(calls, 1)
+        _ = try await client.call("/api/catalog?section=tracks")
+        XCTAssertEqual(calls, 1)
+        _ = try await client.call("/api/tracks/fixture/like", method: "PUT")
+        _ = try await client.call("/api/catalog?section=tracks")
+        XCTAssertEqual(calls, 3)
+        client.clearSession()
+        XCTAssertNil(client.peek("/api/catalog?section=tracks"))
+        _ = try await client.call("/api/catalog?section=tracks")
+        XCTAssertEqual(calls, 4)
+    }
+
+    func testCrewNoticeManagementUsesOnlyValidatedCrewDestination() {
+        XCTAssertEqual(SiteWorkspace(crewNotices: "crew_1")?.path, "/#crew/crew_1?tab=notice")
+        for id in ["", "../other", "crew?tab=other", "https://other.test"] { XCTAssertNil(SiteWorkspace(crewNotices: id)) }
     }
 
     func testExistingRecordingSongDecodesWithoutNewDesignMetadata() throws {

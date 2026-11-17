@@ -75,7 +75,8 @@ final class API {
     private var generation = 0
     private var readGeneration = 0
     private var reads: [String: (data: Data, at: Date)] = [:]
-    func invalidateReads() { readGeneration += 1; reads.removeAll() }
+    private var pendingReads: [String: Task<Data, Error>] = [:]
+    func invalidateReads() { readGeneration += 1; reads.removeAll(); pendingReads.removeAll() }
     func peek(_ path: String) -> [String: Any]? {
         guard ReadPolicy.ttl(path) != nil, let entry = reads[path], Date().timeIntervalSince(entry.at) < 90 else { return nil }
         return try? JSONSerialization.jsonObject(with: entry.data) as? [String: Any]
@@ -108,7 +109,19 @@ final class API {
         let revision = readGeneration
         let bytes = try body.map { try JSONSerialization.data(withJSONObject: $0) }
         do {
-            let data = try await request(path, method: method, bytes: bytes, type: "application/json")
+            let data: Data
+            if ttl != nil {
+                let key = "\(revision):\(path)"
+                if let pending = pendingReads[key] { data = try await pending.value }
+                else {
+                    let pending = Task { try await self.request(path, method: method, bytes: bytes, type: "application/json") }
+                    pendingReads[key] = pending
+                    defer { pendingReads[key] = nil }
+                    data = try await pending.value
+                }
+                try Task.checkCancellation()
+                guard revision == readGeneration else { throw CancellationError() }
+            } else { data = try await request(path, method: method, bytes: bytes, type: "application/json") }
             guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 throw APIError(status: 0, message: "서버 응답을 읽지 못했습니다.")
             }
