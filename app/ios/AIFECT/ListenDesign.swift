@@ -257,7 +257,10 @@ struct HomePromotion: Identifiable, Hashable {
     let id: String
     let title: String
     let headline: String
-    var url: URL? { CatalogArtwork.url("/assets/home-banners/\(id == "crew" ? "seamless-20261109" : "mobile-20261109")/\(id)-768.webp") }
+    var url: URL? {
+        if id == "crew" { return CatalogArtwork.url("/assets/home-banners/rooms-20261117/crew-native-980.webp") }
+        return CatalogArtwork.url("/assets/home-banners/mobile-20261109/\(id)-768.webp")
+    }
     static let all = [
         HomePromotion(id: "studio", title: "스튜디오", headline: "내 제작곡을 올려보세요"),
         HomePromotion(id: "play", title: "플레이", headline: "마음에 드는 노래를 불러보세요"),
