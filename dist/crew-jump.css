@@ -41,7 +41,7 @@ html:has(#aifect-mobile-experience) .jump-club:has(.jump-lobby:not([hidden]))>.j
 html:has(#aifect-mobile-experience) .jump-club:has(.jump-lobby:not([hidden]))>.jump-heading>:is(a,b) {display:none}
 html:has(#aifect-mobile-experience) .jump-heading [data-rules] {background:#19172ee8}
 .jump-lobby {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.12fr);
- grid-template-areas:"hero board" "brief board" "other other" "extras extras" "personal personal";
+ grid-template-areas:"hero board" "brief board" "extras extras" "personal personal";
  gap:12px;align-items:stretch;color:#f6f4ff}
 .jump-cover {grid-area:hero;display:grid;align-items:center;min-height:clamp(184px,26cqw,285px);
  background:linear-gradient(90deg,transparent 22%,#1c124978 52%,#171338c9),url('/crew-jump-art/starlight-lobby.webp') 30% 58% / cover;
@@ -92,10 +92,6 @@ html:has(#aifect-mobile-experience) .jump-heading [data-rules] {background:#1917
 .jump-brief b{white-space:nowrap;color:#fff}
 .jump-personal {grid-area:personal;display:flex;gap:12px 32px;flex-wrap:wrap;margin:0;padding:10px 0}
 .jump-personal dt {font-size:.83rem;color:#cccadb}.jump-personal dd {margin:2px 0 0;font-weight:700}
-.arc-game-choice {grid-area:other;min-width:0}
-.arc-game-choice a {display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid #706898;border-radius:16px;background:linear-gradient(110deg,#312e53,#1d203b);color:#f6f4ff;text-decoration:none}
-.arc-game-choice img {display:block;border-radius:10px;width:54px;height:54px;object-fit:cover}
-.arc-game-choice span {margin-left:auto;font-size:1.5rem}
 
 .arc-look-window{display:flex;justify-content:center;gap:4px;min-height:0;height:clamp(42px,6.6cqw,96px)}
 .arc-look-window img{height:100%;min-width:0;width:auto;border:1px solid #a79bdb;border-radius:10px;object-fit:cover}
@@ -123,7 +119,7 @@ html:has(#aifect-mobile-experience) .jump-heading [data-rules] {background:#1917
 .arc-look[aria-pressed=true]{outline:2px solid #d6baff;outline-offset:1px}.arc-store-dialog .arc-look-note{font-size:.82rem;margin:14px 0 0}
 @media(max-width:540px){.arc-look-shelves{grid-template-columns:1fr;gap:12px}.arc-outfit-group>div{grid-auto-columns:minmax(0,1fr);grid-template-columns:repeat(3,minmax(0,1fr))}.arc-look img{aspect-ratio:1.25;object-position:center 35%}}
 @container jump-page (max-width:820px){
- .jump-lobby {grid-template-columns:minmax(0,1fr);grid-template-areas:"hero" "brief" "board" "other" "extras" "personal";gap:10px}
+ .jump-lobby {grid-template-columns:minmax(0,1fr);grid-template-areas:"hero" "brief" "board" "extras" "personal";gap:10px}
  .jump-cover {min-height:clamp(145px,41cqw,242px)}
  .arc-scroll {max-height:116px}
 }
