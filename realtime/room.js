@@ -21,7 +21,15 @@ export class VoiceRoom {
    for(const member of Object.values(this.data.members))member.chatAfter=this.data.chatSequence;
   }
  }
- async save() {await this.ctx.storage.put('room',this.data);if(Object.keys(this.data.members).length||this.data.cleanup.length||this.data.directoryDirty||this.data.hostReconnectUntil>Date.now())await this.ctx.storage.setAlarm(Date.now()+15000);}
+ async save() {
+  await this.ctx.storage.put('room',this.data);
+  if(!Object.keys(this.data.members).length&&!this.data.cleanup.length&&!this.data.directoryDirty&&!(this.data.hostReconnectUntil>Date.now()))return;
+  const now=Date.now(),due=this.data.cleanup.filter(job=>!this.cleaning.has(job.sessionId)).map(job=>Math.max(now+250,job.after));
+  const next=Math.min(now+15000,...due),current=await this.ctx.storage.getAlarm?.();
+  // Chat, heartbeat and lyric updates must never push a pending cleanup alarm
+  // into the future. Otherwise a busy room can block the next song indefinitely.
+  if(!current||current<=now||next<current)await this.ctx.storage.setAlarm(next);
+ }
  async syncDirectory() {
   if(!this.data.directoryDirty)return;
   try {
@@ -82,7 +90,7 @@ export class VoiceRoom {
  notice(p,body){this.data.notices.push({id:crypto.randomUUID(),kind:'system',user_id:p.id,name:p.name,body,created:Date.now(),sequence:++this.data.chatSequence});this.data.notices=this.data.notices.slice(-100);}
  startCleanup(job){
   if(this.cleaning.has(job.sessionId))return;this.cleaning.add(job.sessionId);
-  const work=this.sfu.close(job.sessionId,job.mids,job).then(result=>({ok:result?.resolved!==false}),()=>({ok:false})).then(result=>this.serial(async()=>{const c=this.data.cleanup.find(c=>c.sessionId===job.sessionId);if(!c)return;if(result.ok)this.data.cleanup=this.data.cleanup.filter(c=>c!==job);else{c.tries++;c.after=Date.now()+Math.min(60000,2000*2**Math.min(c.tries,5));}await this.save();})).finally(()=>this.cleaning.delete(job.sessionId));
+  const work=this.sfu.close(job.sessionId,job.mids,job).then(result=>({ok:result?.resolved!==false}),()=>({ok:false})).then(result=>this.serial(async()=>{const c=this.data.cleanup.find(c=>c.sessionId===job.sessionId);if(!c)return;if(result.ok)this.data.cleanup=this.data.cleanup.filter(c=>c!==job);else{c.tries++;c.after=Date.now()+Math.min(60000,2000*2**Math.min(c.tries,5));}this.cleaning.delete(job.sessionId);await this.save();})).finally(()=>this.cleaning.delete(job.sessionId));
   this.ctx.waitUntil?.(work);work.catch(()=>{});
  }
  async retire(media) {if(!media?.sessionId)return;this.queueRetire(media);await this.save();this.startCleanup(this.data.cleanup.find(c=>c.sessionId===media.sessionId));}

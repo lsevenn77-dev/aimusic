@@ -130,3 +130,18 @@ test('music searches deduplicate, cache and ignore an older query even when abor
  await client.searchMusic();assert.equal(requests.length,2,'fresh identical result should use bounded cache');
  get('#voice-music-query').value='';await client.searchMusic();assert.equal(requests.length,2);assert.equal(get('#voice-music-results').innerHTML,'');
 });
+
+test('a next song waits for prior publication cleanup without unmuting or allocating twice',async()=>{
+ let requests=0;const waits=[];
+ const context=nicknameContext({setTimeout(fn,delay){waits.push(delay);queueMicrotask(fn);},fetch:async()=>({ok:++requests>2,status:409,json:async()=>requests>2?{sessionDescription:{type:'answer'}}:{error:'이전 송출 연결을 정리하고 있어요. 잠시 후 다시 켜주세요.'}})});
+ vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8'),context);
+ const client={path:x=>x,micDesired:true,setMicPhase:()=>{}};
+ const result=await context.publishAfterCleanup(client,{mid:'0'},()=>false);
+ assert.equal(result.sessionDescription.type,'answer');assert.equal(requests,3);assert.deepEqual(waits,[1000,1500]);
+ requests=0;client.micDesired=true;
+ client.setMicPhase=()=>{client.micDesired=false;};
+ assert.equal(await context.publishAfterCleanup(client,{mid:'0'},()=>false),null);assert.equal(requests,1,'muting cancels a pending retry');
+ requests=0;client.micDesired=true;client.setMicPhase=()=>{};
+ context.fetch=async()=>({ok:false,status:409,json:async()=>({error:'이미 연결 중인 마이크예요.'})});
+ await assert.rejects(()=>context.publishAfterCleanup(client,{},()=>false),/이미 연결/);
+});

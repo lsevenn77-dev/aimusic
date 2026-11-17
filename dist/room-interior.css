@@ -342,7 +342,7 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
       }
     }
     & .live-request-area {
-      display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px;
+      display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px;
       box-sizing: border-box; min-height: 64px; padding: 3px 10px;
       border: 1px solid var(--room-stroke); border-radius: 14px; background: var(--room-glass-fill);
     }

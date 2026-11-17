@@ -47,6 +47,21 @@ async function voiceRequest(path,body,method=body===undefined?'GET':'POST',signa
  const r=await fetch('/api/voice/'+path,{method,signal,credentials:'same-origin',headers:body===undefined?{}:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
  const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.error||'토킹룸 연결에 실패했어요.'),{status:r.status});return data;
 }
+// Retry only a known, unallocated publication rejected while the previous one
+// retires. The capture stays silent; mute/leave/generation changes cancel retries.
+async function publishAfterCleanup(client,body,stale){
+ for(let attempt=0;attempt<9;attempt++){
+  if(stale()||client.micDesired===false)return null;
+  try{return await voiceRequest(client.path('publish'),body);}
+  catch(error){
+   const pending=error.status===409&&error.message.includes('이전 송출 연결을 정리');
+   if(!pending)throw error;
+   if(attempt===8)throw new Error('이전 마이크 연결 정리가 지연되고 있어요. 잠시 후 마이크를 다시 켜주세요.');
+   client.setMicPhase('cleanup');
+   await new Promise(resolve=>setTimeout(resolve,Math.min(3000,1000+attempt*500)));
+  }
+ }
+}
 async function voiceView(base,id,signal) {
  if(base!=='voice')return null;
  if(id){if(!me)return {html:heading('토킹룸')+gate()};return {html:voiceRoomHTML(id)};}
@@ -162,7 +177,7 @@ class VoiceRoomClient {
   for(const button of this.host.querySelectorAll('.voice-seat-empty'))button.disabled=self.role!=='host'&&(self.requested||self.locked||!!this.seatCommandPending);
   for(const button of this.host.querySelectorAll('.voice-seat-mic[data-voice]')){button.disabled=self.locked;button.setAttribute('aria-busy',String(!!this.micBusy));}
   $('#voice-mic-note').toggleAttribute('data-progress',['permission','capture','processing','ice','signaling','transport','failed'].includes(this.micState));
-  $('#voice-mic-note').textContent=self.requested?'좌석 참여 신청 중 · 방장 승인 대기':self.locked?'관리자가 마이크를 음소거했어요.':({permission:'마이크 권한 확인 중…',capture:'마이크 장치 준비 중…',processing:'음향 처리 준비 중…',ice:'네트워크 경로 준비 중…',signaling:'음성 서버에 송출 등록 중…',transport:'음성 연결 확인 중…',failed:'마이크 연결 실패 · 다시 눌러 재시도',muted:'마이크 꺼짐',on:'마이크 켜짐'}[this.micState]||'');
+  $('#voice-mic-note').textContent=self.requested?'좌석 참여 신청 중 · 방장 승인 대기':self.locked?'관리자가 마이크를 음소거했어요.':({permission:'마이크 권한 확인 중…',capture:'마이크 장치 준비 중…',processing:'음향 처리 준비 중…',ice:'네트워크 경로 준비 중…',signaling:'음성 서버에 송출 등록 중…',cleanup:'이전 마이크 연결 정리 중…',transport:'음성 연결 확인 중…',failed:'마이크 연결 실패 · 다시 눌러 재시도',muted:'마이크 꺼짐',on:'마이크 켜짐'}[this.micState]||'');
   if(self.locked||self.seat===null){if(this.stream||this.pendingStream||this.preparingMic||this.micBusy){this.micDesired=false;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.stopMicrophone();}this.warmSeat=null;}else this.warmMicrophone();
   const messages=[...s.chat,...(s.notices||[])].filter(m=>!this.liveMode||m.kind!=='system'||!(/님 차례예요[.] 15초 안에 시작을 눌러주세요[.]$|^3초 뒤 .+ 시작!$/.test(m.body))).sort((a,b)=>a.sequence-b.sequence);
   const requests=s.members.filter(p=>p.requested&&(self.role==='host'||(!this.liveMode&&p.id===self.id)));
@@ -677,8 +692,8 @@ class VoiceRoomClient {
    track.onended=stream.getAudioTracks()[0].onended=()=>{if(!stale()){this.micDesired=false;this.micAttempt++;this.stopMicrophone();this.micState='failed';this.safe(async()=>{this.acceptState(await this.command('mute'));this.status('마이크 장치 연결이 끊겼어요. 장치를 확인한 뒤 다시 켜주세요.');});}};
    stage=this.setMicPhase('ice',stage);await pc.setLocalDescription(await pc.createOffer());await this.ice(pc);if(stale()){pc.close();return;}
    stage=this.setMicPhase('signaling',stage);
-   const r=await voiceRequest(this.path('publish'),{generation,request_id:crypto.randomUUID(),mid:transceiver.mid,sessionDescription:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}});
-   if(stale()){pc.close();return;}
+   const r=await publishAfterCleanup(this,{generation,request_id:crypto.randomUUID(),mid:transceiver.mid,sessionDescription:{type:pc.localDescription.type,sdp:pc.localDescription.sdp}},stale);
+   if(!r||stale()){pc.close();return;}
    stage=this.setMicPhase('transport',stage);await pc.setRemoteDescription(r.sessionDescription);
    try{const parameters=transceiver.sender.getParameters();if(parameters.encodings?.length){parameters.encodings[0].maxBitrate=32000;await transceiver.sender.setParameters(parameters);}}catch{}
    await this.connected(pc);if(stale())return;

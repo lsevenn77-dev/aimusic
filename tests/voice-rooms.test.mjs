@@ -711,3 +711,18 @@ test('free seating survives durable reload and unrelated settings, then returns 
  delete h.room.data.config.seating_mode;await h.room.save();h.room.data=null;
  assert.equal((await h.call('state')).body.room.seating_mode,'approval');
 });
+
+test('active room writes do not postpone cleanup alarms and failed cleanup schedules its retry',async t=>{
+ const h=harness(t);await h.create();
+ h.ctx.storage.getAlarm=async()=>h.ctx.alarm;
+ h.room.data.cleanup=[{sessionId:'old-mic',owner:'host',kind:'publish',mids:['0'],after:Date.now()+2000,tries:0}];
+ await h.room.save();const first=h.ctx.alarm;
+ assert.ok(first<Date.now()+3000);
+ for(let i=0;i<25;i++)await h.room.save();
+ assert.equal(h.ctx.alarm,first,'frequent room traffic cannot starve the pending retirement');
+ h.setFailClose(true);h.room.startCleanup(h.room.data.cleanup[0]);
+ await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(h.room.data.cleanup[0].tries,1);assert.equal(h.room.cleaning.size,0);
+ h.setFailClose(false);h.room.startCleanup(h.room.data.cleanup[0]);
+ await new Promise(resolve=>setImmediate(resolve));assert.equal(h.room.data.cleanup.length,0);
+});

@@ -4,36 +4,61 @@ function liveVoiceMix(c){
  return c.liveVocalMix;
 }
 function liveVocalSettingsHTML(){
- const effects=[['room','리버브',0,100],['echo','에코',0,65],['size','룸 크기',0,100],['tone','음색',-100,200]];
- return `<div class="live-vocal-settings"><section class="live-sound-card"><h3>음량</h3><label for="voice-input-gain">내 목소리 <output data-value-for="voice-input-gain">100%</output></label><div id="live-voice-volume-slot"></div><label for="live-mr-volume">음원 <output data-value-for="live-mr-volume">75%</output></label><div id="live-music-volume-slot"></div></section><section class="live-sound-card"><h3>공간 효과</h3>${effects.map(([key,label,min,max])=>`<label for="live-fx-${key}">${label}<output data-value-for="live-fx-${key}"></output></label><input id="live-fx-${key}" data-live-fx="${key}" aria-label="${label}" type="range" min="${min}" max="${max}" step="1" value="0">`).join('')}<p id="live-effect-status" role="status" hidden></p></section></div>`;
+ const effects=[['room','리버브',0,100,1],['echo','에코',0,65,.1],['size','룸 크기',0,100,1],['tone','음색',-100,200,1]];
+ const presets=[['original','원음'],['karaoke','노래방'],['studio','스튜디오'],['hall','홀'],['rap','랩'],['custom','사용자 설정']];
+ return `<div class="live-vocal-settings"><details class="live-sound-card" open><summary>음량</summary><label for="voice-input-gain">내 목소리 <output data-value-for="voice-input-gain">100%</output></label><div id="live-voice-volume-slot"></div><label for="live-mr-volume">음원 <output data-value-for="live-mr-volume">75%</output></label><div id="live-music-volume-slot"></div></details><details class="live-sound-card"><summary>목소리 효과</summary><div class="live-preset-grid" role="group" aria-label="목소리 효과">${presets.map(([id,label])=>`<button type="button" data-live-preset="${id}" aria-pressed="false">${label}</button>`).join('')}</div><details data-live-custom><summary>잡음 · 세부 설정</summary><label for="live-fx-noise">잡음 제거</label><select id="live-fx-noise" data-live-noise aria-label="잡음 제거">${[0,1,2,3,4].map(level=>`<option value="${level}">${level?level+'단계':'끔'}</option>`).join('')}</select>${effects.map(([key,label,min,max,step])=>`<label for="live-fx-${key}">${label}<output ${key==='echo'?'data-live-echo-value':'data-value-for="live-fx-'+key+'"'}></output></label><input id="live-fx-${key}" data-live-fx="${key}" aria-label="${label}" type="range" min="${min}" max="${max}" step="${step}" value="0">`).join('')}</details><p id="live-effect-status" role="status" hidden></p></details></div>`;
 }
 function bindLiveVocalSettings(c){
- const sound=c.host.querySelector('#voice-sound'),mix=liveVoiceMix(c);
+ const sound=c.host.querySelector('#voice-sound');liveVoiceMix(c);
+ const body=sound.querySelector('.room-popup-body')||sound;
+ body.insertAdjacentHTML('afterbegin',liveVocalSettingsHTML());
+ // Keep the common event-bound controls, but move their live-room inputs into
+ // the new sections. The old preset card stays mounted for shared bindings.
+ sound.querySelector('#voice-preset').closest('.voice-effect-card').hidden=true;
+ sound.querySelector('#voice-input-gain').closest('.voice-audio-card').hidden=true;
  sound.querySelector('#live-voice-volume-slot').append(c.host.querySelector('#voice-input-gain'));
  sound.querySelector('#live-music-volume-slot').append(c.host.querySelector('#live-mr-volume'));
+ const monitoring=document.createElement('details');monitoring.className='live-sound-card';
+ monitoring.innerHTML='<summary>모니터링 · 청취 음량</summary>';
+ body.insertBefore(monitoring,sound.querySelector('#voice-monitor').closest('.voice-audio-card'));
+ monitoring.append(sound.querySelector('#voice-monitor').closest('.voice-audio-card'));
+ monitoring.append(sound.querySelector('#voice-music-volume').closest('label'));
  const advanced=sound.querySelector('.voice-audio-extra');
  advanced.append(c.host.querySelector('#live-delay').closest('label'));
  advanced.append(sound.querySelector('.voice-mic-test'));
- sound.querySelector('.voice-sheet-heading p').textContent='내 목소리와 음원, 공간 효과를 조절하세요.';
- for(const input of sound.querySelectorAll('[data-live-fx]')){
-  input.value=Math.round(mix[input.dataset.liveFx]*100);c.updateDesignField(input);
-  input.oninput=()=>{
-   c.liveVocalMix={...liveVoiceMix(c),preset:'custom',[input.dataset.liveFx]:Number(input.value)/100};
-   c.processing?.setMix?.(c.liveVocalMix);
-   if(c.testGraph!==c.processing)c.testGraph?.setMix?.(c.liveVocalMix);
-   c.updateDesignField(input);
-  };
- }
+ const note=sound.querySelector('.voice-sheet-heading p');if(note)note.textContent='내 목소리와 음원, 공간 효과를 조절하세요.';
+ const controls=sound.querySelector('[data-live-custom]'),noise=sound.querySelector('[data-live-noise]');
+ const paint=()=>{
+  const mix=liveVoiceMix(c);
+  for(const button of sound.querySelectorAll('[data-live-preset]'))button.setAttribute('aria-pressed',String(mix.preset===button.dataset.livePreset));
+  for(const input of sound.querySelectorAll('[data-live-fx]')){input.value=Number((mix[input.dataset.liveFx]*100).toFixed(1));c.updateDesignField(input);if(input.dataset.liveFx==='echo')sound.querySelector('[data-live-echo-value]').textContent=Number(input.value).toFixed(1)+'%';}
+  noise.value=mix.noise??0;
+ };
+ const apply=()=>{
+  c.processing?.setMix?.(c.liveVocalMix);
+  if(c.testGraph!==c.processing)c.testGraph?.setMix?.(c.liveVocalMix);
+  paint();
+ };
+ for(const button of sound.querySelectorAll('[data-live-preset]'))button.onclick=()=>{
+  const id=button.dataset.livePreset,mix=liveVoiceMix(c);
+  c.liveVocalMix=id==='rap'?{...mix,preset:'rap',echo:0,room:.03,size:.1,tone:.15}:AifectKaraoke.presetMix(mix,id,.5);
+  controls.open=id==='custom';apply();
+ };
+ for(const input of sound.querySelectorAll('[data-live-fx]'))input.oninput=()=>{
+  c.liveVocalMix=AifectKaraoke.editVocalMix(liveVoiceMix(c),input.dataset.liveFx,Number(input.value)/100);apply();
+ };
+ noise.onchange=()=>{c.liveVocalMix={...liveVoiceMix(c),noise:Number(noise.value)};apply();};
+ controls.open=c.liveVocalMix.preset==='custom';paint();
 }
 function liveEffectAvailability(c){
  const supported=!c.processing||c.processing.supportsMix!==false;
- for(const input of c.host.querySelectorAll('[data-live-fx]'))input.disabled=!supported;
+ for(const input of c.host.querySelectorAll('[data-live-fx],[data-live-preset],[data-live-noise]'))input.disabled=!supported;
  const note=c.host.querySelector('#live-effect-status');
  if(note){note.hidden=supported;note.textContent=supported?'':'이 브라우저에서 공간 효과를 연결하지 못했어요. 현재 원음으로 전달 중이에요.';}
 }
 function liveKaraokeRoomHTML(id){
  const stage=`<div id="live-karaoke-stage"><section class="live-stage-main">
-  <div class="room-key" role="group" aria-label="반주 키"><button type="button" data-voice="karaoke-key" data-target="-1" aria-label="키 낮추기">−</button><button type="button" data-voice="karaoke-key" data-target="reset" aria-label="원키로 복원">원키</button><button type="button" data-voice="karaoke-key" data-target="1" aria-label="키 높이기">+</button></div><div class="live-stage-top"><span id="live-phase" role="status">가창자 기다리는 중</span></div>
+  <div class="live-stage-top"><span id="live-phase" role="status">가창자 기다리는 중</span></div>
   <div id="live-current" class="live-current"><span>${icon('mic')}</span><strong>다음 가창자를 기다리는 중</strong></div>
   <div id="live-countdown" class="live-countdown" hidden aria-label="노래 시작 카운트"><svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28" pathLength="100"/></svg><strong></strong><i class="live-start-dot" aria-hidden="true"></i><i class="live-start-dot" aria-hidden="true"></i><i class="live-start-dot" aria-hidden="true"></i></div><div id="live-lyrics" class="live-lyrics" aria-live="off"><p>노래가 시작되면 가사가 여기에 나와요.</p></div>
   <div id="live-actions" class="live-actions"></div><div id="live-invite" class="live-start-popup" hidden role="status"><p>15초 이내로 시작을 눌러주세요.</p><output id="live-invite-count"></output><div id="room-turn-action"></div></div>
@@ -41,7 +66,7 @@ function liveKaraokeRoomHTML(id){
 
 
  </section>
- <section class="live-request-area" aria-label="노래 신청과 예약 순서"><ol id="live-queue" class="live-queue" aria-label="예약 순서"></ol><button type="button" class="live-request-button" data-voice="karaoke-search-open">${icon('mic')}<span><strong>예약</strong><small id="live-queue-count">0명 대기</small></span></button></section>
+ <section class="live-request-area" aria-label="노래 신청과 예약 순서"><button type="button" class="live-request-button" data-voice="karaoke-search-open">${icon('mic')}<span><strong>예약</strong><small id="live-queue-count">0명 대기</small></span></button><ol id="live-queue" class="live-queue" aria-label="예약 순서"></ol></section>
  </div><div class="room-live-guide"><p id="live-stage-note" class="live-stage-note"></p>
   <button class="small-button live-audio-unlock" id="live-audio-unlock" type="button" data-voice="karaoke-resume" hidden>소리 켜기</button></div>`;
  const search=`<dialog id="live-search-sheet" class="voice-sheet compact-popup" aria-labelledby="live-search-title"><header class="live-search-heading room-popup-heading"><h2 id="live-search-title">노래 예약하기</h2><button type="button" class="room-popup-mobile-close" data-voice="dismiss" aria-label="예약 닫기">${voiceGlyph('close')}</button></header>${roomSongSearchHTML('karaoke')}<nav class="live-search-tabs" role="tablist" aria-label="예약할 곡"><button type="button" role="tab" data-live-library="mine" aria-selected="true">나의 곡</button><button type="button" role="tab" data-live-library="popular" aria-selected="false">인기곡</button></nav><div id="live-results" class="live-results" aria-live="polite"></div><footer class="live-search-pages" hidden><button type="button" data-song-page="previous" aria-label="이전 검색 페이지">이전</button><output></output><button type="button" data-song-page="next" aria-label="다음 검색 페이지">다음</button></footer></dialog>`;
@@ -466,6 +491,7 @@ VoiceRoomClient.prototype.bind=function(host){
  const result=productionVoiceBind.call(this,host);
  if(this.liveMode){
   bindLiveKaraoke(this);
+  bindLiveVocalSettings(this);
   this.livePageHide ||= ()=>{this.liveAudio?.pause();this.liveNeedsResync=true;};window.addEventListener('pagehide',this.livePageHide);
   const retry=host.querySelector('#voice-join');if(retry)retry.onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.liveMode=true;voiceController.bind(host);}else this.safe(()=>this.join());};
  }

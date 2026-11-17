@@ -161,3 +161,10 @@
  .live-karaoke-room .voice-stage-toolbar .voice-icon-button{width:44px;min-width:44px;height:44px}
  .live-karaoke-room .voice-heading h1{max-width:100%;margin:6px 0}
 }
+
+/* The room effect panel uses the same compact preset arrangement as iOS. */
+.live-karaoke-room .live-sound-card>summary{cursor:pointer;font-size:16px;font-weight:700;min-height:44px}
+.live-karaoke-room .live-preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
+#main .live-karaoke-room #voice-content #voice-sound .live-preset-grid button{width:100%;justify-self:stretch;min-height:50px;padding:8px 4px;font-size:12px;border:1px solid var(--ds-line);border-radius:12px;color:var(--ds-text);background:var(--ds-panel)}
+#main .live-karaoke-room #voice-content #voice-sound .live-preset-grid button[aria-pressed=true]{color:var(--ds-lilac);border-color:var(--ds-lilac);background:color-mix(in srgb,var(--ds-lilac) 12%,var(--ds-panel))}
+.live-karaoke-room [data-live-custom]>summary{cursor:pointer;min-height:44px;padding-top:8px}
