@@ -24,6 +24,16 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["더빙"].firstMatch.exists)
         capture(app, "bottom-tabs-direct-touch")
     }
+    @MainActor func testBottomTabsReceiveDirectTouchWithMiniPlayer() {
+        let app = launch()
+        XCTAssertTrue(app.staticTexts["mini-player-lyric"].waitForExistence(timeout: 10))
+        for index in [1, 0, 1, 0, 3, 0, 4, 0, 2] {
+            let tab = app.buttons["main-tab-\(index)"]
+            tab.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+            let selected = XCTNSPredicateExpectation(predicate: NSPredicate(format: "selected == true"), object: tab)
+            XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
+        }
+    }
     @MainActor func testIPhoneHomeKeepsAndroidBannerAndSectionProportions() {
         let app = launch(["-home-density"])
         let banner = app.buttons["home-promotion-studio"]
@@ -67,6 +77,33 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["edit-my-profile"].isHittable)
         capture(app, "iphone12-my-density")
     }
+    @MainActor func testRoomNotificationsAndMessagesKeepUnderlyingRoomMounted() {
+        let app = launch(["-crew-parity", "-notification-kinds", "-workspace-test-url", "http://127.0.0.1:4188/room-overlay-test.html#live/fixture-room"])
+        app.buttons["main-tab-1"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        XCTAssertTrue(app.buttons["크루"].firstMatch.waitForExistence(timeout: 8))
+        app.buttons["크루"].firstMatch.tap()
+        let game = app.buttons["crew-weekly-game-banner"]
+        XCTAssertTrue(game.waitForExistence(timeout: 10)); game.tap()
+        let web = app.webViews.firstMatch
+        XCTAssertTrue(web.buttons["Keep room draft"].waitForExistence(timeout: 15)); web.buttons["Keep room draft"].tap()
+        web.links["Notifications"].tap()
+        XCTAssertTrue(app.staticTexts["내 음악에 댓글을 남겼어요."].waitForExistence(timeout: 10))
+        capture(app, "build20-room-notifications-overlay")
+        app.buttons["노래방으로 돌아가기"].tap()
+        XCTAssertTrue(web.staticTexts["Room draft retained"].waitForExistence(timeout: 5))
+        XCTAssertFalse(web.staticTexts["LEAVE CONFIRMATION"].exists)
+        web.links["Messages"].tap()
+        XCTAssertTrue(app.buttons["노래방으로 돌아가기"].waitForExistence(timeout: 5))
+        capture(app, "build20-room-messages-overlay")
+        app.buttons["노래방으로 돌아가기"].tap()
+        XCTAssertTrue(web.staticTexts["Room draft retained"].waitForExistence(timeout: 5))
+        web.buttons["Room inbox"].tap()
+        XCTAssertTrue(app.buttons["노래방으로 돌아가기"].waitForExistence(timeout: 5))
+        app.buttons["노래방으로 돌아가기"].tap()
+        XCTAssertTrue(web.staticTexts["Room draft retained"].waitForExistence(timeout: 5))
+        XCTAssertFalse(web.staticTexts["LEAVE CONFIRMATION"].exists)
+    }
+
     @MainActor func testRealJumpGamePracticeOnIPhoneViewport() {
         let app = launch(["-crew-parity", "-workspace-test-url", "http://127.0.0.1:4188/jump-test.html"])
         app.buttons["main-tab-1"].tap()
@@ -111,24 +148,49 @@ final class StreamingUITests: XCTestCase {
     }
     @MainActor func testCrewActionsOpenSeparateDestinations() {
         let app = launch(["-crew-parity"])
-        app.buttons["main-tab-1"].tap(); app.buttons["크루"].firstMatch.tap()
+        app.buttons["main-tab-1"].tap()
+        XCTAssertTrue(app.buttons["크루"].firstMatch.waitForExistence(timeout: 5), app.debugDescription)
+        app.buttons["크루"].firstMatch.tap()
         let notices = app.buttons["crew-notices-open"]
         XCTAssertTrue(notices.waitForExistence(timeout: 10))
-        capture(app, "build19-crew-action-links")
+        let firstRow = ["작품", "멤버", "소개"].map { app.buttons["crew-section-" + $0] }
+        let secondRow = [notices, app.buttons["crew-membership-open"], app.buttons["crew-directory-open"]]
+        for button in firstRow + secondRow { XCTAssertTrue(button.isHittable); XCTAssertGreaterThanOrEqual(button.frame.height, 44) }
+        for button in firstRow { XCTAssertEqual(button.frame.minY, firstRow[0].frame.minY, accuracy: 1) }
+        for button in secondRow { XCTAssertEqual(button.frame.minY, secondRow[0].frame.minY, accuracy: 1) }
+        XCTAssertGreaterThan(secondRow[0].frame.minY, firstRow[0].frame.maxY)
+        XCTAssertFalse(app.buttons["crew-chat-open"].exists)
+        XCTAssertTrue(firstRow[0].isSelected)
+        firstRow[1].tap(); XCTAssertTrue(app.staticTexts["봄밤"].waitForExistence(timeout: 5)); XCTAssertTrue(firstRow[1].isSelected)
+        firstRow[2].tap(); XCTAssertTrue(app.buttons["크루 자세히 보기"].waitForExistence(timeout: 5))
+        firstRow[0].tap(); XCTAssertTrue(app.staticTexts["크루 작품  2"].waitForExistence(timeout: 5))
+        capture(app, "build20-crew-six-menus")
         notices.tap()
-        XCTAssertTrue(app.staticTexts["이번 주 크루 공지"].waitForExistence(timeout: 8))
-        capture(app, "build19-crew-notices"); back(app)
+        XCTAssertTrue(app.staticTexts["이번 주 크루 공지"].waitForExistence(timeout: 8)); back(app)
         app.buttons["crew-membership-open"].tap()
         XCTAssertTrue(app.staticTexts["내 역할"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["crew-membership-leave"].exists)
-        capture(app, "build19-crew-membership"); back(app)
-        app.buttons["crew-chat-open"].tap()
-        XCTAssertTrue(app.textFields["chat-input"].waitForExistence(timeout: 8) || app.textViews["chat-input"].exists, app.debugDescription)
-        back(app)
-        app.buttons["main-tab-1"].tap()
+        XCTAssertTrue(app.buttons["crew-membership-leave"].exists); back(app)
         app.buttons["crew-directory-open"].tap()
         XCTAssertTrue(app.buttons["‹ 내 크루로 돌아가기"].waitForExistence(timeout: 5))
-        capture(app, "build19-crew-directory")
+        app.buttons["‹ 내 크루로 돌아가기"].tap()
+        XCTAssertTrue(app.buttons["crew-section-작품"].waitForExistence(timeout: 5))
+    }
+    @MainActor func testCommentNotificationsShowCorrectMessageAndOpenOriginalSong() {
+        let app = launch(["-notification-kinds"])
+        app.buttons["main-tab-3"].tap(); app.buttons["inbox-filter-알림"].tap()
+        XCTAssertTrue(app.staticTexts["내 음악에 댓글을 남겼어요."].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["내 듀엣에 참여했어요."].exists)
+        capture(app, "build20-comment-notification")
+        app.buttons["notification-open-fixture-comment"].tap()
+        XCTAssertTrue(app.navigationBars["곡 상세"].waitForExistence(timeout: 8), app.debugDescription)
+        XCTAssertTrue(app.staticTexts["검증용 밤의 산책"].exists)
+        back(app)
+        let unknown = app.staticTexts["새로운 활동 알림이 도착했어요."]
+        reveal(unknown, in: app.scrollViews.firstMatch, app: app)
+        XCTAssertTrue(unknown.isHittable)
+        XCTAssertFalse(app.buttons["notification-open-fixture-future-event"].exists)
+        XCTAssertTrue(app.staticTexts["내 곡으로 커버를 공개했어요."].exists)
+        capture(app, "build20-cover-and-unknown-notification")
     }
     @MainActor func testPlayInboxAndMyFollowAndroidNavigation() {
         let app = launch()

@@ -83,13 +83,29 @@ struct CrewHome: View {
                     }.font(.caption)
                     ProgressView(value: min(1, max(0, crew.number("progress")))).tint(Brand.aqua)
                 }
-                CatalogTabs(names: ["작품", "멤버", "소개"], selection: $section)
-                HStack(spacing: 0) {
-                    NavigationLink("공지") { CrewNoticesView(id: id).streamingPage() }.accessibilityIdentifier("crew-notices-open")
-                    Button("채팅") { model.openCrewMessages(id: id, title: crew.string("name")) }.accessibilityIdentifier("crew-chat-open")
-                    NavigationLink("크루 관리") { CrewMembershipView(id: id, detail: data) { Task { await load() } }.streamingPage() }.accessibilityIdentifier("crew-membership-open")
-                    Button("크루 찾기") { browsing = true }.accessibilityIdentifier("crew-directory-open")
-                }.font(.system(size: 13)).buttonStyle(CrewActionStyle())
+                VStack(spacing: 0) {
+                    HStack(spacing: 4) {
+                        ForEach([("작품", "music.note.list"), ("멤버", "person.2"), ("소개", "info.circle")], id: \.0) { name, icon in
+                            Button { section = name } label: {
+                                crewMenuLabel(name, icon: icon, selected: section == name)
+                            }
+                            .accessibilityIdentifier("crew-section-" + name)
+                            .accessibilityAddTraits(section == name ? .isSelected : [])
+                        }
+                    }
+                    Rectangle().fill(AifectDesign.muted.opacity(0.2)).frame(height: 1).padding(.horizontal, 8).padding(.vertical, 6)
+                    HStack(spacing: 4) {
+                        NavigationLink { CrewNoticesView(id: id).streamingPage() } label: {
+                            crewMenuLabel("공지", icon: "megaphone")
+                        }.accessibilityIdentifier("crew-notices-open")
+                        NavigationLink { CrewMembershipView(id: id, detail: data) { Task { await load() } }.streamingPage() } label: {
+                            crewMenuLabel("크루 관리", icon: "slider.horizontal.3")
+                        }.accessibilityIdentifier("crew-membership-open")
+                        Button { browsing = true } label: {
+                            crewMenuLabel("크루 찾기", icon: "magnifyingglass")
+                        }.accessibilityIdentifier("crew-directory-open")
+                    }
+                }.buttonStyle(.plain)
                 switch section {
                 case "멤버":
                     ForEach(data.objects("members"), id: \.selfID) { person in
@@ -133,6 +149,17 @@ struct CrewHome: View {
         }.refreshable { await load() }
     }
 
+    private func crewMenuLabel(_ title: String, icon: String, selected: Bool = false) -> some View {
+        VStack(spacing: 5) {
+            Image(systemName: icon).font(.system(size: 17, weight: .medium)).frame(height: 20)
+            Text(title).font(.system(size: 12, weight: selected ? .bold : .medium))
+        }
+        .frame(maxWidth: .infinity, minHeight: 56)
+        .foregroundStyle(selected ? Brand.pink : AifectDesign.secondaryText)
+        .background(selected ? Brand.pink.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 10))
+        .contentShape(RoundedRectangle(cornerRadius: 10))
+    }
+
     private func load() async {
         guard let owner = model.userID else { ready = false; mine = nil; data = [:]; return }
         do {
@@ -146,13 +173,6 @@ struct CrewHome: View {
             if mine != id { section = "작품"; browsing = false }
             mine = id; data = result; ready = true; error = nil
         } catch { if !Task.isCancelled, model.userID == owner { self.error = error.localizedDescription } }
-    }
-}
-
-private struct CrewActionStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label.frame(maxWidth: .infinity, minHeight: 44).contentShape(Rectangle())
-            .foregroundStyle(Brand.pink).opacity(configuration.isPressed ? 0.6 : 1)
     }
 }
 

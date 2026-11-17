@@ -156,7 +156,7 @@ struct RootView: View {
                 ChatPage(path: route.crew ? "/api/crews/\(Endpoint.pathID(route.id))/messages" : "/api/dm/\(Endpoint.pathID(route.id))", title: route.title, crew: route.crew).streamingPage()
             }
             .navigationDestination(isPresented: $account) { AccountView().streamingPage() }
-        }.clipped().zIndex(0)
+        }.contentShape(Rectangle()).clipped().zIndex(0)
             if !keyboardVisible && !model.chatOpen && model.visibleWorkspaces.isEmpty {
                 VStack(spacing: 0) {
                     if !model.playerPageVisible { MiniPlayer(player: model.player) }

@@ -4,6 +4,32 @@ import AVFoundation
 @testable import AIFECT
 
 final class StreamingUXTests: XCTestCase {
+    func testActivityNotificationsDoNotMislabelCommentsOrUnknownKindsAsCovers() {
+        let messages = [
+            "comment": "내 음악에 댓글을 남겼어요.",
+            "reply": "내 댓글에 답글을 남겼어요.",
+            "comment_reply": "내 댓글에 답글을 남겼어요.",
+            "like": "내 음악을 좋아해요.",
+            "cover": "내 곡으로 커버를 공개했어요.",
+            "duet": "내 듀엣에 참여했어요.",
+            "future-event": "새로운 활동 알림이 도착했어요.",
+            "": "새로운 활동 알림이 도착했어요."
+        ]
+        for (kind, expected) in messages {
+            let item: [String: Any] = ["kind": kind, "target": "track"]
+            XCTAssertEqual(ActivityNotificationText.message(item), expected, kind)
+        }
+        XCTAssertFalse(ActivityNotificationText.canOpen(["kind": "future-event", "target": "track"]))
+        XCTAssertFalse(ActivityNotificationText.canOpen(["kind": "comment"]))
+        XCTAssertTrue(ActivityNotificationText.canOpen(["kind": "comment", "target": "original-song"]))
+        XCTAssertTrue(ActivityNotificationText.canOpen(["kind": "person_gift", "target": "profile"]))
+        XCTAssertEqual(ActivityNotificationText.subject(["kind": "comment", "source_title": "노래 제목"]), "노래 제목")
+        XCTAssertEqual(ActivityNotificationText.subject(["kind": "comment", "source_title": "  "]), "내 음악의 새 소식")
+        XCTAssertEqual(ActivityNotificationText.subject(["kind": "future-event"]), "내 활동 알림")
+        XCTAssertEqual(ActivityNotificationText.message(["kind": "gift", "gift_name": "장미", "quantity": 3, "amount": 60, "currency": "gold"]), "장미 3개 · 60 G")
+        XCTAssertEqual(ActivityNotificationText.message(["kind": "person_gift", "gift_name": "응원별", "quantity": 2, "amount": 2, "currency": "silver"]), "응원별 2개 · 2 S")
+    }
+
     func testCrewFiltersCombineCapacityInterestsAndStableRanking() {
         let rows: [[String: Any]] = [
             ["id": "full", "name": "보컬", "interests": "발라드, 듀엣", "recruiting": true, "members": 10, "capacity": 10, "level": 3, "xp": 900],

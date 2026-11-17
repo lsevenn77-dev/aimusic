@@ -380,14 +380,23 @@ final class AIFECTUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
         app.buttons["feedback-menu"].tap(); app.buttons["음원 상세 검증"].tap()
-        XCTAssertTrue(app.buttons["이 노래 부르기"].waitForExistence(timeout: 5))
-        app.buttons["이 노래 부르기"].tap()
+        XCTAssertTrue(app.buttons.matching(identifier: "sing-song-feedback-song").firstMatch.waitForExistence(timeout: 5))
+        app.buttons.matching(identifier: "sing-song-feedback-song").firstMatch.tap()
         XCTAssertTrue(app.staticTexts["부르기 검증 원곡"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["start-recording"].isHittable)
-        app.buttons["에코 · 잡음 제거 설정"].tap()
+        XCTAssertFalse(app.buttons["에코 · 잡음 제거 설정"].exists)
+        let effectsToggle = app.buttons["목소리 효과"]
+        for _ in 0..<5 { if effectsToggle.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
+        effectsToggle.tap()
+        let original = app.buttons["vocal-preset-original"], karaoke = app.buttons["vocal-preset-karaoke"], presetStudio = app.buttons["vocal-preset-studio"], hall = app.buttons["vocal-preset-hall"]
+        XCTAssertTrue(original.exists); XCTAssertEqual(original.frame.minY, karaoke.frame.minY, accuracy: 2)
+        XCTAssertEqual(original.frame.minY, presetStudio.frame.minY, accuracy: 2)
+        XCTAssertEqual(original.frame.minX, hall.frame.minX, accuracy: 2)
+        XCTAssertGreaterThan(hall.frame.minY, original.frame.minY)
         let custom = app.buttons["vocal-preset-custom"]
-        for _ in 0..<5 { if custom.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
+        for _ in 0..<5 { if custom.isHittable && custom.frame.maxY < app.buttons["start-recording"].frame.minY - 12 { break }; app.scrollViews["studio-content"].coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.65)).press(forDuration: 0.05, thenDragTo: app.scrollViews["studio-content"].coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.3))) }
         custom.tap()
+        XCTAssertTrue(custom.isSelected)
         let echo = app.sliders["에코 미세 조절"]
         for _ in 0..<5 { if echo.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
         XCTAssertTrue(echo.waitForExistence(timeout: 5)); XCTAssertTrue(echo.isHittable)
@@ -396,7 +405,12 @@ final class AIFECTUITests: XCTestCase {
         app.buttons["4단계"].tap()
         XCTAssertTrue(app.staticTexts["잡음 제거 · 4단계"].exists)
         XCTAssertTrue(app.buttons["start-recording"].isHittable)
+        let compact = XCTAttachment(screenshot: app.screenshot()); compact.name = "Build20 custom controls automatically expanded"; compact.lifetime = .keepAlways; add(compact)
+        app.buttons["start-recording"].tap()
         let wheel = app.scrollViews["studio-lyric-wheel"]
+        XCTAssertTrue(wheel.waitForExistence(timeout: 5))
+        XCTAssertTrue(wheel.isHittable, "Starting from settings must return to the lyrics")
+        XCTAssertFalse(app.sliders["에코 미세 조절"].exists, "Recording start collapses settings")
         for _ in 0..<10 { if wheel.isHittable { break }; app.scrollViews["studio-content"].swipeDown() }
         XCTAssertTrue(wheel.isHittable)
         wheel.swipeUp()

@@ -200,6 +200,13 @@ enum StreamingUIFixture {
             if request.httpMethod == "DELETE" { dmCleared = true; result = ["ok": true] }
             else { result = ["conversations": dmCleared ? [] : [["id": "fixture-peer", "name": "채팅 테스트", "image_version": "fixture", "last_message": "다음에도 같이 불러요", "updated": Date().timeIntervalSince1970 - 60, "unread": dmRead ? 0 : 1]], "crew": ["id": "fixture-crew", "name": "검증 크루", "unread": 2], "unread": dmRead || dmCleared ? 2 : 3] }
         case "/api/notifications/summary": result = ["unread": 1]
+        case "/api/notifications" where args.contains("-notification-kinds"):
+            let kinds = ["comment", "duet", "cover", "future-event"]
+            let filter = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "filter" }?.value ?? "all"
+            let items: [[String: Any]] = kinds.filter { filter == "all" || (filter == "participation" && ["duet", "cover"].contains($0)) }.map { kind in
+                ["id": "fixture-" + kind, "actor_name": "알림 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": kind, "source_title": "검증용 밤의 산책", "target": kind == "duet" || kind == "cover" ? "fixture-duet" : "fixture-original", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": 0]
+            }
+            result = ["items": items, "unread": items.count]
         case "/api/notifications": result = ["items": [["id": "fixture-notification", "actor_name": "듀엣 검증 가수", "actor_profile_id": "fixture-profile", "actor_image_version": "fixture", "kind": "duet", "source_title": "검증용 밤의 산책", "target": "fixture-duet", "available": 1, "created": Date().timeIntervalSince1970 - 60, "read_at": 0]], "unread": 1]
         case "/api/notifications/read": result = ["ok": true]
         case "/api/producers/fixture-own-profile": result = ["profile": ["id": "fixture-own-profile", "name": "검증 계정"], "tracks": [original], "covers": [cover]]

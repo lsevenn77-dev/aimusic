@@ -31,6 +31,9 @@ class Handler(SimpleHTTPRequestHandler):
         super().__init__(*args, directory=str(ROOT), **kwargs)
     def do_GET(self):
         path = self.path.split('?',1)[0]
+        if path == '/room-overlay-test.html':
+            data=b'''<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{background:#121824;color:white;font-family:system-ui;padding:30px}a,button{display:block;color:white;margin:20px;padding:15px}</style><h1>Room connection active</h1><a href="#notifications">Notifications</a><a href="#dm">Messages</a><button data-voice="inbox">Room inbox</button><button onclick="document.querySelector('output').textContent='Room draft retained'">Keep room draft</button><output></output><p id="leave"></p><script>document.addEventListener('click',e=>{if(e.target.closest('a'))document.querySelector('#leave').textContent='LEAVE CONFIRMATION';},true);</script>'''
+            self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data); return
         if path == '/jump-test.html':
             data=HTML.encode(); self.send_response(200); self.send_header('Content-Type','text/html; charset=utf-8'); self.send_header('Content-Length',str(len(data))); self.end_headers(); self.wfile.write(data); return
         if path == '/crew-jump-core.js':

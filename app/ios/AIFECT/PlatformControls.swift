@@ -115,17 +115,22 @@ struct WorkspacePage: View {
     }
 }
 
+private struct RoomOverlay: Identifiable {
+    let id: String
+}
+
 struct WebWorkspacePage: View {
     let space: SiteWorkspace
     @EnvironmentObject private var model: AppModel
     @State private var error: String?
     @State private var progress = 0.0
     @State private var attempt = 0
+    @State private var roomOverlay: RoomOverlay?
     var body: some View {
         ZStack(alignment: .top) {
             if let error { RetryCard(message: error) { self.error = nil; progress = 0; attempt += 1 }.padding() }
             else {
-                WorkspaceBrowser(space: space, error: $error, progress: $progress).id("\(model.userID ?? "guest")-\(space.id)-\(attempt)")
+                WorkspaceBrowser(space: space, error: $error, progress: $progress, openRoomOverlay: { roomOverlay = RoomOverlay(id: $0) }).id("\(model.userID ?? "guest")-\(space.id)-\(attempt)")
                 if progress < 1 {
                     VStack(spacing: 8) {
                         ProgressView(value: progress).tint(Brand.pink)
@@ -134,6 +139,20 @@ struct WebWorkspacePage: View {
                 }
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle(space.title).modifier(FullScreenWorkspace())
+            .sheet(item: $roomOverlay) { overlay in
+                NavigationStack {
+                    Group {
+                        if overlay.id == "notifications" { ActivityHistoryView() }
+                        else if overlay.id.hasPrefix("dm/") {
+                            ChatPage(path: "/api/dm/" + Endpoint.pathID(String(overlay.id.dropFirst(3))), title: "메시지", crew: false)
+                        } else { MessagesView().navigationTitle("메시지") }
+                    }.streamingPage()
+                        .navigationDestination(for: MessageRoute.self) { route in
+                            ChatPage(path: route.crew ? "/api/crews/\(Endpoint.pathID(route.id))/messages" : "/api/dm/\(Endpoint.pathID(route.id))", title: route.title, crew: route.crew)
+                        }
+                        .toolbar { ToolbarItem(placement: .cancellationAction) { Button("노래방으로 돌아가기") { roomOverlay = nil } } }
+                }.presentationDetents([.large]).preferredColorScheme(.dark)
+            }
     }
 }
 
@@ -141,6 +160,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
     let space: SiteWorkspace
     @Binding var error: String?
     @Binding var progress: Double
+    var openRoomOverlay: (String) -> Void = { _ in }
     private var target: URL {
         #if DEBUG
         // Real game source runs on a local fixture server in UI tests. Never enabled in Release.
@@ -152,7 +172,22 @@ struct WorkspaceBrowser: UIViewRepresentable {
         #endif
         return URL(string: Endpoint.origin.absoluteString + space.path)!
     }
-    func makeCoordinator() -> Coordinator { Coordinator(error: $error, progress: $progress, origin: target) }
+    func makeCoordinator() -> Coordinator { Coordinator(error: $error, progress: $progress, origin: target, openRoomOverlay: openRoomOverlay) }
+    // Runs before the site's leave-room guard. Opening the sheet keeps this WKWebView
+    // mounted, so the active room's microphone and listening connection remain intact.
+    static let roomOverlayScript = """
+        document.addEventListener('click', event => {
+            if (event.defaultPrevented || event.button !== 0 || !/^#(?:live|voice)[/][^/?]+/.test(location.hash)) return;
+            const link = event.target.closest?.('a[href]');
+            const roomInbox = event.target.closest?.('[data-voice="inbox"]');
+            const target = link ? new URL(link.href, location.href) : null;
+            if (target && target.origin !== location.origin) return;
+            const path = roomInbox ? 'dm' : (target?.hash || '').slice(1).split('?')[0];
+            if (path !== 'notifications' && path !== 'dm' && !/^dm[/][^/]+$/.test(path)) return;
+            event.preventDefault(); event.stopImmediatePropagation();
+            window.webkit.messageHandlers.roomOverlay.postMessage(path);
+        }, true);
+        """
     static let gameCSS = """
         :root { color-scheme:dark; --sidebar:0px }
         html,body { margin:0; padding:0; max-width:100%; overscroll-behavior:none }
@@ -172,6 +207,8 @@ struct WorkspaceBrowser: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.allowsInlineMediaPlayback = true
+        config.userContentController.add(context.coordinator, name: "roomOverlay")
+        config.userContentController.addUserScript(WKUserScript(source: Self.roomOverlayScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         config.applicationNameForUserAgent = "AIFECT-Mobile/" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
         if space.area.hasPrefix("game/") {
             let style = """
@@ -222,16 +259,25 @@ struct WorkspaceBrowser: UIViewRepresentable {
     static func dismantleUIView(_ view: WKWebView, coordinator: Coordinator) {
         coordinator.start?.cancel()
         coordinator.observation?.invalidate()
+        view.configuration.userContentController.removeScriptMessageHandler(forName: "roomOverlay")
         view.navigationDelegate = nil; view.uiDelegate = nil
         view.stopLoading()
     }
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
         @Binding var error: String?
         @Binding var progress: Double
         let origin: URL
         var start: Task<Void, Never>?
         var observation: NSKeyValueObservation?
-        init(error: Binding<String?>, progress: Binding<Double>, origin: URL) { _error = error; _progress = progress; self.origin = origin }
+        let openRoomOverlay: (String) -> Void
+        init(error: Binding<String?>, progress: Binding<Double>, origin: URL, openRoomOverlay: @escaping (String) -> Void) { _error = error; _progress = progress; self.origin = origin; self.openRoomOverlay = openRoomOverlay }
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "roomOverlay", message.frameInfo.isMainFrame,
+                  let url = message.frameInfo.request.url, permits(url),
+                  let path = message.body as? String,
+                  path == "notifications" || path == "dm" || (path.hasPrefix("dm/") && SiteWorkspace.validKey(String(path.dropFirst(3)))) else { return }
+            openRoomOverlay(path)
+        }
         func permits(_ url: URL) -> Bool {
             url.scheme == origin.scheme && url.host == origin.host && (url.port ?? (url.scheme == "https" ? 443 : 80)) == (origin.port ?? (origin.scheme == "https" ? 443 : 80)) && url.user == nil && url.password == nil
         }

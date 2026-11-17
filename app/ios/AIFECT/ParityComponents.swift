@@ -153,6 +153,7 @@ struct SingSongButton: View {
                     .overlay(Capsule().stroke(compact ? color.opacity(0.5) : .clear, lineWidth: 1)).frame(minHeight: 44)
             }
         }.buttonStyle(.plain).disabled(resolving)
+.accessibilityIdentifier("sing-song-" + song.id)
             .fullScreenCover(item: $target) { StudioView(studio: $0.studio) }
             .sheet(isPresented: $login, onDismiss: { if model.userID != nil { openStudio() } }) { LoginView() }
             .onChange(of: model.userID) { _, owner in if owner != nil && login { login = false } }
