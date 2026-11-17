@@ -1,5 +1,6 @@
 /* Gold checkout uses the same management-page surfaces and type scale.
    Only the charging page is styled; shared checkout and sent-gift views stay scoped. */
+#main .gold-page .gold-pack[data-guide-selection]{border-color:#8eddd2}
 #main .gold-page {
   display:grid;
   gap:calc(28px);

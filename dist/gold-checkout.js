@@ -1,6 +1,6 @@
 const goldOrderLabels={created:'결제 대기',approving:'승인 확인 중',checking:'결과 확인 중',paid:'충전 완료',cancelled:'결제 취소',refund_review:'환불 확인 중',failed:'결제 실패',expired:'만료'};
 function paymentKindTabs(active){if(active==='gold'||typeof AifectSite!=='undefined'&&AifectSite.PREMIUM.catalogVisible===false)return '';return `<nav class="tabs" aria-label="구매 상품"><a class="tab ${active==='premium'?'active':''}" href="#membership">Premium · 정기결제</a><a class="tab ${active==='gold'?'active':''}" href="#gold">골드 충전 · 결제</a></nav>`;}
-function goldHTML(d,history=false){
+function goldHTML(d,history=false,selectedGold=null){
  const testCheckout=!inApp&&(d.review_only||(!d.checkout_available&&d.test_checkout_available));
  const ready=!inApp&&(d.checkout_available||testCheckout),packs=inApp?d.packs:(d.web_packs||[]);
  return heading('골드 충전','좋아하는 음악에 선물하는 골드. 필요한 만큼, 한 번씩 결제해요.')+paymentKindTabs('gold')+`<div class="gold-page">
@@ -11,8 +11,8 @@ function goldHTML(d,history=false){
   <section class="gold-products" aria-labelledby="gold-products-title">
    <header class="gold-section-heading"><h2 id="gold-products-title">충전 상품</h2><p class="field-help">신용카드 일시불 결제 · 표시 금액은 부가세 포함 · ${inApp?'인앱결제는 해당 스토어 상품 기준':'웹 1회 한도 100,000원 · 골드 5% 추가 지급'} · 자동충전 및 정기결제 없음</p></header>
    ${testCheckout?'<p class="billing-notice">심사용 토스 TEST 주문서에서 상품과 카드 선택 화면을 확인할 수 있어요. 실제 충전은 준비 중이며, 이 테스트에서는 청구·골드 지급이 없습니다.</p>':''}
-   <div class="gold-packs">${packs.map(p=>`<article class="surface gold-pack">
-    <div class="gold-pack-main"><span class="gold-pack-label">제공 골드</span><strong>${number(p.total_gold??p.gold)} <small>G</small></strong></div>
+   <div class="gold-packs">${packs.map(p=>`<article class="surface gold-pack"${!inApp&&selectedGold===String(p.gold)?' data-guide-selection':''}>
+    <div class="gold-pack-main"><span class="gold-pack-label">${!inApp&&selectedGold===String(p.gold)?'안내에서 선택한 상품 · ':''}제공 골드</span><strong>${number(p.total_gold??p.gold)} <small>G</small></strong></div>
     ${p.bonus_gold?`<p class="gold-bonus"><span>${number(p.gold)}G + ${number(p.bonus_gold)}G</span><span>5% 추가 증정</span></p>`:''}
     <div class="gold-pack-purchase"><span class="gold-pack-price">${number(p.price)}원</span><button class="primary-button" data-buy-gold="${p.gold}" ${ready?'':'disabled'}>${testCheckout?'TEST 주문서':ready?'충전하기':'결제 준비 중'}</button></div>
    </article>`).join('')}</div>

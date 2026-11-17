@@ -6,6 +6,7 @@ import {publicPath,tryPublicOrigin} from './cafe24-origin.js';
 import {brandAliases,brandPublicDocument} from '../shared/web-brand.js';
 import {publicDiscoveryRoute} from './public-discovery.js';
 import {aboutPresentation} from './about-presentation.js';
+import {guidePresentation,isGuidePath} from './guide-pages.js';
 import {queueLyricAnalysis,runLyricBatch,lyricAnalysisAdmin} from './lyric-analysis.js';
 import {followManagement} from './follow-management.js';
 import {expireDubbingCombinations} from './dubbing-casting.js';
@@ -250,10 +251,15 @@ async function serve(req,env,ctx){
   headers.set('content-security-policy',"frame-ancestors 'none'");
   headers.set('content-security-policy-report-only',"default-src 'self'; script-src 'self' https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' https: data: blob:; media-src 'self' https: blob:; connect-src 'self' https: wss:; worker-src 'self' blob:; frame-src 'self' https:; object-src 'none'; base-uri 'self'; report-uri /security/csp-report");
  }
- if(req.method==='GET' && publicPath(new URL(req.url).pathname) && response.body){
+ const url=new URL(req.url),guide=isGuidePath(url.pathname)&&response.status===200;
+ if(guide && (req.method==='GET'||req.method==='HEAD')){
+  // Only this authored guide script is executable; payment documents retain their CSP.
+  headers.set('content-security-policy',`default-src 'none'; script-src ${url.origin}/guide-pages.js; connect-src ${url.origin}/api/membership ${url.origin}/api/billing/status; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'`);
+ }
+ if(req.method==='GET' && publicPath(url.pathname) && response.body){
   headers.delete('content-length');
   const branded=brandPublicDocument(await response.text());
-  const html=new URL(req.url).pathname==='/about' && response.status===200 ? aboutPresentation(branded) : branded;
+  const html=guide ? guidePresentation(branded,url.pathname) : url.pathname==='/about' && response.status===200 ? aboutPresentation(branded) : branded;
   return new Response(html,{status:response.status,statusText:response.statusText,headers});
  }
  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
