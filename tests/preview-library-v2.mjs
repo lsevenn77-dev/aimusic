@@ -11,6 +11,7 @@ const first=(await f.call('/api/playlists')).body.playlists[0];await f.call('/ap
 await f.call('/api/playlists','POST',{name:'나만 듣는 제작곡',track_ids:['one']},'other');
 const box=(await f.call('/api/my-boxes','POST',{name:'퇴근 후 듣고 싶은 음악'},'other')).body.id;
 for(const item of [{kind:'original',content_id:'one'},{kind:'cover',content_id:'two'}])await f.call('/api/my-boxes/'+box+'/items','PUT',item,'other');
+f.sql.exec("UPDATE tracks SET title='비 오는 긴 밤에 다시 듣고 싶은 검증용 제작곡' WHERE id='one'; UPDATE artists SET name='이름이 아주 긴 검증용 가수' WHERE id='artist'; UPDATE producers SET name='긴 이름의 검증용 음악 제작자' WHERE id='producer'; INSERT INTO likes(user_id,track_id,created) VALUES('other','one',10),('other','two',20),('other','three',30); INSERT INTO listens(id,listener,user_id,track_id,started,day) VALUES('ui-one','other','other','one',10,'2026-11-18'),('ui-two','other','other','two',20,'2026-11-18'),('ui-three','other','other','three',30,'2026-11-18')");
 const config=JSON.parse(readFileSync('dist/server/wrangler.json','utf8'));
 const mf=new Miniflare({...convertV4MiniflareOptions({modules:true,scriptPath:resolve('dist/server/index.js'),compatibilityDate:config.compatibility_date,compatibilityFlags:['nodejs_compat'],port:0,host:'127.0.0.1',d1Databases:['DB'],r2Buckets:['BUCKET'],assets:{...config.assets,directory:resolve('dist/client'),routerConfig:{has_user_worker:true}}}),handleStructuredLogs:entry=>{if(entry.level==='error')console.log(JSON.stringify(entry));}});
 await mf.ready;const db=await mf.getD1Database('DB');

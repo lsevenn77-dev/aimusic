@@ -1,5 +1,5 @@
 // Private library presentation. Playback, likes and playlist editors use existing services.
-const musicLibraryCategories=[['playlists','플레이리스트'],['myboxes','마이박스'],['likes','좋아요'],['history','최근 감상']];
+const musicLibraryCategories=[['likes','좋아요'],['history','최근 감상'],['playlists','플레이리스트'],['myboxes','마이박스']];
 let musicLibraryState=null,musicLibraryRequest=0;
 const musicLibraryReads=new Map();
 const musicLibraryAccount=()=>me?.id||'';
@@ -14,7 +14,7 @@ function cachedMusicLibraryRead(options,offset=0){
 }
 function musicLibraryOptions(raw){
  const p=new URLSearchParams(raw.split('?')[1]||'');
- return {section:musicLibraryCategories.some(([key])=>key===p.get('section'))?p.get('section'):'playlists',q:(p.get('q')||'').slice(0,100),sort:['recent','oldest','title','custom','played'].includes(p.get('sort'))?p.get('sort'):p.get('sort')==='name'?'title':'recent',filter:['all','mine','saved'].includes(p.get('filter'))?p.get('filter'):'all'};
+ return {section:musicLibraryCategories.some(([key])=>key===p.get('section'))?p.get('section'):'playlists',q:(p.get('q')||'').slice(0,100),sort:['recent','oldest','title','custom','played'].includes(p.get('sort'))?p.get('sort'):p.get('sort')==='name'?'title':'recent',filter:'all'};
 }
 function musicLibraryHref(options){return menuHref('profile',{view:'library',section:options.section,q:options.q||null,sort:options.sort||'recent',filter:options.filter||'all'});}
 async function musicLibraryRead(options,offset=0,readApi=api,{fresh=false}={}){
@@ -34,13 +34,18 @@ function musicLibraryRows(s){
  if(s.options.section==='myboxes')return s.data.items.length?`<div class="mybox-grid">${s.data.items.map(myBoxCard).join('')}</div>`:myEmpty(s.options.q?'검색 결과가 없어요.':'아직 마이박스가 없어요.');
  if(s.options.section==='playlists')return s.data.items.length?`<div class="ml-playlists">${s.data.items.map(p=>collectionCard(p,'horizontal')).join('')}</div>`:myEmpty(s.options.q?'검색 결과가 없어요.':'아직 플레이리스트가 없어요.');
  if(!s.data.items.length)return myEmpty(s.options.q?'검색 결과가 없어요.':s.options.section==='likes'?'좋아요를 누른 음악이 없어요.':'아직 감상한 음악이 없어요.');
- return `<div class="ml-song-list">${s.data.items.map(t=>`<article data-list-row class="ml-song" data-library-track="${esc(t.id)}"><a class="ml-song-info" href="#song/${esc(t.id)}">${cover(t,'mini-cover')}<span class="ml-song-copy"><strong title="${esc(t.title)}">${esc(t.title)}</strong><small>${trackNickname(t,'producer')}${t.has_ai_artist?' · AI '+trackNickname(t):''}</small></span></a><div class="ml-song-actions"><button class="list-action icon-button" data-like="${esc(t.id)}" aria-pressed="${!!t.liked}" title="${esc(t.title)} 좋아요" aria-label="${esc(t.title)} 좋아요">${icon('ui-heart')}</button><button class="list-action icon-button song-table-play" data-play="${esc(t.id)}" title="${esc(t.title)} 재생" aria-label="${esc(t.title)} 재생">${icon('ui-play-action')}</button><button class="list-action icon-button" data-track-menu="${esc(t.id)}" title="${esc(t.title)} 더보기" aria-label="${esc(t.title)} 더보기">${icon('ui-menu-action')}</button></div></article>`).join('')}</div>`;
+ return `<div class="ml-song-list">${s.data.items.map(t=>`<article data-list-row class="ml-song" data-library-track="${esc(t.id)}"><a class="ml-song-info" href="#song/${esc(t.id)}">${cover(t,'mini-cover')}<span class="ml-song-copy"><strong class="ml-song-title" title="${esc(t.title)}">${esc(t.title)}</strong><span class="ml-song-artist" aria-label="가수" title="${esc(t.artist||t.producer||'')}">${t.kind==='cover'?trackPerformers(t):trackNickname(t)}</span><span class="ml-song-producer" aria-label="제작자" title="${esc(t.producer||'')}">${trackNickname(t,'producer')}</span></span></a><div class="ml-song-actions"><button class="list-action icon-button" data-like="${esc(t.id)}" aria-pressed="${!!t.liked}" title="${esc(t.title)} 좋아요" aria-label="${esc(t.title)} 좋아요">${icon('ui-heart')}</button><button class="list-action icon-button song-table-play" data-play="${esc(t.id)}" title="${esc(t.title)} 재생" aria-label="${esc(t.title)} 재생">${icon('ui-play-action')}</button><button class="list-action icon-button" data-track-menu="${esc(t.id)}" title="${esc(t.title)} 더보기" aria-label="${esc(t.title)} 더보기">${icon('ui-menu-action')}</button></div></article>`).join('')}</div>`;
 }
+function musicLibraryResultCount(s){return number(s.data.total)+(['playlists','myboxes'].includes(s.options.section)?'개 목록':'곡');}
 function musicLibraryPanel(s){
- const {options:o,data:d}=s,playlist=o.section==='playlists';
- return `${o.section==='myboxes'?'<button type="button" class="small-button" id="new-mybox">'+icon('plus')+' 새 마이박스</button>':''}${playlist?'<div class="ml-playlist-controls">':''}${o.section==='playlists'?'<div class="ml-playlist-actions" role="group" aria-label="플레이리스트 관리"><button type="button" class="ml-playlist-tool" id="new-playlist" aria-label="플레이리스트 추가">'+icon('plus')+'<span>플리추가</span></button><button type="button" class="ml-playlist-tool" data-order-collections aria-label="플레이리스트 순서 편집">'+icon('list')+'<span>플리순서</span></button><a class="ml-playlist-tool" href="#collections" aria-label="플레이리스트 찾기">'+icon('search')+'<span>플리찾기</span></a></div>':''}<form id="ml-search" class="ml-toolbar" role="search"><div class="ml-search-box brand-search"><button type="submit" title="보관함 검색" aria-label="보관함 검색">${icon('search')}</button><input type="search" name="q" aria-label="보관함 내 검색" placeholder="보관함 내 검색" value="${esc(o.q)}" maxlength="100"></div><select data-dropdown="md" name="sort" aria-label="보관함 정렬">${[['recent',o.section==='playlists'?'최근 수정순':'최신순'],['oldest','오래된순'],['title','이름순'],...(o.section==='playlists'?[['played','최근 재생순'],['custom','내 순서']]:[])].map(([k,l])=>`<option value="${k}" ${o.sort===k?'selected':''}>${l}</option>`).join('')}</select></form>${playlist?'</div>':''}${playlist?'<nav class="ml-filters" aria-label="플레이리스트 분류">'+[['all','전체'],['mine','내가 만든'],['saved','저장한']].map(([key,label])=>'<a class="small-button" href="'+musicLibraryHref({...o,filter:key})+'" '+(o.filter===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>':''}<p class="ml-result-count">${number(d.total)}${['playlists','myboxes'].includes(o.section)?'개 목록':'곡'}${o.section==='history'?' · 곡별 최근 감상순':''}</p><div id="ml-items">${musicLibraryRows(s)}</div><button class="small-button ml-more" id="ml-more" ${d.nextOffset===null?'hidden':''}>더보기</button>`;
+ const {options:o,data:d}=s,playlist=o.section==='playlists',box=o.section==='myboxes',placeholder=playlist?'제목·작성자 검색':box?'마이박스 이름 검색':'곡·가수·제작자 검색';
+ return `<form id="ml-search" class="ml-toolbar ${playlist||box?'ml-toolbar-create':''}" role="search"><div class="ml-search-box brand-search"><button type="submit" title="보관함 검색" aria-label="보관함 검색">${icon('search')}</button><input type="search" name="q" aria-label="보관함 내 검색" placeholder="${placeholder}" value="${esc(o.q)}" maxlength="100" autocomplete="off"></div>${playlist||box?`<button type="button" class="small-button ml-create" id="${box?'new-mybox':'new-playlist'}" aria-label="${box?'마이박스':'플레이리스트'} 만들기">${icon('plus')}<span>만들기</span></button>`:''}<select data-dropdown="md" data-dropdown-width="full" name="sort" aria-label="보관함 정렬">${[['recent',playlist||box?'최근 수정순':'최신순'],['oldest','오래된순'],['title','이름순'],...(playlist?[['played','최근 재생순'],['custom','내 순서']]:[])].map(([k,l])=>`<option value="${k}" ${o.sort===k?'selected':''}>${l}</option>`).join('')}</select></form><div class="ml-result-bar"><p class="ml-result-count" aria-live="polite">${musicLibraryResultCount(s)}</p>${playlist?`<div class="ml-secondary-tools"><button type="button" class="text-link" data-order-collections ${o.sort==='custom'?'':'hidden'}>순서 편집</button><a class="text-link" href="#collections">추천 플레이리스트</a></div>`:''}</div><div id="ml-items">${musicLibraryRows(s)}</div><button class="small-button ml-more" id="ml-more" ${d.nextOffset===null?'hidden':''}>더보기</button>`;
 }
-function musicLibraryHTML(s){return `<section class="mp-library" id="music-library" data-account="${esc(s.account)}" aria-label="내 보관함"><div class="mp-section-head"><h2>내 보관함</h2></div><div class="ml-tabs" role="tablist" aria-label="보관함 카테고리">${musicLibraryTabs(s)}</div><div class="ml-status sr-only" role="status" aria-live="polite"></div><div id="ml-panel" role="tabpanel" tabindex="0" aria-labelledby="ml-tab-${s.options.section}">${musicLibraryPanel(s)}</div></section>`;}
+function musicLibraryHTML(s){return `<section class="mp-library" id="music-library" data-account="${esc(s.account)}" aria-label="내 보관함"><div class="ml-tabs" role="tablist" aria-label="보관함 카테고리">${musicLibraryTabs(s)}</div><div class="ml-status sr-only" role="status" aria-live="polite"></div><div id="ml-panel" role="tabpanel" tabindex="0" aria-labelledby="ml-tab-${s.options.section}">${musicLibraryPanel(s)}</div></section>`;}
+function musicLibraryFilter(items,section,q){
+ const text=q.trim().toLocaleLowerCase();if(!text)return items;
+ return items.filter(t=>!t.unavailable&&(section==='playlists'?[t.name,t.owner_name]:section==='myboxes'?[t.name]:[t.title,t.artist,t.producer]).some(value=>String(value||'').toLocaleLowerCase().includes(text)));
+}
 function musicLibraryAside(recommendation){
  const tracks=recommendation?.tracks||[];
  const content=tracks.length?`<div class="ml-recommendations" data-library-gesture-ignore>${tracks.slice(0,4).map(t=>`<article class="ml-recommendation"><a href="#song/${esc(t.id)}">${cover(t,'mini-cover')}<span><strong>${esc(t.title)}</strong><small>${trackNickname(t)}</small></span></a><button class="icon-button" data-play="${esc(t.id)}" title="${esc(t.title)} 추천 음악 재생" aria-label="${esc(t.title)} 추천 음악 재생">${icon('ui-play-action')}</button></article>`).join('')}</div>`:myEmpty(recommendation===null?'추천 음악을 불러오지 못했어요.':'아직 추천할 음악이 없어요.');
@@ -89,7 +94,16 @@ function bindMusicLibrary(s){
 }
 function bindMusicLibraryPanel(s){
  const root=$('#music-library'),panel=$('#ml-panel'),form=$('#ml-search');
- if(form){form.onsubmit=e=>{e.preventDefault();const values=Object.fromEntries(new FormData(form)),href=musicLibraryHref({...s.options,...values});if(typeof rememberMyPageRouteTarget==='function')rememberMyPageRouteTarget(href.slice(1));location.hash=href;};form.querySelectorAll('select').forEach(el=>el.onchange=()=>form.requestSubmit());}
+ if(form){
+  form.onsubmit=e=>{e.preventDefault();clearTimeout(s.searchTimer);const live=s.liveSearch;s.liveSearch=false;const values=Object.fromEntries(new FormData(form)),href=musicLibraryHref({...s.options,...values});if(typeof rememberMyPageRouteTarget==='function')rememberMyPageRouteTarget(href.slice(1));if(live&&typeof history!=='undefined'){history.replaceState(history.state,'',href);window.AifectRender?.syncTarget();void refreshMusicLibraryRoute(href.slice(1),renderId,false);}else if(location.hash===href)refreshMusicLibraryRoute(href.slice(1),renderId,true);else location.hash=href;};
+  form.querySelectorAll('select').forEach(el=>el.onchange=()=>form.requestSubmit());
+  const input=form.querySelector('input[name="q"]');
+  if(input){
+   const search=()=>{clearTimeout(s.searchTimer);++musicLibraryRequest;s.pending=false;const q=input.value,items=musicLibraryFilter(s.data.items,s.options.section,q);$('#ml-items').innerHTML=musicLibraryRows({...s,options:{...s.options,q},data:{...s.data,items}});const count=root.querySelector('.ml-result-count');if(count)count.textContent=q===s.options.q?musicLibraryResultCount(s):'검색 중…';const more=$('#ml-more');if(more)more.hidden=true;paintInteractions();s.searchTimer=setTimeout(()=>{if(form.isConnected&&musicLibraryState===s&&s.account===me?.id){s.liveSearch=true;form.requestSubmit();}},180);};
+   input.oninput=e=>{if(!e.isComposing)search();};input.oncompositionend=search;
+  }
+ }
+
  const more=$('#ml-more');if(more)more.onclick=async()=>{
   if(s.pending||s.data.nextOffset===null)return;
   const uid=me?.id,revision=musicLibraryRevision(),request=++musicLibraryRequest,options={...s.options},route=location.hash;
@@ -131,6 +145,7 @@ async function refreshMusicLibraryRoute(raw,ticket,force=false,readApi=api,showC
  if(!s||!root||s.account!==me?.id||!/^profile\?/.test(raw)||new URLSearchParams(raw.split('?')[1]).get('view')!=='library')return false;
  const options=musicLibraryOptions(raw),request=++musicLibraryRequest,panel=$('#ml-panel'),revision=musicLibraryRevision(),main=$('#main'),status=root.querySelector('.ml-status');
  if(!panel)return false;
+ clearTimeout(s.searchTimer);const keepControls=s.options.section===options.section&&!!$('#ml-search');
  let timedOut=false,timer;
  const mounted=()=>!timedOut&&request===musicLibraryRequest&&musicLibraryState===s&&root.isConnected&&root===$('#music-library')&&panel===$('#ml-panel')&&ticket===renderId&&s.account===me?.id&&main.dataset.route===raw&&(typeof myPageState==='undefined'||myPageState?.tab==='library');
  const current=()=>mounted()&&revision===musicLibraryRevision()&&!readApi.signal?.aborted&&(!readApi.current||readApi.current());
@@ -141,13 +156,17 @@ async function refreshMusicLibraryRoute(raw,ticket,force=false,readApi=api,showC
  if(s.focus){$('#ml-tab-'+options.section)?.focus({preventScroll:true});s.focus=false;}musicLibraryCenter();
  const paint=data=>{
   holdMusicLibraryPanel(panel,true);s.data=data;s.revision=revision;s.pending=false;
-  paintMusicLibraryTabs(root,s);panel.removeAttribute('aria-busy');panel.classList.remove('ml-enter');panel.innerHTML=musicLibraryPanel(s);
+  paintMusicLibraryTabs(root,s);panel.removeAttribute('aria-busy');panel.classList.remove('ml-enter');
+  if(keepControls&&$('#ml-items')){
+   $('#ml-items').innerHTML=musicLibraryRows(s);const count=root.querySelector('.ml-result-count');if(count)count.textContent=musicLibraryResultCount(s);const more=$('#ml-more');if(more)more.hidden=data.nextOffset===null;
+   const form=$('#ml-search'),input=form.querySelector('input[name="q"]'),sort=form.querySelector('select');if(input&&input.value!==options.q)input.value=options.q;if(sort){sort.value=options.sort;if(typeof window.AifectDropdown?.mount==='function')window.AifectDropdown.mount(sort)?.sync?.();}const order=root.querySelector('[data-order-collections]');if(order)order.hidden=options.sort!=='custom';
+  }else panel.innerHTML=musicLibraryPanel(s);
   bindMusicLibraryPanel(s);musicLibraryRemember(s);paintInteractions();holdMusicLibraryPanel(panel);
  };
  const fail=message=>{s.pending=false;panel.removeAttribute('aria-busy');panel.innerHTML='<p class="mp-muted" role="alert">'+esc(message)+' <button class="text-link" id="ml-retry">다시 시도</button></p>';$('#ml-retry').onclick=()=>refreshMusicLibraryRoute(raw,renderId,true,api);holdMusicLibraryPanel(panel);};
  const cached=!force&&cachedMusicLibraryRead(options);
  if(cached&&current()){paint(cached);showCurrentTab?.();return true;}
- holdMusicLibraryPanel(panel,true);panel.setAttribute('aria-busy','true');panel.innerHTML='<p class="mp-muted" role="status">불러오는 중…</p>';showCurrentTab?.();
+ holdMusicLibraryPanel(panel,true);panel.setAttribute('aria-busy','true');if(!keepControls)panel.innerHTML='<p class="mp-muted" role="status">불러오는 중…</p>';showCurrentTab?.();
  try{
   const expired=Symbol('library-timeout'),localRead=(...args)=>readApi(...args);localRead.signal=readApi.signal;localRead.current=current;
   const timeout=new Promise(resolve=>{timer=setTimeout(()=>{if(mounted())fail('연결이 지연되고 있어요. 다시 시도해주세요.');timedOut=true;resolve(expired);},20000);});

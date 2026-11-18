@@ -17,7 +17,7 @@ async function box(env,bid,user){requireUser(user);const value=await one(env,'SE
 export async function boxSummaries(env,uid,params=new URLSearchParams()){
  const {limit,offset}=pageParams(params),q=(params.get('q')||'').trim().slice(0,100),where='b.user_id=? AND instr(lower(b.name),lower(?))>0',args=[uid,q];
  const total=(await one(env,`SELECT count(*) n FROM my_boxes b WHERE ${where}`,...args)).n;
- const order=params.get('sort')==='title'?'b.name COLLATE NOCASE,b.id':'b.updated DESC,b.id';
+ const order=params.get('sort')==='title'?'b.name COLLATE NOCASE,b.id':params.get('sort')==='oldest'?'b.created,b.id':'b.updated DESC,b.id';
  const items=await rows(env,`SELECT b.id,b.name,b.created,b.updated,b.revision,
  (SELECT count(*) FROM my_box_items i WHERE i.box_id=b.id AND i.kind='original') originals,
  (SELECT count(*) FROM my_box_items i WHERE i.box_id=b.id AND i.kind='cover') covers,
