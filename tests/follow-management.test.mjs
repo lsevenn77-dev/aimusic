@@ -77,3 +77,15 @@ test('unfollowing one displayed member also resolves a legacy member key for the
  assert.equal((await f.call(endpoint+'tab=following')).body.total,0);
  assert.equal((await f.call(endpoint+'tab=followers')).body.total,1);
 });
+
+test('oldest sorting uses actual relationship timestamps and counts ignore search filters',async t=>{
+ const f=await fixture(t);load(f);
+ f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('sort-a','sort-a@example.test','older',0),('sort-b','sort-b@example.test','newer',0); INSERT INTO follows VALUES('sort-a','producer','producer',10),('sort-b','producer','producer',20)");
+ const get=async query=>(await f.call(endpoint+'tab=followers&'+query)).body;
+ const old=await get('sort=oldest'),latest=await get('sort=latest');
+ assert.deepEqual(old.items.map(r=>r.created),[...old.items.map(r=>r.created)].sort((a,b)=>a-b));
+ assert.deepEqual(latest.items.map(r=>r.created),[...latest.items.map(r=>r.created)].sort((a,b)=>b-a));
+ const filtered=await get('q=older');assert.equal(filtered.matched,1);assert.equal(filtered.counts.followers,old.total);assert.equal(filtered.counts.following,1);
+ await f.call('/api/producers/p2/follow','DELETE',{},'owner');
+ assert.equal((await get('')).counts.following,0);
+});

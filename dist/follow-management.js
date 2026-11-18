@@ -1,20 +1,119 @@
-// Shared by own, public and legacy routes. Only the server supplies permissions and rows.
+// Personal FollowPage: the native hash router retains this shell for all three tabs.
+// Data, filters and pagination survive a profile visit; pending reads are shared per account.
+const followDataCache=new Map(),followPageCache=new Map();
+const followPersonalTabs={followers:'내 팔로워',following:'내 팔로잉',blocks:'차단 관리'};
+const followStamp=()=>[me?.id||'guest',apiRevision,followRevision].join(':');
+function followSelection(raw){
+ raw=raw.replace(/^#/, '');if(raw.split('?')[0]!=='follow')return null;
+ const q=new URLSearchParams(raw.split('?')[1]);
+ if(q.has('artist')||q.has('tab')&&!Object.hasOwn(followPersonalTabs,q.get('tab')))return null;
+ return {raw,tab:Object.hasOwn(followPersonalTabs,q.get('tab'))?q.get('tab'):'followers',user:q.get('user')||'',kind:q.get('kind')||'',q:q.get('q')||''};
+}
+function followContext(s){return [me?.id||'guest',s.user,s.kind].join(':');}
+function followHref(s,tab){return '#follow?'+followOptions(tab,'',s.user,tab==='following'?s.kind:'');}
+function followTargetId(raw){try{return decodeURIComponent(raw.replace(/^#/,''));}catch{return raw.replace(/^#/,'');}}
+function followTargets(s){return '<div hidden aria-hidden="true" data-follow-route-targets>'+[...new Set([s.raw,'follow',...Object.keys(followPersonalTabs).map(tab=>followHref(s,tab).slice(1))])].map(raw=>'<span data-follow-route-target id="'+esc(followTargetId(raw))+'"></span>').join('')+'</div>';}
+function rememberFollowTarget(root,raw){const host=root.querySelector('[data-follow-route-targets]'),id=followTargetId(raw);if([...host.children].some(n=>n.id===id))return;const node=document.createElement('span');node.id=id;node.setAttribute('data-follow-route-target','');host.append(node);}
+async function readFollowData(params){
+ const q=new URLSearchParams(params);q.sort();const stamp=followStamp(),key=stamp+':'+q,prior=followDataCache.get(key);
+ if(prior&&(prior.pending||prior.until>Date.now()))return structuredClone(await prior.promise);
+ const entry={pending:true,until:0};
+ entry.promise=api('/api/follow-management?'+q,'GET',undefined,{fresh:true}).then(data=>{
+  if(stamp!==followStamp())throw Object.assign(new Error('관계 정보가 변경됐어요.'),{name:'AbortError'});
+  entry.pending=false;entry.until=Date.now()+60000;return data;
+ }).catch(error=>{if(followDataCache.get(key)===entry)followDataCache.delete(key);throw error;});
+ followDataCache.set(key,entry);while(followDataCache.size>48)followDataCache.delete(followDataCache.keys().next().value);
+ return structuredClone(await entry.promise);
+}
+async function followManagementView(raw,readApi){
+ const selection=followSelection(raw);
+ if(!me&&!selection.user){returnRoute=location.hash;return {html:'<section class="fm-page fm-gate">'+gate()+'</section>'};}
+ const tabs=selection.user&&selection.user!==me?.id?['followers','following']:Object.keys(followPersonalTabs);
+ const html='<section class="fm-page fm-stable" aria-label="팔로우 목록">'+followTargets(selection)+'<header class="fm-header"><h1>팔로우 관리</h1><nav class="tabs fm-tabs aifect-main-tabs" aria-label="팔로우 탭">'+tabs.map((tab,i)=>'<a class="tab" data-follow-tab="'+tab+'" data-tab-tone="'+['pink','mint','purple'][i]+'" href="'+esc(followHref(selection,tab))+'">'+(selection.user?{followers:'팔로워',following:'팔로잉'}[tab]:followPersonalTabs[tab])+(tab!=='blocks'?'<span class="fm-tab-count" data-follow-count-tab="'+tab+'"></span>':'')+'</a>').join('')+'</nav></header><div class="fm-content"></div></section>';
+ return {html,followPage:{selection}};
+}
+function followPanelHTML(tab){return '<div class="fm-tools"><label class="brand-search">'+icon('search')+'<input type="search" maxlength="100" aria-label="닉네임 검색" placeholder="닉네임 검색"></label><select class="fm-sort" aria-label="정렬"><option value="latest">최신순</option><option value="oldest">오래된순</option></select></div><div class="fm-result-head"><span class="fm-count"></span><div class="fm-mode"></div></div><div class="fm-list-panel"><div class="fm-status" role="status"></div><div class="fm-loading" hidden></div><ul class="fm-rows"></ul><button class="small-button fm-more" hidden>더 보기</button></div>'+(tab==='blocks'?'<div class="fm-bulk" hidden></div>':'');}
+function canRefreshFollowRoute(raw){
+ const root=document.querySelector('.fm-stable'),state=root?._followPage,s=followSelection(raw);
+ return !!(s&&state&&!state.disposed&&state.context===followContext(s)&&state.account===(me?.id||'guest'));
+}
+function refreshFollowRoute(raw){
+ if(!canRefreshFollowRoute(raw))return false;
+ const main=document.querySelector('#main');
+ if(main.dataset.route!==raw&&typeof cleanupRouteOverlays==='function')cleanupRouteOverlays();
+ const root=document.querySelector('.fm-stable');root._followPage.select(followSelection(raw));
+ main.dataset.route=raw;return true;
+}
+function bindFollowManagement(view){
+ if(view.legacy)return bindArtistFollowers(view);
+ const root=document.querySelector('.fm-stable');if(!root)return;
+ const context=followContext(view.selection),account=me?.id||'guest';
+ let cache=followPageCache.get(context);if(!cache){cache={tabs:new Map(),counts:{}};followPageCache.set(context,cache);}
+ while(followPageCache.size>8)followPageCache.delete(followPageCache.keys().next().value);
+ const state=root._followPage={context,account,panels:new Map(),disposed:false,selection:view.selection};
+ const current=()=>!state.disposed&&root.isConnected&&account===(me?.id||'guest');
+ const paintCounts=()=>{for(const node of root.querySelectorAll('[data-follow-count-tab]')){const count=cache.counts[node.dataset.followCountTab];node.textContent=Number.isFinite(count)?number(count):'';}};
+ function showData(panel,tab,saved){
+  panel.innerHTML=followPanelHTML(tab);
+  const params=followOptions(tab,'',state.selection.user,tab==='following'?state.selection.kind:'');
+  bindFollowList(panel,{params:params.toString(),tab,d:saved.d,simple:tab!=='blocks',saved,
+   onFilters(query,sort){panel._filters={query,sort};},
+   onData(data){const entry={...data};cache.tabs.set(tab,entry);panel._entry=entry;panel._filters={query:entry.query,sort:entry.sort};Object.assign(cache.counts,data.d.counts||{[tab]:data.d.total});paintCounts();}
+  });
+ }
+ async function loadPanel(panel,tab){
+  if(panel._pending)return panel._pending;
+  // Refresh an existing list through its own sequence guard. Replacing its
+  // controls here could overwrite a search typed while revalidation is pending.
+  if(panel._entry&&panel._followRefresh){panel._pending=Promise.resolve(panel._followRefresh()).finally(()=>{panel._pending=null;});return panel._pending;}
+  const selection={...state.selection},saved=cache.tabs.get(tab),filters=panel._filters||{query:saved?.query||selection.q,sort:saved?.sort||'latest'};
+  const params=followOptions(tab,'',selection.user,tab==='following'?selection.kind:'');params.set('q',filters.query);params.set('sort',filters.sort);
+  if(!panel._entry)panel.innerHTML='<div class="fm-initial" role="status"><span class="sr-only">목록을 불러오는 중…</span>'+followSkeleton()+'</div>';
+  panel._pending=(async()=>{try{
+   const d=await readFollowData(params);if(!current())return;
+   const saved={d,rows:d.items,next:d.next,query:filters.query,sort:filters.sort,stamp:followStamp(),until:Date.now()+60000};
+   showData(panel,tab,saved);
+  }catch(error){if(!current())return;
+   if(error.name==='AbortError'){panel._pending=null;return loadPanel(panel,tab);}
+   if(error.status===401||error.status===403){cache.tabs.delete(tab);panel._entry=null;panel.innerHTML='';}
+   let status=panel.querySelector('.fm-status');if(!status){panel.innerHTML='<div class="fm-status fm-feedback" role="alert"></div>';status=panel.querySelector('.fm-status');}
+   status.innerHTML=esc(error.message)+' <button type="button" class="small-button">다시 시도</button>';status.querySelector('button').onclick=()=>loadPanel(panel,tab);
+  }finally{panel._pending=null;}})();return panel._pending;
+ }
+ state.select=selection=>{
+  state.selection=selection;rememberFollowTarget(root,selection.raw);
+  for(const link of root.querySelectorAll('[data-follow-tab]')){const active=link.dataset.followTab===selection.tab;link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');}
+  let panel=state.panels.get(selection.tab);
+  if(!panel){panel=document.createElement('div');panel.className='fm-tab-panel';panel.dataset.followPanel=selection.tab;root.querySelector('.fm-content').append(panel);state.panels.set(selection.tab,panel);const saved=cache.tabs.get(selection.tab);if(saved)showData(panel,selection.tab,saved);}
+  for(const [tab,node] of state.panels)node.hidden=tab!==selection.tab;
+  const entry=panel._entry;if(!entry||entry.stamp!==followStamp()||entry.until<=Date.now())void loadPanel(panel,selection.tab);
+  paintCounts();
+ };
+ const navigate=event=>{const link=event.target.closest('[data-follow-tab]');if(!link||event.defaultPrevented||event.button>0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();const href=link.getAttribute('href');rememberFollowTarget(root,href);if(location.hash!==href){location.hash=href;refreshFollowRoute(href.slice(1));}};
+ root.addEventListener('click',navigate);
+ const changed=()=>{if(current())state.select(followSelection(location.hash)||state.selection);};
+ window.addEventListener('aifect:follow-saved',changed);
+ registerRouteCleanup(()=>{state.disposed=true;root.removeEventListener('click',navigate);window.removeEventListener('aifect:follow-saved',changed);});
+ state.select(view.selection);
+}
+
+// Artist fan moderation remains available from the artist fan page, separately.
 const followTabs={followers:'내 팔로워',following:'내 팔로잉',artists:'AI 아티스트',blocks:'차단 관리'};
 const followOps={remove:'삭제',block:'차단',unfollow:'팔로우 취소',unblock:'차단 해제',follow:'맞팔로우'};
 function followOptions(tab,artist='',user='',kind=''){
  const q=new URLSearchParams({tab});if(artist)q.set('artist',artist);if(user)q.set('user',user);if(kind)q.set('kind',kind);return q;
 }
-async function followManagementView(raw,readApi){
+async function artistFollowersView(raw,readApi){
  const q=new URLSearchParams(raw.split('?')[1]),tab=q.get('tab')||'followers',aid=q.get('artist')||'';
  if(!me&&!q.has('user')&&!aid){returnRoute=location.hash;return {html:'<section class="fm-page fm-gate">'+gate()+'</section>'};}
  const params=followOptions(tab,aid,q.get('user'),q.get('kind')),initial=q.get('q')||'';
  if(initial)params.set('q',initial);
- return {html:'<section class="fm-page" aria-label="팔로우 목록"><h1>팔로우</h1><div class="fm-initial" role="status"></div></section>',followPage:{params:params.toString(),tab,aid,initial,raw,readApi}};
+ return {html:'<section class="fm-page" aria-label="팔로우 목록"><h1>팔로우</h1><div class="fm-initial" role="status"></div></section>',followPage:{legacy:true,params:params.toString(),tab,aid,initial,raw,readApi}};
 }
 function followSkeleton(){
  return '<div class="fm-skeleton" aria-hidden="true">'+('<div><i></i><span></span></div>').repeat(4)+'</div>';
 }
-async function bindFollowManagement({params,tab,aid,initial,raw,readApi}){
+async function bindArtistFollowers({params,tab,aid,initial,raw,readApi}){
  const root=document.querySelector('.fm-page'),pending=root.querySelector('.fm-initial');
  async function load(){
   const revision=followRevision;
@@ -35,18 +134,22 @@ async function bindFollowManagement({params,tab,aid,initial,raw,readApi}){
 }
 function followListHTML(d,tab,aid,initial,raw){
  const href=k=>'#follow?'+esc(followOptions(k,'',d.own?'':d.owner).toString());
- const tabs=d.own?Object.keys(followTabs):aid?['artists']:['followers','following'];
+ const tabs=aid?['artists']:['followers','following'];
  const labels=d.own?followTabs:{followers:'팔로워',following:'팔로잉',artists:'아티스트 팔로워'};
  const picker=tab==='artists'&&d.own?'<select class="fm-artist" aria-label="AI 아티스트 선택"><option value="">전체 아티스트</option>'+d.artists.map(a=>'<option value="'+esc(a.id)+'" '+(aid===a.id?'selected':'')+'>'+esc(a.name)+' · '+number(a.followers)+'명</option>').join('')+'</select>':'';
  return '<header class="fm-header"><div class="fm-top"><h1>'+esc(d.own?'팔로우 관리':d.name+(aid?' 팬':'의 팔로우'))+'</h1><span class="fm-count"></span><div class="fm-mode"></div></div>'+
- '<div class="fm-tabs-row"><nav class="tabs fm-tabs aifect-main-tabs" aria-label="팔로우 탭">'+tabs.map(k=>'<a data-tab-tone="mint" class="tab '+(k===tab?'active':'')+'" '+(k===tab?'aria-current="page"':'')+' href="'+(k==='artists'&&!d.own?'#'+esc(raw):href(k))+'">'+labels[k]+'</a>').join('')+'</nav>'+picker+'</div>'+
+ '<div class="fm-tabs-row"><nav class="tabs fm-tabs aifect-main-tabs" aria-label="팔로우 탭">'+tabs.map(k=>'<a data-tab-tone="mint" class="tab '+(k===tab?'active':'')+'" '+(k===tab?'aria-current="page"':'')+' href="'+(k==='artists'?'#artist-followers/'+encodeURIComponent(aid):href(k))+'">'+labels[k]+'</a>').join('')+'</nav>'+picker+'</div>'+
  '<div class="fm-tools"><label class="brand-search">'+icon('search')+'<input type="search" maxlength="100" aria-label="닉네임 검색" placeholder="닉네임 검색" value="'+esc(initial)+'"></label><select class="fm-sort" aria-label="정렬"><option value="latest">최신순</option><option value="name">이름순</option></select></div></header>'+
  '<div class="fm-list-panel"><div class="fm-status" role="status"></div><div class="fm-loading" hidden></div><ul class="fm-rows"></ul><button class="small-button fm-more" hidden>더 보기</button></div><div class="fm-bulk" hidden></div>';
 }
-function bindFollowList(root,{params,d,tab}){
+function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters}){
+ root._followRelease?.();
+ if(simple)d={...d,manage:false};
  const find=s=>root.querySelector(s),input=find('input'),sort=find('.fm-sort'),modeBox=find('.fm-mode'),bulk=find('.fm-bulk'),list=find('ul'),status=find('.fm-status'),more=find('.fm-more'),loading=find('.fm-loading');
- const viewer=me?.id,hash=location.hash,alive=()=>root.isConnected&&location.hash===hash&&viewer===me?.id;
- let rows=d.items,mode=false,busy=false,ready=true,next=d.next,seq=0,timer,reader,base=new URLSearchParams(params),chosen=new Map();
+ const viewer=me?.id,hash=location.hash;let disposed=false;const alive=()=>!disposed&&root.isConnected&&viewer===me?.id&&(root.closest('.fm-stable')||location.hash===hash);
+ if(saved){input.value=saved.query;sort.value=saved.sort;}
+ let dataStamp=saved?.stamp||followStamp(),dataUntil=saved?.until||Date.now()+60000;
+ let rows=saved?.rows||d.items,mode=false,busy=false,ready=true,next=saved?.next??d.next,seq=0,timer,reader,base=new URLSearchParams(params),chosen=new Map();
  const btn=(action,label,disabled=false)=>'<button type="button" class="small-button" data-fm="'+action+'" '+(disabled?'disabled':'')+'>'+esc(label)+'</button>';
  const ops=tab==='followers'||tab==='artists'?['remove','block']:tab==='following'?['unfollow','block']:['unblock'];
  const clear=()=>{chosen.clear();mode=false;};
@@ -55,14 +158,15 @@ function bindFollowList(root,{params,d,tab}){
  function controls(){
   find('.fm-count').textContent=ready?(input.value.trim()?number(d.matched)+'/':'')+number(d.total)+'명':'…';
   modeBox.innerHTML=d.manage?(mode?btn('all',chosen.size===d.matched&&chosen.size?'전체 해제':'전체 선택',busy||!ready||!d.matched)+btn('cancel','취소',busy):btn('select','선택',busy||!ready||!d.total)):'';
-  bulk.hidden=!mode||!chosen.size;root.classList.toggle('fm-has-bulk',!bulk.hidden);
-  if(!bulk.hidden)bulk.innerHTML='<strong>'+number(chosen.size)+'명 선택</strong>'+ops.map(op=>btn(op,'선택 '+followOps[op],busy)).join('');
+  if(bulk)bulk.hidden=!mode||!chosen.size;root.classList.toggle('fm-has-bulk',!!bulk&&!bulk.hidden);
+  if(bulk&&!bulk.hidden)bulk.innerHTML='<strong>'+number(chosen.size)+'명 선택</strong>'+ops.map(op=>btn(op,'선택 '+followOps[op],busy)).join('');
   more.hidden=next===null||!ready;more.disabled=busy;
  }
  const relationKey=r=>(r.artist_id?'artist/':r.profile_id?'producer/':'member/')+(r.artist_id||r.profile_id||r.uid);
  function rowHTML(r){
   const key=relationKey(r),profile=r.artist_id?'artist/'+encodeURIComponent(r.artist_id):r.profile_id?'producer/'+encodeURIComponent(r.profile_id):r.public_id?'member/'+encodeURIComponent(r.public_id):'follower/'+encodeURIComponent(r.uid);
   const pic=avatarImage({id:r.artist_id||r.profile_id,name:r.name,image_version:r.image_version},r.artist_id?'artist':'producer',false);
+  if(simple)return '<a class="fm-photo" href="#'+esc(profile)+'" aria-label="'+esc(r.name)+' 프로필">'+pic+'</a><div class="fm-name"><strong><a href="#'+esc(profile)+'" title="'+esc(r.name)+'">'+esc(r.name)+'</a></strong></div>';
   const photo=mode?'<span class="fm-photo">'+pic+'</span>':'<button type="button" data-fm="photo" class="fm-photo" aria-haspopup="dialog" aria-label="'+esc(r.name)+' 프로필 미리보기">'+pic+'</button>';
   const check=mode?'<input class="fm-check" aria-label="'+esc(r.name)+' 선택" type="checkbox" '+(chosen.has(r.key)?'checked':'')+' '+(busy?'disabled':'')+'>':'';
   let acts='';
@@ -78,6 +182,7 @@ function bindFollowList(root,{params,d,tab}){
   return check+photo+'<div class="fm-name"><strong>'+name+badge+'</strong>'+(scope?'<small>'+esc(scope)+'</small>':'')+(r.bio?'<p>'+esc(r.bio)+'</p>':'')+'</div><div class="fm-actions">'+acts+'</div>';
  }
  function paint(){
+  if(ready)onData?.({d,stamp:dataStamp,until:dataUntil,rows:[...rows],next,query:input.value.trim(),sort:sort.value});
   controls();
   const existing=new Map([...list.children].map(li=>[li.dataset.key,li]));
   let previous=null;
@@ -95,7 +200,7 @@ function bindFollowList(root,{params,d,tab}){
   status.classList.toggle('fm-feedback',!rows.length&&loading.hidden&&!!status.textContent);
  }
  function showLoading(show){
-  if(show&&loading.hidden)loading.innerHTML=followSkeleton();
+  if(show&&loading.hidden)loading.innerHTML=rows.length?'<span class="fm-refresh" role="status">목록을 갱신하는 중…</span>':followSkeleton();
   loading.hidden=!show;list.setAttribute('aria-busy',String(show));
  }
  function invalidate(){clearTimeout(timer);reader?.abort();reader=new AbortController();return ++seq;}
@@ -103,9 +208,9 @@ function bindFollowList(root,{params,d,tab}){
  async function readPage(append=false){
   const ticket=invalidate(),revision=followRevision,q=options();if(append)q.set('offset',next);
   busy=true;status.textContent='';showLoading(true);controls();
-  try{const res=await api('/api/follow-management?'+q,'GET',undefined,{fresh:true,signal:reader.signal});
-   if(ticket!==seq||!alive())return;if(revision!==followRevision)return readPage(append);d=res;ready=true;rows=append?[...new Map([...rows,...res.items].map(r=>[r.key,r])).values()]:res.items;next=res.next;status.textContent='';
-  }catch(e){if(ticket===seq&&alive()){if(!append){ready=false;rows=[];next=null;}status.innerHTML=esc(e.message)+' '+btn(append?'more':'retry','다시 시도');}}
+  try{const res=await readFollowData(q);
+   if(ticket!==seq||!alive())return;if(revision!==followRevision)return readPage(false);d=simple?{...res,manage:false}:res;dataStamp=followStamp();dataUntil=Date.now()+60000;ready=true;rows=append?[...new Map([...rows,...res.items].map(r=>[r.key,r])).values()]:res.items;next=res.next;status.textContent='';
+  }catch(e){if(ticket===seq&&alive()){if(e.name==='AbortError')return void readPage(false);if(e.status===401||e.status===403){rows=[];followPageCache.clear();}if(!append&&!rows.length){ready=false;next=null;}status.innerHTML=esc(e.message)+' '+btn(append?'more':'retry','다시 시도');}}
   finally{if(ticket===seq&&alive()){busy=false;showLoading(false);paint();}}
  }
  async function selectAll(){
@@ -198,16 +303,16 @@ function bindFollowList(root,{params,d,tab}){
  let requested=input.value.trim();
  function search(){
   const term=input.value.trim();if(input.readOnly||term===requested)return;
-  requested=term;invalidate();clear();rows=[];ready=false;busy=false;status.textContent='';
+  requested=term;invalidate();clear();ready=false;busy=false;status.textContent='';onFilters?.(term,sort.value);
   showLoading(true);paint();timer=setTimeout(()=>readPage(),220);
  }
  input.oninput=e=>{if(!e.isComposing)search();};
  input.oncompositionend=search;
- sort.onchange=()=>{rows=[];ready=false;void readPage();};
- const nav=find('.fm-tabs'),active=nav.querySelector('[aria-current]');
+ sort.onchange=()=>{ready=false;onFilters?.(input.value.trim(),sort.value);void readPage();};
+ const nav=find('.fm-tabs'),active=nav?.querySelector('[aria-current]');
  const revealActive=()=>{if(!active||!nav.clientWidth)return;const a=active.getBoundingClientRect(),n=nav.getBoundingClientRect();if(a.right>n.right)nav.scrollLeft+=a.right-n.right;else if(a.left<n.left)nav.scrollLeft+=a.left-n.left;};
- const tabWidth=new ResizeObserver(revealActive);tabWidth.observe(nav);
- const picker=find('.fm-artist');if(picker)picker.onchange=()=>{location.hash='follow?'+followOptions('artists',picker.value);};
+ const tabWidth=new ResizeObserver(revealActive);if(nav)tabWidth.observe(nav);
+ const picker=find('.fm-artist');if(picker)picker.onchange=()=>{location.hash=picker.value?'artist-followers/'+encodeURIComponent(picker.value):'follow?tab=followers';};
  more.onclick=()=>{if(!busy)void readPage(true);};
  root.onchange=e=>{if(!e.target.matches('.fm-check'))return;const r=rows.find(r=>r.key===e.target.closest('li').dataset.key);if(r){if(e.target.checked)chosen.set(r.key,r.name);else chosen.delete(r.key);controls();}};
  root.onclick=e=>{
@@ -226,11 +331,13 @@ function bindFollowList(root,{params,d,tab}){
    reserved=Math.max(reserved,fixed,innerHeight-r.top);
   }root.style.setProperty('--fm-bottom',Math.ceil(reserved)+'px');};
  const onExternalFollow=event=>{
+  if(root.closest('.fm-stable'))return;
   if(!alive()||event.detail?.source===root)return;
   const {kind,id,following,followsViewer}=event.detail||{},row=rows.find(r=>relationKey(r)===kind+'/'+id);
   if(row&&!busy){if(followsViewer!==undefined)row.follows_viewer=followsViewer;syncRelation(row,following);}
   else if(d.own&&tab==='following'&&!busy)void readPage();
  };window.addEventListener('aifect:follow-saved',onExternalFollow);
  const watch=new ResizeObserver(layout);layers.forEach(el=>watch.observe(el));window.addEventListener('resize',layout);
- registerRouteCleanup(()=>{invalidate();watch.disconnect();tabWidth.disconnect();window.removeEventListener('aifect:follow-saved',onExternalFollow);window.removeEventListener('resize',layout);});layout();paint();
+ root._followRefresh=()=>readPage();
+ root._followRelease=registerRouteCleanup(()=>{disposed=true;invalidate();watch.disconnect();tabWidth.disconnect();window.removeEventListener('aifect:follow-saved',onExternalFollow);window.removeEventListener('resize',layout);});layout();paint();
 }

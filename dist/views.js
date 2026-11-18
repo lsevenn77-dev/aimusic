@@ -84,6 +84,11 @@ async function render(event){
  if(typeof sing!=='undefined'&&sing&&await retainSingRoute(sing))return;
  if(typeof retainRoomRoute==='function'&&retainRoomRoute(location.hash.slice(1)))return;
  const raw=location.hash.slice(1)||'home';
+ // Follow tabs are state changes inside one mounted page. Native hashchange
+ // also covers back/forward; no synthetic popstate or duplicate render is needed.
+ if(typeof refreshFollowRoute==='function'&&refreshFollowRoute(raw)){
+  window.AifectRender?.syncTarget();return;
+ }
  if(typeof dmSession!=='undefined'&&dmSession?.owns(raw)&&
     (raw!==dmSession.route||event?.type==='hashchange')){
   if(raw!==dmSession.route){

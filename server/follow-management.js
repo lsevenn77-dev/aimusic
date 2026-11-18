@@ -85,11 +85,12 @@ async function list(env,s,q){
   (m.artist_id IS NULL AND ${actor}!='' AND (EXISTS(SELECT 1 FROM follows reverse WHERE reverse.user_id=m.uid AND
     ((reverse.kind='member' AND reverse.target_id=${actor}) OR (reverse.kind='producer' AND reverse.target_id=(SELECT id FROM producers WHERE user_id=${actor}))))
     OR EXISTS(SELECT 1 FROM ai_support_follows bot WHERE bot.bot_id=m.uid AND bot.owner_id=${actor}))) follows_viewer`)+
- ' FROM matched m '+(byName?"JOIN sortkeys sk ON sk.key=m.key AND sk.rest='' ":'')+(keys?'WHERE m.key>? ':'')+'ORDER BY '+(keys?'m.key':byName?nameOrder:'m.created DESC,m.key')+' LIMIT ? OFFSET ?',...args,pattern,...(keys?[after]:[]),limit+1,keys?0:offset);
+ ' FROM matched m '+(byName?"JOIN sortkeys sk ON sk.key=m.key AND sk.rest='' ":'')+(keys?'WHERE m.key>? ':'')+'ORDER BY '+(keys?'m.key':byName?nameOrder:q.get('sort')==='oldest'?'m.created ASC,m.key':'m.created DESC,m.key')+' LIMIT ? OFFSET ?',...args,pattern,...(keys?[after]:[]),limit+1,keys?0:offset);
  if(keys){const {results}=await page.all(),items=results.slice(0,limit);return json({items,next:results.length>limit?items.at(-1).key:null});}
  const [counts,pageData]=await env.DB.batch([count,page]),items=pageData.results.slice(0,limit),next=pageData.results.length>limit?(keys?items.at(-1).key:offset+limit):null;
  const artists=s.own&&s.tab==='artists'&&!keys&&!offset?await rows(env,`SELECT a.id,a.name,(SELECT count(*) FROM follows f JOIN users u ON u.id=f.user_id WHERE f.kind='artist' AND f.target_id=a.id AND u.provider!='deleted' AND NOT ${personal('p.user_id','u.id')} AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks b WHERE b.artist_id=a.id AND b.user_id=u.id)) followers FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=? AND ${namedArtistSQL()} ORDER BY a.name,a.id`,s.uid):[];
- return json({...counts.results[0],items,next,artists,own:s.own,owner:s.uid,name:s.name,manage:s.own&&(s.tab!=='artists'||!!s.aid)});
+ const totals=s.tab==='artists'?undefined:await followCounts(env,s.uid,s.viewer);
+ return json({...counts.results[0],counts:totals,items,next,artists,own:s.own,owner:s.uid,name:s.name,manage:s.own&&(s.tab!=='artists'||!!s.aid)});
 }
 async function mutate(req,env,s){
  const b=await req.json(),keys=b.keys,op=b.action;

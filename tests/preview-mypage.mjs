@@ -56,9 +56,11 @@ for(const type of ['heart','lollipop','silver-letter']){
  const response=await worker.fetch(new Request(origin+'/api/admin/gift-inventory/grant',{method:'POST',headers:{Origin:origin,'Content-Type':'application/json',Cookie:'aifect_session=owner'},body:JSON.stringify({user_id:'owner',gift_type:type,quantity:3,reason:'Isolated local QA only',request_id:crypto.randomUUID()})}),env,{});if(!response.ok)throw Error(await response.text());
 }
 const server=createServer(async(req,res)=>{
+ if(process.argv.includes('--follow-navigation-qa')&&req.url==='/__qa/follow-diagnostics.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(await readFile('tests/follow-navigation-diagnostics.js'));return;}
  try{if(req.url.startsWith('/__qa/viewer/')){const who=req.url.split('/').pop();res.writeHead(302,{'Set-Cookie':'qa_viewer='+(['owner','other','guest'].includes(who)?who:'owner')+'; Path=/; SameSite=Lax',Location:who==='owner'?'/#profile':'/#producer/producer'});res.end();return;}const body=[];for await(const chunk of req)body.push(chunk);const url=origin+req.url;
  const response=await worker.fetch(new Request(url,{method:req.method,headers:{...req.headers,cookie:'aifect_session='+(/qa_viewer=(owner|other|guest)/.exec(req.headers.cookie||'')?.[1]||'owner')},body:body.length?Buffer.concat(body):undefined}),env,{waitUntil(p){p.catch(()=>{});}});
- res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));
+ const payload=Buffer.from(await response.arrayBuffer());
+ res.writeHead(response.status,Object.fromEntries(response.headers));res.end(process.argv.includes('--follow-navigation-qa')&&response.headers.get('content-type')?.includes('text/html')?payload.toString().replace('<head>','<head><script src="/__qa/follow-diagnostics.js"></script>'):payload);
  }catch(e){console.error(e);res.writeHead(500);res.end('Local preview error');}
 });
 server.listen(port,'127.0.0.1',()=>console.log('Local preview: '+origin+'/#profile'));

@@ -153,7 +153,7 @@ test('bare home URL is normalized without pushing history and no-JS fallback rem
  const id=c.api.begin('home',undefined,()=>{});c.api.ready(id);assert.equal(c.location.hash,'#home');assert.deepEqual(c.history.state,{retained:true});
  const html=readFileSync('dist/index.html','utf8'),css=readFileSync('dist/render-state.css','utf8');
  assert.ok(html.indexOf('data-render-target hidden')<html.indexOf('<main id="main"'));
- assert.match(css,/html\[data-render-state="ready"\]:not\(:has\(\[data-render-target\]:target,\[data-play-route-target\]:target,\[data-community-route-target\]:target,\[data-mypage-route-target\]:target,\[data-chart-route-target\]:target,\[data-dm-route-target\]:target\)\) #main\{display:none!important\}/);
+ assert.match(css,/html\[data-render-state="ready"\]:not\(:has\(\[data-render-target\]:target,\[data-play-route-target\]:target,\[data-community-route-target\]:target,\[data-mypage-route-target\]:target,\[data-chart-route-target\]:target,\[data-dm-route-target\]:target,\[data-follow-route-target\]:target\)\) #main\{display:none!important\}/);
 });
 
 test('malformed UTF-8 fragments use the browser tolerant decoding and keep literal plus signs',()=>{
