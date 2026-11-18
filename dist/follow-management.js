@@ -3,6 +3,25 @@
 const followDataCache=new Map(),followPageCache=new Map();
 const followPersonalTabs={followers:'내 팔로워',following:'내 팔로잉',blocks:'차단 관리'};
 const followStamp=()=>[me?.id||'guest',apiRevision,followRevision].join(':');
+function normalizeFollowSearch(value){return String(value||'').normalize('NFC').trim().toLowerCase();}
+// Keep composition, clear and debounce on the input itself; never filter just a loaded page.
+function bindFollowSearch(input,clearButton,{pending,read,cancelRead}){
+ let timer,composing=false,last=normalizeFollowSearch(input.value);
+ const cancel=()=>{clearTimeout(timer);timer=null;};
+ const sync=()=>{clearButton.hidden=!input.value;clearButton.disabled=input.readOnly||input.disabled;};
+ function search(force=false,immediate=false){
+  sync();if(composing||input.readOnly||input.disabled)return;
+  const query=normalizeFollowSearch(input.value);if(!force&&query===last)return;
+  last=query;cancel();pending(query);
+  if(immediate)read();else timer=setTimeout(()=>{timer=null;read();},275);
+ }
+ input.oncompositionstart=()=>{composing=true;cancel();cancelRead();};
+ input.oncompositionend=()=>{composing=false;search(true);};
+ input.oninput=event=>{sync();if(!event.isComposing&&!composing)search();};
+ input.onsearch=()=>search();
+ clearButton.onclick=()=>{if(input.readOnly||input.disabled)return;input.value='';composing=false;search(true,true);input.focus();};
+ sync();return {cancel,sync};
+}
 function followSelection(raw){
  raw=raw.replace(/^#/, '');if(raw.split('?')[0]!=='follow')return null;
  const q=new URLSearchParams(raw.split('?')[1]);
@@ -29,10 +48,10 @@ async function followManagementView(raw,readApi){
  const selection=followSelection(raw);
  if(!me&&!selection.user){returnRoute=location.hash;return {html:'<section class="fm-page fm-gate">'+gate()+'</section>'};}
  const tabs=selection.user&&selection.user!==me?.id?['followers','following']:Object.keys(followPersonalTabs);
- const html='<section class="fm-page fm-stable" aria-label="팔로우 목록">'+followTargets(selection)+'<header class="fm-header"><h1>팔로우 관리</h1><nav class="tabs fm-tabs aifect-main-tabs" aria-label="팔로우 탭">'+tabs.map((tab,i)=>'<a class="tab" data-follow-tab="'+tab+'" data-tab-tone="'+['pink','mint','purple'][i]+'" href="'+esc(followHref(selection,tab))+'">'+(selection.user?{followers:'팔로워',following:'팔로잉'}[tab]:followPersonalTabs[tab])+(tab!=='blocks'?'<span class="fm-tab-count" data-follow-count-tab="'+tab+'"></span>':'')+'</a>').join('')+'</nav></header><div class="fm-content"></div></section>';
+ const html='<section class="fm-page fm-stable" aria-label="팔로우 목록">'+followTargets(selection)+'<header class="fm-header"><nav class="tabs fm-tabs aifect-main-tabs" style="--fm-tab-columns:'+tabs.length+'" aria-label="팔로우 탭">'+tabs.map(tab=>'<a class="tab" data-follow-tab="'+tab+'" data-tab-tone="pink" href="'+esc(followHref(selection,tab))+'">'+(selection.user?{followers:'팔로워',following:'팔로잉',blocks:'차단 관리'}[tab]:followPersonalTabs[tab])+'<span class="fm-tab-count" data-follow-count-tab="'+tab+'"></span></a>').join('')+'</nav></header><div class="fm-content"></div></section>';
  return {html,followPage:{selection}};
 }
-function followPanelHTML(tab){return '<div class="fm-tools"><label class="brand-search">'+icon('search')+'<input type="search" maxlength="100" aria-label="닉네임 검색" placeholder="닉네임 검색"></label><select class="fm-sort" aria-label="정렬"><option value="latest">최신순</option><option value="oldest">오래된순</option></select></div><div class="fm-result-head"><span class="fm-count"></span><div class="fm-mode"></div></div><div class="fm-list-panel"><div class="fm-status" role="status"></div><div class="fm-loading" hidden></div><ul class="fm-rows"></ul><button class="small-button fm-more" hidden>더 보기</button></div>'+(tab==='blocks'?'<div class="fm-bulk" hidden></div>':'');}
+function followPanelHTML(tab){return '<div class="fm-tools"><div class="brand-search">'+icon('search')+'<input type="search" maxlength="100" aria-label="닉네임 검색" placeholder="닉네임 검색"><button type="button" class="fm-search-clear" aria-label="검색어 지우기" hidden><span aria-hidden="true">×</span></button></div><select class="fm-sort" aria-label="정렬"><option value="latest">최신순</option><option value="oldest">오래된순</option></select></div><div class="fm-list-panel"><div class="fm-status" role="status"></div><div class="fm-loading" hidden></div><ul class="fm-rows"></ul><button class="small-button fm-more" hidden>더 보기</button></div>';}
 function canRefreshFollowRoute(raw){
  const root=document.querySelector('.fm-stable'),state=root?._followPage,s=followSelection(raw);
  return !!(s&&state&&!state.disposed&&state.context===followContext(s)&&state.account===(me?.id||'guest'));
@@ -56,7 +75,7 @@ function bindFollowManagement(view){
  function showData(panel,tab,saved){
   panel.innerHTML=followPanelHTML(tab);
   const params=followOptions(tab,'',state.selection.user,tab==='following'?state.selection.kind:'');
-  bindFollowList(panel,{params:params.toString(),tab,d:saved.d,simple:tab!=='blocks',saved,
+  bindFollowList(panel,{params:params.toString(),tab,d:saved.d,simple:true,saved,
    onFilters(query,sort){panel._filters={query,sort};},
    onData(data){const entry={...data};cache.tabs.set(tab,entry);panel._entry=entry;panel._filters={query:entry.query,sort:entry.sort};Object.assign(cache.counts,data.d.counts||{[tab]:data.d.total});paintCounts();}
   });
@@ -148,15 +167,16 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
  const viewer=me?.id,hash=location.hash;let disposed=false;const alive=()=>!disposed&&root.isConnected&&viewer===me?.id&&(root.closest('.fm-stable')||location.hash===hash);
  if(saved){input.value=saved.query;sort.value=saved.sort;}
  let dataStamp=saved?.stamp||followStamp(),dataUntil=saved?.until||Date.now()+60000;
- let rows=saved?.rows||d.items,mode=false,busy=false,ready=true,next=saved?.next??d.next,seq=0,timer,reader,base=new URLSearchParams(params),chosen=new Map();
+ let rows=saved?.rows||d.items,mode=false,busy=false,ready=true,next=saved?.next??d.next,seq=0,timer,reader,searchControl,base=new URLSearchParams(params),chosen=new Map();
  const btn=(action,label,disabled=false)=>'<button type="button" class="small-button" data-fm="'+action+'" '+(disabled?'disabled':'')+'>'+esc(label)+'</button>';
  const ops=tab==='followers'||tab==='artists'?['remove','block']:tab==='following'?['unfollow','block']:['unblock'];
  const clear=()=>{chosen.clear();mode=false;};
  const label=op=>op==='remove'&&tab==='artists'?'팔로워 삭제':followOps[op];
  const allowed=r=>r.uid!==viewer||!!r.artist_id||tab==='blocks';
  function controls(){
-  find('.fm-count').textContent=ready?(input.value.trim()?number(d.matched)+'/':'')+number(d.total)+'명':'…';
-  modeBox.innerHTML=!simple&&d.manage?(mode?btn('all',chosen.size===d.matched&&chosen.size?'전체 해제':'전체 선택',busy||!ready||!d.matched)+btn('cancel','취소',busy):btn('select','선택',busy||!ready||!d.total)):'';
+  const count=find('.fm-count');if(count)count.textContent=ready?(input.value.trim()?number(d.matched)+'/':'')+number(d.total)+'명':'…';
+  if(modeBox)modeBox.innerHTML=!simple&&d.manage?(mode?btn('all',chosen.size===d.matched&&chosen.size?'전체 해제':'전체 선택',busy||!ready||!d.matched)+btn('cancel','취소',busy):btn('select','선택',busy||!ready||!d.total)):'';
+  searchControl?.sync();
   if(bulk)bulk.hidden=!mode||!chosen.size;root.classList.toggle('fm-has-bulk',!!bulk&&!bulk.hidden);
   if(bulk&&!bulk.hidden)bulk.innerHTML='<strong>'+number(chosen.size)+'명 선택</strong>'+ops.map(op=>btn(op,'선택 '+followOps[op],busy)).join('');
   more.hidden=next===null||!ready;more.disabled=busy;
@@ -166,7 +186,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   const key=relationKey(r),profile=r.artist_id?'artist/'+encodeURIComponent(r.artist_id):r.profile_id?'producer/'+encodeURIComponent(r.profile_id):r.public_id?'member/'+encodeURIComponent(r.public_id):'follower/'+encodeURIComponent(r.uid);
   const pic=avatarImage({id:r.artist_id||r.profile_id,name:r.name,image_version:r.image_version},r.artist_id?'artist':'producer',false);
   if(simple){
-   const actions=d.manage&&allowed(r)?profileFollowButton(key,!!r.following,!!r.follows_viewer,r.following?'unfollow':'follow')+btn('block','차단'):'';
+   const actions=d.manage&&allowed(r)?tab==='blocks'?btn('unblock','차단 해제'):profileFollowButton(key,!!r.following,!!r.follows_viewer,r.following?'unfollow':'follow')+btn('block','차단'):'';
    return '<a class="fm-photo" href="#'+esc(profile)+'" aria-label="'+esc(r.name)+' 프로필">'+pic+'</a><div class="fm-name"><strong><a href="#'+esc(profile)+'" title="'+esc(r.name)+'">'+esc(r.name)+'</a></strong></div><div class="fm-actions">'+actions+'</div>';
   }
   const photo=mode?'<span class="fm-photo">'+pic+'</span>':'<button type="button" data-fm="photo" class="fm-photo" aria-haspopup="dialog" aria-label="'+esc(r.name)+' 프로필 미리보기">'+pic+'</button>';
@@ -205,8 +225,8 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   if(show&&loading.hidden)loading.innerHTML=rows.length?'<span class="fm-refresh" role="status">목록을 갱신하는 중…</span>':followSkeleton();
   loading.hidden=!show;list.setAttribute('aria-busy',String(show));
  }
- function invalidate(){clearTimeout(timer);reader?.abort();reader=new AbortController();return ++seq;}
- const options=()=>{const q=new URLSearchParams(base);q.set('q',input.value.trim());q.set('sort',sort.value);return q;};
+ function invalidate(){clearTimeout(timer);searchControl?.cancel();reader?.abort();reader=new AbortController();return ++seq;}
+ const options=()=>{const q=new URLSearchParams(base);q.set('q',simple?normalizeFollowSearch(input.value):input.value.trim());q.set('sort',sort.value);return q;};
  async function readPage(append=false,quiet=false){
   const ticket=invalidate(),revision=followRevision,q=options();if(append)q.set('offset',next);
   busy=true;status.textContent='';if(!quiet)showLoading(true);controls();
@@ -289,7 +309,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   }
  }
  async function apply(op,targets){
-  if(simple&&op==='block')return applyPersonalBlock(targets);
+  if(simple&&(op==='block'||op==='unblock'))return applyPersonalBlock(op,targets);
   if(busy||!alive())return;busy=true;input.disabled=sort.disabled=true;const picker=find('.fm-artist');if(picker)picker.disabled=true;
   const failed=new Map(),ok=[],all=[...targets.keys()];let uncertain='';
   paint();status.textContent='처리 중…';
@@ -308,14 +328,14 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
    if(ok.length&&viewer===me?.id&&root.closest('.fm-stable'))window.dispatchEvent(new CustomEvent('aifect:follow-saved',{detail:{source:root}}));
   }
  }
- async function applyPersonalBlock(targets){
+ async function applyPersonalBlock(op,targets){
   if(busy||!alive()||targets.size!==1)return;
   const row=rows.find(item=>targets.has(item.key));if(!row)return;
   busy=true;input.readOnly=true;sort.disabled=true;
   const card=[...list.children].find(item=>item.dataset.key===row.key);
   card?.querySelectorAll('button').forEach(button=>button.disabled=true);
   try{
-   const response=await api('/api/follow-management?'+base,'POST',{action:'block',keys:[row.key]});
+   const response=await api('/api/follow-management?'+base,'POST',{action:op,keys:[row.key]});
    if(viewer!==me?.id)return;
    if(!response.ok.includes(row.key))throw new Error('관계가 변경되었어요. 목록을 다시 확인해주세요.');
    ++followRevision;void refreshLibrary(true).catch(()=>{});
@@ -323,7 +343,10 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
     rows=rows.filter(item=>item!==row);card?.remove();
     d.total=Math.max(0,d.total-1);d.matched=Math.max(0,d.matched-1);
     if(next!==null)next=Math.max(0,next-1);
-    if(d.counts){d.counts.followers=Math.max(0,d.counts.followers-Number(!!row.follows_viewer));d.counts.following=Math.max(0,d.counts.following-Number(!!row.following));}
+    if(d.counts){
+     d.counts.blocks=Math.max(0,(d.counts.blocks||0)+(op==='block'?1:-1));
+     if(op==='block'){d.counts.followers=Math.max(0,d.counts.followers-Number(!!row.follows_viewer));d.counts.following=Math.max(0,d.counts.following-Number(!!row.following));}
+    }
     // Retain the remaining cards while reconciling the server's exact counts.
     paint();await readPage(false,true);
    }
@@ -337,8 +360,12 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   requested=term;invalidate();clear();ready=false;busy=false;status.textContent='';onFilters?.(term,sort.value);
   showLoading(true);paint();timer=setTimeout(()=>readPage(),220);
  }
- input.oninput=e=>{if(!e.isComposing)search();};
- input.oncompositionend=search;
+ if(simple)searchControl=bindFollowSearch(input,find('.fm-search-clear'),{
+  cancelRead:invalidate,
+  pending(query){invalidate();clear();ready=false;busy=false;onFilters?.(query,sort.value);showLoading(false);list.setAttribute('aria-busy','true');controls();},
+  read:()=>readPage(false,true)
+ });
+ else{input.oninput=e=>{if(!e.isComposing)search();};input.oncompositionend=search;}
  sort.onchange=()=>{ready=false;onFilters?.(input.value.trim(),sort.value);void readPage();};
  const nav=find('.fm-tabs'),active=nav?.querySelector('[aria-current]');
  const revealActive=()=>{if(!active||!nav.clientWidth)return;const a=active.getBoundingClientRect(),n=nav.getBoundingClientRect();if(a.right>n.right)nav.scrollLeft+=a.right-n.right;else if(a.left<n.left)nav.scrollLeft+=a.left-n.left;};

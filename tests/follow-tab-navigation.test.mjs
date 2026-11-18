@@ -32,4 +32,27 @@ test('personal shell has three tabs, scoped hidden route targets and no artist-m
  const c=context(),view=await c.followManagementView('follow?tab=followers');assert.equal((view.html.match(/data-follow-tab=/g)||[]).length,3);assert.match(view.html,/data-follow-route-target/);assert.doesNotMatch(view.html,/AI 아티스트|tab=artists/);
  vm.runInContext(readFileSync('dist/menu-integration.js','utf8'),c);assert.equal(c.menuAlias('#follow?tab=artists&artist=one'),'#follow?tab=followers');assert.equal(c.menuAlias('#follow?tab=unknown'),'#follow?tab=followers');
  assert.equal(c.followSelection('follow?tab=artists'),null);assert.equal(c.followSelection('artist/one'),null);
+ assert.doesNotMatch(view.html,/<h1/);assert.equal((view.html.match(/data-follow-count-tab=/g)||[]).length,3);
+ for(const tab of ['followers','following','blocks']){const panel=c.followPanelHTML(tab);assert.match(panel,/검색어 지우기/);assert.doesNotMatch(panel,/fm-count|fm-mode|fm-bulk|fm-result-head/);}
+});
+
+function searchHarness(){
+ const c=context(),timers=new Map(),queries=[],reads=[];let serial=0,cancelled=0;
+ c.setTimeout=(fn,delay)=>{assert.equal(delay,275);timers.set(++serial,fn);return serial;};c.clearTimeout=id=>timers.delete(id);
+ const input={value:'',readOnly:false,disabled:false,focus(){this.focused=true;}},clear={};
+ const control=c.bindFollowSearch(input,clear,{pending:q=>queries.push(q),read:()=>reads.push(c.normalizeFollowSearch(input.value)),cancelRead:()=>cancelled++});
+ return {input,clear,control,queries,reads,timers,get cancelled(){return cancelled;},type(value,composing=false){input.value=value;input.oninput({isComposing:composing});},flush(){const jobs=[...timers.values()];timers.clear();jobs.forEach(fn=>fn());}};
+}
+test('nickname search debounces the latest normalized query and coalesces equivalent input events',()=>{
+ const h=searchHarness();h.type('E');h.type('Ec');h.type('  ECHO  ');assert.equal(h.timers.size,1);assert.deepEqual(h.reads,[]);h.flush();assert.deepEqual(h.reads,['echo']);
+ h.type('echo');h.input.onsearch();assert.equal(h.timers.size,0);assert.equal(h.clear.hidden,false);
+});
+test('IME composition cancels an earlier search and sends the completed Hangul only once',()=>{
+ const h=searchHarness();h.type('h');h.input.oncompositionstart();h.type('하',true);h.type('하루한국'.normalize('NFD'),true);assert.equal(h.timers.size,0);assert.equal(h.cancelled,1);h.flush();assert.deepEqual(h.reads,[]);
+ h.input.oncompositionend();h.input.oninput({isComposing:false});assert.equal(h.timers.size,1);h.flush();assert.deepEqual(h.reads,['하루한국']);
+});
+test('clear immediately restores the unfiltered query and cancels pending search work',()=>{
+ const h=searchHarness();h.type('하루한국');h.clear.onclick();assert.deepEqual(h.reads,['']);assert.equal(h.input.value,'');assert.equal(h.clear.hidden,true);assert.equal(h.input.focused,true);h.flush();assert.deepEqual(h.reads,['']);
+ h.type('retry');h.control.cancel();h.flush();assert.deepEqual(h.reads,['']);
+ h.input.readOnly=true;h.control.sync();assert.equal(h.clear.disabled,true);h.clear.onclick();assert.equal(h.input.value,'retry');
 });
