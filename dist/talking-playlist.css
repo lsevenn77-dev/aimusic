@@ -47,7 +47,7 @@
   & .talk-playlist-current { flex: none; color: var(--talk-list-current); font-size: 12px; font-weight: 600; }
   & .talk-playlist-row button { display: grid; place-items: center; width: 44px; height: 44px; min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--room-text); opacity: 1; }
   & .talk-playlist-row button svg { width: 24px; height: 24px; filter: drop-shadow(0 1px 2px #000); }
-  & .talk-playlist-row [data-like][aria-pressed="true"] { color: var(--talk-list-like); }
+  & .talk-playlist-row [data-like][aria-pressed="true"] { color: var(--talk-list-like)!important; }
   & .talk-playlist-row [data-like][aria-pressed="true"] path { fill: currentColor; }
   & .talk-playlist-row button:hover { background: rgb(128 128 150 / .14); transform: none; }
   & .talk-playlist :is(button,.talk-playlist-rows):focus-visible { outline: 2px solid var(--room-text); outline-offset: -2px; }
