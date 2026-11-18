@@ -3,6 +3,24 @@ function roomUsesDesktopControls(){
  return !!window.matchMedia?.('(min-width:801px) and (hover:hover) and (pointer:fine)')?.matches
   && !window.Capacitor?.isNativePlatform?.();
 }
+// Move only the existing controls across the desktop breakpoint. The player,
+// microphone, transcript and composer keep their nodes and ongoing state.
+function layoutTalkingControls(client,pc){
+ const panel=client.host.querySelector('.talk-central');
+ if(client.talkCentralPanel!==panel){client.talkCentralPanel=panel;client.talkCentralDesktop=undefined;client.talkListenButton=null;}
+ if(!panel||client.talkCentralDesktop===pc)return;
+ client.talkCentralDesktop=pc;
+ const down=panel.querySelector('[data-voice=release-mic]'),mic=panel.querySelector('[data-voice=toggle-mic]');
+ client.talkListenButton??=panel.querySelector('[data-voice=resume-audio]');
+ if(pc){
+  const actions=document.createElement('div');actions.className='talk-central-actions';
+  panel.append(actions);actions.append(down,mic);client.talkListenButton?.remove();
+ }else{
+  const actions=panel.querySelector('.talk-central-actions');
+  if(actions){actions.before(down,client.talkListenButton,mic);actions.remove();}
+ }
+ client.updateListening?.();
+}
 function bindRoomViewport(client){
  client.roomLayoutEvents?.abort();client.roomResizeObserver?.disconnect();
  const events=client.roomLayoutEvents=new AbortController(),options={signal:events.signal};
@@ -54,9 +72,11 @@ function bindRoomViewport(client){
   room.toggleAttribute?.('data-room-pc-controls',pc);
   client.paintTalkingEmptyTitle?.();
   if(pc&&room.classList?.contains('talking-room')){
+   write(room,'--talk-room-width',box.width+'px');
    const content=room.querySelector('#voice-content');
    if(content)write(room,'--talk-content-scrollbar',Math.max(0,content.offsetWidth-content.clientWidth)+'px');
   }
+  if(room.classList?.contains('talking-room'))layoutTalkingControls(client,pc);
   if(pc)write(room,'--room-display-ratio',String(window.devicePixelRatio || 1));
   if(composerHeight)write(room,'--room-composer',composerHeight+'px');
   const composerTop=composer?.getBoundingClientRect().top??end;

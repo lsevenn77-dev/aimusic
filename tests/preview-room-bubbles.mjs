@@ -42,7 +42,7 @@ function installQAIdentity(){
  };
 }
 const identityScript='<script>('+installQAIdentity.toString()+')();</script>';
-for(const sku of ['theme_cherry_blossom','theme_aurora_night'])f.sql.prepare("INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,expires_at) VALUES(?,'owner',?,'decoration',?,unixepoch(),unixepoch()+36000)").run(sku,sku,sku);
+for(const sku of ['theme_cherry_blossom','theme_aurora_night','theme_christmas'])f.sql.prepare("INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,expires_at) VALUES(?,'owner',?,'decoration',?,unixepoch(),unixepoch()+36000)").run(sku,sku,sku);
 const portraits=(await readdir('dist/assets/ai-bot-import')).filter(p=>p.endsWith('.webp')).slice(0,8),images=new Map();
 for(let i=0;i<8;i++){
  const uid=i===0?'owner':i===1?'other':'guest-'+i,pid=i===0?'producer':i===1?'friend':'guest-profile-'+i,name=i===0?'검증 방장':i===3?'긴닉네임도중앙정렬':'참여자 '+i;
@@ -91,12 +91,12 @@ async function scenario(mode,name){
    if(name==='singing'){d.karaoke.phase='singing';d.karaoke.startsAt=Date.now()+3000;d.karaoke.inviteExpiresAt=0;}
   }
  }
- if(mode==='talk'&&/^playlist-(0|1|4|6)(-light)?$/.test(name)){
+ if(mode==='talk'&&/^playlist-(0|1|4|6)(-light|-christmas)?$/.test(name)){
   const count=Number(name.split('-')[1]);
   const cmd=(operation,extra={})=>f.call(r.root+'music','POST',{generation:d.members.owner.generation,operation,request_id:crypto.randomUUID(),...extra});
   await cmd('clear');
   for(let i=0;i<count;i++)await cmd('enqueue',{track_id:'qa-song-'+i});
-  d.config.theme_sku=name.endsWith('-light')?'basic_light':'basic_dark';d.config.background=d.config.theme_sku;d.config.settings_revision=(d.config.settings_revision||0)+1;
+  d.config.theme_sku=name.endsWith('-christmas')?'theme_christmas':name.endsWith('-light')?'basic_light':'basic_dark';d.config.background=d.config.theme_sku;d.config.settings_revision=(d.config.settings_revision||0)+1;
  }
  if(['light','dark','base'].includes(name)){d.config.theme_sku=name==='base'?'basic_dark':name==='dark'?'theme_aurora_night':'theme_cherry_blossom';d.config.background=d.config.theme_sku;d.config.settings_revision=(d.config.settings_revision||0)+1;}
  d.revision++;r.room.notify();return r;

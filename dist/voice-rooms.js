@@ -100,7 +100,7 @@ class VoiceRoomClient {
   el.toggleAttribute?.('data-connected',connected);
  }
  async safe(fn){try{await fn();}catch(e){this.status(e.message);toast(e.message);}}
- bind(host){this.host=host;if(!this.roomAudio&&typeof RoomAudioSession==='function')this.roomAudio=new RoomAudioSession(this);if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>{const blocked=this.waitForMusicGesture||this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;this.waitForMusicGesture=false;if(this.liveMode||blocked)this.resumeSound();};host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
+ bind(host){this.host=host;if(!this.roomAudio&&typeof RoomAudioSession==='function')this.roomAudio=new RoomAudioSession(this);if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>this.unlockListening();host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
   this.bindFinalControls();
   const chat=$('#voice-chat-form'),stickers=this.stickers;
   chat.onsubmit=busyForm(chat,async()=>{
@@ -140,7 +140,7 @@ class VoiceRoomClient {
   {
    ws.onopen=()=>{
     if(this.closed||this.ws!==ws)return;
-    const blocked=this.host.querySelector('[data-voice=resume-audio]')?.hidden===false;
+    const blocked=this.isListeningBlocked();
     this.status(this.roomAudio?.blocked?'기기 오디오 일시 중단 · 소리와 마이크 꺼짐':blocked?'실시간 연결됨 · 청취 대기':this.liveMode&&this.state?.karaoke?.phase==='singing'&&this.state.karaoke.active?.user_id===this.state.self?'실시간 연결됨 · 가창 중':'실시간 연결됨 · 청취 중',true);
    };
   }
@@ -405,7 +405,7 @@ class VoiceRoomClient {
    if(!a.paused)a.pause();
   }else{
    if(typeof audio!=='undefined'&&!audio.paused)audio.pause();
-   if(this.waitForMusicGesture){this.musicTarget='room';this.musicBlocked=true;this.musicNotice('대화 듣기를 눌러 소리를 켜주세요');this.updateListening();return;}
+   if(this.waitForMusicGesture){this.musicTarget='room';this.musicBlocked=true;this.musicNotice(this.listeningPrompt());this.updateListening();return;}
   }
   if(a.readyState>=1&&this.musicTarget!=null){
    const target=this.musicTarget==='room'?expected:this.musicTarget;
@@ -445,7 +445,7 @@ class VoiceRoomClient {
     if(this.closed||this.musicPlayTask!==pending||this.musicTrack!==key||!this.state?.music?.playing||error.name==='AbortError')return;
     this.musicBlocked=true;
     if(error.name==='NotAllowedError')this.waitForMusicGesture=true;
-    this.musicNotice('대화 듣기를 눌러 소리를 켜주세요');this.updateListening();
+    this.musicNotice(this.listeningPrompt());this.updateListening();
    }).finally(()=>{if(this.musicPlayTask===pending)this.musicPlayTask=null;});
   }
  }
@@ -491,11 +491,18 @@ class VoiceRoomClient {
   for(const a of this.audios?.values()||[])this.playRemote(a);
   void this.processing?.context?.resume().catch(()=>{});this.syncMusic();this.updateListening();
  }
+ isListeningBlocked(){
+  return !!(this.waitForMusicGesture||this.roomAudio?.blocked||this.musicBlocked||this.levelContext&&this.levelContext.state!=='running'||[...(this.audios?.values()||[])].some(a=>a.voiceBlocked));
+ }
+ unlockListening(){
+  const blocked=this.isListeningBlocked();this.waitForMusicGesture=false;
+  // A real desktop pointer/click gesture replaces the removed unlock button.
+  if(this.liveMode||blocked)this.resumeSound(!this.liveMode&&!!this.host?.hasAttribute?.('data-room-pc-controls'));
+ }
+ listeningPrompt(){return this.host?.hasAttribute?.('data-room-pc-controls')&&!this.liveMode?'화면을 눌러 소리를 켜주세요':'대화 듣기를 눌러 소리를 켜주세요';}
  updateListening(){
-  const button=this.host?.querySelector('[data-voice="resume-audio"]');if(!button)return;
-  const blocked=this.roomAudio?.blocked||this.musicBlocked||this.levelContext&&this.levelContext.state!=='running'||[...(this.audios?.values()||[])].some(a=>a.voiceBlocked);
-  const changed=button.hidden===Boolean(blocked);
-  button.hidden=!blocked;
+  const button=this.host?.querySelector('[data-voice="resume-audio"]'),blocked=this.isListeningBlocked();
+  if(button)button.hidden=!blocked;
   if(this.ws?.readyState===1&&$('#voice-status')?.hasAttribute('data-connected')){
    this.status(this.roomAudio?.blocked?'기기 오디오 일시 중단 · 소리와 마이크 꺼짐':blocked?'실시간 연결됨 · 청취 대기':this.liveMode&&this.state?.karaoke?.phase==='singing'&&this.state.karaoke.active?.user_id===this.state.self?'실시간 연결됨 · 가창 중':'실시간 연결됨 · 청취 중',true);
   }

@@ -54,6 +54,26 @@ test('leaving the microphone seat does not change listening gains or start captu
  assert.equal(a.voiceGain.gain.value,1);assert.equal(h.contexts[0].sources.length,1);assert.equal(h.captures,0);
 });
 
+test('desktop listening recovers with no unlock button and updates connected status without microphone capture',async()=>{
+ const h=setup(),c=h.client,status=[];
+ c.host={querySelector:()=>null,hasAttribute:name=>name==='data-room-pc-controls'};
+ h.context.$=()=>({hasAttribute:()=>true});
+ Object.assign(c,{ws:{readyState:1},status:text=>status.push(text),waitForMusicGesture:true});
+ c.updateListening();assert.match(status.at(-1),/청취 대기/);
+ const audio={srcObject:{},play:()=>Promise.resolve()};c.audios.set('host',audio);
+ c.unlockListening();await Promise.resolve();
+ assert.equal(c.waitForMusicGesture,false);assert.equal(c.isListeningBlocked(),false);
+ assert.match(status.at(-1),/청취 중/);assert.equal(audio.voiceGain.gain.value,1);
+ assert.equal(h.captures,0);assert.equal(c.state.members[0].seat,null);
+ c.levelContext.state='suspended';c.updateListening();assert.match(status.at(-1),/청취 대기/);
+});
+
+test('desktop unlock gestures retain the explicit interrupted-audio recovery path',()=>{
+ const h=setup(),c=h.client,resumed=[];
+ c.host={querySelector:()=>null,hasAttribute:()=>true};c.roomAudio={blocked:true};c.resumeSound=explicit=>resumed.push(explicit);
+ c.unlockListening();assert.deepEqual(resumed,[true]);assert.equal(h.captures,0);
+});
+
 test('foreground waits for an in-flight refresh and its queued fresh state before restoring sound',async()=>{
  const h=setup(),client=h.client;let resolveFirst,reads=0,resumes=0;
  const first=new Promise(resolve=>resolveFirst=resolve),ended={self:'listener',members:client.state.members,revision:2,karaoke:{phase:'idle',active:null}};
