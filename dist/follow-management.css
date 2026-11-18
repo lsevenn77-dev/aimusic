@@ -151,6 +151,10 @@
  min-width:44px; height:44px; padding-inline:8px; background:transparent; border-color:transparent; box-shadow:none; color:var(--ds-body);
 }
 #main .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions [aria-pressed="true"] { color:var(--ds-muted); }
+#main .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions [data-fm="block"] { position:relative; color:var(--ds-error); }
+.fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions [data-fm="block"]::before {
+ content:""; position:absolute; inset-inline-start:-2px; top:50%; width:1px; height:14px; transform:translateY(-50%); background:var(--ds-dim); pointer-events:none;
+}
 .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions svg { display:none; }
 @media(max-width:480px) {
  .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-rows li { gap:6px; padding-inline:8px; }
