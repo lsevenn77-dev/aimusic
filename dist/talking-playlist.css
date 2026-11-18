@@ -1,0 +1,64 @@
+/* The existing fine-pointer desktop gate excludes mobile, native apps and WebViews. */
+#main .talking-room .talk-playlist { display: none; }
+@media (min-width: 801px) and (hover: hover) and (pointer: fine) {
+ #main[data-room-entered] .talking-room[data-voice-room][data-room-design][data-room-pc-controls] {
+  --talk-list-row: 52px;
+  --talk-list-height: calc(4 * var(--talk-list-row) + 44px);
+  --talk-list-current: var(--ds-accent-mint);
+  --talk-list-like: var(--ds-accent-pink);
+  --af-room-bottom-gap: 28px;
+  --room-content-min: 700px;
+  & .room-header { padding-right: var(--talk-content-scrollbar, 0px); }
+  & .room-heading { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
+  & .room-heading .room-meta { display: inline-flex; justify-self: end; }
+  & .room-heading h1 { min-width: 0; }
+  & #voice-content { overflow-y: auto; scrollbar-width: thin; }
+  & .voice-columns { min-height: 590px; }
+  & .voice-columns > .voice-stage { overflow: visible; }
+  & #voice-seats {
+   --room-seat: clamp(44px, 4.8vw, 76px);
+   flex: 1 0 224px; min-height: max(224px, calc(2 * (var(--room-seat) + 24px) + 42px)); row-gap: 14px; padding-block: 16px 12px;
+  }
+  & .talk-central { flex: 0 0 44px; min-height: 44px; height: 44px; margin: 0 0 10px; }
+  & .talk-playlist {
+   order: 3;
+   --control-surface: var(--room-page);
+   display: flex; flex-direction: column; flex: 0 0 var(--talk-list-height);
+   box-sizing: border-box; height: var(--talk-list-height); min-height: var(--talk-list-height);
+   width: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0;
+   background: transparent; box-shadow: none; backdrop-filter: none; color: var(--room-text);
+   text-shadow: 0 1px 3px #000;
+  }
+  & .talk-playlist > header { display: flex; align-items: center; gap: 12px; flex: 0 0 44px; min-width: 0; padding: 0 12px; }
+  & .talk-playlist h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; white-space: nowrap; }
+  & [data-talk-count], & .talk-playlist-host { color: var(--room-muted); font-size: 13px; }
+  & .talk-playlist-host { display: flex; align-items: center; gap: 4px; margin-left: auto; min-width: 0; }
+  & .talk-playlist-host svg { flex: none; width: 14px; height: 14px; }
+  & [data-talk-host] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  & .talk-playlist-body { position: relative; height: calc(4 * var(--talk-list-row)); min-height: 0; }
+  & .talk-playlist-rows { height: 100%; margin: 0; padding: 0 6px; overflow: auto; overscroll-behavior: contain; list-style: none; scrollbar-width: thin; scrollbar-color: var(--room-muted) transparent; scrollbar-gutter: stable; }
+  & .talk-playlist-row { display: grid; grid-template-columns: 24px 36px minmax(0,1fr) 44px 44px; align-items: center; gap: 10px; height: var(--talk-list-row); padding: 0; margin: 0; border: 0; background: transparent; box-shadow: none; }
+  & .talk-playlist-number { text-align: center; font-size: 13px; color: var(--room-muted); font-variant-numeric: tabular-nums; }
+  & .talk-playlist-cover { width: 36px; height: 36px; object-fit: cover; border-radius: 5px; }
+  & .talk-playlist-info { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+  & .talk-playlist-credit { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; line-height: 1.5; }
+  & .talk-playlist-credit strong { font-size: inherit; font-weight: 600; }
+  & .talk-playlist-credit > span { color: var(--room-muted); }
+  & .talk-playlist-current { flex: none; color: var(--talk-list-current); font-size: 12px; font-weight: 600; }
+  & .talk-playlist-row button { display: grid; place-items: center; width: 44px; height: 44px; min-width: 0; min-height: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--room-text); opacity: 1; }
+  & .talk-playlist-row button svg { width: 24px; height: 24px; filter: drop-shadow(0 1px 2px #000); }
+  & .talk-playlist-row [data-like][aria-pressed="true"] { color: var(--talk-list-like); }
+  & .talk-playlist-row [data-like][aria-pressed="true"] path { fill: currentColor; }
+  & .talk-playlist-row button:hover { background: rgb(128 128 150 / .14); transform: none; }
+  & .talk-playlist :is(button,.talk-playlist-rows):focus-visible { outline: 2px solid var(--room-text); outline-offset: -2px; }
+  & .talk-playlist-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 12px 10px; margin: 0; color: var(--room-muted); font-size: 13px; font-weight: 400; }
+  & .talk-playlist [hidden] { display: none!important; }
+  &[data-ui-mode="light"] {
+   --talk-list-current: #115e59; --talk-list-like: #9d174d;
+   & .talk-playlist { text-shadow: none; }
+   & .talk-playlist-row button svg { filter: none; }
+   /* At notebook crops the headphone contact shadow crosses only this label. */
+   & .talk-playlist-host { padding: 2px 4px; border-radius: 4px; background: color-mix(in srgb, var(--room-popup-fill) 94%, transparent); }
+  }
+ }
+}

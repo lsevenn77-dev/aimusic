@@ -50,7 +50,9 @@ for(let i=0;i<8;i++){
  f.sql.prepare("UPDATE producers SET name=?,image_version='local-preview' WHERE id=?").run(name,pid);f.sql.prepare('UPDATE users SET name=? WHERE id=?').run(name,uid);images.set('/media/producer/'+pid,portraits[i%portraits.length]);
 }
 for(let i=0;i<35;i++){f.addSong('qa-song-'+i);f.sql.prepare('UPDATE tracks SET title=? WHERE id=?').run('검증 노래 '+String(i+1).padStart(2,'0'),'qa-song-'+i);}
+await f.call('/api/playlists','POST',{name:'로컬 보관함',is_public:false},'other');
 const rooms={};
+f.sql.prepare('UPDATE tracks SET title=? WHERE id=?').run('아주 긴 노래 제목으로 한 줄 말줄임과 고정된 개인 액션 열을 확인하는 곡','qa-song-2');
 for(const mode of ['talk','karaoke']){
  const r=rooms[mode]=await f.create({title:mode==='talk'?'함께 이야기하는 밤':'함께 부르는 밤',mode,seating_mode:'free',background:'basic_dark',announcement:'로컬 검증 데이터 · 운영 서비스와 분리되어 있습니다.'});
  r.guests=[];
@@ -88,6 +90,13 @@ async function scenario(mode,name){
    const owner=await f.call(r.root+'state');await f.command(r,owner.body,'request',{track_id:'one'});
    if(name==='singing'){d.karaoke.phase='singing';d.karaoke.startsAt=Date.now()+3000;d.karaoke.inviteExpiresAt=0;}
   }
+ }
+ if(mode==='talk'&&/^playlist-(0|1|4|6)(-light)?$/.test(name)){
+  const count=Number(name.split('-')[1]);
+  const cmd=(operation,extra={})=>f.call(r.root+'music','POST',{generation:d.members.owner.generation,operation,request_id:crypto.randomUUID(),...extra});
+  await cmd('clear');
+  for(let i=0;i<count;i++)await cmd('enqueue',{track_id:'qa-song-'+i});
+  d.config.theme_sku=name.endsWith('-light')?'basic_light':'basic_dark';d.config.background=d.config.theme_sku;d.config.settings_revision=(d.config.settings_revision||0)+1;
  }
  if(['light','dark','base'].includes(name)){d.config.theme_sku=name==='base'?'basic_dark':name==='dark'?'theme_aurora_night':'theme_cherry_blossom';d.config.background=d.config.theme_sku;d.config.settings_revision=(d.config.settings_revision||0)+1;}
  d.revision++;r.room.notify();return r;

@@ -243,6 +243,7 @@ Object.assign(VoiceRoomClient.prototype,{
   if(volumeButton)volumeButton.innerHTML=voiceGlyph(this.preferences.music===0?'talkVolumeOff':'talkVolume');
   for(const b of this.host?.querySelectorAll?.('[data-voice=personal-mute]')||[])b.setAttribute('aria-pressed',String(this.preferences.music===0));try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}}for(const id of ['voice-music-volume','voice-listen-volume','live-mr-volume','voice-playlist-volume','voice-mini-volume','voice-personal-volume']){const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}}},
  paintFinalMusic(){
+  this.paintTalkingPlaylist?.();
   const m=this.state.music;if(!m)return;const host=this.state.members.find(p=>p.id===this.state.self)?.role==='host',track=m.queue[m.index],hasQueue=!!m.queue.length;
   const playRequested=m.playing||m.pendingStart!=null;
   $('#voice-host-audio').hidden=!host||!this.liveMode;$('#voice-room-volume').value=m.volume*100;$('#voice-balance').value=m.balance*100;
@@ -266,7 +267,7 @@ Object.assign(VoiceRoomClient.prototype,{
     art.hidden=!track;
     if(track){const src=track.cover||trackArtworkPath(track);if(art.firstElementChild.getAttribute('src')!==src)art.firstElementChild.src=src;}
     const title=mini.querySelector('.talk-track strong'),subtitle=mini.querySelector('.talk-track small');
-    title.textContent=track?.title||'선택된 곡이 없어요';subtitle.textContent=credit;
+    title.textContent=track?.title||(this.host.hasAttribute('data-room-pc-controls')?'재생할 곡이 없어요':'선택된 곡이 없어요');subtitle.textContent=credit;
     mini.querySelector('.talk-track').title=[track?.title,credit].filter(Boolean).join(' · ');
     for(const b of mini.querySelectorAll('[data-voice^="music-"]:not([data-voice="music-picker"])')){
      b.disabled=!hasQueue;b.hidden=b.dataset.voice===(playRequested?'music-play':'music-pause');
