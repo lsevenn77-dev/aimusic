@@ -89,7 +89,7 @@ function homeSection(title,href){return `<div class="section-heading"><h2>${esc(
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
 // The mobile picture keeps its approved 2:1 artwork; desktop selects its own portrait.
 const homeBanners=[
- {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',subtitle:'완성한 음악을 직접 공개해요.',cta:'제작곡 올리기',href:'#upload'},
+ {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',subtitle:'완성한 음악을 직접 공개해요.',cta:'제작곡 올리기',href:'#studio'},
  {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',subtitle:'내 목소리로 커버곡을 남겨요.',cta:'노래하러 가기',href:'#karaoke'},
  {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해보세요',subtitle:'원하는 파트에 목소리를 더해요.',cta:'참여하기',href:'#karaoke/dubbing?tab=discover'},
  {id:'artists',title:'AI 아티스트',headline:'AI 아티스트를 팔로우하고 응원해보세요',subtitle:'팬라운지에서 응원을 전해요.',cta:'아티스트 만나기',href:'#artists'},

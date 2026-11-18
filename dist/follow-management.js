@@ -74,7 +74,7 @@ function bindFollowList(root,{params,d,tab}){
   }
   const scope=r.scope_name?r.scope_name+'에서 차단':r.artist_id&&tab==='blocks'?'내가 차단한 아티스트':tab==='blocks'?'개인 계정':'';
   const badge=r.artist_id?'<span class="ai-mini">AI</span>':r.player_xp!=null?'<small class="fm-level" aria-label="레벨 '+playerLevel(r)+'">Lv. '+playerLevel(r)+'</small>':'';
-  const name=mode?esc(r.name):'<a href="#'+esc(profile)+'">'+esc(r.name)+'</a>';
+  const name=mode?'<span class="fm-nickname" title="'+esc(r.name)+'">'+esc(r.name)+'</span>':'<a href="#'+esc(profile)+'" title="'+esc(r.name)+'">'+esc(r.name)+'</a>';
   return check+photo+'<div class="fm-name"><strong>'+name+badge+'</strong>'+(scope?'<small>'+esc(scope)+'</small>':'')+(r.bio?'<p>'+esc(r.bio)+'</p>':'')+'</div><div class="fm-actions">'+acts+'</div>';
  }
  function paint(){

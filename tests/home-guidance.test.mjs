@@ -38,7 +38,7 @@ test('all eight service banners expose a whole-banner link and responsive WebP a
   }
  }
  const routes=Object.fromEntries(banners.map(b=>[b.id,b.href]));
- assert.deepEqual(routes,{studio:'#upload',play:'#karaoke',participate:'#karaoke/dubbing?tab=discover',artists:'#artists',karaoke:'#live?mode=karaoke',talking:'#voice?mode=talk',crew:'#community/crews?browse=1',premium:'#membership'});
+ assert.deepEqual(routes,{studio:'#studio',play:'#karaoke',participate:'#karaoke/dubbing?tab=discover',artists:'#artists',karaoke:'#live?mode=karaoke',talking:'#voice?mode=talk',crew:'#community/crews?browse=1',premium:'#membership'});
 });
 
 test('each banner renders one subtitle and includes it in the accessible link name',()=>{

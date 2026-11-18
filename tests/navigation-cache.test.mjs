@@ -170,7 +170,7 @@ test('home guidance banners render before music reads and survive a discovery fa
  const opening=c.navigate('home');
  try{
   const banner=c.section('home-release'),html=banner.innerHTML;
-  assert.match(html,/href="#upload"/,'the first approved banner must already link to the upload page');
+  assert.match(html,/href="#studio"/,'the first approved banner must already link directly to the studio');
   assert.doesNotMatch(html,/HOME_LOADING|음악을 불러오는 중/);
   discovery.resolve(response({error:'offline'},503));await opening;await new Promise(resolve=>setImmediate(resolve));
   assert.equal(c.section('home-release').innerHTML,html,'music network failures must not overwrite the static guidance banner');
