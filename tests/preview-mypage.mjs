@@ -45,7 +45,7 @@ for(const [id,owner,state,visibility,title] of [['11111111-1111-4111-8111-111111
  objects.set('dubbing/'+owner+'/'+id+'/script.json',new TextEncoder().encode(JSON.stringify(script)));
  if(state==='complete'){f.sql.prepare("INSERT INTO dubbing_final_jobs(id,project_id,script_key,state,manifest_json,output_key,created,updated) VALUES(?,?,?,'ready','{}',?,?,?)").run('qa-final',id,'dubbing/'+owner+'/'+id+'/script.json','qa-final.wav',at,at);objects.set('qa-final.wav',wav);}
 }
-if(process.argv.includes('--follow-qa'))(await import('./follow-preview-fixture.mjs')).seedFollowPreview(f.sql);
+if(process.argv.includes('--follow-qa'))(await import('./follow-preview-fixture.mjs')).seedFollowPreview(f.sql,{search:process.argv.includes('--follow-search-qa')});
 const port=Number(process.env.AIFECT_PREVIEW_PORT||4188),origin='http://127.0.0.1:'+port;
 const base=resolve('dist/client');
 f.sql.prepare('UPDATE likes SET created=?').run(at-3600);

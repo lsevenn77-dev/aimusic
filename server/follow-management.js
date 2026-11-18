@@ -90,6 +90,8 @@ async function list(env,s,q){
  const [counts,pageData]=await env.DB.batch([count,page]),items=pageData.results.slice(0,limit),next=pageData.results.length>limit?(keys?items.at(-1).key:offset+limit):null;
  const artists=s.own&&s.tab==='artists'&&!keys&&!offset?await rows(env,`SELECT a.id,a.name,(SELECT count(*) FROM follows f JOIN users u ON u.id=f.user_id WHERE f.kind='artist' AND f.target_id=a.id AND u.provider!='deleted' AND NOT ${personal('p.user_id','u.id')} AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks b WHERE b.artist_id=a.id AND b.user_id=u.id)) followers FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=? AND ${namedArtistSQL()} ORDER BY a.name,a.id`,s.uid):[];
  const totals=s.tab==='artists'?undefined:await followCounts(env,s.uid,s.viewer);
+ // Block counts are private and belong only to the owner's management response.
+ if(s.own&&totals)totals.blocks=s.tab==='blocks'?counts.results[0].total:(await one(env,source({...s,tab:'blocks'})+' SELECT count(*) n FROM people',...args)).n;
  return json({...counts.results[0],counts:totals,items,next,artists,own:s.own,owner:s.uid,name:s.name,manage:s.own&&(s.tab!=='artists'||!!s.aid)});
 }
 async function mutate(req,env,s){

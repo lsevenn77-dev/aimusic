@@ -89,3 +89,17 @@ test('oldest sorting uses actual relationship timestamps and counts ignore searc
  await f.call('/api/producers/p2/follow','DELETE',{},'owner');
  assert.equal((await get('')).counts.following,0);
 });
+
+test('all three management lists search the complete dataset and retain private unfiltered counts',async t=>{
+ const f=await fixture(t);load(f,65);
+ f.sql.exec("UPDATE users SET name='하루한국' WHERE id='fan000'");
+ const get=async(tab,q='',actor='owner',extra='')=>(await f.call(endpoint+'tab='+tab+'&q='+encodeURIComponent(q)+extra,'GET',null,actor)).body;
+ const initial=await get('followers');assert.equal(initial.items.length,50);assert(!initial.items.some(r=>r.uid==='fan000'));assert.equal(initial.counts.blocks,0);
+ const found=await get('followers','  하루한국  ');assert.deepEqual(found.items.map(r=>r.name),['하루한국']);assert.equal(found.total,66);assert.equal(found.counts.followers,66);
+ assert.equal((await get('followers','HELLO2')).matched,1);assert.equal((await get('followers','없는닉네임')).matched,0);
+ await write(f,'followers','follow',['m:fan000']);assert.equal((await get('following','하루한국')).matched,1);
+ await write(f,'following','block',['m:fan000']);const blocked=await get('blocks','하루한국');assert.equal(blocked.matched,1);assert.equal(blocked.counts.blocks,1);assert.equal(blocked.counts.followers,65);assert.equal(blocked.counts.following,1);
+ assert.equal((await get('blocks','없는닉네임')).counts.blocks,1);
+ await write(f,'blocks','unblock',['m:fan000']);const unblocked=await get('blocks');assert.equal(unblocked.total,0);assert.equal(unblocked.counts.blocks,0);assert.equal((await get('followers','하루한국')).matched,0);
+ assert(!Object.hasOwn((await get('followers','','other','&user=owner')).counts,'blocks'));
+});
