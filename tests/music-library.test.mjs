@@ -100,7 +100,7 @@ function libraryClient({response=async params=>libraryPage(params.get('section')
  panel.onHTML=html=>{
   for(const key of ['#ml-search','#ml-more','#ml-items','#new-playlist','#ml-retry']){if(nodes.has(key))nodes.get(key).isConnected=false;nodes.delete(key);}
   for(const id of ['ml-search','ml-more','ml-items','new-playlist','ml-retry'])if(html.includes('id="'+id+'"'))nodes.set('#'+id,new Element());
-  const form=nodes.get('#ml-search');if(form){form.values=[['q',''],['sort','recent']];form.querySelectorAll=()=>[];}
+  const form=nodes.get('#ml-search');if(form){form.values=[['q',''],['sort','recent']];const input=new Element(),sort=new Element();input.value='';sort.value='recent';form.input=input;form.querySelector=key=>key==='input[name="q"]'?input:key==='select'?sort:null;form.querySelectorAll=()=>[sort];form.requestSubmit=()=>{form.values=[['q',input.value],['sort',sort.value]];form.onsubmit({preventDefault(){}});};}
  };
  const location={_hash:'#profile?view=library&section=likes',get hash(){return this._hash;},set hash(value){events.push(['hash',value]);this._hash=value;}};
  class Clock extends Date {static now(){return now;}}
@@ -207,4 +207,31 @@ test('a stalled library read times out locally and its late response cannot over
  h.setResponse(async()=>libraryPage('history','retried'));await h.nodes.get('#ml-retry').onclick();pending.resolve(libraryPage('history','too-late'));for(let i=0;i<6;i++)await Promise.resolve();
  assert.match(h.panel.innerHTML,/history retried/);assert.doesNotMatch(h.panel.innerHTML,/too-late/);assert.equal(h.nodes.get('#ml-panel'),h.panel);assert.equal(h.timers.size,0);
  assert.equal(h.context.cachedMusicLibraryRead(h.context.musicLibraryOptions('profile?view=library&section=history')).items[0].id,'history-retried');
+});
+
+test('live search keeps its input mounted, filters immediately and rejects a superseded result',async()=>{
+ const h=libraryClient({response:async()=>({...libraryPage(),items:[{id:'rain',title:'비 오는 밤',artist:'가수',producer:'제작자'},{id:'sun',title:'맑은 낮',artist:'가수',producer:'제작자'}],total:2})});await h.mount();
+ const form=h.nodes.get('#ml-search'),input=form.input;input.focus();input.value='비';input.oninput({isComposing:false});
+ assert.match(h.nodes.get('#ml-items').innerHTML,/비 오는 밤/);assert.doesNotMatch(h.nodes.get('#ml-items').innerHTML,/맑은 낮/);assert.equal(h.requests.length,1);
+ h.fireTimeout(180);const first=deferred();h.setResponse(()=>first.promise);const stale=h.navigate(h.events.at(-1)[1].slice(1));
+ assert.equal(h.nodes.get('#ml-search'),form);input.value='맑은';input.oninput({isComposing:false});h.fireTimeout(180);
+ h.setResponse(async()=>({...libraryPage(),items:[{id:'sun',title:'맑은 낮'}]}));await h.navigate(h.events.at(-1)[1].slice(1));first.resolve({...libraryPage(),items:[{id:'rain',title:'비 오는 밤'}]});await stale;
+ assert.equal(h.nodes.get('#ml-search'),form);assert.equal(h.focused(),input);assert.equal(input.value,'맑은');assert.match(h.nodes.get('#ml-items').innerHTML,/맑은 낮/);assert.doesNotMatch(h.nodes.get('#ml-items').innerHTML,/비 오는 밤/);
+});
+
+test('playlist title and public creator searches include saved originals without revealing revoked sources',async t=>{
+ const f=await fixture(t);f.sql.exec("INSERT INTO producers(id,user_id,name,created,nickname_confirmed) VALUES('friend-profile','other','검색용 작성자',0,1)");
+ const mine=(await f.call('/api/playlists','POST',{name:'내 밤 목록'})).body.id;
+ const friend=(await f.call('/api/playlists','POST',{name:'아침 목록',is_public:true,track_ids:['one']},'other')).body.id;
+ await f.call('/api/playlists/'+friend+'/save','PUT');
+ assert.equal((await f.call('/api/me/music-library?section=playlists')).body.total,2);
+ assert.deepEqual((await f.call('/api/me/music-library?section=playlists&q='+encodeURIComponent('검색용 작성자'))).body.items.map(p=>p.id),[friend]);
+ assert.deepEqual((await f.call('/api/me/music-library?section=playlists&q='+encodeURIComponent('내 밤'))).body.items.map(p=>p.id),[mine]);
+ await f.call('/api/playlists/'+friend,'PATCH',{is_public:false},'other');
+ assert.equal((await f.call('/api/me/music-library?section=playlists&q='+encodeURIComponent('검색용 작성자'))).body.total,0);
+ assert.equal((await f.call('/api/me/music-library?section=playlists')).body.items.find(p=>p.id===friend).unavailable,true);
+ const box1=(await f.call('/api/my-boxes','POST',{name:'먼저 만든 박스'})).body.id,box2=(await f.call('/api/my-boxes','POST',{name:'나중 만든 박스'})).body.id;
+ f.sql.prepare('UPDATE my_boxes SET created=10,updated=30 WHERE id=?').run(box1);f.sql.prepare('UPDATE my_boxes SET created=20,updated=20 WHERE id=?').run(box2);
+ assert.deepEqual((await f.call('/api/me/music-library?section=myboxes&sort=oldest')).body.items.map(b=>b.id),[box1,box2]);
+ assert.equal((await f.call('/api/me/music-library?section=myboxes&q='+encodeURIComponent('나중'))).body.items[0].id,box2);
 });

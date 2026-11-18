@@ -27,7 +27,7 @@ export async function musicLibraryRoute(req,env,path,user){
  if(section==='myboxes')return json({...response,...await boxSummaries(env,uid,p)});
  if(section==='playlists'){
   const filter=p.get('filter')||'all';
-  const extra=(filter==='mine'?' AND p.user_id=?':filter==='saved'?' AND p.user_id!=?':'')+(q?' AND (p.user_id=? OR p.is_public=1) AND instr(lower(p.name),lower(?))>0':''),args=[...(['mine','saved'].includes(filter)?[uid]:[]),...(q?[uid,q]:[])];
+  const extra=(filter==='mine'?' AND p.user_id=?':filter==='saved'?' AND p.user_id!=?':'')+(q?' AND (p.user_id=? OR p.is_public=1)'+(blocked.length?' AND p.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':'')+' AND (instr(lower(p.name),lower(?))>0 OR instr(lower('+publicNameSQL()+'),lower(?))>0)':''),args=[...(['mine','saved'].includes(filter)?[uid]:[]),...(q?[uid,...blocked,q,q]:[])];
   response.total=await collectionCount(extra,args);
   const order=sort==='title'?"CASE WHEN p.user_id='"+uid.replaceAll("'","''")+"' OR p.is_public=1 THEN p.name ELSE '' END COLLATE NOCASE,p.id":sort==='oldest'?'p.created,p.id':sort==='custom'?'position,p.created DESC,p.id':sort==='played'?"COALESCE((SELECT played FROM playlist_recents r WHERE r.playlist_id=p.id AND r.user_id='"+uid.replaceAll("'","''")+"'),0) DESC,p.id":'p.updated DESC,p.created DESC,p.id';
   response.items=await playlistSummaries(env,uid,collectionWhere+extra,[...collectionArgs,...args],order,`${limit+1} OFFSET ${offset}`,[],{includeUnavailable:true});

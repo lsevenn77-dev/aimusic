@@ -135,6 +135,7 @@ test('entering the talk-room lobby with no active voice room releases focus with
 test('a late playlist limit check cannot open a membership dialog over the next page',async()=>{
  const pending=deferred();let checked=0;
  const c=nicknameContext({me:{id:'owner'},renderId:7,refreshLibrary:()=>pending.promise,canCreatePlaylist:()=>{checked++;return false;}});
- vm.runInContext(source('actions.js').match(/async function playlistDialog[^\r\n]*/)[0],c);
+ const actions=source('actions.js'),start=actions.indexOf('async function playlistDialog('),end=actions.indexOf('\n}',start)+2;
+ vm.runInContext(actions.slice(start,end),c);
  const work=c.playlistDialog();c.renderId++;pending.resolve();await work;assert.equal(checked,0);
 });
