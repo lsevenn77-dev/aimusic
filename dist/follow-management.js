@@ -91,7 +91,7 @@ function bindFollowManagement(view){
  };
  const navigate=event=>{const link=event.target.closest('[data-follow-tab]');if(!link||event.defaultPrevented||event.button>0||event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;event.preventDefault();const href=link.getAttribute('href');rememberFollowTarget(root,href);if(location.hash!==href){location.hash=href;refreshFollowRoute(href.slice(1));}};
  root.addEventListener('click',navigate);
- const changed=()=>{if(current())state.select(followSelection(location.hash)||state.selection);};
+ const changed=event=>{if(current()&&event.detail?.source!==state.panels.get(state.selection.tab))state.select(followSelection(location.hash)||state.selection);};
  window.addEventListener('aifect:follow-saved',changed);
  registerRouteCleanup(()=>{state.disposed=true;root.removeEventListener('click',navigate);window.removeEventListener('aifect:follow-saved',changed);});
  state.select(view.selection);
@@ -144,7 +144,6 @@ function followListHTML(d,tab,aid,initial,raw){
 }
 function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters}){
  root._followRelease?.();
- if(simple)d={...d,manage:false};
  const find=s=>root.querySelector(s),input=find('input'),sort=find('.fm-sort'),modeBox=find('.fm-mode'),bulk=find('.fm-bulk'),list=find('ul'),status=find('.fm-status'),more=find('.fm-more'),loading=find('.fm-loading');
  const viewer=me?.id,hash=location.hash;let disposed=false;const alive=()=>!disposed&&root.isConnected&&viewer===me?.id&&(root.closest('.fm-stable')||location.hash===hash);
  if(saved){input.value=saved.query;sort.value=saved.sort;}
@@ -157,7 +156,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
  const allowed=r=>r.uid!==viewer||!!r.artist_id||tab==='blocks';
  function controls(){
   find('.fm-count').textContent=ready?(input.value.trim()?number(d.matched)+'/':'')+number(d.total)+'명':'…';
-  modeBox.innerHTML=d.manage?(mode?btn('all',chosen.size===d.matched&&chosen.size?'전체 해제':'전체 선택',busy||!ready||!d.matched)+btn('cancel','취소',busy):btn('select','선택',busy||!ready||!d.total)):'';
+  modeBox.innerHTML=!simple&&d.manage?(mode?btn('all',chosen.size===d.matched&&chosen.size?'전체 해제':'전체 선택',busy||!ready||!d.matched)+btn('cancel','취소',busy):btn('select','선택',busy||!ready||!d.total)):'';
   if(bulk)bulk.hidden=!mode||!chosen.size;root.classList.toggle('fm-has-bulk',!!bulk&&!bulk.hidden);
   if(bulk&&!bulk.hidden)bulk.innerHTML='<strong>'+number(chosen.size)+'명 선택</strong>'+ops.map(op=>btn(op,'선택 '+followOps[op],busy)).join('');
   more.hidden=next===null||!ready;more.disabled=busy;
@@ -166,7 +165,10 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
  function rowHTML(r){
   const key=relationKey(r),profile=r.artist_id?'artist/'+encodeURIComponent(r.artist_id):r.profile_id?'producer/'+encodeURIComponent(r.profile_id):r.public_id?'member/'+encodeURIComponent(r.public_id):'follower/'+encodeURIComponent(r.uid);
   const pic=avatarImage({id:r.artist_id||r.profile_id,name:r.name,image_version:r.image_version},r.artist_id?'artist':'producer',false);
-  if(simple)return '<a class="fm-photo" href="#'+esc(profile)+'" aria-label="'+esc(r.name)+' 프로필">'+pic+'</a><div class="fm-name"><strong><a href="#'+esc(profile)+'" title="'+esc(r.name)+'">'+esc(r.name)+'</a></strong></div>';
+  if(simple){
+   const actions=d.manage&&allowed(r)?profileFollowButton(key,!!r.following,!!r.follows_viewer,r.following?'unfollow':'follow')+btn('block','차단'):'';
+   return '<a class="fm-photo" href="#'+esc(profile)+'" aria-label="'+esc(r.name)+' 프로필">'+pic+'</a><div class="fm-name"><strong><a href="#'+esc(profile)+'" title="'+esc(r.name)+'">'+esc(r.name)+'</a></strong></div><div class="fm-actions">'+actions+'</div>';
+  }
   const photo=mode?'<span class="fm-photo">'+pic+'</span>':'<button type="button" data-fm="photo" class="fm-photo" aria-haspopup="dialog" aria-label="'+esc(r.name)+' 프로필 미리보기">'+pic+'</button>';
   const check=mode?'<input class="fm-check" aria-label="'+esc(r.name)+' 선택" type="checkbox" '+(chosen.has(r.key)?'checked':'')+' '+(busy?'disabled':'')+'>':'';
   let acts='';
@@ -205,11 +207,11 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
  }
  function invalidate(){clearTimeout(timer);reader?.abort();reader=new AbortController();return ++seq;}
  const options=()=>{const q=new URLSearchParams(base);q.set('q',input.value.trim());q.set('sort',sort.value);return q;};
- async function readPage(append=false){
+ async function readPage(append=false,quiet=false){
   const ticket=invalidate(),revision=followRevision,q=options();if(append)q.set('offset',next);
-  busy=true;status.textContent='';showLoading(true);controls();
+  busy=true;status.textContent='';if(!quiet)showLoading(true);controls();
   try{const res=await readFollowData(q);
-   if(ticket!==seq||!alive())return;if(revision!==followRevision)return readPage(false);d=simple?{...res,manage:false}:res;dataStamp=followStamp();dataUntil=Date.now()+60000;ready=true;rows=append?[...new Map([...rows,...res.items].map(r=>[r.key,r])).values()]:res.items;next=res.next;status.textContent='';
+   if(ticket!==seq||!alive())return;if(revision!==followRevision)return readPage(false,quiet);d=res;dataStamp=followStamp();dataUntil=Date.now()+60000;ready=true;rows=append?[...new Map([...rows,...res.items].map(r=>[r.key,r])).values()]:res.items;next=res.next;status.textContent='';
   }catch(e){if(ticket===seq&&alive()){if(e.name==='AbortError')return void readPage(false);if(e.status===401||e.status===403){rows=[];followPageCache.clear();}if(!append&&!rows.length){ready=false;next=null;}status.innerHTML=esc(e.message)+' '+btn(append?'more':'retry','다시 시도');}}
   finally{if(ticket===seq&&alive()){busy=false;showLoading(false);paint();}}
  }
@@ -245,7 +247,9 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   void apply(op,targets);
  }
  function syncRelation(row,following){
+  const delta=Number(following)-Number(!!row.following);
   row.following=following;
+  if(d.own&&d.counts)d.counts.following=Math.max(0,d.counts.following+delta);
   const li=[...list.children].find(item=>item.dataset.key===row.key);
   if(d.own&&tab==='following'&&!following){
    rows=rows.filter(item=>item!==row);li?.remove();
@@ -258,6 +262,8 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
    paintFollowState(relationKey(row),following,false,undefined,!!row.follows_viewer);
    li.fmHTML=rowHTML(row);
   }
+  dataStamp=followStamp();dataUntil=Date.now()+60000;
+  if(simple)paint();
  }
  async function changeRelation(row,following){
   const key=relationKey(row);
@@ -283,6 +289,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   }
  }
  async function apply(op,targets){
+  if(simple&&op==='block')return applyPersonalBlock(targets);
   if(busy||!alive())return;busy=true;input.disabled=sort.disabled=true;const picker=find('.fm-artist');if(picker)picker.disabled=true;
   const failed=new Map(),ok=[],all=[...targets.keys()];let uncertain='';
   paint();status.textContent='처리 중…';
@@ -298,7 +305,31 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
      if(failed.size){const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='처리 결과 보기';details.append(summary);for(const [title,keys] of [['완료',ok],[uncertain?'미확인':'실패',[...failed.keys()]]]){const p=document.createElement('p');p.textContent=title+': '+keys.map(k=>targets.get(k)).join(', ');details.append(p);}note.append(details);}status.prepend(note);
     }
    }
+   if(ok.length&&viewer===me?.id&&root.closest('.fm-stable'))window.dispatchEvent(new CustomEvent('aifect:follow-saved',{detail:{source:root}}));
   }
+ }
+ async function applyPersonalBlock(targets){
+  if(busy||!alive()||targets.size!==1)return;
+  const row=rows.find(item=>targets.has(item.key));if(!row)return;
+  busy=true;input.readOnly=true;sort.disabled=true;
+  const card=[...list.children].find(item=>item.dataset.key===row.key);
+  card?.querySelectorAll('button').forEach(button=>button.disabled=true);
+  try{
+   const response=await api('/api/follow-management?'+base,'POST',{action:'block',keys:[row.key]});
+   if(viewer!==me?.id)return;
+   if(!response.ok.includes(row.key))throw new Error('관계가 변경되었어요. 목록을 다시 확인해주세요.');
+   ++followRevision;void refreshLibrary(true).catch(()=>{});
+   if(alive()){
+    rows=rows.filter(item=>item!==row);card?.remove();
+    d.total=Math.max(0,d.total-1);d.matched=Math.max(0,d.matched-1);
+    if(next!==null)next=Math.max(0,next-1);
+    if(d.counts){d.counts.followers=Math.max(0,d.counts.followers-Number(!!row.follows_viewer));d.counts.following=Math.max(0,d.counts.following-Number(!!row.following));}
+    // Retain the remaining cards while reconciling the server's exact counts.
+    paint();await readPage(false,true);
+   }
+   window.dispatchEvent(new CustomEvent('aifect:follow-saved',{detail:{source:root}}));
+  }catch(error){if(viewer===me?.id)toast(error.message);}
+  finally{if(alive()){busy=false;input.readOnly=false;sort.disabled=false;card?.querySelectorAll('button').forEach(button=>button.disabled=false);controls();}}
  }
  let requested=input.value.trim();
  function search(){

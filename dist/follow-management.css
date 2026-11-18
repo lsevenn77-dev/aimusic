@@ -31,12 +31,12 @@
 .fm-stable .fm-result-head { display:flex; align-items:center; gap:8px; min-height:36px; margin-block:4px; }
 .fm-stable .fm-rows { grid-template-columns:repeat(2,minmax(0,1fr)); }
 .fm-stable .fm-rows li { min-height:72px; padding:8px 12px; gap:12px; }
-.fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-rows li { grid-template-columns:56px minmax(0,1fr); }
+.fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-rows li { grid-template-columns:56px minmax(0,1fr) auto; }
 .fm-stable .fm-name strong > a { display:flex; align-items:center; min-height:44px; }
 .fm-stable .fm-refresh { display:block; color:var(--ds-muted); font-size:var(--pc-font-meta,13px); padding-block:8px; }
 @media(max-width:800px) {
  .fm-stable .fm-rows { grid-template-columns:minmax(0,1fr); }
- .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-rows li { grid-template-columns:48px minmax(0,1fr); }
+ .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-rows li { grid-template-columns:48px minmax(0,1fr) auto; }
 }
 #main .fm-page .fm-tabs { --aifect-tab-font-size: 14px; margin: 0; }
 #main .fm-page .fm-tabs .tab { --aifect-tab-accent: var(--fm-accent); white-space: normal; word-break: keep-all; text-align: center; }
@@ -144,4 +144,15 @@
 @media(max-width:600px) {
   .fm-rows li { grid-template-columns: auto minmax(0,1fr); padding:12px; gap:12px; }
   .fm-actions { grid-column:1/-1; justify-content:flex-end; }
+}
+/* Personal list actions stay in the compact card's right column at every width. */
+.fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions { grid-column:auto; flex-wrap:nowrap; gap:4px; }
+#main .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions button {
+ min-width:44px; height:44px; padding-inline:8px; background:transparent; border-color:transparent; box-shadow:none; color:var(--ds-body);
+}
+#main .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions [aria-pressed="true"] { color:var(--ds-muted); }
+.fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions svg { display:none; }
+@media(max-width:480px) {
+ .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-rows li { gap:6px; padding-inline:8px; }
+ #main .fm-stable [data-follow-panel]:not([data-follow-panel="blocks"]) .fm-actions button { padding-inline:5px; font-size:var(--pc-font-meta,13px); }
 }
