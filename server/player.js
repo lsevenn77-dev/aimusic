@@ -50,11 +50,12 @@ export async function playerSummary(env,uid){
   rows(env,'SELECT kind,amount,created FROM player_xp WHERE user_id=? ORDER BY created DESC,source_key DESC LIMIT 20',uid),decorationInventory(env,uid)
  ]);
  const currentCrew=crew?{...crew,level:crewLevel(crew.xp,crew.highest_level,crew.growth_started).level}:null;
- return {player:playerProgress(identity.player_xp),profile:identity,crew:currentCrew,rules:PLAYER_RULES,recent,decorations:decorations.filter(i=>i.source==='decoration'&&i.product.kind==='TALKING_ROOM_THEME'),stored_decorations:decorations.filter(i=>i.source==='decoration_stock'),
+ return {server_now:now(),player:playerProgress(identity.player_xp),profile:identity,crew:currentCrew,rules:PLAYER_RULES,recent,decorations:decorations.filter(i=>i.source==='decoration'&&i.product.kind==='TALKING_ROOM_THEME'),stored_decorations:decorations.filter(i=>i.source==='decoration_stock'),
   rewards:rewards.filter(([key])=>!inventory.some(i=>i.item_key===key)).map(([key,item])=>({item_key:key,...item,owned:false,available:false,equipped:false,reason:item.min_level?`유저 레벨 ${item.min_level} 달성 시 자동 지급`:`크루 레벨 ${item.min_crew_level} 이상 가입 시 자동 지급`})),
-  inventory:inventory.filter(i=>i.source!=='decoration_stock'&&PLAYER_ITEMS[i.item_key]).map(i=>{
+  inventory:inventory.filter(i=>i.source!=='decoration_stock'&&PLAYER_ITEMS[i.item_key]&&!i.revoked&&(!i.expires_at||i.expires_at>now())).map(i=>{
    const item=PLAYER_ITEMS[i.item_key],reason=item.paid&&!decorations.find(d=>d.id===i.id)?.available?'사용 기간이나 결제 상태를 확인해주세요.':i.revoked?'사용이 종료된 아이템이에요.':i.expires_at&&i.expires_at<=now()?'사용 기간이 끝났어요.':item.membership&&!crew?'크루에 가입하면 사용할 수 있어요.':item.min_crew_level&&currentCrew.level<item.min_crew_level?`크루 레벨 ${item.min_crew_level} 이상에서 사용할 수 있어요.`:'';
-   return {id:i.id,item_key:i.item_key,...item,owned:true,source:i.source,granted_at:i.granted_at,expires_at:i.expires_at,available:!reason,reason,equipped:!reason&&!!i.equipped};
+   const rental=decorations.find(d=>d.id===i.id);
+   return {id:i.id,item_key:i.item_key,...item,owned:true,status:'ACTIVE',activated_at:rental?.activated_at??null,period_code:rental?.period_code??null,applied:!reason&&!!i.equipped,source:i.source,granted_at:i.granted_at,expires_at:i.expires_at,available:!reason,reason,equipped:!reason&&!!i.equipped};
   })};
 }
 export async function playerRoute(req,env,path,user){

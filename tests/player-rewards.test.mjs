@@ -55,7 +55,8 @@ test('existing eligible users receive rewards on backfill; expired/revoked rewar
  const item=reward(d,'player-level-10');await call('/api/me/player/equipment','PUT',{frame_inventory_id:item.id});
  for(const change of ['expires_at=1','expires_at=0,revoked=1']){
   sql.prepare('UPDATE player_inventory SET '+change+' WHERE id=?').run(item.id);
-  d=(await call('/api/me/player')).body;assert.equal(d.inventory.length,5);assert.equal(reward(d,'player-level-10').available,false);assert.equal(d.profile.profile_frame_artwork,null);
+  d=(await call('/api/me/player')).body;assert.equal(d.inventory.length,4);assert.equal(reward(d,'player-level-10'),undefined);assert.equal(d.profile.profile_frame_artwork,null);
+  assert.equal(sql.prepare('SELECT count(*) n FROM player_inventory').get().n,5,'expired ownership history remains stored');
   assert.equal((await call('/api/me/player/equipment','PUT',{frame_inventory_id:item.id})).status,409);
  }
 });

@@ -83,6 +83,10 @@ class VoiceRoomClient {
  acceptState(state){
   if(this.closed||!state||state.generation!==this.generation||state.revision<(this.state?.revision??-1))return false;
   if((state.music?.revision??-1)<(this.state?.music?.revision??-1))state.music=this.state.music;
+  // Audio snapshots carry the base skin. Keep the Site-verified entitlement
+  // until the room's owner or settings revision actually changes.
+  const before=this.state?.room;
+  if(!state.room?.theme&&before?.theme&&state.room?.id===before.id&&state.room.host_id===before.host_id&&(state.room.settings_revision||0)===(before.settings_revision||0))state.room={...state.room,theme:before.theme,theme_sku:before.theme.sku,background:before.theme.sku};
   if(state.members&&this.state?.members){
    const previous=new Map(this.state.members.map(p=>[p.id,p]));
    state.members=state.members.map(p=>({...previous.get(p.id),...p}));

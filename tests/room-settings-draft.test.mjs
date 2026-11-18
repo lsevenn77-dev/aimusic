@@ -47,7 +47,7 @@ function harness({mode='karaoke',owner=true,room={},options}={}){
  }
  const sheet=makeSheet('voice-room-settings');
  const context=vm.createContext({
-  VoiceRoomClient:class{},Event,CustomEvent,FormData:SuccessfulFormData,
+  VoiceRoomClient:class{},Event,CustomEvent,crypto,FormData:SuccessfulFormData,
   $:selector=>selector==='#voice-settings-form'?form:sheets.get(selector.slice(1)),
   voiceRequest:path=>{requests.push(path);return nextOptions(path);},
   fillRoomThemeChoices:(target,data,selected)=>{target.elements.background.value=data.themes?.some(t=>t.sku===selected&&t.selectable)?selected:'basic_dark';},
@@ -59,7 +59,7 @@ function harness({mode='karaoke',owner=true,room={},options}={}){
  client.liveMode=mode==='karaoke';client.closed=false;
  client.host={querySelector:selector=>sheets.get(selector.slice(1))};
  client.showSheet=id=>{client.talkPopup?.close();client.settingsTicket=(client.settingsTicket||0)+1;client.talkPopup=sheets.get(id);client.talkPopup.show();};
- client.command=(action,body)=>{commands.push({action,body:plain(body)});return commandReply?commandReply(action,body):Promise.resolve({...client.state,room:{...client.state.room,...body,settings_revision:client.state.room.settings_revision+1}});};
+ client.command=(action,body)=>{assert.match(body.request_id,/^[0-9a-f-]{36}$/);const {request_id,...changes}=body;commands.push({action,body:plain(changes)});return commandReply?commandReply(action,body):Promise.resolve({...client.state,room:{...client.state.room,...body,settings_revision:client.state.room.settings_revision+1}});};
  client.acceptState=state=>{accepted.push(state);client.state=state;};
  client.bindRoomSettings();
  return {client,form,sheet,requests,commands,accepted,events,toasts,makeSheet,standardOptions,setOptions:callback=>{nextOptions=callback;},setCommand:callback=>{commandReply=callback;}};

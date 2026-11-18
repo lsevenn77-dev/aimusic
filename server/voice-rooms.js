@@ -1,8 +1,9 @@
 import {talkingRoomPage} from './talking-directory.js';
-import {roomThemeChoices,assertRoomTheme,saveRoomTheme,resolveRoomDecoration,decorateRoomResult} from './room-decorations.js';
+import {roomThemeChoices,resolveRoomDecoration,decorateRoomResult} from './room-decorations.js';
+import {selectRoomEntitlement,themeApplicationReplay,commitRoomTheme} from './room-theme-application.js';
 import {voiceMusicRoute} from './voice-music.js';
 import {voiceKaraokeRoute} from './voice-karaoke.js';
-import {one,rows,run,rate,json,fail,str} from './db.js';
+import {one,rows,run,rate,json,fail,str,now} from './db.js';
 import {requireUser,hash,viewerBlockedIds} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
 import {giftRoute} from './gifts.js';
@@ -25,6 +26,12 @@ function suggestedRoomTitle(mode,key,exclude=''){
  return titles[index%titles.length];
 }
 async function result(response) {const r=await response.json();if(!response.ok)fail(response.status,r.error||'토킹룸 연결에 실패했어요.');return r;}
+const themeFingerprint=b=>JSON.stringify(Object.fromEntries(['theme_sku','background','inventory_id','activate_theme','revision','title','visibility','crew_id','max_members','announcement','seating_mode','mode'].filter(k=>b[k]!==undefined).map(k=>[k,b[k]])));
+async function applyVoiceSettings(env,actor,room,action,input){
+ const response=await voiceCall(env,actor,room,action,input);
+ if(!response.ok)console.error(JSON.stringify({event:'room_settings_rejected',action,status:response.status,theme_sku:input.theme_sku,request_id:room}));
+ return result(response);
+}
 
 // Only server-issued receipt events survive this match. Ordinary chat text,
 // timestamps and the recipient's profile are never evidence of a room gift.
@@ -58,9 +65,11 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(path==='/api/voice/options'&&req.method==='GET'){
   const themes=await roomThemeChoices(env,user.id);
   const params=new URL(req.url).searchParams,mode=params.get('mode')==='karaoke'?'karaoke':'talk';
+  const current=params.get('room_id')?await result(await voiceCall(env,actor,identifier(params.get('room_id')),'state')):null;
+  const current_theme=current?await resolveRoomDecoration(env,current.room):null;
   const exclude=str(params.get('exclude')??'',60,false);
   const suggested_titles=Object.fromEntries(Object.keys(roomTitles).map(type=>[type,suggestedRoomTitle(type,crypto.randomUUID(),type===mode?exclude:'')]));
-  return json({crews,themes,suggested_titles,suggested_title:suggested_titles[mode],preferred_theme:themes.find(t=>t.paid)?.sku||DEFAULT_ROOM_THEME});
+  return json({crews,themes,current_theme,server_now:now(),suggested_titles,suggested_title:suggested_titles[mode],preferred_theme:themes.find(t=>t.paid&&t.status==='ACTIVE')?.sku||DEFAULT_ROOM_THEME});
  }
  if(path==='/api/voice/rooms'&&req.method==='GET')return json({...await decorateRoomResult(env,await result(await voiceCall(env,actor,'directory','list'))),crews});
  if(path==='/api/voice/rooms'&&req.method==='POST') {
@@ -74,13 +83,16 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
    crew_id=crews[0].id;
    if(b.crew_id&&b.crew_id!==crew_id)fail(409,'소속 크루가 변경됐어요. 방 만들기를 다시 열어주세요.');
   }
-  const selected=await assertRoomTheme(env,user.id,b.theme_sku||b.background||(await roomThemeChoices(env,user.id)).find(t=>t.paid)?.sku||DEFAULT_ROOM_THEME);
   const roomId=requestId(b.request_id);
+  const fingerprint=themeFingerprint(b),receipt=await themeApplicationReplay(env,user.id,roomId,roomId,'create',fingerprint);
+  if(receipt||await one(env,'SELECT room_id FROM room_decorations WHERE room_id=? AND host_id=?',roomId,user.id))return json(await decorateRoomResult(env,await result(await voiceCall(env,actor,roomId,'state'))),201);
+  const preferred=b.theme_sku||b.background||(await roomThemeChoices(env,user.id)).find(t=>t.paid&&t.status==='ACTIVE')?.sku||DEFAULT_ROOM_THEME;
+  const selected=await selectRoomEntitlement(env,user.id,preferred,b.inventory_id,b.activate_theme===true);
   const title=str(b.title??'',60,false)||suggestedRoomTitle(b.mode,roomId);
-  const data=await result(await voiceCall(env,actor,roomId,'create',{title,visibility:b.visibility,crew_id,max_members:b.max_members,theme_sku:selected,announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode}));
-  // A retried creation can return an existing room even if the form selection changed.
-  const applied=data.room.theme_sku===selected?selected:(await resolveRoomDecoration(env,data.room)).sku;
-  await saveRoomTheme(env,actor,data.room,applied,{creating:true});return json(await decorateRoomResult(env,data),201);
+  // Voice transport needs only a free base skin. Site D1 owns paid artwork and
+  // the catalog, so adding a product cannot depend on a second Worker's catalog.
+  const data=await applyVoiceSettings(env,actor,roomId,'create',{title,visibility:b.visibility,crew_id,max_members:b.max_members,theme_sku:selected.transport,announcement:b.announcement,seating_mode:b.seating_mode,mode:b.mode});
+  await commitRoomTheme(env,user.id,data.room,selected,{key:roomId,action:'create',fingerprint});return json(await decorateRoomResult(env,data),201);
  }
  const m=path.match(/^\/api\/voice\/rooms\/([\w-]+)\/([a-z-]+)$/);if(!m)fail(404,'토킹룸을 찾을 수 없어요.');
  const [,room,action]=m;
@@ -100,16 +112,19 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  if(action==='settings'){
   const current=await result(await voiceCall(env,actor,room,'state'));
   if(current.room.host_id!==user.id)fail(403,'방장만 테마를 변경할 수 있어요.');
+  const fingerprint=themeFingerprint(b),key=b.request_id?requestId(b.request_id):crypto.randomUUID();
+  if(await themeApplicationReplay(env,user.id,key,room,'settings',fingerprint))return json(await decorateRoomResult(env,current));
   if(Number(b.max_members??current.room.max_members)<current.members.length)fail(409,'현재 참여 인원보다 작게 저장할 수 없어요.');
   if(b.visibility==='crew'){
    if(crews.length!==1)fail(403,'소속 크루가 하나인 회원만 크루 공개를 선택할 수 있어요.');
    b.crew_id=crews[0].id;
   }
-  const {theme_sku,background,...settings}=b;
-  const selected=await assertRoomTheme(env,user.id,theme_sku||background||(await resolveRoomDecoration(env,current.room)).sku);
-  const data=await result(await voiceCall(env,actor,room,'settings',{...settings,theme_sku:selected}));
+  const {theme_sku,background,inventory_id,activate_theme,...settings}=b;
+  const applied=await resolveRoomDecoration(env,current.room),sku=theme_sku||background||applied.sku;
+  const selected=await selectRoomEntitlement(env,user.id,sku,inventory_id||(!theme_sku&&!background?applied.inventory_id:null),activate_theme===true);
+  const data=await applyVoiceSettings(env,actor,room,'settings',{...settings,theme_sku:selected.transport});
   if(settings.mode && data.room?.mode!==settings.mode)fail(502,'방 유형 변경이 확인되지 않았어요. 방 설정을 다시 열어주세요.');
-  await saveRoomTheme(env,actor,data.room,selected);return json(await decorateRoomResult(env,data));
+  await commitRoomTheme(env,user.id,data.room,selected,{key,action:'settings',fingerprint});return json(await decorateRoomResult(env,data));
  }
  if(action==='invite') {
   const note=String(b.note??'').trim();if(note.length>200)fail(400,'함께 보낼 메시지는 200자까지 입력해주세요.');
@@ -155,6 +170,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
  const allowed=['join','heartbeat','leave','close','settings','seat-invite','seat-answer','self-mute','request-mic','cancel-mic','reject-mic','approve-mic','release-mic','mute','moderate','chat','publish','published','subscribe','answer'];
  if(!allowed.includes(action))fail(404,'지원하지 않는 토킹룸 요청이에요.');
  const response=await voiceCall(env,actor,room,action,b);
+ if(response.ok&&action==='close')await run(env,'DELETE FROM room_decorations WHERE room_id=? AND host_id=?',room,user.id);
  // The transport service owns membership and audio, while the Site owns paid
  // theme/frame entitlement. Native listeners receive both on entry/refresh.
  if(response.ok&&['join','heartbeat'].includes(action))return json(await decorateRoomResult(env,await response.json()),response.status);

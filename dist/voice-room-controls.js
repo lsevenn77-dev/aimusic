@@ -319,6 +319,9 @@ Object.assign(VoiceRoomClient.prototype,{
   const ids={inbox:'room-inbox',participants:'voice-members',sound:'voice-sound',share:'voice-invite-sheet',settings:'voice-room-settings',leave:'talk-leave','music-picker':'voice-music-sheet','view-queue':'voice-music-sheet','personal-volume':'talk-volume','karaoke-search-open':'live-search-sheet',emoji:'voice-emoji-picker',gift:'voice-gift-sheet'};
   for(const button of this.host.querySelectorAll('.room-header button,[data-voice=inbox]')){button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls',ids[button.dataset.voice]);button.setAttribute('aria-expanded','false');}
   const outside=e=>{
+   // The first-use confirmation owns pointer/keyboard dismissal while open.
+   // Its buttons must not dismiss the settings draft underneath it.
+   if(document.querySelector('dialog.rental-confirm[open]'))return;
    const popup=this.talkPopup;if(!popup?.open||popup.contains(e.target))return;
    const link=e.target.closest?.('a[href]');if(link&&!roomRouteMatches(new URL(link.href,location.href),this)){this.closeRoomPopup();return;}
    // Let the same mobile tap both dismiss the sheet and place the editing caret.
@@ -330,6 +333,7 @@ Object.assign(VoiceRoomClient.prototype,{
   };
   document.addEventListener('pointerdown',outside,{...options,capture:true});document.addEventListener('click',outside,{...options,capture:true});
   document.addEventListener('keydown',e=>{
+   if(document.querySelector('dialog.rental-confirm[open]'))return;
    const popup=this.talkPopup;
    if(e.key==='Tab'&&popup?.open){
     const controls=[...popup.querySelectorAll('a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[contenteditable=true],[tabindex="0"]')].filter(el=>el.getClientRects().length);
@@ -425,9 +429,10 @@ Object.assign(VoiceRoomClient.prototype,{
   form.querySelector('.form-error').textContent='';form.querySelector('.voice-backgrounds').textContent='테마를 불러오는 중…';
   form.dispatchEvent(new Event('input',{bubbles:true}));
   try{
-   const options=await voiceRequest('options?mode='+(this.liveMode?'karaoke':'talk'));
+   const options=await voiceRequest('options?mode='+(this.liveMode?'karaoke':'talk')+'&room_id='+encodeURIComponent(room.id));
    if(this.closed||!sheet.open||ticket!==this.settingsTicket)return;
-   fillRoomThemeChoices(form,options,room.theme?.sku||room.theme_sku||room.background);
+   const applied=options.current_theme||room.theme;
+   fillRoomThemeChoices(form,options,applied?.sku||room.theme_sku||room.background,applied?.inventory_id);
    form.elements.crew_id.value=room.crew_id||(options.crews.length===1?options.crews[0].id:'');
    const crew=form.querySelector('.voice-crew-setting');crew.textContent=options.crews.length===1?options.crews[0].name:'소속 크루가 있어야 선택할 수 있어요.';crew.hidden=form.elements.visibility.value!=='crew';
    form.querySelector('[name=visibility][value=crew]').disabled=options.crews.length!==1;
@@ -436,7 +441,7 @@ Object.assign(VoiceRoomClient.prototype,{
    form.querySelector('[data-voice=dismiss]').disabled=false;
    // Baseline the rendered draft, including option fallbacks. A type-only save
    // must not silently rewrite a title, crew or theme that the user did not edit.
-   this.settingsDraft={ticket,values:Object.fromEntries(new FormData(form))};
+   this.settingsDraft={ticket,values:Object.fromEntries(new FormData(form)),themeIndex:form.querySelector('[data-theme-index]:checked')?.dataset.themeIndex,requestId:crypto.randomUUID()};
   }catch(e){if(ticket===this.settingsTicket)form.querySelector('.form-error').textContent=e.message;throw e;}
   finally{if(ticket===this.settingsTicket)this.settingsLoading=false;}
  },
@@ -449,10 +454,13 @@ Object.assign(VoiceRoomClient.prototype,{
   const changes={};
   for(const key of ['mode','title','visibility','crew_id','max_members','background','theme_sku','announcement'])if(key in values&&values[key]!==draft.values[key])changes[key]=values[key];
   if('max_members' in changes)changes.max_members=capacity;
+  const themeChanged=form.querySelector('[data-theme-index]:checked')?.dataset.themeIndex!==draft.themeIndex;
+  if(themeChanged){const theme=await confirmRoomTheme(form);if(theme===null)return;Object.assign(changes,theme);}
+  if(draft!==this.settingsDraft||ticket!==this.settingsTicket||!sheet.open||this.state.self!==this.state.room.host_id)return;
   if(!Object.keys(changes).length){sheet.close();return;}
   this.savingTalkSettings=true;
   try{
-   const state=await this.command('settings',{...changes,revision:this.settingsRevision});
+   const state=await this.command('settings',{...changes,revision:this.settingsRevision,request_id:draft.requestId});
    this.acceptState(state);if(this.closed)return;
    window.dispatchEvent(new CustomEvent('aifect:room-theme',{detail:{room:this.state.room}}));
    // The server snapshot may replace the room view, or the user may have

@@ -163,7 +163,7 @@ function profileFrameCanvasArtwork(path){
    if(version===roomThemeVersion){remember(room.id,d.theme);paintThemes();}
   }).catch(()=>{});
  });
- setInterval(()=>{if(document.hidden)return;paintFrames();paintThemes();void refresh();},1000);
+ setInterval(()=>{if(document.hidden)return;paintFrames();paintThemes();void refresh();if(document.querySelector('#unified-inventory'))window.dispatchEvent(new Event('aifect:inventory-tick'));},1000);
  schedule();
 })();
 

@@ -386,6 +386,7 @@ function bindVoiceLobby(){
   const b=Object.fromEntries(data),capacity=Number(b.max_members);
   if(!String(b.max_members??'').trim()||!Number.isInteger(capacity)||capacity<2||capacity>30)throw Error('참여 인원은 2~30명 사이의 정수로 입력해주세요.');
   if(b.visibility==='crew'&&!currentCrew)throw Error(crewIssue);
+  const theme=await confirmRoomTheme(form);if(theme===null)return;Object.assign(b,theme);
   b.crew_id=b.visibility==='crew'?currentCrew.id:'';prepareVoiceListening();
   const creating=requestId;
   const result=await voiceRequest('rooms',{...b,max_members:capacity,request_id:creating});

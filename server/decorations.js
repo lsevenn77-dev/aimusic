@@ -17,8 +17,24 @@ async function recipientUser(env,user,profile){
  assertUnblocked(env,p.user_id);if(viewerBlockedIds(user)?.includes(p.user_id))fail(403,'차단한 관계의 회원에게 선물할 수 없어요.');return p.user_id;
 }
 export async function decorationInventory(env,uid){
- const inventory=await rows(env,`SELECT pi.*,co.period_code,((pi.source='decoration_stock' AND pi.revoked=0 AND ${decorationFundingSQL('pi')}) OR (${activeDecorationSQL('pi')})) available,pe.frame_inventory_id=pi.id selected FROM player_inventory pi LEFT JOIN decoration_orders co ON co.inventory_id=pi.id LEFT JOIN player_equipment pe ON pe.user_id=pi.user_id WHERE pi.user_id=? AND (pi.source='decoration' OR (pi.source='decoration_stock' AND pi.revoked=0)) ORDER BY pi.granted_at DESC,pi.id`,uid);
- return inventory.filter(i=>Object.hasOwn(DECORATIONS,i.item_key)).map(i=>({...i,product:DECORATIONS[i.item_key],available:!!i.available,equipped:!!i.available&&!!i.selected,stored:i.source==='decoration_stock'}));
+ const inventory=await rows(env,`SELECT pi.*,COALESCE(co.period_code,(SELECT o.period_code FROM decoration_redemptions r JOIN decoration_orders o ON o.inventory_id=r.inventory_id WHERE r.active_inventory_id=pi.id ORDER BY r.created LIMIT 1)) period_code,
+ (SELECT min(created) FROM decoration_redemptions r WHERE r.active_inventory_id=pi.id) activated_at,
+ ((pi.source='decoration_stock' AND pi.revoked=0 AND ${decorationFundingSQL('pi')}) OR (${activeDecorationSQL('pi')})) available,
+ (pe.frame_inventory_id=pi.id OR EXISTS(SELECT 1 FROM room_decorations rd WHERE rd.host_id=pi.user_id AND rd.inventory_id=pi.id)) selected
+ FROM player_inventory pi LEFT JOIN decoration_orders co ON co.inventory_id=pi.id LEFT JOIN player_equipment pe ON pe.user_id=pi.user_id
+ WHERE pi.user_id=? AND ((pi.source='decoration' AND pi.revoked=0 AND (pi.expires_at=0 OR pi.expires_at>unixepoch())) OR (pi.source='decoration_stock' AND pi.revoked=0)) ORDER BY activated_at DESC,(SELECT max(rowid) FROM decoration_redemptions r WHERE r.active_inventory_id=pi.id) DESC,pi.granted_at DESC,pi.id`,uid);
+ return inventory.filter(i=>Object.hasOwn(DECORATIONS,i.item_key)).map(i=>({...i,product:DECORATIONS[i.item_key],status:i.source==='decoration_stock'?'UNUSED':'ACTIVE',applied:!!i.available&&!!i.selected,available:!!i.available,equipped:!!i.available&&!!i.selected,stored:i.source==='decoration_stock'}));
+}
+// New theme rentals retain one active ownership record per purchased stock item.
+// Existing aggregated entitlements and profile-frame extension policy stay intact.
+export function themeActivationQueries(env,uid,stock,key,at=now()){
+ const activeId='theme-'+stock.id,expires=decorationExpiry(at,stock.period_code);
+ return {activeId,expires,queries:[
+  query(env,"INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) VALUES(?,?,?,'decoration',?,?)",activeId,uid,stock.item_key,stock.id,stock.granted_at),
+  query(env,'INSERT INTO decoration_redemptions(inventory_id,user_id,request_id,active_inventory_id,previous_expires,previous_revoked,expires_at,created) VALUES(?,?,?,?,0,0,?,?)',stock.id,uid,key,activeId,expires,at),
+  query(env,'UPDATE player_inventory SET revoked=1 WHERE id=?',stock.id),
+  query(env,'UPDATE player_inventory SET expires_at=? WHERE id=?',expires,activeId)
+ ]};
 }
 async function buyDecoration(env,user,b,gifting=false){
  const key=requestId(b);let quote;try{quote=quoteDecoration(b.sku,b.period);}catch(e){fail(400,e.message);}
@@ -50,6 +66,10 @@ async function useDecoration(env,user,inventoryId,b){
  for(let attempt=0;attempt<4;attempt++){
   const stock=await one(env,`SELECT pi.*,co.period_code FROM player_inventory pi JOIN decoration_orders co ON co.inventory_id=pi.id WHERE pi.id=? AND pi.user_id=? AND pi.source='decoration_stock' AND pi.revoked=0 AND ${decorationFundingSQL('pi')}`,inventoryId,user.id);
   if(!stock){const old=await replay();if(old)return old;fail(409,'사용 가능한 보관 아이템이 아니에요.');}
+  if(DECORATIONS[stock.item_key]?.kind==='TALKING_ROOM_THEME'){
+   try{await env.DB.batch(themeActivationQueries(env,user.id,stock,key).queries);return await replay();}
+   catch(e){const old=await replay();if(old)return old;if(/constraint|decoration_/i.test(e.message))fail(409,'상품 상태가 바뀌었어요. 다시 확인해주세요.');throw e;}
+  }
   const active=await one(env,"SELECT * FROM player_inventory WHERE user_id=? AND source='decoration' AND source_ref=?",user.id,stock.item_key);
   if(active&&!await one(env,`SELECT id FROM player_inventory pi WHERE pi.id=? AND ${decorationFundingSQL('pi')}`,active.id))fail(409,'이전 아이템의 결제를 확인 중이에요.');
   const at=now(),activeId=active?.id||id(),expires=decorationExpiry(Math.max(at,active?.revoked?0:active?.expires_at||0),stock.period_code);

@@ -59,11 +59,10 @@ test('legacy palette beneath verified paid equipment preserves artwork, orders a
  assert.deepEqual(inventory(),beforeInventory);assert.deepEqual(purchases(),beforePurchases);
 });
 
-test('a create retry after an interrupted decoration write keeps the original room selection',async t=>{
+test('a completed create retry keeps the original atomic room selection',async t=>{
  const f=await decorationsFixture(t,{voice:true}),request_id=crypto.randomUUID();
  const create=background=>f.call('/api/voice/rooms','POST',{request_id,title:'재시도',background});
  assert.equal((await create('basic_light')).status,201);
- f.sql.prepare('DELETE FROM room_decorations WHERE room_id=?').run(request_id);
  const retry=await create('basic_dark');
  assert.equal(retry.status,201);assert.equal(retry.body.room.theme.sku,'basic_light');
  assert.equal(f.sql.prepare('SELECT sku FROM room_decorations WHERE room_id=?').get(request_id).sku,'basic_light');
@@ -106,11 +105,11 @@ test('new room defaults to the latest active paid theme, keeps paid choices firs
  const aurora=await f.buy('theme_aurora_night'),stock=await f.buy('theme_cherry_blossom');
  assert.equal(aurora.status,201);assert.equal(stock.status,201);
  let options=(await f.call('/api/voice/options')).body;
- assert.equal(options.preferred_theme,'basic_dark');assert.ok(options.themes.every(p=>!p.paid),'unused stock cannot become a default');
+ assert.equal(options.preferred_theme,'basic_dark');assert.ok(options.themes.filter(p=>p.paid).every(p=>p.status==='UNUSED'),'unused stock is visible but cannot become a default');
  await f.buyUse('theme_starlight_lounge');await f.use(aurora.body.order.inventory_id);
  options=(await f.call('/api/voice/options')).body;
  assert.equal(options.preferred_theme,'theme_aurora_night');
- assert.deepEqual(options.themes.map(p=>p.sku),['theme_aurora_night','theme_starlight_lounge','basic_dark','basic_light']);
+ assert.deepEqual(options.themes.map(p=>p.sku),['theme_aurora_night','theme_starlight_lounge','theme_cherry_blossom','basic_dark','basic_light']);
  assert.ok(options.themes.slice(0,2).every(p=>p.paid&&p.selectable));
  const created=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'활성 배경 기본값',visibility:'public'});
  assert.equal(created.status,201,JSON.stringify(created.body));assert.equal(created.body.room.theme.sku,'theme_aurora_night');

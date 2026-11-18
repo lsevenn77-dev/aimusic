@@ -28,7 +28,7 @@ function lobby({mode='talk',filter='all',crews=[{id:'my-crew',name:'우리 크�
   document:{querySelector:selector=>selector==='.talk-directory'?root:null},window:{addEventListener(name,fn){listeners.set(name,fn);},removeEventListener(name){listeners.delete(name);}},
   me:{id:'local-user'},crypto:{randomUUID},URLSearchParams,history,location,requestAnimationFrame:fn=>fn(),toast:message=>toasts.push(message),
   voiceRequest:async(path,payload)=>{calls.push({path,payload});if(path==='options')return {crews,themes:[],suggested_titles:suggestions,suggested_title:suggestions.talk};if(path.startsWith('options?'))return autoResponse(path);if(path==='rooms')return {room:{id:'created-room',mode:payload.mode}};throw Error('Unexpected request: '+path);},
-  fillRoomThemeChoices(){},registerRouteCleanup:fn=>cleanups.push(fn),bindTalkingDirectory(){},prepareVoiceListening(){listening++;},
+  fillRoomThemeChoices(){},confirmRoomTheme:async()=>({}),registerRouteCleanup:fn=>cleanups.push(fn),bindTalkingDirectory(){},prepareVoiceListening(){listening++;},
   busyForm:(_form,work)=>()=>work(new Map(Object.entries(fields).map(([name,field])=>[name,field.value])))
  });
  vm.runInContext(binding+'\nbindVoiceLobby();',context);

@@ -243,8 +243,12 @@ export const decorationTransfers=sqliteTable('decoration_transfers',{
 },t=>[uniqueIndex('decoration_transfer_request').on(t.senderId,t.requestId)]);
 // Display settings are separate from realtime voice transport and its database.
 export const roomDecorations=sqliteTable('room_decorations',{
- roomId:text('room_id').primaryKey(),hostId:text('host_id').notNull().references(()=>users.id),sku:text('sku').notNull(),revision:integer('revision').notNull(),updated:integer('updated').notNull()
+ roomId:text('room_id').primaryKey(),hostId:text('host_id').notNull().references(()=>users.id),sku:text('sku').notNull(),revision:integer('revision').notNull(),updated:integer('updated').notNull(),inventoryId:text('inventory_id').references(()=>playerInventory.id)
 });
+// Immutable completed applications. No reservation starts a rental clock.
+export const roomThemeApplications=sqliteTable('room_theme_applications',{
+ userId:text('user_id').notNull().references(()=>users.id),requestId:text('request_id').notNull(),roomId:text('room_id').notNull(),action:text('action').notNull(),fingerprint:text('fingerprint').notNull(),revision:integer('revision').notNull(),created:integer('created').notNull()
+},t=>[primaryKey({columns:[t.userId,t.requestId]})]);
 export const musicClassificationHistory=sqliteTable('music_classification_history',{id:text('id').primaryKey(),trackId:text('track_id').notNull().references(()=>tracks.id),beforeJson:text('before_json').notNull(),afterJson:text('after_json').notNull(),created:integer('created').notNull()},t=>[index('music_classification_history_track').on(t.trackId,t.created)]);
 
 // Monetary precision stays in milli-won; 1 diamond is 100 KRW, not one ledger unit.

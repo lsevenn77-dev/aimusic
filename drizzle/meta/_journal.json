@@ -743,6 +743,13 @@
       "when": 1794970505934,
       "tag": "0105_wet_junta",
       "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "6",
+      "when": 1794989662930,
+      "tag": "0106_careless_mephistopheles",
+      "breakpoints": true
     }
   ]
 }

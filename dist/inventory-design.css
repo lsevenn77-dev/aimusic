@@ -414,3 +414,75 @@
     padding:calc(20px) calc(16px);
   }
 }
+
+/* Inventory manager: shared AIFECT surfaces, original catalog art, local scope. */
+.unified-inventory .inventory-heading{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:20px}
+.unified-inventory .inventory-heading .page-heading{margin:0}
+.unified-inventory .inventory-heading h1{font-size:var(--pc-font-page,25px)}
+.unified-inventory .inventory-heading>a{flex:none;min-height:44px;display:inline-flex;align-items:center}
+.unified-inventory .inventory-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:24px;padding:20px;border-radius:var(--ds-radius-card);background:var(--ds-panel)}
+.unified-inventory .inventory-summary>div{display:flex;align-items:baseline;justify-content:center;gap:12px}
+.unified-inventory .inventory-summary span{color:var(--ds-muted);font-size:14px}
+.unified-inventory .inventory-summary strong{font-size:20px;color:var(--ds-text)}
+.unified-inventory .inventory-tools{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:12px;margin:0 0 20px}
+.unified-inventory .inventory-tools label{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--ds-muted)}
+.unified-inventory .inventory-tools select{min-height:44px;max-width:100%;padding:8px 12px;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);font:inherit}
+.unified-inventory .inventory-product-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.unified-inventory .inventory-product{min-width:0;display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:var(--ds-radius-card);background:var(--ds-panel);color:var(--ds-body)}
+.unified-inventory .inventory-product-detail{display:flex;flex-direction:column;gap:12px;min-width:0;padding:0;border:0;background:transparent;color:var(--ds-text);text-align:left;cursor:pointer;font:inherit}
+.unified-inventory .inventory-product-art{display:flex;align-items:center;justify-content:center;width:100%;aspect-ratio:1;overflow:hidden;border-radius:var(--ds-radius-input);background:var(--ds-bg)}
+.unified-inventory .inventory-product-art img{width:100%;height:100%;object-fit:contain;max-width:100%;display:block}
+.unified-inventory .inventory-product-detail strong{font-size:16px;line-height:1.5;min-height:3em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.unified-inventory .inventory-product-copy{min-height:62px;line-height:1.6}
+.unified-inventory .inventory-remaining{margin:8px 0 0;color:var(--ds-muted);font-size:13px}
+.rental-status{display:inline-block;font-size:12px;line-height:1.5;color:var(--ds-body);margin:0 6px 2px 0}
+.rental-status[data-status="UNUSED"],.rental-status.is-applied{color:#8EDDD2}
+.rental-status.is-expiring{color:var(--ds-accent-pink)}
+.unified-inventory .inventory-product-actions,.inventory-detail .inventory-product-actions{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+.unified-inventory .inventory-product-actions>:is(button,a),.inventory-detail .inventory-product-actions>:is(button,a){display:flex;align-items:center;justify-content:center;min-height:44px;min-width:0;width:100%;font-size:14px;text-align:center;line-height:1.5;white-space:normal;background:var(--ds-soft);color:var(--ds-text);border:0;border-radius:var(--ds-radius-input)}
+.unified-inventory .inventory-product-actions>.text-link{background:transparent;color:var(--ds-muted)}
+.unified-inventory .inventory-empty{padding:64px 16px;text-align:center;color:var(--ds-muted);font-size:15px}
+.inventory-detail{color:var(--ds-body);font-size:15px;line-height:1.6}
+.inventory-detail h2{font-size:20px;color:var(--ds-text)}
+.inventory-detail>img{display:block;width:100%;height:180px;object-fit:contain;margin:16px auto}
+.inventory-detail dl{display:grid;grid-template-columns:auto 1fr;gap:8px 16px;font-size:14px}
+.inventory-detail dt{color:var(--ds-muted)}
+.inventory-detail dd{margin:0;color:var(--ds-text)}
+#dialog.inventory-dialog.compact-popup{width:min(440px,calc(100% - 32px));background:var(--ds-panel);border:1px solid var(--ds-line);box-shadow:none}
+#dialog.inventory-dialog #dialog-close{display:none!important}
+#dialog.inventory-dialog #dialog-content .inventory-detail>h2{padding-inline-end:0}
+#dialog.inventory-dialog .inventory-detail>.text-link{display:block;width:100%;padding:12px;border:0;border-radius:var(--ds-radius-input);background:transparent;color:var(--ds-body);font:inherit;cursor:pointer}
+.rental-confirm{width:min(440px,calc(100% - 32px));padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel);color:var(--ds-body);box-shadow:none;font:inherit}
+.rental-confirm::backdrop{background:rgba(0,0,0,.5)}
+.rental-confirm h2{margin:0 0 12px;font-size:20px;color:var(--ds-text)}
+.rental-confirm p{font-size:15px;line-height:1.65;margin:8px 0 16px}
+.rental-confirm-product{display:flex;gap:16px;align-items:center;margin:20px 0}
+.rental-confirm-product img{width:72px;height:72px;object-fit:contain;background:var(--ds-bg);border-radius:var(--ds-radius-input)}
+.rental-confirm-product strong{color:var(--ds-text);font-size:16px}
+.rental-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rental-confirm-actions button{min-height:44px;font-size:15px;background:var(--ds-soft);color:var(--ds-text);border:0;border-radius:var(--ds-radius-input)}
+.rental-confirm-actions .rental-start{color:#8EDDD2}
+.voice-backgrounds .decoration-theme-choice>img{object-fit:contain}
+.voice-backgrounds .decoration-theme-choice small{display:block;line-height:1.5;color:var(--ds-muted);font-size:12px}
+.voice-backgrounds .rental-status{font-size:12px}
+@media(min-width:1600px){.unified-inventory .inventory-product-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:1100px) and (min-width:801px){.unified-inventory .inventory-product-grid{gap:12px}.unified-inventory .inventory-product{padding:12px}}
+@media(max-width:800px){
+ .unified-inventory .inventory-heading{align-items:center;gap:8px;margin-bottom:16px}
+ .unified-inventory .inventory-heading h1{font-size:22px}
+ .unified-inventory .inventory-heading .page-heading>p{display:none}
+ .unified-inventory .inventory-heading>a{font-size:14px;padding:8px 12px}
+ .unified-inventory .inventory-summary{padding:16px 8px;gap:8px;margin-bottom:16px}
+ .unified-inventory .inventory-summary>div{flex-direction:column;align-items:center;gap:4px}
+ .unified-inventory .inventory-summary span{font-size:13px}
+ .unified-inventory .inventory-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+ .unified-inventory .inventory-tools label{display:flex;flex-direction:column;align-items:stretch;font-size:13px}
+ .unified-inventory .inventory-product-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .unified-inventory .inventory-product{padding:12px;gap:10px}
+ .unified-inventory .inventory-product-detail strong{font-size:14px}
+ .unified-inventory .inventory-product-actions>:is(button,a){font-size:13px}
+ .unified-inventory .inventory-remaining{font-size:12px}
+ .rental-confirm{box-sizing:border-box;position:fixed;inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:50dvh;overflow:auto;padding:20px 20px calc(20px + env(safe-area-inset-bottom));border-radius:var(--ds-radius-card) var(--ds-radius-card) 0 0}
+ #dialog.inventory-dialog.compact-popup{position:fixed;inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:50dvh;overflow:auto;border-radius:var(--ds-radius-card) var(--ds-radius-card) 0 0}
+ .inventory-detail>img{height:120px}
+}

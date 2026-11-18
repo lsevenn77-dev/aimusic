@@ -31,7 +31,7 @@ function fixture(){
  const context=vm.createContext({VoiceRoomClient:class{},AbortController,clearTimeout(){},
   $:selector=>nodes.get(selector.slice(1))||auxiliary,
   window:{innerWidth:390},
-  document:{getElementById:id=>nodes.get(id),addEventListener:(type,handler)=>documentEvents.set(type,handler),get activeElement(){return activeElement;},set activeElement(value){activeElement=value;},documentElement:{setAttribute:(key,value)=>rootAttrs.set(key,value),removeAttribute:key=>rootAttrs.delete(key)}},
+  document:{querySelector:()=>null,getElementById:id=>nodes.get(id),addEventListener:(type,handler)=>documentEvents.set(type,handler),get activeElement(){return activeElement;},set activeElement(value){activeElement=value;},documentElement:{setAttribute:(key,value)=>rootAttrs.set(key,value),removeAttribute:key=>rootAttrs.delete(key)}},
   positionRoomPopup:client=>client.talkPopup.setAttribute('data-room-anchored',''),
  });
  vm.runInContext(readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8'),context);
@@ -45,6 +45,14 @@ function fixture(){
  };
  return {client,nodes,observed,focus,rootAttrs,input,context,fire,active:()=>activeElement,open:(id,action)=>client.adoptRoomPopup(nodes.get(id),nodes.get('trigger-'+action)),flush:()=>{while(closeEvents.length)closeEvents.shift()();}};
 }
+
+test('rental confirmation retains the underlying settings draft and owns pointer and keyboard events',()=>{
+ const f=fixture();f.open('voice-room-settings','settings');const sheet=f.client.talkPopup,ticket=f.client.settingsTicket;
+ f.context.document.querySelector=selector=>selector==='dialog.rental-confirm[open]'?{}:null;
+ for(const type of ['pointerdown','click','keydown']){
+  const event=f.fire(type,f.input,{key:'Escape'});assert.equal(event.defaultPrevented,false);assert.equal(event.stopped,false);assert.equal(sheet.open,true);assert.equal(f.client.settingsTicket,ticket);
+ }
+});
 
 test('switching from sound retires its live mic test and observer before the old close event',()=>{
  const f=fixture(),sound=f.nodes.get('voice-sound'),settings=f.nodes.get('voice-room-settings');

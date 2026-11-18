@@ -5,12 +5,13 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {DECORATIONS} from '../shared/decorations.js';
 import {decorationsFixture} from './decorations-fixture.mjs';
-test('theme options exclude expired, stored and other-owner grants; active ownership alone is selectable',async t=>{
+test('theme options include unused rights and exclude expired and other-owner grants',async t=>{
  const f=await decorationsFixture(t,{voice:true});
  await f.buyUse('theme_starlight_lounge');await f.buy('theme_cherry_blossom');await f.buyUse('theme_aurora_night');
  f.sql.exec("UPDATE player_inventory SET expires_at=unixepoch()-1 WHERE item_key='theme_aurora_night' AND source='decoration'");
  const a=(await f.call('/api/voice/options')).body.themes;
- assert.deepEqual(a.map(t=>t.sku),['theme_starlight_lounge','basic_dark','basic_light']);
+ assert.deepEqual(a.map(t=>t.sku),['theme_starlight_lounge','theme_cherry_blossom','basic_dark','basic_light']);
+ assert.equal(a[1].status,'UNUSED');
  assert.deepEqual((await f.call('/api/voice/options','GET',null,'other')).body.themes.map(t=>t.sku),['basic_dark','basic_light']);
 });
 test('room membership preserves the shell on mobile and desktop and route-only entry does not focus',()=>{

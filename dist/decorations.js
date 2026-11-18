@@ -304,6 +304,16 @@ function decorationRemaining(expires,serverNow=Math.floor(Date.now()/1000)){
  const seconds=expires-serverNow;
  return seconds<=0?'기간 만료':(seconds>=86400?Math.ceil(seconds/86400)+'일 남음':seconds>=3600?Math.ceil(seconds/3600)+'시간 남음':Math.ceil(seconds/60)+'분 남음')+' · '+new Date(expires*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+'까지';
 }
+function rentalPeriodText(item,at){
+ const period=({P7D:'7일',P1M:'1개월',P3M:'3개월'})[item.period_code];
+ if(item.status==='UNUSED'&&period)return period+' · 최초 사용부터';
+ if(item.expires_at)return decorationRemaining(item.expires_at,at).split(' · ')[0];
+ return item.paid||item.product&&item.status==='ACTIVE'?'이용 기간 확인 필요':item.usage||'기간 제한 없음';
+}
+function rentalStatusHTML(item,at){
+ const status=item.status||(item.stored?'UNUSED':'ACTIVE'),expiring=status==='ACTIVE'&&item.expires_at>at&&item.expires_at-at<=3*86400;
+ return '<span class="rental-status" data-status="'+status+'">'+(status==='UNUSED'?'미사용':item.expires_at?'사용 기간 중':'사용 가능')+'</span>'+(expiring?'<span class="rental-status is-expiring">만료 임박</span>':'')+(item.applied||item.equipped?'<span class="rental-status is-applied">적용 중</span>':'');
+}
 async function decorationShopView(category){
  const d=await api('/api/decorations','GET',undefined,{fresh:true});
  const kind=category==='frames'?'PROFILE_FRAME':'TALKING_ROOM_THEME';
@@ -325,10 +335,27 @@ function decorationInventorySectionsHTML(d){
  const items=[...(d.inventory||[]).filter(i=>i.paid).map(i=>({...i,product:{name:i.name,kind:'PROFILE_FRAME',assetPaths:{overlay:i.artwork}}})),...(d.decorations||[])],active=items.filter(i=>i.available),ended=items.filter(i=>!i.available);
  return '<div class="decoration-inventory-sections">'+storedDecorationsHTML(d.stored_decorations)+'<section class="player-owned decoration-inventory-section" aria-labelledby="inventory-active"><h2 id="inventory-active">사용 중인 상품 <span>'+active.length+'</span></h2><p class="field-help">사용을 시작한 상품이에요. 테두리 착용을 해제해도 이용 기간은 계속 진행돼요.</p>'+(active.length?active.map(activeDecorationCardHTML).join(''):'<p class="decoration-empty">사용 중인 상품이 없어요.</p>')+'</section></div>'+(ended.length?'<details class="decoration-ended"><summary>만료·사용 불가 상품 '+ended.length+'</summary>'+ended.map(activeDecorationCardHTML).join('')+'</details>':'');
 }
-function fillRoomThemeChoices(form,options,selected=AifectPlayer.DEFAULT_ROOM_SKIN.sku){
+function fillRoomThemeChoices(form,options,selected=AifectPlayer.DEFAULT_ROOM_SKIN.sku,inventoryId=null){
  if(!options.themes)return;
- form.querySelector('.voice-backgrounds').innerHTML=options.themes.filter(t=>t.selectable).map(t=>`<label data-background="${esc(t.sku)}" class="${t.assetPaths?.roomCard?'decoration-theme-choice':''} ${t.selectable?'':'is-locked'}">${t.assetPaths?.roomCard?`<img src="${esc(t.assetPaths.roomCard)}" alt="">`:''}<input type="radio" name="background" value="${esc(t.sku)}" ${t.sku===selected?'checked':''} ${t.selectable?'':'disabled'}><span>${esc(t.name)}${t.paid?'<small>'+(t.selectable?'보유 중':'잠김 · 미보유/만료')+'</small>':''}</span></label>`).join('');
- if(!options.themes.some(t=>t.sku===selected&&t.selectable))form.elements.background.value=AifectPlayer.DEFAULT_ROOM_SKIN.sku;
+ form._themeChoices=options.themes.filter(t=>t.selectable);form._themeServerNow=options.server_now||Date.now()/1000;form._themeReceivedAt=performance.now();
+ const requested=inventoryId||new URLSearchParams(location.hash.split('?')[1]||'').get('inventory_id');
+ const choice=form._themeChoices.find(t=>requested&&t.inventory_id===requested)||form._themeChoices.find(t=>t.sku===selected&&t.status!=='UNUSED')||form._themeChoices.find(t=>!t.paid);
+ form.querySelector('.voice-backgrounds').innerHTML=form._themeChoices.map((t,index)=>`<label data-background="${esc(t.sku)}" class="decoration-theme-choice"><img src="${esc(t.assetPaths.roomCard)}" alt="" loading="lazy"><input type="radio" name="background" value="${esc(t.sku)}" data-theme-index="${index}" ${t===choice?'checked':''}><span>${esc(t.name)}<small>${t.paid?rentalStatusHTML(t,form._themeServerNow)+' '+esc(rentalPeriodText(t,form._themeServerNow)):'기본 · 무료'}</small></span></label>`).join('');
+}
+async function confirmRoomTheme(form){
+ const radio=form.querySelector('[data-theme-index]:checked'),choice=form._themeChoices?.[Number(radio?.dataset.themeIndex)];
+ if(!choice)return {};
+ const at=form._themeServerNow+(performance.now()-form._themeReceivedAt)/1000;
+ if(choice.expires_at&&choice.expires_at<=at)throw Error('테마 사용 기간이 종료되었어요. 테마 목록을 다시 열어주세요.');
+ const payload={theme_sku:choice.sku,...(choice.inventory_id?{inventory_id:choice.inventory_id}:{})};
+ if(choice.status!=='UNUSED')return payload;
+ return new Promise(resolve=>{
+  const modal=document.createElement('dialog');modal.className='rental-confirm';modal.setAttribute('aria-label','테마 사용 시작 확인');
+  modal.innerHTML='<form method="dialog"><h2>테마를 사용하시겠어요?</h2><p>이 테마를 사용하면 이용 기간이 시작됩니다.<br>시작한 이용 기간은 중지할 수 없습니다.</p><div class="rental-confirm-product"><img src="'+esc(choice.assetPaths.roomCard)+'" alt=""><div><strong>'+esc(choice.name)+'</strong><p>'+esc(rentalPeriodText(choice,at))+'</p></div></div><div class="rental-confirm-actions"><button class="small-button" value="cancel">취소</button><button class="small-button rental-start" value="start">사용 시작</button></div></form>';
+  document.body.append(modal);modal.addEventListener('click',e=>{if(e.target===modal){const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close('cancel');}});
+  const cancel=()=>modal.close('cancel');window.addEventListener('hashchange',cancel,{once:true});
+  modal.addEventListener('close',()=>{const accepted=modal.returnValue==='start';window.removeEventListener('hashchange',cancel);modal.remove();resolve(accepted?{...payload,activate_theme:true}:null);},{once:true});modal.showModal();
+ });
 }
 document.addEventListener('click',e=>{const b=e.target.closest('[data-decoration]');if(!b)return;e.preventDefault();void decorationDialog(b.dataset.decoration,b.closest('[data-decoration-card]')?.querySelector('[data-decoration-period]')?.value||'P7D');});
 
@@ -338,6 +365,7 @@ async function storedDecorationDialog(itemId,mode){
  const d=await api('/api/decorations','GET',undefined,{fresh:true});if(serial!==giftDialogSerial||account!==me?.id)return;
  const item=d.inventory.find(i=>i.id===itemId&&i.stored&&i.available);if(!item)return toast('사용 가능한 보관 상품을 다시 확인해주세요.');
  if(mode==='send')return chooseGiftRecipient({inventoryId:item.id});
+ if(item.product.kind==='TALKING_ROOM_THEME'){location.hash='community?inventory_id='+encodeURIComponent(item.id);$('#dialog')?.close();return;}
  const sending=mode==='send';let recipient=null,search=0,key=crypto.randomUUID();
  dialog(`<section class="gift-dialog decoration-dialog"><header><h2>${esc(item.product.name)} ${sending?'선물하기':'사용 시작'}</h2><p>${esc(d.periods[item.period_code])} · 추가 골드 차감 없음</p></header><form id="stored-decoration-form"><div class="shop-product-summary"><img src="${esc(decorationProductImage(item.product))}" alt="${esc(item.product.name)}"></div><div class="gift-options">${sending?'<label class="form-field">회원 이름<input name="member_name" type="search" maxlength="60" autocomplete="off" placeholder="닉네임으로 검색"></label><button class="small-button" type="button" id="stored-find">회원 검색</button><p class="field-help">팔로우하거나 대화한 회원을 선택하거나, 닉네임으로 검색하세요.</p><div class="gift-target-list decoration-recipient-list" id="stored-members" aria-label="선물 받을 회원"></div><p id="stored-recipient" role="status">선물 받을 회원을 선택해주세요.</p>':'<p>지금부터 이용 기간이 시작됩니다. 이미 사용 중인 같은 상품은 남은 기간에 연장됩니다.</p><p>사용을 시작한 상품은 선물할 수 없어요.</p>'}</div><div class="gift-checkout"><button type="submit" class="primary-button">${sending?'선택한 회원에게 선물하기':'확인하고 사용 시작'}</button><p class="form-error" role="alert"></p></div></form></section>`);
  const form=$('#stored-decoration-form'),button=form.querySelector('button[type="submit"]');button.disabled=sending;

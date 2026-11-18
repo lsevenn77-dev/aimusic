@@ -51,7 +51,7 @@ test('gift ownership belongs to recipient; equip/unequip and expiry are enforced
  await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:null},'other');assert.equal((await f.call('/api/me/player','GET',null,'other')).body.profile.profile_frame,null);
  await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:item.id},'other');f.sql.exec("UPDATE player_inventory SET expires_at=unixepoch()-1");
  assert.equal((await f.call('/api/decorations/avatars?profiles=friend')).body.avatars[0].artwork,null);
- assert.equal((await f.call('/api/me/player','GET',null,'other')).body.inventory[0].equipped,false);
+ assert.equal((await f.call('/api/me/player','GET',null,'other')).body.inventory.length,0,'expired ownership is retained in DB, excluded from holdings');
  await f.buyUse('frame_aurora_ring','P7D',{profile_id:'friend'});assert.equal(f.sql.prepare('SELECT frame_inventory_id FROM player_equipment').get().frame_inventory_id,null);
 });
 test('revocation and funding refund review disable equipped items; unknown SKU, duration and recipient reject',async t=>{
@@ -117,9 +117,9 @@ test('recipient write failure rolls back transfer receipt and preserves sender s
  assert.equal((await f.call('/api/decorations/inventory/'+iid+'/send','POST',{profile_id:'friend',request_id:crypto.randomUUID()})).status,500);
  assert.equal(count(f,'decoration_transfers'),0);assert.equal(f.sql.prepare('SELECT user_id FROM player_inventory WHERE id=?').get(iid).user_id,'owner');
 });
-test('stored themes are locked until activated; revocation reverts card and room and renewal does not re-equip',async t=>{
+test('stored themes are selectable without activation; revocation reverts card and room and renewal does not re-equip',async t=>{
  const f=await decorationsFixture(t,{voice:true}),b=await f.buy('theme_cherry_blossom');
- assert.equal((await f.call('/api/voice/options')).body.themes.some(t=>t.sku==='theme_cherry_blossom'),false);
+ assert.equal((await f.call('/api/voice/options')).body.themes.find(t=>t.sku==='theme_cherry_blossom').status,'UNUSED');
  await f.use(b.body.order.inventory_id);
  const r=await f.call('/api/voice/rooms','POST',{request_id:crypto.randomUUID(),title:'취소 테스트',background:'theme_cherry_blossom'}),rid=r.body.room.id;
  assert.equal(r.status,201);f.sql.exec("UPDATE player_inventory SET revoked=1 WHERE source='decoration'");
