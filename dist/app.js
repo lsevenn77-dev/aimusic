@@ -101,7 +101,7 @@ function songTable(tracks,{removable=null,chart=false}={}){
 }
 function list(tracks,removable=null){return songTable(tracks,{removable});}
 
-function identityCards(items,kind){return items.length?`<div class="artist-grid">${items.map(p=>`<article class="artist-card surface"><a href="#${p.public_id&&!p.id?'member/'+esc(p.public_id):kind+'/'+esc(p.id)}">${portrait(p,kind)}<h3>${userNickname(p.name,{profileId:kind==='artist'?null:p.id,artistId:p.id,entityType:kind,userId:p.user_id})}</h3>${p.public_id?`<p class="mp-public-id">ID · ${esc(p.public_id)}</p>`:''}</a><p>${esc(p.bio||'새로운 음악으로 만나요.')}</p><div class="card-follow"><span>${p.followers==null?'팔로잉':number(p.followers)+' 팔로워'}</span>${p.id?`<button class="small-button" data-follow="${kind}/${p.id}">${followed(kind,p.id)?'팔로잉':'팔로우'} ${icon('plus')}</button>`:''}</div></article>`).join('')}</div>`:empty('새로운 창작자를 기다려요','음원을 공개하면 아티스트와 제작자 프로필이 여기에 표시됩니다.');}
+function identityCards(items,kind){return items.length?`<div class="artist-grid">${items.map(p=>`<article class="artist-card surface"><a href="#${p.public_id&&!p.id?'member/'+esc(p.public_id):kind+'/'+esc(p.id)}">${portrait(p,kind)}<h3>${userNickname(p.name,{profileId:kind==='artist'?null:p.id,artistId:p.id,entityType:kind,userId:p.user_id})}</h3>${p.public_id?`<p class="mp-public-id">ID · ${esc(p.public_id)}</p>`:''}</a><p>${esc(p.bio||'새로운 음악으로 만나요.')}</p><div class="card-follow"><span>${p.followers==null?'팔로잉':number(p.followers)+' 팔로워'}</span>${p.id?`<button class="small-button" data-follow="${kind}/${p.id}">${followed(kind,p.id)?(kind==='artist'?'팔로우중':'팔로잉'):'팔로우'} ${icon('plus')}</button>`:''}</div></article>`).join('')}</div>`:empty('새로운 창작자를 기다려요','음원을 공개하면 아티스트와 제작자 프로필이 여기에 표시됩니다.');}
 function gate(){return heading('나의 음악을 시작하세요')+empty('로그인이 필요해요','무료 회원가입 후 전체곡 듣기, 보관함, 업로드를 이용할 수 있습니다.','#account','로그인 · 회원가입');}
 async function refreshLibrary(fresh=false,readApi=api){const uid=me?.id,readRevision=apiRevision,revision=followRevision,likesVersion=likeRevision,data=me?await readApi('/api/library','GET',undefined,{fresh}):{likes:[],playlists:[],follows:[]};if(uid!==me?.id||readRevision!==apiRevision)return;if(revision!==followRevision||pendingFollows.size)data.follows=library.follows;if(likesVersion!==likeRevision||pendingLikes.size)data.likes=library.likes;library=data;remember(library.likes);setMembership(library.membership);paintInteractions();if(typeof updateHomeAccount==='function')updateHomeAccount();}
 function paintInteractions(){
@@ -132,9 +132,9 @@ function paintFollowState(key,following,busy,followers,followsViewer){
   if(button.dataset.followPresentation==='profile'){
    if(followsViewer!==undefined)button.dataset.followsViewer=String(!key.startsWith('artist/')&&!!followsViewer);
    const mutual=following&&!key.startsWith('artist/')&&button.dataset.followsViewer==='true';
-   label.textContent=mutual?'맞팔중':'팔로우';
-   button.setAttribute('aria-label',following?(mutual?'맞팔중, 팔로우 취소':'팔로우 취소'):'팔로우');
-  }else label.textContent=label.dataset.followLabel||(following?'팔로잉':'팔로우');
+   label.textContent=following?(mutual?'맞팔중':'팔로우중'):!key.startsWith('artist/')&&button.dataset.followsViewer==='true'?'맞팔로우':'팔로우';
+   button.setAttribute('aria-label',label.textContent+(following?', 팔로우 취소':''));
+  }else label.textContent=key.startsWith('artist/')?(following?'팔로우중':'팔로우'):label.dataset.followLabel||(following?'팔로잉':'팔로우');
   button.disabled=busy;
   button.setAttribute('aria-pressed',String(following));
   button.setAttribute('aria-busy',String(busy));

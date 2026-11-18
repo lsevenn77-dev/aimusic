@@ -61,7 +61,7 @@ function assertButton(button,{text,following,busy=false}){
 test('profile button labels and state stay synchronized without changing other follow surfaces',()=>{
  const c=client();
  c.paint('producer/target',true,false,8,false);
- for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우',following:true});
+ for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우중',following:true});
  assertButton(c.legacy,{text:'팔로잉',following:true});
  assert.equal(c.unrelated.getAttribute('aria-pressed'),undefined,'a different person is untouched');
  c.paint('producer/target',true,false,8,true);
@@ -69,15 +69,16 @@ test('profile button labels and state stay synchronized without changing other f
  c.paint('producer/target',true,false);
  for(const button of [c.page,c.popup])assertButton(button,{text:'맞팔중',following:true});
  c.paint('producer/target',false,false,7);
- for(const button of [c.page,c.popup,c.legacy])assertButton(button,{text:'팔로우',following:false});
+ for(const button of [c.page,c.popup])assertButton(button,{text:'맞팔로우',following:false});
+ assertButton(c.legacy,{text:'팔로우',following:false});
  assert.equal(c.counter.dataset.count,'7');assert.equal(c.countLabel.textContent,'7');
 });
 
-test('artist buttons keep the follow caption even if unrelated personal follow-back metadata exists',()=>{
+test('artist buttons show the followed caption independently of personal follow-back metadata',()=>{
  const c=client(),artist=followButton('artist/target',{followsViewer:true,fixedLabel:'팔로우'});
  c.buttons.push(artist);
  c.paint('artist/target',true,false,undefined,true);
- assertButton(artist,{text:'팔로우',following:true});
+ assertButton(artist,{text:'팔로우중',following:true});
  c.paint('artist/target',false,false,undefined,false);
  assertButton(artist,{text:'팔로우',following:false});
 });
@@ -85,7 +86,7 @@ test('artist buttons keep the follow caption even if unrelated personal follow-b
 test('follow and unfollow update both open surfaces immediately, ignore duplicate clicks, and use server mutual state',async()=>{
  const c=client(),follow=c.toggle(c.page);
  assert.equal(c.run("followed('producer','target')"),true);
- for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우',following:true,busy:true});
+ for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우중',following:true,busy:true});
  assert.equal(c.countLabel.textContent,'8');
  await c.toggle(c.popup);assert.equal(c.requests.length,1,'the popup cannot submit the same pending follow twice');
  assert.deepEqual(c.requests.map(({path,method})=>({path,method})),[{path:'/api/producers/target/follow',method:'PUT'}]);
@@ -94,10 +95,10 @@ test('follow and unfollow update both open surfaces immediately, ignore duplicat
  assert.equal(c.run('pendingFollows.size'),0);
  assert.equal(c.events.length,1);assert.equal(c.events[0].type,'aifect:follow-saved');
  const unfollow=c.toggle(c.popup);
- for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우',following:false,busy:true});
+ for(const button of [c.page,c.popup])assertButton(button,{text:'맞팔로우',following:false,busy:true});
  assert.equal(c.countLabel.textContent,'7');assert.equal(c.requests[1].method,'DELETE');
  c.finish({following:false,follows_viewer:true,followers:7,profile:{id:'target'}});await unfollow;
- for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우',following:false});
+ for(const button of [c.page,c.popup])assertButton(button,{text:'맞팔로우',following:false});
  assert.equal(c.run("followed('producer','target')"),false);assert.equal(c.events.length,2);
 });
 
@@ -105,16 +106,17 @@ test('a server response clears an outdated mutual label and a later repaint keep
  const c=client({reverse:true}),pending=c.toggle(c.page);
  assertButton(c.page,{text:'맞팔중',following:true,busy:true});
  c.finish({following:true,follows_viewer:false,followers:8,profile:{id:'target'}});await pending;
- for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우',following:true});
+ for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우중',following:true});
  c.run('paintInteractions()');
- for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우',following:true});
+ for(const button of [c.page,c.popup])assertButton(button,{text:'팔로우중',following:true});
 });
 
 test('failed follow restores the prior state and follower count on the page and popup',async()=>{
  const c=client({reverse:true}),pending=c.toggle(c.popup);
  for(const button of [c.page,c.popup])assertButton(button,{text:'맞팔중',following:true,busy:true});
  c.finish({error:'offline'},503);await assert.rejects(pending,/offline/);
- for(const button of [c.page,c.popup,c.legacy])assertButton(button,{text:'팔로우',following:false});
+ for(const button of [c.page,c.popup])assertButton(button,{text:'맞팔로우',following:false});
+ assertButton(c.legacy,{text:'팔로우',following:false});
  assert.equal(c.run("followed('producer','target')"),false);assert.equal(c.run('pendingFollows.size'),0);
  assert.equal(c.countLabel.textContent,'7');assert.equal(c.events.length,0);
  assert.equal(c.requests.length,1,'failure does not fetch or replace the library');
@@ -124,7 +126,7 @@ test('failed unfollow restores the mutual state and leaves the button usable for
  const c=client({follows:[{kind:'producer',target_id:'target',name:'Target'}],reverse:true});
  c.paint('producer/target',true,false);
  const pending=c.toggle(c.page);
- assertButton(c.popup,{text:'팔로우',following:false,busy:true});
+ assertButton(c.popup,{text:'맞팔로우',following:false,busy:true});
  c.finish({error:'offline'},503);await assert.rejects(pending,/offline/);
  for(const button of [c.page,c.popup])assertButton(button,{text:'맞팔중',following:true});
  assert.equal(c.run("followed('producer','target')"),true);assert.equal(c.run('pendingFollows.size'),0);

@@ -145,15 +145,15 @@
   .fm-actions { grid-column:1/-1; justify-content:flex-end; }
 }
 /* Personal list actions stay in the compact card's right column at every width. */
-.fm-stable [data-follow-panel] .fm-actions { grid-column:auto; flex-wrap:nowrap; gap:4px; }
+.fm-stable [data-follow-panel] .fm-actions { grid-column:auto; flex-wrap:nowrap; gap:6px; }
 #main .fm-stable [data-follow-panel] .fm-actions button {
- min-width:44px; height:44px; padding-inline:8px; background:transparent; border-color:transparent; box-shadow:none; color:var(--ds-body);
+ min-width:44px; height:44px; padding-inline:10px; background:var(--fm-panel); border:1px solid var(--fm-line); border-radius:var(--ds-radius-input); box-shadow:none; color:var(--ds-body);
 }
-#main .fm-stable [data-follow-panel] .fm-actions [aria-pressed="true"] { color:var(--ds-muted); }
-#main .fm-stable [data-follow-panel] .fm-actions [data-fm="block"] { position:relative; color:var(--ds-error); }
-.fm-stable [data-follow-panel] .fm-actions [data-fm="block"]::before {
- content:""; position:absolute; inset-inline-start:-2px; top:50%; width:1px; height:14px; transform:translateY(-50%); background:var(--ds-dim); pointer-events:none;
+#main .fm-stable [data-follow-panel] .fm-actions [aria-pressed="true"] {
+ background:color-mix(in srgb,var(--ds-accent-mint) 10%,var(--ds-panel)); border-color:color-mix(in srgb,var(--ds-accent-mint) 30%,transparent); color:var(--ds-accent-mint);
 }
+#main .fm-stable [data-follow-panel] .fm-actions [data-fm="block"] { color:var(--ds-error); }
+#main .fm-stable [data-follow-panel] .fm-actions button:hover:not(:disabled) { border-color:var(--ds-muted); }
 .fm-stable [data-follow-panel] .fm-actions svg { display:none; }
 @media(max-width:480px) {
  .fm-stable [data-follow-panel] .fm-rows li { gap:6px; padding-inline:8px; }

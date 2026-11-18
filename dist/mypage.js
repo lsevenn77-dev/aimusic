@@ -90,7 +90,7 @@ function myProfileHeader(d){
  const actions=own?`<div class="mp-header-actions mp-owner-actions">
   <a class="primary-button" href="#profile/edit">프로필 수정</a><a class="small-button" href="#studio">스튜디오</a>
  </div>`:d.followers!=null&&p.id?`<div class="mp-header-actions mp-social-actions">
-  <button class="primary-button" data-follow-presentation="profile" data-follows-viewer="${!!d.follows_viewer}" data-follow="producer/${esc(p.id)}" aria-pressed="${followed('producer',p.id)}">${followed('producer',p.id)&&d.follows_viewer?'맞팔중':'팔로우'}</button>
+  <button class="primary-button" data-follow-presentation="profile" data-follows-viewer="${!!d.follows_viewer}" data-follow="producer/${esc(p.id)}" aria-pressed="${followed('producer',p.id)}">${followed('producer',p.id)?(d.follows_viewer?'맞팔중':'팔로우중'):d.follows_viewer?'맞팔로우':'팔로우'}</button>
   <a class="small-button" href="#dm/${esc(p.id)}">메시지</a><button type="button" class="small-button" data-profile-gift="${esc(p.id)}">선물하기</button>
  </div>`:'';
  return `<div class="mp-profile-area"><header class="mp-profile">${background}

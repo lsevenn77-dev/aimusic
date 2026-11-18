@@ -112,8 +112,8 @@ function closeProfilePreview(reason,restoreFocus=true){
 }
 function profileFollowButton(key,following,followsViewer,managementAction=null){
  const mutual=following&&followsViewer&&!key.startsWith('artist/');
- const label=mutual?'맞팔중':'팔로우';
- return `<button type="button" class="primary-button" data-follow-presentation="profile" data-follows-viewer="${!!followsViewer}" data-follow="${esc(key)}" aria-pressed="${!!following}" aria-label="${following?(mutual?'맞팔중, 팔로우 취소':'팔로우 취소'):'팔로우'}" ${managementAction!==null?'data-fm-relation':''} ${managementAction?'data-fm="'+managementAction+'"':''}>${profilePreviewIcons.follow}<span data-follow-label>${label}</span></button>`;
+ const label=following?(mutual?'맞팔중':'팔로우중'):followsViewer&&!key.startsWith('artist/')?'맞팔로우':'팔로우';
+ return `<button type="button" class="primary-button" data-follow-presentation="profile" data-follows-viewer="${!!followsViewer}" data-follow="${esc(key)}" aria-pressed="${!!following}" aria-label="${label+(following?', 팔로우 취소':'')}" ${managementAction!==null?'data-fm-relation':''} ${managementAction?'data-fm="'+managementAction+'"':''}>${profilePreviewIcons.follow}<span data-follow-label>${label}</span></button>`;
 }
 function profilePreviewActions(d, own) {
  const p=d.profile, id=encodeURIComponent(p.id||''), artist=!!d.artist;
