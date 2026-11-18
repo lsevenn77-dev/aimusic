@@ -1,5 +1,5 @@
 import {one,rows,query,run,now,id,fail,json,rate} from './db.js';
-import {requireUser,appleClientSecret,viewerBlockedIds} from './auth.js';
+import {requireUser,appleClientSecret,viewerBlockedIds,viewerBlockedArtists} from './auth.js';
 import {cancelSubscription} from './billing.js';
 
 const encoder=new TextEncoder();
@@ -27,21 +27,26 @@ export async function revokeAppleLogin(env,uid){
 export async function blockedContext(env,user){
  if(!user)return env;
  const resolved=viewerBlockedIds(user);
- if(resolved)return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:resolved};
+ if(resolved)return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:resolved,AIFECT_INTERACTION_BLOCKED:resolved,AIFECT_BLOCKED_ARTISTS:viewerBlockedArtists(user)||[]};
  const blocked=await rows(env,'SELECT CASE WHEN user_id=? THEN blocked_id ELSE user_id END id FROM user_blocks WHERE user_id=? OR blocked_id=?',user.id,user.id,user.id);
- return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:blocked.map(x=>x.id)};
+ const artists=await rows(env,"SELECT artist_id FROM artist_follow_blocks WHERE user_id=? AND direction='artist'",user.id);
+ return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:blocked.map(x=>x.id),AIFECT_INTERACTION_BLOCKED:blocked.map(x=>x.id),AIFECT_BLOCKED_ARTISTS:artists.map(x=>x.artist_id)};
 }
-export function assertUnblocked(env,uid){if(env.AIFECT_BLOCKED?.includes(uid))fail(403,'차단된 이용자와는 소통할 수 없습니다.');}
+export function assertUnblocked(env,uid){if((env.AIFECT_INTERACTION_BLOCKED||env.AIFECT_BLOCKED)?.includes(uid))fail(403,'차단된 이용자와는 소통할 수 없습니다.');}
 // Apply before pagination in track and chat queries, with a final guard for nested discovery shelves.
 export async function filterBlockedResponse(env,response){
- if(!env.AIFECT_BLOCKED?.length||!response.ok||!response.headers.get('content-type')?.includes('application/json'))return response;
- const ids=env.AIFECT_BLOCKED,marks=ids.map(()=>'?').join(',');
+ if(env.AIFECT_PUBLIC_CONTENT||(!env.AIFECT_BLOCKED?.length&&!env.AIFECT_BLOCKED_ARTISTS?.length)||!response.ok||!response.headers.get('content-type')?.includes('application/json'))return response;
+ const ids=env.AIFECT_BLOCKED||[],marks=ids.map(()=>'?').join(',');
  const [profiles,artists]=await Promise.all([
   rows(env,`SELECT id FROM producers WHERE user_id IN (${marks})`,...ids),
   rows(env,`SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id IN (${marks})`,...ids)]);
- const all=new Set([...ids,...profiles.map(p=>p.id),...artists.map(a=>a.id)]);
- const hidden=o=>o&&typeof o==='object'&&['user_id','producer_id','artist_id','profile_id','target_id'].some(k=>all.has(o[k]));
- const clean=o=>Array.isArray(o)?o.filter(x=>!hidden(x)&&!(x&&all.has(x.id))).map(clean):o&&typeof o==='object'?Object.fromEntries(Object.entries(o).map(([k,v])=>[k,clean(v)])):o;
+ const all=new Set([...ids,...profiles.map(p=>p.id),...artists.map(a=>a.id)]),individualArtists=new Set(env.AIFECT_BLOCKED_ARTISTS||[]);
+ const hidden=o=>o&&typeof o==='object'&&(['user_id','owner_id','producer_id','artist_id','profile_id','target_id'].some(k=>all.has(o[k]))||(o.kind!=='cover'&&individualArtists.has(o.artist_id))||individualArtists.has(o.id));
+ // A recommendation may omit a playlist owner, but never rewrite a published
+ // playlist's preview, duration, stored order or track membership.
+ const playlist=o=>o&&typeof o==='object'&&o.is_public===1&&Array.isArray(o.covers);
+ const publicRanks=new Set(['ranking','rankings','support_ranking','individualRanking']);
+ const clean=o=>Array.isArray(o)?o.filter(x=>playlist(x)||!hidden(x)&&!(x&&all.has(x.id))).map(clean):o&&typeof o==='object'?(playlist(o)?o:Object.fromEntries(Object.entries(o).map(([k,v])=>[k,publicRanks.has(k)?v:clean(v)]))):o;
  const body=await response.json();if(hidden(body.profile)||hidden(body.track))fail(403,'차단된 이용자의 콘텐츠입니다.');
  return new Response(JSON.stringify(clean(body)),{status:response.status,headers:response.headers});
 }

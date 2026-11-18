@@ -270,7 +270,8 @@ export async function socialRoute(req,env,path,user){
    const previous=prior.results[0];
    if(previous&&(previous.recipient_id!==p.user_id||previous.body!==body||previous.image_id!==imageId))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
    if(!previous)assertDmBody(body);
-   const result=await env.DB.batch([query(env,'INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id) VALUES(?,?,?,?,?,?,?)',id(),user.id,p.user_id,body,rid,now(),imageId),query(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
+   const result=await env.DB.batch([query(env,'INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?))',id(),user.id,p.user_id,body,rid,now(),imageId,user.id,p.user_id,p.user_id,user.id),query(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
+   if(!result[1].results.length)fail(403,'차단된 이용자와는 소통할 수 없습니다.');
    return json({ok:true,message:result[1].results[0]},201);
   }
  }

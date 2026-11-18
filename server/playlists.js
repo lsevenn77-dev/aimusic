@@ -1,3 +1,4 @@
+import {publicContentContext} from './block-policy.js';
 import {normalizePlaylistTitle,playlistEligibleSQL} from '../shared/playlist-policy.js';
 import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
 import {requireUser,hash} from './auth.js';
@@ -6,10 +7,9 @@ import {playlistSummaries} from './discovery.js';
 import {playlistCandidates} from './playlist-policy.js';
 import {libraryTransaction} from './library-transactions.js';
 
-const unblocked=(alias='p')=>`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=${alias}.user_id) OR (b.blocked_id=? AND b.user_id=${alias}.user_id))`;
 const title=value=>{const name=str(value,80);if(!normalizePlaylistTitle(name))fail(400,'이름을 입력해주세요.');return name;};
 const idsInput=ids=>{if(!Array.isArray(ids)||ids.length>500||ids.some(x=>typeof x!=='string'||!x)||new Set(ids).size!==ids.length)fail(400,'플레이리스트에 담을 곡을 확인해주세요.');return ids;};
-const trackCondition=(ids,uid)=>[`(SELECT count(*) FROM tracks t WHERE t.id IN (SELECT value FROM json_each(?)) AND ${VISIBLE()} AND ${playlistEligibleSQL()} AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=t.user_id) OR (b.blocked_id=? AND b.user_id=t.user_id)))=?`,[JSON.stringify(ids),uid,uid,ids.length]];
+const trackCondition=(ids)=>[`(SELECT count(*) FROM tracks t WHERE t.id IN (SELECT value FROM json_each(?)) AND ${VISIBLE()} AND ${playlistEligibleSQL()})=?`,[JSON.stringify(ids),ids.length]];
 const touch=(env,p)=>query(env,'UPDATE playlists SET revision=revision+1,updated=? WHERE id=?',now(),p.id);
 async function availableTitle(env,name,exclude=''){
  // Never allow a new title to bypass not-yet-indexed legacy rows.
@@ -18,7 +18,7 @@ async function availableTitle(env,name,exclude=''){
 }
 async function requireTitle(env,name,exclude=''){if(!await availableTitle(env,name,exclude))fail(409,'이미 사용 중인 플레이리스트 제목입니다.');}
 async function getPlaylist(env,pid,user){
- const p=await one(env,`SELECT p.* FROM playlists p WHERE p.id=? AND (p.user_id=? OR p.is_public=1) AND ${unblocked()}`,pid,user?.id||'',user?.id||'',user?.id||'');
+ const p=await one(env,`SELECT p.* FROM playlists p WHERE p.id=? AND (p.user_id=? OR p.is_public=1)`,pid,user?.id||'');
  if(!p)fail(404,'플레이리스트를 찾을 수 없습니다.');return p;
 }
 async function createPlaylist(req,env,user,source=null){
@@ -39,7 +39,7 @@ async function createPlaylist(req,env,user,source=null){
  if(source){
   if(source.user_id===user.id)fail(400,'저장한 다른 사람의 플레이리스트를 선택해주세요.');
   if(b.source_revision!==source.revision)fail(409,'원본이 변경됐어요. 편집 화면을 다시 열어주세요.');
-  conditions.push([`EXISTS(SELECT 1 FROM playlists p JOIN playlist_saves s ON s.playlist_id=p.id WHERE p.id=? AND p.revision=? AND p.is_public=1 AND s.user_id=? AND ${unblocked()})`,[source.id,source.revision,user.id,user.id,user.id]]);
+  conditions.push([`EXISTS(SELECT 1 FROM playlists p JOIN playlist_saves s ON s.playlist_id=p.id WHERE p.id=? AND p.revision=? AND p.is_public=1 AND s.user_id=? )`,[source.id,source.revision,user.id]]);
   statements.push(query(env,'DELETE FROM playlist_saves WHERE user_id=? AND playlist_id=?',user.id,source.id));
  }
  try{await libraryTransaction(env,conditions,statements);}catch(e){const raced=await replay();if(raced)return json({id:raced.result_id,replayed:true});throw e;}
@@ -65,11 +65,12 @@ export async function playlistsRoute(req,env,path,user){
   if(prior){const source={id:pid};return createPlaylist(req,env,user,source);}
  }
  const p=await getPlaylist(env,pid,user);
+ if(!action&&method==='GET')env=publicContentContext(env);
  if(!action&&method==='GET')return json({playlist:(await playlistSummaries(env,user?.id||'','p.id=?',[pid]))[0],tracks:await trackList(env,`${VISIBLE()} AND ${playlistEligibleSQL()} AND t.id IN (SELECT track_id FROM playlist_tracks WHERE playlist_id=?)`,[pid],`(SELECT position FROM playlist_tracks pt WHERE pt.playlist_id='${pid}' AND pt.track_id=t.id),t.id`,500)});
  requireUser(user);
  if(action==='save'&&method==='PUT'){
   if(p.user_id===user.id||!p.is_public)fail(400,'다른 사람의 공개 플레이리스트만 저장할 수 있어요.');
-  await libraryTransaction(env,[[`EXISTS(SELECT 1 FROM playlists p WHERE p.id=? AND p.is_public=1 AND ${unblocked()})`,[pid,user.id,user.id]]],[query(env,'INSERT OR IGNORE INTO playlist_saves(user_id,playlist_id,created) VALUES(?,?,?)',user.id,pid,now())]);return json({saved:true});
+  await libraryTransaction(env,[[`EXISTS(SELECT 1 FROM playlists p WHERE p.id=? AND p.is_public=1 )`,[pid]]],[query(env,'INSERT OR IGNORE INTO playlist_saves(user_id,playlist_id,created) VALUES(?,?,?)',user.id,pid,now())]);return json({saved:true});
  }
  if(action==='fork'&&method==='POST')return createPlaylist(req,env,user,p);
  if(action==='played'&&method==='POST'){await run(env,'INSERT INTO playlist_recents VALUES(?,?,?) ON CONFLICT(user_id,playlist_id) DO UPDATE SET played=excluded.played',user.id,pid,now());return json({ok:true});}

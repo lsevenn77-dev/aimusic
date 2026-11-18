@@ -42,9 +42,9 @@ test('hiding/deleting a work, original or parent clears PICK; republication neve
  }
  const f=await setup(t);f.seed('parent',{mode:'duet',open:1});f.seed('child',{mode:'duet',parent:'parent'});await f.pick('child');f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='parent'");assert.equal(f.sql.prepare('SELECT cover_id FROM song_cover_picks').get().cover_id,null);
 });
-test('viewer blocks omit a PICK and its count without mutating global selection',async t=>{
+test('viewer blocks preserve the public PICK, rank and count without mutating global selection',async t=>{
  const f=await setup(t);f.seed('solo');await f.pick('solo');const before=f.sql.prepare('SELECT * FROM song_cover_picks').get();f.sql.exec("INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('owner','other',1)");
- const blocked=(await f.list()).body;assert.equal(blocked.pick.cover_id,null);assert.equal(blocked.counts.all,0);assert.equal(blocked.covers.length,0);assert.deepEqual(f.sql.prepare('SELECT * FROM song_cover_picks').get(),before);assert.equal((await f.list('',null)).body.pick.cover_id,'solo');
+ const blocked=(await f.list()).body;assert.equal(blocked.pick.cover_id,'solo');assert.equal(blocked.counts.all,1);assert.equal(blocked.covers[0].rank,1);assert.deepEqual(f.sql.prepare('SELECT * FROM song_cover_picks').get(),before);assert.equal((await f.list('',null)).body.pick.cover_id,'solo');
 });
 test('visibility changing between validation and write preserves the previous valid PICK',async t=>{
  const f=await setup(t);f.seed('a');f.seed('b');await f.pick('a');const prepare=f.DB.prepare;

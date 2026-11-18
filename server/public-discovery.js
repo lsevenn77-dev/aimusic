@@ -4,6 +4,8 @@ import {tryPublicOrigin} from './cafe24-origin.js';
 import {catalogFilters, catalogResult, discoverTracks, catalogControls, musicIntro} from './public-catalog.js';
 import {publicGuides} from './public-guides.js';
 import {aboutIcon as icon} from './about-icons.js';
+import {viewer} from './auth.js';
+import {blockedContext} from './account-safety.js';
 
 const discoveryPath = path => path==='/music' || Object.hasOwn(publicGuides,path);
 function pageHeader(path) {
@@ -43,6 +45,9 @@ export async function publicDiscoveryRoute(req,env,path) {
  let data={}, result;
  if(path==='/music'){
   const filters=catalogFilters(req.url);
+  // Signed-in general search uses the same policy as the web/app search API.
+  // Only rendered public cards go to the public origin, never the viewer identity.
+  if(filters.q&&req.headers.get('cookie'))env=await blockedContext(env,await viewer(req,env));
   let tracks=[],failed=false;
   try{tracks=await discoverTracks(env,filters);}
   catch(error){console.error('Public catalogue read failed',error.message);failed=true;}

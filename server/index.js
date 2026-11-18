@@ -39,6 +39,7 @@ import {playlistImageRoute} from './playlist-images.js';
 import {musicClassificationRoute,musicClassificationInternal,classifyNext} from './music-classification.js';
 import {profileGalleryRoute} from './profile-gallery.js';
 import {artistGalleryRoute} from './artist-gallery.js';
+import {publicContentContext,publicContentRequest} from './block-policy.js';
 import {accountSafetyRoute,blockedContext,filterBlockedResponse,drainDeletedFiles} from './account-safety.js';
 import {applePaymentRoute,appleNotification} from './apple-payments.js';
 import {playerRoute,playerBackfillRoute} from './player.js';
@@ -188,6 +189,7 @@ async function fetchRequest(req,env,ctx){
   const bots=await aiBotsRoute(req,env,path,user);if(bots)return bots;
   const coverCompression=await coverCompressionAdmin(req,env,path,user);if(coverCompression)return coverCompression;
   env=await blockedContext(env,user);
+  if(publicContentRequest(req,url))env=publicContentContext(env);
   // Keep the home feed in the API Worker. The public HTML renderer shares
   // catalog helpers with discovery, but must not import home candidate queries.
   if(req.method==='GET'&&url.searchParams.get('home')==='1'&&(path==='/api/discovery'||path==='/api/playlists')){

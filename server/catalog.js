@@ -1,3 +1,4 @@
+import {publicContentContext,trackBlockScope,artistBlockScope} from './block-policy.js';
 import {playlistEligibleSQL} from '../shared/playlist-policy.js';
 import {exactSongScope,fallbackSongScope,songBlockScope} from './song-search.js';
 import {songTextMatch,searchText} from './search-match.js';
@@ -60,10 +61,10 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classific
  (SELECT COALESCE(sum(g.silver),0) FROM free_gifts g WHERE g.track_id=t.id) gift_stars
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers fp ON fp.id=dt.producer_id`;
 export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100,includeStatus=false,profileWorks=false)=>{
- const blocked=env.AIFECT_BLOCKED||[];
+ const block=trackBlockScope(env);
  const fields=[includeStatus?'t.status':'',profileWorks?`${producerNameSQL()} work_nickname,${chartPublication()} published_at,${VISIBLE()} work_public`:''].filter(Boolean);
  const select=fields.length?SELECT.replace('SELECT t.id,','SELECT t.id,'+fields.join(',')+','):SELECT;
- return query(env,`${select} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
+ return query(env,`${select} WHERE ${where}${block.sql} ORDER BY ${sort} LIMIT ${limit}`,...args,...block.args);
 };
 export const trackList=async(...args)=>(await trackListQuery(...args).all()).results.map(trackClassification);
 // Rank the full visible set before paging or promoting its one composer PICK.
@@ -73,7 +74,7 @@ export async function rankedSongCovers(env,where,args,sort,offset,limit,pickId){
  const result=await rows(env,`SELECT * FROM (SELECT t.*,ROW_NUMBER() OVER(ORDER BY ${sort},t.id) rank FROM (${select} WHERE ${where}${block}) t) t ORDER BY (t.id=?) DESC,rank LIMIT ? OFFSET ?`,...args,...blocked,pickId||'',limit,offset);
  return result.map(trackClassification);
 }
-export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');assertUnblocked(env,t.user_id);return t;}
+export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');if(!env.AIFECT_PUBLIC_CONTENT)assertUnblocked(env,t.user_id);return t;}
 export const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
  const pickMatch=path.match(/^\/api\/tracks\/([\w-]+)\/cover-pick$/);
@@ -93,12 +94,13 @@ export async function catalogRoute(req,env,path,user){
   if(url.searchParams.get('section')==='producers'&&url.searchParams.get('sort')==='popular')return json({producers:await profileDiscovery(env,'producer','popular',100)});
   if(url.searchParams.get('section')==='artists'&&url.searchParams.get('directory')==='1'){
    const sort=url.searchParams.get('sort')==='recent'?'recent':'popular',offset=Math.max(0,Math.floor(Number(url.searchParams.get('offset'))||0)),size=50;
-   const where=`${namedArtistSQL()} AND EXISTS(SELECT 1 ${publicArtistSongs()})`;
+   const block=artistBlockScope(env);
+   const where=`${namedArtistSQL()} AND EXISTS(SELECT 1 ${publicArtistSongs()})${block.sql}`;
    const [artists,count]=await Promise.all([
     rows(env,`SELECT a.*,${producerNameSQL()} producer_name,${artistCardCountsSQL()}
      FROM artists a JOIN producers p ON p.id=a.producer_id WHERE ${where}
-     ORDER BY ${sort==='popular'?'followers DESC,':''}a.created DESC,a.id LIMIT ?2 OFFSET ?3`,user?.id||'',size,offset),
-    one(env,`SELECT count(*) n FROM artists a WHERE ${where}`)
+     ORDER BY ${sort==='popular'?'followers DESC,':''}a.created DESC,a.id LIMIT ? OFFSET ?`,user?.id||'',...block.args,size,offset),
+    one(env,`SELECT count(*) n FROM artists a JOIN producers p ON p.id=a.producer_id WHERE ${where}`,...block.args)
    ]);
    return json({artists,total:count.n,sort,offset,nextOffset:offset+artists.length<count.n?offset+size:null});
   }
@@ -110,18 +112,19 @@ export async function catalogRoute(req,env,path,user){
   let sort='t.created DESC';
 
   const ranked=['top','rising','releases',...pageCharts].includes(chart);
-  if(ranked)where+=' AND '+CHART_ORIGINAL();
+  if(ranked){env=publicContentContext(env);where+=' AND '+CHART_ORIGINAL();}
   const section=url.searchParams.get('section')||'all';
   if(!['all','tracks','artists','producers'].includes(section))fail(400,'목록 종류를 확인해주세요.');
   const requested=Number(url.searchParams.get('limit')||100),limit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):100;
   const period=ranked?rankingPeriod(url.searchParams.get('period')||(chart==='top'?'week':'all')):null;
   let comparison=null,correction=null;
+  const artistScope=artistBlockScope(env,'a.id','(SELECT p.user_id FROM producers p WHERE p.id=a.producer_id)'),producerScope=artistBlockScope({...env,AIFECT_BLOCKED_ARTISTS:[]});
   const loaders={
    tracks:async()=>{
     if(q&&!chart){
-     const block=songBlockScope(env.AIFECT_BLOCKED||[]);
+     const block=songBlockScope(env.AIFECT_BLOCKED||[],env.AIFECT_BLOCKED_ARTISTS||[]);
      const scope=where+block.sql,params=[...args,...block.args];
-     const load=song=>trackList({...env,AIFECT_BLOCKED:[]},song.where,[...params,...song.args,...song.sortArgs],song.sort+',t.created DESC,t.id',limit);
+     const load=song=>trackList({...env,AIFECT_BLOCKED:[],AIFECT_BLOCKED_ARTISTS:[]},song.where,[...params,...song.args,...song.sortArgs],song.sort+',t.created DESC,t.id',limit);
      const direct=await load(exactSongScope(q,scope));
      if(direct.length)return direct;
      const fallback=await fallbackSongScope(env,q,scope,params);
@@ -138,8 +141,8 @@ export async function catalogRoute(req,env,path,user){
     const selected=daily.tracks.filter(s=>byId.has(s.id));
     return (url.searchParams.get('full')==='1'?selected:selected.slice(0,limit)).map(s=>({...byId.get(s.id),...s,covers:s.chart_covers??byId.get(s.id).covers}));
    },
-   artists:()=>rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE ${namedArtistSQL()} AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY created DESC LIMIT ${limit}`),
-   producers:()=>rows(env,`SELECT p.id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY created DESC LIMIT ${limit}`)
+   artists:()=>rows(env,`SELECT a.*, (SELECT count(*) FROM follows f WHERE f.kind='artist' AND f.target_id=a.id) followers FROM artists a WHERE ${namedArtistSQL()}${artistScope.sql} AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=a.id AND t.kind='original' AND t.status='published') ORDER BY created DESC LIMIT ${limit}`,...artistScope.args),
+   producers:()=>rows(env,`SELECT p.id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.bio,p.created,p.image_version,(SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers FROM producers p WHERE 1${producerScope.sql} AND EXISTS(SELECT 1 FROM tracks t WHERE t.producer_id=p.id AND ${VISIBLE()}) ORDER BY created DESC LIMIT ${limit}`,...producerScope.args)
   };
   const sections=section==='all'?Object.keys(loaders):[section];
   const result=Object.fromEntries(await Promise.all(sections.map(async key=>[key,await loaders[key]()])));
@@ -175,7 +178,7 @@ export async function catalogRoute(req,env,path,user){
    if(method==='GET'){
     const sort=url.searchParams.get('sort'),order=sort==='popular'?'likes DESC,c.created DESC':sort==='timeline'?'c.timestamp IS NULL,c.timestamp ASC':'c.created DESC';
     const uid=user?.id||'';
-    const list=await rows(env,`SELECT u.account_type,c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 ORDER BY ${order} LIMIT 500`,uid,uid,tid);
+    const list=await rows(env,`SELECT u.account_type,c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ORDER BY ${order} LIMIT 500`,uid,uid,tid,uid,uid);
     return json({comments:list.map(c=>({...c,can_delete:!!user&&!c.deleted_at&&(c.user_id===uid||detail.user_id===uid),can_report:!!user&&!c.deleted_at&&c.user_id!==uid&&!c.reported}))});
    }
    if(method==='POST'){

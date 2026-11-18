@@ -1,3 +1,4 @@
+import {trackBlockScope} from './block-policy.js';
 import {one} from './db.js';
 import {producerNameSQL} from './identity.js';
 import {searchRank} from './search-rank.js';
@@ -8,12 +9,8 @@ import {lyricSearchScope} from './lyric-search.js';
 const from = 'FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id';
 
 // Evaluate blocks before ranking, counts, and suggestions, including attributed creators.
-export function songBlockScope(blocked) {
- if (!blocked.length) return {sql:'',args:[]};
- return {
-  sql:' AND NOT EXISTS (SELECT 1 FROM json_each(?) blocked WHERE blocked.value IN (t.user_id,p.user_id,(SELECT ap.user_id FROM producers ap WHERE ap.id=a.producer_id)))',
-  args:[JSON.stringify(blocked)]
- };
+export function songBlockScope(blocked,artists=[]) {
+ return trackBlockScope({AIFECT_BLOCKED:blocked,AIFECT_BLOCKED_ARTISTS:artists});
 }
 
 // The caller supplies the public, unblocked and taxonomy-filtered scope.

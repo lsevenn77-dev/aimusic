@@ -34,6 +34,9 @@ function cleanupRouteOverlays(){
  if(menu){menu._chartCleanup?.();if(menu.matches(':popover-open'))menu.hidePopover();}
 }
 function clearNavigationSnapshots(){navigationSnapshots.clear();}
+function preserveBlockNavigation(){
+ for(const [key,entry] of navigationSnapshots){const route=key.slice(key.indexOf(':')+1);if(route.startsWith('charts')||route.startsWith('community/rankings'))entry.revision=apiRevision;else navigationSnapshots.delete(key);}
+}
 function canCacheRoute(raw){
  const [route]=raw.replace(/^#/,'').split('?'),[base,param]=route.split('/');
  if(raw.startsWith('community/following?')&&new URLSearchParams(raw.split('?')[1]).has('people'))return false;

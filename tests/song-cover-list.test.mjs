@@ -86,10 +86,12 @@ test('two different participants create independent completed works and keep the
  const d=(await f.list('duet')).covers.find(t=>t.id===parent);assert.equal(d.participants,2);assert.equal(d.completions,3);assert.equal(d.can_join,true);
  assert(children.every(id=>f.sql.prepare('SELECT duet_parent_id FROM tracks WHERE id=?').get(id).duet_parent_id===parent));
 });
-test('blocked performers are omitted consistently from lists, counts and child pages',async t=>{
+test('public cover ranking survives blocks while personal recent and child pages hide blocked performers',async t=>{
  const f=await setup(t);f.seed('source',{mode:'duet',open:1});f.seed('work',{mode:'duet',parent:'source'});
+ const before=await f.list();
  f.sql.exec("INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('owner','other',1)");
- const d=await f.list();assert.deepEqual(d.counts,{all:0,recent:0,duet:0});assert.equal(d.covers.length,0);
+ assert.deepEqual(await f.list(),before);
+ const d=await f.list('recent');assert.deepEqual(d.counts,{all:0,recent:0,duet:0});assert.equal(d.covers.length,0);
  assert.equal((await f.call('/api/tracks/one/covers?view=children&parent=source')).status,403);
 });
 test('row markup has separate native links and controls, exact tabs, escaped IDs and shared line play icon',()=>{

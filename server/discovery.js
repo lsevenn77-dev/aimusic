@@ -35,7 +35,7 @@ export async function playlistSummaries(env,userId='',where='p.is_public=1',args
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?
  WHERE (${where}) AND (p.user_id=? OR p.is_public=1${scope.includeUnavailable?' OR EXISTS(SELECT 1 FROM playlist_saves unav WHERE unav.playlist_id=p.id AND unav.user_id=?)':''}) ORDER BY ${sort} LIMIT ${limit}`,...(scope.args||[]),userId,userId,...args,userId,...(scope.includeUnavailable?[userId]:[]),...sortArgs);
- return data.map(({covers_json,...p})=>p.user_id!==userId&&(!p.is_public||(env.AIFECT_BLOCKED||[]).includes(p.user_id))?{id:p.id,name:'이용할 수 없는 플레이리스트',saved:true,unavailable:true,covers:[],tracks:0}:{...p,locked:false,covers:JSON.parse(covers_json||'[]')});
+ return data.map(({covers_json,...p})=>p.user_id!==userId&&!p.is_public?{id:p.id,name:'이용할 수 없는 플레이리스트',saved:true,unavailable:true,covers:[],tracks:0}:{...p,locked:false,covers:JSON.parse(covers_json||'[]')});
 }
 async function accessibleLibrary(env,uid){return playlistSummaries(env,uid,'(p.user_id=? OR (p.is_public=1 AND EXISTS(SELECT 1 FROM playlist_saves s WHERE s.user_id=? AND s.playlist_id=p.id)))',[uid,uid],'position ASC,p.updated DESC,p.id',20);}
 
@@ -65,7 +65,8 @@ export async function discoveryRoute(req,env,path,user){
  if(path==='/api/search'&&method==='GET')return unifiedSearch(env,user,url.searchParams);
  if(path==='/api/playlists'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),{limit,offset}=pageParams(url.searchParams),sort='p.created DESC,p.id';
-  const playlists=await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} AND ${playlistEligibleSQL()}) AND (instr(lower(p.name),lower(?))>0 OR instr(lower(p.description),lower(?))>0 OR instr(lower(${publicNameSQL()}),lower(?))>0)`,Array(3).fill(q),sort,`${limit+1} OFFSET ${offset}`);
+  const blocked=q?(env.AIFECT_BLOCKED||[]):[],block=blocked.length?' AND p.user_id NOT IN (SELECT value FROM json_each(?))':'';
+  const playlists=await playlistSummaries(env,user?.id||'',`p.is_public=1${block} AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} AND ${playlistEligibleSQL()}) AND (instr(lower(p.name),lower(?))>0 OR instr(lower(p.description),lower(?))>0 OR instr(lower(${publicNameSQL()}),lower(?))>0)`,[...(blocked.length?[JSON.stringify(blocked)]:[]),...Array(3).fill(q)],sort,`${limit+1} OFFSET ${offset}`);
   const nextOffset=playlists.length>limit?offset+limit:null;if(nextOffset!==null)playlists.pop();return json({playlists,nextOffset});
  }
  if(path==='/api/follows'&&method==='GET'){
