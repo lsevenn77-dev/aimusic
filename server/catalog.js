@@ -9,6 +9,7 @@ import {fanpageData} from './artist-fanpage.js';
 import {profileDashboard} from './profile-dashboard.js';
 import {profileCoverParticipation} from './profile-works.js';
 import {songCovers} from './song-covers.js';
+import {coverPickRoute} from './song-cover-picks.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {profileGallery,PROFILE_GALLERY_LIMIT} from './profile-gallery.js';
 import {partnerBadgeSQL} from './partner-badges.js';
@@ -66,9 +67,18 @@ export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',l
  return query(env,`${select} WHERE ${where}${blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''} ORDER BY ${sort} LIMIT ${limit}`,...args,...blocked);
 };
 export const trackList=async(...args)=>(await trackListQuery(...args).all()).results.map(trackClassification);
+// Rank the full visible set before paging or promoting its one composer PICK.
+export async function rankedSongCovers(env,where,args,sort,offset,limit,pickId){
+ const blocked=env.AIFECT_BLOCKED||[],block=blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':'';
+ const select=SELECT.replace('SELECT t.id,','SELECT t.id,t.first_published_at,');
+ const result=await rows(env,`SELECT * FROM (SELECT t.*,ROW_NUMBER() OVER(ORDER BY ${sort},t.id) rank FROM (${select} WHERE ${where}${block}) t) t ORDER BY (t.id=?) DESC,rank LIMIT ? OFFSET ?`,...args,...blocked,pickId||'',limit,offset);
+ return result.map(trackClassification);
+}
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');assertUnblocked(env,t.user_id);return t;}
 export const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
+ const pickMatch=path.match(/^\/api\/tracks\/([\w-]+)\/cover-pick$/);
+ if(pickMatch)return coverPickRoute(req,env,pickMatch[1],user);
  const url=new URL(req.url),method=req.method;const discovery=await discoveryRoute(req,env,path,user);if(discovery)return discovery;
  if(path==='/api/community'&&method==='GET'){
   const kind=url.searchParams.get('kind'),following=url.searchParams.get('following')==='1';

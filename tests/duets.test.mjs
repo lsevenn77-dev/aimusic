@@ -93,6 +93,6 @@ test('neutral duet slots let any two people join, including legacy first recordi
 });
 test('every original offers solo and duet without singer gender labels',()=>{
  const context=nicknameContext({window:{},document:{addEventListener(){}},JSON,esc:s=>s});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),context);
- context.d={mode:'solo',track:{performance_mode:'solo'}};const solo=vm.runInContext('singModeHTML(d)',context);assert.match(solo,/data-sing-mode="solo"/);assert.match(solo,/data-sing-mode="duet"/);assert.doesNotMatch(solo,/남자|여자/);
- context.d={mode:'duet',track:{performance_mode:'duet'}};const duet=vm.runInContext('singModeHTML(d)',context);assert.match(duet,/>듀엣</);assert.match(duet,/data-sing-mode="duet"/);assert.doesNotMatch(duet,/남자|여자/);
+ context.d={mode:'solo',track:{performance_mode:'solo'}};const solo=vm.runInContext('singRecordingModeHTML(d)',context);assert.match(solo,/data-sing-record-mode="solo"/);assert.match(solo,/data-sing-record-mode="duet"/);assert.doesNotMatch(solo,/남자|여자/);
+ context.d={mode:'duet',track:{performance_mode:'duet'}};const duet=vm.runInContext('singRecordingModeHTML(d)',context);assert.match(duet,/>듀엣</);assert.match(duet,/data-sing-record-mode="duet"/);assert.doesNotMatch(duet,/남자|여자/);
 });

@@ -153,6 +153,7 @@ function trackMenu(tid,anchor=null,duetJoin=null){
  const t=trackMap.get(tid);if(!t)return;const id=esc(tid);
  const row=(name,label,attrs,extra='')=>`<button type="button" class="track-option ${extra}" ${attrs}>${icon(name)}<span>${label}</span>${icon('chevron')}</button>`;
  const html=`<nav class="track-options" aria-label="곡 옵션">
+ ${typeof composerPickMenuHTML==='function'?composerPickMenuHTML(t):''}
  ${duetJoin&&!duetJoin.getClientRects().length?`<a class="track-option" data-close-dialog href="${esc(duetJoin.getAttribute('href'))}">${icon('mic')}<span>듀엣 참여</span>${icon('chevron')}</a>`:''}
  ${row('play','지금 재생',`data-play="${id}"`,'track-option-now')}
  ${row('next','다음에 재생',`data-queue-insert="${id}" data-placement="next"`)}

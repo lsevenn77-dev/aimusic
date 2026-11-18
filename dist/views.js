@@ -58,6 +58,7 @@ function bindRenderedRoute(base,param,explorer,ticket){
  if(base==='artist'&&typeof bindArtistFanpage==='function')bindArtistFanpage();
  if(typeof bindShopShelves==='function')bindShopShelves();
  if(typeof bindPlay==='function')bindPlay(explorer);
+ if(explorer?.songEntry)bindSongEntry(explorer.songEntry);
  if(base==='song'){bindSongCoverList();if(typeof bindSongDescription==='function')bindSongDescription();}
  if(typeof bindMyPage==='function')bindMyPage(explorer);
  if(typeof bindCrewIntegrated==='function')void bindCrewIntegrated();
@@ -193,6 +194,7 @@ async function renderRoute(showCachedRoute){
   const readRevision=apiRevision;
   const profileHeader=base==='library'?libraryProfileHTML(readApi).catch(error=>({error})):null;
   const loaders=[
+   ()=>typeof songEntryView==='function'?songEntryView(base,param,raw,readApi):null,
    ()=>typeof integratedMenuView==='function'?integratedMenuView(base,param,raw,readApi):null,
    ()=>typeof profileCollectionView==='function'?profileCollectionView(base,param,raw,readApi):null,
    ()=>typeof playView==='function'?playView(base,param,raw,readApi):null,
@@ -259,7 +261,7 @@ async function renderRoute(showCachedRoute){
   else if(base==='upload'){studioData=await readApi('/api/studio');html=uploadHTML(studioData);}
   else if(base==='karaoke'){const [d,duets]=await Promise.all([readApi('/api/karaoke'),readApi('/api/duets')]);nextTracks=[...d.tracks,...duets.tracks];html=karaokeListHTML(d.tracks,duets.tracks);}
   else if(base==='sing'&&!param)html=singEntryHTML();
-  else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''),readApi);if(ticket!==renderId)return;if(d.chooseMode){history.replaceState(history.state,'','#song/'+encodeURIComponent(param));await render();openRecordingMode(d);return;}routeSing=d;html=singHTML(d);}
+  else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''),readApi);if(ticket!==renderId)return;routeSing=d;html=singHTML(d);}
   else if(base==='cover'){const {track:o}=await readApi('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
   else if(base==='gifts')html=await finalGiftShopView(param,readApi);
   else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await readApi('/api/gifts/sent?offset='+encodeURIComponent(new URLSearchParams(location.hash.split('?')[1]||'').get('offset')||'0'))):goldHTML(await readApi('/api/gold'),false,new URLSearchParams(baseQuery.split('?')[1]||'').get('pack')));

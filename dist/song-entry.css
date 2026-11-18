@@ -1,0 +1,80 @@
+/* Song entry and the shared composer badge only. The shell and player retain
+   their existing layout. Scoped foregrounds prevent native button black text. */
+#main .song-entry{color:var(--ds-text);min-width:0}
+#main .song-entry-heading{display:flex;align-items:center;gap:12px;margin:0 0 24px}
+#main .song-entry-heading h1{margin:0;color:var(--ds-text);font-size:var(--pc-font-page-title,25px)}
+#main .song-entry-heading>.icon-button{width:44px;min-height:44px;flex:0 0 44px;color:var(--ds-text)}
+#main .song-entry-summary{display:flex;align-items:center;gap:24px;min-width:0}
+#main .song-entry-summary>.cover{width:144px;height:144px;min-width:144px;flex:0 0 144px;border-radius:var(--ds-radius-sm);overflow:hidden}
+#main .song-entry-summary>.cover img{width:100%;height:100%;object-fit:cover}
+#main .song-entry-copy{min-width:0;flex:1}
+#main .song-entry-copy h2{font-size:var(--pc-font-section,20px);line-height:1.5;margin:0 0 8px;color:var(--ds-text);overflow-wrap:anywhere}
+#main .song-entry-credits{display:flex;flex-wrap:wrap;gap:4px 16px;color:var(--ds-body);font-size:var(--pc-font-body,15px)}
+#main .song-entry-credits>span{min-width:0;overflow-wrap:anywhere}
+#main .song-entry-copy p{color:var(--ds-muted);font-size:var(--pc-font-meta,13px);margin:8px 0 12px}
+#main .song-entry-copy .small-button{min-height:44px;color:var(--ds-text)}
+#main .song-entry-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:24px 0 32px}
+#main .song-entry-actions>:is(a,button){display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:12px;font-size:var(--pc-font-control,14px);line-height:1.5;white-space:normal;text-align:center}
+#main .song-entry-actions>.primary-button{color:var(--ds-ink)}
+#main .song-entry-actions>.small-button{color:var(--ds-text)}
+#main .song-entry-actions>:is(a,button)>span{word-break:keep-all}
+#main .song-entry :is(button,a):focus-visible{outline:2px solid var(--ds-accent-mint);outline-offset:3px}
+#main .song-entry-actions>button:disabled{color:var(--ds-body);background:var(--ds-panel);opacity:1}
+#main .song-entry .song-entry-tabs{display:flex;gap:0;margin:0 0 12px;border-bottom:1px solid var(--ds-line)}
+#main .song-entry-tabs>.tab{flex:1;justify-content:center;gap:6px;min-width:0;min-height:48px;margin:0;padding:12px 4px;background:transparent;color:var(--ds-muted);border:0;border-radius:0;font-size:var(--pc-font-control,15px);white-space:normal;text-align:center}
+#main .song-entry-tabs>.tab.active{color:var(--ds-accent-mint);box-shadow:inset 0 -2px var(--ds-accent-mint)}
+#main .song-entry .song-cover-list{color:var(--ds-text);min-height:120px}
+#main .song-entry-error{padding:20px 0;color:var(--ds-body)}
+.composer-pick-badge{display:inline-flex;align-items:center;flex:0 0 auto;gap:3px;padding:2px 5px;border-radius:var(--ds-radius-sm);color:#8EDDD2;background:color-mix(in srgb,var(--ds-panel) 85%,#8EDDD2);font-size:11px;font-weight:700;line-height:1.5;white-space:nowrap;vertical-align:middle}
+.composer-pick-badge>svg{width:13px;height:13px;transform:rotate(25deg);flex:0 0 13px}
+#main .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy>.song-cover-name{display:flex;align-items:center;gap:6px;min-width:0}
+#main .song-covers-panel .song-cover-name>strong{flex:0 1 auto;min-width:0}
+#main .song-covers-panel .is-composer-pick .song-cover-detail{grid-template-columns:var(--list-thumb-size,52px) minmax(0,1fr)}
+#main .song-covers-panel.song-entry-panel .song-cover-row .song-cover-detail .song-cover-copy>.song-cover-meta{display:block;color:var(--ds-muted);font-size:13px}
+#main .song-entry .song-cover-comments{display:inline-flex;position:relative;z-index:1;gap:4px;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:var(--ds-muted);font-size:13px}
+#main .song-entry .song-cover-comments svg{width:18px;height:18px}
+#main .song-covers-panel.song-entry-panel .song-cover-row.song-entry-cover .song-cover-detail .song-cover-copy{display:flex;flex-direction:column;flex-wrap:nowrap;align-items:flex-start;align-content:flex-start;gap:2px}
+#main .song-entry-panel .song-cover-copy>.song-cover-name{max-width:100%}
+#main .song-entry .song-cover-like{display:inline-flex;color:var(--ds-muted)}
+#main .song-entry .song-cover-like[aria-pressed=true]{color:var(--ds-social)}
+#main .song-covers-panel.song-entry-panel .song-cover-row.song-entry-cover>.song-cover-plays{display:inline-flex;align-items:center;gap:4px;font-size:13px}
+#main .song-entry .song-cover-plays svg{width:18px;height:18px}
+#main .song-entry .song-cover-row .list-actions>.song-cover-join{display:inline-flex;width:auto;min-height:44px;min-width:44px;gap:6px;color:var(--ds-text)}
+#dialog:has(.composer-pick-confirm){color:var(--ds-text);background:var(--ds-panel)}
+#dialog:has(.composer-pick-confirm) .dialog-close#dialog-close{display:none}
+#dialog .composer-pick-confirm h2{color:var(--ds-text);font-size:20px;line-height:1.5}
+#dialog .composer-pick-confirm dl{display:grid;gap:12px;margin:20px 0}
+#dialog .composer-pick-confirm dt{color:var(--ds-muted);font-size:13px}
+#dialog .composer-pick-confirm dd{margin:4px 0 0;color:var(--ds-text);overflow-wrap:anywhere}
+#dialog .composer-pick-confirm .primary-button{color:var(--ds-ink)}
+#dialog .composer-pick-confirm .small-button{color:var(--ds-text)}
+@media(max-width:600px){
+ #main .song-entry-heading{margin-bottom:16px;gap:8px}
+ #main .song-entry-summary{gap:12px;align-items:flex-start}
+ #main .song-entry-summary>.cover{width:80px;height:80px;min-width:80px;flex-basis:80px}
+ #main .song-entry-copy h2{font-size:16px;margin-bottom:4px}
+ #main .song-entry-credits{font-size:13px;gap:2px 10px}
+ #main .song-entry-copy p{font-size:12px;margin:4px 0 8px}
+ #main .song-entry-copy .small-button{padding:8px 12px;font-size:13px}
+ #main .song-entry-actions{gap:8px;margin:16px 0 20px}
+ #main .song-entry-actions>:is(a,button){font-size:14px;padding:8px}
+ #main .song-entry-tabs>.tab{font-size:14px}
+}
+@container song-covers (max-width:600px){
+ #main .song-entry-panel .song-entry-cover{display:grid;grid-template-columns:44px 44px 44px minmax(0,1fr);gap:0 4px;padding:12px 0}
+ #main .song-entry-panel .song-entry-cover>.song-cover-detail{grid-column:1/-1;grid-row:1;min-height:44px;width:100%;margin-bottom:4px}
+ #main .song-entry-panel .song-entry-cover>.list-actions{grid-column:4;grid-row:2;justify-self:end;gap:4px}
+ #main .song-entry-panel .song-entry-cover>.song-cover-like{grid-column:1;grid-row:2}
+ #main .song-entry-panel .song-entry-cover>.song-cover-plays{grid-column:2;grid-row:2}
+ #main .song-entry-panel .song-entry-cover>.song-cover-comments{grid-column:3;grid-row:2}
+ #main .song-entry-panel .song-entry-cover>.song-cover-expand{grid-column:1;grid-row:2;justify-self:start}
+ #main .song-entry-panel .song-entry-cover:has(>.song-cover-expand)>.song-cover-like{grid-column:2}
+ #main .song-entry-panel .song-entry-cover:has(>.song-cover-expand)>.list-actions{grid-column:3/-1}
+ #main .song-entry-panel .song-entry-cover .song-cover-copy>.song-cover-meta{display:block;font-size:12px}
+ #main .song-entry-panel .song-entry-cover .song-cover-join{display:inline-flex;padding:8px;gap:4px;font-size:12px}
+ #main .song-entry-panel .song-entry-cover .song-cover-detail.is-ranked{grid-template-columns:20px 36px minmax(0,1fr)}
+ #main .song-entry-panel .song-entry-cover.is-composer-pick .song-cover-detail{grid-template-columns:36px minmax(0,1fr)}
+}
+@container song-covers (max-width:300px){
+ #main .song-entry-panel .song-entry-cover:has(>.song-cover-expand)>.list-actions{grid-row:3;grid-column:1/-1;justify-self:end}
+}

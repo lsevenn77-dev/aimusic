@@ -21,12 +21,12 @@ test('join routes cannot silently fall back to a solo response; solo and first-d
  result={track:{id:'one'}};assert.equal((await vm.runInContext("loadSingRoute('one',new URLSearchParams())",c)).mode,'solo');assert.equal((await vm.runInContext("loadSingRoute('one',new URLSearchParams('mode=duet'))",c)).mode,'duet');
 });
 
-test('ordinary entry asks once; explicit modes, legacy drafts and joining paths bypass the chooser',async()=>{
+test('unqualified entry never renders a recorder; explicit modes and drafts retain their preparation',async()=>{
  const c=context({api:async()=>({track:{id:'one'}}),esc:s=>s});
  for(const [query,choose,mode] of [['',true,'solo'],['mode=bad',true,'solo'],['mode=solo',false,'solo'],['mode=duet',false,'duet'],['draft=1',false,'solo'],['mode=duet&part=female&draft=1',false,'duet']]){c.query=new URLSearchParams(query);const d=await vm.runInContext("loadSingRoute('one',query)",c);assert.equal(d.chooseMode,choose,query);assert.equal(d.mode,mode,query);}
  c.d=await vm.runInContext("loadSingRoute('one',new URLSearchParams())",c);
  assert.equal(vm.runInContext('singHTML(d)',c),'');
- const html=vm.runInContext('singModeHTML(d)',c);assert.match(html,/data-sing-mode="solo"/);assert.match(html,/data-sing-mode="duet"/);assert.doesNotMatch(html,/data-sing-start|data-duet-editor/);
+ assert.equal(vm.runInContext('typeof openRecordingMode',c),'undefined');
 });
 test('the empty recording route keeps the sign-in gate and skips song reads without changing explicit recording routes',async()=>{
  for(const [hash,me,mode] of [['#sing/',null,null],['#sing/',{id:'owner'},null],['#sing/one?mode=solo',{id:'owner'},'solo'],['#sing/one?mode=duet',{id:'owner'},'duet']]){

@@ -166,7 +166,7 @@ window.addEventListener?.('popstate',()=>{
  if(!s?.backGuard||location.hash!==s.routeHash||history.state?.singBackGuard)return;
  history.pushState({...history.state,singBackGuard:true},'');
  s.historyKey=window.navigation?.currentEntry?.key;
- void requestSingExit(s,()=>{if(s.hadBack)history.go(-2);else location.replace('#karaoke');});
+ void requestSingExit(s,()=>{if(s.hadBack)history.go(-2);else location.replace('#sing/'+encodeURIComponent(s.id));});
 });
 
 function releaseRun(run){
@@ -187,7 +187,7 @@ function singHTML(d){
  if(d.chooseMode)return '';
  const t=d.track;
  return `<section class="surface sing web-studio" id="sing">
- <ol class="take-steps" aria-label="녹음 후 편집 단계" hidden><li data-step-marker="1" aria-current="step"><b>1</b> 음원 편집</li><li data-step-marker="2"><b>2</b> 게시 설정</li></ol><header class="sing-head"><a class="sing-back icon-button" href="#karaoke" aria-label="플레이로 돌아가기">${icon('chevron-left')}</a>${cover(t,"sing-artwork")}<div class="studio-song-meta"><span class="studio-page-label" data-editor-caption hidden>녹음 편집</span><h1 title="${esc(t.title)}">${esc(t.title)}</h1><p class="record-credit" title="${esc(t.producer||t.artist)}">${esc(t.producer||t.artist)}</p><p class="review-credit">${esc(t.artist)} · ${esc(t.genre||'음악')} · <span data-recording-mode-label>${d.mode==='duet'?'듀엣':'솔로'}</span> · <small data-recording-key>원곡 키</small></p></div><div class="sing-header-mode"><div class="sing-prep-controls" data-sing-prep-controls>${singRecordingModeHTML(d)}<div id="duet-guide"></div></div><button type="button" class="record-settings-icon" data-sing-settings aria-label="녹음 설정">${recordSettingsIcon()}</button></div></header>
+ <ol class="take-steps" aria-label="녹음 후 편집 단계" hidden><li data-step-marker="1" aria-current="step"><b>1</b> 음원 편집</li><li data-step-marker="2"><b>2</b> 게시 설정</li></ol><header class="sing-head"><a class="sing-back icon-button" href="#sing/${esc(t.id)}" aria-label="노래하기로 돌아가기">${icon('chevron-left')}</a>${cover(t,"sing-artwork")}<div class="studio-song-meta"><span class="studio-page-label" data-editor-caption hidden>녹음 편집</span><h1 title="${esc(t.title)}">${esc(t.title)}</h1><p class="record-credit" title="${esc(t.producer||t.artist)}">${esc(t.producer||t.artist)}</p><p class="review-credit">${esc(t.artist)} · ${esc(t.genre||'음악')} · <span data-recording-mode-label>${d.mode==='duet'?'듀엣':'솔로'}</span> · <small data-recording-key>원곡 키</small></p></div><div class="sing-header-mode"><div class="sing-prep-controls" data-sing-prep-controls>${singRecordingModeHTML(d)}<div id="duet-guide"></div></div><button type="button" class="record-settings-icon" data-sing-settings aria-label="녹음 설정">${recordSettingsIcon()}</button></div></header>
  ${d.duet?`<div class="sing-duet-context"><span>${icon('users')}</span><div><strong>듀엣 참여 · 내 파트 녹음</strong><p><a href="#producer/${esc(d.duet.partner.producer_id)}">${userNickname(d.duet.partner.producer,{profileId:d.duet.partner.producer_id})}</a>님의 녹음에 이어 부릅니다. 상대 목소리와 반주가 함께 재생돼요.</p></div></div>`:''}
  <div class="sing-recording"><div class="sing-punch-record-header" hidden><strong>선택 구간 녹음</strong><span data-punch-record-range></span><button type="button" class="small-button" data-punch-cancel>취소</button></div>${nativeSinging()?'':window.AifectMicrophoneCheck?.html()||''}<div class="sing-recording-info"><span data-record-mic role="status">${nativeSinging()?'앱에서 마이크 확인':'마이크 확인 필요'}</span>${duetLegendHTML(d.mode||'solo')}</div>
  <div class="sing-wheel" id="sing-wheel" aria-label="가사와 녹음 위치" tabindex="0">${(d.words||[]).map((line,i)=>`<button type="button" data-sing-line="${i}" data-second="${line.s}" aria-label="${time(line.s)} ${esc(line.w.map(w=>w.t).join(' '))}"><small>${time(line.s)}</small><span class="sing-line-text">${line.w.map((w,j)=>`<span data-word="${j}">${esc(w.t)}</span>`).join(' ')}</span></button>`).join('')||'<p class="field-help">싱크 가사가 없는 곡이에요. 아래 막대로 부를 위치를 골라주세요.</p>'}</div>
@@ -586,37 +586,6 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden){if(sing){s
 window.addEventListener?.('beforeunload',e=>{if(singExitKind(sing)||sing?.state==='exporting'){e.preventDefault();e.returnValue='';}});
 
 function duetLobbyHTML(tracks){return `<section class="surface duet-lobby"><h2>커버 둘러보기</h2><p class="field-help">다른 사람의 솔로·듀엣 커버를 들어보세요.</p><div class="cover-browse-links"><a class="small-button" href="#community/covers?mode=solo">솔로 커버 듣기</a><a class="small-button" href="#community/covers?mode=duet">듀엣 커버 듣기</a></div><h2>참여를 기다리는 듀엣</h2>${tracks.length?tracks.map(t=>`<div class="duet-invitation">${cover(t,'mini-cover')}<div><a href="#song/${esc(t.id)}"><strong>${esc(t.title)}</strong></a><p>${trackNickname(t,'producer')} · 먼저 녹음한 목소리</p></div><a class="primary-button" href="${t.user_id===me?.id?'#song/'+esc(t.id):'#sing/'+esc(t.original_id)+'?duet='+esc(t.id)}">${t.user_id===me?.id?'내 듀엣 보기':'듀엣 참여'}</a></div>`).join(''):'<p class="empty-note">아직 참여를 기다리는 듀엣이 없어요. 아래 곡을 골라 첫 파트를 남겨보세요.</p>'}</section>`;}
-function singModeHTML(){return '<h2 id="recording-mode-title">녹음 방식</h2><div class="recording-mode-choices"><button type="button" class="small-button" data-sing-mode="solo">솔로</button><button type="button" class="small-button" data-sing-mode="duet">듀엣</button></div>';}
-function openRecordingMode(d){
- if(document.querySelector('#recording-mode-dialog'))return;
- const trigger=document.activeElement,previousState=history.state,dlg=document.createElement('dialog');
- dlg.id='recording-mode-dialog';dlg.setAttribute('aria-labelledby','recording-mode-title');dlg.innerHTML=singModeHTML();
- document.body.append(dlg);history.pushState({...previousState,recordingMode:true},'');
- const overflow=document.documentElement.style.overflow;document.documentElement.style.overflow='hidden';
- const cleanup=()=>{window.removeEventListener('popstate',onBack);window.removeEventListener('hashchange',onNavigate);dlg.close();dlg.remove();document.documentElement.style.overflow=overflow;if(trigger?.isConnected)trigger.focus();};
- const onBack=()=>cleanup(),onNavigate=()=>cleanup();
- const dismiss=()=>{if(dlg.dataset.closing)return;dlg.dataset.closing='1';history.back();};
- window.addEventListener('popstate',onBack);window.addEventListener('hashchange',onNavigate);
- dlg.addEventListener('cancel',e=>{e.preventDefault();dismiss();});
- dlg.addEventListener('click',e=>{if(e.target===dlg){const r=dlg.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dismiss();}});
- dlg.querySelectorAll('[data-sing-mode]').forEach(button=>button.onclick=()=>{
-  const target='#sing/'+encodeURIComponent(d.track.id)+'?mode='+button.dataset.singMode;
-  cleanup();history.replaceState(previousState,'',target);void render();
- });
- dlg.showModal();
-}
-let recordingEntryPending=false;
-async function recordingEntryClick(e){
- const link=e.target.closest('a[href^="#sing/"]');
- if(!link||e.defaultPrevented||e.button!==0||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey||link.hasAttribute('download')||link.target&&link.target!=='_self')return;
- const [path,query='']=link.getAttribute('href').split('?'),q=new URLSearchParams(query);
- if(q.has('duet')||q.get('draft')==='1'||['solo','duet'].includes(q.get('mode')))return;
- if(sing)return;e.preventDefault();if(recordingEntryPending)return;
- const origin=location.hash;recordingEntryPending=true;
- try{const d=await loadSingRoute(decodeURIComponent(path.slice(6)),q);if(location.hash===origin)openRecordingMode(d);}
- catch(error){toast(error.message);}finally{recordingEntryPending=false;}
-}
-
 function duetTime(seconds){const n=Math.round(Math.max(0,seconds)*10);return Math.floor(n/600)+':'+String(Math.floor(n%600/10)).padStart(2,'0')+'.'+n%10;}
 function refreshVocalGuide(s){if(s)s.waveRoles=null;if(s?.mode==='duet'&&!s.parent&&s.voice&&s.duetGuide?.mode==='free')s.duetGuide.activity=AifectDuetGuide.detectVocalActivity(s.voice.getChannelData(0),s.voice.sampleRate,s.mix.offset,s.mr?.duration||s.data.track.duration);}
 function duetRoleLabel(part,second=false){return part==='both'?'함께':part==='A'?(second?'상대 파트':'내 파트'):part==='B'?(second?'내 파트':'상대 파트'):part==='partial'?'일부 빈 구간':'미지정';}

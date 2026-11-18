@@ -298,7 +298,7 @@ document.addEventListener('pointerdown',e=>{if($('#sidebar').classList.contains(
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&$('#sidebar').classList.contains('open')){setMobileMenu(false);$('#menu-toggle').focus();}});
 mobileMenuQuery.addEventListener('change',()=>setMobileMenu(false));setMobileMenu(false);
 window.addEventListener('hashchange',render);window.addEventListener('pagehide',()=>{countAdListening();saveResume();});
-document.addEventListener('click',recordingEntryClick);
+// Unqualified singing links now navigate to the song entry page.
 async function boot(){
  const startupAccount=me?.id||'guest';
  accountReady=(async()=>{try{authConfig=await api('/api/me?state=1');me=authConfig.user;if(authConfig.interaction_state){library.likes=authConfig.interaction_state.likes;library.follows=authConfig.interaction_state.follows;}setMembership(authConfig.membership);}catch(e){toast(e.message);}finally{updateAccount();paintInteractions();}})();

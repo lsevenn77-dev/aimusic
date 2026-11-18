@@ -17,10 +17,11 @@ seed('solo','바람이 머문 자리 — 아주 긴 제목도 한 줄에서 자�
 seed('joined','바람이 머문 자리 — 함께 완성한 노래','duet','invite',0,400);
 seed('joined-two','바람이 머문 자리 — 또 다른 목소리','duet','invite',0,500);
 f.sql.exec("UPDATE tracks SET user_id='owner',producer_id='producer' WHERE id IN ('joined','joined-two'); INSERT INTO listens(id,track_id,listener,day,started,qualified) VALUES('play','solo','person','2026-10-27',0,1)");
+f.sql.exec("UPDATE tracks SET duet_part='male',duet_guide='{\"version\":1,\"mode\":\"free\",\"lines\":[],\"activity\":[{\"s\":0,\"e\":20}]}' WHERE id IN ('invite','empty-invite')");
 await f.call('/api/tracks/two/like','PUT');
 const playlist=await f.call('/api/playlists','POST',{name:'로컬 목록 검증',is_public:true,track_ids:['two','one','three']});
 console.log('QA playlist: '+playlist.body.id);
-const root=resolve('dist/client'),env={DB:f.DB,BUCKET:{async head(){return {size:wav.length};},async get(key){const body=key.startsWith('images/')?art:wav;return {body,size:body.length};}},ASSETS:{async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':({'.txt':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}}};
+const root=resolve('dist/client'),env={DB:f.DB,BUCKET:{async head(key){return {size:key.startsWith('images/')?art.length:wav.length};},async get(key){const body=key.startsWith('images/')?art:wav;return {body,size:body.length};}},ASSETS:{async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':({'.txt':'text/html;charset=utf-8','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.webp':'image/webp'})[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}}};
 createServer(async(req,res)=>{
  try{
   const u=new URL(req.url,'http://127.0.0.1:'+port);
