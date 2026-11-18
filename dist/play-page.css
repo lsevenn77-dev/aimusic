@@ -408,9 +408,19 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
     text-decoration: none;
   }
   .play-banner-link[data-play-banner="song"] { --play-accent: #f09ac7; }
-  .play-banner-link[data-play-banner="dubbing"] { --play-accent: #bca2f4; }
+  .play-banner-link:is([data-play-banner="dubbing"], [data-play-banner="script"]) { --play-accent: #bca2f4; }
   .play-banner-link[data-play-banner="browse"] { --play-accent: #8eddd2; }
-  .home-feature-copy { width: max-content; max-width: 46cqi; word-break: keep-all; overflow-wrap: anywhere; }
+  .home-feature-copy { position: relative; width: max-content; max-width: 46cqi; word-break: keep-all; overflow-wrap: anywhere; }
+  .play-banner-art[data-play-art="script"] { background-position: center; border-image: none; }
+  .play-banner-link[data-play-banner="script"] {
+    .home-feature-copy, .home-feature-description { max-width: none; }
+    .home-feature-copy :is(h2, p) > span { display: block; white-space: nowrap; }
+    /* Paint the existing keyboard ring above the photo, inside the clipped frame. */
+    &:focus-visible::after {
+      content: ""; position: absolute; inset: 0; pointer-events: none;
+      outline: inherit; outline-offset: -3px;
+    }
+  }
   .home-feature-label {
     display: block;
     color: var(--play-accent);
@@ -445,6 +455,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   .home-feature-dots button[aria-pressed="true"]::after { opacity: 1; }
 
   @container play-frame (max-width: 790px) {
+    .play-banner-art[data-play-art="script"] { --art: var(--mobile-art); }
     .play-banner-link { padding-left: 64px; }
     .home-feature-copy { --play-label-size: 14px; --play-title-size: 26px; --play-body-size: 14px; }
   }
@@ -511,6 +522,7 @@ img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-
   @media (max-width: 800px) {
     .home-feature { margin-block-end: 16px; }
     .play-banner-art { --art: var(--mobile-art); background-position: center; }
+    .play-banner-art[data-play-art="script"] { background-position-x: 70%; }
     .play-banner-art::after {
       background: linear-gradient(90deg, #090d1a66 0%, #090d1a55 28%, #090d1a2b 42%, transparent 57%);
     }
