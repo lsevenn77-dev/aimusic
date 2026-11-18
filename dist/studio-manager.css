@@ -20,11 +20,11 @@
   background-repeat: no-repeat;
   background-position: center top;
   background-size: 100% 100%;
-  z-index: -1;
+  z-index: 0;
   height: var(--studio-room-height);
   background-image: var(--studio-room-image);
   opacity: var(--studio-room-opacity);
-  mask-image: linear-gradient(#000 44%, transparent var(--studio-room-fade)),
+  mask-image: linear-gradient(transparent, #000 12%, #000 44%, transparent var(--studio-room-fade)),
               linear-gradient(to right, transparent, #000 6% 94%, transparent);
   mask-composite: intersect;
 }

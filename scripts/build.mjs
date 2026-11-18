@@ -45,6 +45,7 @@ await cp('dist/footer-layout.js','dist/client/footer-layout.js');
 for(const file of ['about.css','public-discovery.css','public-discovery.js','guide-pages.css','guide-pages.js'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['mobile-topbar.js','mobile-topbar.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/unified-ui.css','dist/client/unified-ui.css');
+await cp('dist/aurora-backdrop.css','dist/client/aurora-backdrop.css');
 for(const file of ['unified-search.js','unified-search.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/list-actions.css','dist/client/list-actions.css');
 await cp('dist/icon-style-lock.css','dist/client/icon-style-lock.css');

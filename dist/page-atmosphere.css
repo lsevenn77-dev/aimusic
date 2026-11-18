@@ -13,9 +13,9 @@
 .crew-rank-copy{min-width:0}.crew-rank-copy strong{display:block;font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.crew-rank-copy small{display:block;font-size:.66rem;color:var(--ds-body);margin-top:3px}
 .crew-rank-stats{text-align:right;white-space:nowrap}.crew-rank-stats b{display:block;font-size:.71rem;color:var(--ds-body)}.crew-rank-stats small{display:block;font-size:.65rem;color:var(--ds-body);margin-top:4px}
 .crew-ranking-label{font-size:.62rem;letter-spacing:.1em;color:var(--ds-body)}.crew-ranking-rule{font-size:.66rem;color:var(--ds-body);margin:-3px 0 9px}
-.page-wrap{background:radial-gradient(ellipse 750px 360px at 84% 80px,#31486220,transparent 75%),radial-gradient(ellipse 570px 310px at 45% 110px,#70415913,transparent 76%)}
+.page-wrap{background:none}
 main[data-route]{position:relative;isolation:isolate;--page-art:url('/assets/atmosphere/records-v1.svg');--mood-glow:#7e96cd12}
-main[data-route]::before{content:"";position:absolute;z-index:-1;pointer-events:none;top:4px;right:20px;width:min(62%,650px);height:220px;background:var(--page-art) right center/contain no-repeat;opacity:.15;mask-image:linear-gradient(90deg,transparent,#000 38%,#000 90%,transparent)}
+/* Page atmosphere is painted once by aurora-backdrop.css, outside this frame. */
 main[data-route^="community"],main[data-route^="crew/"],main[data-route^="following"]{--page-art:url('/assets/atmosphere/community-v1.svg');--mood-glow:#ed91bc16}
 main[data-route^="dm"]{--page-art:url('/assets/atmosphere/conversation-v1.svg')}
 main[data-route^="profile"],main[data-route^="producer/"],main[data-route^="artist/"]{--page-art:url('/assets/atmosphere/gallery-v1.svg')}

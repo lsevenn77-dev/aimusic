@@ -46,16 +46,6 @@
 .brand-horizontal-only.brand-horizontal-only::-webkit-scrollbar-track{background:var(--ds-bg);border-radius:5px}
 .brand-horizontal-only.brand-horizontal-only::-webkit-scrollbar-thumb{background:linear-gradient(90deg,var(--ds-accent-pink),var(--ds-lavender),var(--ds-mint));border:0;border-radius:5px}
 .brand-horizontal-only::-webkit-scrollbar-button{display:none;width:0;height:0}
-/* Crop the approved SVG above its mock heading/input; the file is byte-identical.
-   The original aurora ellipses remain unchanged, with a lower-edge fade only. */
-.page-wrap{background:none}
-#main[data-route]::before{content:"";display:block;position:absolute;pointer-events:none;z-index:-1;top:0;left:0;right:0;width:100%;height:auto;aspect-ratio:340 / 65;opacity:1;background:url('/assets/atmosphere/06_approved_aurora_original.svg') left top / 100% auto no-repeat;mask-image:linear-gradient(#000,transparent)}
-/* The existing play aurora, on the full main column rather than its capped child.
-   The play page itself retains its exact original layer and visual dimensions. */
-.page-wrap:has(>#main[data-common-background="true"]){position:relative;isolation:isolate}
-.page-wrap:has(>#main[data-common-background="true"])::before,
-.page-wrap:has(>#main>.studio-manager)::before{content:"";position:absolute;pointer-events:none;z-index:-1;top:var(--topbar-height,88px);left:0;right:0;aspect-ratio:340 / 65;background:url('/assets/atmosphere/06_approved_aurora_original.svg') left top / 100% auto no-repeat;mask-image:linear-gradient(#000,transparent)}
-#main[data-common-background="true"]::before{display:none}
 @media(max-width:700px){
  .brand-search input,#global-search.brand-search input{font-size:16px}
  #global-search.brand-search{padding-inline:10px;gap:6px}
