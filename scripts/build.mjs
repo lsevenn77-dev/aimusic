@@ -27,7 +27,6 @@ for(const file of ['mobile-input.js','mobile-input.css'])await cp('dist/'+file,'
 for(const file of ['decorations.js','decoration-display.js','decorations.css','shop.css','shop-dialog.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css','dub-discovery.js','dub-discovery.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['image-crop.js','crew-photo.js','crew-heif.js','crew-heif-worker.js','profile-collections.js','crew-integrated.js','crew-settings.js','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/voice-room-template.js','dist/client/voice-room-template.js');
-await cp('dist/christmas-review.js','dist/client/christmas-review.js');
 await cp('dist/account-deletion.js','dist/client/account-deletion.js');
 await cp('dist/room-entry.css','dist/client/room-entry.css');
 await cp('dist/voice-audio.js','dist/client/voice-audio.js');
