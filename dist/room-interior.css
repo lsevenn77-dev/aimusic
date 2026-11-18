@@ -298,6 +298,7 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
   }
 }
 #live-countdown .live-start-dot { display: none; }
+.live-time-icon { display: none; }
 /* The server-driven occupancy is shared; keep the original mobile karaoke header. */
 #main .live-karaoke-room .room-heading .room-population-pc { display: none; }
 @media (min-width:801px) and (min-height:501px), (min-width:801px) and (pointer:fine) {
@@ -467,6 +468,79 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
     & .live-stage-main .live-song-progress { display: grid; gap: 3px; inset: auto 12px 6px; max-width: none; }
     & #live-timer { justify-self: start; }
     & #live-progress { position: static; display: block; clip-path: none; width: 100%; height: 4px; accent-color: var(--ds-lavender); }
+  }
+}
+
+/* 2026-11-18: approved PC karaoke regions only. The shared chat/skin geometry
+   continues to own the column height and bottom edge. */
+@media (min-width:801px) and (hover:hover) and (pointer:fine) {
+  #main[data-room-entered] .voice-room.live-karaoke-room[data-voice-room][data-room-design][data-room-pc-controls] {
+    --room-lyric: 24px;
+    --room-lyric-line: 50px;
+    --room-count-space: 53px;
+    & .room-heading { grid-template-columns: minmax(0,1fr) max-content max-content; }
+    & #live-karaoke-stage { grid-template-rows: minmax(0,1fr) 20px 148px; gap: 12px; }
+    & .live-stage-main { container-type: size; height: auto; min-height: 0; overflow-y: auto; }
+    & .live-stage-main #live-current { --room-singer: inherit; flex-shrink: 0; }
+    & .live-stage-main .room-live-guide { flex-shrink: 0; align-self: stretch; }
+    & #live-current strong { font-size: 24px; line-height: 30px; }
+    & .live-stage-main #live-lyrics {
+      height: calc(6 * var(--room-lyric-line)); min-height: calc(6 * var(--room-lyric-line));
+      grid-template-rows: repeat(6,var(--room-lyric-line)); align-content: start; flex-shrink: 0;
+      margin-top: var(--room-count-space);
+    }
+    & #live-lyrics p, & #live-lyrics p.is-current {
+      font-size: var(--room-lyric); line-height: var(--room-lyric-line);
+      color: rgb(var(--room-lyric-rgb)); font-weight: 500; opacity: .45;
+    }
+    & #live-lyrics p.is-current { font-weight: 700; opacity: 1; }
+    & #live-lyrics p:nth-child(3) { opacity: .68; }
+    & #live-lyrics p:nth-child(4) { opacity: .50; }
+    & #live-lyrics p:nth-child(5) { opacity: .34; }
+    & #live-lyrics p:nth-child(6) { opacity: .20; }
+    & .live-stage-main #live-lyrics:not(:has(p)) { min-height: 0; grid-template-rows: 1fr; }
+    & .room-key { top: 20px; left: 16px; height: 46px; box-sizing: border-box; border-radius: 24px; }
+    & .live-stage-main .room-key button { min-width: 44px; height: 44px; min-height: 44px; font-size: 17px; }
+    & .room-key button[data-target="reset"] { min-width: 60px; }
+    & #live-actions { top: 20px; right: 6px; height: 46px; align-items: center; gap: 8px; }
+    & #live-actions button { box-sizing: border-box; width: 58px; height: 46px; border-radius: 24px; }
+    & #live-actions svg { width: 26px; height: 26px; }
+    & #live-actions [data-voice="karaoke-retry"] { width: auto; }
+    & #live-countdown .live-start-dot { margin-top: 26px; }
+    & #live-karaoke-stage > .live-song-progress {
+      position: static; display: flex; align-items: center; gap: 7px; width: auto; max-width: none;
+      height: 20px; min-height: 0; margin: 0; padding: 0 23px; box-sizing: border-box;
+    }
+    & .live-time-icon { display: inline-flex; align-items: center; flex: none; }
+    & .live-time-icon svg { width: 18px; height: 18px; }
+    & #live-timer { color: var(--room-text); font-size: 14px; line-height: 20px; white-space: nowrap; }
+    & .live-request-area { height: 148px; min-height: 148px; padding: 14px 22px; gap: 12px; }
+    & .live-request-area .live-request-button { min-height: 44px; height: 44px; padding-inline: 14px; }
+    & #live-queue {
+      height: 100%; padding: 2px 0; gap: 8px; align-items: center;
+      grid-auto-columns: minmax(max(60px,calc((100% - 40px)/6)),1fr);
+    }
+    & #live-queue > li, & #live-queue > li:not(.live-queue-empty) {
+      --room-queue-photo: 38px; --room-avatar-slot: 57px;
+      align-self: center; gap: 10px; padding: 0;
+    }
+    & #live-queue .live-queue-avatar { position: relative; inset: auto; width: 57px; height: 57px; min-height: 57px; }
+    & #live-queue .room-member-photo,
+    & #live-queue .room-member-photo:has(> :is(.player-frame-artwork,.decoration-avatar-overlay)) {
+      width: 38px; height: 38px; min-width: 0; max-width: none;
+    }
+    & #live-queue .room-member-photo > .profile-avatar-image { width: 38px; height: 38px; }
+    & #live-queue .room-member-photo:has(> :is(.player-frame-artwork,.decoration-avatar-overlay)) > .profile-avatar-image { width: 38px; height: 38px; }
+    & #live-queue strong { min-height: 20px; line-height: 20px; white-space: nowrap; }
+    & #live-queue .room-host-crown { flex: none; }
+    /* Fit six equal slots on shorter desktops without moving the portrait or
+       chat. Below the minimum readable slot size, the stage stays scrollable. */
+    @container (max-height: 550px) {
+      & .live-stage-main #live-lyrics {
+        --room-lyric-line: clamp(25px,calc((100cqh - 240px) / 6),50px);
+        --room-lyric: clamp(20px,calc(var(--room-lyric-line) * .64),24px);
+      }
+    }
   }
 }
 @media(max-width:800px) {

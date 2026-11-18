@@ -405,3 +405,34 @@ test('the reservation panel retains entries beyond the sixth slot in FIFO order'
  items.forEach((item,i)=>assert.ok(item.includes('data-target="guest-'+i+'"')));
  assert.match(items[0],/aria-current="true"/);
 });
+
+test('PC lyric window has six fixed slots with the current line second and empty song boundaries',()=>{
+ const {c,host,nodes}=context();host.hasAttribute=()=>true;
+ c.client={host,liveWords:Array.from({length:8},(_,i)=>({s:i*3,w:[{s:i*3,t:'line-'+i}]}))};
+ const render=seconds=>{c.seconds=seconds;vm.runInContext('liveRenderLyrics(client,seconds)',c);return [...nodes.get('#live-lyrics').innerHTML.matchAll(/<p class="([^"]*)">(.*?)<\/p>/g)];};
+ let lines=render(10);assert.equal(lines.length,6);assert.equal(lines[1][1],'is-current');assert.match(lines[0][2],/line-2/);assert.match(lines[5][2],/line-7/);
+ lines=render(0);assert.equal(lines[0][2],'');assert.match(lines[1][2],/line-0/);
+ lines=render(24);assert.match(lines[1][2],/line-7/);assert.ok(lines.slice(2).every(x=>x[2]===''));
+ host.hasAttribute=()=>false;assert.equal(render(10).length,4);
+});
+
+test('PC singer controls follow the started turn, not audio buffering or host privileges',()=>{
+ let now=10000;const {c,host,nodes}=context({Date:{now:()=>now}});host.hasAttribute=()=>true;
+ const mic={hidden:false},abandon={hidden:false};host.querySelectorAll=selector=>selector.startsWith('#live-actions ')?[mic,abandon]:[];
+ c.client={host,state:{self:'self',members:[],karaoke:{active:{user_id:'self'},phase:'ready',startsAt:11000}}};
+ const paint=()=>vm.runInContext('liveUpdatePresentation(client)',c),hidden=()=>[nodes.get('.room-key').hidden,mic.hidden,abandon.hidden];
+ paint();assert.deepEqual(hidden(),[true,true,true]);
+ c.client.state.karaoke.phase='singing';paint();assert.deepEqual(hidden(),[true,true,true]);
+ now=11000;paint();assert.deepEqual(hidden(),[false,false,false]);
+ c.client.liveAudio={paused:true,readyState:0};paint();assert.deepEqual(hidden(),[false,false,false]);
+ c.client.state.self='host';paint();assert.deepEqual(hidden(),[true,true,true]);
+ c.client.state.karaoke.active=null;paint();assert.deepEqual(hidden(),[true,true,true]);
+ host.hasAttribute=()=>false;paint();assert.deepEqual(hidden(),[false,false,false]);
+});
+
+test('an unknown duration remains a valid empty timer and a removed PC progress node is optional',()=>{
+ const {c,host,nodes}=context();const query=host.querySelector;host.querySelector=s=>s==='#live-progress'?null:query(s);
+ c.client={host,state:{self:'self',members:[],karaoke:{phase:'ready',active:{user_id:'other',track:{id:'song'}},startsAt:0}},liveWords:[{s:0,w:[{s:0,t:'line'}]}]};
+ vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('#live-timer').textContent,'0 / 0');
+ c.client.state.karaoke.active=null;vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('#live-timer').textContent,'0:00 / 0:00');
+});
