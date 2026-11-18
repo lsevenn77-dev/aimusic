@@ -147,7 +147,7 @@ test('an active top tab is a no-op and returning to the library prepares its sav
  for(const route of ['', 'producer/profile-owner?view=library&section=history','profile?view=activity','profile?view=library&section=covers','profile/works?view=library']){
   const invalid=fixture();invalid.state.libraryRoute=route;
   await invalid.context.mySelectTab('library');
-  assert.deepEqual(invalid.hashChanges,[{hash:'#profile?view=library&section=likes',prepared:true}],route);
+  assert.deepEqual(invalid.hashChanges,[{hash:'#profile?view=library&section=playlists',prepared:true}],route);
  }
  const initial=fixture(),c=initial.context;
  for(const name of ['myProfileHeader','myMoments','myArtists','myStudioBanner'])c[name]=()=>'';

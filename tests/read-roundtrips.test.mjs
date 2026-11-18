@@ -21,11 +21,11 @@ test('membership uses one DB trip and preserves current plan, quota and account 
  f.sql.exec("INSERT INTO playlists(id,user_id,name,created) VALUES('p1','owner','First',1),('p2','owner','Second',2),('p3','owner','Locked',3)");
  const free=measured(f.DB),result=await membership(free,{id:'owner',premium_until:0});
  assert.equal(free.trips,1);assert.equal(result.plan,'free');assert.equal(result.owned_count,3);
- assert.deepEqual(result.active_ids,['p1','p2']);assert.equal(result.locked_count,1);
+ assert.deepEqual(result.active_ids,[]);assert.equal(result.locked_count,0);assert.equal(result.playlists_unlimited,true);
  assert.equal(result.upload_quota.used,1);assert.equal(result.upload_quota.remaining,2);
  f.sql.prepare("UPDATE users SET premium_until=? WHERE id='owner'").run(at+3600);
  const premium=measured(f.DB),upgraded=await membership(premium,{id:'owner',premium_until:at+3600});
- assert.equal(premium.trips,1);assert.equal(upgraded.active_ids.length,3);assert.equal(upgraded.upload_quota.remaining,9);
+ assert.equal(premium.trips,1);assert.equal(upgraded.active_ids.length,0);assert.equal(upgraded.upload_quota.remaining,9);
  const other=await membership({DB:f.DB},{id:'other'});assert.equal(other.owned_count,0);assert.equal(other.upload_quota.used,0);
 });
 

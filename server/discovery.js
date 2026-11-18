@@ -1,3 +1,4 @@
+import {pageParams,libraryTransaction} from './library-transactions.js';
 import {playlistEligibleSQL} from '../shared/playlist-policy.js';
 import {followCounts} from './follow-management.js';
 import {unifiedSearch} from './search.js';
@@ -17,10 +18,11 @@ function moodFilter(mood){return {sql:'EXISTS(SELECT 1 FROM json_each(t.moods_js
 
 export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100,sortArgs=[],scope={}){
  const visible="("+ (scope.visible||VISIBLE()) +") AND "+playlistEligibleSQL();
- const data=await rows(env,(scope.cte||'')+`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
+ const data=await rows(env,(scope.cte||'')+`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,p.updated,p.revision,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
  (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible}) tracks,
  (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible}) duration,
  COALESCE(pref.position,0) position,
+ EXISTS(SELECT 1 FROM playlist_saves saved WHERE saved.user_id=? AND saved.playlist_id=p.id) saved,
  (SELECT json_group_array(json_object('id',c.id,'title',c.title,'artist',c.artist,'kind',c.kind,'producer_id',c.producer_id,'producer',c.producer,'user_id',c.user_id,'artist_id',c.artist_id,'has_ai_artist',c.has_ai_artist,'duet_partner_id',c.duet_partner_id,'duet_partner',c.duet_partner,'artwork_id',c.artwork_id,'work_has_cover',c.work_has_cover,'work_cover_version',c.work_cover_version,'original_id',c.original_id,'original_has_cover',c.original_has_cover,'original_cover_version',c.original_cover_version,'has_cover',c.has_cover,'cover_version',c.cover_version)) FROM
   (SELECT t.id,t.title,t.kind,t.original_id,t.producer_id,t.user_id,t.artist_id,${namedArtistSQL()} has_ai_artist,${producerNameSQL('preview_producer')} producer,first_producer.id duet_partner_id,${producerNameSQL('first_producer')} duet_partner,o.has_cover original_has_cover,o.cover_version original_cover_version,${trackArtworkSQL()},
    CASE WHEN t.cover_mode='duet' AND t.duet_parent_id IS NOT NULL THEN (${producerNameSQL('first_producer')})||' & '||(${producerNameSQL('preview_producer')})||' · 듀엣'
@@ -32,10 +34,10 @@ export async function playlistSummaries(env,userId='',where='p.is_public=1',args
    WHERE pt.playlist_id=p.id AND ${visible} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?
- WHERE (${where}) AND (p.user_id=? OR ${activePlaylistSQL()}) ORDER BY ${sort} LIMIT ${limit}`,...(scope.args||[]),userId,...args,userId,...sortArgs);
- return data.map(({covers_json,...p})=>({...p,locked:!p.active,covers:JSON.parse(covers_json||'[]')}));
+ WHERE (${where}) AND (p.user_id=? OR p.is_public=1${scope.includeUnavailable?' OR EXISTS(SELECT 1 FROM playlist_saves unav WHERE unav.playlist_id=p.id AND unav.user_id=?)':''}) ORDER BY ${sort} LIMIT ${limit}`,...(scope.args||[]),userId,userId,...args,userId,...(scope.includeUnavailable?[userId]:[]),...sortArgs);
+ return data.map(({covers_json,...p})=>p.user_id!==userId&&(!p.is_public||(env.AIFECT_BLOCKED||[]).includes(p.user_id))?{id:p.id,name:'이용할 수 없는 플레이리스트',saved:true,unavailable:true,covers:[],tracks:0}:{...p,locked:false,covers:JSON.parse(covers_json||'[]')});
 }
-async function accessibleLibrary(env,uid){return playlistSummaries(env,uid,'p.user_id=?',[uid],'position ASC,p.created DESC,p.id',500);}
+async function accessibleLibrary(env,uid){return playlistSummaries(env,uid,'(p.user_id=? OR (p.is_public=1 AND EXISTS(SELECT 1 FROM playlist_saves s WHERE s.user_id=? AND s.playlist_id=p.id)))',[uid,uid],'position ASC,p.updated DESC,p.id',20);}
 
 export async function discoveryRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;
@@ -62,8 +64,9 @@ export async function discoveryRoute(req,env,path,user){
  }
  if(path==='/api/search'&&method==='GET')return unifiedSearch(env,user,url.searchParams);
  if(path==='/api/playlists'&&method==='GET'){
-  const q=(url.searchParams.get('q')||'').slice(0,100),sort='p.created DESC,p.id';
-  return json({playlists:await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} AND ${playlistEligibleSQL()}) AND (p.name LIKE ? OR p.description LIKE ? OR ${publicNameSQL()} LIKE ?)`,Array(3).fill('%'+q+'%'),sort)});
+  const q=(url.searchParams.get('q')||'').slice(0,100),{limit,offset}=pageParams(url.searchParams),sort='p.created DESC,p.id';
+  const playlists=await playlistSummaries(env,user?.id||'',`p.is_public=1 AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} AND ${playlistEligibleSQL()}) AND (instr(lower(p.name),lower(?))>0 OR instr(lower(p.description),lower(?))>0 OR instr(lower(${publicNameSQL()}),lower(?))>0)`,Array(3).fill(q),sort,`${limit+1} OFFSET ${offset}`);
+  const nextOffset=playlists.length>limit?offset+limit:null;if(nextOffset!==null)playlists.pop();return json({playlists,nextOffset});
  }
  if(path==='/api/follows'&&method==='GET'){
   requireUser(user);
@@ -77,7 +80,8 @@ export async function discoveryRoute(req,env,path,user){
  if(path==='/api/library/playlists/order'&&method==='PUT'){
   requireUser(user);const b=await req.json(),ids=b.playlist_ids;if(!Array.isArray(ids)||ids.length>500||ids.some(x=>typeof x!=='string')||new Set(ids).size!==ids.length)fail(400,'목록 순서를 다시 확인해주세요.');
   const stored=await accessibleLibrary(env,user.id);if(ids.length!==stored.length||ids.some(id=>!stored.some(p=>p.id===id)))fail(409,'보관함이 변경됐습니다. 다시 열어주세요.');
-  if(ids.length)await env.DB.batch(ids.map((id,i)=>query(env,'INSERT INTO playlist_preferences(user_id,playlist_id,position) VALUES(?,?,?) ON CONFLICT(user_id,playlist_id) DO UPDATE SET position=excluded.position',user.id,id,i)));
+  // Reorder this bounded window while preserving the ranks of every later page.
+  if(ids.length)await libraryTransaction(env,[],[query(env,`WITH ranked AS (SELECT p.id,ROW_NUMBER() OVER(ORDER BY COALESCE(pref.position,0),p.updated DESC,p.id)-1 rank FROM playlists p LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=? WHERE p.user_id=? OR (p.is_public=1 AND EXISTS(SELECT 1 FROM playlist_saves s WHERE s.playlist_id=p.id AND s.user_id=?))) INSERT INTO playlist_preferences(user_id,playlist_id,position) SELECT ?,id,CASE WHEN rank<? THEN (SELECT CAST(key AS INTEGER) FROM json_each(?) WHERE value=ranked.id) ELSE rank END FROM ranked WHERE 1 ON CONFLICT(user_id,playlist_id) DO UPDATE SET position=excluded.position`,user.id,user.id,user.id,user.id,ids.length,JSON.stringify(ids))]);
   return json({ok:true});
  }
  return null;

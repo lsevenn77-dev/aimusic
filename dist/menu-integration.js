@@ -11,7 +11,7 @@ function menuAlias(hash){
  if(base==='library'&&parts.length<=2){
   if(['following','followers','artists','producers'].includes(section))return menuHref('follow',{tab:section==='followers'?'followers':'following',...(['artists','producers'].includes(section)?{kind:section}:{} )},raw);
   if(['covers','originals'].includes(section))return menuHref('profile',{view:'works',section},raw);
-  return menuHref('profile',{view:'library',section:['likes','history','playlists'].includes(section)?section:'likes'},raw);
+  return menuHref('profile',{view:'library',section:['likes','history','playlists','myboxes'].includes(section)?section:'playlists'},raw);
  }
  if(base==='crew'&&section&&new URLSearchParams(raw.split('?')[1]).get('tab')==='manage')return menuHref(route,{tab:'music'},raw);
  if(route==='dm/blocked')return menuHref('follow',{tab:'blocks'},raw);
@@ -23,7 +23,7 @@ function menuAlias(hash){
  if(route==='rewards')return menuHref('gifts/rewards',{},raw);
  return null;
 }
-function myTabHref(tab,raw=location.hash){return menuHref('profile',{view:tab,section:tab==='library'?'likes':null},raw);}
+function myTabHref(tab,raw=location.hash){return menuHref('profile',{view:tab,section:tab==='library'?'playlists':null},raw);}
 function rememberMenuLogin(base,param){
  const key='aifect-menu-return',isTarget=hash=>/^#(?:profile(?:\/works)?(?:\?|$)|follow(?:\?|$)|community\/following(?:\?|$)|studio\/payouts(?:\?|$)|gifts\/rewards(?:\?|$))/.test(hash||'');
  try{

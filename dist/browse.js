@@ -23,7 +23,7 @@ function chartMovementHTML(t){
 }
 // Shared navigation for listening, singing and the community on desktop and mobile.
 function updateBrowseNavigation(base,param){
- const primary=['karaoke','sing','cover','dubbing'].includes(base)?'karaoke':['community','voice','live','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':base==='notifications'?'notifications':['inventory','follow','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
+ const primary=['karaoke','sing','cover','dubbing'].includes(base)?'karaoke':['community','voice','live','covers','crew','producer','artist','following'].includes(base)?'community':base==='dm'?'dm':base==='notifications'?'notifications':['mybox','inventory','follow','profile','account','studio','manage','upload','payouts','rewards'].includes(base)?'profile':['library','history'].includes(base)?'home':'home';
  const routeHref='#'+base+(param?'/'+param:'');
  const sidebarHref=['upload','manage','studio'].includes(base)?'#studio':base==='gifts'?'#gifts':routeHref;
  const matchesPage=a=>a.getAttribute('href')===routeHref||a.getAttribute('href')===sidebarHref;
@@ -75,7 +75,7 @@ async function chartPlaylistDialog(view){const ticket=renderId;
   await refreshLibrary(true);if(me?.id!==uid)return;
   if(!canCreatePlaylist())return;
   if(ticket!==renderId)return;dialog(`<section class="chart-playlist-dialog"><h2>차트로 플리 만들기</h2><form id="chart-playlist-form">${formField('플레이리스트 이름','name','text',name,'required maxlength="80"')}<fieldset class="chart-range"><legend>담을 곡</legend><label><input type="radio" name="range" value="selected" aria-controls="chart-track-picker"> 선택 지정 <span data-chart-selected-count aria-live="polite">0곡</span></label><label><input type="radio" name="range" value="all" checked> 차트 전체 <span>${number(tracks.length)}곡</span></label></fieldset><div id="chart-track-picker" class="chart-track-picker" hidden>${tracks.map((t,i)=>`<label class="chart-pick-row"><input type="checkbox" name="track_ids" value="${esc(t.id)}"><span class="chart-pick-rank">${t.chart_rank||i+1}</span><span class="chart-pick-copy"><strong>${esc(t.title||t.id)}</strong><small>${trackNickname(t)}</small></span></label>`).join('')}</div><p class="field-help">선택한 차트의 순서대로 내 플레이리스트에 저장해요.</p><p class="form-error" role="alert"></p><div class="chart-dialog-actions"><button type="submit" class="small-button chart-confirm">만들기</button></div></form></section>`);
-  const form=$('#chart-playlist-form'),modal=$('#dialog'),confirm=form.querySelector('[type="submit"]'),picker=form.querySelector('#chart-track-picker');let createdId=null;
+  const form=$('#chart-playlist-form'),modal=$('#dialog'),confirm=form.querySelector('[type="submit"]'),picker=form.querySelector('#chart-track-picker'),check=libraryTitleCheck(form),request_id=crypto.randomUUID();let createdId=null;
   const syncSelection=()=>{const fd=new FormData(form),selected=fd.get('range')==='selected',count=chartPlaylistIds(tracks,'selected',fd.getAll('track_ids')).length;picker.hidden=!selected;form.querySelector('[data-chart-selected-count]').textContent=number(count)+'곡';confirm.disabled=!!form._busy||!(selected?count:tracks.length);};
   let editedName=false;
   form.oninput=e=>{if(e.target.name==='name')editedName=true;};
@@ -89,7 +89,8 @@ async function chartPlaylistDialog(view){const ticket=renderId;
    if(ids.length>500)throw Error('기존 플레이리스트는 최대 500곡까지 저장할 수 있어요. 선택 지정으로 500곡 이하를 선택해주세요.');
    chartPlaylistSaving=true;
    try{
-    if(!createdId)createdId=(await api('/api/playlists','POST',{name:editedName||fd.get('name')!==name?fd.get('name'):chartDefaultName(view),is_public:false,track_ids:ids})).id;
+    if(!createdId&&!await check())throw Error('플레이리스트 제목을 확인해주세요.');
+    if(!createdId)createdId=(await api('/api/playlists','POST',{request_id,name:editedName||fd.get('name')!==name?fd.get('name'):chartDefaultName(view),is_public:false,track_ids:ids})).id;
     modal.close();toast('내 플레이리스트에 저장했습니다.');
     try{await refreshLibrary(true);}catch{/* Creation succeeded; never repeat POST to retry a library read. */}
     if(me?.id===uid)location.hash='#playlist/'+createdId;

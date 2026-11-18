@@ -20,5 +20,6 @@ export async function playlistCandidates(req,env,user) {
  else if(source!=='search')fail(400,'곡 목록을 확인해주세요.');
  const q=searchText(params.get('q'));
  if(q){const match=songTextMatch(q);where+=' AND '+match.sql;args.push(...match.args);}
- return json({tracks:await trackList(env,where,args,sort,500)});
+ const limit=Math.max(1,Math.min(500,Math.floor(Number(params.get('limit'))||500))),offset=Math.max(0,Math.floor(Number(params.get('offset'))||0));
+ return json({tracks:await trackList(env,where,args,sort,`${limit} OFFSET ${offset}`)});
 }

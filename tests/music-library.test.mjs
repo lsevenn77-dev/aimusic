@@ -37,7 +37,7 @@ test('history is unique per visible song and sorted by actual last listen, with 
  const r=(await f.call('/api/me/music-library?section=history')).body;assert.equal(r.counts.history,2);assert.deepEqual(r.items.map(t=>[t.id,t.library_at]),[['one',50],['two',20]]);assert.equal(r.items[0].liked,false);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM listens').get().n,5);
 });
-test('owned playlists retain editing and visibility; historical saved lists are excluded',async t=>{
+test('owned playlists retain editing and visibility; saved public originals appear once',async t=>{
  const f=await fixture(t);
  const mine=(await f.call('/api/playlists','POST',{name:'내 목록',is_public:false,track_ids:['one','two']})).body;
  const publicList=(await f.call('/api/playlists','POST',{name:'친구 공개',is_public:true,track_ids:['three']},'other')).body;
@@ -46,29 +46,29 @@ test('owned playlists retain editing and visibility; historical saved lists are 
  assert.ok(id&&publicId,JSON.stringify([mine,publicList]));
  f.sql.prepare("INSERT INTO playlist_saves VALUES('owner',?,0)").run(publicId);
  assert.equal((await f.call('/api/playlists/'+privateList.id+'/save','PUT')).status,404);
- const all=(await f.call('/api/me/music-library?section=playlists')).body;assert.equal(all.counts.playlists,1);assert.equal(all.items.length,1);
+ const all=(await f.call('/api/me/music-library?section=playlists')).body;assert.equal(all.counts.playlists,2);assert.equal(all.items.length,2);
  assert.equal((await f.call('/api/me/music-library?section=playlists&filter=mine')).body.total,1);
- assert.equal((await f.call('/api/me/music-library?section=playlists&filter=saved&q=친구')).body.total,0);
+ assert.equal((await f.call('/api/me/music-library?section=playlists&filter=saved&q=친구')).body.total,1);
  assert.equal((await f.call('/api/playlists/'+id)).body.tracks.length,2);
  assert.equal((await f.call('/api/playlists/'+id,'PATCH',{name:'수정한 목록',is_public:true})).status,200);
  assert.equal((await f.call('/api/me/music-library?section=playlists&q=수정한&sort=title')).body.items[0].is_public,1);
- assert.equal((await f.call('/api/playlists/'+publicId+'/save','DELETE')).status,404);
+ assert.equal((await f.call('/api/playlists/'+publicId+'/save','DELETE')).status,200);
  assert.equal((await f.call('/api/playlists/'+id,'DELETE')).status,200);
  assert.equal((await f.call('/api/me/music-library?section=playlists')).body.total,0);
  assert.equal((await f.call('/api/playlists/'+publicId,'GET',null,'other')).status,200);
 });
-test('swipes reject vertical/diagonal/slow/edge/multitouch gestures and clamp to three categories',()=>{
+test('swipes reject vertical/diagonal/slow/edge/multitouch gestures and clamp to four categories',()=>{
  const c=nicknameContext({URLSearchParams});vm.runInContext(source,c);
  const start={x:200,y:200,time:0,width:390};
  const swipe=(end,index=1,patch={})=>c.musicLibrarySwipe({...start,...patch},{time:300,y:205,...end},index);
  assert.equal(swipe({x:100}),2);assert.equal(swipe({x:280}),0);
  assert.equal(swipe({x:150}),1);assert.equal(swipe({x:100,y:300}),1);assert.equal(swipe({x:100,time:800}),1);
  assert.equal(swipe({x:100},1,{x:10}),1);assert.equal(swipe({x:100},1,{x:380}),1);assert.equal(swipe({x:100},1,{cancelled:true}),1);
- assert.equal(swipe({x:100},2),2);assert.equal(swipe({x:280},0),0);
+ assert.equal(swipe({x:100},3),3);assert.equal(swipe({x:280},0),0);
 });
-test('legacy query state stays bounded and likes is the initial category',()=>{
+test('legacy query state stays bounded and playlists is the initial category',()=>{
  const c=nicknameContext({URLSearchParams});vm.runInContext(source,c);
- assert.equal(c.musicLibraryOptions('profile?view=library').section,'likes');assert.equal(c.musicLibraryOptions('profile?view=library&section=uploads').section,'likes');
+ assert.equal(c.musicLibraryOptions('profile?view=library').section,'playlists');assert.equal(c.musicLibraryOptions('profile?view=library&section=uploads').section,'playlists');
  assert.equal(c.musicLibraryOptions('profile?view=library&section=playlists&sort=name').sort,'title');
  assert.equal(c.musicLibraryOptions('profile?view=library&q='+'a'.repeat(200)).q.length,100);
 });
@@ -126,7 +126,7 @@ function libraryClient({response=async params=>libraryPage(params.get('section')
 }
 
 test('library result cache is bounded, isolated by account and mutation revision, and fresh only for ten seconds',async()=>{
- const h=libraryClient(),o=h.context.musicLibraryOptions('profile?view=library');
+ const h=libraryClient(),o=h.context.musicLibraryOptions('profile?view=library&section=likes');
  const first=await h.context.musicLibraryRead(o);first.items.push({id:'not-cached'});
  assert.equal((await h.context.musicLibraryRead(o)).items.length,1);assert.equal(h.requests.length,1);
  h.advance(9999);await h.context.musicLibraryRead(o);assert.equal(h.requests.length,1);

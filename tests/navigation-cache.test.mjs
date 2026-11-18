@@ -336,8 +336,8 @@ for(const status of [401,403])test('HTTP '+status+' invalidates cached API data 
 
 test('only browse routes can restore whole-page snapshots',()=>{
  const c=renderer(async()=>response({tracks:[]}));
- for(const route of ['charts?period=month','discover/genres?g=Rock','search/hello','collections?sort=recent','artists','producers','artist/voice','following','history','library/likes','library/playlists','library/artists','library/producers','library/following','library/followers','community','community/covers','community/latest','community/duets','community/following'])assert.equal(c.run(`canCacheRoute(${JSON.stringify(route)})`),true,route);
- for(const route of ['gold','gifts','membership','account','profile','profile/edit','producer/singer','playlist/mix','song/song','karaoke','sing/song','studio','manage/song','upload','admin','payouts','rewards','library/covers','library/originals','dm','dm/singer','crew/crew','community/crews','community/rankings'])assert.equal(c.run(`canCacheRoute(${JSON.stringify(route)})`),false,route);
+ for(const route of ['charts?period=month','discover/genres?g=Rock','search/hello','artists','producers','artist/voice','following','history','library/likes','library/artists','library/producers','library/following','library/followers','community','community/covers','community/latest','community/duets','community/following'])assert.equal(c.run(`canCacheRoute(${JSON.stringify(route)})`),true,route);
+ for(const route of ['collections?sort=recent','search/hello?type=playlists','library/playlists','gold','gifts','membership','account','profile','profile/edit','producer/singer','playlist/mix','song/song','karaoke','sing/song','studio','manage/song','upload','admin','payouts','rewards','library/covers','library/originals','dm','dm/singer','crew/crew','community/crews','community/rankings'])assert.equal(c.run(`canCacheRoute(${JSON.stringify(route)})`),false,route);
 });
 
 test('an exact cached route paints synchronously and then updates without resetting scroll',{timeout:3000},async()=>{
@@ -459,14 +459,14 @@ test('home hydrates playable shelves from display snapshots while expired reads 
  c.advance(10001);refreshing=true;
  const opening=c.navigate('home');
  try{
-  for(const [id,title] of [['home-recommended','Cached recommendation'],['home-sing','Cached sing'],['home-conversations','Cached cover'],['home-curations','Cached selection']])assert.match(c.section(id).innerHTML,new RegExp(title),'the '+id+' shelf should render synchronously from its display cache');
+  for(const [id,title] of [['home-recommended','Cached recommendation'],['home-sing','Cached sing'],['home-conversations','Cached cover']])assert.match(c.section(id).innerHTML,new RegExp(title),'the '+id+' shelf should render synchronously from its display cache');
   assert.equal(calls.length,8,'every expired shelf must refresh despite being displayed from cache');
   held.get(homeDiscoveryPath).resolve(response({error:'offline'},503));
   held.get('/api/karaoke').resolve(response({tracks:[track('Fresh sing')]}));
   held.get('/api/community?kind=cover').resolve(response({tracks:[track('Fresh cover')]}));
   held.get('/api/playlists?sort=recent&home=1').resolve(response({error:'offline'},503));
   await opening;await new Promise(resolve=>setImmediate(resolve));
-  assert.match(c.section('home-recommended').innerHTML,/Cached recommendation/);assert.match(c.section('home-curations').innerHTML,/Cached selection/);
+  assert.match(c.section('home-recommended').innerHTML,/Cached recommendation/);assert.doesNotMatch(c.section('home-curations').innerHTML,/Cached selection/,'permission-sensitive playlists never display stale cached metadata');
   assert.match(c.section('home-sing').innerHTML,/Fresh sing/);assert.match(c.section('home-conversations').innerHTML,/Fresh cover/);
  }finally{for(const control of held.values())control.resolve(response({tracks:[],playlists:[]}));await opening;}
 });

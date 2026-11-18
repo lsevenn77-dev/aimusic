@@ -48,7 +48,7 @@ test('comparison discloses both channel prices without enabling recurring sales;
   assert.match(review,/href="\/checkout\/toss\/gold"/);
   assert.doesNotMatch(html.replace(review,''),/href="\/checkout\/toss/);
   for(const p of WEB_GOLD_PACKS)assert.ok(html.includes('/#gold?pack='+p.gold));
-  for(const limit of ['월 3곡','월 10곡','최대 2개','최대 10개'])assert.ok(html.includes(limit));
+  for(const limit of ['월 3곡','월 10곡','무제한'])assert.ok(html.includes(limit));
 });
 test('contact provides five distinct addressed messages, a plain address and recovery paths without a submission form',()=>{
   const html=render('/contact'),cards=html.match(/<article class="guide-card guide-request">[\s\S]*?<\/article>/g);

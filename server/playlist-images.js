@@ -20,7 +20,7 @@ export async function playlistImageRoute(req,env,path,user){
  if(!['PUT','DELETE'].includes(req.method))fail(405,'지원하지 않는 요청입니다.');
  await rate(env,'playlist-image:'+user.id,30,3600);
  const image=req.method==='PUT'?await storeImage(req,env,'playlist',p.id):{version:'',type:''};
- try{await run(env,'UPDATE playlists SET image_version=?,image_type=? WHERE id=?',image.version,image.type,p.id);}
+ try{await run(env,'UPDATE playlists SET image_version=?,image_type=?,revision=revision+1,updated=unixepoch() WHERE id=?',image.version,image.type,p.id);}
  catch(e){if(image.version)await env.BUCKET.delete(key(image.version));throw e;}
  if(p.image_version)await env.BUCKET.delete(key(p.image_version)).catch(()=>{});
  return json({ok:true,image_version:image.version});

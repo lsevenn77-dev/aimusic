@@ -18,7 +18,7 @@ test('independent SQLite writers issue unique public numbers atomically',async()
   assert.equal(sql.prepare('SELECT count(*) n FROM public_member_ids').get().n,120);
   assert.equal(sql.prepare('SELECT count(DISTINCT number) n FROM public_member_ids').get().n,120);
   assert.equal(sql.prepare('SELECT count(*) n FROM users u LEFT JOIN public_member_ids m ON m.user_id=u.id WHERE m.number IS NULL').get().n,0);
- }finally{sql.close();if(!dir.startsWith(base+sep))throw Error('Unsafe fixture cleanup path');rmSync(dir,{recursive:true,force:true});}
+ }finally{sql.close();if(!dir.startsWith(base+sep))throw Error('Unsafe fixture cleanup path');rmSync(dir,{recursive:true,force:true,maxRetries:10,retryDelay:100});}
 });
 
 test('logout and login keep the same public ID with actual session cookies',async t=>{

@@ -9,7 +9,7 @@ function client({user={id:'owner'},range='all',post,quota=true}={}){
  const calls=[],messages=[],button={innerHTML:'만들기',setAttribute(){},removeAttribute(){}},picker={},counter={},error={scrollIntoView(){}},values=new Map([['name','월간 인기 차트'],['range',range],['track_ids',[]]]);
  let shown=false;
  const form={querySelector:s=>s==='[type="submit"]'?button:s==='#chart-track-picker'?picker:s==='[name="range"]:checked'?{value:values.get('range')}:s==='[data-chart-selected-count]'?counter:s.includes('form-error')?error:null,querySelectorAll:()=>values.get('track_ids')},modal={open:false,addEventListener(){},removeEventListener(){},close(){this.open=false;}};
- const c=nicknameContext({renderId:0,me:user,location:{hash:'#charts?period=month'},chartTabs:()=>'',icon:()=>'',number:String,esc:String,formField:()=>'',formError:()=>error,uploadStage(){},toast:s=>messages.push(s),window:{addEventListener(){},removeEventListener(){}},
+ const c=nicknameContext({renderId:0,libraryTitleCheck:()=>()=>true,crypto:globalThis.crypto,me:user,location:{hash:'#charts?period=month'},chartTabs:()=>'',icon:()=>'',number:String,esc:String,formField:()=>'',formError:()=>error,uploadStage(){},toast:s=>messages.push(s),window:{addEventListener(){},removeEventListener(){}},
   $:s=>s==='#dialog'?modal:s==='#chart-playlist-form'&&shown?form:null,
   dialog(html){shown=true;modal.open=true;c.html=html;},askLogin(){calls.push('login');},refreshLibrary:async()=>{},canCreatePlaylist:()=>quota,
   FormData:class{get(k){return values.get(k);}getAll(k){return values.get(k)||[];}},api:async(path,method,body)=>{calls.push({path,method,body});return post?post():{id:'created'};}
@@ -29,7 +29,7 @@ test('chart playlist snapshots rank order and submits once under repeated create
  await h.c.chartPlaylistDialog({tracks:h.tracks,chartKind:'',chartPeriod:'month'});
  assert.match(h.c.html,/선택 지정/);assert.doesNotMatch(h.c.html,/상위 20곡|data-chart-cancel/);assert.match(h.c.html,/value="all" checked/);assert.match(h.c.html,/113곡/);
  const p=h.form.onsubmit(h.event()),duplicate=h.form.onsubmit(h.event());
- assert.equal(h.calls.length,1);assert.equal(h.calls[0].body.is_public,false);assert.deepEqual(Array.from(h.calls[0].body.track_ids),h.tracks.map(t=>t.id));
+ await Promise.resolve();assert.equal(h.calls.length,1);assert.equal(h.calls[0].body.is_public,false);assert.deepEqual(Array.from(h.calls[0].body.track_ids),h.tracks.map(t=>t.id));
  finish({id:'new-playlist'});await Promise.all([p,duplicate]);assert.equal(h.c.location.hash,'#playlist/new-playlist');assert.equal(h.modal.open,false);assert.equal(h.calls.length,1);
 });
 test('all selected chart songs keep order; cancellation and unauthenticated access never create',async()=>{
@@ -72,7 +72,7 @@ for(const kind of ['listens','covers','new','top','rising','releases'])for(const
  const path=kind==='karaoke'?`/api/cover-rankings?kind=tracks&include_unranked=1&period=${period}&full=1`:`/api/catalog?section=tracks&chart=${kind}&period=${period}&full=1`;
  const response=await f.call(path);assert.equal(response.status,200);const tracks=response.body.tracks;assert.ok(tracks.length>100);
  for(const ids of [tracks.map(t=>t.id),tracks.filter((_,i)=>i%3===1).map(t=>t.id)]){
-  const r=await f.call('/api/playlists','POST',{name:'QA',track_ids:ids,is_public:false});assert.equal(r.status,201);
+  const r=await f.call('/api/playlists','POST',{name:'QA '+ids.length,track_ids:ids,is_public:false});assert.equal(r.status,201);
   const saved=await f.call('/api/playlists/'+r.body.id);assert.deepEqual(saved.body.tracks.map(t=>t.id),ids);assert.equal(new Set(saved.body.tracks.map(t=>t.id)).size,ids.length);
  }
 });
@@ -81,12 +81,11 @@ test('existing playlist API creates top20 and complete chart atomically with ori
  for(let i=0;i<30;i++)f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,?,'published')").run('song'+i,'song'+i,i);
  const chart=(await f.call('/api/catalog?section=tracks&chart=top&period=month&full=1')).body.tracks;
  for(const ids of [chart.slice(0,20).map(t=>t.id),chart.map(t=>t.id)]){
-  const r=await f.call('/api/playlists','POST',{name:'AIFECT 월간',track_ids:ids,is_public:false});assert.equal(r.status,201);
+  const r=await f.call('/api/playlists','POST',{name:'AIFECT 월간 '+ids.length,track_ids:ids,is_public:false});assert.equal(r.status,201);
   const p=await f.call('/api/playlists/'+r.body.id);assert.deepEqual(p.body.tracks.map(t=>t.id),ids);assert.equal(p.body.playlist.user_id,'owner');assert.equal((await f.call('/api/playlists/'+r.body.id,'GET',undefined,'other')).status,404);
  }
- const before=f.sql.prepare('SELECT * FROM playlist_tracks ORDER BY playlist_id,position').all();
- assert.equal((await f.call('/api/playlists','POST',{name:'over quota',track_ids:['one']})).status,409);
- assert.deepEqual(f.sql.prepare('SELECT * FROM playlist_tracks ORDER BY playlist_id,position').all(),before);
+ assert.equal((await f.call('/api/playlists','POST',{name:'third playlist',track_ids:['one']})).status,201);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM playlists').get().n,3);
  assert.equal((await f.call('/api/playlists','POST',{name:'guest'},null)).status,401);
 });
 test('chart period selection reaches every ranked API without changing seven-day growth or scoring weights',async t=>{

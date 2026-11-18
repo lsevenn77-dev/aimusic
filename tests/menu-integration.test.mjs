@@ -10,8 +10,8 @@ function context(extra={}){const c=nicknameContext({URLSearchParams,location:{ha
 test('legacy menu routes preserve identifiers, repeated query parameters and canonical stability',()=>{
  const c=context(),cases={
   '#mypage':'#profile',
-  '#library':'#profile?view=library&section=likes',
-  '#library/saved':'#profile?view=library&section=likes',
+  '#library':'#profile?view=library&section=playlists',
+  '#library/saved':'#profile?view=library&section=playlists',
   '#gift-inventory':'#inventory',
   '#library/playlists':'#profile?view=library&section=playlists',
   '#library/history':'#profile?view=library&section=history',
@@ -29,7 +29,7 @@ test('legacy menu routes preserve identifiers, repeated query parameters and can
 });
 
 test('profile navigation carries filters and creates distinct, restorable tab destinations',()=>{
- const c=context();assert.equal(c.myTabHref('library','#profile?tag=keep&view=activity'),'#profile?tag=keep&view=library&section=likes');
+ const c=context();assert.equal(c.myTabHref('library','#profile?tag=keep&view=activity'),'#profile?tag=keep&view=library&section=playlists');
  assert.equal(c.myTabHref('works','#profile?view=library&section=history&id=abc'),'#profile?view=works&id=abc');
 });
 

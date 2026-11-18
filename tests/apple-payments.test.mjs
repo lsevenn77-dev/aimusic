@@ -34,17 +34,17 @@ test('refund removes remaining gold and stale delivery cannot restore it',async 
  assert.equal((await f.call('/api/gold')).body.balance,0);
  assert.equal(f.sql.prepare('SELECT refund_review FROM apple_transactions').get().refund_review,1);
 });
-test('Apple premium respects server limits and refund preserves independent web entitlement',async t=>{
+test('Apple premium refund preserves web entitlement and unlimited playlists',async t=>{
  const f=await setup(t),end=Date.now()+86400000;
  const tx={...f.transaction,productId:premium,type:'Auto-Renewable Subscription',expiresDate:end};
- await f.fulfill(tx);assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,10);
+ await f.fulfill(tx);assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,null);
  for(let i=0;i<3;i++)assert.equal((await f.call('/api/playlists','POST',{name:'Apple '+i})).status,201);
  f.sql.exec('UPDATE users SET premium_until=unixepoch()+3600 WHERE id=\'owner\'');
  await f.fulfill({...tx,revocationDate:Date.now(),signedDate:Date.now()});
  assert.equal((await f.call('/api/membership')).body.membership.plan,'premium');
  f.sql.exec('UPDATE users SET premium_until=0 WHERE id=\'owner\'');
- assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,2);
- assert.equal((await f.call('/api/playlists','POST',{name:'Blocked'})).status,409);
+ assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,null);
+ assert.equal((await f.call('/api/playlists','POST',{name:'After expiry'})).status,201);
 });
 test('new renewal survives older revocation and sandbox premium never unlocks production',async t=>{
  const f=await setup(t),tx={...f.transaction,productId:premium,type:'Auto-Renewable Subscription',expiresDate:Date.now()+86400000};

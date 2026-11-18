@@ -1,11 +1,12 @@
 // Private library presentation. Playback, likes and playlist editors use existing services.
-const musicLibraryCategories=[['likes','좋아요'],['history','최근 감상'],['playlists','플레이리스트']];
+const musicLibraryCategories=[['playlists','플레이리스트'],['myboxes','마이박스'],['likes','좋아요'],['history','최근 감상']];
 let musicLibraryState=null,musicLibraryRequest=0;
 const musicLibraryReads=new Map();
 const musicLibraryAccount=()=>me?.id||'';
 const musicLibraryRevision=()=>typeof apiRevision==='number'?apiRevision:0;
-function musicLibraryReadKey(options,offset=0){return musicLibraryAccount()+':'+musicLibraryRevision()+':'+new URLSearchParams({...options,offset,limit:12});}
+function musicLibraryReadKey(options,offset=0){return musicLibraryAccount()+':'+musicLibraryRevision()+':'+new URLSearchParams({...options,offset,limit:20});}
 function cachedMusicLibraryRead(options,offset=0){
+ if(['playlists','myboxes'].includes(options.section))return null;
  const key=musicLibraryReadKey(options,offset),entry=musicLibraryReads.get(key);
  if(!entry)return null;
  if(entry.until<=Date.now()){musicLibraryReads.delete(key);return null;}
@@ -13,7 +14,7 @@ function cachedMusicLibraryRead(options,offset=0){
 }
 function musicLibraryOptions(raw){
  const p=new URLSearchParams(raw.split('?')[1]||'');
- return {section:musicLibraryCategories.some(([key])=>key===p.get('section'))?p.get('section'):'likes',q:(p.get('q')||'').slice(0,100),sort:['recent','oldest','title','custom'].includes(p.get('sort'))?p.get('sort'):p.get('sort')==='name'?'title':'recent',filter:'all'};
+ return {section:musicLibraryCategories.some(([key])=>key===p.get('section'))?p.get('section'):'playlists',q:(p.get('q')||'').slice(0,100),sort:['recent','oldest','title','custom','played'].includes(p.get('sort'))?p.get('sort'):p.get('sort')==='name'?'title':'recent',filter:['all','mine','saved'].includes(p.get('filter'))?p.get('filter'):'all'};
 }
 function musicLibraryHref(options){return menuHref('profile',{view:'library',section:options.section,q:options.q||null,sort:options.sort||'recent',filter:options.filter||'all'});}
 async function musicLibraryRead(options,offset=0,readApi=api,{fresh=false}={}){
@@ -21,7 +22,7 @@ async function musicLibraryRead(options,offset=0,readApi=api,{fresh=false}={}){
  const current=()=>account===musicLibraryAccount()&&revision===musicLibraryRevision()&&!readApi.signal?.aborted&&(!readApi.current||readApi.current());
  const check=()=>{if(!current())throw Object.assign(new Error('이전 보관함의 요청입니다.'),{name:'AbortError'});};
  check();const cached=!fresh&&cachedMusicLibraryRead(options,offset);if(cached)return cached;
- const data=await readApi('/api/me/music-library?'+new URLSearchParams({...options,offset,limit:12}),'GET',undefined,{fresh:true});check();
+ const data=await readApi('/api/me/music-library?'+new URLSearchParams({...options,offset,limit:20}),'GET',undefined,{fresh:true});check();
  if(Array.isArray(data?.items)&&data.counts&&!data.error){
   musicLibraryReads.delete(key);musicLibraryReads.set(key,{data:structuredClone(data),until:Date.now()+10000});
   while(musicLibraryReads.size>36)musicLibraryReads.delete(musicLibraryReads.keys().next().value);
@@ -30,13 +31,14 @@ async function musicLibraryRead(options,offset=0,readApi=api,{fresh=false}={}){
 }
 function musicLibraryTabs(s){return musicLibraryCategories.map(([key,label])=>`<button type="button" role="tab" id="ml-tab-${key}" aria-controls="ml-panel" aria-selected="${s.options.section===key}" tabindex="${s.options.section===key?0:-1}" data-library-tab="${key}">${label}<span aria-label="${s.data.counts[key]===null?'집계 미지원':number(s.data.counts[key])+'개'}">${s.data.counts[key]===null?'—':number(s.data.counts[key])}</span></button>`).join('');}
 function musicLibraryRows(s){
+ if(s.options.section==='myboxes')return s.data.items.length?`<div class="mybox-grid">${s.data.items.map(myBoxCard).join('')}</div>`:myEmpty(s.options.q?'검색 결과가 없어요.':'아직 마이박스가 없어요.');
  if(s.options.section==='playlists')return s.data.items.length?`<div class="ml-playlists">${s.data.items.map(p=>collectionCard(p,'horizontal')).join('')}</div>`:myEmpty(s.options.q?'검색 결과가 없어요.':'아직 플레이리스트가 없어요.');
  if(!s.data.items.length)return myEmpty(s.options.q?'검색 결과가 없어요.':s.options.section==='likes'?'좋아요를 누른 음악이 없어요.':'아직 감상한 음악이 없어요.');
  return `<div class="ml-song-list">${s.data.items.map(t=>`<article data-list-row class="ml-song" data-library-track="${esc(t.id)}"><a class="ml-song-info" href="#song/${esc(t.id)}">${cover(t,'mini-cover')}<span class="ml-song-copy"><strong title="${esc(t.title)}">${esc(t.title)}</strong><small>${trackNickname(t,'producer')}${t.has_ai_artist?' · AI '+trackNickname(t):''}</small></span></a><div class="ml-song-actions"><button class="list-action icon-button" data-like="${esc(t.id)}" aria-pressed="${!!t.liked}" title="${esc(t.title)} 좋아요" aria-label="${esc(t.title)} 좋아요">${icon('ui-heart')}</button><button class="list-action icon-button song-table-play" data-play="${esc(t.id)}" title="${esc(t.title)} 재생" aria-label="${esc(t.title)} 재생">${icon('ui-play-action')}</button><button class="list-action icon-button" data-track-menu="${esc(t.id)}" title="${esc(t.title)} 더보기" aria-label="${esc(t.title)} 더보기">${icon('ui-menu-action')}</button></div></article>`).join('')}</div>`;
 }
 function musicLibraryPanel(s){
  const {options:o,data:d}=s,playlist=o.section==='playlists';
- return `${playlist?'<div class="ml-playlist-controls">':''}${o.section==='playlists'?'<div class="ml-playlist-actions" role="group" aria-label="플레이리스트 관리"><button type="button" class="ml-playlist-tool" id="new-playlist" aria-label="플레이리스트 추가">'+icon('plus')+'<span>플리추가</span></button><button type="button" class="ml-playlist-tool" data-order-collections aria-label="플레이리스트 순서 편집">'+icon('list')+'<span>플리순서</span></button><a class="ml-playlist-tool" href="#collections" aria-label="플레이리스트 찾기">'+icon('search')+'<span>플리찾기</span></a></div>':''}<form id="ml-search" class="ml-toolbar" role="search"><div class="ml-search-box brand-search"><button type="submit" title="보관함 검색" aria-label="보관함 검색">${icon('search')}</button><input type="search" name="q" aria-label="보관함 내 검색" placeholder="보관함 내 검색" value="${esc(o.q)}" maxlength="100"></div><select data-dropdown="md" name="sort" aria-label="보관함 정렬">${[['recent','최신순'],['oldest','오래된순'],['title','이름순'],...(o.section==='playlists'?[['custom','내 순서']]:[])].map(([k,l])=>`<option value="${k}" ${o.sort===k?'selected':''}>${l}</option>`).join('')}</select></form>${playlist?'</div>':''}<p class="ml-result-count">${number(d.total)}${o.section==='playlists'?'개 목록':'곡'}${o.section==='history'?' · 곡별 최근 감상순':''}</p><div id="ml-items">${musicLibraryRows(s)}</div><button class="small-button ml-more" id="ml-more" ${d.nextOffset===null?'hidden':''}>더보기</button>`;
+ return `${o.section==='myboxes'?'<button type="button" class="small-button" id="new-mybox">'+icon('plus')+' 새 마이박스</button>':''}${playlist?'<div class="ml-playlist-controls">':''}${o.section==='playlists'?'<div class="ml-playlist-actions" role="group" aria-label="플레이리스트 관리"><button type="button" class="ml-playlist-tool" id="new-playlist" aria-label="플레이리스트 추가">'+icon('plus')+'<span>플리추가</span></button><button type="button" class="ml-playlist-tool" data-order-collections aria-label="플레이리스트 순서 편집">'+icon('list')+'<span>플리순서</span></button><a class="ml-playlist-tool" href="#collections" aria-label="플레이리스트 찾기">'+icon('search')+'<span>플리찾기</span></a></div>':''}<form id="ml-search" class="ml-toolbar" role="search"><div class="ml-search-box brand-search"><button type="submit" title="보관함 검색" aria-label="보관함 검색">${icon('search')}</button><input type="search" name="q" aria-label="보관함 내 검색" placeholder="보관함 내 검색" value="${esc(o.q)}" maxlength="100"></div><select data-dropdown="md" name="sort" aria-label="보관함 정렬">${[['recent',o.section==='playlists'?'최근 수정순':'최신순'],['oldest','오래된순'],['title','이름순'],...(o.section==='playlists'?[['played','최근 재생순'],['custom','내 순서']]:[])].map(([k,l])=>`<option value="${k}" ${o.sort===k?'selected':''}>${l}</option>`).join('')}</select></form>${playlist?'</div>':''}${playlist?'<nav class="ml-filters" aria-label="플레이리스트 분류">'+[['all','전체'],['mine','내가 만든'],['saved','저장한']].map(([key,label])=>'<a class="small-button" href="'+musicLibraryHref({...o,filter:key})+'" '+(o.filter===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>':''}<p class="ml-result-count">${number(d.total)}${['playlists','myboxes'].includes(o.section)?'개 목록':'곡'}${o.section==='history'?' · 곡별 최근 감상순':''}</p><div id="ml-items">${musicLibraryRows(s)}</div><button class="small-button ml-more" id="ml-more" ${d.nextOffset===null?'hidden':''}>더보기</button>`;
 }
 function musicLibraryHTML(s){return `<section class="mp-library" id="music-library" data-account="${esc(s.account)}" aria-label="내 보관함"><div class="mp-section-head"><h2>내 보관함</h2></div><div class="ml-tabs" role="tablist" aria-label="보관함 카테고리">${musicLibraryTabs(s)}</div><div class="ml-status sr-only" role="status" aria-live="polite"></div><div id="ml-panel" role="tabpanel" tabindex="0" aria-labelledby="ml-tab-${s.options.section}">${musicLibraryPanel(s)}</div></section>`;}
 function musicLibraryAside(recommendation){
@@ -49,10 +51,10 @@ async function musicLibraryView(raw,readApi=api){
  const [data,recommendation]=await Promise.all([musicLibraryRead(options,0,readApi),readApi('/api/discovery').catch(()=>null)]);
  if(account!==musicLibraryAccount()||revision!==musicLibraryRevision()||readApi.signal?.aborted||readApi.current&&!readApi.current())throw Object.assign(new Error('이전 보관함의 요청입니다.'),{name:'AbortError'});
  const s={options,data,account,revision,memory:new Map(),recommendation};
- return {musicLibrary:s,tracks:[...(options.section==='playlists'?[]:data.items),...(recommendation?.tracks||[]).slice(0,4)],html:musicLibraryHTML(s),libraryAside:musicLibraryAside(recommendation)};
+ return {musicLibrary:s,tracks:[...(['playlists','myboxes'].includes(options.section)?[]:data.items),...(recommendation?.tracks||[]).slice(0,4)],html:musicLibraryHTML(s),libraryAside:musicLibraryAside(recommendation)};
 }
 function musicLibraryRemember(s){
- const tracks=s.options.section==='playlists'?[]:s.data.items;remember(tracks);routeTracks=tracks;
+ const tracks=['playlists','myboxes'].includes(s.options.section)?[]:s.data.items;remember(tracks);routeTracks=tracks;
  // The legacy library read is capped; preserve the authoritative liked state on every loaded page.
  for(const t of tracks){library.likes=library.likes.filter(x=>x.id!==t.id);if(t.liked)library.likes.push(t);}
 }
@@ -96,6 +98,7 @@ function bindMusicLibraryPanel(s){
   try{const data=await musicLibraryRead(options,s.data.nextOffset);if(!current())return;s.data={...data,items:[...s.data.items,...data.items]};$('#ml-items').innerHTML=musicLibraryRows(s);more.hidden=data.nextOffset===null;musicLibraryRemember(s);paintInteractions();}
   catch(e){if(current()&&e.name!=='AbortError')toast(e.message);}finally{if(more.isConnected)more.disabled=false;}
  };
+ if($('#new-mybox'))$('#new-mybox').onclick=()=>myBoxDialog().catch(e=>toast(e.message));
  if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog().catch(e=>toast(e.message));
  if(!panel.musicLibrarySwipeBound){panel.musicLibrarySwipeBound=true;bindCategorySwipe(panel,()=>musicLibraryCategories.findIndex(([key])=>key===musicLibraryState?.options.section),musicLibraryCategories.length,n=>musicLibraryGo(musicLibraryCategories[n][0]));}
 }

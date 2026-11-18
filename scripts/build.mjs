@@ -35,6 +35,7 @@ await cp('dist/room-audio-session.js','dist/client/room-audio-session.js');
 await cp('dist/selection-states.css','dist/client/selection-states.css');
 await cp('dist/page-tabs.css','dist/client/page-tabs.css');
 for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js','live-karaoke.js','live-karaoke.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['library-v2.js','library-v2.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
 await cp('dist/song-sidebar.css','dist/client/song-sidebar.css');
 for(const file of ['song-covers.js','song-covers.css'])await cp('dist/'+file,'dist/client/'+file);

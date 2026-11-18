@@ -750,6 +750,13 @@
       "when": 1794989662930,
       "tag": "0106_careless_mephistopheles",
       "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "6",
+      "when": 1794993133563,
+      "tag": "0107_first_smasher",
+      "breakpoints": true
     }
   ]
 }

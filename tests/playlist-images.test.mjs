@@ -5,7 +5,7 @@ import worker from '../server/index.js';
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64');
 test('playlist artwork is owner editable, private by default and replaced without stale storage',async t=>{
  const files=new Map(),BUCKET={async put(k,b){files.set(k,b);},async delete(k){files.delete(k);},async head(k){return files.has(k)?{size:files.get(k).length}:null;},async get(k){return {body:files.get(k)};}};
- const f=await fixture(t,{BUCKET});const created=await f.call('/api/playlists','POST',{name:'나의 선곡'}),id=created.body.id,path='/api/playlists/'+id;
+ const f=await fixture(t,{BUCKET});const created=await f.call('/api/playlists','POST',{name:'나의 선곡',track_ids:['one']}),id=created.body.id,path='/api/playlists/'+id;
  const raw=(p,method='GET',user='owner',body)=>worker.fetch(new Request('https://aifect.test'+p,{method,headers:{Origin:'https://aifect.test',...(user?{Cookie:'aifect_session='+user}:{}),'Content-Type':'image/png'},body}),{DB:f.DB,BUCKET},{waitUntil(p){p.catch(()=>{});}});
  assert.equal((await raw(path+'/image','PUT','other',png)).status,404);
  assert.equal((await raw(path+'/image','PUT','owner',Buffer.from('fake image'))).status,400);

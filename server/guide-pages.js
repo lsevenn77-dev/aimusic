@@ -1,7 +1,6 @@
 import { aboutIcon as icon } from './about-icons.js';
 import { BUSINESS, PREMIUM, APP_PREMIUM, escapeHTML as esc } from '../shared/site-info.js';
 import { WEB_GOLD_PACKS, WEB_GOLD_BONUS_PERCENT } from '../shared/gifts.js';
-import { playlistLimit } from './membership.js';
 import { uploadQuotaResult } from './upload-limits.js';
 
 const routes = new Set(['/pricing','/privacy','/contact','/terms','/refund']);
@@ -36,11 +35,11 @@ function policyDocument(body, title, {label = title, indexLabels = {}} = {}) {
 
 function plan(paid) {
   const member = paid ? {premium_until:Number.MAX_SAFE_INTEGER} : null;
-  const limit = playlistLimit(member), uploads = uploadQuotaResult(member,0).limit;
+  const uploads = uploadQuotaResult(member,0).limit;
   const rows = [
     ['음악 스트리밍',paid?'전체곡 · 최대 AAC 256kbps':'로그인 후 전체곡 · AAC 128kbps'],
     ['가사',paid?'전체 가사 · 싱크 가사 따라가기':'곡 상세에서 전체 가사'],
-    ['내 플레이리스트',`최대 ${limit}개`],['제작곡 업로드',`월 ${uploads}곡`],
+    ['플레이리스트 · 마이박스','무제한'],['제작곡 업로드',`월 ${uploads}곡`],
     ['커버곡 업로드','횟수 제한 없음'],['광고',paid?'없음':'감상·업로드 시 표시될 수 있음'],
     ['Premium 전용',paid?'가사 구간 이동 · 음색 보정 · 구간 재녹음':'제공하지 않음']
   ];
@@ -65,7 +64,7 @@ function pricing(body) {
   const extra = parts.filter(p=>!['gold-products','creator-policy','subscription-revenue','app-pricing','cancel','toss-test'].includes(p[1])).map(p=>more(p[2],`<div id="${p[1]}">${p[3]}</div>`)).join('');
   return {title:'AIFECT 이용권 안내',label:'이용권 · 가격',lead:'무료와 Premium의 감상·창작 혜택을 비교하고, 웹과 앱의 결제 조건을 확인하세요.',body:`<nav class="guide-plan-jump" aria-label="이용권별 혜택 바로가기"><a href="#plan-free"><b>FREE</b>0원</a><a href="#plan-premium"><b>Premium</b>웹 월 ${money(PREMIUM.price)}원</a></nav><div class="guide-plans">${plan(false)}${plan(true)}</div>
     <div class="guide-market" id="app-pricing"><div>${tag('모바일 앱')} <strong>앱 Premium 월 ${money(APP_PREMIUM.price)}원</strong><p>앱 상품 설정가입니다. 실제 판매 여부와 최종 가격은 Google Play·App Store에서 확인하세요.</p></div>${link('/pricing/app','앱마켓 상품 · 가격 안내')}</div>
-    ${more('음질·가사와 이용 한도 자세히 보기','<p>비로그인은 공개곡 60초 미리듣기, 로그인 후에는 전체곡 감상이 가능합니다. 고음질 파일이 준비되지 않은 곡은 AAC 128kbps로 재생됩니다. 전체 가사는 가사가 등록된 곡에서, 자동 스크롤과 구간 이동은 싱크가 등록된 곡에서 이용할 수 있습니다. 하단 재생바 가사는 PC 웹 2줄, 모바일 웹 1줄로 표시됩니다.</p><p>플레이리스트 한도는 내가 직접 만든 목록에 적용됩니다. 제작곡 한도는 한국시간 기준 매월 적용됩니다.</p>')}${extra}
+    ${more('음질·가사와 이용 한도 자세히 보기','<p>비로그인은 공개곡 60초 미리듣기, 로그인 후에는 전체곡 감상이 가능합니다. 고음질 파일이 준비되지 않은 곡은 AAC 128kbps로 재생됩니다. 전체 가사는 가사가 등록된 곡에서, 자동 스크롤과 구간 이동은 싱크가 등록된 곡에서 이용할 수 있습니다. 하단 재생바 가사는 PC 웹 2줄, 모바일 웹 1줄로 표시됩니다.</p><p>플레이리스트와 비공개 마이박스는 일반·Premium 회원 모두 개수 제한 없이 만들 수 있습니다. 제작곡 한도는 한국시간 기준 매월 적용됩니다.</p>')}${extra}
     ${block('gold-products',`<div class="guide-block-head"><h2>골드 충전</h2>${tag(`웹 +${WEB_GOLD_BONUS_PERCENT}%`)}</div>${gold[3].replace(/<div class="legal-table-wrap"[\s\S]*?<\/table><\/div>/,packs).replace('<a href="/#gold">','<a class="guide-btn" href="/#gold">')}`)}
     ${block('creator-policy',`<h2>창작자 수익 및 정산</h2>${creatorCopy}<div id="subscription-revenue">${more(renew[2],renew[3])}</div>`)}
     ${block('cancel',`<h2>결제·해지 안내</h2><p>Premium은 월 단위 정기결제이며 골드는 선택한 금액만 한 번 결제합니다.</p>${more('정기결제를 해지하면 음악과 플레이리스트는 어떻게 되나요?',cancel[3])}${more('앱마켓에서 결제한 상품은 어디서 관리하나요?',app[3]+'<p>앱 구독은 구매한 스토어의 구독 관리에서 확인하세요.</p>')}${more('환불은 어디에서 요청할 수 있나요?',`<p>결제한 경로에 따라 <a href="/refund">환불 · 해지 정책</a>을 확인한 후 <a href="${mail('환불·정기결제 해지 요청')}">고객센터에 요청</a>하세요.</p>`)}${aux}`)}

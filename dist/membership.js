@@ -1,4 +1,4 @@
-const freeMembership=()=>({plan:'free',playlist_limit:2,owned_count:0,active_ids:[],locked_count:0,full_lyrics:true,premium_until:null,checkout_available:false});
+const freeMembership=()=>({plan:'free',playlist_limit:null,playlists_unlimited:true,owned_count:0,active_ids:[],locked_count:0,full_lyrics:true,premium_until:null,checkout_available:false});
 let member=freeMembership(),membershipTimer;
 function setMembership(value){
  member=value||freeMembership();clearTimeout(membershipTimer);
@@ -6,7 +6,7 @@ function setMembership(value){
  window.AifectAudioAds?.setMembership(member,me?.id);
  window.AifectUploadAds?.setMembership(member,me?.id);
  if(member.plan!=='premium'&&typeof clearFullLyrics==='function')clearFullLyrics();
- if(member.premium_until){const delay=member.premium_until*1000-Date.now();if(delay>0)membershipTimer=setTimeout(async()=>{try{await refreshLibrary(true);updateAccount();if(/^(#membership|#library|#playlist|#account)/.test(location.hash))await render();}catch{member={...member,plan:'free',full_lyrics:true,playlist_limit:2};clearFullLyrics();if(typeof refreshTakeEntitlement==='function')refreshTakeEntitlement();}},Math.min(delay+100,2147483647));}
+ if(member.premium_until){const delay=member.premium_until*1000-Date.now();if(delay>0)membershipTimer=setTimeout(async()=>{try{await refreshLibrary(true);updateAccount();if(/^(#membership|#library|#playlist|#account)/.test(location.hash))await render();}catch{member={...member,plan:'free',full_lyrics:true,playlist_limit:null,playlists_unlimited:true};clearFullLyrics();if(typeof refreshTakeEntitlement==='function')refreshTakeEntitlement();}},Math.min(delay+100,2147483647));}
 }
 function membershipHTML(billing){
  const premium=inApp?AifectSite.APP_PREMIUM:AifectSite.PREMIUM;
@@ -15,31 +15,23 @@ function membershipHTML(billing){
   <div class="membership-grid" aria-label="무료 및 Premium 혜택 비교">
    <article class="surface membership-card" aria-labelledby="membership-free-title">
     <div class="membership-card-top"><span class="eyebrow">FREE</span><h2 id="membership-free-title">무료</h2><p class="membership-plan-description">좋아하는 음악과 함께하는 일상</p></div>
-    <ul class="membership-benefits"><li>전체곡 AAC 128kbps 무료 감상</li><li>곡 상세에서 전체 가사 무료 열람</li><li>내 플레이리스트 최대 2개</li><li>제작곡 업로드 매월 3곡 · 업로드 중 화면 광고</li><li>커버 업로드 무제한 · 완료 후 화면 광고</li><li>좋아요 · 추천 플레이리스트 저장</li></ul>
+    <ul class="membership-benefits"><li>전체곡 AAC 128kbps 무료 감상</li><li>곡 상세에서 전체 가사 무료 열람</li><li>플레이리스트 · 마이박스 무제한</li><li>제작곡 업로드 매월 3곡 · 업로드 중 화면 광고</li><li>커버 업로드 무제한 · 완료 후 화면 광고</li><li>좋아요 · 추천 플레이리스트 저장</li></ul>
     <div class="membership-card-footer"><span class="plan-state ${member.plan==='free'?'is-current':''}">${member.plan==='free'?'현재 이용 중':'무료 플랜'}</span></div>
    </article>
    <article class="surface membership-card premium-card" aria-labelledby="membership-premium-title">
     <div class="membership-card-top"><span class="eyebrow">PREMIUM</span><h2 id="membership-premium-title">Premium</h2><p class="plan-price"><span>월 ${premium.price.toLocaleString('ko-KR')}원</span> <small>부가세 포함</small></p><p class="membership-plan-description">월 단위 자동갱신 구독 · 매월 ${premium.price.toLocaleString('ko-KR')}원 정기결제</p></div>
-    <ul class="membership-benefits"><li>전체곡 AAC 256kbps 고음질 감상</li><li>싱크 가사 · 현재 줄 강조 · 자동 스크롤</li><li>가사를 누르면 해당 구간으로 이동</li><li>내 플레이리스트 최대 10개</li><li>제작곡 업로드 매월 10곡</li><li>커버 업로드 무제한 · 광고 없음</li></ul>
+    <ul class="membership-benefits"><li>전체곡 AAC 256kbps 고음질 감상</li><li>싱크 가사 · 현재 줄 강조 · 자동 스크롤</li><li>가사를 누르면 해당 구간으로 이동</li><li>플레이리스트 · 마이박스 무제한</li><li>제작곡 업로드 매월 10곡</li><li>커버 업로드 무제한 · 광고 없음</li></ul>
     <div class="membership-card-footer"><span class="plan-state ${member.plan==='premium'?'is-current':''}">${member.plan==='premium'?'현재 이용 중':billing?.review_only?'심사 계정 · 카드 입력 화면 확인 가능':billing?.checkout_available?'지금 가입 가능':'가입 준비 중'}</span></div>
    </article>
   </div>
   <section class="membership-support" aria-label="이용권 안내">
-   <p class="field-help">고음질 변환 중인 곡은 AAC 128kbps로 재생되며 재생바에 표시됩니다. 추천 플레이리스트 저장은 생성 한도에 포함되지 않습니다. 무료로 전환하면 기존 목록을 보관하고, 사용할 2개를 선택할 수 있어요.</p>
+   <p class="field-help">고음질 변환 중인 곡은 AAC 128kbps로 재생되며 재생바에 표시됩니다. 공개 플레이리스트도 개수 제한 없이 저장할 수 있어요. 일반·Premium 회원 모두 플레이리스트와 마이박스를 개수 제한 없이 사용할 수 있어요.</p>
    <div class="membership-support-actions"><nav class="plan-summary-links" aria-label="이용권 정책"><a href="/pricing" target="_blank" rel="noopener">상세 상품 정보</a><a href="/refund" target="_blank" rel="noopener">환불 · 해지 정책</a><a href="/terms" target="_blank" rel="noopener">이용약관</a></nav>${me?'<a class="small-button" href="#library/playlists">내 플레이리스트 관리</a>':'<a class="primary-button" href="#account">무료로 시작하기</a>'}</div>
   </section>
  </div>`;
 }
-function playlistQuotaHTML(){return `<div class="playlist-quota"><div><strong>${member.plan==='premium'?'Premium':'무료'} · 내 플레이리스트 ${member.owned_count} / ${member.playlist_limit}개</strong><p>다른 사람이 만든 공개 목록은 개수 제한 없이 저장할 수 있어요.${member.locked_count?` 현재 ${member.locked_count}개는 보관 중입니다.`:''}</p></div><div class="inline-actions">${member.locked_count?'<button class="small-button" data-select-active>사용할 목록 선택</button>':''}<a class="text-link" href="#membership">내 구독 관리</a></div></div>`;}
-function canCreatePlaylist(){
- if(member.owned_count<member.playlist_limit)return true;
- dialog(`<p class="popup-prompt">플레이리스트 ${member.playlist_limit}개를 모두 만들었어요.</p><p>${member.plan==='premium'?'Premium은 최대 10개':'무료 회원은 최대 2개'}까지 만들 수 있습니다. 기존 목록에 곡을 더 담거나, 필요 없는 목록을 삭제한 뒤 만들어주세요.</p>${member.locked_count?'<button class="small-button" data-select-active>사용할 목록 선택</button>':''}<a class="text-link" href="#membership" data-close-dialog>내 구독 관리</a>`);return false;
-}
-async function selectActivePlaylists(){const ticket=renderId;
- if(!me)return askLogin();await refreshLibrary();const count=Math.min(member.playlist_limit,library.playlists.length);
- if(ticket!==renderId)return;dialog(`<h2>사용할 플레이리스트 선택</h2><p>${count}개를 선택해주세요. 선택하지 않은 목록과 담긴 곡은 보관됩니다.</p><form id="active-playlist-form"><div class="active-playlist-picker">${library.playlists.map(p=>`<label class="checkbox-line"><input type="checkbox" name="playlist_ids" value="${p.id}" ${member.active_ids.includes(p.id)?'checked':''}><span><strong>${esc(p.name)}</strong><small>${p.tracks}곡${p.locked?' · 보관 중':''}</small></span></label>`).join('')}</div><output id="active-playlist-count"></output><button class="primary-button">선택한 목록 사용하기</button><p class="form-error" role="alert"></p></form>`);
- const form=$('#active-playlist-form'),update=()=>{const n=form.querySelectorAll('input:checked').length;$('#active-playlist-count').textContent=`${n} / ${count}개 선택`;form.querySelector('button').disabled=n!==count;};form.onchange=update;update();
- form.onsubmit=busyForm(form,async fd=>{await api('/api/library/playlists/active','PUT',{playlist_ids:fd.getAll('playlist_ids')});$('#dialog').close();await refreshLibrary();await render();toast('사용할 플레이리스트를 저장했습니다.');});
-}
+function playlistQuotaHTML(){return '<p class="field-help">플레이리스트 · 마이박스는 개수 제한 없이 만들 수 있어요.</p>';}
+function canCreatePlaylist(){return true;}
+async function selectActivePlaylists(){toast('모든 플레이리스트를 개수 제한 없이 사용할 수 있어요.');}
 function lockedPlaylistHTML(p){return heading(esc(p.name),'이 플레이리스트는 보관 중입니다.')+`<section class="surface membership-card"><h2>담아둔 음악은 그대로 있어요.</h2><p>${p.tracks}곡이 보관되어 있습니다. 사용할 목록으로 선택하면 다시 재생하고 편집할 수 있어요.</p><div class="inline-actions"><button class="primary-button" data-select-active>사용할 목록 선택</button><a class="small-button" href="#library/playlists">내 보관함</a><button class="text-link" data-delete-playlist="${p.id}">이 목록 삭제</button></div></section>`;}
 document.addEventListener('click',e=>{if(e.target.closest('[data-select-active]'))selectActivePlaylists().catch(err=>toast(err.message));if(e.target.closest('[data-close-dialog]'))$('#dialog').close();});

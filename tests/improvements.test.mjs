@@ -31,7 +31,7 @@ test('public identity follows chosen nickname without changing private OAuth ide
  assert.equal(f.sql.prepare("SELECT name FROM users WHERE id='other'").get().name,'Private legal name');
  await f.call('/api/tracks/one/comments','POST',{body:'Listen together'},'other');
  assert.equal((await f.call('/api/tracks/one/comments')).body.comments[0].name,'MoonSing');
- const list=(await f.call('/api/playlists','POST',{name:'Night songs',is_public:true},'other')).body;assert.equal((await f.call('/api/playlists/'+list.id+'/tracks/one','PUT',{},'other')).status,200);
+ const list=(await f.call('/api/playlists','POST',{name:'Night songs',is_public:true,track_ids:['one']},'other')).body;assert.equal((await f.call('/api/playlists/'+list.id+'/tracks/one','PUT',{},'other')).status,200);
  assert.equal((await f.call('/api/playlists?scope=public')).body.playlists.find(p=>p.user_id==='other').owner_name,'MoonSing');
  f.sql.prepare("INSERT INTO follows VALUES('other','producer','producer',0)").run();
  assert.equal((await f.call('/api/me/profile')).body.followers[0].id,profile.id);
