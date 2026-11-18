@@ -25,7 +25,7 @@ test('shop renders every API gift in gold then silver order with original IDs, n
 test('anonymous shop skips wallet request and category deep links select the correct tab',async()=>{
  const c=context({me:null}),api=async path=>{assert.notEqual(path,'/api/gold');return path==='/api/decorations'?{products:Object.values(DECORATIONS),periods:PERIOD_LABELS}:{gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG};};
  const html=await c.finalGiftShopView('themes',api);assert.ok(html.includes('data-shop-active="themes"'));assert.ok(html.includes('data-shop-gold>0 G'));
- assert.equal((html.match(/data-shop-category="frames"/g)||[]).length,4);assert.equal((html.match(/data-shop-category="themes"/g)||[]).length,3);
+ assert.equal((html.match(/data-shop-category="frames"/g)||[]).length,4);assert.equal((html.match(/data-shop-category="themes"/g)||[]).length,4);
 });
 test('search is category-scoped, Unicode/case/space tolerant, clearable and keyboard-operable',()=>{
  const element=dataset=>({dataset,listeners:{},hidden:false,attributes:{},addEventListener(t,fn){this.listeners[t]=fn;},setAttribute(k,v){this.attributes[k]=v;},focus(){this.focused=true;}});

@@ -20,6 +20,12 @@ export const BUNNY_FRAMES=Object.freeze([
 export const DECORATIONS=Object.freeze({
  frame_aurora_ring:Object.freeze({sku:'frame_aurora_ring',name:'오로라 링',kind:'PROFILE_FRAME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.PROFILE_FRAME,assetPaths:Object.freeze({overlay:'/assets/products/aurora_ring_frame.png',thumbnail:'/assets/previews/aurora_ring_thumbnail.webp'})}),
  ...Object.fromEntries(BUNNY_FRAMES.map(p=>[p.sku,p])),
+ theme_christmas:Object.freeze({sku:'theme_christmas',name:'크리스마스 테마',uiMode:'dark',kind:'TALKING_ROOM_THEME',currency:'G',motion:'LAYERED',previewLayout:'landscape',periodPrices:DECORATION_PRICES_GOLD.TALKING_ROOM_THEME,assetPaths:Object.freeze({
+  roomDesktop:'/assets/themes/christmas-v61/assets/christmas-wide-1672.webp',
+  // Reuse the approved UI-free photograph, cropped by the mobile room layout.
+  roomMobile:'/assets/themes/christmas-v61/assets/christmas-wide-1672.webp',
+  roomCard:'/assets/themes/christmas-v61/assets/christmas-tree-card-512.webp'
+ })}),
  theme_starlight_lounge:theme('theme_starlight_lounge','별빛 라운지'),
  theme_cherry_blossom:theme('theme_cherry_blossom','벚꽃 멜로디 라운지'),
  theme_aurora_night:theme('theme_aurora_night','오로라 나이트 라운지')

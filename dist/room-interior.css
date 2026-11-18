@@ -1,5 +1,5 @@
 /* Keep global artwork off the room canvas, including the load/entry screen. */
-/* The review layer sits in the existing room's background stacking level. */
+/* The purchased Christmas animation sits behind the existing room UI. */
 #main .voice-room[data-christmas-review] > .af-theme-underlay { z-index:-1; }
 #main .voice-room[data-christmas-review="loading"] > .af-theme-underlay { visibility:hidden; }
 #main[data-room-entered] .voice-room[data-voice-room][data-room-design][data-christmas-review="active"][data-theme-asset-state="ready"]::before { content:none; }
@@ -82,6 +82,7 @@
   &[data-paid-theme="theme_cherry_blossom"] { --room-wide-focus: 50% 56%; --room-small-focus: 54% 42%; --room-shade: rgb(7 10 22 / .59); }
   &[data-paid-theme="theme_aurora_night"] { --room-wide-focus: 50% 45%; --room-small-focus: 48% 43%; }
   &[data-paid-theme="theme_starlight_lounge"] { --room-wide-focus: 50% 58%; --room-small-focus: 53% 54%; }
+  &[data-paid-theme="theme_christmas"] { --room-small-focus: 0% 50%; }
   &[data-background="sunset"]:not([data-paid-theme]) { --room-wide-skin: radial-gradient(ellipse at 34% 58%, #503346, #181f30 75%); --room-small-skin: var(--room-wide-skin); }
   &[data-background="night"]:not([data-paid-theme]) { --room-wide-skin: radial-gradient(ellipse at 45% 64%, #29365c, #121926 74%); --room-small-skin: var(--room-wide-skin); }
   &:is([data-theme-sku="night"],[data-theme-sku="sunset"]) { --room-tall-skin: var(--room-small-skin); }

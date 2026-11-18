@@ -28,15 +28,15 @@ test('room membership preserves the shell on mobile and desktop and route-only e
  assert.equal(attrs.get('data-room-focus'),false);assert.equal(attrs.get('data-room-entered'),true);
  assert.deepEqual(elements,[{hidden:false,style:{display:'flex'}},{hidden:true,style:{display:''}}]);
 });
-test('all nine versioned theme files have exact WebP dimensions and existing product IDs/prices',()=>{
+test('registered theme files preserve their WebP master dimensions and prices',()=>{
  const dimensions={roomCard:[1024,1024],roomDesktop:[1920,1080],roomMobile:[1080,1920]};
- const themes=Object.values(DECORATIONS).filter(p=>p.kind==='TALKING_ROOM_THEME');assert.equal(themes.length,3);
+ const themes=Object.values(DECORATIONS).filter(p=>p.kind==='TALKING_ROOM_THEME');assert.equal(themes.length,4);
  for(const p of themes){assert.deepEqual(p.periodPrices,{P7D:100,P1M:300,P3M:790});for(const [key,path] of Object.entries(p.assetPaths)){
   const b=readFileSync(new URL('../dist'+path,import.meta.url));assert.equal(b.toString('ascii',0,4),'RIFF');assert.equal(b.toString('ascii',8,12),'WEBP');
   const kind=b.toString('ascii',12,16);let size;
   if(kind==='VP8X')size=[b.readUIntLE(24,3)+1,b.readUIntLE(27,3)+1];else if(kind==='VP8 ')size=[b.readUInt16LE(26)&16383,b.readUInt16LE(28)&16383];else throw Error('Unexpected WebP encoding '+kind);
   // Preserve the generated master pixels rather than claiming a resized 4K export.
-  const expected=p.sku==='theme_aurora_night'&&key==='roomMobile'?[941,1672]:dimensions[key];
+  const expected=p.sku==='theme_christmas'?(key==='roomCard'?[512,512]:[1672,941]):p.sku==='theme_aurora_night'&&key==='roomMobile'?[941,1672]:dimensions[key];
   assert.deepEqual(size,expected,path);assert.equal(b.readUInt32LE(4)+8,b.length);
  }}
 });

@@ -38,3 +38,17 @@ test('ordinary gifts retain their IDs, prices and purchase controls, with no the
  assert.ok(!html.includes('data-theme-preview'));
  assert.ok(!html.includes('data-shop-category="themes"'));
 });
+
+test('Christmas is a single purchasable catalog card with its registered room preview',async()=>{
+ const p=DECORATIONS.theme_christmas;
+ const read=async path=>path==='/api/decorations'?{products:Object.values(DECORATIONS),periods:PERIOD_LABELS}:{gifts:[],silver_gifts:[]};
+ context.me=null;
+ const html=await context.finalGiftShopView('themes',read);
+ assert.equal((html.match(/data-shop-name="크리스마스 테마"/g)||[]).length,1);
+ assert.ok(!html.includes('기본 방에 시즌 적용'));
+ const card=context.shopCards([p],PERIOD_LABELS);
+ assert.equal((card.match(/data-decoration="theme_christmas"/g)||[]).length,2);
+ assert.ok(card.includes('class="shop-price-value">100</span>'));
+ assert.ok(card.includes('data-theme-preview="'+p.assetPaths.roomDesktop+'"'));
+ assert.ok(card.includes('data-theme-layout="landscape"'));
+});

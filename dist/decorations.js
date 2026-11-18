@@ -98,27 +98,29 @@ function shopCards(items,periods={}){
   const action=p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"';
   const price=p.sku?shopStartingPrice(p,periods):shopCoin(currency)+'<span class="shop-price-value">'+number(p.free?p.silver:p.gold)+'</span>';
   const name=esc(shopProductDisplayName(p));
+  const preview=p.previewLayout==='landscape'?p.assetPaths.roomDesktop:p.assetPaths?.roomMobile;
   return '<article class="shop-card '+(currency==='S'?'is-silver':'is-gold')+'" data-shop-category="'+category+'" data-shop-name="'+esc(p.name)+'">'+
    '<button type="button" class="shop-card-select" '+action+' aria-label="'+name+' 상품 선택"><img class="shop-card-art" src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong class="shop-card-name" title="'+name+'">'+name+'</strong></button>'+
    '<div class="shop-card-price">'+price+'</div><div class="shop-card-actions">'+
-   (theme?'<button type="button" class="shop-card-preview" data-theme-preview="'+esc(p.assetPaths.roomMobile||'')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+name+'" aria-label="'+name+' 미리보기" '+(p.assetPaths.roomMobile?'':'disabled')+'>미리보기</button>':'')+
+   (theme?'<button type="button" class="shop-card-preview" data-theme-preview="'+esc(preview||'')+'" data-theme-layout="'+(p.previewLayout==='landscape'?'landscape':'portrait')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+name+'" aria-label="'+name+' 미리보기" '+(preview?'':'disabled')+'>미리보기</button>':'')+
    '<button type="button" class="shop-card-buy" '+action+' aria-label="'+name+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button></div></article>';
  }).join('');
 }
-// The registered portrait room background only; never substitute the card/desktop art.
+// Preview the registered room background in its declared orientation.
 let shopPreviewCleanup=()=>{};
 async function shopThemePreview(button){
  const src=button.dataset.themePreview;if(!src||button.disabled)return;
+ const landscape=button.dataset.themeLayout==='landscape',orientation=landscape?'가로형':'세로형';
  const serial=++giftDialogSerial,image=new Image();button.disabled=true;button.setAttribute('aria-busy','true');
  try{
   image.src=src;await image.decode();
   if(!button.isConnected||serial!==giftDialogSerial)return;
-  if(image.naturalHeight<=image.naturalWidth)throw Error('세로형 방 배경을 확인할 수 없어요.');
+  if(landscape?image.naturalWidth<=image.naturalHeight:image.naturalHeight<=image.naturalWidth)throw Error('방 배경을 확인할 수 없어요.');
   shopPreviewCleanup();
   const price=button.closest('.shop-card')?.querySelector('.shop-card-price')?.innerHTML||'';
   const modal=$('#dialog'),controller=new AbortController();
   modal.classList.remove('gift-sheet');
-  dialog('<section class="shop-theme-preview" aria-label="'+esc(button.dataset.themeName)+' 방 배경 미리보기"><img src="'+esc(src)+'" alt="'+esc(button.dataset.themeName)+' 세로형 토킹룸 방 배경"><div class="shop-preview-info"><h2>'+esc(button.dataset.themeName)+'</h2><div class="shop-preview-purchase-row"><div class="shop-card-price">'+price+'</div><button type="button" class="shop-card-buy" data-product-gift="'+esc(button.dataset.themeSku)+'" aria-label="'+esc(button.dataset.themeName)+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button></div></div></section>');
+  dialog('<section class="shop-theme-preview" aria-label="'+esc(button.dataset.themeName)+' 방 배경 미리보기"><img src="'+esc(src)+'" alt="'+esc(button.dataset.themeName)+' '+orientation+' 토킹룸 방 배경"><div class="shop-preview-info"><h2>'+esc(button.dataset.themeName)+'</h2><div class="shop-preview-purchase-row"><div class="shop-card-price">'+price+'</div><button type="button" class="shop-card-buy" data-product-gift="'+esc(button.dataset.themeSku)+'" aria-label="'+esc(button.dataset.themeName)+' 구매하기">'+shopIcon('cart')+'<span>구매하기</span></button></div></div></section>');
   const oldLabel=modal.getAttribute('aria-label');modal.setAttribute('aria-label',button.dataset.themeName+' 미리보기');
   modal.addEventListener('click',e=>{if(e.target!==modal)return;const r=modal.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)modal.close();},{signal:controller.signal});
   const close=()=>modal.close();window.addEventListener('popstate',close,{signal:controller.signal});window.addEventListener('hashchange',close,{signal:controller.signal});
@@ -126,7 +128,7 @@ async function shopThemePreview(button){
   if(typeof registerRouteCleanup==='function')shopPreviewCleanup=registerRouteCleanup(shopPreviewCleanup);
   modal.addEventListener('close',()=>{if(modal.open)return;shopPreviewCleanup();if(button.isConnected)button.focus({preventScroll:true});},{signal:controller.signal});
   $('#dialog-close').focus({preventScroll:true});
- }catch{if(serial===giftDialogSerial)toast('세로형 방 배경을 불러오지 못했어요.');}
+ }catch{if(serial===giftDialogSerial)toast(orientation+' 방 배경을 불러오지 못했어요.');}
  finally{button.disabled=false;button.removeAttribute('aria-busy');}
 }
 function shopBalancesHTML(wallet){
@@ -158,7 +160,7 @@ async function finalGiftShopView(category,readApi=api){
  return '<div class="shop-page" data-shop-active="'+active+'"><section class="shop-banner home-content-refresh" id="shop-banner" aria-label="AIFECT 상점 배너" data-shop-banners="'+esc(JSON.stringify(shopBannerSlides(products)))+'"></section>'+
  '<header class="shop-heading"><h1 class="shop-title">'+shopIcon('cart')+'<span>상점</span></h1><nav class="shop-actions" aria-label="상점 관리"><a href="#gold">'+shopIcon('wallet')+'<span>골드 충전</span></a><a href="#gifts/rewards">'+shopCoin('S')+'<span>실버 받기</span></a><a href="#inventory">'+shopIcon('inventory')+'<span>인벤토리</span></a></nav><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div></header>'+
  '<div class="shop-toolbar"><div class="shop-tabs aifect-main-tabs" role="tablist" aria-label="상점 카테고리">'+tabs.map(([id,label,glyph],index)=>'<button type="button" role="tab" id="shop-tab-'+id+'" data-shop-tab="'+id+'" data-tab-tone="'+['pink','mint','purple'][index]+'" aria-controls="shop-products" aria-selected="'+(id===active)+'" tabindex="'+(id===active?'0':'-1')+'">'+shopIcon(glyph)+'<span>'+label+'</span></button>').join('')+'</div><label class="shop-item-search">'+shopIcon('search')+'<input type="search" placeholder="아이템 검색" aria-label="아이템 검색" autocomplete="off"></label></div>'+
- '<div id="shop-products" class="shop-products" role="tabpanel" aria-labelledby="shop-tab-'+active+'" tabindex="0">'+(globalThis.AifectChristmasReview?.shopCard()||'')+shopCards(products,d.periods)+'</div><p class="shop-empty" role="status" hidden>검색 결과가 없어요.</p></div>';
+ '<div id="shop-products" class="shop-products" role="tabpanel" aria-labelledby="shop-tab-'+active+'" tabindex="0">'+shopCards(products,d.periods)+'</div><p class="shop-empty" role="status" hidden>검색 결과가 없어요.</p></div>';
 }
 let shopLayoutCleanup=()=>{};
 function bindShopShelves(){
