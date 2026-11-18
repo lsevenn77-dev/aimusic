@@ -45,7 +45,7 @@ export async function filterBlockedResponse(env,response){
  // A recommendation may omit a playlist owner, but never rewrite a published
  // playlist's preview, duration, stored order or track membership.
  const playlist=o=>o&&typeof o==='object'&&o.is_public===1&&Array.isArray(o.covers);
- const publicRanks=new Set(['ranking','support_ranking','individualRanking']);
+ const publicRanks=new Set(['ranking','rankings','support_ranking','individualRanking']);
  const clean=o=>Array.isArray(o)?o.filter(x=>playlist(x)||!hidden(x)&&!(x&&all.has(x.id))).map(clean):o&&typeof o==='object'?(playlist(o)?o:Object.fromEntries(Object.entries(o).map(([k,v])=>[k,publicRanks.has(k)?v:clean(v)]))):o;
  const body=await response.json();if(hidden(body.profile)||hidden(body.track))fail(403,'차단된 이용자의 콘텐츠입니다.');
  return new Response(JSON.stringify(clean(body)),{status:response.status,headers:response.headers});

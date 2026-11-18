@@ -8,6 +8,8 @@ export function publicContentRequest(req,url){
  if(read){
   if(path==='/api/catalog'&&['top','rising','releases','listens','covers','new'].includes(url.searchParams.get('chart'))&&url.searchParams.get('directory')!=='1')return true;
   if(['/api/cover-rankings','/api/community/rankings'].includes(path))return true;
+  if(/^\/api\/tracks\/[\w-]+\/cover-pick$/.test(path))return true;
+  if(/^\/api\/tracks\/[\w-]+\/covers$/.test(path)&&(url.searchParams.get('view')==='all'||!url.searchParams.has('view')&&url.searchParams.get('sort')!=='recent'))return true;
   if(path==='/api/playlists'&&!url.searchParams.has('home')&&!url.searchParams.has('q'))return true;
   if(/^\/api\/playlists\/[\w-]+$/.test(path)&&!['candidates','title-availability'].includes(path.split('/').at(-1)))return true;
   if(/^\/api\/tracks\/[\w-]+(?:\/lyrics\/(line|text))?$/.test(path))return true;

@@ -83,6 +83,7 @@ test('all public chart families retain complete rows, global ranks and aggregate
  f.sql.prepare("INSERT INTO dubbing_final_jobs(id,project_id,script_key,state,output_key,manifest_json,created,updated) SELECT 'final',id,script_key,'ready','local-final','{}',?,? FROM dubbing_projects WHERE id=?").run(at,at,dub.id);
  f.sql.prepare("INSERT INTO likes(user_id,dubbing_id,created) VALUES('other',?,?)").run(dub.id,at);
  const paths=[...['top','rising','releases','listens','covers','new'].map(chart=>'/api/catalog?section=tracks&full=1&chart='+chart+'&period=all'),'/api/cover-rankings?kind=tracks&period=all','/api/cover-rankings?kind=singers&period=all',...['aiArtist','cover','dubbing','crew'].map(category=>'/api/community/rankings?category='+category)];
+ paths.push('/api/tracks/one/covers?view=all','/api/tracks/one/covers?sort=plays','/api/tracks/one/cover-pick');
  const before=new Map();for(const path of paths)before.set(path,await get(f,path));
  assert.ok(before.get('/api/community/rankings?category=aiArtist').rows.length);
  assert.equal(before.get('/api/community/rankings?category=dubbing').rows.length,1);

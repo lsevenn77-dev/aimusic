@@ -25,6 +25,7 @@ function invalidateReads(){apiRevision++;apiReads.clear();if(typeof clearNavigat
 // Block changes invalidate personal discovery/relationships, never public ranking data.
 function publicBlockRead(path){
  const [base,query='']=path.split('?'),params=new URLSearchParams(query);
+ if(/^\/api\/tracks\/[\w-]+\/cover-pick$/.test(base)||/^\/api\/tracks\/[\w-]+\/covers$/.test(base)&&(params.get('view')==='all'||!params.has('view')&&params.get('sort')!=='recent'))return true;
  return base==='/api/catalog'&&params.has('chart')||['/api/cover-rankings','/api/community/rankings'].includes(base)||base==='/api/playlists'&&!params.has('home')&&!params.has('q')||/^\/api\/playlists\/[\w-]+$/.test(base)&&!base.endsWith('/candidates')&&!base.endsWith('/title-availability');
 }
 function invalidateBlockReads(){
