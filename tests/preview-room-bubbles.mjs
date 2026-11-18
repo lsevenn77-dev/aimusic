@@ -64,7 +64,7 @@ const types={'.js':'text/javascript','.css':'text/css','.html':'text/html;charse
 const assets={async fetch(req){const u=new URL(req.url),file=resolve(root,'.'+u.pathname);if(!file.startsWith(root+sep))return new Response('',{status:404});try{return new Response(await readFile(file),{headers:{'content-type':types[extname(file)]||'application/octet-stream'}});}catch{return new Response('',{status:404});}}};
 // Optional generated tone exercises real media range requests without external audio.
 const tone=await readFile('work/qa-tone.m4a').catch(()=>null),audioKey=key=>/^(stream|karaoke)\//.test(key)&&key.endsWith('.m4a');
-const env={...f.siteEnv,ASSETS:assets,BUCKET:{async get(key,options){if(!tone||!audioKey(key))return null;const r=options?.range;return {body:r?tone.subarray(r.offset,r.offset+r.length):tone};},async head(key){return tone&&audioKey(key)?{size:tone.length}:null;}}};
+const env={...f.siteEnv,ADMIN_USER_IDS:'owner',ASSETS:assets,BUCKET:{async get(key,options){if(!tone||!audioKey(key))return null;const r=options?.range;return {body:r?tone.subarray(r.offset,r.offset+r.length):tone};},async head(key){return tone&&audioKey(key)?{size:tone.length}:null;}}};
 f.sql.exec("INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,created,paid_at) VALUES('qa-zero-value','owner','admin_test',1000,0,0,0,'paid',0,0)");
 f.sql.exec("INSERT INTO voice_music_permissions(track_id,owner_id,terms,accepted_at) SELECT id,user_id,'2026-10-20-room-listening',1 FROM tracks WHERE user_id='owner'");
 async function scenario(mode,name){
@@ -110,7 +110,8 @@ const server=createServer(async(req,res)=>{
     const mode=u.searchParams.get('mode')==='talk'?'talk':'karaoke',user=qaUser(u.searchParams.get('as')||u.searchParams.get('qa-user'));
     // Participant links inspect the same room without resetting its active state.
     const r=user==='owner'&&u.searchParams.has('scenario')?await scenario(mode,u.searchParams.get('scenario')):rooms[mode];
-    res.writeHead(302,{location:'/?qa-user='+user+'#'+(r.room.data.config.mode==='karaoke'?'live':'voice')+'/'+r.state.room.id});res.end();return;
+    const preview=u.searchParams.get('themePreview')==='christmas-v61'?'&themePreview=christmas-v61':'';
+    res.writeHead(302,{location:'/?qa-user='+user+preview+'#'+(r.room.data.config.mode==='karaoke'?'live':'voice')+'/'+r.state.room.id});res.end();return;
    }
    res.setHeader('content-type','text/html;charset=utf-8');res.end('<h1>격리된 방 검증</h1><p>각 링크를 별도 탭에서 열면 방장과 참여자로 같은 방을 함께 확인할 수 있습니다.</p>'+['talk','karaoke'].map(mode=>'<h2>'+mode+'</h2><p><a href="/qa?mode='+mode+'&as=owner">방장으로 현재 방 열기</a> · <a href="/qa?mode='+mode+'&as=other">참여자로 현재 방 열기</a></p><p>'+[[1440,900],[390,844],[320,700],[768,1024],[1280,600]].map(([width,height])=>['owner','other'].map(user=>'<a href="/qa-frame?width='+width+'&height='+height+'&mode='+mode+'&as='+user+'">'+width+'×'+height+' '+(user==='owner'?'방장':'참여자')+'</a>').join(' · ')).join(' | ')+'</p>'+['empty','full','few','many','queue','mine','singing','light','dark','base'].map(name=>'<p><a href="/qa?mode='+mode+'&as=owner&scenario='+name+'">'+mode+' '+name+'</a></p>').join('')).join(''));return;
   }
