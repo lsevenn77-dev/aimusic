@@ -59,6 +59,7 @@ test('desktop listening recovers with no unlock button and updates connected sta
  c.host={querySelector:()=>null,hasAttribute:name=>name==='data-room-pc-controls'};
  h.context.$=()=>({hasAttribute:()=>true});
  Object.assign(c,{ws:{readyState:1},status:text=>status.push(text),waitForMusicGesture:true});
+ c.levelContext=new h.context.window.AudioContext();
  c.updateListening();assert.match(status.at(-1),/청취 대기/);
  const audio={srcObject:{},play:()=>Promise.resolve()};c.audios.set('host',audio);
  c.unlockListening();await Promise.resolve();
@@ -72,6 +73,14 @@ test('desktop unlock gestures retain the explicit interrupted-audio recovery pat
  const h=setup(),c=h.client,resumed=[];
  c.host={querySelector:()=>null,hasAttribute:()=>true};c.roomAudio={blocked:true};c.resumeSound=explicit=>resumed.push(explicit);
  c.unlockListening();assert.deepEqual(resumed,[true]);assert.equal(h.captures,0);
+});
+
+test('the mobile unlock button retains its audio-state visibility while the music gesture remains pending',()=>{
+ const h=setup(),c=h.client;
+ c.levelContext=new h.context.window.AudioContext();c.levelContext.state='running';c.waitForMusicGesture=true;
+ c.updateListening();assert.equal(h.button.hidden,true);
+ let resumes=0;c.resumeSound=()=>resumes++;c.unlockListening();
+ assert.equal(resumes,1);assert.equal(c.waitForMusicGesture,false);assert.equal(h.captures,0);
 });
 
 test('foreground waits for an in-flight refresh and its queued fresh state before restoring sound',async()=>{

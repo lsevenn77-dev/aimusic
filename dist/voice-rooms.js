@@ -492,10 +492,10 @@ class VoiceRoomClient {
   void this.processing?.context?.resume().catch(()=>{});this.syncMusic();this.updateListening();
  }
  isListeningBlocked(){
-  return !!(this.waitForMusicGesture||this.roomAudio?.blocked||this.musicBlocked||this.levelContext&&this.levelContext.state!=='running'||[...(this.audios?.values()||[])].some(a=>a.voiceBlocked));
+  return !!(this.roomAudio?.blocked||this.musicBlocked||this.levelContext&&this.levelContext.state!=='running'||[...(this.audios?.values()||[])].some(a=>a.voiceBlocked));
  }
  unlockListening(){
-  const blocked=this.isListeningBlocked();this.waitForMusicGesture=false;
+  const blocked=this.waitForMusicGesture||this.isListeningBlocked();this.waitForMusicGesture=false;
   // A real desktop pointer/click gesture replaces the removed unlock button.
   if(this.liveMode||blocked)this.resumeSound(!this.liveMode&&!!this.host?.hasAttribute?.('data-room-pc-controls'));
  }
