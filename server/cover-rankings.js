@@ -1,3 +1,4 @@
+import {publicContentContext} from './block-policy.js';
 import {genreFilterSQL} from '../shared/genres.js';
 import {producerNameSQL} from './identity.js';
 import {validGenre} from '../shared/genres.js';
@@ -9,6 +10,7 @@ export {rankingPeriod} from './ranking-period.js';
 
 export async function coverRankingRoute(req,env,path){
  if(path!=='/api/cover-rankings')return null;
+ env=publicContentContext(env);
  if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
  const p=new URL(req.url).searchParams,period=rankingPeriod(p.get('period')||'today'),kind=p.get('kind')||'tracks';
  if(!['tracks','singers'].includes(kind))fail(400,'랭킹 종류를 확인해주세요.');

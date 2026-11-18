@@ -27,9 +27,12 @@ function playable(env){
   '(SELECT user_id FROM tracks WHERE id=t.original_id)','(SELECT user_id FROM tracks WHERE id=t.duet_parent_id)'];
  const blocked=env.AIFECT_BLOCKED?.length?' OR u.id IN (SELECT value FROM home_blocks)':'';
  return `${VISIBLE()} AND t.duration>0 AND coalesce(t.error,'')='' AND NOT EXISTS
-  (SELECT 1 FROM users u WHERE u.id IN (${owners.join(',')}) AND (u.provider='deleted'${blocked}))`;
+  (SELECT 1 FROM users u WHERE u.id IN (${owners.join(',')}) AND (u.provider='deleted'${blocked}))${env.AIFECT_BLOCKED_ARTISTS?.length?' AND t.artist_id NOT IN (SELECT value FROM home_artists)':''}`;
 }
-function blockContext(env){return env.AIFECT_BLOCKED?.length?{cte:'WITH home_blocks(value) AS (SELECT value FROM json_each(?)) ',args:[JSON.stringify(env.AIFECT_BLOCKED)]}:{cte:'',args:[]};}
+function blockContext(env){
+ const entries=[['home_blocks',env.AIFECT_BLOCKED],['home_artists',env.AIFECT_BLOCKED_ARTISTS]].filter(([,ids])=>ids?.length);
+ return {cte:entries.length?'WITH '+entries.map(([name])=>name+'(value) AS (SELECT value FROM json_each(?))').join(',')+' ':'',args:entries.map(([,ids])=>JSON.stringify(ids))};
+}
 
 export async function homeTracks(env,requested,at=Math.floor(Date.now()/1000)){
  const slots=Math.max(6,Math.min(64,Math.floor(Number(requested))||16)),goal=slots*2+14+7;
@@ -66,7 +69,7 @@ export async function homeTracks(env,requested,at=Math.floor(Date.now()/1000)){
  if(!chosen.length)return {tracks:[],releases:[]};
  // Authorization was checked above; recheck on hydration without expanding a
  // block list into one D1 bind parameter per account.
- const result=await trackList({...env,AIFECT_BLOCKED:[]},`${CHART_ORIGINAL()} AND t.id IN (${hasIds}) AND ${eligible.replaceAll('SELECT value FROM home_blocks','SELECT value FROM json_each(?)')}`,
+ const result=await trackList({...env,AIFECT_BLOCKED:[],AIFECT_BLOCKED_ARTISTS:[]},`${CHART_ORIGINAL()} AND t.id IN (${hasIds}) AND ${eligible.replaceAll('SELECT value FROM home_blocks','SELECT value FROM json_each(?)').replaceAll('SELECT value FROM home_artists','SELECT value FROM json_each(?)')}`,
   [JSON.stringify(chosen),...args],'t.id',chosen.length);
  const details=new Map(result.map(t=>[t.id,t]));
  return {tracks:ranked.map(t=>details.get(t.id)).filter(Boolean),releases:releases.filter(id=>details.has(id))};
@@ -79,7 +82,7 @@ export async function homePlaylists(env,uid){
  const index=await seeds('playlists',()=>rows(env,`SELECT p.id FROM playlists p WHERE p.is_public=1
   ORDER BY p.created DESC,p.id LIMIT ?`,size*ROUNDS));
  const owner="EXISTS(SELECT 1 FROM users u WHERE u.id=p.user_id AND u.provider!='deleted')"+
-  (args.length?' AND p.user_id NOT IN (SELECT value FROM home_blocks)':'');
+  (env.AIFECT_BLOCKED?.length?' AND p.user_id NOT IN (SELECT value FROM home_blocks)':'');
  const ids=[];
  for(let i=0;i<index.length&&ids.length<6;i+=size){
   const page=await rows(env,cte+`SELECT p.id FROM playlists p WHERE p.id IN (${hasIds})
@@ -89,6 +92,6 @@ export async function homePlaylists(env,uid){
  }
  if(!ids.length)return [];
  return playlistSummaries(env,uid,`p.is_public=1 AND p.id IN (${hasIds}) AND ${owner} AND ${activePlaylistSQL()}`,
-  [JSON.stringify(ids)],'p.created DESC,p.id',6,[],{cte,args,visible});
+  [JSON.stringify(ids)],'p.created DESC,p.id',6,[],{cte,args,visible:playable({...env,AIFECT_BLOCKED:[],AIFECT_BLOCKED_ARTISTS:[]})});
 }
 

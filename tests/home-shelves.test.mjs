@@ -33,15 +33,15 @@ test('home release pagination is by first public time; actor blocks and invalid 
  for(let i=0;i<220;i++)insert(f.sql,'new-'+i,at-1000-i);
  assert.equal((await homeTracks({DB:f.DB},16,at)).tracks[0].id,'old-but-liked');
 });
-test('home playlist refill, membership and preview all use playable, unblocked entries',async t=>{
+test('home recommendations filter owners but preserve public playlist membership and preview',async t=>{
  const f=await fixture(t),{DB,stats}=measured(f.DB);
  insert(f.sql,'playable',at);insert(f.sql,'blocked-member',at,'other');insert(f.sql,'no-audio',at);
  f.sql.exec("UPDATE tracks SET duration=0 WHERE id='no-audio'; INSERT INTO playlists(id,user_id,name,is_public,created) VALUES('valid','owner','valid',1,1),('private','owner','private',0,2),('locked','owner','locked',1,3)");
  for(const [i,id] of ['blocked-member','no-audio','hidden','playable'].entries())f.sql.prepare("INSERT INTO playlist_tracks(playlist_id,track_id,position,created) VALUES('valid',?,?,0)").run(id,i);
  for(let i=0;i<100;i++)f.sql.prepare("INSERT INTO playlists(id,user_id,name,is_public,created) VALUES(?,'other','ignored',1,?)").run('empty-'+i,100+i);
  const found=await homePlaylists({DB,AIFECT_BLOCKED:['other']},'owner');
- assert.deepEqual(found.map(p=>p.id),['valid']);assert.equal(found[0].tracks,1);assert.equal(found[0].duration,60);
- assert.deepEqual(found[0].covers.map(t=>t.id),['playable']);assert.equal(stats.reads,5);
+ assert.deepEqual(found.map(p=>p.id),['valid']);assert.equal(found[0].tracks,2);assert.equal(found[0].duration,120);
+ assert.deepEqual(found[0].covers.map(t=>t.id),['blocked-member','playable']);assert.equal(stats.reads,5);
  f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='playable'");
  assert.deepEqual(await homePlaylists({DB:f.DB,AIFECT_BLOCKED:['other']},'owner'),[]);
 });

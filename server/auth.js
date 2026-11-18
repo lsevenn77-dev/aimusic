@@ -19,17 +19,19 @@ export const isAdmin=(env,user)=>isConsoleAdmin(user)||isMcpAdmin(user)||!!user&
 // Moderation operators have no access to payout accounts or other administrator data.
 export const isTrackModerator=(env,user)=>isAdmin(env,user)||!!user&&(env.TRACK_REVIEW_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
 // Request-local security context, never serialized or reused across requests.
-const viewerBlocks=new WeakMap();
+const viewerBlocks=new WeakMap(),viewerArtistBlocks=new WeakMap();
+export const viewerBlockedArtists=user=>viewerArtistBlocks.get(user);
 export const viewerBlockedIds=user=>viewerBlocks.get(user);
 export async function viewer(req,env){
  const token=cookies(req).aifect_session;if(!token)return null;
  // Resolve the session and public nickname together on every request; no auth cache.
- const record=await one(env,`SELECT u.id,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted' AND u.account_type='human'`,await hash(token),now());
+ const record=await one(env,`SELECT u.id,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids,(SELECT json_group_array(ab.artist_id) FROM artist_follow_blocks ab WHERE ab.user_id=u.id AND ab.direction='artist') blocked_artists FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted' AND u.account_type='human'`,await hash(token),now());
  if(!record)return null;
- const {blocked_ids,...user}=record;
+ const {blocked_ids,blocked_artists,...user}=record;
  const granted=await applyPremiumGrant(env,user);
  const resolved={...granted,base_premium_until:granted.premium_until,premium_until:Math.max(granted.premium_until,granted.apple_premium_until||0)};
  viewerBlocks.set(resolved,JSON.parse(blocked_ids||'[]'));
+ viewerArtistBlocks.set(resolved,JSON.parse(blocked_artists||'[]'));
  return resolved;
 }
 export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};

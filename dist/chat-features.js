@@ -57,9 +57,9 @@ document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-person-block],[data-person-unblock]');if(!b)return;e.preventDefault();
  if(b.disabled)return;const blocking=!!b.dataset.personBlock,uid=me?.id,target=b.dataset.personBlock||b.dataset.personUnblock;
  if(!uid||!target)return;
- if(!confirm(b.dataset.blockName+'님을 '+(blocking?'차단할까요?\n서로 메시지를 보낼 수 없고 상대의 콘텐츠가 숨겨져요. 차단 관리에서 해제할 수 있어요.':'차단 해제할까요?')))return;
+ if(!confirm(b.dataset.blockName+'님을 '+(blocking?'차단할까요?\n서로 DM·팔로우가 제한되고 추천·검색·댓글에서 숨겨져요. 공개 차트와 플레이리스트는 유지돼요.':'차단 해제할까요?')))return;
  b.disabled=true;
- try{await api('/api/blocks/'+encodeURIComponent(target),blocking?'PUT':'DELETE');if(uid!==me?.id)return;if(b.closest('.profile-preview'))closeProfilePreview();socialCleanup?.();await render();void refreshMessageBadge();toast(blocking?'상대방을 차단했어요.':'차단을 해제했어요.');}
+ try{await api('/api/blocks/'+encodeURIComponent(target),blocking?'PUT':'DELETE');if(uid!==me?.id)return;if(b.closest('.profile-preview'))closeProfilePreview();++followRevision;await refreshLibrary(true);window.dispatchEvent(new CustomEvent('aifect:follow-saved',{detail:{blocked:target,blocking}}));const route=location.hash.slice(1);if(!route.startsWith('charts')&&!route.startsWith('community/rankings')&&!route.startsWith('playlist/')){socialCleanup?.();await render();}void refreshMessageBadge();toast(blocking?'상대방을 차단했어요.':'차단을 해제했어요.');}
  catch(err){if(uid===me?.id)toast(err.message);}finally{if(b.isConnected)b.disabled=false;}
 });
 async function refreshMessageBadge(){

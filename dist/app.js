@@ -22,6 +22,18 @@ function toast(message,kind=''){
  el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),document.querySelector('[data-voice-room]')?2400:4500);
 }
 function invalidateReads(){apiRevision++;apiReads.clear();if(typeof clearNavigationSnapshots==='function')clearNavigationSnapshots();if(typeof clearCrewNavigation==='function')clearCrewNavigation();}
+// Block changes invalidate personal discovery/relationships, never public ranking data.
+function publicBlockRead(path){
+ const [base,query='']=path.split('?'),params=new URLSearchParams(query);
+ return base==='/api/catalog'&&params.has('chart')||['/api/cover-rankings','/api/community/rankings'].includes(base)||base==='/api/playlists'&&!params.has('home')&&!params.has('q')||/^\/api\/playlists\/[\w-]+$/.test(base)&&!base.endsWith('/candidates')&&!base.endsWith('/title-availability');
+}
+function invalidateBlockReads(){
+ const previous=apiRevision;apiRevision++;
+ for(const [key,entry] of apiReads){const path=key.slice(key.indexOf(':')+1);if(!entry.pending&&publicBlockRead(path))entry.revision=apiRevision;else apiReads.delete(key);}
+ if(typeof preserveBlockNavigation==='function')preserveBlockNavigation();
+ if(typeof preserveBlockCharts==='function')preserveBlockCharts(previous,apiRevision);
+ if(typeof clearCrewNavigation==='function')clearCrewNavigation();
+}
 function invalidatesBrowseReads(path,method){
  if(method==='GET'||path==='/api/notifications/read'||/^\/api\/(playback|listens)\//.test(path))return false;
  // Delivery/read receipts cannot invalidate unrelated music or navigation.
@@ -36,8 +48,9 @@ function peekApiRead(path,options={}){
  return entry&&!entry.pending&&entry.revision===apiRevision&&(options.display?entry.displayUntil:entry.until)>Date.now()?structuredClone(entry.value):null;
 }
 async function api(path,method='GET',body,options={}){
- const read=method==='GET',mutates=invalidatesBrowseReads(path,method);
- if(mutates)invalidateReads();
+ const read=method==='GET',mutates=invalidatesBrowseReads(path,method),blockMutation=!read&&(/^\/api\/blocks\//.test(path)||path.startsWith('/api/follow-management?')&&['block','unblock'].includes(body?.action));
+ const invalidate=blockMutation?invalidateBlockReads:invalidateReads;
+ if(mutates)invalidate();
  const account=me?.id||'guest',key=account+':'+path,revision=apiRevision;
  // Ten seconds, memory only, account scoped. Money, chat, permissions and studio always stay live.
  const reusable=canCacheApiRead(path);
@@ -46,7 +59,7 @@ async function api(path,method='GET',body,options={}){
  const entry={revision,pending:true,until:0,signal:options.signal};
  const request=(async()=>{
   try{const r=await fetch(path,{method,credentials:'same-origin',signal:options.signal,headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw new Error('서버에 연결할 수 없습니다. 다시 시도해주세요.');}if(!r.ok){if((r.status===401||r.status===403)&&account===(me?.id||'guest')&&revision===apiRevision)invalidateReads();throw Object.assign(new Error(data.error||'다시 시도해주세요.'),{status:r.status});}return data;}
-  finally{if(mutates)invalidateReads();}
+  finally{if(mutates)invalidate();}
  })();
  if(read){entry.promise=request;apiReads.set(key,entry);request.then(value=>{entry.pending=false;entry.value=structuredClone(value);entry.until=reusable?Date.now()+10000:0;entry.displayUntil=reusable?Date.now()+60000:0;if(!reusable&&apiReads.get(key)===entry)apiReads.delete(key);while(apiReads.size>60)apiReads.delete(apiReads.keys().next().value);},()=>{if(apiReads.get(key)===entry)apiReads.delete(key);});}
  return structuredClone(await request);

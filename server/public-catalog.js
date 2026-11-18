@@ -1,4 +1,5 @@
 import {VISIBLE} from './catalog.js';
+import {trackBlockScope} from './block-policy.js';
 import {producerNameSQL} from './identity.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {GENRES, genreFilterSQL} from '../shared/genres.js';
@@ -54,11 +55,8 @@ export async function discoverTracks(env,filters) {
  if(kind==='original') conditions.push("t.kind='original'");
  if(kind==='cover') conditions.push("t.kind='cover'"); // Old bookmarks include all covers.
  if(kind==='solo'||kind==='duet'){conditions.push("t.kind='cover' AND t.cover_mode=?");args.push(kind);}
- const blocked=env.AIFECT_BLOCKED || [];
- if(blocked.length){
-  conditions.push('t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')');
-  args.push(...blocked);
- }
+ const block=trackBlockScope(env);
+ if(block.sql){conditions.push('1'+block.sql);args.push(...block.args);}
  // The catalogue's qualified-listen measure counts one listener per day.
  const popular="(SELECT count(DISTINCT l.listener||l.day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) DESC,";
  const order=(sort==='popular'?popular:'')+'t.created DESC,t.id';

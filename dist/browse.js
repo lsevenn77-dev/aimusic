@@ -122,6 +122,10 @@ async function popularChartView(raw='',kind='',readApi=api){
 const chartDataCache=new Map(),CHART_DATA_TTL=30000;
 const chartRevision=()=>typeof apiRevision==='number'?apiRevision:0;
 const chartAccount=()=>me?.id||'guest';
+function preserveBlockCharts(previous,next){
+ const prefix=chartAccount()+':'+previous+':';
+ for(const [key,entry] of [...chartDataCache])if(key.startsWith(prefix)){chartDataCache.delete(key);chartDataCache.set(chartAccount()+':'+next+':'+key.slice(prefix.length),{...entry,revision:next});}
+}
 function chartRouteSelection(raw=''){
  if(typeof raw!=='string')return null;
  raw=raw.replace(/^#?\/?/,'');
