@@ -173,6 +173,31 @@ struct WorkspaceBrowser: UIViewRepresentable {
         return URL(string: Endpoint.origin.absoluteString + space.path)!
     }
     func makeCoordinator() -> Coordinator { Coordinator(error: $error, progress: $progress, origin: target, openRoomOverlay: openRoomOverlay) }
+    // Room controls own navigation here; the site's logo/search header is redundant.
+    // Scope to room routes so the normal header returns after leaving the room.
+    static let roomChromeScript = """
+        (() => {
+            const update = () => document.documentElement?.toggleAttribute('data-aifect-native-room', /^#(?:live|voice)[/][^/?]+/.test(location.hash));
+            const install = () => {
+                update();
+                if (!document.head) return false;
+                const style = document.createElement('style');
+                style.id = 'aifect-native-room-chrome';
+                style.textContent = `
+                    html[data-aifect-native-room] :is(.topbar, #topbar) { display:none!important }
+                    html[data-aifect-native-room] .page-wrap,
+                    html[data-aifect-native-room] #main { padding-top:0!important }
+                `;
+                document.head.append(style);
+                return true;
+            };
+            if (!install()) {
+                const observer = new MutationObserver(() => { if (install()) observer.disconnect(); });
+                observer.observe(document, {childList:true, subtree:true});
+            }
+            window.addEventListener('hashchange', update);
+        })();
+        """
     // Runs before the site's leave-room guard. Opening the sheet keeps this WKWebView
     // mounted, so the active room's microphone and listening connection remain intact.
     static let roomOverlayScript = """
@@ -269,6 +294,9 @@ struct WorkspaceBrowser: UIViewRepresentable {
         config.allowsInlineMediaPlayback = true
         config.userContentController.add(context.coordinator, name: "roomOverlay")
         config.userContentController.addUserScript(WKUserScript(source: Self.roomOverlayScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        if space.area == "live" || space.area == "voice" {
+            config.userContentController.addUserScript(WKUserScript(source: Self.roomChromeScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
         config.applicationNameForUserAgent = "AIFECT-Mobile/" + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
         if space.area.hasPrefix("game/") {
             config.userContentController.addUserScript(WKUserScript(source: Self.gameRenderCompatibilityScript, injectionTime: .atDocumentEnd, forMainFrameOnly: true))
