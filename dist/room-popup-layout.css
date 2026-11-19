@@ -1,6 +1,21 @@
 /* Room popups use the shared popup skin and the measured chat-column anchor.
    Only these surfaces own this layout; stage, shell and composer stay intact. */
 #main[data-room-entered] .voice-room[data-voice-room] {
+  & #voice-content .room-popup > .room-popup-close {
+    position:absolute;inset:8px 8px auto auto;z-index:5;display:grid!important;place-items:center;
+    width:44px;height:44px;min-height:44px;min-width:44px;margin:0;padding:0;
+    border:0;background:var(--ds-panel);border-radius:12px;color:var(--ds-text);font-size:26px;line-height:1;
+  }
+  & #voice-content .room-popup[data-room-has-close] :is(.room-popup-heading,.room-dm-header,.gift-dialog-header,.room-wallet-view > header) {padding-right:44px;min-height:44px;}
+  & #voice-content .room-popup[data-room-has-close] .room-popup-mobile-close {display:none!important;}
+  & #voice-content #dialog.room-popup.gift-sheet {
+    & .gift-dialog-header {display:flex;align-items:center;gap:8px;}
+    & .gift-dialog-header h2 {position:static;clip-path:none;width:auto;height:auto;flex:none;font-size:16px;line-height:1.4;}
+    & .gift-dialog-header .gift-recipient {min-width:0;max-width:130px;overflow:hidden;}
+    & .gift-choice > span {color:var(--ds-body);}
+    & .gift-dialog-footer .gift-footer-grid {grid-template-rows:44px 44px;}
+    & .gift-footer-grid > *, & .gift-footer-grid .gift-quantity select {height:44px;min-height:44px;}
+  }
   & #voice-content .voice-chat-panel dialog.room-popup[open] {
     --room-popup-limit:min(500px,var(--room-popup-available,calc(var(--room-height) - 100px)));
     --room-popup-pad:16px;

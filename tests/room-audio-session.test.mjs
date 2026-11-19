@@ -146,3 +146,48 @@ test('turning the microphone off while restart waits for server cleanup cancels 
  await client.mute();finish({});await enable;
  assert.equal(captures,0);assert.equal(client.micDesired,false);assert.equal(guard.micNeedsGesture,true);
 });
+
+test('a ringing native call ends only my current karaoke invitation, even after WebKit already interrupted',async()=>{
+ const {client,guard,commands,session,context}=fixture();const mic=publishing(client);
+ client.state.karaoke={phase:'singing',active:{user_id:'self',invitation_id:'my-turn'}};
+ guard.interrupt('session');guard.onNativeCall({detail:{active:true}});guard.onNativeCall({detail:{active:true}});
+ assert.equal(mic.raw.readyState,'ended');assert.equal(guard.callActive,true);
+ session.emit('statechange');assert.equal(guard.blocked,true,'browser active cannot override a ringing phone');
+ await guard.callTask;
+ const abandon=commands.filter(x=>x.action==='karaoke');assert.equal(abandon.length,1);
+ assert.equal(abandon[0].data.operation,'abandon');assert.equal(abandon[0].data.invitation_id,'my-turn');
+ assert.equal(await guard.allowCapture(true),false);
+ guard.onNativeCall({detail:{active:false}});assert.equal(guard.blocked,false);assert.equal(guard.micNeedsGesture,true);assert.equal(client.stream,null);
+ guard.dispose();
+});
+
+test('a listener or host receiving a call never skips another singer',async()=>{
+ const {client,guard,commands}=fixture();
+ client.state.room={host_id:'self'};client.state.karaoke={phase:'singing',active:{user_id:'speaker',invitation_id:'their-turn'}};
+ guard.onNativeCall({detail:{active:true}});await guard.muteTask;
+ assert.equal(commands.some(x=>x.action==='karaoke'),false);assert.equal(guard.blocked,true);guard.dispose();
+});
+
+test('a failed call handoff retries the same invitation and does not reopen the old accompaniment',async()=>{
+ const {client,guard}=fixture();let requests=0,release;
+ client.state.karaoke={phase:'singing',active:{user_id:'self',invitation_id:'turn'}};
+ client.command=async(action,data)=>{
+  if(action!=='karaoke')return {};
+  requests++;if(requests===1)throw Error('offline');
+  await new Promise(resolve=>release=resolve);return {};
+ };
+ guard.onNativeCall({detail:{active:true}});guard.onNativeCall({detail:{active:false}});
+ assert.equal(guard.blocked,true);
+ await new Promise(resolve=>setTimeout(resolve,550));assert.equal(requests,2);assert.equal(guard.blocked,true);
+ release();await guard.callTask;assert.equal(guard.blocked,false);assert.equal(guard.micNeedsGesture,true);guard.dispose();
+});
+
+test('a queued call retry cannot abandon the next singer and is cancelled on leaving',async()=>{
+ const {client,guard,win}=fixture();let requests=0;
+ client.state.karaoke={phase:'singing',active:{user_id:'self',invitation_id:'old'}};
+ client.command=async action=>{if(action==='karaoke'){requests++;throw Error('lost response');}return {};};
+ guard.onNativeCall({detail:{active:true}});await Promise.resolve();
+ client.state.karaoke.active={user_id:'speaker',invitation_id:'new'};
+ guard.dispose();await guard.callTask;
+ assert.equal(requests,1);assert.equal(win.listeners.get('aifect:native-call').size,0);
+});

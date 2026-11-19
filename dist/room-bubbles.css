@@ -319,9 +319,9 @@
  & :is(#live-current,#live-queue) strong > span:last-child {min-width:0;overflow:hidden;text-overflow:ellipsis;}
  & #live-queue .room-host-crown svg {width:1em;height:1em;}
  & #voice-content .voice-chat-panel #voice-emoji-picker.room-emoji-dock[open] {
-  position:static!important;inset:auto!important;display:flex;flex:0 1 auto;order:0;
-  width:100%!important;max-width:none!important;height:clamp(120px,calc(var(--voice-viewport) * .32),256px);
-  min-height:0;max-height:36vh!important;margin:8px 0 0!important;padding:8px 0 0!important;
+  position:fixed!important;inset:var(--room-emoji-top) auto auto var(--room-emoji-left)!important;display:flex;z-index:40;
+  width:var(--room-emoji-width)!important;max-width:calc(100vw - 20px)!important;height:var(--room-emoji-height);
+  min-height:0;max-height:var(--room-emoji-height)!important;margin:0!important;padding:8px!important;
   translate:none;transform:none;border:1px solid var(--ds-line);border-radius:16px;
   background:var(--ds-panel)!important;box-shadow:none!important;
  }

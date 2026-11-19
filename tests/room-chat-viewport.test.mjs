@@ -62,7 +62,7 @@ test('keyboard and sticker tray changes preserve a reader position in room chat 
  f.document.activeElement=f.input;f.setKeyboard(true);f.vv.height=420;f.transcript.clientHeight=96;f.resize();
  assert.equal(f.transcript.scrollTop,200);
  f.document.activeElement=null;f.setKeyboard(false);f.picker.open=true;f.picker.hidden=false;f.vv.height=844;f.resize();
- assert.equal(f.room.hasAttribute('data-room-chat-active'),true);assert.equal(f.room.hasAttribute('data-room-stickers'),true);
+ assert.equal(f.room.hasAttribute('data-room-chat-active'),false,'the floating picker must not resize the stage');assert.equal(f.room.hasAttribute('data-room-stickers'),true);
  assert.equal(f.room.hasAttribute('data-room-keyboard'),false);assert.equal(f.transcript.scrollTop,200);
  f.context.innerWidth=1440;f.resize();assert.equal(f.room.hasAttribute('data-room-chat-active'),false);assert.equal(f.transcript.scrollTop,200);
 });
@@ -116,4 +116,17 @@ test('room sticker dock closes on input focus without consuming or clearing the 
  document.activeElement=input;input.events.get('focus')();
  assert.equal(picker.open,false);assert.equal(button.values.get('aria-expanded'),'false');assert.equal(draft,'입력 중 [aifect:cat_basic_laugh]');
  assert.equal(document.activeElement,input);
+});
+
+
+test('sticker picker stays above its composer and within the visual viewport',()=>{
+ const f=viewportFixture();f.picker.open=true;f.picker.hidden=false;
+ f.header.getBoundingClientRect=()=>({top:57,bottom:132,height:75});
+ f.composer.getBoundingClientRect=()=>({left:16,top:790,width:358,height:44});f.resize();
+ const value=name=>parseFloat(f.room.values.get(name));
+ assert.equal(value('--room-emoji-top')+value('--room-emoji-height'),782);
+ assert.equal(value('--room-emoji-left'),16);assert.equal(value('--room-emoji-width'),358);
+ f.vv.height=420;f.composer.getBoundingClientRect=()=>({left:16,top:366,width:358,height:44});f.resize();
+ assert.ok(value('--room-emoji-top')>=140);
+ assert.equal(value('--room-emoji-top')+value('--room-emoji-height'),358);
 });

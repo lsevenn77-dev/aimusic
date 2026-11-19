@@ -436,3 +436,12 @@ test('an unknown duration remains a valid empty timer and a removed PC progress 
  vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('#live-timer').textContent,'0 / 0');
  c.client.state.karaoke.active=null;vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('#live-timer').textContent,'0:00 / 0:00');
 });
+
+test('local headphone monitoring survives publication status refresh without rebuilding its tap',()=>{
+ const {c,client,vocal,broadcast}=monitorFixture();client.liveMonitorEnabled=true;
+ const sync=()=>vm.runInContext('syncLiveMonitor(client)',c);sync();const tap=client.liveMonitorTap;
+ assert.ok(tap);
+ for(const publishing of [false,true,false,true]){client.state.members.find(p=>p.id==='self').publishing=publishing;sync();assert.equal(client.liveMonitorTap,tap);}
+ assert.ok(vocal.connections.has(broadcast));
+ client.state.members.find(p=>p.id==='self').muted=true;sync();assert.equal(client.liveMonitorTap,null);
+});

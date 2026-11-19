@@ -9,10 +9,19 @@ class RoomAudioSession {
    else if(this.blocked&&this.session?.state==='active')this.recover();
   };
   this.session?.addEventListener?.('statechange',this.onSessionState);
+  this.onNativeCall=event=>{
+   this.callActive=event?.detail?.active===true;
+   if(this.callActive){this.interrupt('call');this.finishCallTurn();}
+   else this.recover();
+  };
+  this.onOnline=()=>{if(this.callTurn&&!this.callTask)this.finishCallTurn();};
+  window.addEventListener('aifect:native-call',this.onNativeCall);
+  window.addEventListener('online',this.onOnline);
   this.globalAudio=typeof audio!=='undefined'?audio:null;
   this.onGlobalPlay=()=>{if(this.blocked&&!this.disposed)this.quietGlobal();};
   this.globalAudio?.addEventListener?.('play',this.onGlobalPlay);
   this.onSessionState();this.updateType();
+  if(window.AifectNativeCall?.active)this.onNativeCall({detail:window.AifectNativeCall});
  }
  setType(type){
   if(this.disposed||this.blocked||!this.session)return;
@@ -88,9 +97,35 @@ class RoomAudioSession {
   c.paint?.();c.updateListening?.();
   c.status?.('기기 오디오가 일시 중단됐어요. 소리와 마이크를 껐어요.');
  }
+ finishCallTurn(){
+  const c=this.client,active=c.state?.karaoke?.active;
+  if(this.disposed||c.closed||this.callTask)return this.callTask;
+  // A listener (including the host) must never end another person's song.
+  if(!this.callTurn){
+   if(!active||active.user_id!==c.state.self)return;
+   this.callTurn={id:active.invitation_id,generation:c.generation,request:crypto.randomUUID()};
+  }
+  const turn=this.callTurn;
+  const current=()=>!this.disposed&&!c.closed&&c.generation===turn.generation&&c.state?.karaoke?.active?.invitation_id===turn.id&&c.state.karaoke.active.user_id===c.state.self;
+  this.callTask=(async()=>{
+   for(let attempt=0;attempt<3&&current();attempt++){
+    try{
+     const state=await c.command('karaoke',{operation:'abandon',invitation_id:turn.id,request_id:turn.request});
+     if(!this.disposed&&!c.closed&&c.generation===turn.generation&&state)c.acceptState?.(state);
+     this.callTurn=null;
+     c.status?.('통화로 노래를 종료하고 다음 차례로 넘겼어요.');return;
+    }catch{
+     if(attempt<2)await new Promise(resolve=>{this.callRetryResolve=resolve;this.callRetryTimer=setTimeout(resolve,500*(attempt+1));});
+    }
+   }
+   if(!current())this.callTurn=null;
+   else c.status?.('노래는 중단됐어요. 연결이 돌아오면 차례 종료를 다시 요청해요.');
+  })().finally(()=>{this.callTask=null;this.callRetryResolve=null;if(!this.callActive&&!this.callTurn)this.recover();});
+  return this.callTask;
+ }
  recover(){
   const c=this.client;
-  if(this.disposed||c.closed||!this.blocked||this.session?.state==='interrupted')return false;
+  if(this.disposed||c.closed||!this.blocked||this.callActive||this.callTurn||this.session?.state==='interrupted')return false;
   this.blocked=false;this.revision++;this.updateType();this.restoreGlobal();
   c.micDesired=false;c.foregroundMicDesired=false;
   c.liveNeedsResync=true;c.livePlayBlocked=false;c.musicBlocked=false;
@@ -102,7 +137,7 @@ class RoomAudioSession {
  async resumeByUser(){
   if(this.disposed||this.client.closed)return false;
   if(!this.blocked)return true;
-  if(this.session?.state==='interrupted'){
+  if(this.callActive||this.session?.state==='interrupted'){
    this.client.status?.('기기 오디오 사용이 끝난 뒤 다시 켜주세요.');return false;
   }
   const revision=this.revision,context=this.client.levelContext;
@@ -117,7 +152,8 @@ class RoomAudioSession {
   if(userInitiated){
    const intentRevision=this.client.micIntentRevision||0;
    if(this.blocked&&!await this.resumeByUser())return false;
-   await this.muteTask;
+   await this.muteTask;await this.callTask;
+   if(this.callTurn)return false;
    if(this.disposed||this.client.closed||this.blocked||intentRevision!==(this.client.micIntentRevision||0))return false;
    this.micNeedsGesture=false;
   }else if(this.blocked||this.micNeedsGesture)return false;
@@ -131,6 +167,9 @@ class RoomAudioSession {
   if(this.disposed)return;
   this.disposed=true;this.revision++;
   this.session?.removeEventListener?.('statechange',this.onSessionState);
+  window.removeEventListener('aifect:native-call',this.onNativeCall);
+  window.removeEventListener('online',this.onOnline);
+  clearTimeout(this.callRetryTimer);this.callRetryResolve?.();this.callTurn=null;
   this.globalAudio?.removeEventListener?.('play',this.onGlobalPlay);
   for(const [track,handler] of this.tracks)track.removeEventListener?.('mute',handler);
   this.tracks.clear();this.restoreGlobal();

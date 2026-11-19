@@ -53,7 +53,7 @@ function bindRoomViewport(client){
   const focused=!!document.activeElement?.closest?.('#voice-chat-form'),keyboard=mobile&&focused&&!!(window.AifectMobileInput?.measure?.().keyboard||document.documentElement?.hasAttribute?.('data-mobile-keyboard'));
   const stickers=!!picker?.open&&!picker.hidden;
   room.toggleAttribute?.('data-room-keyboard',keyboard);
-  room.toggleAttribute?.('data-room-chat-active',mobile&&(keyboard||stickers));
+  room.toggleAttribute?.('data-room-chat-active',mobile&&keyboard);
   room.toggleAttribute?.('data-room-stickers',stickers);
   if(client.roomMobile!==mobile){client.roomMobile=mobile;setVoiceFocus(client.joined&&!client.closed);}
   let start=top,end=bottom;
@@ -86,6 +86,11 @@ function bindRoomViewport(client){
   write(room,'--room-popup-available',Math.max(0,composerTop-popupStart-16)+'px');
   write(document.documentElement,'--room-toast-bottom',Math.max(0,innerHeight-composerTop+10)+'px');
   write(room,'--room-visual-top',top+'px');write(room,'--room-visual-height',(bottom-top)+'px');
+  if(stickers&&composer){
+   const rect=composer.getBoundingClientRect(),height=Math.max(0,Math.min(256,(bottom-top)*.4,rect.top-popupStart-16));
+   write(room,'--room-emoji-left',rect.left+'px');write(room,'--room-emoji-width',rect.width+'px');
+   write(room,'--room-emoji-top',Math.max(popupStart+8,rect.top-height-8)+'px');write(room,'--room-emoji-height',height+'px');
+  }
   // Expose measured geometry for diagnostics and keep reads before writes next frame.
   client.roomBounds={top:start,bottom:end,width:box.width,visualHeight:bottom-top};
   positionRoomPopup(client);

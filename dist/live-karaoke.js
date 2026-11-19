@@ -118,8 +118,8 @@ function liveUpdatePresentation(c){
   }
   const guide=c.host.querySelector('.room-live-guide');
   if(guide){
-   if(pc&&guide.parentElement!==main)main.append(guide);
-   else if(!pc&&guide.parentElement===main)stage.after(guide);
+   // Playback recovery belongs to the stage, never a new row under reservations.
+   if(guide.parentElement!==main)main.append(guide);
   }
  }
  const reserve=c.host.querySelector('.live-request-button');
@@ -192,8 +192,8 @@ function isLiveSingerTurn(c){
 function disconnectLiveMonitor(c){
  const tap=c.liveMonitorTap;
  if(!tap)return;
- tap.source.disconnect(tap.gain);
- tap.gain.disconnect();
+ try{tap.source.disconnect(tap.gain);}catch{/* The capture graph may already be retired. */}
+ try{tap.gain.disconnect();}catch{}
  c.liveMonitorTap=null;
 }
 function syncLiveMonitor(c){
@@ -202,7 +202,9 @@ function syncLiveMonitor(c){
   return;
  }
  const member=c.state.members.find(person=>person.id===c.state.self);
- if(!member?.publishing||member.locked||member.muted){
+ // Monitoring is local. A transient publication/transport snapshot must not
+ // repeatedly cut the singer's headphones while their local track is enabled.
+ if(!member||member.locked||member.muted){
   disconnectLiveMonitor(c);
   return;
  }

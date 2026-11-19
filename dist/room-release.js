@@ -169,6 +169,7 @@ function roomMessages(client,sheet){
  async function inbox(){
   const t=reset();peer=null;
   sheet.innerHTML='<header class="room-popup-heading"><h2 id="room-inbox-title">메시지</h2></header><label class="room-dm-query">팔로우 검색<input type="search" aria-label="메시지를 보낼 팔로우 검색" placeholder="닉네임 검색"></label><div class="room-dm-list"></div><small data-room-dm-status role="status"></small>';
+  client.ensureRoomPopupClose?.(sheet);
   const input=sheet.querySelector('input'),list=sheet.querySelector('.room-dm-list'),noticeIds=new Set();let search=0;
   const load=async()=>{
    const q=input.value.trim(),seq=++search;
@@ -193,6 +194,7 @@ function roomMessages(client,sheet){
   const d=await api('/api/notices/welcome','GET',undefined,{fresh:true});if(!current(t)||uid!==me?.id)return;
   peer=null;
   sheet.innerHTML='<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button><span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span><strong>공지 · 아이팩트 안내</strong></header><div class="room-welcome-guide">'+welcomeGuideHTML(d)+'</div>';
+  client.ensureRoomPopupClose?.(sheet);
   sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
   noticeCleanup=bindWelcomeNotice({welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at}},()=>{
    if(!current(t)||uid!==me?.id)return;
@@ -206,6 +208,7 @@ function roomMessages(client,sheet){
   const d=await api(path,'GET',undefined,{fresh:true});if(!current(t))return;
   peer=d.peer;
   sheet.innerHTML=`<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button>${avatarImage({...peer,profile_id:id})}<strong>${userNickname(chatNickname(peer),{profileId:id,userId:peer.user_id})}</strong>${dmMuteButton({...peer,muted:d.settings?.muted})}</header><div class="room-dm-log" role="log"></div>${dmEmojiPickerHTML()}${chatComposerHTML({id:'room-dm-compose',className:'room-dm-composer',rich:true,emojiAttributes:'data-dm-emoji aria-controls="dm-emoji-picker"',giftAttributes:'data-room-dm-gift',leadingHTML:'<label class="chat-ui-icon chat-ui-plain" aria-label="사진 첨부" tabindex="0">'+icon('image')+'<input type="file" accept="image/jpeg,image/png,image/webp" hidden></label>'})}<small role="status" data-room-dm-status></small>`;
+  client.ensureRoomPopupClose?.(sheet);
   const log=sheet.querySelector('.room-dm-log'),form=sheet.querySelector('form'),input=form.querySelector("[data-dm-editor]"),file=form.querySelector('input[type=file]'),status=sheet.querySelector('[data-room-dm-status]');
   const messages=new Map();let cursor=0,reading=false,again=false,pending=null;
   async function merge(batch){
@@ -219,6 +222,7 @@ function roomMessages(client,sheet){
    if(!current(t))return;if(reading){again=true;return;}reading=true;
    try{do{again=false;const more=await api(path+'?after='+cursor,'GET',undefined,{fresh:true});if(!current(t))return;await merge(more.messages);if(more.has_more&&more.messages.length)again=true;}while(again&&current(t));}finally{reading=false;}
   };
+  client.ensureRoomPopupClose?.(sheet);
   sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
   editor=AifectStickers.editor(input,toast);stickers=bindDmEmoji(form,input,editor);
   file.onchange=()=>{status.textContent=file.files[0]?.name||'';pending=null;};

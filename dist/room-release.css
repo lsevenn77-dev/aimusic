@@ -585,13 +585,13 @@
  #main[data-room-focus],:root[data-mobile-keyboard] #main[data-room-focus] {top:var(--voice-top,0px)!important;bottom:auto!important;height:var(--mobile-input-height,100dvh)!important}
  #main[data-room-focus] .voice-room[data-voice-room] {--room-height:var(--voice-viewport,100dvh);height:var(--room-height)!important;padding-top:env(safe-area-inset-top)}
  #main[data-room-focus] .voice-room[data-voice-room] :is(input:not([type=range]),textarea,[contenteditable=true]),#main[data-room-focus] .voice-room[data-voice-room] #voice-message {font-size:16px!important}
- /* Sent stickers need a readable mobile size; the draft still fits its 24px line. */
- #main .voice-room #voice-chat {--room-sticker-scale:1.5}
+ /* Inline artwork uses the same scale as the composer and surrounding text. */
+ #main .voice-room #voice-chat {--room-sticker-scale:1}
  #main .voice-room #voice-message {--room-sticker-scale:1}
  #main .voice-room :is(#voice-chat,#voice-message) img.cat-chat-sticker:not(.cat-word):not(.cat-word-ink) {width:auto;height:calc(var(--cat-art-size) * var(--room-sticker-scale));vertical-align:calc(.5cap - var(--cat-art-size) * var(--room-sticker-scale) * .5);object-fit:contain}
  #main .voice-room :is(#voice-chat,#voice-message) .cat-word-slot {width:calc(var(--cat-slot-width) * var(--room-sticker-scale));height:calc(var(--cat-slot-height) * var(--room-sticker-scale));padding-block-start:calc(var(--cat-art-inset) * var(--room-sticker-scale));vertical-align:calc(.38em - var(--cat-below-ink) * var(--room-sticker-scale))}
  #main .voice-room :is(#voice-chat,#voice-message) :is(.cat-word-slot img.cat-word-ink,img.cat-word) {width:calc(var(--cat-slot-width) * var(--room-sticker-scale));height:calc(var(--cat-art-height) * var(--room-sticker-scale));max-width:none;vertical-align:calc(.38em - var(--cat-below-ink) * var(--room-sticker-scale))}
- #main .voice-room #voice-emoji-picker .cat-tile:not([data-cat-group="text"]) img {height:calc(var(--cat-art-size) * 1.5)}
+ #main .voice-room #voice-emoji-picker .cat-tile:not([data-cat-group="text"]) img {height:var(--cat-art-size)}
 }
 
 html[data-room-popup] body{overflow:hidden}

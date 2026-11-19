@@ -382,6 +382,13 @@ Object.assign(VoiceRoomClient.prototype,{
   }else p.close();
  },
  showTalkPopup(id,trigger){const sheet=document.getElementById(id);if(sheet)this.adoptRoomPopup(sheet,trigger);},
+ ensureRoomPopupClose(sheet){
+  if(sheet.querySelector('.room-popup-close'))return;
+  const button=document.createElement('button');button.type='button';button.className='room-popup-close';
+  button.setAttribute('aria-label','팝업 닫기');button.textContent='×';
+  button.onclick=()=>{if(this.talkPopup===sheet)this.closeRoomPopup();};
+  sheet.append(button);sheet.setAttribute('data-room-has-close','');
+ },
  adoptRoomPopup(sheet,trigger=this.actionTrigger){
   if(sheet.id!=='voice-emoji-picker'&&!$('#voice-emoji-picker').hidden)this.toggleEmojiPicker(false);
   if(sheet===this.talkPopup&&sheet.open){this.closeRoomPopup();return;}
@@ -402,6 +409,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.talkPopup=sheet;document.documentElement?.setAttribute('data-room-popup','');sheet.classList.add('room-popup');sheet.removeAttribute('aria-modal');sheet.tabIndex=-1;
   if(sheet.id==='dialog'&&!this.roomExternalHome)this.roomExternalHome={parent:sheet.parentNode,next:sheet.nextSibling};
   this.host.querySelector('.voice-chat-panel').append(sheet);
+  this.ensureRoomPopupClose(sheet);
   this.host.querySelectorAll('.room-header [aria-expanded],[data-voice=inbox]').forEach(b=>b.setAttribute('aria-expanded',String(b.getAttribute('aria-controls')===sheet.id)));
   if(!sheet.open)sheet.show();sheet.scrollTop=0;
   positionRoomPopup(this);this.roomResizeObserver?.observe(sheet);sheet.focus({preventScroll:true});
