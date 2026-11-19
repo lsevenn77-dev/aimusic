@@ -4,12 +4,39 @@ import {fixture} from './fixture.mjs';
 
 test('dashboard and private search require a full admin, not only a track moderator',async t=>{
  const f=await fixture(t,{ADMIN_USER_IDS:'owner',TRACK_REVIEW_USER_IDS:'other'});
- for(const path of ['/api/admin/dashboard','/api/admin/dashboard/search?q=owner']){
+ for(const path of ['/api/admin/dashboard','/api/admin/dashboard/search?q=owner','/api/admin/dashboard/members']){
   assert.equal((await f.call(path,'GET',null,'')).status,401);
   assert.equal((await f.call(path,'GET',null,'other')).status,403);
   assert.equal((await f.call(path)).status,200);
  }
  assert.equal((await f.call('/api/admin/dashboard','POST',{})).status,405);
+});
+
+test('member directory filters Korean signup dates and current Premium and pages equal timestamps',async t=>{
+ const f=await fixture(t,{ADMIN_USER_IDS:'owner'}),at=Math.floor(Date.now()/1000);
+ const midnight=Math.floor((at+32400)/86400)*86400-32400;
+ const day=new Date((midnight+32400)*1000).toISOString().slice(0,10);
+ const insert=f.sql.prepare('INSERT INTO users(id,name,email,provider,created,premium_until,apple_premium_until) VALUES(?,?,?,?,?,?,?)');
+ for(let i=0;i<52;i++)insert.run('member-'+i,'이메일 회원','user'+i+'@example.test','email',midnight,0,0);
+ insert.run('ios','private name','hidden@example.test','apple',midnight-1,0,at+3600);
+ insert.run('play','subscriber','play@example.test','email',midnight,at+3600,0);
+ insert.run('expired','expired','expired@example.test','email',midnight-1,at-1,0);
+ insert.run('removed','removed','removed@example.test','deleted',midnight,at+3600,0);
+ f.sql.prepare("INSERT INTO users(id,name,email,provider,account_type,created) VALUES('ai_9001','테스트 봇','bot@example.test','ai_service','ai_bot',?)").run(midnight);
+ const get=async query=>(await f.call('/api/admin/dashboard/members?'+query)).body;
+ const first=await get('group=today'),second=await get('group=today&cursor='+encodeURIComponent(first.next_cursor));
+ const ids=[...first.members,...second.members].map(row=>row.id);
+ assert.equal(first.members.length,50);assert.equal(second.next_cursor,null);
+ assert.equal(ids.length,53);assert.equal(new Set(ids).size,53);
+ assert(!ids.includes('ios')&&!ids.includes('removed')&&!ids.includes('ai_9001'));
+ assert.deepEqual((await get('group=all&day='+day)).members,first.members);
+ const premium=(await get('group=premium')).members;
+ assert.deepEqual(premium.map(row=>row.id),['play','ios']);
+ assert.match(premium[0].public_id,/^[A-Z]{3}\d{4}$/);assert.equal(premium[0].login_email,'play@example.test');
+ assert.equal(premium[1].login_email,null);
+ assert.equal((await f.call('/api/admin/dashboard')).body.summary.today_users,53);
+ for(const q of ['group=wrong','day=2025-02-30','cursor=invalid'])
+  assert.equal((await f.call('/api/admin/dashboard/members?'+q)).status,400);
 });
 
 test('dashboard reads real tables and separates paid purchases from diamond exchanges, free and refunded gold',async t=>{

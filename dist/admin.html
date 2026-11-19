@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/admin.css?v=20261012-admin-login">
+  <link rel="stylesheet" href="/admin.css?v=20261120-members">
   <link rel="stylesheet" href="/mobile-input.css">
   <script defer src="/mobile-input.js"></script>
 </head>
@@ -130,8 +130,20 @@
           </section>
 
           <section class="view-page hidden" data-page="people">
-            <div class="section-heading"><div><p class="eyebrow">AUDIENCE</p><h1>사용자 · 창작자</h1><p>최근 가입 회원과 새 창작자 활동을 빠르게 확인합니다.</p></div></div>
-            <div class="two-column"><article class="admin-card wide-card"><div class="card-head"><h2>최근 가입 회원</h2><span class="soft-badge" id="people-users-count"></span></div><div class="data-table-wrap"><table><thead><tr><th>이름</th><th>가입 채널</th><th>Premium</th><th>가입일</th></tr></thead><tbody id="recent-user-table"></tbody></table></div></article><article class="admin-card wide-card"><div class="card-head"><h2>최근 창작자</h2><span class="soft-badge" id="people-creators-count"></span></div><div class="data-table-wrap"><table><thead><tr><th>활동명</th><th>곡</th><th>팔로워</th><th>등록일</th></tr></thead><tbody id="recent-creator-table"></tbody></table></div></article></div>
+            <div class="section-heading"><div><p class="eyebrow">AUDIENCE</p><h1>사용자 · 창작자</h1></div></div>
+            <article class="admin-card wide-card" id="member-directory">
+              <div class="card-head"><h2>가입 회원</h2><span class="soft-badge">한국 시간 기준</span></div>
+              <div class="member-filters" role="group" aria-label="회원 목록 필터">
+                <button type="button" data-member-group="all" aria-pressed="true">전체 회원</button>
+                <button type="button" data-member-group="today" aria-pressed="false">오늘 가입</button>
+                <button type="button" data-member-group="premium" aria-pressed="false">프리미엄 회원</button>
+                <label id="member-day-field">가입일 <input type="date" id="member-day"></label>
+              </div>
+              <div id="member-list"></div>
+              <p id="member-status" role="status"></p>
+              <button type="button" id="member-more" class="link-button" hidden>더 보기</button>
+            </article>
+            <article class="admin-card wide-card"><div class="card-head"><h2>최근 창작자</h2><span class="soft-badge" id="people-creators-count"></span></div><div class="data-table-wrap"><table><thead><tr><th>활동명</th><th>곡</th><th>팔로워</th><th>등록일</th></tr></thead><tbody id="recent-creator-table"></tbody></table></div></article>
           </section>
 
           <section class="view-page hidden" data-page="subscriptions">
@@ -174,7 +186,7 @@
     <div class="admin-toast" id="admin-toast" role="status" aria-live="polite"></div>
     <dialog id="admin-dialog"><div id="admin-dialog-content"></div><button type="button" id="admin-dialog-close" class="dialog-close" aria-label="닫기">×</button></dialog>
   </div>
-  <script defer src="/admin.js?v=20261012-admin-login"></script>
+  <script defer src="/admin.js?v=20261120-members"></script>
   <script defer src="/admin-ai-bots.js"></script><script defer src="/admin-cover-compression.js"></script>
 <link rel="stylesheet" href="/popup-close.css">
 <link rel="stylesheet" href="/icon-feedback.css">

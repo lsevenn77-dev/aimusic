@@ -22,6 +22,8 @@
     scheduled:'지급예정',held:'정보대기',paid:'지급완료',removed:'삭제',dismissed:'유지'
   }[value]||value||'-');
   const state={days:7,data:null,me:null,view:'dashboard',payoutPeriod:null};
+  const directory={group:'all',cursor:null,lastDay:'',count:0,request:0};
+  const memberTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 
   function toast(message){
     const el=$('#admin-toast');
@@ -44,6 +46,8 @@
 
   function showLogin(message=''){
     state.data=null;state.me=null;
+    directory.request++;
+    $('#member-list').replaceChildren();
     app.classList.add('locked');
     $('#admin-content').hidden=true;
     const gate=$('#access-gate');
@@ -68,9 +72,11 @@
 
   function navigate(view){
     state.view=view;
+    $('#period-select').hidden=view==='people';
     $$('.view-page').forEach(page=>page.classList.toggle('hidden',page.dataset.page!==view));
     $$('.admin-nav-item').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
     if(view==='tracks')loadTrackReview();
+    if(view==='people')loadMembers();
     if(view==='moderation'){loadCommentReports();loadDubbingReports();}
     if(view==='dubbing')loadDubbing();
     if(view==='payouts')loadPayouts();
@@ -78,19 +84,20 @@
     window.scrollTo({top:0,behavior:'smooth'});
   }
 
-  function kpiCard(icon,label,value,detail,positive=true){
-    return '<article class="kpi-card"><div class="kpi-icon">'+icon+'</div><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><em style="'+(positive?'':'color:var(--muted)')+'">'+esc(detail)+'</em></article>';
+  function kpiCard(icon,label,value,detail,positive=true,memberGroup=''){
+    const tag=memberGroup?'button':'article';
+    return '<'+tag+' class="kpi-card"'+(memberGroup?' type="button" data-open-members="'+memberGroup+'"':'')+'><span class="kpi-icon">'+icon+'</span><small>'+esc(label)+'</small><strong>'+esc(value)+'</strong><em style="'+(positive?'':'color:var(--muted)')+'">'+esc(detail)+'</em></'+tag+'>';
   }
 
   function renderKPIs(data){
     const s=data.summary;
     $('#kpi-grid').innerHTML=[
-      kpiCard('♙','총 회원',num(s.users),'누적 회원'),
-      kpiCard('♕','활성 Premium',num(s.active_subscribers),'현재 이용 중'),
+      kpiCard('♙','총 회원',num(s.users),'전체 회원 보기',true,'all'),
+      kpiCard('♕','활성 Premium',num(s.active_subscribers),'프리미엄 회원 보기',true,'premium'),
       kpiCard('▶','유효 재생',num(s.qualified_plays),'최근 '+data.days+'일'),
       kpiCard('♫','공개 음원',num(s.published_tracks),'현재 공개'),
       kpiCard('◌','창작자',num(s.creators),'등록 프로필'),
-      kpiCard('＋','신규 회원',num(s.new_users),'최근 '+data.days+'일')
+      kpiCard('＋','오늘 가입',num(s.today_users),'오늘 가입 회원 보기',true,'today')
     ].join('');
   }
 
@@ -235,17 +242,55 @@
   }
 
   function renderPeople(data){
-    $('#people-users-count').textContent=num(data.recent_users.length)+'명 표시';
-    $('#recent-user-table').innerHTML=data.recent_users.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.provider)+'</td><td>'+(x.premium?'이용 중':'무료')+'</td><td>'+kstDate(x.created)+'</td></tr>').join('')||'<tr><td colspan="4">회원 데이터가 없습니다.</td></tr>';
     $('#people-creators-count').textContent=num(data.recent_creators.length)+'명 표시';
     $('#recent-creator-table').innerHTML=data.recent_creators.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+num(x.tracks)+'</td><td>'+num(x.followers)+'</td><td>'+kstDate(x.created)+'</td></tr>').join('')||'<tr><td colspan="4">창작자 데이터가 없습니다.</td></tr>';
+  }
+
+  async function loadMembers(append=false){
+    const {group}=directory,request=++directory.request;
+    const list=$('#member-list'),more=$('#member-more'),status=$('#member-status');
+    const params=new URLSearchParams({group});
+    const day=$('#member-day').value;
+    $('#member-day-field').hidden=group==='today';
+    for(const button of $$('[data-member-group]'))button.setAttribute('aria-pressed',String(button.dataset.memberGroup===group));
+    if(day&&group!=='today')params.set('day',day);
+    if(!append){
+      directory.cursor=null;directory.lastDay='';directory.count=0;
+      list.replaceChildren();
+    }
+    if(directory.cursor)params.set('cursor',directory.cursor);
+    more.disabled=true;more.hidden=!append;status.textContent='회원 목록을 불러오는 중입니다.';
+    try{
+      const page=await api('/api/admin/dashboard/members?'+params);
+      if(request!==directory.request)return;
+      const providers={email:'이메일',google:'Google',apple:'Apple',kakao:'카카오'};
+      let html='';
+      for(const member of page.members){
+        const date=new Date(member.created*1000);
+        const joinedDay=new Date(date.getTime()+9*3600000).toISOString().slice(0,10);
+        if(joinedDay!==directory.lastDay){
+          html+='<h3 class="member-day">'+joinedDay+'</h3>';
+          directory.lastDay=joinedDay;
+        }
+        html+='<div class="member-row"><div><strong>'+esc(member.name)+'</strong> <code>'+esc(member.public_id?'#'+member.public_id:member.id)+'</code>'+
+          (member.login_email?'<small>'+esc(member.login_email)+'</small>':'')+'</div><span>'+esc(providers[member.provider]||member.provider)+'</span>'+
+          '<span>'+(member.premium?'Premium':'무료')+'</span><time datetime="'+date.toISOString()+'">'+memberTime.format(date)+'</time></div>';
+      }
+      list.insertAdjacentHTML('beforeend',html);
+      directory.count+=page.members.length;directory.cursor=page.next_cursor;
+      status.textContent=directory.count?num(directory.count)+'명 표시':'해당하는 회원이 없습니다.';
+      more.hidden=!directory.cursor;more.textContent='더 보기';
+    }catch(error){
+      if(request!==directory.request)return;
+      status.textContent=error.message;more.textContent='다시 시도';more.hidden=false;
+    }finally{if(request===directory.request)more.disabled=false;}
   }
 
   function renderSubscriptions(data){
     const states=data.subscription_states||[];
     const webTotal=states.reduce((a,x)=>a+x.n,0),cancelled=states.filter(x=>x.cancel_requested||x.state==='cancelled').reduce((a,x)=>a+x.n,0);
     $('#subscription-kpis').innerHTML=[
-      kpiCard('♕','전체 Premium',num(data.summary.active_subscribers),'스토어 포함'),
+      kpiCard('♕','전체 Premium',num(data.summary.active_subscribers),'프리미엄 회원 보기',true,'premium'),
       kpiCard('▣','웹 구독 레코드',num(webTotal),'NICEPAY'),
       kpiCard('✓','갱신 상태',num(Math.max(0,webTotal-cancelled)),'취소요청 제외'),
       kpiCard('×','해지·취소 요청',num(cancelled),'웹 구독')
@@ -502,10 +547,21 @@
 
   $('#dubbing-rights-status').addEventListener('change',loadDubbingReports);
   $$('.admin-nav-item').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.view)));
+  app.addEventListener('click',event=>{
+    const shortcut=event.target.closest('[data-open-members]');
+    if(shortcut){
+      directory.group=shortcut.dataset.openMembers;$('#member-day').value='';navigate('people');
+    }
+  });
+  for(const button of $$('[data-member-group]'))button.addEventListener('click',()=>{
+    directory.group=button.dataset.memberGroup;$('#member-day').value='';loadMembers();
+  });
+  $('#member-day').addEventListener('change',()=>loadMembers());
+  $('#member-more').addEventListener('click',()=>loadMembers(Boolean(directory.cursor)));
   app.addEventListener('click',e=>{const jump=e.target.closest('[data-jump]');if(jump&&app.contains(jump))navigate(jump.dataset.jump);});
   async function refreshCurrentView(){if(state.view==='cover-compression')document.dispatchEvent(new CustomEvent('aifect-admin-cover-compression'));if(state.view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));await loadDashboard(true);if(state.view==='dubbing')await loadDubbing();if(state.view==='moderation')await Promise.all([loadCommentReports(),loadDubbingReports()]);}
   $('#period-select').addEventListener('change',async e=>{state.days=Number(e.target.value)||7;await refreshCurrentView();});
-  $('#refresh-button').addEventListener('click',refreshCurrentView);
+  $('#refresh-button').addEventListener('click',()=>{if(state.view==='people')loadMembers();refreshCurrentView();});
   $('#admin-search-form').addEventListener('submit',e=>{e.preventDefault();globalSearch($('#admin-search-input').value);});
   $('#profile-button').addEventListener('click',async()=>{
     try{await api('/api/admin/logout',{method:'POST'});location.replace('/admin/dashboard');}

@@ -1,10 +1,40 @@
 import {trackArtworkSQL} from './track-artwork.js';
 import {one,rows,now,fail,json,str} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
+import {publicNameSQL} from './identity.js';
 
 const ALLOWED_DAYS=new Set([7,30,90]);
 const toNumber=value=>Number(value||0);
 const mwToWon=value=>Math.round(toNumber(value)/1000);
+const currentMember="u.provider!='deleted' AND u.account_type='human'";
+const premiumMember='MAX(u.premium_until,u.apple_premium_until)>?';
+const kstStart=at=>Math.floor((at+9*3600)/86400)*86400-9*3600;
+
+async function memberDirectory(env,params,at){
+ const group=params.get('group')||'all',day=params.get('day'),cursor=params.get('cursor');
+ if(!['all','today','premium'].includes(group))fail(400,'회원 구분을 확인해주세요.');
+ const conditions=[currentMember],args=[];
+ if(group==='today'||day!==null){
+  const start=day===null?kstStart(at):Date.parse(day+'T00:00:00+09:00')/1000;
+  if(day!==null&&(group==='today'||!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(start)||
+    new Date((start+9*3600)*1000).toISOString().slice(0,10)!==day))fail(400,'가입일을 확인해주세요.');
+  conditions.push('u.created>=? AND u.created<?');args.push(start,start+86400);
+ }
+ if(group==='premium'){conditions.push(premiumMember);args.push(at);}
+ if(cursor!==null){
+  const match=/^(\d{1,12}):([^:\s]{1,128})$/.exec(cursor);
+  if(!match)fail(400,'목록 위치를 확인해주세요.');
+  conditions.push('(u.created,u.id)<(?,?)');args.push(Number(match[1]),match[2]);
+ }
+ const pageSize=50;
+ const list=await rows(env,`SELECT u.id,pp.code public_id,${publicNameSQL()} name,
+  CASE WHEN u.provider='email' THEN u.email END login_email,
+  u.created,u.provider,${premiumMember} premium FROM users u
+  LEFT JOIN public_profile_ids pp ON pp.user_id=u.id WHERE ${conditions.join(' AND ')}
+  ORDER BY u.created DESC,u.id DESC LIMIT ?`,at,...args,pageSize+1);
+ const members=list.slice(0,pageSize),last=members.at(-1);
+ return json({members,next_cursor:list.length>pageSize?last.created+':'+last.id:null});
+}
 
 async function searchDashboard(env,q){
  const like=`%${q}%`;
@@ -30,6 +60,7 @@ export async function adminDashboardRoute(req,env,path,user){
  requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
  if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
  const url=new URL(req.url);
+ if(path==='/api/admin/dashboard/members')return memberDirectory(env,url.searchParams,now());
  if(path==='/api/admin/dashboard/search'){
   const q=str(url.searchParams.get('q')||'',80,false);
   if(q.length<2)return json({query:q,tracks:[],creators:[],users:[]});
@@ -45,12 +76,13 @@ export async function adminDashboardRoute(req,env,path,user){
   one(env,`SELECT
    (SELECT count(*) FROM users WHERE provider!='deleted' AND account_type='human') users,
    (SELECT count(*) FROM users WHERE provider!='deleted' AND account_type='human' AND created>=?) new_users,
-   (SELECT count(*) FROM users WHERE provider!='deleted' AND account_type='human' AND (premium_until>? OR apple_premium_until>?)) active_subscribers,
+   (SELECT count(*) FROM users u WHERE ${currentMember} AND u.created>=? AND u.created<?) today_users,
+   (SELECT count(*) FROM users u WHERE ${currentMember} AND ${premiumMember}) active_subscribers,
    (SELECT count(*) FROM listens WHERE qualified=1 AND started>=?) qualified_plays,
    (SELECT count(*) FROM tracks WHERE status='published') published_tracks,
    (SELECT count(*) FROM producers p JOIN users u ON u.id=p.user_id WHERE u.account_type='human') creators,
    (SELECT count(*) FROM comment_reports WHERE status='pending') pending_comment_reports,
-   (SELECT count(DISTINCT track_id) FROM track_reports) reported_tracks`,cutoff,at,at,cutoff),
+   (SELECT count(DISTINCT track_id) FROM track_reports) reported_tracks`,cutoff,kstStart(at),kstStart(at)+86400,at,cutoff),
   rows(env,`SELECT day,count(*) n FROM listens WHERE qualified=1 AND started>=? GROUP BY day ORDER BY day`,cutoff),
   rows(env,`SELECT date(created,'unixepoch','+9 hours') day,count(*) n
    FROM users WHERE provider!='deleted' AND account_type='human' AND created>=? GROUP BY day ORDER BY day`,cutoff),
@@ -91,7 +123,7 @@ export async function adminDashboardRoute(req,env,path,user){
  const response={
   generated_at:at,days,
   summary:{
-   users:toNumber(summary?.users),new_users:toNumber(summary?.new_users),
+   users:toNumber(summary?.users),new_users:toNumber(summary?.new_users),today_users:toNumber(summary?.today_users),
    active_subscribers:toNumber(summary?.active_subscribers),qualified_plays:toNumber(summary?.qualified_plays),
    published_tracks:toNumber(summary?.published_tracks),creators:toNumber(summary?.creators),
    pending_comment_reports:toNumber(summary?.pending_comment_reports),reported_tracks:toNumber(summary?.reported_tracks)
