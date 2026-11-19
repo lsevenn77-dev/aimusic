@@ -1,5 +1,6 @@
 import SwiftUI
 import WebKit
+import CallKit
 
 struct CatalogHeader: View {
     let title: String
@@ -151,7 +152,7 @@ struct WebWorkspacePage: View {
                             ChatPage(path: route.crew ? "/api/crews/\(Endpoint.pathID(route.id))/messages" : "/api/dm/\(Endpoint.pathID(route.id))", title: route.title, crew: route.crew)
                         }
                         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("노래방으로 돌아가기") { roomOverlay = nil } } }
-                }.presentationDetents([.large]).preferredColorScheme(.dark)
+                }.presentationDetents([.fraction(0.5)]).presentationDragIndicator(.visible).preferredColorScheme(.dark)
             }
     }
 }
@@ -205,6 +206,8 @@ struct WorkspaceBrowser: UIViewRepresentable {
             if (event.defaultPrevented || event.button !== 0 || !/^#(?:live|voice)[/][^/?]+/.test(location.hash)) return;
             const link = event.target.closest?.('a[href]');
             const roomInbox = event.target.closest?.('[data-voice="inbox"]');
+            // Current rooms own an inline inbox; let it stay above the room composer.
+            if (roomInbox) return;
             const target = link ? new URL(link.href, location.href) : null;
             if (target && target.origin !== location.origin) return;
             const path = roomInbox ? 'dm' : (target?.hash || '').slice(1).split('?')[0];
@@ -316,6 +319,9 @@ struct WorkspaceBrowser: UIViewRepresentable {
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
         view.uiDelegate = context.coordinator
+        if space.area == "live" || space.area == "voice" {
+            context.coordinator.observeRoomCalls(in: view)
+        }
         view.isOpaque = false
         view.backgroundColor = UIColor(Brand.background)
         view.scrollView.backgroundColor = UIColor(Brand.background)
@@ -348,18 +354,55 @@ struct WorkspaceBrowser: UIViewRepresentable {
     static func dismantleUIView(_ view: WKWebView, coordinator: Coordinator) {
         coordinator.start?.cancel()
         coordinator.observation?.invalidate()
+        coordinator.stopObservingRoomCalls()
         view.configuration.userContentController.removeScriptMessageHandler(forName: "roomOverlay")
         view.navigationDelegate = nil; view.uiDelegate = nil
         view.stopLoading()
     }
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, CXCallObserverDelegate {
         @Binding var error: String?
         @Binding var progress: Double
         let origin: URL
         var start: Task<Void, Never>?
         var observation: NSKeyValueObservation?
+        private var callObserver: CXCallObserver?
+        private weak var roomWebView: WKWebView?
+        private var callActive = false
         let openRoomOverlay: (String) -> Void
         init(error: Binding<String?>, progress: Binding<Double>, origin: URL, openRoomOverlay: @escaping (String) -> Void) { _error = error; _progress = progress; self.origin = origin; self.openRoomOverlay = openRoomOverlay }
+        func observeRoomCalls(in view: WKWebView) {
+            roomWebView = view
+            let observer = CXCallObserver()
+            callObserver = observer
+            observer.setDelegate(self, queue: .main)
+            callActive = observer.calls.contains { !$0.hasEnded }
+            // Preserve a call already ringing while the room document loads.
+            view.configuration.userContentController.addUserScript(WKUserScript(
+                source: "window.AifectNativeCall = {active: \(callActive)};",
+                injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
+        func stopObservingRoomCalls() {
+            callObserver?.setDelegate(nil, queue: nil)
+            callObserver = nil
+            roomWebView = nil
+        }
+        func callObserver(_ callObserver: CXCallObserver, callChanged call: CXCall) {
+            let active = callObserver.calls.contains { !$0.hasEnded }
+            guard active != callActive else { return }
+            callActive = active
+            updateRoomCallState()
+        }
+        private func updateRoomCallState() {
+            guard let view = roomWebView, let url = view.url, permits(url) else { return }
+            // Only a boolean crosses the bridge; no phone number or call identity.
+            view.evaluateJavaScript("""
+                window.AifectNativeCall = {active: \(callActive)};
+                window.dispatchEvent(new CustomEvent('aifect:native-call', {detail: window.AifectNativeCall}));
+                """, completionHandler: nil)
+            if callActive { view.setMicrophoneCaptureState(.none, completionHandler: nil) }
+            // Releasing playback after the call never grants capture or restarts a turn.
+            view.setAllMediaPlaybackSuspended(callActive, completionHandler: nil)
+        }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.name == "roomOverlay", message.frameInfo.isMainFrame,
                   let url = message.frameInfo.request.url, permits(url),
@@ -383,7 +426,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
             }
             decisionHandler(.allow)
         }
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { progress = 1 }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { progress = 1; updateRoomCallState() }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError failure: Error) { failed(failure) }
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError failure: Error) { failed(failure) }
         private func failed(_ failure: Error) { if (failure as NSError).code != NSURLErrorCancelled { error = failure.localizedDescription } }

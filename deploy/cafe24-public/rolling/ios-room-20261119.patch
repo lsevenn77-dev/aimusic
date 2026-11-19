@@ -1,0 +1,378 @@
+diff --git a/dist/live-karaoke.js b/dist/live-karaoke.js
+index 1555814..6eb1426 100644
+--- a/dist/live-karaoke.js
++++ b/dist/live-karaoke.js
+@@ -118,8 +118,8 @@ function liveUpdatePresentation(c){
+   }
+   const guide=c.host.querySelector('.room-live-guide');
+   if(guide){
+-   if(pc&&guide.parentElement!==main)main.append(guide);
+-   else if(!pc&&guide.parentElement===main)stage.after(guide);
++   // Playback recovery belongs to the stage, never a new row under reservations.
++   if(guide.parentElement!==main)main.append(guide);
+   }
+  }
+  const reserve=c.host.querySelector('.live-request-button');
+@@ -192,8 +192,8 @@ function isLiveSingerTurn(c){
+ function disconnectLiveMonitor(c){
+  const tap=c.liveMonitorTap;
+  if(!tap)return;
+- tap.source.disconnect(tap.gain);
+- tap.gain.disconnect();
++ try{tap.source.disconnect(tap.gain);}catch{/* The capture graph may already be retired. */}
++ try{tap.gain.disconnect();}catch{}
+  c.liveMonitorTap=null;
+ }
+ function syncLiveMonitor(c){
+@@ -202,7 +202,9 @@ function syncLiveMonitor(c){
+   return;
+  }
+  const member=c.state.members.find(person=>person.id===c.state.self);
+- if(!member?.publishing||member.locked||member.muted){
++ // Monitoring is local. A transient publication/transport snapshot must not
++ // repeatedly cut the singer's headphones while their local track is enabled.
++ if(!member||member.locked||member.muted){
+   disconnectLiveMonitor(c);
+   return;
+  }
+diff --git a/dist/room-audio-session.js b/dist/room-audio-session.js
+index ea9d905..53ee19c 100644
+--- a/dist/room-audio-session.js
++++ b/dist/room-audio-session.js
+@@ -9,10 +9,19 @@ class RoomAudioSession {
+    else if(this.blocked&&this.session?.state==='active')this.recover();
+   };
+   this.session?.addEventListener?.('statechange',this.onSessionState);
++  this.onNativeCall=event=>{
++   this.callActive=event?.detail?.active===true;
++   if(this.callActive){this.interrupt('call');this.finishCallTurn();}
++   else this.recover();
++  };
++  this.onOnline=()=>{if(this.callTurn&&!this.callTask)this.finishCallTurn();};
++  window.addEventListener('aifect:native-call',this.onNativeCall);
++  window.addEventListener('online',this.onOnline);
+   this.globalAudio=typeof audio!=='undefined'?audio:null;
+   this.onGlobalPlay=()=>{if(this.blocked&&!this.disposed)this.quietGlobal();};
+   this.globalAudio?.addEventListener?.('play',this.onGlobalPlay);
+   this.onSessionState();this.updateType();
++  if(window.AifectNativeCall?.active)this.onNativeCall({detail:window.AifectNativeCall});
+  }
+  setType(type){
+   if(this.disposed||this.blocked||!this.session)return;
+@@ -88,9 +97,35 @@ class RoomAudioSession {
+   c.paint?.();c.updateListening?.();
+   c.status?.('기기 오디오가 일시 중단됐어요. 소리와 마이크를 껐어요.');
+  }
++ finishCallTurn(){
++  const c=this.client,active=c.state?.karaoke?.active;
++  if(this.disposed||c.closed||this.callTask)return this.callTask;
++  // A listener (including the host) must never end another person's song.
++  if(!this.callTurn){
++   if(!active||active.user_id!==c.state.self)return;
++   this.callTurn={id:active.invitation_id,generation:c.generation,request:crypto.randomUUID()};
++  }
++  const turn=this.callTurn;
++  const current=()=>!this.disposed&&!c.closed&&c.generation===turn.generation&&c.state?.karaoke?.active?.invitation_id===turn.id&&c.state.karaoke.active.user_id===c.state.self;
++  this.callTask=(async()=>{
++   for(let attempt=0;attempt<3&&current();attempt++){
++    try{
++     const state=await c.command('karaoke',{operation:'abandon',invitation_id:turn.id,request_id:turn.request});
++     if(!this.disposed&&!c.closed&&c.generation===turn.generation&&state)c.acceptState?.(state);
++     this.callTurn=null;
++     c.status?.('통화로 노래를 종료하고 다음 차례로 넘겼어요.');return;
++    }catch{
++     if(attempt<2)await new Promise(resolve=>{this.callRetryResolve=resolve;this.callRetryTimer=setTimeout(resolve,500*(attempt+1));});
++    }
++   }
++   if(!current())this.callTurn=null;
++   else c.status?.('노래는 중단됐어요. 연결이 돌아오면 차례 종료를 다시 요청해요.');
++  })().finally(()=>{this.callTask=null;this.callRetryResolve=null;if(!this.callActive&&!this.callTurn)this.recover();});
++  return this.callTask;
++ }
+  recover(){
+   const c=this.client;
+-  if(this.disposed||c.closed||!this.blocked||this.session?.state==='interrupted')return false;
++  if(this.disposed||c.closed||!this.blocked||this.callActive||this.callTurn||this.session?.state==='interrupted')return false;
+   this.blocked=false;this.revision++;this.updateType();this.restoreGlobal();
+   c.micDesired=false;c.foregroundMicDesired=false;
+   c.liveNeedsResync=true;c.livePlayBlocked=false;c.musicBlocked=false;
+@@ -102,7 +137,7 @@ class RoomAudioSession {
+  async resumeByUser(){
+   if(this.disposed||this.client.closed)return false;
+   if(!this.blocked)return true;
+-  if(this.session?.state==='interrupted'){
++  if(this.callActive||this.session?.state==='interrupted'){
+    this.client.status?.('기기 오디오 사용이 끝난 뒤 다시 켜주세요.');return false;
+   }
+   const revision=this.revision,context=this.client.levelContext;
+@@ -117,7 +152,8 @@ class RoomAudioSession {
+   if(userInitiated){
+    const intentRevision=this.client.micIntentRevision||0;
+    if(this.blocked&&!await this.resumeByUser())return false;
+-   await this.muteTask;
++   await this.muteTask;await this.callTask;
++   if(this.callTurn)return false;
+    if(this.disposed||this.client.closed||this.blocked||intentRevision!==(this.client.micIntentRevision||0))return false;
+    this.micNeedsGesture=false;
+   }else if(this.blocked||this.micNeedsGesture)return false;
+@@ -131,6 +167,9 @@ class RoomAudioSession {
+   if(this.disposed)return;
+   this.disposed=true;this.revision++;
+   this.session?.removeEventListener?.('statechange',this.onSessionState);
++  window.removeEventListener('aifect:native-call',this.onNativeCall);
++  window.removeEventListener('online',this.onOnline);
++  clearTimeout(this.callRetryTimer);this.callRetryResolve?.();this.callTurn=null;
+   this.globalAudio?.removeEventListener?.('play',this.onGlobalPlay);
+   for(const [track,handler] of this.tracks)track.removeEventListener?.('mute',handler);
+   this.tracks.clear();this.restoreGlobal();
+diff --git a/dist/room-bubbles.css b/dist/room-bubbles.css
+index a0acf78..c2d5190 100644
+--- a/dist/room-bubbles.css
++++ b/dist/room-bubbles.css
+@@ -319,9 +319,9 @@
+  & :is(#live-current,#live-queue) strong > span:last-child {min-width:0;overflow:hidden;text-overflow:ellipsis;}
+  & #live-queue .room-host-crown svg {width:1em;height:1em;}
+  & #voice-content .voice-chat-panel #voice-emoji-picker.room-emoji-dock[open] {
+-  position:static!important;inset:auto!important;display:flex;flex:0 1 auto;order:0;
+-  width:100%!important;max-width:none!important;height:clamp(120px,calc(var(--voice-viewport) * .32),256px);
+-  min-height:0;max-height:36vh!important;margin:8px 0 0!important;padding:8px 0 0!important;
++  position:fixed!important;inset:var(--room-emoji-top) auto auto var(--room-emoji-left)!important;display:flex;z-index:40;
++  width:var(--room-emoji-width)!important;max-width:calc(100vw - 20px)!important;height:var(--room-emoji-height);
++  min-height:0;max-height:var(--room-emoji-height)!important;margin:0!important;padding:8px!important;
+   translate:none;transform:none;border:1px solid var(--ds-line);border-radius:16px;
+   background:var(--ds-panel)!important;box-shadow:none!important;
+  }
+diff --git a/dist/room-layout.js b/dist/room-layout.js
+index 4e34c99..88122e0 100644
+--- a/dist/room-layout.js
++++ b/dist/room-layout.js
+@@ -53,7 +53,7 @@ function bindRoomViewport(client){
+   const focused=!!document.activeElement?.closest?.('#voice-chat-form'),keyboard=mobile&&focused&&!!(window.AifectMobileInput?.measure?.().keyboard||document.documentElement?.hasAttribute?.('data-mobile-keyboard'));
+   const stickers=!!picker?.open&&!picker.hidden;
+   room.toggleAttribute?.('data-room-keyboard',keyboard);
+-  room.toggleAttribute?.('data-room-chat-active',mobile&&(keyboard||stickers));
++  room.toggleAttribute?.('data-room-chat-active',mobile&&keyboard);
+   room.toggleAttribute?.('data-room-stickers',stickers);
+   if(client.roomMobile!==mobile){client.roomMobile=mobile;setVoiceFocus(client.joined&&!client.closed);}
+   let start=top,end=bottom;
+@@ -86,6 +86,11 @@ function bindRoomViewport(client){
+   write(room,'--room-popup-available',Math.max(0,composerTop-popupStart-16)+'px');
+   write(document.documentElement,'--room-toast-bottom',Math.max(0,innerHeight-composerTop+10)+'px');
+   write(room,'--room-visual-top',top+'px');write(room,'--room-visual-height',(bottom-top)+'px');
++  if(stickers&&composer){
++   const rect=composer.getBoundingClientRect(),height=Math.max(0,Math.min(256,(bottom-top)*.4,rect.top-popupStart-16));
++   write(room,'--room-emoji-left',rect.left+'px');write(room,'--room-emoji-width',rect.width+'px');
++   write(room,'--room-emoji-top',Math.max(popupStart+8,rect.top-height-8)+'px');write(room,'--room-emoji-height',height+'px');
++  }
+   // Expose measured geometry for diagnostics and keep reads before writes next frame.
+   client.roomBounds={top:start,bottom:end,width:box.width,visualHeight:bottom-top};
+   positionRoomPopup(client);
+diff --git a/dist/room-popup-layout.css b/dist/room-popup-layout.css
+index 1848216..532fb4c 100644
+--- a/dist/room-popup-layout.css
++++ b/dist/room-popup-layout.css
+@@ -1,6 +1,21 @@
+ /* Room popups use the shared popup skin and the measured chat-column anchor.
+    Only these surfaces own this layout; stage, shell and composer stay intact. */
+ #main[data-room-entered] .voice-room[data-voice-room] {
++  & #voice-content .room-popup > .room-popup-close {
++    position:absolute;inset:8px 8px auto auto;z-index:5;display:grid!important;place-items:center;
++    width:44px;height:44px;min-height:44px;min-width:44px;margin:0;padding:0;
++    border:0;background:var(--ds-panel);border-radius:12px;color:var(--ds-text);font-size:26px;line-height:1;
++  }
++  & #voice-content .room-popup[data-room-has-close] :is(.room-popup-heading,.room-dm-header,.gift-dialog-header,.room-wallet-view > header) {padding-right:44px;min-height:44px;}
++  & #voice-content .room-popup[data-room-has-close] .room-popup-mobile-close {display:none!important;}
++  & #voice-content #dialog.room-popup.gift-sheet {
++    & .gift-dialog-header {display:flex;align-items:center;gap:8px;}
++    & .gift-dialog-header h2 {position:static;clip-path:none;width:auto;height:auto;flex:none;font-size:16px;line-height:1.4;}
++    & .gift-dialog-header .gift-recipient {min-width:0;max-width:130px;overflow:hidden;}
++    & .gift-choice > span {color:var(--ds-body);}
++    & .gift-dialog-footer .gift-footer-grid {grid-template-rows:44px 44px;}
++    & .gift-footer-grid > *, & .gift-footer-grid .gift-quantity select {height:44px;min-height:44px;}
++  }
+   & #voice-content .voice-chat-panel dialog.room-popup[open] {
+     --room-popup-limit:min(500px,var(--room-popup-available,calc(var(--room-height) - 100px)));
+     --room-popup-pad:16px;
+diff --git a/dist/room-release.css b/dist/room-release.css
+index 9b26933..e8dde06 100644
+--- a/dist/room-release.css
++++ b/dist/room-release.css
+@@ -585,13 +585,13 @@
+  #main[data-room-focus],:root[data-mobile-keyboard] #main[data-room-focus] {top:var(--voice-top,0px)!important;bottom:auto!important;height:var(--mobile-input-height,100dvh)!important}
+  #main[data-room-focus] .voice-room[data-voice-room] {--room-height:var(--voice-viewport,100dvh);height:var(--room-height)!important;padding-top:env(safe-area-inset-top)}
+  #main[data-room-focus] .voice-room[data-voice-room] :is(input:not([type=range]),textarea,[contenteditable=true]),#main[data-room-focus] .voice-room[data-voice-room] #voice-message {font-size:16px!important}
+- /* Sent stickers need a readable mobile size; the draft still fits its 24px line. */
+- #main .voice-room #voice-chat {--room-sticker-scale:1.5}
++ /* Inline artwork uses the same scale as the composer and surrounding text. */
++ #main .voice-room #voice-chat {--room-sticker-scale:1}
+  #main .voice-room #voice-message {--room-sticker-scale:1}
+  #main .voice-room :is(#voice-chat,#voice-message) img.cat-chat-sticker:not(.cat-word):not(.cat-word-ink) {width:auto;height:calc(var(--cat-art-size) * var(--room-sticker-scale));vertical-align:calc(.5cap - var(--cat-art-size) * var(--room-sticker-scale) * .5);object-fit:contain}
+  #main .voice-room :is(#voice-chat,#voice-message) .cat-word-slot {width:calc(var(--cat-slot-width) * var(--room-sticker-scale));height:calc(var(--cat-slot-height) * var(--room-sticker-scale));padding-block-start:calc(var(--cat-art-inset) * var(--room-sticker-scale));vertical-align:calc(.38em - var(--cat-below-ink) * var(--room-sticker-scale))}
+  #main .voice-room :is(#voice-chat,#voice-message) :is(.cat-word-slot img.cat-word-ink,img.cat-word) {width:calc(var(--cat-slot-width) * var(--room-sticker-scale));height:calc(var(--cat-art-height) * var(--room-sticker-scale));max-width:none;vertical-align:calc(.38em - var(--cat-below-ink) * var(--room-sticker-scale))}
+- #main .voice-room #voice-emoji-picker .cat-tile:not([data-cat-group="text"]) img {height:calc(var(--cat-art-size) * 1.5)}
++ #main .voice-room #voice-emoji-picker .cat-tile:not([data-cat-group="text"]) img {height:var(--cat-art-size)}
+ }
+ 
+ html[data-room-popup] body{overflow:hidden}
+diff --git a/dist/room-release.js b/dist/room-release.js
+index 2470e52..825dd1d 100644
+--- a/dist/room-release.js
++++ b/dist/room-release.js
+@@ -169,6 +169,7 @@ function roomMessages(client,sheet){
+  async function inbox(){
+   const t=reset();peer=null;
+   sheet.innerHTML='<header class="room-popup-heading"><h2 id="room-inbox-title">메시지</h2></header><label class="room-dm-query">팔로우 검색<input type="search" aria-label="메시지를 보낼 팔로우 검색" placeholder="닉네임 검색"></label><div class="room-dm-list"></div><small data-room-dm-status role="status"></small>';
++  client.ensureRoomPopupClose?.(sheet);
+   const input=sheet.querySelector('input'),list=sheet.querySelector('.room-dm-list'),noticeIds=new Set();let search=0;
+   const load=async()=>{
+    const q=input.value.trim(),seq=++search;
+@@ -193,6 +194,7 @@ function roomMessages(client,sheet){
+   const d=await api('/api/notices/welcome','GET',undefined,{fresh:true});if(!current(t)||uid!==me?.id)return;
+   peer=null;
+   sheet.innerHTML='<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button><span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span><strong>공지 · 아이팩트 안내</strong></header><div class="room-welcome-guide">'+welcomeGuideHTML(d)+'</div>';
++  client.ensureRoomPopupClose?.(sheet);
+   sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
+   noticeCleanup=bindWelcomeNotice({welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at}},()=>{
+    if(!current(t)||uid!==me?.id)return;
+@@ -206,6 +208,7 @@ function roomMessages(client,sheet){
+   const d=await api(path,'GET',undefined,{fresh:true});if(!current(t))return;
+   peer=d.peer;
+   sheet.innerHTML=`<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button>${avatarImage({...peer,profile_id:id})}<strong>${userNickname(chatNickname(peer),{profileId:id,userId:peer.user_id})}</strong>${dmMuteButton({...peer,muted:d.settings?.muted})}</header><div class="room-dm-log" role="log"></div>${dmEmojiPickerHTML()}${chatComposerHTML({id:'room-dm-compose',className:'room-dm-composer',rich:true,emojiAttributes:'data-dm-emoji aria-controls="dm-emoji-picker"',giftAttributes:'data-room-dm-gift',leadingHTML:'<label class="chat-ui-icon chat-ui-plain" aria-label="사진 첨부" tabindex="0">'+icon('image')+'<input type="file" accept="image/jpeg,image/png,image/webp" hidden></label>'})}<small role="status" data-room-dm-status></small>`;
++  client.ensureRoomPopupClose?.(sheet);
+   const log=sheet.querySelector('.room-dm-log'),form=sheet.querySelector('form'),input=form.querySelector("[data-dm-editor]"),file=form.querySelector('input[type=file]'),status=sheet.querySelector('[data-room-dm-status]');
+   const messages=new Map();let cursor=0,reading=false,again=false,pending=null;
+   async function merge(batch){
+@@ -219,6 +222,7 @@ function roomMessages(client,sheet){
+    if(!current(t))return;if(reading){again=true;return;}reading=true;
+    try{do{again=false;const more=await api(path+'?after='+cursor,'GET',undefined,{fresh:true});if(!current(t))return;await merge(more.messages);if(more.has_more&&more.messages.length)again=true;}while(again&&current(t));}finally{reading=false;}
+   };
++  client.ensureRoomPopupClose?.(sheet);
+   sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
+   editor=AifectStickers.editor(input,toast);stickers=bindDmEmoji(form,input,editor);
+   file.onchange=()=>{status.textContent=file.files[0]?.name||'';pending=null;};
+diff --git a/dist/voice-room-controls.js b/dist/voice-room-controls.js
+index aab8070..d1dc64e 100644
+--- a/dist/voice-room-controls.js
++++ b/dist/voice-room-controls.js
+@@ -382,6 +382,13 @@ Object.assign(VoiceRoomClient.prototype,{
+   }else p.close();
+  },
+  showTalkPopup(id,trigger){const sheet=document.getElementById(id);if(sheet)this.adoptRoomPopup(sheet,trigger);},
++ ensureRoomPopupClose(sheet){
++  if(sheet.querySelector('.room-popup-close'))return;
++  const button=document.createElement('button');button.type='button';button.className='room-popup-close';
++  button.setAttribute('aria-label','팝업 닫기');button.textContent='×';
++  button.onclick=()=>{if(this.talkPopup===sheet)this.closeRoomPopup();};
++  sheet.append(button);sheet.setAttribute('data-room-has-close','');
++ },
+  adoptRoomPopup(sheet,trigger=this.actionTrigger){
+   if(sheet.id!=='voice-emoji-picker'&&!$('#voice-emoji-picker').hidden)this.toggleEmojiPicker(false);
+   if(sheet===this.talkPopup&&sheet.open){this.closeRoomPopup();return;}
+@@ -402,6 +409,7 @@ Object.assign(VoiceRoomClient.prototype,{
+   this.talkPopup=sheet;document.documentElement?.setAttribute('data-room-popup','');sheet.classList.add('room-popup');sheet.removeAttribute('aria-modal');sheet.tabIndex=-1;
+   if(sheet.id==='dialog'&&!this.roomExternalHome)this.roomExternalHome={parent:sheet.parentNode,next:sheet.nextSibling};
+   this.host.querySelector('.voice-chat-panel').append(sheet);
++  this.ensureRoomPopupClose(sheet);
+   this.host.querySelectorAll('.room-header [aria-expanded],[data-voice=inbox]').forEach(b=>b.setAttribute('aria-expanded',String(b.getAttribute('aria-controls')===sheet.id)));
+   if(!sheet.open)sheet.show();sheet.scrollTop=0;
+   positionRoomPopup(this);this.roomResizeObserver?.observe(sheet);sheet.focus({preventScroll:true});
+diff --git a/tests/live-karaoke-ui.test.mjs b/tests/live-karaoke-ui.test.mjs
+index b6b2ffe..0da4ad0 100644
+--- a/tests/live-karaoke-ui.test.mjs
++++ b/tests/live-karaoke-ui.test.mjs
+@@ -436,3 +436,12 @@ test('an unknown duration remains a valid empty timer and a removed PC progress
+  vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('#live-timer').textContent,'0 / 0');
+  c.client.state.karaoke.active=null;vm.runInContext('liveSync(client)',c);assert.equal(nodes.get('#live-timer').textContent,'0:00 / 0:00');
+ });
++
++test('local headphone monitoring survives publication status refresh without rebuilding its tap',()=>{
++ const {c,client,vocal,broadcast}=monitorFixture();client.liveMonitorEnabled=true;
++ const sync=()=>vm.runInContext('syncLiveMonitor(client)',c);sync();const tap=client.liveMonitorTap;
++ assert.ok(tap);
++ for(const publishing of [false,true,false,true]){client.state.members.find(p=>p.id==='self').publishing=publishing;sync();assert.equal(client.liveMonitorTap,tap);}
++ assert.ok(vocal.connections.has(broadcast));
++ client.state.members.find(p=>p.id==='self').muted=true;sync();assert.equal(client.liveMonitorTap,null);
++});
+diff --git a/tests/room-audio-session.test.mjs b/tests/room-audio-session.test.mjs
+index fc3e85a..3f1b6fe 100644
+--- a/tests/room-audio-session.test.mjs
++++ b/tests/room-audio-session.test.mjs
+@@ -146,3 +146,48 @@ test('turning the microphone off while restart waits for server cleanup cancels
+  await client.mute();finish({});await enable;
+  assert.equal(captures,0);assert.equal(client.micDesired,false);assert.equal(guard.micNeedsGesture,true);
+ });
++
++test('a ringing native call ends only my current karaoke invitation, even after WebKit already interrupted',async()=>{
++ const {client,guard,commands,session,context}=fixture();const mic=publishing(client);
++ client.state.karaoke={phase:'singing',active:{user_id:'self',invitation_id:'my-turn'}};
++ guard.interrupt('session');guard.onNativeCall({detail:{active:true}});guard.onNativeCall({detail:{active:true}});
++ assert.equal(mic.raw.readyState,'ended');assert.equal(guard.callActive,true);
++ session.emit('statechange');assert.equal(guard.blocked,true,'browser active cannot override a ringing phone');
++ await guard.callTask;
++ const abandon=commands.filter(x=>x.action==='karaoke');assert.equal(abandon.length,1);
++ assert.equal(abandon[0].data.operation,'abandon');assert.equal(abandon[0].data.invitation_id,'my-turn');
++ assert.equal(await guard.allowCapture(true),false);
++ guard.onNativeCall({detail:{active:false}});assert.equal(guard.blocked,false);assert.equal(guard.micNeedsGesture,true);assert.equal(client.stream,null);
++ guard.dispose();
++});
++
++test('a listener or host receiving a call never skips another singer',async()=>{
++ const {client,guard,commands}=fixture();
++ client.state.room={host_id:'self'};client.state.karaoke={phase:'singing',active:{user_id:'speaker',invitation_id:'their-turn'}};
++ guard.onNativeCall({detail:{active:true}});await guard.muteTask;
++ assert.equal(commands.some(x=>x.action==='karaoke'),false);assert.equal(guard.blocked,true);guard.dispose();
++});
++
++test('a failed call handoff retries the same invitation and does not reopen the old accompaniment',async()=>{
++ const {client,guard}=fixture();let requests=0,release;
++ client.state.karaoke={phase:'singing',active:{user_id:'self',invitation_id:'turn'}};
++ client.command=async(action,data)=>{
++  if(action!=='karaoke')return {};
++  requests++;if(requests===1)throw Error('offline');
++  await new Promise(resolve=>release=resolve);return {};
++ };
++ guard.onNativeCall({detail:{active:true}});guard.onNativeCall({detail:{active:false}});
++ assert.equal(guard.blocked,true);
++ await new Promise(resolve=>setTimeout(resolve,550));assert.equal(requests,2);assert.equal(guard.blocked,true);
++ release();await guard.callTask;assert.equal(guard.blocked,false);assert.equal(guard.micNeedsGesture,true);guard.dispose();
++});
++
++test('a queued call retry cannot abandon the next singer and is cancelled on leaving',async()=>{
++ const {client,guard,win}=fixture();let requests=0;
++ client.state.karaoke={phase:'singing',active:{user_id:'self',invitation_id:'old'}};
++ client.command=async action=>{if(action==='karaoke'){requests++;throw Error('lost response');}return {};};
++ guard.onNativeCall({detail:{active:true}});await Promise.resolve();
++ client.state.karaoke.active={user_id:'speaker',invitation_id:'new'};
++ guard.dispose();await guard.callTask;
++ assert.equal(requests,1);assert.equal(win.listeners.get('aifect:native-call').size,0);
++});
+diff --git a/tests/room-chat-viewport.test.mjs b/tests/room-chat-viewport.test.mjs
+index 63e7c77..bef66e5 100644
+--- a/tests/room-chat-viewport.test.mjs
++++ b/tests/room-chat-viewport.test.mjs
+@@ -62,7 +62,7 @@ test('keyboard and sticker tray changes preserve a reader position in room chat
+  f.document.activeElement=f.input;f.setKeyboard(true);f.vv.height=420;f.transcript.clientHeight=96;f.resize();
+  assert.equal(f.transcript.scrollTop,200);
+  f.document.activeElement=null;f.setKeyboard(false);f.picker.open=true;f.picker.hidden=false;f.vv.height=844;f.resize();
+- assert.equal(f.room.hasAttribute('data-room-chat-active'),true);assert.equal(f.room.hasAttribute('data-room-stickers'),true);
++ assert.equal(f.room.hasAttribute('data-room-chat-active'),false,'the floating picker must not resize the stage');assert.equal(f.room.hasAttribute('data-room-stickers'),true);
+  assert.equal(f.room.hasAttribute('data-room-keyboard'),false);assert.equal(f.transcript.scrollTop,200);
+  f.context.innerWidth=1440;f.resize();assert.equal(f.room.hasAttribute('data-room-chat-active'),false);assert.equal(f.transcript.scrollTop,200);
+ });
+@@ -117,3 +117,16 @@ test('room sticker dock closes on input focus without consuming or clearing the
+  assert.equal(picker.open,false);assert.equal(button.values.get('aria-expanded'),'false');assert.equal(draft,'입력 중 [aifect:cat_basic_laugh]');
+  assert.equal(document.activeElement,input);
+ });
++
++
++test('sticker picker stays above its composer and within the visual viewport',()=>{
++ const f=viewportFixture();f.picker.open=true;f.picker.hidden=false;
++ f.header.getBoundingClientRect=()=>({top:57,bottom:132,height:75});
++ f.composer.getBoundingClientRect=()=>({left:16,top:790,width:358,height:44});f.resize();
++ const value=name=>parseFloat(f.room.values.get(name));
++ assert.equal(value('--room-emoji-top')+value('--room-emoji-height'),782);
++ assert.equal(value('--room-emoji-left'),16);assert.equal(value('--room-emoji-width'),358);
++ f.vv.height=420;f.composer.getBoundingClientRect=()=>({left:16,top:366,width:358,height:44});f.resize();
++ assert.ok(value('--room-emoji-top')>=140);
++ assert.equal(value('--room-emoji-top')+value('--room-emoji-height'),358);
++});

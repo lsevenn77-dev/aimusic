@@ -141,8 +141,9 @@ final class StreamingUITests: XCTestCase {
         app.buttons["노래방으로 돌아가기"].tap()
         XCTAssertTrue(web.staticTexts["Room draft retained"].waitForExistence(timeout: 5))
         web.buttons["Room inbox"].tap()
-        XCTAssertTrue(app.buttons["노래방으로 돌아가기"].waitForExistence(timeout: 5))
-        app.buttons["노래방으로 돌아가기"].tap()
+        XCTAssertTrue(web.staticTexts["Inline room messages"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["노래방으로 돌아가기"].exists)
+        web.buttons["Close inbox"].tap()
         XCTAssertTrue(web.staticTexts["Room draft retained"].waitForExistence(timeout: 5))
         XCTAssertFalse(web.staticTexts["LEAVE CONFIRMATION"].exists)
     }
