@@ -18,8 +18,19 @@
 - 2026-11-19, Xcode Organizer에서 **1.0.10 (30) · Uploaded with warnings** 및 업로드 완료 화면을 확인했다.
 - 경고 3건: 2027년 4월부터 적용될 iOS 27 SDK 요구 사전 안내, GoogleMobileAds/UMP 공급업체 dSYM 누락. 이번 전송은 성공했다.
 - 증빙: `/Users/user/Documents/Codex/2026-09-24/new-chat/work/ios-1.0.10-30-uploaded.png`.
-- App Store Connect 웹 세션이 만료되어 TestFlight 처리 완료 여부는 아직 확인하지 못했다. 로그인 요청은 전달했다.
-- 이번 요청은 업로드이며, 심사 제출·출시 완료를 뜻하지 않는다.
+- 최초 업로드 시점에는 App Store Connect 웹 세션이 만료되어 TestFlight 처리 완료 확인과 심사 제출을 보류했다. 이후 사용자의 로그인 및 제출 요청에 따라 아래 절차를 완료했다.
+
+## 심사 제출 완료
+
+- 2026-11-19 오후 8:25 (KST), App Store Connect에서 **1.0.10 (30) · 심사 대기 중**을 확인했다.
+- TestFlight 처리 완료(`제출 준비 완료`) 확인 후 새 App Store 버전 1.0.10을 생성하고 빌드 30을 연결했다.
+- 빌드 ID: `ea8843d4-484b-4587-96f2-74917f83160b`.
+- 제출 ID: `e66995ee-205f-4432-ba2e-959dba803c17`.
+- 심사 내역: https://appstoreconnect.apple.com/apps/6819654764/distribution/reviewsubmissions/details/e66995ee-205f-4432-ba2e-959dba803c17
+- 한국어 업데이트 설명에 통화 수신 시 곡 중단·다음 차례 처리, 방 안 메시지·공유·선물 팝업, 이모티콘 위치·크기, 모니터링 연결과 예약 영역 개선을 기록했다.
+- 심사 메모에 통화 중 마이크/재생 중단, 본인 차례만 종료, 통화 후 자동 재시작 방지, 방 위 팝업 확인 경로를 안내했다. 기존 심사 계정과 앱 설명·키워드는 유지했다.
+- **승인 후 자동 출시**, **모든 사용자에게 즉시 업데이트 출시**, **기존 평가 유지** 설정을 유지했다. 현재 상태는 심사 대기이며 승인·출시 완료는 아니다.
+- 증빙: `/Users/user/Documents/Codex/2026-09-24/new-chat/work/ios-1.0.10-30-submitted.png`.
 
 ## 새 아카이브 검증
 
