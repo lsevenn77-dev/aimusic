@@ -29,7 +29,7 @@ async function memberDirectory(env,params,at){
  const pageSize=50;
  const list=await rows(env,`SELECT u.id,pp.code public_id,${publicNameSQL()} name,
   CASE WHEN u.provider='email' THEN u.email END login_email,
-  u.created,u.provider,${premiumMember} premium FROM users u
+  u.created,u.provider,u.signup_source,${premiumMember} premium FROM users u
   LEFT JOIN public_profile_ids pp ON pp.user_id=u.id WHERE ${conditions.join(' AND ')}
   ORDER BY u.created DESC,u.id DESC LIMIT ?`,at,...args,pageSize+1);
  const members=list.slice(0,pageSize),last=members.at(-1);
@@ -70,7 +70,7 @@ export async function adminDashboardRoute(req,env,path,user){
  const requested=Number(url.searchParams.get('days')||7),days=ALLOWED_DAYS.has(requested)?requested:7;
  const at=now(),cutoff=at-days*86400;
  const [
-  summary,playSeries,userSeries,billingRevenue,goldRevenue,giftShares,providers,topTracks,recentTracks,
+  summary,playSeries,userSeries,billingRevenue,goldRevenue,giftShares,providers,signupSources,topTracks,recentTracks,
   recentUsers,recentCreators,subscriptionStates,recentGold,payoutPending
  ]=await Promise.all([
   one(env,`SELECT
@@ -96,6 +96,7 @@ export async function adminDashboardRoute(req,env,path,user){
    COALESCE(sum(creator_mw+singer_mw),0) creator_mw,count(*) gifts
    FROM gifts WHERE created>=?`,cutoff),
   rows(env,`SELECT provider,count(*) n FROM users WHERE provider!='deleted' AND account_type='human' GROUP BY provider ORDER BY n DESC`),
+  rows(env,`SELECT signup_source src,count(*) n FROM users u WHERE ${currentMember} AND u.created>=? GROUP BY signup_source ORDER BY n DESC,src`,cutoff),
   rows(env,`SELECT t.id,t.title,${trackArtworkSQL()},COALESCE(NULLIF(a.name,''),p.name) artist,count(l.id) plays,
    (SELECT count(*) FROM likes x WHERE x.track_id=t.id) likes
    FROM listens l JOIN tracks t ON t.id=l.track_id JOIN producers p ON p.id=t.producer_id
@@ -136,6 +137,7 @@ export async function adminDashboardRoute(req,env,path,user){
    gift_platform_krw:mwToWon(giftShares?.platform_mw),gift_creator_krw:mwToWon(giftShares?.creator_mw),
    gifts:toNumber(giftShares?.gifts)
   },
+  signup_sources:signupSources.map(x=>({src:x.src,count:toNumber(x.n)})),
   providers:providers.map(x=>({provider:x.provider,count:toNumber(x.n)})),
   top_tracks:topTracks.map(x=>({...x,plays:toNumber(x.plays),likes:toNumber(x.likes)})),
   recent_tracks:recentTracks,recent_users:recentUsers,recent_creators:recentCreators,

@@ -27,7 +27,7 @@ export const activityNotifications=sqliteTable('activity_notifications',{
 },t=>[index('activity_recipient_order').on(t.recipient,t.created,t.id),index('activity_recipient_unread').on(t.recipient,t.readAt)]);
 // Crews have one active membership per person. Chat/DM retries are idempotent.
 export const users=sqliteTable('users',{
- accountType:text('account_type').notNull().default('human'),id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull(), premiumUntil:integer('premium_until').notNull().default(0), applePremiumUntil:integer('apple_premium_until').notNull().default(0), playlistSelection:text('playlist_selection').notNull().default('[]')
+ signupSource:text('signup_source'),accountType:text('account_type').notNull().default('human'),id:text('id').primaryKey(), email:text('email').notNull(), name:text('name').notNull(), password:text('password'), provider:text('provider').notNull().default('email'), subject:text('subject'), created:integer('created').notNull(), premiumUntil:integer('premium_until').notNull().default(0), applePremiumUntil:integer('apple_premium_until').notNull().default(0), playlistSelection:text('playlist_selection').notNull().default('[]')
 },t=>[uniqueIndex('users_identity').on(t.provider,t.subject),uniqueIndex('users_email_provider').on(t.email,t.provider)]);
 // Official welcome notices are separate from member-to-member conversations.
 export const welcomeCampaigns=sqliteTable('welcome_campaigns',{

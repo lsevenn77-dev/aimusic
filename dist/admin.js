@@ -194,7 +194,11 @@
     $('#payout-summary-box').innerHTML='<div class="stat-box"><small>지급 예정·정보 대기</small><strong>'+money(data.payouts.pending_krw)+'</strong><div class="management-meta"><span class="soft-badge">'+num(data.payouts.pending_count)+'건</span><span class="soft-badge">다이아 현금 정산 신청</span></div></div>';
   }
 
+  const sourceLabels=new Map([['yt','유튜브 채널'],['yt_v','유튜브 영상'],['yt_s','유튜브 쇼츠'],['ig','인스타'],['app','앱']]);
+  const sourceLabel=src=>sourceLabels.get(src)||src||'알 수 없음';
   function renderProviders(data){
+    $('#source-heading').textContent='가입 경로 · 최근 '+data.days+'일';
+    $('#signup-sources').innerHTML=(data.signup_sources||[]).map(x=>'<div class="legend-row"><span>'+esc(sourceLabel(x.src))+'</span><strong>'+num(x.count)+'명</strong></div>').join('')||'<div class="empty-state">이 기간에 가입한 회원이 없습니다.</div>';
     const colors=['#e86eb3','#9a82ff','#6fd8ff','#58d7a7','#f0c76c','#ff7f91'];
     const providers=data.providers||[],total=providers.reduce((a,x)=>a+x.count,0);
     $('#provider-total').textContent=num(total)+'명';
@@ -273,7 +277,7 @@
           directory.lastDay=joinedDay;
         }
         html+='<div class="member-row"><div><strong>'+esc(member.name)+'</strong> <code>'+esc(member.public_id?'#'+member.public_id:member.id)+'</code>'+
-          (member.login_email?'<small>'+esc(member.login_email)+'</small>':'')+'</div><span>'+esc(providers[member.provider]||member.provider)+'</span>'+
+          (member.login_email?'<small>'+esc(member.login_email)+'</small>':'')+'</div><span>'+esc(providers[member.provider]||member.provider)+'<small class="member-source">'+esc(sourceLabel(member.signup_source))+'</small></span>'+
           '<span>'+(member.premium?'Premium':'무료')+'</span><time datetime="'+date.toISOString()+'">'+memberTime.format(date)+'</time></div>';
       }
       list.insertAdjacentHTML('beforeend',html);

@@ -105,7 +105,7 @@ button.kpi-card:hover,button.kpi-card:focus-visible{border-color:var(--purple)}
 .member-day{font-size:1rem;margin:20px 0 0;color:var(--text)}
 .member-row{display:grid;grid-template-columns:minmax(0,1fr) 5em 5em 4em;gap:10px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
 .member-row code,.member-row small,.member-row time,#member-status{color:var(--muted)}
-.member-row small{display:block}.member-row code{white-space:normal;font-size:.875rem;color:var(--text)}
+.member-row small{display:block}.member-row .member-source{display:table;max-width:100%;margin-top:3px;padding:1px 5px;border:1px solid var(--line);border-radius:6px;font-size:.875rem}#signup-sources .legend-row{display:flex;justify-content:space-between}.member-row code{white-space:normal;font-size:.875rem;color:var(--text)}
 #member-more{min-height:44px}
 @media(max-width:600px){
  .member-filters label{margin-inline-start:0}

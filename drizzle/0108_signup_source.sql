@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `signup_source` text;

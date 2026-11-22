@@ -1,3 +1,4 @@
+import {withSourceCookie} from './signup-source.js';
 import {queueLibraryMigration} from './library-migration.js';
 import {playlistsRoute} from './playlists.js';
 import {myBoxesRoute} from './my-boxes.js';
@@ -246,8 +247,12 @@ async function fetchRequest(req,env,ctx){
  }
 }
 async function serve(req,env,ctx){
- const response=await observeReadRequest(req,env,ctx,fetchRequest);
+ let response=await observeReadRequest(req,env,ctx,fetchRequest);
  if(!response.headers.get('content-type')?.startsWith('text/html'))return response;
+ const pageURL=new URL(req.url);
+ if(req.method==='GET' && response.ok && !/^\/(api|internal|media)(?:\/|$)/.test(pageURL.pathname)){
+  response=withSourceCookie(req,response);
+ }
  const headers=new Headers(response.headers);
  if(new URL(req.url).protocol==='https:')headers.set('strict-transport-security','max-age=31536000');
  // Payment documents keep their own embedding policy.

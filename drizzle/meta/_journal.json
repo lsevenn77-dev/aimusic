@@ -757,6 +757,13 @@
       "when": 1794993133563,
       "tag": "0107_first_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "6",
+      "when": 1795349188202,
+      "tag": "0108_signup_source",
+      "breakpoints": true
     }
   ]
 }
