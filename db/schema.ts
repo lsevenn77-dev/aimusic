@@ -17,6 +17,9 @@ export const lyricTagOverrides=sqliteTable('lyric_tag_overrides',{
 export const lyricAnalysisControl=sqliteTable('lyric_analysis_control',{
  id:text('id').primaryKey(),version:text('version').notNull(),cursor:text('cursor').notNull().default(''),scanDone:integer('scan_done').notNull().default(0),leaseToken:text('lease_token').notNull().default(''),leaseUntil:integer('lease_until').notNull().default(0),updated:integer('updated').notNull().default(0),lastBatchMs:integer('last_batch_ms').notNull().default(0),lastBatchCount:integer('last_batch_count').notNull().default(0)
 });
+export const visitorDays=sqliteTable('visitor_days',{
+ day:integer('day').notNull(),platform:text('platform').notNull(),token:text('token').notNull(),source:text('source')
+},t=>[primaryKey({columns:[t.day,t.platform,t.token]})]);
 export const adminSessions=sqliteTable('admin_sessions',{tokenHash:text('token_hash').primaryKey(),credentialVersion:text('credential_version').notNull(),created:integer('created').notNull(),expires:integer('expires').notNull()},t=>[index('admin_sessions_expiry').on(t.expires)]);
 export const playPurchases=sqliteTable('play_purchases',{tokenHash:text('token_hash').primaryKey(),purchaseToken:text('purchase_token').notNull(),userId:text('user_id').notNull().references(()=>users.id),productId:text('product_id').notNull(),kind:text('kind').notNull(),state:text('state').notNull(),expiry:integer('expiry').notNull().default(0),baselineUntil:integer('baseline_until').notNull().default(0),lastGranted:integer('last_granted').notNull().default(0),created:integer('created').notNull(),updated:integer('updated').notNull()},t=>[index('play_purchases_user').on(t.userId,t.kind)]);
 export const pushDevices=sqliteTable('push_devices',{token:text('token').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),sessionToken:text('session_token').notNull(),updated:integer('updated').notNull()},t=>[index('push_devices_user').on(t.userId)]);

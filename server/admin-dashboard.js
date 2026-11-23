@@ -1,3 +1,4 @@
+import {visitDay} from './visitors.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {one,rows,now,fail,json,str} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
@@ -69,10 +70,12 @@ export async function adminDashboardRoute(req,env,path,user){
  if(path!=='/api/admin/dashboard')fail(404,'관리자 대시보드를 찾을 수 없습니다.');
  const requested=Number(url.searchParams.get('days')||7),days=ALLOWED_DAYS.has(requested)?requested:7;
  const at=now(),cutoff=at-days*86400;
+ const firstDay=visitDay(at)-days+1;
  const [
-  summary,playSeries,userSeries,billingRevenue,goldRevenue,giftShares,providers,signupSources,topTracks,recentTracks,
+  visitRows,summary,playSeries,userSeries,billingRevenue,goldRevenue,giftShares,providers,signupSources,topTracks,recentTracks,
   recentUsers,recentCreators,subscriptionStates,recentGold,payoutPending
  ]=await Promise.all([
+  rows(env,'SELECT platform,source,count(*) n,sum(day=?) today FROM visitor_days WHERE day BETWEEN ? AND ? GROUP BY platform,source',visitDay(at),firstDay,visitDay(at)),
   one(env,`SELECT
    (SELECT count(*) FROM users WHERE provider!='deleted' AND account_type='human') users,
    (SELECT count(*) FROM users WHERE provider!='deleted' AND account_type='human' AND created>=?) new_users,
@@ -96,7 +99,7 @@ export async function adminDashboardRoute(req,env,path,user){
    COALESCE(sum(creator_mw+singer_mw),0) creator_mw,count(*) gifts
    FROM gifts WHERE created>=?`,cutoff),
   rows(env,`SELECT provider,count(*) n FROM users WHERE provider!='deleted' AND account_type='human' GROUP BY provider ORDER BY n DESC`),
-  rows(env,`SELECT signup_source src,count(*) n FROM users u WHERE ${currentMember} AND u.created>=? GROUP BY signup_source ORDER BY n DESC,src`,cutoff),
+  rows(env,`SELECT signup_source src,count(*) n FROM users u WHERE ${currentMember} AND u.created>=? GROUP BY signup_source ORDER BY n DESC,src`,kstStart(at)-(days-1)*86400),
   rows(env,`SELECT t.id,t.title,${trackArtworkSQL()},COALESCE(NULLIF(a.name,''),p.name) artist,count(l.id) plays,
    (SELECT count(*) FROM likes x WHERE x.track_id=t.id) likes
    FROM listens l JOIN tracks t ON t.id=l.track_id JOIN producers p ON p.id=t.producer_id
@@ -121,7 +124,16 @@ export async function adminDashboardRoute(req,env,path,user){
   one(env,`SELECT count(*) n,COALESCE(sum(net_krw),0) krw
    FROM payout_statements WHERE status IN ('scheduled','held')`)
  ]);
+ const todayVisits={web:0,android:0,ios:0};
+ const sources=new Map(signupSources.map(x=>[x.src,{src:x.src,signups:toNumber(x.n),visits:0}]));
+ for(const row of visitRows){
+  todayVisits[row.platform]+=toNumber(row.today);
+  const source=sources.get(row.source)||{src:row.source,signups:0,visits:0};
+  source.visits+=toNumber(row.n);
+  sources.set(row.source,source);
+ }
  const response={
+  visitors:{today:todayVisits,sources:[...sources.values()].sort((a,b)=>b.visits-a.visits||b.signups-a.signups)},
   generated_at:at,days,
   summary:{
    users:toNumber(summary?.users),new_users:toNumber(summary?.new_users),today_users:toNumber(summary?.today_users),
