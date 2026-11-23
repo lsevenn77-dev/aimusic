@@ -173,6 +173,9 @@ button.kpi-card:hover,button.kpi-card:focus-visible{border-color:var(--purple)}
 .stat-box strong{font-size:24px;display:block;margin-top:5px}
 .data-table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;min-width:640px}
+#signup-sources table{min-width:0;table-layout:fixed}
+#signup-sources td:first-child{overflow-wrap:anywhere}
+#signup-sources :is(th,td):not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
 th,td{padding:12px 10px;border-bottom:1px solid #242a37;text-align:left;font-size:11px;vertical-align:middle}
 th{color:#737c8f;font-weight:600}
 td{color:#d7dae2}

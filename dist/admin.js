@@ -91,12 +91,14 @@
 
   function renderKPIs(data){
     const s=data.summary;
+    const visits=data.visitors?.today||{web:0,android:0,ios:0};
     $('#kpi-grid').innerHTML=[
       kpiCard('♙','총 회원',num(s.users),'전체 회원 보기',true,'all'),
       kpiCard('♕','활성 Premium',num(s.active_subscribers),'프리미엄 회원 보기',true,'premium'),
       kpiCard('▶','유효 재생',num(s.qualified_plays),'최근 '+data.days+'일'),
       kpiCard('♫','공개 음원',num(s.published_tracks),'현재 공개'),
       kpiCard('◌','창작자',num(s.creators),'등록 프로필'),
+      kpiCard('◉','오늘 방문자',num(visits.web+visits.android+visits.ios),'웹 '+num(visits.web)+' · 앱 '+num(visits.android+visits.ios)),
       kpiCard('＋','오늘 가입',num(s.today_users),'오늘 가입 회원 보기',true,'today')
     ].join('');
   }
@@ -197,8 +199,9 @@
   const sourceLabels=new Map([['yt','유튜브 채널'],['yt_v','유튜브 영상'],['yt_s','유튜브 쇼츠'],['ig','인스타'],['app','앱']]);
   const sourceLabel=src=>sourceLabels.get(src)||src||'알 수 없음';
   function renderProviders(data){
-    $('#source-heading').textContent='가입 경로 · 최근 '+data.days+'일';
-    $('#signup-sources').innerHTML=(data.signup_sources||[]).map(x=>'<div class="legend-row"><span>'+esc(sourceLabel(x.src))+'</span><strong>'+num(x.count)+'명</strong></div>').join('')||'<div class="empty-state">이 기간에 가입한 회원이 없습니다.</div>';
+    $('#source-heading').textContent='유입 경로별 방문·가입 · 최근 '+data.days+'일';
+    const entries=data.visitors?.sources||[];
+    $('#signup-sources').innerHTML=entries.length?'<table aria-labelledby="source-heading"><thead><tr><th>유입 경로</th><th>방문</th><th>가입</th></tr></thead><tbody>'+entries.map(x=>'<tr><td>'+esc(sourceLabel(x.src))+'</td><td>'+num(x.visits)+'</td><td>'+num(x.signups)+'</td></tr>').join('')+'</tbody></table>':'<div class="empty-state">이 기간에 집계된 방문과 가입이 없습니다.</div>';
     const colors=['#e86eb3','#9a82ff','#6fd8ff','#58d7a7','#f0c76c','#ff7f91'];
     const providers=data.providers||[],total=providers.reduce((a,x)=>a+x.count,0);
     $('#provider-total').textContent=num(total)+'명';

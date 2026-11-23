@@ -46,6 +46,18 @@ for(const path of ['/','/index.html','/?source=share']){
  }
  const head=await mf.dispatchFetch('http://localhost'+path,{method:'HEAD'});assert.equal(head.status,200);assert.equal(await head.text(),'');
 }
+for(const page of ['/','/music/one','/guide/recording','/crew-fishing/','/crew-racing/','/crew-rhythm/']){
+ const response=await mf.dispatchFetch('http://localhost'+page);
+ assert.equal(response.status,200,page);
+ assert.equal((await response.text()).split('src="/visitor.js"').length,2,page);
+}
+assert.equal((await mf.dispatchFetch('http://localhost/visitor.js')).status,200);
+const visitPayload={day:Math.floor((Date.now()+32400000)/86400000),token:crypto.randomUUID()};
+for(let i=0;i<2;i++){
+ const visit=await mf.dispatchFetch('http://localhost/api/visits',{method:'POST',headers:{Origin:'http://localhost','Content-Type':'application/json'},body:JSON.stringify(visitPayload)});
+ assert.deepEqual(await visit.json(),{day:visitPayload.day,recorded:true});
+}
+assert.equal((await db.prepare('SELECT COUNT(*) n FROM visitor_days').first()).n,1);
 // Exercise the actual D1 engine too: its SQL expression-depth limit differs from node:sqlite.
 for(const q of ['Rock','rock','록','Rokc','ㄹㅋㄱㅈㅇㅌㅅㅌ']){
  const response=await mf.dispatchFetch('http://localhost/api/search?'+new URLSearchParams({q})),result=await response.json();

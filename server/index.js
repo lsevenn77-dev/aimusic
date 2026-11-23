@@ -5,6 +5,7 @@ import {myBoxesRoute} from './my-boxes.js';
 import {queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
 import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
+import {recordVisit,pruneVisits} from './visitors.js';
 import {publicPath,tryPublicOrigin} from './cafe24-origin.js';
 import {brandAliases,brandPublicDocument} from '../shared/web-brand.js';
 import {publicDiscoveryRoute} from './public-discovery.js';
@@ -164,7 +165,7 @@ async function fetchRequest(req,env,ctx){
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
   const editorPayload=/^\/api\/dubbing\/editor-drafts\/[\w-]+$/.test(path);
-  const maxJson=editorPayload?512*1024:path==='/api/dubbing/generations'?256*1024:path==='/api/uploads'||/^\/api\/dubbing\/projects(?:\/[^/]+)?$/.test(path)||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
+  const maxJson=path==='/api/visits'?256:editorPayload?512*1024:path==='/api/dubbing/generations'?256*1024:path==='/api/uploads'||/^\/api\/dubbing\/projects(?:\/[^/]+)?$/.test(path)||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
   const binary=path==='/api/dubbing/projects/b7c81f9a-2182-4dc5-bcb2-6dc0aee0a899/sound/revision'||/^\/api\/dubbing\/projects\/[\w-]+\/poster$/.test(path)||/^\/api\/artists\/[\w-]+\/fanpage\/banner$/.test(path)||path==='/api/admin/ai-bots/assets'||/^\/api\/crews\/[\w-]+\/notice-images$/.test(path)||/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover|duet-instrument|duet-partner)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
   // Some ingress requests expose an empty stream for HEAD/GET (Content-Length: 0).
   // Rebuilding those with a body throws before the public media handler runs.
@@ -178,6 +179,7 @@ async function fetchRequest(req,env,ctx){
    const body=new Uint8Array(size);let offset=0;for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
    req=new Request(req,{body});
   }
+  if(path==='/api/visits')return await recordVisit(req,env);
   const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
   const welcome=await welcomeNoticeRoute(req,env,path,user);if(welcome)return welcome;
@@ -271,10 +273,27 @@ async function serve(req,env,ctx){
   headers.delete('content-length');
   const branded=brandPublicDocument(await response.text());
   const html=guide ? guidePresentation(branded,url.pathname) : url.pathname==='/about' && response.status===200 ? aboutPresentation(branded) : branded;
-  return new Response(html,{status:response.status,statusText:response.statusText,headers});
+  const countable=response.ok && !url.pathname.startsWith('/account/');
+  if(countable){
+   // Keep public documents' restrictive policies, allowing just the visit script and endpoint.
+   const csp=headers.get('content-security-policy')||'';
+   if(/(?:^|;)\s*default-src /.test(csp)){
+    const directives=csp.split(';').map(s=>s.trim()).filter(Boolean);
+    for(const [name,path] of [['script-src','/visitor.js'],['connect-src','/api/visits']]){
+     const i=directives.findIndex(s=>s.startsWith(name+' '));
+     const policy=i<0?directives.find(s=>s.startsWith('default-src ')):directives[i];
+     const values=policy.split(/\s+/).slice(1).filter(s=>s!=="'none'");
+     const value=[name,...values,url.origin+path].join(' ');
+     if(i<0)directives.push(value);else directives[i]=value;
+    }
+    headers.set('content-security-policy',directives.join('; '));
+   }
+  }
+  const document=countable?html.replace('</head>','<script defer src="/visitor.js"></script></head>'):html;
+  return new Response(document,{status:response.status,statusText:response.statusText,headers});
  }
  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
-export default {fetch:serve,async scheduled(event,env,ctx){ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
+export default {fetch:serve,async scheduled(event,env,ctx){ctx.waitUntil(pruneVisits(env));ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
 
 async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}
