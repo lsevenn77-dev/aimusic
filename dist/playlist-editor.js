@@ -267,4 +267,3 @@ document.addEventListener('click',event=>{
  const id=esc(button.dataset.unifiedMenu),owned=button.dataset.owned==='1',saved=button.dataset.saved==='1';
  dialog(`<h2>플레이리스트 옵션</h2><div class="dialog-list">${owned?`<button class="small-button" data-edit-playlist="${id}">편집</button><button class="small-button" data-delete-playlist="${id}">삭제</button>`:`${saved?`<button class="small-button" data-playlist-fork="${id}">내 플레이리스트로 편집</button>`:''}<button class="small-button" data-playlist-save="${id}" aria-pressed="${saved}">${saved?'저장 해제':'저장'}</button>`}</div>`);
 });
-

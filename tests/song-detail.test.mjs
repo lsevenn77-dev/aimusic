@@ -89,6 +89,10 @@ test('guest listening, unavailable karaoke, self-gifts and duet ownership remain
  assert.match(mine,/data-play="invitation".*data-like="invitation".*id="lyrics-expand".*data-delete-track="invitation".*data-track-kind="cover"/);
  assert.match(mine,/data-cover-photo="invitation"/);
  assert.doesNotMatch(mine,/song-track-meta|내 녹음 파일 저장|내 커버 삭제|data-add=|data-gift=/);
+ for(const viewer of [own,other,guest]){
+  viewer.AifectUnifiedPlaylists=true;
+  assert.match(viewer.songDetailActionsHTML(invitation),/data-add="invitation"/);
+ }
  for(const viewer of [other,guest])assert.doesNotMatch(viewer.songDetailHeaderHTML(invitation),/data-cover-photo|data-delete-track/);
  assert.doesNotMatch(own.songDetailHeaderHTML(track),/data-cover-photo/);
  const unavailable=other.songDetailHeaderHTML({...track,lyrics_mode:'none'}).match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
