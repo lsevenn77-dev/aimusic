@@ -45,7 +45,7 @@ Object.assign(VoiceRoomClient.prototype,{
    let row=previous.get(track.id);previous.delete(track.id);
    if(!row){
     row=document.createElement('li');row.className='talk-playlist-row';row.dataset.trackId=track.id;
-    row.innerHTML='<span class="talk-playlist-number"></span><img class="talk-playlist-cover" alt=""><span class="talk-playlist-info"><span class="talk-playlist-credit"><strong></strong><span></span></span><small class="talk-playlist-current">현재 곡</small></span><button type="button" data-like="'+esc(track.id)+'">'+icon('heart')+'</button><button type="button" data-add="'+esc(track.id)+'" title="내 플레이리스트에 담기" aria-label="내 플레이리스트에 담기">'+icon('plus')+'</button>';
+    row.innerHTML='<span class="talk-playlist-number"></span><img class="talk-playlist-cover" alt=""><span class="talk-playlist-info"><span class="talk-playlist-credit"><strong></strong><span></span></span><small class="talk-playlist-current">현재 곡</small></span><button type="button" data-like="'+esc(track.id)+'">'+icon('ui-heart')+'</button><button type="button" data-add="'+esc(track.id)+'" title="내 플레이리스트에 담기" aria-label="내 플레이리스트에 담기">'+icon('ui-plus-action')+'</button>';
    }
    row.querySelector('.talk-playlist-number').textContent=index+1;
    const art=row.querySelector('img'),src=track.cover||trackArtworkPath(track);if(art.getAttribute('src')!==src)art.src=src;
