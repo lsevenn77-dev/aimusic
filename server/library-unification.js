@@ -3,6 +3,7 @@ import {hash, requireUser} from './auth.js';
 import {isConsoleAdmin} from './admin-session.js';
 import {normalizePlaylistTitle} from '../shared/playlist-policy.js';
 import {inspectBoxSource} from '../shared/library-backup.js';
+import {libraryTransaction} from './library-transactions.js';
 
 const verifiedKey = 'my-box:v3:verified';
 const prefix = 'from-box-';
@@ -98,10 +99,47 @@ export async function applyBoxUnification(env, backup) {
   return result;
 }
 
+export async function retireMyBoxes(env, actor, backup) {
+  const matchesBackup = result => result?.mode === 'deleted' &&
+    result.source_sha256 === backup.source_sha256 && result.backup_sha256 === backup.backup_sha256 &&
+    result.boxes === backup.boxes && result.items === backup.items;
+  const previous = await receipt(env);
+  if (previous) {
+    if (matchesBackup(previous)) return previous;
+    fail(409,'마이박스 전환이 이미 완료되었습니다. 전환 결과를 확인해 주세요.');
+  }
+
+  const source = await inspectBoxSource((sql, offset) => one(env, sql, offset), hash);
+  if (source.fingerprint !== backup.source_sha256 || source.counts.boxes !== backup.boxes || source.counts.items !== backup.items) {
+    fail(409,'백업 이후 마이박스가 변경되었습니다. 현재 목록의 백업을 다시 확인해 주세요.');
+  }
+
+  const result = {mode:'deleted', ...source.counts, source_sha256:source.fingerprint, backup_sha256:backup.backup_sha256, verified_at:now()};
+  const auditId = id();
+  const guards = [beforeBoxCutover, ...source.pages.map(({sql, offset, page}) => [`(${sql})=?`, [offset, page]])];
+  try {
+    await libraryTransaction(env, guards, [
+      query(env,'DELETE FROM my_box_items'),
+      query(env,'DELETE FROM my_boxes'),
+      query(env,`INSERT INTO library_write_guards(id,allowed) SELECT ?,
+        CASE WHEN NOT EXISTS(SELECT 1 FROM my_boxes) AND NOT EXISTS(SELECT 1 FROM my_box_items) THEN 1 ELSE 0 END`,auditId),
+      query(env,'INSERT INTO library_unification_state(key,value) VALUES(?,?)',verifiedKey,JSON.stringify(result)),
+      query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,'library:v3:deleted',?,?)",auditId,actor.id,JSON.stringify(result),result.verified_at),
+      query(env,'DELETE FROM library_write_guards WHERE id=?',auditId)
+    ]);
+  } catch (error) {
+    const completed = await receipt(env);
+    if (matchesBackup(completed)) return completed;
+    throw error;
+  }
+  return result;
+}
+
 export async function boxCutoverRoute(req,env,path,user) {
   if (path === '/api/library/unification') {
     if (req.method !== 'GET') fail(405,'지원하지 않는 요청입니다.');
-    return json({ready:await boxesUnified(env)});
+    const completed = await receipt(env);
+    return json({ready:!!completed, ...(completed?.mode === 'deleted' ? {legacy_boxes_removed:true} : {})});
   }
   if (path === '/api/admin/library-unification') {
     if (!isConsoleAdmin(user)) fail(403,'관리자 로그인이 필요합니다.');
@@ -114,7 +152,7 @@ export async function boxCutoverRoute(req,env,path,user) {
   }
   if (/^\/api\/my-boxes(?:\/|$)/.test(path) || (path === '/api/me/music-library' && new URL(req.url).searchParams.get('section') === 'myboxes')) {
     requireUser(user);
-    if (await boxesUnified(env)) fail(410,'마이박스 이전이 완료되었습니다. 플레이리스트를 열어 주세요.');
+    if (await boxesUnified(env)) fail(410,'마이박스가 종료되었습니다. 플레이리스트를 열어 주세요.');
   }
   return null;
 }

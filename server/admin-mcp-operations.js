@@ -1,4 +1,5 @@
 import {libraryMigrationStatus} from './library-migration.js';
+import {retireMyBoxes} from './library-unification.js';
 import {playlistCleanupStatus} from './playlist-cleanup.js';
 import {welcomeNoticeStatus} from './welcome-notices.js';
 import {one,rows,query,now,fail} from './db.js';
@@ -155,6 +156,7 @@ export async function executeAdminTool(env,actor,name,a) {
   case 'aifect_grant_test_gold':return grant(env,actor,a);
   case 'aifect_gold_history':return history(env,a);
   case 'aifect_admin_stats':return stats(env,a);
+  case 'aifect_retire_my_boxes':return retireMyBoxes(env,actor,a);
   case 'aifect_list_reports':return reports(env,a);
   case 'aifect_register_email_bug':return registerBug(env,actor,a);
   case 'aifect_moderate_report':return moderate(env,actor,a);

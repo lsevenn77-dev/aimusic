@@ -4,7 +4,7 @@ async function checkPlaylistUnification(){
  if(globalThis.AifectUnifiedPlaylists || Date.now()<unificationRetry)return !!globalThis.AifectUnifiedPlaylists;
  if(!unificationRead){
   unificationRead=api('/api/library/unification','GET',undefined,{fresh:true})
-   .then(data=>{globalThis.AifectUnifiedPlaylists=data.ready===true;})
+   .then(data=>{globalThis.AifectUnifiedPlaylists=data.ready===true;globalThis.AifectLegacyBoxesRemoved=data.legacy_boxes_removed===true;})
    .catch(()=>{globalThis.AifectUnifiedPlaylists=false;})
    .finally(()=>{unificationRead=null;unificationRetry=Date.now()+15000;});
  }
