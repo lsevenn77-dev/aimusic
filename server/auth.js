@@ -7,6 +7,7 @@ import {publicUser,producerNameSQL,publicNameSQL} from './identity.js';
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {membership} from './membership.js';
+import {reviewAccount} from './billing-review.js';
 import {applyPremiumGrant} from './premium-grant.js';
 import {mobileAuthRoute,finishMobile} from './mobile-auth.js';
 import {nativeAuthRoute} from './native-auth.js';
@@ -30,6 +31,7 @@ export async function viewer(req,env){
  const record=await one(env,`SELECT u.id,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids,(SELECT json_group_array(ab.artist_id) FROM artist_follow_blocks ab WHERE ab.user_id=u.id AND ab.direction='artist') blocked_artists FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted' AND u.account_type='human'`,await hash(token),now());
  if(!record)return null;
  const {blocked_ids,blocked_artists,...user}=record;
+ if(reviewAccount(env,user))user.billing_review_retired=!!await one(env,'SELECT 1 FROM admin_audit WHERE id=?','billing-review-retired:'+user.id);
  const granted=await applyPremiumGrant(env,user);
  const resolved={...granted,base_premium_until:granted.premium_until,premium_until:Math.max(granted.premium_until,granted.apple_premium_until||0)};
  viewerBlocks.set(resolved,JSON.parse(blocked_ids||'[]'));
