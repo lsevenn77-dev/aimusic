@@ -60,7 +60,11 @@ const VoiceAudio=(()=>{
    return {stream:raw,fallback:true,supportsMix:false,setLevel(){},setMix(){},setPreset(){},setReverb(){},close(){}};
   }
  }
- function rms(analyser){const data=new Uint8Array(analyser.fftSize);analyser.getByteTimeDomainData(data);let energy=0;for(const n of data)energy+=((n-128)/128)**2;return Math.min(1,Math.max(0,Math.sqrt(energy/data.length)-.012)*5);}
+ const levelBuffers=new WeakMap();
+ function rms(analyser){
+  let data=levelBuffers.get(analyser);
+  if(data?.length!==analyser.fftSize){data=new Uint8Array(analyser.fftSize);levelBuffers.set(analyser,data);}
+  analyser.getByteTimeDomainData(data);let energy=0;for(const n of data)energy+=((n-128)/128)**2;return Math.min(1,Math.max(0,Math.sqrt(energy/data.length)-.012)*5);}
  function echoMix(style,intensity){return AifectKaraoke.presetMix(AifectKaraoke.defaultVocalMix(),style==='none'?'original':style,intensity);}
  return {presets,microphone,rms,echoMix};
 })();

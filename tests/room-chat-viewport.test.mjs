@@ -57,6 +57,13 @@ test('mobile typing follows the visible keyboard viewport and keeps latest room 
  assert.equal(f.room.hasAttribute('data-room-chat-active'),false);assert.equal(f.transcript.scrollTop,760);
 });
 
+test('a short upward scroll stays put across room layout and keyboard updates',()=>{
+ const f=viewportFixture();f.transcript.scrollTop=750;f.transcript.events.get('scroll')();
+ assert.equal(f.client.roomChatAtEnd,false);
+ f.resize();assert.equal(f.transcript.scrollTop,750);
+ f.transcript.clientHeight=200;f.resize();assert.equal(f.transcript.scrollTop,750);
+});
+
 test('keyboard and sticker tray changes preserve a reader position in room chat history',()=>{
  const f=viewportFixture();f.transcript.scrollTop=200;f.transcript.events.get('scroll')();
  f.document.activeElement=f.input;f.setKeyboard(true);f.vv.height=420;f.transcript.clientHeight=96;f.resize();

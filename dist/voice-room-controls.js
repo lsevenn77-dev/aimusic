@@ -306,7 +306,11 @@ Object.assign(VoiceRoomClient.prototype,{
  stopMicTest(){this.testAttempt=(this.testAttempt||0)+1;clearTimeout(this.micTestTimer);if(this.testOwned){this.testGraph?.close();this.testRaw?.getTracks().forEach(t=>t.stop());}this.testRaw=null;this.testGraph=null;this.testOwned=false;for(const button of this.host?.querySelectorAll?.('[data-voice="mic-test"]')||[])button.textContent='테스트 시작';for(const meter of this.host?.querySelectorAll?.('#voice-input-meter,.talk-test-meter')||[])meter.value=0;this.roomAudio?.updateType();}
 });
 // Shared room surfaces are real dialogs, bounded by the actual chat region.
-function roomMemberAvatar(p,ignoreMute=false){return `<span class="room-member-photo${p.muted&&!ignoreMute?' is-muted':''}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}${p.muted&&!ignoreMute?'<span class="room-muted-mark" aria-label="음소거">'+voiceGlyph('muted')+'</span>':''}</span>`;}
+function roomMemberAvatar(p,ignoreMute=false,seat=false){
+ const muted=!ignoreMute&&!seat&&p.muted;
+ const mark=seat||muted?'<span class="room-muted-mark" aria-label="음소거"'+(seat?' hidden':'')+'>'+voiceGlyph('muted')+'</span>':'';
+ return `<span class="room-member-photo${muted?' is-muted':''}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}${mark}</span>`;
+}
 Object.assign(VoiceRoomClient.prototype,{
  bindTalkViews(){
   this.talkViewEvents?.abort();const events=this.talkViewEvents=new AbortController(),options={signal:events.signal};

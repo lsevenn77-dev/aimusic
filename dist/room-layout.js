@@ -38,7 +38,7 @@ function bindRoomViewport(client){
  client.roomChatAtEnd=true;
  transcript?.addEventListener?.('scroll',()=>{
   // A keyboard resize must not be mistaken for the reader scrolling history.
-  if(client.roomChatHeight===transcript.clientHeight)client.roomChatAtEnd=transcript.scrollHeight-transcript.scrollTop-transcript.clientHeight<60;
+  if(client.roomChatHeight===transcript.clientHeight)client.roomChatAtEnd=transcript.scrollHeight-transcript.scrollTop-transcript.clientHeight<=2;
   client.roomChatHeight=transcript.clientHeight;
  },{...options,passive:true});
  for(const button of room.querySelectorAll('#voice-chat-form > button,.room-dm-composer > button')){
@@ -95,13 +95,13 @@ function bindRoomViewport(client){
   client.roomBounds={top:start,bottom:end,width:box.width,visualHeight:bottom-top};
   positionRoomPopup(client);
   if(Number.isFinite(transcript?.scrollHeight)){
-   if(client.roomChatAtEnd)transcript.scrollTop=transcript.scrollHeight;
+   if(client.roomChatAtEnd&&client.roomChatHeight!==transcript.clientHeight)transcript.scrollTop=transcript.scrollHeight;
    client.roomChatHeight=transcript.clientHeight;
   }
  };
  client.onViewport=()=>{if(!client.roomLayoutFrame)client.roomLayoutFrame=requestAnimationFrame(measure);};
  for(const type of ['resize','aifect:topbar-layout','aifect:input-viewport'])window.addEventListener(type,client.onViewport,options);
- window.addEventListener('scroll',client.onViewport,{...options,capture:true,passive:true});
+ window.addEventListener('scroll',client.onViewport,{...options,passive:true});
  window.visualViewport?.addEventListener('resize',client.onViewport,options);
  window.visualViewport?.addEventListener('scroll',client.onViewport,options);
  if(typeof ResizeObserver!=='undefined'){
@@ -136,14 +136,20 @@ function roomFilledIcon(kind){
 }
 function patchRoomChildren(container,entries){
  const old=new Map([...container.children].map(node=>[node.dataset.roomKey,node]));
+ let changed=false;
  entries.forEach(({key,html},index)=>{
   let node=old.get(key);old.delete(key);
-  if(!node){const template=document.createElement('template');template.innerHTML=html;node=template.content.firstElementChild;}
-  else if(node._roomHTML!==undefined&&node._roomHTML!==html){const template=document.createElement('template');template.innerHTML=html;const next=template.content.firstElementChild;node.replaceWith(next);node=next;}
-  node.dataset.roomKey=key;node._roomHTML=html;
-  if(container.children[index]!==node)container.insertBefore(node,container.children[index]||null);
+  if(!node||node._roomHTML!==html){
+   const template=document.createElement('template');template.innerHTML=html;
+   const next=template.content.firstElementChild;
+   next.dataset.roomKey=key;next._roomHTML=html;
+   if(node)node.replaceWith(next);
+   node=next;changed=true;
+  }
+  if(container.children[index]!==node){container.insertBefore(node,container.children[index]||null);changed=true;}
  });
- for(const node of old.values())node.remove();
+ for(const node of old.values()){node.remove();changed=true;}
+ return changed;
 }
 function roomRouteMatches(url,client){
  return url.origin===location.origin&&url.pathname===location.pathname&&url.search===location.search&&['#live/'+client.id,'#voice/'+client.id].includes(url.hash.split('?')[0]);
