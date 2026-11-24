@@ -20,6 +20,21 @@
   & #voice-content { overflow-y: auto; scrollbar-width: thin; }
   & .room-header nav { justify-content: space-between; padding-inline: clamp(0px,calc(var(--room-column) - 250px),38px) 12px; }
   & #voice-content .voice-chat-panel { padding-inline-start: 0; }
+  & #voice-chat .voice-chat-message {
+    /* The decoration renderer centers a 150% canvas on the existing photo. */
+    --chat-frame-size: calc(1.5 * var(--room-chat-photo));
+    display: grid; grid-template-columns: var(--chat-frame-size) minmax(0,1fr);
+    column-gap: 9px; align-items: start;
+    padding-inline-start: calc(8px - (var(--chat-frame-size) - var(--room-avatar-slot)) / 2);
+  }
+  & #voice-chat .voice-chat-avatar {
+    position: relative; width: var(--chat-frame-size); height: var(--chat-frame-size);
+    display: grid; place-items: center; overflow: visible;
+  }
+  & #voice-chat .voice-chat-message > div {
+    align-items: flex-start; max-width: min(100%,42ch); min-width: 0;
+  }
+  & #voice-chat .voice-chat-message > div > p { margin-inline: 0; }
   @media (max-height:820px) { --room-frame-top:16px; --room-header-gap:4px; }
   @media (max-width:1200px) { --room-frame-gutter:16px; }
  }
