@@ -77,7 +77,7 @@ internal fun voiceGiftImage(gift:JSONObject,catalog:Map<String,JSONObject>):Stri
  Row(Modifier.fillMaxWidth().roomGlass(16).heightIn(min=44.dp).padding(start=4.dp,end=4.dp).testTag("voice-top-music"),verticalAlignment=Alignment.CenterVertically){
   IconButton(openMusic){Icon(Icons.Outlined.QueueMusic,"함께 듣는 음악",tint=Aqua)}
   Column(Modifier.weight(1f).heightIn(min=48.dp).clickable(onClick=openMusic),verticalArrangement=Arrangement.Center){
-   Text(song?.optString("title")?:"함께 들을 음악",fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+   Text(song?.optString("title")?:"여기를 눌러 재생곡을 선택해주세요.",fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=if(song==null)2 else 1,overflow=TextOverflow.Ellipsis)
    song?.optString("artist")?.takeIf{it.isNotBlank()}?.let{Text(it,fontSize=12.sp,lineHeight=15.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)}
   }
   if(song!=null){

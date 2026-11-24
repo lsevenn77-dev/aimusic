@@ -41,8 +41,15 @@ internal fun Modifier.roomGlass(radius:Int=16):Modifier{
  val created=room.optLong("created")
  var elapsed by remember(created){mutableLongStateOf(0L)}
  LaunchedEffect(created){if(created>0)while(true){elapsed=((System.currentTimeMillis()-created)/1000).coerceAtLeast(0);delay(1000)}}
- Column(modifier){Text(room.optString("title").ifBlank{"토킹룸"},fontSize=17.sp,lineHeight=22.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
-  Text(if(created>0)java.lang.String.format(java.util.Locale.ROOT,"%02d:%02d:%02d",elapsed/3600,elapsed/60%60,elapsed%60)else "참여자 "+members+"명",fontSize=12.sp,lineHeight=16.sp,color=Muted)}
+ Column(modifier){
+  Text(room.optString("title").ifBlank{"토킹룸"},fontSize=15.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=Color.White,maxLines=1,overflow=TextOverflow.Ellipsis)
+  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(3.dp)){
+   Icon(Icons.Outlined.Schedule,"방 시간",Modifier.size(12.dp),tint=SoftText)
+   Text(java.lang.String.format(java.util.Locale.ROOT,"%02d:%02d:%02d",elapsed/3600,elapsed/60%60,elapsed%60),Modifier.width(62.dp),fontSize=12.sp,lineHeight=16.sp,color=SoftText,maxLines=1,style=LocalTextStyle.current.copy(fontFeatureSettings="tnum"))
+   Icon(Icons.Outlined.People,"참여자",Modifier.size(12.dp),tint=SoftText)
+   Text("$members",fontSize=12.sp,lineHeight=16.sp,color=SoftText,maxLines=1,style=LocalTextStyle.current.copy(fontFeatureSettings="tnum"))
+  }
+ }
 }
 internal data class RoomSticker(val key:String,val label:String,val group:String,val url:String)
 @Composable private fun roomStickers():List<RoomSticker>{
@@ -119,7 +126,7 @@ internal fun keepStickersWhole(old:androidx.compose.ui.text.input.TextFieldValue
   if(!own)avatar()
   Column(Modifier.widthIn(max=256.dp).padding(vertical=2.dp),horizontalAlignment=if(own)Alignment.End else Alignment.Start){
    Text(name,fontWeight=FontWeight.Bold,fontSize=13.sp,lineHeight=18.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
-   Box(Modifier.roomGlass(13).padding(horizontal=9.dp,vertical=4.dp)){RoomMessageBody(body)}
+   Box(Modifier.background(Color.Black.copy(alpha=.55f),RoundedCornerShape(13.dp)).padding(horizontal=9.dp,vertical=4.dp)){RoomMessageBody(body)}
   };if(own)avatar()
  }
 }
