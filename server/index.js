@@ -39,6 +39,7 @@ import {dubbingRoute} from './dubbing.js';
 import {readProjectPoster} from './dubbing-poster.js';
 import {playlistImageRoute} from './playlist-images.js';
 import {musicClassificationRoute,musicClassificationInternal,classifyNext} from './music-classification.js';
+import {songTagSuggestionsRoute} from './song-tag-suggestions.js';
 import {profileGalleryRoute} from './profile-gallery.js';
 import {artistGalleryRoute} from './artist-gallery.js';
 import {publicContentContext,publicContentRequest} from './block-policy.js';
@@ -214,6 +215,7 @@ async function fetchRequest(req,env,ctx){
   const playlistImage=await playlistImageRoute(req,env,path,user);if(playlistImage)return playlistImage;
   if(path==='/api/studio'&&ctx?.waitUntil&&env.GEMINI_API_KEY)ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));
   const lyricAdmin=await lyricAnalysisAdmin(req,env,path,user);if(lyricAdmin)return lyricAdmin;
+  const tagSuggestions=await songTagSuggestionsRoute(req,env,path,user);if(tagSuggestions)return tagSuggestions;
   const classificationResponse=await musicClassificationRoute(req,env,path,user);if(classificationResponse)return classificationResponse;
   const profileGalleryResponse=await profileGalleryRoute(req,env,path,user);if(profileGalleryResponse)return profileGalleryResponse;
   const fanpageResponse=await artistFanpageRoute(req,env,path,user);if(fanpageResponse){if(fanpageResponse.ok&&req.method==='POST')ctx.waitUntil(dispatchPush(env));return fanpageResponse;}
