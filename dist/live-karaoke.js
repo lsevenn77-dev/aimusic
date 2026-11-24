@@ -67,7 +67,7 @@ function liveKaraokeRoomHTML(id){
 
 
  </section>
- <section class="live-request-area" aria-label="노래 신청과 예약 순서"><button type="button" class="live-request-button" data-voice="karaoke-search-open">${icon('mic')}<span><strong>예약</strong><small id="live-queue-count">0명 대기</small></span></button><ol id="live-queue" class="live-queue" aria-label="예약 순서"></ol></section>
+ <section class="live-request-area" aria-label="노래 신청과 예약 순서"><span class="live-reserve-slot"><button type="button" class="live-request-button" data-voice="karaoke-search-open">${voiceGlyph('talkMic')}<span><strong>예약</strong><small id="live-queue-count">0명 대기</small></span></button></span><ol id="live-queue" class="live-queue" aria-label="예약 순서"></ol></section>
  </div><div class="room-live-guide"><p id="live-stage-note" class="live-stage-note"></p>
   <button class="small-button live-audio-unlock" id="live-audio-unlock" type="button" data-voice="karaoke-resume" hidden>소리 켜기</button></div>`;
  const search=`<dialog id="live-search-sheet" class="voice-sheet compact-popup" aria-labelledby="live-search-title"><header class="live-search-heading room-popup-heading"><h2 id="live-search-title">노래 예약하기</h2><button type="button" class="room-popup-mobile-close" data-voice="dismiss" aria-label="예약 닫기">${voiceGlyph('close')}</button></header>${roomSongSearchHTML('karaoke')}<nav class="live-search-tabs" role="tablist" aria-label="예약할 곡"><button type="button" role="tab" data-live-library="mine" aria-selected="true">나의 곡</button><button type="button" role="tab" data-live-library="popular" aria-selected="false">인기곡</button></nav><div id="live-results" class="live-results" aria-live="polite"></div><footer class="live-search-pages" hidden><button type="button" data-song-page="previous" aria-label="이전 검색 페이지">이전</button><output></output><button type="button" data-song-page="next" aria-label="다음 검색 페이지">다음</button></footer></dialog>`;
@@ -123,11 +123,7 @@ function liveUpdatePresentation(c){
    if(guide.parentElement!==main)main.append(guide);
   }
  }
- const reserve=c.host.querySelector('.live-request-button');
- if(reserve?.querySelector){
-  if(pc)reserve.querySelector(':scope > svg')?.remove?.();
-  else if(reserve.parentElement&&!reserve.querySelector(':scope > svg'))reserve.insertAdjacentHTML('afterbegin',icon('mic'));
- }
+
 }
 function liveStopAudio(c){
  c.liveAbort?.abort();c.liveAbort=null;clearTimeout(c.liveEndTimer);
@@ -385,8 +381,15 @@ function paintLiveKaraoke(c){
 
 
  const current=c.host.querySelector('#live-current');
- const view=singer?`<span class="room-singer-avatar"><button type="button" data-voice="talk-profile" data-target="${esc(singer.id)}" aria-label="${esc(singer.name)} 프로필">${roomMemberAvatar(singer)}</button>${typeof roomRelationButton==='function'?roomRelationButton(singer,s.self,true):''}</span><strong>${singer.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(singer.name,{profileId:singer.profile_id,userId:singer.id})}</span></strong>`:'<span>'+icon('mic')+'</span><strong>가창자 대기 중</strong>';
- if(c.liveCurrentHTML!==view){current.innerHTML=view;c.liveCurrentHTML=view;}
+ const singerMuted=singer?.id===s.self?!roomMicIsOn(c,self):!!singer?.muted;
+ const avatar=singer?roomMemberAvatar({...singer,muted:singerMuted},false,false,true):'';
+ const view=singer?`<span class="room-singer-avatar"><button type="button" data-voice="talk-profile" data-target="${esc(singer.id)}" aria-label="${esc(singer.name)} 프로필">${avatar}</button>${typeof roomRelationButton==='function'?roomRelationButton(singer,s.self,true):''}</span><strong>${singer.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(singer.name,{profileId:singer.profile_id,userId:singer.id})}</span></strong>`:'<span>'+icon('mic')+'</span><strong>가창자 대기 중</strong>';
+ if(c.liveCurrentHTML!==view){
+  const identity=singer&&JSON.stringify([singer.profile_id,singer.image_version,view.replace(avatar,'')]);
+  if(singer&&identity===c.liveSingerIdentity)setRoomAvatarMuted(current.querySelector('.room-member-photo'),singerMuted);
+  else current.innerHTML=view;
+  c.liveCurrentHTML=view;c.liveSingerIdentity=identity;
+ }
  c.host.dataset.singerProfile=singer?.publishing&&!singer.muted?singer.profile_id||'':'';
  for(const btn of c.host.querySelectorAll('[data-voice="karaoke-key"]')){
   const key=c.liveKeyTurn===active?.invitation_id&&c.liveKeyDesired!=null?c.liveKeyDesired:(active?.key||0);
@@ -400,11 +403,14 @@ function paintLiveKaraoke(c){
  if(callAction.innerHTML!==startHTML)callAction.innerHTML=startHTML;
  const buttons=[];
  if(isSinger&&k.phase==='singing')buttons.push(`<button type="button" data-voice="sound" aria-controls="voice-sound" aria-haspopup="dialog" aria-label="소리 설정" title="소리 설정">${voiceGlyph('talkSliders')}</button>`);
- if(isSinger&&['ready','singing'].includes(k.phase))buttons.push(`<button type="button" data-voice="karaoke-mic-toggle" aria-label="${self.muted?'음소거 해제':'음소거'}" title="${self.muted?'음소거 해제':'음소거'}" data-on="${!self.muted}" aria-pressed="${!!self.muted}">${voiceGlyph(self.muted?'talkMicOff':'talkMic')}</button>`);
+ if(isSinger&&['ready','singing'].includes(k.phase)){
+  const micOn=roomMicIsOn(c,self),label=micOn?'음소거':'마이크 켜기';
+  buttons.push(`<button type="button" data-voice="karaoke-mic-toggle" aria-label="${label}" title="${label}" data-on="${micOn}" aria-pressed="${micOn}" aria-busy="${!!c.micBusy}">${voiceGlyph(micOn?'talkMicOff':'talkMic')}</button>`);
+ }
  if(isSinger){const pc=liveDesktopPresentation(c),label=pc?'가창 내려가기':'그만 부르기';buttons.push(`<button type="button" data-voice="karaoke-abandon" data-target="${esc(active.invitation_id)}" aria-label="${label}" title="${label}">${voiceGlyph('seatDown')}</button>`);}
  if(active&&c.liveError)buttons.push('<button type="button" data-voice="karaoke-retry">반주 다시 불러오기</button>');
  const actions=c.host.querySelector('#live-actions'),actionsHTML=buttons.join('');if(actions._roomActions!==actionsHTML){actions.innerHTML=actionsHTML;actions._roomActions=actionsHTML;}
- for(const button of c.host.querySelectorAll('#live-actions button[data-voice^="karaoke-"]'))button.disabled=!!c.liveCommandPending;
+ for(const button of c.host.querySelectorAll('#live-actions button[data-voice^="karaoke-"]'))button.disabled=!!c.liveCommandPending||(button.dataset.voice==='karaoke-mic-toggle'&&(!!c.micBusy||!!self?.locked));
  for(const button of c.host.querySelectorAll('[data-voice^="karaoke-"]'))if(c.liveCommandPending)button.disabled=true;
  const monitorToggle=c.host.querySelector('#live-monitor-toggle');
  if(monitorToggle){

@@ -171,18 +171,15 @@ class VoiceRoomClient {
  paint(){if(!this.host?.isConnected||!this.state)return;const s=this.state,self=s.members.find(p=>p.id===s.self);if(!self){this.leave(false);return;}$('#voice-entry').hidden=true;$('#voice-content').hidden=false;$('#voice-title').textContent=s.room.title;$('#voice-title').title=s.room.title;
   const occupancy=this.host.querySelector('[data-room-occupancy]');
   if(occupancy)occupancy.textContent=s.members.length+' / '+(s.room.max_members??'–');
-  const micOn=!!this.micSender?.track?.enabled&&!self.muted;
+  const micOn=roomMicIsOn(this,self);
   const seated=Array.from({length:8},(_,i)=>s.members.find(p=>(this.optimisticSeat&&p.id===s.self?this.optimisticSeat.seat:p.seat)===i));
   const seatEntries=seated.map((p,i)=>({key:String(i),html:'<div class="voice-seat">'+(p?`<div class="voice-seat-occupant"><button type="button" class="voice-person" data-voice="talk-profile" data-target="${esc(p.id)}" data-level-user="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p,false,!this.liveMode)}<strong title="${esc(p.name)}">${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></strong></button>${roomRelationButton(p,s.self,true)}</div>`:'<button type="button" class="voice-seat-empty" data-voice="request-mic" data-target="'+i+'" aria-label="'+(i+1)+'번 좌석 참여 신청"><span class="seat-disc">'+voiceGlyph('plus')+'</span></button>')+'</div>'}));
   const seats=$('#voice-seats');
   if(patchRoomChildren(seats,seatEntries))this.positionTalkGift();
   seated.forEach((member,index)=>{
    if(!member||this.liveMode)return;
-   const photo=seats.children[index].querySelector('.room-member-photo'),mark=photo?.querySelector('.room-muted-mark');
-   if(!mark)return;
-   const muted=!!member.muted;
-   if(mark.hidden===muted)mark.hidden=!muted;
-   if(photo.classList.contains('is-muted')!==muted)photo.classList.toggle('is-muted',muted);
+   const muted=member.id===s.self?!micOn:!!member.muted;
+   setRoomAvatarMuted(seats.children[index].querySelector('.room-member-photo'),muted);
   });
   const listenerHTML=[...s.members].sort((a,b)=>(b.role==='host')-(a.role==='host')).map(p=>'<button class="voice-person" data-voice="participants" aria-label="'+esc(p.name)+' 참여자 목록">'+avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})+'</button>').join('')+'<button class="voice-avatar-plus" data-voice="participants" aria-label="참여자 목록 열기">'+voiceGlyph('plus')+'</button>';
   if(this.listenerHTML!==listenerHTML){$('#voice-listeners').innerHTML=listenerHTML;this.listenerHTML=listenerHTML;}

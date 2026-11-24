@@ -88,6 +88,17 @@ test('stopping karaoke audio closes the old worklet port and ignores late latenc
  c.client.livePitchLatency=.5;lateMessage({data:{latency:9}});assert.equal(c.client.livePitchLatency,.5);
 });
 
+test('the mic action requires both enabled local transmission and an unmuted server state',()=>{
+ const {c}=context(),member={muted:false,locked:false},client={};
+ assert.equal(c.roomMicIsOn(client,member),false);
+ client.micSender={track:{enabled:true,readyState:'live'}};
+ client.publisher={connectionState:'connected'};
+ assert.equal(c.roomMicIsOn(client,member),true);
+ for(const update of [{muted:true},{locked:true}])assert.equal(c.roomMicIsOn(client,{...member,...update}),false);
+ client.publisher.connectionState='disconnected';assert.equal(c.roomMicIsOn(client,member),false);
+ client.publisher.connectionState='connected';client.micSender.track.readyState='ended';assert.equal(c.roomMicIsOn(client,member),false);
+});
+
 test('current and queued singers keep the host crown by the nickname and mute only their avatars',()=>{
  const {c,host,nodes}=context();
  c.client={closed:false,host,liveTrack:'song',state:{self:'self',room:{mode:'karaoke',host_id:'self'},

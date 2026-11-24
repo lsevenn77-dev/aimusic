@@ -108,12 +108,12 @@ Object.assign(VoiceRoomClient.prototype,{
    else request.textContent=self.locked?'마이크 사용 제한':'';
   }
   const mic=this.host.querySelector('.talk-seat-controls [data-voice=toggle-mic]');
-  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMic':'talkMicOff');}
+  if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMicOff':'talkMic');}
   const sound=this.host.querySelector('.talk-seat-actions [data-voice=sound]');
   sound.hidden=!seated;
   mic.hidden=!seated;mic.disabled=self.locked||!seated||!!this.micBusy;
   const down=this.host.querySelector('.talk-seat-controls [data-voice=release-mic]');if(down){down.hidden=!seated;down.disabled=!!this.seatReleasePending;}
-  mic.setAttribute('aria-pressed',String(micOn));mic.title=micOn?'내 마이크 끄기':'내 마이크 켜기';mic.setAttribute('aria-label',mic.title);
+  mic.setAttribute('aria-pressed',String(micOn));mic.title=micOn?'음소거':'마이크 켜기';mic.setAttribute('aria-label',mic.title);
   mic.setAttribute('aria-busy',String(!!this.micBusy));
 
 
@@ -283,7 +283,8 @@ Object.assign(VoiceRoomClient.prototype,{
     art.hidden=!track;
     if(track){const src=track.cover||trackArtworkPath(track);if(art.firstElementChild.getAttribute('src')!==src)art.firstElementChild.src=src;}
     const title=mini.querySelector('.talk-track strong'),subtitle=mini.querySelector('.talk-track small');
-    title.textContent=track?.title||'재생할 곡이 없어요';subtitle.textContent=credit;
+    mini.toggleAttribute('data-empty-track',!track);
+    title.textContent=track?.title||'여기를 눌러 재생곡을 선택해주세요.';subtitle.textContent=credit;
     mini.querySelector('.talk-track').title=[track?.title,credit].filter(Boolean).join(' · ');
     for(const b of mini.querySelectorAll('[data-voice^="music-"]:not([data-voice="music-picker"])')){
      b.disabled=!hasQueue;b.hidden=b.dataset.voice===(playRequested?'music-play':'music-pause');
@@ -322,11 +323,24 @@ Object.assign(VoiceRoomClient.prototype,{
  stopMicTest(){this.testAttempt=(this.testAttempt||0)+1;clearTimeout(this.micTestTimer);if(this.testOwned){this.testGraph?.close();this.testRaw?.getTracks().forEach(t=>t.stop());}this.testRaw=null;this.testGraph=null;this.testOwned=false;for(const button of this.host?.querySelectorAll?.('[data-voice="mic-test"]')||[])button.textContent='테스트 시작';for(const meter of this.host?.querySelectorAll?.('#voice-input-meter,.talk-test-meter')||[])meter.value=0;this.roomAudio?.updateType();}
 });
 // Shared room surfaces are real dialogs, bounded by the actual chat region.
-function roomMemberAvatar(p,ignoreMute=false,seat=false){
+function roomMemberAvatar(p,ignoreMute=false,seat=false,persistent=false){
  const muted=!ignoreMute&&!seat&&p.muted;
- const mark=seat||muted?'<span class="room-muted-mark" aria-label="음소거"'+(seat?' hidden':'')+'>'+voiceGlyph(seat?'talkMicOff':'muted')+'</span>':'';
+ const mark=seat||muted||persistent?'<span class="room-muted-mark" aria-label="음소거"'+(!muted?' hidden':'')+'>'+voiceGlyph('talkMicOff')+'</span>':'';
  return `<span class="room-member-photo${muted?' is-muted':''}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}${mark}</span>`;
 }
+function roomMicIsOn(client,member){
+ const track=client.micSender?.track;
+ return !!track?.enabled&&!track.muted&&track.readyState!=='ended'&&!member?.muted&&!member?.locked
+  &&!client.roomAudio?.blocked&&!client.roomAudio?.micNeedsGesture
+  &&(!client.publisher||client.publisher.connectionState==='connected');
+}
+function setRoomAvatarMuted(photo,muted){
+ const mark=photo?.querySelector('.room-muted-mark');
+ if(!mark)return;
+ if(mark.hidden===muted)mark.hidden=!muted;
+ if(photo.classList.contains('is-muted')!==muted)photo.classList.toggle('is-muted',muted);
+}
+
 Object.assign(VoiceRoomClient.prototype,{
  bindTalkViews(){
   this.talkViewEvents?.abort();const events=this.talkViewEvents=new AbortController(),options={signal:events.signal};

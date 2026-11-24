@@ -120,3 +120,52 @@
     & #live-queue strong { overflow: hidden; white-space: nowrap; }
   }
 }
+
+#main[data-room-entered] .voice-room[data-voice-room][data-room-design] {
+  & .room-header .room-heading h1 { --pc-font-page: 15.5px; font-size: 15.5px; font-weight: 600; color: white; }
+  &[data-room-pc-controls] .room-header .room-heading h1 { --pc-font-page: 21.5px; font-size: 21.5px; }
+  &:not([data-room-pc-controls]) .room-heading .room-meta { flex-wrap: nowrap; gap: 8px; }
+  &:not([data-room-pc-controls]) .room-meta small:has(time) { order: -1; }
+  &:not([data-room-pc-controls]) .room-meta [data-room-elapsed] { width: 8.6ch; }
+
+  & .room-member-photo > :is(.profile-avatar-image,.avatar-fallback) {
+    background-color: var(--ds-panel); opacity: 1; filter: brightness(1); transition: filter 150ms ease;
+  }
+  & .room-member-photo.is-muted > :is(.profile-avatar-image,.avatar-fallback) { opacity: 1; filter: brightness(.4); }
+  & :is(#voice-seats,#live-current,#live-queue,#voice-members-list,.voice-member-tools) .room-member-photo .room-muted-mark {
+    position: absolute; inset: 0; display: grid; place-items: center; width: 100%; height: 100%; z-index: 4;
+    margin: 0; padding: 0; border: 0; background: none; box-shadow: none; color: rgb(255 255 255 / .7);
+    opacity: 1; filter: none; text-shadow: none; pointer-events: none;
+  }
+  & :is(#voice-seats,#live-current,#live-queue,#voice-members-list,.voice-member-tools) .room-member-photo .room-muted-mark svg {
+    width: var(--room-muted-icon,24%); height: var(--room-muted-icon,24%); filter: none; color: inherit;
+  }
+  & #voice-seats .room-member-photo:has(> :is(.player-frame-artwork,.decoration-avatar-overlay)) { --room-muted-icon: 16%; }
+  & .room-member-photo .room-muted-mark[hidden] { display: none!important; }
+  & #voice-chat .voice-chat-message > div > p {
+    width: fit-content; max-width: 100%; padding: 6px 10px; border-radius: 12px;
+    background: rgb(0 0 0 / .55); border: 0; box-shadow: none; overflow: visible;
+  }
+  & #voice-chat .voice-chat-message p :is(img,video,picture) { max-width: 100%; object-fit: contain; vertical-align: middle; }
+  & #voice-chat .voice-chat-system p, & #voice-chat .voice-chat-system p * {
+    color: #fff; text-shadow: var(--room-photo-shadow);
+  }
+  & .live-reserve-slot { flex: 0 0 65px; width: 65px; display: grid; place-items: center; }
+  &[data-room-pc-controls] .live-reserve-slot { grid-area: 1 / 2; width: 56px; }
+  & .live-request-area .live-reserve-slot .live-request-button,
+  & .live-request-area .live-reserve-slot .live-request-button:enabled:hover {
+    display: inline-flex; flex-flow: column; gap: 0; align-items: center; justify-content: center;
+    grid-area: auto; box-sizing: border-box; width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+    padding: 0; border: 0; border-radius: 50%; background: var(--room-seat-fill); color: var(--room-text);
+    -webkit-backdrop-filter: var(--room-round-frost); backdrop-filter: var(--room-round-frost); box-shadow: none;
+  }
+  & .live-request-area .live-reserve-slot .live-request-button svg { display: block; width: 17px; height: 17px; }
+  & .live-request-area .live-reserve-slot .live-request-button :is(span,strong) { font-size: 11px; line-height: 14px; }
+  & .live-reserve-slot #live-queue-count { position: absolute; width: 1px; height: 1px; clip-path: inset(50%); overflow: hidden; }
+  &:not([data-room-pc-controls]) #voice-music-player[data-empty-track] .talk-track strong {
+    white-space: normal; overflow-wrap: anywhere; font-size: 12px; line-height: 15px;
+  }
+  @media (prefers-reduced-motion:reduce) {
+    & .room-member-photo > :is(.profile-avatar-image,.avatar-fallback) { transition: none; }
+  }
+}

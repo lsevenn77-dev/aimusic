@@ -158,7 +158,7 @@
     max-width: min(85%,42ch,calc(100% - var(--room-avatar-slot) - 10px)); min-width: 0;
     padding: 0; gap: 3px; border: 0; border-radius: 0; background: none; box-shadow: none;
   }
-  & #voice-chat .voice-chat-message p:not(:has(img,video,picture)) {
+  & #voice-chat .voice-chat-message p {
     display: block; width: fit-content; max-width: 100%; padding: 6px 10px;
     border: 0; box-shadow: none; border-radius: 12px;
     background: rgb(0 0 0 / .55); color: white; white-space: pre-wrap; overflow-wrap: anywhere;
@@ -174,14 +174,6 @@
   & #voice-seats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); box-sizing: border-box; }
   & #voice-seats, & #live-karaoke-stage .live-stage-main { border: 0; background: none; box-shadow: none; border-radius: 0; }
   & #voice-seats::before, & #live-karaoke-stage .live-stage-main::before, & #voice-seats::after, & #live-karaoke-stage .live-stage-main::after { content: none; }
-  & #voice-seats .room-member-photo > :is(.profile-avatar-image,.avatar-fallback) { transition: opacity 150ms ease; }
-  & #voice-seats .room-member-photo.is-muted > :is(.profile-avatar-image,.avatar-fallback) { opacity: .4; filter: none; }
-  & #voice-seats .room-muted-mark {
-    position: absolute; inset: 0; z-index: 4; display: grid; place-items: center; width: 100%; height: 100%;
-    color: white; opacity: 1; background: none; border: 0; box-shadow: none; pointer-events: none;
-  }
-  & #voice-seats .room-muted-mark svg { width: 42%; height: 42%; }
-  & #voice-seats .room-muted-mark[hidden] { display: none; }
   & :is(.voice-person strong,.talk-track,#talk-request,.voice-chat-message header,#voice-announcement) { text-shadow: var(--room-photo-shadow); }
   & #voice-music-player .talk-cover:not([hidden]) { display: block; width: 46px; height: 46px; flex: 0 0 46px; margin: 0; overflow: hidden; border-radius: 8px; }
   & #voice-music-player .talk-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -312,7 +304,7 @@
     & .room-member-photo .room-muted-mark, & #live-current .room-singer-avatar, & .room-key button,
     & #live-queue .live-queue-avatar, & .live-start-popup, & #voice-announcement { color: var(--room-text); }
     & #voice-music-player :is(input[type=range],.talk-volume-range) { accent-color: var(--room-volume); }
-    & #voice-chat .voice-chat-message p:has(img,video,picture), & #voice-seat-invitation:not(:empty) {
+    & #voice-seat-invitation:not(:empty) {
       color: var(--room-text); background-color: var(--room-message-fill); border-color: var(--room-stroke); }
     & #live-queue .room-empty-order, & .room-place-tag { background: var(--room-system); color: var(--room-muted); }
     & #voice-content dialog[open] :is(input:not([type=range]):not([type=checkbox]):not([type=radio]),select,textarea) { color: var(--room-text); background-color: var(--room-field); border-color: var(--room-stroke); }
