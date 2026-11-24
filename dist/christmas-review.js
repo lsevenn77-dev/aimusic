@@ -22,7 +22,7 @@
 
   function bindRoom(host, signal, room) {
     let fx, generation = 0, skin = host.dataset.themeSku || roomSkin(room), maskFrame = 0;
-    const protectedNodes = host.querySelectorAll('.room-header,.voice-chat-panel,#voice-music-player,.talk-central,#live-current');
+    const protectedNodes = host.querySelectorAll('.room-header,.voice-chat-panel,#voice-music-player,.talk-seat-controls,#live-current');
     const refreshMask = () => {
       if (!fx?.ready || maskFrame) return;
       maskFrame = requestAnimationFrame(() => {

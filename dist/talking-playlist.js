@@ -12,11 +12,6 @@ function paintTalkingPlaylistLikes(root=document){
  }
 }
 Object.assign(VoiceRoomClient.prototype,{
- paintTalkingEmptyTitle(){
-  if(this.liveMode||this.state?.music?.queue?.[this.state.music.index])return;
-  const title=this.host.querySelector('.talk-track strong');
-  if(title)title.textContent=this.host.hasAttribute('data-room-pc-controls')?'재생할 곡이 없습니다':'선택된 곡이 없습니다';
- },
  paintTalkingPlaylist(){
   if(this.liveMode)return;
   const panel=this.host.querySelector('.talk-playlist');if(!panel)return;
@@ -42,13 +37,8 @@ Object.assign(VoiceRoomClient.prototype,{
     });
    },{signal:this.talkViewEvents.signal});
   }
-  const items=talkingPlaylistItems(this.state?.music),rows=panel.querySelector('.talk-playlist-rows'),status=panel.querySelector('.talk-playlist-status');
-  const owner=this.state?.members?.find(member=>member.id===this.state.room?.host_id)||this.state?.members?.find(member=>member.role==='host');
-  panel.querySelector('[data-talk-count]').textContent=items?items.length+'곡':'—';
-  const host=panel.querySelector('[data-talk-host]');host.textContent=owner?'방장 '+owner.name:'방장 확인 중';host.title=host.textContent;
-  status.hidden=!!items?.length;rows.hidden=!items?.length;
-  status.textContent=items?'방장이 등록한 곡이 없습니다.':'재생목록을 불러오고 있습니다.';
-  panel.setAttribute('aria-busy',String(items===null));
+  const items=talkingPlaylistItems(this.state?.music),rows=panel.querySelector('.talk-playlist-rows');
+  panel.hidden=!items?.length;
   if(!items)return;
   const scroll=rows.scrollTop,previous=new Map([...rows.children].map(row=>[row.dataset.trackId,row]));
   for(const {track,index,current} of items){

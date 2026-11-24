@@ -171,8 +171,8 @@ test('live room wraps the current template while preserving chat, gifts, setting
  assert.match(html,/class="voice-room live-karaoke-room"/);assert.match(html,/data-voice-room="live-room"/);
  assert.doesNotMatch(html,/class="voice-back"/);assert.match(html,/id="voice-title">라이브 노래방/);
  assert.match(html,/3|노래가 시작/);
- assert.equal((html.match(/data-voice="sound"/g)||[]).length,1);
- assert.match(html.slice(0,html.indexOf('id="live-karaoke-stage"')),/data-voice="sound"/);
+ assert.doesNotMatch(html,/data-voice="sound"/);
+ assert.match(html,/<div id="live-actions" class="live-actions"><\/div>/);
  assert.doesNotMatch(html,/live-sound-toolbar|id="live-monitor-toggle"/);
  assert.match(html,/id="voice-monitor"/);
 });

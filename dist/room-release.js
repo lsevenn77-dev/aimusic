@@ -17,20 +17,25 @@ Object.assign(VoiceRoomClient.prototype,{
   const more = room.querySelector('details.room-more');
   if (more?.tagName === 'DETAILS') {
    const nav = more.parentElement, menu = more.querySelector('.room-more-actions');
-   const secondary = ['sound','share','settings'].map(key => nav.querySelector(`[data-voice="${key}"]`));
+   const secondary = ['inbox','share','settings'].map(key => nav.querySelector(`[data-voice="${key}"]`));
    const leave = nav.querySelector('[data-voice="leave"]');
-   const compact = window.matchMedia('(max-width: 349px)');
+   for (const button of secondary) {
+    if(button.querySelector('.room-menu-label'))continue;
+    const label=document.createElement('span');label.className='room-menu-label';label.textContent=button.title;
+    button.append(label);
+   }
+   const desktop = window.matchMedia('(min-width:801px) and (hover:hover) and (pointer:fine)');
    const arrange = () => {
     more.open = false;
-    more.hidden = !compact.matches;
+    more.hidden = roomUsesDesktopControls();
     nav.insertBefore(more, leave);
     for (const button of secondary) {
-     if (compact.matches) menu.append(button);
+     if (!more.hidden) menu.append(button);
      else nav.insertBefore(button, more);
     }
    };
    arrange();
-   compact.addEventListener('change', arrange, options);
+   desktop.addEventListener('change', arrange, options);
    document.addEventListener('pointerdown', event => {
     if (more.open && !more.contains(event.target)) more.open = false;
    }, options);

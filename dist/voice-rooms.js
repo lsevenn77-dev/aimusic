@@ -99,7 +99,13 @@ class VoiceRoomClient {
   el.textContent=message;
   el.toggleAttribute?.('data-connected',connected);
  }
- async safe(fn){try{await fn();}catch(e){this.status(e.message);toast(e.message);}}
+ async safe(fn){
+  try{await fn();}catch(e){
+   this.status(e.message);
+   if(e.roomMicPermission)this.showRoomNotice('마이크 권한을 확인해주세요.');
+   else toast(e.message);
+  }
+ }
  bind(host){this.host=host;if(!this.roomAudio&&typeof RoomAudioSession==='function')this.roomAudio=new RoomAudioSession(this);if(!this.liveMode){this.waitForMusicGesture??=!this.levelContext&&!window.AifectNativeTalkAudio;try{const v=localStorage.getItem('aifect.talkingRoom.listenVolume');if(v!==null&&Number.isFinite(Number(v)))this.preferences.music=Math.max(0,Math.min(1,Number(v)));}catch{}}this.resumeSound();$('#voice-join').onclick=()=>{if(this.closed){voiceController=new VoiceRoomClient(this.id);voiceController.bind(host);}else this.safe(()=>this.join());};const unlock=()=>this.unlockListening();host.onpointerdown=unlock;host.onclick=e=>{unlock();const b=e.target.closest('[data-voice]');if(b)this.safe(()=>this.action(b.dataset.voice,b.dataset.target,b));};
   this.bindFinalControls();
   const chat=$('#voice-chat-form'),stickers=this.stickers;
@@ -167,7 +173,7 @@ class VoiceRoomClient {
   if(occupancy)occupancy.textContent=s.members.length+' / '+(s.room.max_members??'–');
   const micOn=!!this.micSender?.track?.enabled&&!self.muted;
   const seated=Array.from({length:8},(_,i)=>s.members.find(p=>(this.optimisticSeat&&p.id===s.self?this.optimisticSeat.seat:p.seat)===i));
-  const seatEntries=seated.map((p,i)=>({key:String(i),html:'<div class="voice-seat">'+(p?`<div class="voice-seat-occupant"><button type="button" class="voice-person" data-voice="talk-profile" data-target="${esc(p.id)}" data-level-user="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p,false,!this.liveMode)}<strong title="${esc(p.name)}">${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></strong></button>${roomRelationButton(p,s.self,true)}</div>`:'<button type="button" class="voice-seat-empty" data-voice="request-mic" data-target="'+i+'" aria-label="'+(i+1)+'번 좌석 참여 신청">'+voiceGlyph('plus')+'</button>')+'</div>'}));
+  const seatEntries=seated.map((p,i)=>({key:String(i),html:'<div class="voice-seat">'+(p?`<div class="voice-seat-occupant"><button type="button" class="voice-person" data-voice="talk-profile" data-target="${esc(p.id)}" data-level-user="${esc(p.id)}" aria-label="${esc(p.name)} 프로필">${roomMemberAvatar(p,false,!this.liveMode)}<strong title="${esc(p.name)}">${p.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></strong></button>${roomRelationButton(p,s.self,true)}</div>`:'<button type="button" class="voice-seat-empty" data-voice="request-mic" data-target="'+i+'" aria-label="'+(i+1)+'번 좌석 참여 신청"><span class="seat-disc">'+voiceGlyph('plus')+'</span></button>')+'</div>'}));
   const seats=$('#voice-seats');
   if(patchRoomChildren(seats,seatEntries))this.positionTalkGift();
   seated.forEach((member,index)=>{
@@ -182,6 +188,7 @@ class VoiceRoomClient {
   if(this.listenerHTML!==listenerHTML){$('#voice-listeners').innerHTML=listenerHTML;this.listenerHTML=listenerHTML;}
 
   this.paintFinalControls();
+  this.updateRoomNotice(self,micOn);
   if(!this.liveMode)this.paintTalkPanel(self,micOn);
   this.updateRoomClock?.();
   this.paintMusic();
@@ -202,7 +209,13 @@ class VoiceRoomClient {
    const top=log.getBoundingClientRect().top;
    const anchor=atEnd?null:[...log.children].find(row=>row.getBoundingClientRect().bottom>top);
    const anchorY=anchor?.getBoundingClientRect().top;
-   const entries=messages.map(m=>({key:m.id,html:voiceChatMessageHTML(m,this.liveMode).replace('class="voice-chat-message"','class="voice-chat-message'+(m.user_id===s.self?' is-self':'')+'"')}));
+   const entries=messages.map((m,index)=>{
+    const previous=messages[index-1],delta=m.created-previous?.created;
+    const grouped=!!m.user_id&&!m.kind&&!previous?.kind&&previous?.user_id===m.user_id&&delta>=0&&delta<300000
+     &&new Date(m.created).toDateString()===new Date(previous.created).toDateString();
+    const classes='voice-chat-message'+(m.user_id===s.self?' is-self':'')+(grouped?' is-grouped':'');
+    return {key:m.id,html:voiceChatMessageHTML(m,this.liveMode).replace('class="voice-chat-message"','class="'+classes+'"')};
+   });
    if(this.liveMode)entries.unshift({key:'earphone-guide',html:voiceChatMessageHTML({kind:'system',body:'이어폰을 사용하면 반주가 마이크에 섞이지 않습니다.'})});
    entries.push(...requests.map(p=>({key:'request:'+p.id,html:voiceChatMessageHTML({kind:'system',body:p.name+'님이 좌석 참여를 신청했습니다.'})})));
    patchRoomChildren(log,entries);
@@ -370,6 +383,8 @@ class VoiceRoomClient {
   const a=new Audio();
   a.preload='auto';
   a.onloadedmetadata=a.oncanplay=a.onseeked=()=>this.syncMusic();
+  a.onpause=a.onvolumechange=a.onseeking=()=>this.updateMusicIndicator();
+  a.onstalled=()=>{if(a.readyState<3)a.onwaiting();};
   a.onwaiting=()=>{
    if(this.state?.music?.playing&&!this.closed){this.musicAudible=false;this.musicNotice('음악 버퍼링 중');}
   };
@@ -380,10 +395,12 @@ class VoiceRoomClient {
   a.onended=()=>{
    if(!a.ended||!this.state?.music?.playing||this.closed)return;
    this.musicAudible=false;
+   this.updateMusicIndicator();
    if(this.state.members.find(p=>p.id===this.state.self)?.role==='host')this.safe(()=>this.musicCommand('ended'));
   };
   a.onerror=async()=>{
    if(!a.error||!this.musicTrack||this.closed)return;
+   this.updateMusicIndicator();
    const key=this.musicTrack;let message=a.error.code===3?'지원하지 않는 음악 형식입니다.':'음악 네트워크 연결을 확인해 주세요.';
    try{
     const response=await fetch(a.src,{method:'HEAD',credentials:'same-origin'});
@@ -422,6 +439,7 @@ class VoiceRoomClient {
   this.musicTimeline={key,starts:m.starts,revision:m.revision,position:m.position,updated:m.updated,playing:m.playing};
   if(this.roomAudio?.blocked){if(m.playing)this.musicTarget='room';this.roomAudio.quietElement(a);this.musicAudible=false;this.musicNotice('기기 오디오 일시 중단');return;}
   this.playbackGain(a,Math.max(0,Math.min(1,m.volume*this.preferences.music)));
+  this.updateMusicIndicator?.();
   const expected=Math.min(track.duration,m.position+(m.playing?Math.max(0,Date.now()+(this.musicClock||0)-m.updated)/1000:0));
   if(!m.playing){
    this.musicPlayTask=null;this.musicAudible=false;this.musicBlocked=false;
@@ -474,7 +492,14 @@ class VoiceRoomClient {
    }).finally(()=>{if(this.musicPlayTask===pending)this.musicPlayTask=null;});
   }
  }
+ updateMusicIndicator(){
+  const a=this.musicAudio;
+  const playing=!!(this.musicAudible&&this.state?.music?.playing&&this.state.music.volume>0&&this.preferences.music>0&&a&&!a.paused&&!a.ended&&!a.seeking&&!a.error&&!a.muted&&a.volume>0&&!this.roomAudio?.blocked);
+  const mini=this.host?.querySelector?.('#voice-music-player');
+  if(mini&&mini.hasAttribute?.('data-playing')!==playing)mini.toggleAttribute?.('data-playing',playing);
+ }
  musicNotice(text){
+  this.updateMusicIndicator?.();
   this.musicNoticeText=text;
   const mini=this.host?.querySelector?.('#voice-music-player');
   if(!mini)return;
@@ -524,7 +549,7 @@ class VoiceRoomClient {
   // A real desktop pointer/click gesture replaces the removed unlock button.
   if(this.liveMode||blocked)this.resumeSound(!this.liveMode&&!!this.host?.hasAttribute?.('data-room-pc-controls'));
  }
- listeningPrompt(){return this.host?.hasAttribute?.('data-room-pc-controls')&&!this.liveMode?'화면을 눌러 소리를 켜 주세요':'대화 듣기를 눌러 소리를 켜 주세요';}
+ listeningPrompt(){return !this.liveMode?'화면을 눌러 소리를 켜 주세요':'대화 듣기를 눌러 소리를 켜 주세요';}
  updateListening(){
   const button=this.host?.querySelector('[data-voice="resume-audio"]'),blocked=this.isListeningBlocked();
   if(button)button.hidden=!blocked;
@@ -655,7 +680,7 @@ class VoiceRoomClient {
   const self=this.state?.members?.find(p=>p.id===this.state.self);
   if(self&&this.host?.isConnected){
    this.paintMicNote(self);
-   const mic=this.host.querySelector('.talk-central [data-voice="toggle-mic"]');
+   const mic=this.host.querySelector('.talk-seat-controls [data-voice="toggle-mic"]');
    if(mic)mic.disabled=self.locked||self.seat==null||!!this.micBusy;
   }
   return this.micPhaseStarted=performance.now();
@@ -711,7 +736,7 @@ class VoiceRoomClient {
     if(stale())return;
     this.acceptState(state);
     if(desired!==this.micDesired)continue;
-    this.setCaptureEnabled(desired);this.micState=desired?'on':'muted';if(desired&&!this.liveMode)this.showMicEnabledNotice?.();this.paint();return;
+    this.setCaptureEnabled(desired);this.micState=desired?'on':'muted';this.paint();return;
    }
   })().catch(e=>{if(!stale()){this.micDesired=false;this.setCaptureEnabled(false);this.micState='failed';this.paint();throw e;}}).finally(()=>{if(this.micSync===pending)this.micSync=null;});
   this.micSync=pending;return pending;
@@ -761,7 +786,7 @@ class VoiceRoomClient {
    const state=await voiceRequest(this.path('published'),{generation,muted:true});if(stale())return;
    this.acceptState(state);this.micState='transport';this.setMicPhase('muted',stage);
    await this.syncMicIntent();if(stale())return;
-   this.diagnostics?.record('micEnableMs',performance.now()-this.micClicked);if(this.micDesired&&!this.liveMode)this.showMicEnabledNotice();
+   this.diagnostics?.record('micEnableMs',performance.now()-this.micClicked);
    void Promise.allSettled([this.devices(),this.monitor()]);
   }catch(e){
    if(stale())return;
@@ -771,7 +796,7 @@ class VoiceRoomClient {
    // Block a new attempt until the old publisher reservation is retired.
    await voiceRequest(this.path('mute'),{generation}).catch(()=>{});if(stale())return;
    const messages={NotAllowedError:'마이크 권한을 브라우저 설정에서 허용해 주세요.',NotFoundError:'사용 가능한 마이크가 없습니다. 장치를 연결해 주세요.',NotReadableError:'다른 앱의 마이크 사용을 종료하고 다시 시도해 주세요.',OverconstrainedError:'선택한 마이크를 사용할 수 없습니다. 기본 장치를 선택해 주세요.'};
-   throw new Error(messages[e.name]||e.message);
+   throw Object.assign(new Error(messages[e.name]||e.message),{roomMicPermission:e.name==='NotAllowedError'});
   }finally{if(attempt===this.micAttempt)this.micBusy=false;this.paint();}
  }
 
@@ -810,7 +835,7 @@ class VoiceRoomClient {
  scheduleReconnect(){if(this.reconnectTimer||this.closed)return;this.reconnectTimer=setTimeout(()=>{this.reconnectTimer=null;this.reconnect();},Math.min(30000,1000*2**Math.min(this.retries++,5)));}
  async reconnect(){if(this.closed||this.reconnecting)return;const reconnectStarted=performance.now();this.reconnecting=true;this.status('연결이 끊겼습니다. 다시 연결하는 중…');try{await this.join();}catch(e){this.status(e.message);if([401,403,404,409].includes(e.status))this.leave(false);else this.scheduleReconnect();}finally{this.reconnecting=false;this.diagnostics?.record('reconnectMs',performance.now()-reconnectStarted);}}
  stopMedia(){this.micDesired=false;this.micState='disconnected';this.warmSeat=null;this.micAttempt=(this.micAttempt||0)+1;this.micBusy=false;this.pendingStream?.getTracks().forEach(t=>t.stop());this.pendingStream=null;this.stopMicrophone();this.clearRemoteMeters();this.receiver?.close();this.receiver=null;for(const a of this.audios.values())this.releaseRemote(a);this.audios.clear();this.receiveKey=null;}
- leave(send=true){if(this.closed)return;this.chatEditor?.destroy();document.documentElement?.style.removeProperty('--room-toast-bottom');this.roomLayoutEvents?.abort();this.roomResizeObserver?.disconnect();if(this.roomLayoutFrame)cancelAnimationFrame(this.roomLayoutFrame);clearTimeout(this.micNoticeTimer);document.querySelector?.('#main')?.style?.removeProperty('--voice-top');clearInterval(this.roomClock);this.roomDM?.destroy();this.roomDMUnreadStop?.();document.documentElement?.removeAttribute('data-room-popup');this.roomTitleObserver?.disconnect();this.talkViewEvents?.abort();this.controlEvents?.abort();this.roomShareAbort?.abort();clearTimeout(this.roomShareTimer);this.releaseRoomExternal?.();const leaving=send&&this.joined?fetch('/api/voice/'+this.path('leave'),{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({generation:this.generation}),signal:AbortSignal.timeout(8000)}).catch(()=>{}):Promise.resolve();this.closed=true;this.talkGiftQueue.length=0;this.finishTalkGift();setVoiceFocus(false);this.joined=false;this.stopMicTest?.();this.diagnostics?.stop();clearInterval(this.levelTimer);clearInterval(this.musicTimer);clearTimeout(this.volumeTimer);clearTimeout(this.searchTimer);this.searchAbort?.abort();window.removeEventListener('resize',this.onViewport);clearTimeout(this.receiveRetry);clearTimeout(this.seatInviteTimer);this.musicAudio?.pause();if(this.musicAudio){this.musicAudio.removeAttribute('src');this.musicAudio.load();}this.levelContext?.close().catch(()=>{});this.levelContext=null;clearInterval(this.heartbeat);clearTimeout(this.socketRetry);clearTimeout(this.reconnectTimer);clearTimeout(this.animationTimer);this.ws?.close();this.stopMedia();this.roomAudio?.dispose();if(this.host?.isConnected){$('#voice-content').hidden=true;$('#voice-entry').hidden=false;}window.removeEventListener('online',this.onOnline);window.removeEventListener('pagehide',this.onPageHide);document.removeEventListener('visibilitychange',this.onVisibility);window.removeEventListener('pageshow',this.onVisibility);window.removeEventListener('focus',this.onVisibility);window.visualViewport?.removeEventListener('resize',this.onViewport);window.visualViewport?.removeEventListener('scroll',this.onViewport);return leaving;}
+ leave(send=true){if(this.closed)return;this.chatEditor?.destroy();document.documentElement?.style.removeProperty('--room-toast-bottom');this.roomLayoutEvents?.abort();this.roomResizeObserver?.disconnect();if(this.roomLayoutFrame)cancelAnimationFrame(this.roomLayoutFrame);clearTimeout(this.roomNoticeTimer);document.querySelector?.('#main')?.style?.removeProperty('--voice-top');clearInterval(this.roomClock);this.roomDM?.destroy();this.roomDMUnreadStop?.();document.documentElement?.removeAttribute('data-room-popup');this.roomTitleObserver?.disconnect();this.talkViewEvents?.abort();this.controlEvents?.abort();this.roomShareAbort?.abort();clearTimeout(this.roomShareTimer);this.releaseRoomExternal?.();const leaving=send&&this.joined?fetch('/api/voice/'+this.path('leave'),{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({generation:this.generation}),signal:AbortSignal.timeout(8000)}).catch(()=>{}):Promise.resolve();this.closed=true;this.talkGiftQueue.length=0;this.finishTalkGift();setVoiceFocus(false);this.joined=false;this.stopMicTest?.();this.diagnostics?.stop();clearInterval(this.levelTimer);clearInterval(this.musicTimer);clearTimeout(this.volumeTimer);clearTimeout(this.searchTimer);this.searchAbort?.abort();window.removeEventListener('resize',this.onViewport);clearTimeout(this.receiveRetry);clearTimeout(this.seatInviteTimer);this.musicAudio?.pause();if(this.musicAudio){this.musicAudio.removeAttribute('src');this.musicAudio.load();}this.levelContext?.close().catch(()=>{});this.levelContext=null;clearInterval(this.heartbeat);clearTimeout(this.socketRetry);clearTimeout(this.reconnectTimer);clearTimeout(this.animationTimer);this.ws?.close();this.stopMedia();this.roomAudio?.dispose();if(this.host?.isConnected){$('#voice-content').hidden=true;$('#voice-entry').hidden=false;}window.removeEventListener('online',this.onOnline);window.removeEventListener('pagehide',this.onPageHide);document.removeEventListener('visibilitychange',this.onVisibility);window.removeEventListener('pageshow',this.onVisibility);window.removeEventListener('focus',this.onVisibility);window.visualViewport?.removeEventListener('resize',this.onViewport);window.visualViewport?.removeEventListener('scroll',this.onViewport);return leaving;}
  animateGift(event){
   if(this.closed||!event.gift?.id||this.seenGifts.has(event.gift.id))return;
   this.seenGifts.add(event.gift.id);

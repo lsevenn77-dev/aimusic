@@ -43,14 +43,14 @@ test('settings, people, search, profile and gift use one desktop chat anchor and
 
 test('talk controls expose labelled microphone states only for an eligible seated member',()=>{
  const source=readFileSync(new URL('../dist/voice-room-controls.js',import.meta.url),'utf8');
- const start=source.indexOf(' paintTalkPanel('),end=source.indexOf('\n showMicEnabledNotice',start);
+ const start=source.indexOf(' paintTalkPanel('),end=source.indexOf('\n showRoomNotice',start);
  const node=()=>({dataset:{},attrs:{},setAttribute(k,v){this.attrs[k]=v;}}),mic=node(),down=node(),request=node();
  const c=vm.createContext({Date,voiceGlyph:n=>'<svg data-icon="'+n+'"></svg>',$:s=>s==='#talk-request'?request:{open:false},window:{dispatchEvent(){}},CustomEvent:class{}});
  const fn=vm.runInContext('({'+source.slice(start,end)+'}).paintTalkPanel',c);
  const self={id:'me',seat:null,locked:false},client={state:{self:'me',room:{id:'r',host_id:'me'},members:[self]},host:{querySelector:s=>s.includes('toggle-mic')?mic:down}};
  fn.call(client,self,false);assert.equal(mic.hidden,true);assert.equal(down.hidden,true);assert.equal(mic.disabled,true);
- self.seat=2;fn.call(client,self,false);assert.equal(down.hidden,false);assert.match(mic.innerHTML,/<span>켜기<\/span>/);assert.equal(mic.attrs['aria-label'],'내 마이크 켜기');assert.equal(mic.attrs['aria-pressed'],'false');
- fn.call(client,self,true);assert.match(mic.innerHTML,/<span>끄기<\/span>/);assert.equal(mic.attrs['aria-label'],'내 마이크 끄기');assert.equal(mic.attrs['aria-pressed'],'true');
+ self.seat=2;fn.call(client,self,false);assert.equal(down.hidden,false);assert.match(mic.innerHTML,/data-icon="talkMicOff"/);assert.equal(mic.title,'내 마이크 켜기');assert.equal(mic.attrs['aria-label'],mic.title);assert.equal(mic.attrs['aria-pressed'],'false');
+ fn.call(client,self,true);assert.match(mic.innerHTML,/data-icon="talkMic"/);assert.equal(mic.title,'내 마이크 끄기');assert.equal(mic.attrs['aria-label'],mic.title);assert.equal(mic.attrs['aria-pressed'],'true');
  self.locked=true;fn.call(client,self,false);assert.equal(mic.disabled,true);assert.equal(request.textContent,'마이크 사용 제한');
  self.locked=false;client.micBusy=true;fn.call(client,self,false);assert.equal(mic.disabled,true);assert.equal(mic.attrs['aria-busy'],'true');
 });

@@ -6,82 +6,62 @@
   --talk-list-height: calc(4 * var(--talk-list-row) + 44px);
   --talk-list-current: var(--ds-accent-mint);
   --talk-list-like: var(--ds-accent-pink);
-  --talk-frame-max: 1120px;
-  --talk-frame-gutter: max(24px, calc((var(--talk-room-width) - var(--talk-frame-max)) / 2));
+  --talk-frame-max: 1086px;
+  --talk-frame-gutter: max(18px, calc((var(--talk-room-width) - var(--talk-frame-max)) / 2));
   --talk-base-width: calc(var(--talk-room-width) - 2 * var(--talk-frame-gutter) - var(--talk-content-scrollbar, 0px));
-  --talk-chat-extra: clamp(0px, calc(var(--talk-frame-gutter) - 16px), 24px);
-  --room-column: calc(clamp(260px, calc(var(--talk-base-width) * .3525), 400px) + var(--talk-chat-extra));
-  --talk-frame-extension: 38px;
-  --room-panel-max: calc(760px + var(--talk-frame-extension));
-  --talk-frame-top: 28px;
-  --talk-header-height: 42px;
-  --talk-header-gap: 18px;
-  --room-seat: clamp(44px, 4.8vw, 76px);
+  --room-column: clamp(244px, calc(var(--talk-base-width) * .385), 420px);
+  --room-gap: 8px;
+  --room-panel-max: 715px;
+  --talk-frame-top: clamp(10px,2.2vh,24px);
+  --talk-header-height: 60px;
+  --talk-header-gap: 10px;
+  --talk-player-height: 56px;
+  --room-seat: clamp(44px,min(5.65vw,8.2vh),82px);
   --talk-seat-row: calc(var(--room-seat) + 24px);
-  --talk-seat-pad: 14px;
-  --talk-seat-gap-min: 14px;
-  --talk-seat-min: calc(2 * var(--talk-seat-row) + 2 * var(--talk-seat-pad) + var(--talk-seat-gap-min));
-  --talk-base-min: calc(var(--talk-player-height) + var(--talk-seat-min) + 54px + var(--talk-list-height));
-  --talk-frame-min: calc(var(--talk-base-min) + 10px);
-  --talk-frame-available: calc(var(--room-visible) - var(--talk-frame-top) - var(--talk-header-height) - var(--talk-header-gap));
-  /* One CSS-pixel bottom edge for both columns. Preserve four rows first;
-     cap the common frame on tall windows instead of stretching seat tracks.
-     The reference's image pixels and the display DPR are not CSS lengths. */
-  --talk-base-bottom-gap: max(0px, min(96px, 8vh, calc(var(--talk-frame-available) - var(--talk-base-min))), calc(var(--talk-frame-available) - 760px));
-  --talk-base-height: max(var(--talk-base-min), calc(var(--talk-frame-available) - var(--talk-base-bottom-gap)));
-  --af-room-bottom-gap: max(min(16px, var(--talk-base-bottom-gap)), calc(var(--talk-base-bottom-gap) - var(--talk-frame-extension)));
-  padding-block: var(--talk-frame-top) var(--af-room-bottom-gap);
-  padding-inline: var(--talk-frame-gutter) calc(var(--talk-frame-gutter) - var(--talk-chat-extra));
-  & .room-header { height: var(--talk-header-height); min-height: var(--talk-header-height); margin-bottom: var(--talk-header-gap); padding-right: var(--talk-content-scrollbar, 0px); }
-  & .room-heading { grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
-  & .room-heading .room-meta { display: inline-flex; justify-self: end; }
-  & .room-heading h1 { min-width: 0; }
+  --talk-seat-pad: clamp(6px,1.65vh,18px);
+  --talk-seat-gap: clamp(12px,3.6vh,39px);
+  --talk-seat-height: calc(2 * var(--talk-seat-row) + 2 * var(--talk-seat-pad) + var(--talk-seat-gap));
+  --talk-action-height: 60px;
+  --talk-frame-min: calc(var(--talk-seat-height) + var(--talk-action-height) + var(--talk-player-height));
+  padding-block: var(--talk-frame-top) max(14px,calc(var(--room-visible) - var(--talk-frame-top) - var(--talk-header-height) - var(--talk-header-gap) - var(--room-panel-max)));
+  padding-inline: var(--talk-frame-gutter);
+  @media (min-width:1200px) {
+    padding-inline: calc(var(--talk-frame-gutter) - 6px) calc(var(--talk-frame-gutter) + 6px);
+  }
+  & .room-meta [data-room-occupancy] { width: 5ch; }
+  & .room-meta [data-room-elapsed] { width: 8.5ch; }
+  & .talk-seat-controls .talk-seat-actions { gap: 12px; }
+  & .talk-seat-controls .talk-seat-actions > button { width: 42px; height: 42px; }
+  & .room-header { height: var(--talk-header-height); min-height: var(--talk-header-height); margin-bottom: var(--talk-header-gap); margin-right: var(--talk-content-scrollbar, 0px); }
   & #voice-content { overflow-y: auto; scrollbar-width: thin; }
+  & .room-header nav { justify-content: space-between; padding-inline: clamp(0px,calc(var(--room-column) - 250px),38px) 12px; }
+  & #voice-content .voice-chat-panel { padding-inline-start: 0; }
+  & .voice-columns:has(.talk-playlist:not([hidden])) { min-height: calc(var(--talk-frame-min) + var(--talk-list-height)); }
   & .voice-columns { min-width: 0; min-height: var(--talk-frame-min); }
   & .voice-columns > .voice-stage {
    display: grid; grid-template-columns: minmax(0, 1fr);
-   /* Keep the original seat track intact. New height is empty space below it. */
-   grid-template-rows: var(--talk-player-height) calc(var(--talk-base-height) - var(--talk-player-height) - 54px - var(--talk-list-height)) minmax(0, 1fr) 64px var(--talk-list-height);
+   grid-template-rows: var(--talk-seat-height) var(--talk-action-height) var(--talk-player-height) minmax(0,1fr);
    gap: 0; min-width: 0; overflow: visible;
   }
   & #voice-seats {
    --room-seat: inherit;
-   flex: none; height: 100%; min-height: var(--talk-seat-min);
+   flex: none; height: 100%; min-height: 0;
    grid-template-rows: repeat(2, var(--talk-seat-row)); align-content: center;
-   /* 22.5cqw is one of the four equal columns inside the existing 5% gutters.
-      Reduce decorative spacing when the shared frame runs out of height. */
-   row-gap: clamp(var(--talk-seat-gap-min), min(calc(22.5cqw - var(--talk-seat-row)), calc(100% - 2 * var(--talk-seat-row))), 84px);
+   row-gap: var(--talk-seat-gap);
    padding-block: var(--talk-seat-pad);
   }
-  & .talk-central {
-   grid-row: 4; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
-   box-sizing: border-box; height: 54px; min-height: 54px; padding: 6px 12px; margin: 0 0 10px; gap: 8px;
-  }
-  & .talk-central #talk-request { min-width: 0; line-height: 20px; }
-  & .talk-central .talk-central-actions { display: flex; flex: none; flex-wrap: nowrap; align-items: center; gap: 8px; min-width: 0; }
-  & .talk-central .talk-central-actions:not(:has(button:not([hidden]))) { display: none; }
-  & .talk-central:not(:has(.talk-central-actions button:not([hidden]))) { grid-template-columns: minmax(0, 1fr); }
-  & .talk-central button {
-   box-sizing: border-box; flex: none; display: inline-flex; align-items: center; justify-content: center;
-   height: 40px; min-height: 40px; margin: 0; padding-block: 0; line-height: 20px; white-space: nowrap;
-  }
-  & .talk-central button svg { display: block; flex: none; width: 18px; height: 18px; margin: 0; }
+  & .talk-seat-controls { grid-row: 2; padding: 0 14px 8px 12px; }
+  & .voice-stage > #voice-music-player { grid-row: 3; }
   & .talk-playlist {
-   grid-row: 5;
+   grid-row: 4; align-self: start;
    order: 3;
    --control-surface: var(--room-page);
    display: flex; flex-direction: column; flex: 0 0 var(--talk-list-height);
    box-sizing: border-box; height: var(--talk-list-height); min-height: var(--talk-list-height);
    width: 100%; min-width: 0; margin: 0; padding: 0; border: 0; border-radius: 0;
    background: transparent; box-shadow: none; backdrop-filter: none; color: var(--room-text);
-   text-shadow: 0 1px 3px #000;
+   text-shadow: var(--room-photo-shadow);
   }
-  & .talk-playlist > header { display: flex; align-items: center; gap: 12px; flex: 0 0 44px; min-width: 0; padding: 0 12px; }
-  & .talk-playlist h2 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.3; white-space: nowrap; }
-  & [data-talk-count], & .talk-playlist-host { color: var(--room-muted); font-size: 13px; }
-  & .talk-playlist-host { display: flex; align-items: center; gap: 4px; margin-left: auto; min-width: 0; text-shadow: 0 1px 2px #000, 0 -1px 2px #000, 1px 0 2px #000, -1px 0 2px #000; }
-  & .talk-playlist-host svg { flex: none; width: 14px; height: 14px; }
-  & [data-talk-host] { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   & .talk-playlist-body { position: relative; height: calc(4 * var(--talk-list-row)); min-height: 0; }
   & .talk-playlist-rows { height: 100%; margin: 0; padding: 0 6px; overflow: auto; overscroll-behavior: contain; list-style: none; scrollbar-width: thin; scrollbar-color: var(--room-muted) transparent; scrollbar-gutter: stable; }
   & .talk-playlist-row { display: grid; grid-template-columns: 24px 36px minmax(0,1fr) 44px 44px; align-items: center; gap: 10px; height: var(--talk-list-row); padding: 0; margin: 0; border: 0; background: transparent; box-shadow: none; }
@@ -98,18 +78,16 @@
   & .talk-playlist-row [data-like][aria-pressed="true"] path { fill: currentColor; }
   & .talk-playlist-row button:hover { background: rgb(128 128 150 / .14); transform: none; }
   & .talk-playlist :is(button,.talk-playlist-rows):focus-visible { outline: 2px solid var(--room-text); outline-offset: -2px; }
-  & .talk-playlist-status { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 12px 10px; margin: 0; color: var(--room-muted); font-size: 13px; font-weight: 400; }
-  & .talk-playlist [hidden] { display: none!important; }
+  & .talk-playlist[hidden] { display: none; }
   @media (max-height: 820px) {
-   --talk-frame-top: 16px; --talk-header-gap: 12px; --talk-seat-pad: 10px;
+   --talk-frame-top: 16px; --talk-header-gap: 4px; --talk-seat-pad: 10px;
   }
   @media (max-width: 1200px) { --talk-frame-gutter: 16px; }
   &[data-ui-mode="light"] {
    --talk-list-current: #115e59; --talk-list-like: #9d174d;
    & .talk-playlist { text-shadow: none; }
    & .talk-playlist-row button svg { filter: none; }
-   /* At notebook crops the headphone contact shadow crosses only this label. */
-   & .talk-playlist-host { text-shadow: none; padding: 2px 4px; border-radius: 4px; background: color-mix(in srgb, var(--room-popup-fill) 94%, transparent); }
+
   }
  }
 }
