@@ -24,6 +24,9 @@ function setup(reduced=false){
  const advance=()=>{const f=[...timers.values()][0];timers.clear();f?.();};
  return {c,root,stage,feature,dots,motion,document,events,globalEvents,timers,fades,outgoing,mount,fire,advance,audio,audioEvents,playButton};
 }
+function buttonTarget(button){
+ return {closest:selector=>selector==='button'||(selector==='[data-home-app-choose]'&&button.hasAttribute?.('data-home-app-choose'))?button:null};
+}
 
 test('carousel rolls at 5.5s, pauses on hover and focus, and cleans up on navigation',()=>{
  const f=setup();f.mount();assert.equal(f.timers.size,1);f.advance();assert.equal(f.stage.innerHTML,'two');assert.equal(f.dots[1]['aria-pressed'],'true');
@@ -44,7 +47,7 @@ test('banner playback follows the shared player independently of carousel pause 
  const f=setup();f.mount();f.c.current={id:'one'};f.audio.paused=false;f.audioEvents.get('play')();
  assert.equal(f.playButton.innerHTML,'ui-pause-action');assert.equal(f.playButton['aria-pressed'],'true');assert.equal(f.timers.size,1);
  const toggle={matches:s=>s==='.home-feature-autoplay',hasAttribute:()=>false,setAttribute(){}};
- f.fire('click',{target:{closest:()=>toggle}});assert.equal(f.timers.size,0);assert.equal(f.audio.paused,false);
+ f.fire('click',{target:buttonTarget(toggle)});assert.equal(f.timers.size,0);assert.equal(f.audio.paused,false);
  f.audio.paused=true;f.audioEvents.get('pause')();assert.equal(f.playButton.innerHTML,'ui-play-action');assert.equal(f.timers.size,0);
  f.audio.paused=false;f.c.current={id:'other'};f.audioEvents.get('play')();assert.equal(f.playButton['aria-pressed'],'false');
  f.globalEvents.get('hashchange')();assert.equal(f.audioEvents.size,0);
@@ -57,9 +60,9 @@ test('editorial carousel reuses controls and timing without subscribing to or ch
  assert.equal(f.audioEvents.size,0);assert.equal(f.timers.size,1);
  f.advance();assert.equal(f.stage.innerHTML,'tab:dubbing');assert.equal(f.audio.paused,false);
  const next={matches:s=>s==='.home-feature-next,[data-home-next]',hasAttribute:()=>false};
- f.fire('click',{target:{closest:()=>next}});assert.equal(f.stage.innerHTML,'tab:browse');
+ f.fire('click',{target:buttonTarget(next)});assert.equal(f.stage.innerHTML,'tab:browse');
  const dot={matches:()=>false,hasAttribute:n=>n==='data-home-slide',dataset:{homeSlide:'0'}};
- f.fire('click',{target:{closest:()=>dot}});assert.equal(f.stage.innerHTML,'tab:song');
+ f.fire('click',{target:buttonTarget(dot)});assert.equal(f.stage.innerHTML,'tab:song');
  cleanup();assert.equal(f.timers.size,0);assert.equal(f.audioEvents.size,0);assert.equal(f.audio.paused,false);
 });
 
@@ -69,7 +72,7 @@ test('explicit resume starts the timer with pointer and focus still on the rolli
  f.fire('pointerenter',{pointerType:'touch'});assert.equal(f.timers.size,1);
  f.fire('pointerenter',{pointerType:'mouse'});f.fire('focusin');
  const toggle={matches:s=>s==='.home-feature-autoplay',hasAttribute:()=>false,setAttribute(k,v){this[k]=v;}};
- const click=()=>f.fire('click',{target:{closest:()=>toggle}});
+ const click=()=>f.fire('click',{target:buttonTarget(toggle)});
  click();assert.equal(f.timers.size,0);assert.equal(toggle['aria-label'],'자동 롤링 재개');
  click();assert.equal(f.timers.size,1);assert.equal(toggle['aria-label'],'자동 롤링 일시정지');
  f.advance();assert.equal(f.stage.innerHTML,'two');
@@ -127,7 +130,7 @@ test('cancelled swipes restart a full interval without overriding manual pause o
   f.fire('pointerdown',{pointerId:1,clientX:180,clientY:20});
   f.fire('lostpointercapture',{pointerId:1,target:f.feature});assert.equal(f.timers.size,reduced?0:1);
   const toggle={matches:s=>s==='.home-feature-autoplay',hasAttribute:()=>false,setAttribute(){}};
-  f.fire('click',{target:{closest:()=>toggle}});
+  f.fire('click',{target:buttonTarget(toggle)});
   f.fire('pointerdown',{pointerId:1,clientX:180,clientY:20});f.fire('pointerup',{pointerId:1,clientX:100,clientY:20});
   assert.equal(f.stage.innerHTML,'two');assert.equal(f.timers.size,0);
   f.globalEvents.get('hashchange')();assert.equal(f.events.size,0);assert.equal(f.globalEvents.size,0);
@@ -139,7 +142,7 @@ test('banner slide direction follows next/previous through wraparound and dots s
  f.c.mountFeatureCarousel(f.root,tracks);
  const next={matches:s=>s==='.home-feature-next,[data-home-next]',hasAttribute:()=>false};
  const previous={matches:s=>s==='.home-feature-prev',hasAttribute:()=>false};
- const select=button=>f.fire('click',{target:{closest:()=>button}});
+ const select=button=>f.fire('click',{target:buttonTarget(button)});
  for(const id of ['two','three','one']){select(next);assert.equal(f.stage.innerHTML,id);assert.equal(f.stage.getAttribute('data-home-direction'),'next');assert.equal(f.outgoing.length,1);}
  select(previous);assert.equal(f.stage.innerHTML,'three');assert.equal(f.stage.getAttribute('data-home-direction'),'previous');
  const dot={matches:()=>false,hasAttribute:n=>n==='data-home-slide',dataset:{homeSlide:'1'}};
@@ -163,4 +166,43 @@ test('motion reduction and navigation dispose an active sliding banner without l
  f.motion.matches=true;f.globalEvents.get('motion')();assert.equal(f.outgoing.length,0);assert.equal(f.fades.size,0);assert.equal(f.timers.size,0);assert.equal(f.stage.getAttribute('data-home-direction'),undefined);
  f.motion.matches=false;f.globalEvents.get('motion')();f.advance();assert.equal(f.outgoing.length,1);
  f.globalEvents.get('hashchange')();assert.equal(f.outgoing.length,0);assert.equal(f.fades.size,0);assert.equal(f.timers.size,0);assert.equal(f.events.size,0);
+});
+
+test('the app-store chooser opens on a normal click and preserves the current music playback',()=>{
+ const f=setup(),opened=[];f.c.dialog=html=>opened.push(html);f.audio.paused=false;
+ const chooser={hasAttribute:name=>name==='data-home-app-choose',matches:()=>false};
+ f.c.mountFeatureCarousel(f.root,[{id:'app-download',title:'앱 다운로드'},{id:'studio',title:'스튜디오'}],{syncAudio:false});
+ f.fire('click',{target:buttonTarget(chooser),detail:1,preventDefault(){},stopPropagation(){}});
+ assert.equal(opened.length,1);assert.match(opened[0],/apps\.apple\.com\/kr\/app\/id6819654764/);
+ assert.match(opened[0],/play\.google\.com\/store\/apps\/details\?id=kr\.co\.aifect\.app/);
+ assert.equal(f.audio.paused,false);assert.equal(f.audioEvents.size,0);
+});
+
+test('swiping across the app campaign suppresses the trailing chooser click but keyboard activation still works',()=>{
+ for(const detail of [1,0]){
+  const f=setup(),opened=[];f.c.dialog=html=>opened.push(html);
+  const chooser={hasAttribute:name=>name==='data-home-app-choose',matches:()=>false};
+  f.c.mountFeatureCarousel(f.root,[{id:'app-download',title:'앱 다운로드'},{id:'studio',title:'스튜디오'}],{syncAudio:false});
+  f.fire('pointerdown',{pointerId:1,pointerType:'touch',clientX:220,clientY:30});
+  f.fire('pointermove',{pointerId:1,pointerType:'touch',clientX:120,clientY:32});
+  f.fire('pointerup',{pointerId:1,pointerType:'touch',clientX:120,clientY:32});
+  let stopped=false;
+  f.fire('click',{target:buttonTarget(chooser),detail,preventDefault(){},stopPropagation(){stopped=true;}});
+  assert.equal(opened.length,detail===0?1:0,'only a fresh keyboard activation may bypass swipe-click suppression');
+  if(detail===1)assert.equal(stopped,true);
+  assert.equal(f.stage.innerHTML,'studio');
+ }
+});
+
+test('a normal explicit store-link click is left to browser navigation while a trailing swipe click is blocked',()=>{
+ const f=setup();f.c.dialog=()=>assert.fail('an explicit store link must not open the platform chooser');
+ f.c.mountFeatureCarousel(f.root,[{id:'app-download',title:'앱 다운로드'},{id:'studio',title:'스튜디오'}],{syncAudio:false});
+ const target={closest:()=>null};let prevented=false;
+ f.fire('click',{target,detail:1,preventDefault(){prevented=true;}});
+ assert.equal(prevented,false,'the native HTTPS anchor action must remain available');
+ f.fire('pointerdown',{pointerId:1,pointerType:'touch',clientX:220,clientY:30});
+ f.fire('pointermove',{pointerId:1,pointerType:'touch',clientX:120,clientY:32});
+ f.fire('pointerup',{pointerId:1,pointerType:'touch',clientX:120,clientY:32});
+ f.fire('click',{target,detail:1,preventDefault(){prevented=true;},stopPropagation(){}});
+ assert.equal(prevented,true,'a swipe must never leave the site via its trailing click');
 });

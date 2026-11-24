@@ -87,8 +87,31 @@ function homeCollectionGrid(items){let html=collectionGrid(items);for(const p of
 function homeMore(title,href){return href?`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+ 더보기</a>`:'';}
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
 function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
+const homeAppStores={ios:'https://apps.apple.com/kr/app/id6819654764',android:'https://play.google.com/store/apps/details?id=kr.co.aifect.app'};
+function homeAppStoreURL(device=typeof navigator==='undefined'?{}:navigator){
+ const ua=String(device.userAgent||''),platform=String(device.platform||''),hint=String(device.userAgentData?.platform||'');
+ if(/Android/i.test(ua)||/Android/i.test(hint))return homeAppStores.android;
+ if(/iPhone|iPad|iPod/i.test(ua)||(/MacIntel|Macintosh/i.test(platform+' '+ua)&&Number(device.maxTouchPoints)>1))return homeAppStores.ios;
+ return '';
+}
+function homeAppStoreIcon(store){
+ return store==='android'?'<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="#4285F4" d="M3 2.2v19.6L13 12Z"/><path fill="#34A853" d="M3 2.2 16 9 13 12Z"/><path fill="#FBBC04" d="m16 9 5 2.6c.35.18.35.62 0 .8L16 15l-3-3Z"/><path fill="#EA4335" d="M3 21.8 13 12l3 3Z"/></svg>':'<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.81 3.62 9 8.92 8.78c1.12.06 1.9.63 2.55.68.97-.2 1.9-.78 2.93-.72 1.24.1 2.18.59 2.8 1.48-2.57 1.55-1.96 4.93.4 5.88-.47 1.33-1.08 2.65-2.15 4.18ZM12.03 8.66c-.15-1.88 1.4-3.43 3.18-3.58.25 2.17-1.97 3.78-3.18 3.58Z"/></svg>';
+}
+function homeAppStoreLinks(){
+ return '<span class="home-app-store-links">'+[['android','Google Play'],['ios','App Store']].map(([store,label])=>`<a class="home-app-store-link" data-home-store="${store}" href="${homeAppStores[store]}" aria-label="${label}에서 아이팩트 앱 다운로드" draggable="false">${homeAppStoreIcon(store)}<span><strong>${label}</strong><small>다운로드</small></span></a>`).join('')+'</span>';
+}
+function homeAppDownloadDialogHTML(){
+ return '<div class="home-app-download-dialog"><h2>아이팩트 앱 다운로드</h2><p>사용하는 기기에 맞는 스토어를 선택하세요.</p>'+homeAppStoreLinks()+'</div>';
+}
+function homeAppDownloadBannerHTML(b){
+ const href=homeAppStoreURL(),label=esc(b.headline+'. '+b.subtitle+' '+b.cta);
+ // Keep the full-banner target and the two explicit store links as siblings.
+ const target=href?`<a class="home-app-hitarea" href="${href}" aria-label="${label}" draggable="false"></a>`:`<button type="button" class="home-app-hitarea" data-home-app-choose aria-haspopup="dialog" aria-label="${label}"></button>`;
+ return `<div class="home-feature-slide home-promo-link" data-home-banner="app-download" data-wide-banner><picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" sizes="${homeBannerDesktopSizes}" width="1420" height="473"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${homeBannerImage(b.id,768)} 768w, ${homeBannerImage(b.id,1536)} 1536w" sizes="(max-width: 800px) 100vw, ${homeBannerDesktopSizes}" width="1536" height="768" alt="" loading="eager" decoding="async" fetchpriority="high" draggable="false"></picture>${target}<div class="home-promo-desktop home-app-content"><div class="home-feature-copy home-promo-copy"><span class="home-app-eyebrow" lang="en">AIFECT APP</span><span class="home-promo-headline"><span>아이팩트 앱</span><span><em>지금 다운로드하세요</em></span></span><span class="home-promo-subtitle">${esc(b.subtitle)}</span>${homeAppStoreLinks()}</div></div></div>`;
+}
 // The mobile picture keeps its approved 2:1 artwork; desktop selects its own portrait.
 const homeBanners=[
+ {id:'app-download',title:'앱 다운로드',headline:'아이팩트 앱 지금 다운로드하세요',subtitle:'AI 음악 · 커버 · 더빙을 더 가까이.',cta:'앱 다운로드'},
  {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',subtitle:'완성한 음악을 직접 공개해요.',cta:'제작곡 올리기',href:'#studio'},
  {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',subtitle:'내 목소리로 커버곡을 남겨요.',cta:'노래하러 가기',href:'#karaoke'},
  {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해보세요',subtitle:'원하는 파트에 목소리를 더해요.',cta:'참여하기',href:'#karaoke/dubbing?tab=discover'},
@@ -97,9 +120,10 @@ const homeBanners=[
  {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해보세요',subtitle:'취향을 나누고 친구를 만나요.',cta:'토킹룸 가기',href:'#voice?mode=talk'},
  {id:'crew',title:'크루',headline:'크루에 가입하고 함께 즐겨보세요',subtitle:'음악을 나누고 게임도 함께해요.',cta:'크루 둘러보기',href:'#community/crews?browse=1'},
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',subtitle:'고음질로 음악을 더 깊이 즐겨요.',cta:'프리미엄 혜택 보기',href:'#membership'}
-].filter(b=>b.id!=='premium'||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false);
+].filter(b=>(b.id!=='premium'||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false)&&(b.id!=='app-download'||typeof inApp==='undefined'||!inApp));
 const homeRoomsArtwork='rooms-20261117';
 function homeBannerImage(id,width){
+ if(id==='app-download')return '/assets/home-banners/app-download-20261124/app-download-mobile-'+width+'.webp';
  const scene=id==='crew'?homeRoomsArtwork+'/crew-mobile':'mobile-20261109/'+id;
  return '/assets/home-banners/'+scene+'-'+width+'.webp';
 }
@@ -110,6 +134,7 @@ function homeWideBanner(id){
  return (typeof inApp==='undefined'||!inApp)&&id!=='premium';
 }
 function homeBannerDesktopSources(id){
+ if(id==='app-download')return '/assets/home-banners/app-download-20261124/app-download-desktop-1420.webp 1420w, /assets/home-banners/app-download-20261124/app-download-desktop-2840.webp 2840w';
  if(homeWideBanner(id)){
   const directory=['crew','karaoke','talking'].includes(id)?homeRoomsArtwork:homeSlimArtwork.has(id)?'slim-20261116':'wide-20261116';
   const artwork=id==='artists'?'artists-mobile-photo':id;
@@ -145,10 +170,11 @@ function homeBannerHTML(b,next){
  const desktopWidth=wide?1420:b.id==='crew'?1672:1536;
  const desktopHeight=wide?(homeSlimArtwork.has(b.id)?300:363):b.id==='crew'?505:768;
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
- const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
  const sides=id=>homeWideBanner(id)||id==='crew'?[]:['left','right'];
  const scenery=id=>sides(id).map(side=>`<span class="home-promo-scenery home-promo-scenery-${side}" aria-hidden="true" style="--home-promo-scenery:url('${homeBannerBackgroundImage(id,side)}')"></span>`).join('');
  const preload=next?sides(next.id).map(side=>`<link rel="preload" as="image" href="${homeBannerBackgroundImage(next.id,side)}" media="(min-width: 801px)" fetchpriority="low">`).join('')+`<link rel="preload" as="image" imagesrcset="${homeBannerDesktopSources(next.id)}" ${homeWideBanner(next.id)?'imagesizes="'+homeBannerDesktopSizes+'"':''} media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:'';
+ if(b.id==='app-download')return homeAppDownloadBannerHTML(b)+preload;
+ const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
  return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" ${wide?'data-wide-banner':''} href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}" draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${wide?'sizes="'+homeBannerDesktopSizes+'"':''} width="${desktopWidth}" height="${desktopHeight}"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
 }
 // A jump to an unvisited desktop slide can outrun the next-image preload.
@@ -273,6 +299,7 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,prepareSlide,
  };
  const click=e=>{
   if(suppressClick){suppressClick=false;if(e.detail!==0){e.preventDefault();e.stopPropagation();return;}}
+  if(e.target.closest?.('[data-home-app-choose]')){e.preventDefault();dialog(homeAppDownloadDialogHTML());schedule();return;}
   const b=e.target.closest('button');if(!b)return;
   if(b.matches('.home-feature-prev'))go((pendingIndex??index)-1);
   else if(b.matches('.home-feature-next,[data-home-next]'))go((pendingIndex??index)+1);

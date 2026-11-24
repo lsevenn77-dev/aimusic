@@ -209,14 +209,14 @@ test('top tab selection preserves manual pause, reduced motion and hidden-page s
  for(const reason of ['manual','reduced','hidden']){
   const f=setup(reason==='reduced');f.open('song');
   const toggle={matches:s=>s==='.home-feature-autoplay',hasAttribute:()=>false,setAttribute(k,v){this[k]=v;}};
-  if(reason==='manual')f.banner.feature.fire('click',{target:{closest:()=>toggle}});
+  if(reason==='manual')f.banner.feature.fire('click',{target:{closest:selector=>selector==='button'?toggle:null}});
   if(reason==='hidden'){f.document.hidden=true;f.document.fire('visibilitychange');}
   f.clickTab('dubbing');f.navigate(f.context.playHref('dubbing'));
   assert.equal(f.current(),'dubbing');assert.deepEqual(f.pressed(),[1]);assert.equal(f.rolling().length,0,reason);
   f.tick(8000);assert.equal(f.current(),'dubbing',reason);
   if(reason==='manual'){
    assert.equal(toggle['aria-label'],'자동 롤링 재개');
-   f.banner.feature.fire('click',{target:{closest:()=>toggle}});
+   f.banner.feature.fire('click',{target:{closest:selector=>selector==='button'?toggle:null}});
   }else if(reason==='hidden'){f.document.hidden=false;f.document.fire('visibilitychange');}
   else continue;
   f.tick(3999);assert.equal(f.current(),'dubbing');f.tick(1);assert.equal(f.current(),'browse');
@@ -231,7 +231,7 @@ test('swipes and dots agree with actual banner IDs and restart a complete four-s
  let blocked=0;fire('click',{detail:1,preventDefault(){blocked++;},stopPropagation(){blocked++;}});assert.equal(blocked,2);
  f.tick(3999);assert.equal(f.current(),'browse');f.tick(1);assert.equal(f.current(),'script');
  const dot={matches:()=>false,hasAttribute:n=>n==='data-home-slide',dataset:{homeSlide:'1'}};
- fire('click',{target:{closest:()=>dot}});assert.equal(f.current(),'dubbing');assert.deepEqual(f.pressed(),[1]);
+ fire('click',{target:{closest:selector=>selector==='button'?dot:null}});assert.equal(f.current(),'dubbing');assert.deepEqual(f.pressed(),[1]);
  f.tick(3999);assert.equal(f.current(),'dubbing');f.tick(1);assert.equal(f.current(),'browse');
  fire('pointerdown',{pointerId:2,clientX:80,clientY:30});fire('pointerup',{pointerId:2,clientX:200,clientY:34});assert.equal(f.current(),'dubbing');assert.deepEqual(f.pressed(),[1]);assert.equal(f.rolling().length,1);
 });

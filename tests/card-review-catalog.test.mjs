@@ -45,9 +45,9 @@ test('ordinary and review accounts cannot start a new subscription, without losi
  for(const value of ['data-billing-cancel','data-billing-refresh','결제 내역','4,900원'])assert.ok(html.includes(value));
  assert.doesNotMatch(html,/data-billing-subscribe/);
 });
-test('home keeps the seven current service banners and hides only the Premium promotion',()=>{
+test('home adds app downloads, keeps the seven current service banners and hides only the Premium promotion',()=>{
  const c=vm.createContext({AifectSite});vm.runInContext(source('home.js'),c);
- assert.deepEqual(Array.from(vm.runInContext('homeBanners',c),b=>b.id),['studio','play','participate','artists','karaoke','talking','crew']);
+ assert.deepEqual(Array.from(vm.runInContext('homeBanners',c),b=>b.id),['app-download','studio','play','participate','artists','karaoke','talking','crew']);
 });
 
 test('the web review catalog flag does not alter native app subscription entry',()=>{

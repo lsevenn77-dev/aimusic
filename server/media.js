@@ -1,5 +1,4 @@
 import {trackArtworkSQL} from './track-artwork.js';
-import {productionCreditFields} from '../shared/production-credits.js';
 import {queueClassification,classificationFields} from './music-classification.js';
 import {nickname,nicknameBatch} from './nicknames.js';
 import {chooseArtist,namedArtistSQL} from './artist-identity.js';
@@ -60,9 +59,9 @@ export async function mediaRoute(req,env,path,user){
  }
  if(path==='/api/uploads'&&method==='POST'){
   requireUser(user);await rate(env,'upload-original:'+user.id,30,60);await requireUploadQuota(env,user);
-  const b=await req.json(),title=str(b.title,120),producerName=str(b.producer,60),credit=productionCreditFields(b),tool=credit.ai_tool,lyricData=lyricsFields(b);
+  const b=await req.json(),title=str(b.title,120),producerName=str(b.producer,60),tool=str(b.ai_tool,100),lyricData=lyricsFields(b);
   const performance=b.performance_mode??'solo';if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해주세요.');
-  if(b.rights!==true)fail(400,'음원 권리 보유 확인이 필요합니다.');
+  if(b.rights!==true||b.is_ai!==true)fail(400,'AI 제작 여부와 음원 권리 보유 확인이 필요합니다.');
   if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');
   const termsVersion='upload_consent_version' in b?b.upload_consent_version:KARAOKE_TERMS_VERSION;
   if('upload_consent_version' in b && termsVersion!==ORIGINAL_UPLOAD_TERMS_VERSION)fail(400,'현재 음원 이용허락 내용을 확인하고 다시 동의해주세요.');
@@ -72,7 +71,7 @@ export async function mediaRoute(req,env,path,user){
   if(!producer){producer={id:id()};await nicknameBatch(env,user.id,producerName,[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1)',producer.id,user.id,producerName,str(b.producer_bio||'',1000,false),now())]);}
   const artist=await chooseArtist(env,producer.id,b,b.genre);
   const tid=id(),jobWrites=lyricData.auto?await alignmentWrite(env,tid,user.id,lyricData):[];
-  await env.DB.batch([query(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,is_ai,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode,karaoke_terms,karaoke_at,performance_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,credit.is_ai,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode,termsVersion,now(),performance),...jobWrites]);
+  await env.DB.batch([query(env,'INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,tags,description,ai_tool,participation,rights_accepted,original_ext,original_bytes,created,lyrics,lyrics_mode,karaoke_terms,karaoke_at,performance_mode) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',tid,user.id,artist.id,producer.id,title,b.genre,str(b.tags||'',300,false),str(b.description||'',4000,false),tool,str(b.participation||'',100,false),now(),b.extension,b.bytes,now(),lyricData.lyrics,lyricData.mode,termsVersion,now(),performance),...jobWrites]);
   await run(env,'UPDATE tracks SET genres_json=?,moods_json=? WHERE id=?',JSON.stringify(classification.genres),JSON.stringify(classification.moods),tid);
   return json({id:tid,artist_id:artist.selected?artist.id:null,producer_id:producer.id},201);
  }

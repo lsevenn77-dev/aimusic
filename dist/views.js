@@ -338,7 +338,7 @@ function songCreditCardHTML(t){
  const display=value=>Array.isArray(value)?value.filter(Boolean).join(' · '):value;
  const genres=t.genres?.length?t.genres:[t.genre].filter(Boolean);
  const moods=(t.moods||[]).map(id=>AifectGenres.MOODS.find(m=>m.id===id)?.name||id);
- const fields=[['AI 도구',AifectProductionCredits.productionCreditLabel(t.ai_tool)],['사람의 참여',t.participation],['장르',genres],['기분 · 활동',moods],['태그',t.tags]];
+ const fields=[['AI 도구',t.ai_tool],['사람의 참여',t.participation],['장르',genres],['기분 · 활동',moods],['태그',t.tags]];
  return '<section class="surface song-credit-card"><h3>이 음악의 크레딧</h3><dl class="production-info">'+fields.map(([label,value])=>'<dt>'+label+'</dt><dd>'+esc(display(value)||'—')+'</dd>').join('')+'</dl></section>';
 }
 function songSupportCardsHTML(){

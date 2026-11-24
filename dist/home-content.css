@@ -168,6 +168,43 @@
  #home-release.home-promo-carousel .home-feature-stage>*{animation:none!important}
  #home-release.home-promo-carousel .home-promo-cta{transition:none}
 }
+/* App installation campaign only: readable live copy and independent links. */
+#home-release.home-promo-carousel [data-home-banner=app-download]{--home-promo-bg:#261f42;--home-promo-accent:#8EDDD2;--home-promo-shade-end:57%}
+#home-release [data-home-banner=app-download] .home-app-hitarea{position:absolute;inset:0;z-index:2;display:block;width:100%;height:100%;margin:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;cursor:pointer}
+#home-release [data-home-banner=app-download] .home-app-hitarea:focus-visible{outline:2px solid var(--ds-text);outline-offset:-4px}
+#home-release [data-home-banner=app-download] .home-app-content{z-index:3;pointer-events:none}
+#home-release [data-home-banner=app-download] .home-promo-headline{white-space:nowrap}
+#home-release [data-home-banner=app-download] .home-app-eyebrow{font-size:clamp(9px,1.05cqi,13px);font-weight:650;letter-spacing:.2em;line-height:1.2;color:var(--ds-selected)}
+:is(#home-release [data-home-banner=app-download],.home-app-download-dialog) .home-app-store-links{display:flex;align-items:stretch;gap:clamp(6px,1cqi,14px);max-width:100%}
+:is(#home-release [data-home-banner=app-download],.home-app-download-dialog) .home-app-store-link{pointer-events:auto;display:inline-flex;align-items:center;justify-content:center;gap:9px;box-sizing:border-box;min-width:0;min-height:44px;padding:6px 15px;border:1px solid color-mix(in srgb,var(--ds-text) 38%,transparent);border-radius:999px;background:color-mix(in srgb,var(--ds-panel) 70%,transparent);color:var(--ds-text);text-decoration:none;white-space:nowrap;line-height:1.15}
+:is(#home-release [data-home-banner=app-download],.home-app-download-dialog) .home-app-store-link>svg{width:24px;height:24px;flex:none}
+:is(#home-release [data-home-banner=app-download],.home-app-download-dialog) .home-app-store-link>span{display:flex;flex-direction:column;gap:2px;text-align:left}
+:is(#home-release [data-home-banner=app-download],.home-app-download-dialog) .home-app-store-link strong{font-size:14px;font-weight:650}
+:is(#home-release [data-home-banner=app-download],.home-app-download-dialog) .home-app-store-link small{font-size:11px;color:var(--ds-body)}
+:is(#home-release [data-home-banner=app-download],.home-app-download-dialog) .home-app-store-link:focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
+@media(hover:hover){:is(#home-release [data-home-banner=app-download],.home-app-download-dialog) .home-app-store-link:hover{border-color:var(--ds-selected);background:var(--ds-panel)}}
+.home-app-download-dialog .home-app-store-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:20px}
+.home-app-download-dialog .home-app-store-link{flex:1 1 150px;min-height:48px}
+@media(min-width:801px){
+ #home-release [data-home-banner=app-download] .home-app-store-link{width:clamp(114px,14.5cqi,174px)}
+ @container(max-width:840px){
+  #home-release [data-home-banner=app-download] .home-promo-copy{gap:3px}
+  #home-release [data-home-banner=app-download] .home-app-store-link{min-height:32px;padding:3px 10px;gap:6px}
+  #home-release [data-home-banner=app-download] .home-app-store-link>svg{width:18px;height:18px}
+  #home-release [data-home-banner=app-download] .home-app-store-link strong{font-size:12px}
+  #home-release [data-home-banner=app-download] .home-app-store-link small{font-size:10px}
+ }
+}
+@media(max-width:800px){
+ #home-release [data-home-banner=app-download]{--home-promo-mobile-head-top:10%;--home-promo-mobile-title-size:4.4cqi;--home-promo-shade-end:64%}
+ #home-release [data-home-banner=app-download] .home-promo-copy{gap:clamp(3px,1cqi,8px)}
+ #home-release [data-home-banner=app-download] .home-app-eyebrow{font-size:clamp(9px,2.4cqi,14px)}
+ #home-release [data-home-banner=app-download] .home-promo-subtitle{font-size:clamp(10px,2.5cqi,18px)}
+ #home-release [data-home-banner=app-download] .home-app-store-link{min-height:44px;padding:4px clamp(5px,1.8cqi,14px);gap:clamp(3px,1cqi,7px)}
+ #home-release [data-home-banner=app-download] .home-app-store-link>svg{width:clamp(14px,4cqi,24px);height:clamp(14px,4cqi,24px)}
+ #home-release [data-home-banner=app-download] .home-app-store-link strong{font-size:clamp(10px,2.9cqi,18px)}
+ #home-release [data-home-banner=app-download] .home-app-store-link small{font-size:clamp(9px,2.4cqi,14px)}
+}
 .home-content-refresh .home-rail-shell{position:relative;min-width:0;padding-top:4px}
 .home-content-refresh .home-rail-controls{display:flex;justify-content:flex-end;gap:4px;margin:-10px 0 6px}
 .home-content-refresh .home-rail-controls button{display:grid;place-items:center;width:44px;height:44px;padding:0;border:0;border-radius:var(--ds-radius-button,12px);background:transparent;color:var(--ds-body);cursor:pointer}

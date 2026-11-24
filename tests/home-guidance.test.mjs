@@ -10,6 +10,9 @@ function context(inApp=false){
  vm.runInContext(readFileSync(new URL('../dist/home.js',import.meta.url),'utf8'),c);
  return c;
 }
+// These image manifests intentionally lock the pre-existing service campaigns.
+// The app-download campaign has its own responsive artwork and two store links.
+function serviceBanners(c){return vm.runInContext("homeBanners.filter(b=>b.id!=='app-download')",c);}
 function attributes(tag){return Object.fromEntries(Array.from(tag.matchAll(/([\w-]+)="([^"]*)"/g),match=>[match[1],match[2]]));}
 function pictureSourceAt(html,width){
  const picture=html.match(/<picture\b[^>]*>([\s\S]*?)<\/picture>/)?.[1];
@@ -21,7 +24,7 @@ function pictureSourceAt(html,width){
 }
 
 test('all eight service banners expose a whole-banner link and responsive WebP artwork',()=>{
- const c=context(),banners=vm.runInContext('homeBanners',c);
+ const c=context(),banners=serviceBanners(c);
  assert.equal(banners.length,8);assert.equal(new Set(banners.map(b=>b.id)).size,8);
  assert.deepEqual(Array.from(banners,b=>b.id),['studio','play','participate','artists','karaoke','talking','crew','premium']);
  for(const b of banners){
@@ -41,8 +44,8 @@ test('all eight service banners expose a whole-banner link and responsive WebP a
  assert.deepEqual(routes,{studio:'#studio',play:'#karaoke',participate:'#karaoke/dubbing?tab=discover',artists:'#artists',karaoke:'#live?mode=karaoke',talking:'#voice?mode=talk',crew:'#community/crews?browse=1',premium:'#membership'});
 });
 
-test('each banner renders one subtitle and includes it in the accessible link name',()=>{
- const c=context(),banners=vm.runInContext('homeBanners',c);
+test('each existing service banner renders one subtitle and includes it in the accessible link name',()=>{
+ const c=context(),banners=serviceBanners(c);
  for(const b of banners){
   assert.equal(typeof b.subtitle,'string',b.id+' needs a subtitle');
   assert.ok(b.subtitle.trim(),b.id+' needs a non-empty subtitle');
@@ -62,7 +65,7 @@ test('the participation artwork and CTA share a direct link to dubbing discovery
 });
 
 test('mobile retains the seven approved photos and uses the new full-frame crew scene',()=>{
- const c=context(),banners=vm.runInContext('homeBanners',c);
+ const c=context(),banners=serviceBanners(c);
  const original=JSON.parse(readFileSync(new URL('../dist/assets/home-banners/mobile-20261109/manifest.json',import.meta.url),'utf8'));
  const crewHashes={768:'69763d20a7dd0d76388f4e9898c9663829b4a6e39df22a785e4ab51288e7054f',1536:'f21798a7067a9ad5cd963413e6c7275641e5859cd6c970e02eeb6e3462fa5f00'};
  assert.equal(banners.filter(banner=>banner.id!=='crew').length,7);
@@ -154,7 +157,7 @@ test('the native webview selects its dedicated crew composition and preserves ot
 });
 
 test('public PC slides fill one wide frame and preload the same responsive WebP as the picture',()=>{
- const c=context(),banners=vm.runInContext("homeBanners.filter(b=>b.id!=='premium')",c);
+ const c=context(),banners=serviceBanners(c).filter(b=>b.id!=='premium');
  for(const [index,banner] of banners.entries()){
   const next=banners[(index+1)%banners.length],html=c.homeBannerHTML(banner,next);
   const slim=['studio','participate','artists','crew'].includes(banner.id);
@@ -191,7 +194,7 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
 });
 
 test('desktop scenery matches reviewed WebP files and records the unchanged original photo provenance',()=>{
- const c=context(),banners=vm.runInContext('homeBanners',c);
+ const c=context(),banners=serviceBanners(c);
  const base=new URL('../dist/assets/home-banners/repair-20261109/',import.meta.url);
  const manifestText=readFileSync(new URL('manifest.json',base),'utf8'),manifest=JSON.parse(manifestText);
  assert.equal(manifest.assets.length,banners.length);

@@ -1,9 +1,8 @@
-import * as AifectProductionCredits from '../shared/production-credits.js';
 import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../dist/views.js',import.meta.url),'utf8');
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function context(){const c=nicknameContext({AifectProductionCredits,me:{id:'viewer'},esc,number:n=>String(n??0),icon:()=>'',avatarImage:r=>'<img src="/media/producer/'+esc(r.profile_id)+'?v='+esc(r.image_version)+'" alt="">',AifectGenres:{MOODS:[{id:'night',name:'밤'}]}});vm.runInContext(source.split('\n')[0],c);vm.runInContext(source.slice(source.indexOf('function songCreditCardHTML('),source.indexOf('function trackModerationToolsHTML(')),c);return c;}
+function context(){const c=nicknameContext({me:{id:'viewer'},esc,number:n=>String(n??0),icon:()=>'',avatarImage:r=>'<img src="/media/producer/'+esc(r.profile_id)+'?v='+esc(r.image_version)+'" alt="">',AifectGenres:{MOODS:[{id:'night',name:'밤'}]}});vm.runInContext(source.split('\n')[0],c);vm.runInContext(source.slice(source.indexOf('function songCreditCardHTML('),source.indexOf('function trackModerationToolsHTML(')),c);return c;}
 test('song support shows five DB-ranked names and gift details with existing profile and gift links',()=>{const c=context(),g={ranking:Array.from({length:7},(_,i)=>({name:i===0?'<Fan>':'Fan '+i,profile_id:'p'+i,image_version:'v1',gold:1,stars:6-i,score:7-i}))};const html=c.giftsPanelHTML(g,'응원',{track:{id:'song',user_id:'owner'}});assert.equal((html.match(/song-support-position/g)||[]).length,5);assert.match(html,/&lt;Fan&gt;/);assert.match(html,/실버 6S · 골드 1G/);assert.match(html,/#producer\/p0/);assert.match(html,/href="#gifts"/);assert.match(html,/#rewards/);assert.doesNotMatch(html,/gift-total|gift-quick-grid|Fan 5|Fan 6|song-support-avatar|7점/);});
 test('sidebar cards keep accessible gift-hub and reward links for visitors and owners',()=>{
  const c=context();
