@@ -120,6 +120,36 @@ final class StreamingUITests: XCTestCase {
         XCTAssertTrue(app.buttons["edit-my-profile"].isHittable)
         capture(app, "iphone12-my-density")
     }
+    // Start scripts/talking-room-fixture.mjs with the built web checkout first.
+    @MainActor func testTalkingRoomPlaybackPortraitsAndChatOnIPhone() {
+        let app = launch(["-workspace-test-url", "http://127.0.0.1:4188/#voice/fixture-talk"])
+        app.buttons["main-tab-1"].tap()
+        let room = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", "테스트 토킹룸")).firstMatch
+        XCTAssertTrue(room.waitForExistence(timeout: 10), app.debugDescription)
+        room.tap()
+        let web = app.webViews.firstMatch
+        let title = web.staticTexts["테스트 토킹룸"].firstMatch
+        XCTAssertTrue(title.waitForExistence(timeout: 25), app.debugDescription)
+        XCTAssertFalse(app.navigationBars["테스트 토킹룸"].isHittable)
+        // The fixture reports success after the listener receives and plays the host track without tapping.
+        let complete = web.staticTexts["토킹룸 측정 완료"].firstMatch
+        XCTAssertTrue(complete.waitForExistence(timeout: 35), app.debugDescription)
+        capture(app, "iphone12-talking-room")
+        let from = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.72))
+        let to = web.coordinate(withNormalizedOffset: CGVector(dx: 0.65, dy: 0.85))
+        from.press(forDuration: 0.15, thenDragTo: to)
+        XCTAssertTrue(web.staticTexts["이전 대화 스크롤 확인됨"].waitForExistence(timeout: 5))
+        capture(app, "iphone12-talking-room-chat-history")
+        // WKWebView can expose only the transcript subtree to XCTest after a drag.
+        // Tap the visible exit icon in the iPhone 12 room header.
+        web.coordinate(withNormalizedOffset: CGVector(dx: 0.94, dy: 0.037)).tap()
+        let confirm = app.buttons["나가기"].firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5), app.debugDescription)
+        confirm.tap()
+        XCTAssertTrue(room.waitForExistence(timeout: 8), "Return to the native room list after leaving")
+        XCTAssertFalse(web.exists)
+    }
+
     @MainActor func testRoomNotificationsAndMessagesKeepUnderlyingRoomMounted() {
         let app = launch(["-crew-parity", "-notification-kinds", "-workspace-test-url", "http://127.0.0.1:4188/room-overlay-test.html#live/fixture-room"])
         app.buttons["main-tab-1"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()

@@ -120,18 +120,24 @@ private struct RoomOverlay: Identifiable {
     let id: String
 }
 
+enum TalkRoomLocation: String {
+    case outside, inside, left
+}
+
 struct WebWorkspacePage: View {
+    @Environment(\.dismiss) private var dismiss
     let space: SiteWorkspace
     @EnvironmentObject private var model: AppModel
     @State private var error: String?
     @State private var progress = 0.0
     @State private var attempt = 0
     @State private var roomOverlay: RoomOverlay?
+    @State private var talkLocation = TalkRoomLocation.outside
     var body: some View {
         ZStack(alignment: .top) {
             if let error { RetryCard(message: error) { self.error = nil; progress = 0; attempt += 1 }.padding() }
             else {
-                WorkspaceBrowser(space: space, error: $error, progress: $progress, openRoomOverlay: { roomOverlay = RoomOverlay(id: $0) }).id("\(model.userID ?? "guest")-\(space.id)-\(attempt)")
+                WorkspaceBrowser(space: space, error: $error, progress: $progress, talkLocation: $talkLocation, openRoomOverlay: { roomOverlay = RoomOverlay(id: $0) }).id("\(model.userID ?? "guest")-\(space.id)-\(attempt)")
                 if progress < 1 {
                     VStack(spacing: 8) {
                         ProgressView(value: progress).tint(Brand.pink)
@@ -140,6 +146,8 @@ struct WebWorkspacePage: View {
                 }
             }
         }.frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle(space.title).modifier(FullScreenWorkspace())
+            .toolbar(talkLocation == .inside && error == nil ? .hidden : .automatic, for: .navigationBar)
+            .onChange(of: talkLocation) { _, location in if location == .left { dismiss() } }
             .sheet(item: $roomOverlay) { overlay in
                 NavigationStack {
                     Group {
@@ -161,6 +169,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
     let space: SiteWorkspace
     @Binding var error: String?
     @Binding var progress: Double
+    @Binding var talkLocation: TalkRoomLocation
     var openRoomOverlay: (String) -> Void = { _ in }
     private var target: URL {
         #if DEBUG
@@ -173,7 +182,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
         #endif
         return URL(string: Endpoint.origin.absoluteString + space.path)!
     }
-    func makeCoordinator() -> Coordinator { Coordinator(error: $error, progress: $progress, origin: target, openRoomOverlay: openRoomOverlay) }
+    func makeCoordinator() -> Coordinator { Coordinator(error: $error, progress: $progress, origin: target, talkLocation: $talkLocation, openRoomOverlay: openRoomOverlay) }
     // Room controls own navigation here; the site's logo/search header is redundant.
     // Scope to room routes so the normal header returns after leaving the room.
     static let roomChromeScript = """
@@ -198,6 +207,25 @@ struct WorkspaceBrowser: UIViewRepresentable {
             }
             window.addEventListener('hashchange', update);
         })();
+        """
+    static let talkRoomScript = """
+        window.AifectNativeTalkAudio = true;
+        function observeTalkRoom() {
+            const main = document.querySelector('#main');
+            if (!main) return;
+            let visited = false;
+            const update = () => {
+                const inside = /^#voice[/][^/?]+/.test(location.hash) && main.hasAttribute('data-room-entered');
+                const left = visited && location.hash === '#voice';
+                if (inside) visited = true;
+                if (left) visited = false;
+                window.webkit.messageHandlers.talkRoomState.postMessage(inside ? 'inside' : left ? 'left' : 'outside');
+            };
+            new MutationObserver(update).observe(main, {attributes:true, attributeFilter:['data-room-entered']});
+            window.addEventListener('hashchange', update);
+            update();
+        }
+        document.addEventListener('DOMContentLoaded', observeTalkRoom, {once:true});
         """
     // Runs before the site's leave-room guard. Opening the sheet keeps this WKWebView
     // mounted, so the active room's microphone and listening connection remain intact.
@@ -295,6 +323,12 @@ struct WorkspaceBrowser: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.allowsInlineMediaPlayback = true
+        if space.area == "voice" {
+            // A native room-entry tap happens outside WebKit. Start room audio when the host plays.
+            config.mediaTypesRequiringUserActionForPlayback = [.video]
+            config.userContentController.add(context.coordinator, name: "talkRoomState")
+            config.userContentController.addUserScript(WKUserScript(source: Self.talkRoomScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
         config.userContentController.add(context.coordinator, name: "roomOverlay")
         config.userContentController.addUserScript(WKUserScript(source: Self.roomOverlayScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         if space.area == "live" || space.area == "voice" {
@@ -355,6 +389,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
         coordinator.start?.cancel()
         coordinator.observation?.invalidate()
         coordinator.stopObservingRoomCalls()
+        view.configuration.userContentController.removeScriptMessageHandler(forName: "talkRoomState")
         view.configuration.userContentController.removeScriptMessageHandler(forName: "roomOverlay")
         view.navigationDelegate = nil; view.uiDelegate = nil
         view.stopLoading()
@@ -362,6 +397,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, CXCallObserverDelegate {
         @Binding var error: String?
         @Binding var progress: Double
+        @Binding var talkLocation: TalkRoomLocation
         let origin: URL
         var start: Task<Void, Never>?
         var observation: NSKeyValueObservation?
@@ -369,7 +405,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
         private weak var roomWebView: WKWebView?
         private var callActive = false
         let openRoomOverlay: (String) -> Void
-        init(error: Binding<String?>, progress: Binding<Double>, origin: URL, openRoomOverlay: @escaping (String) -> Void) { _error = error; _progress = progress; self.origin = origin; self.openRoomOverlay = openRoomOverlay }
+        init(error: Binding<String?>, progress: Binding<Double>, origin: URL, talkLocation: Binding<TalkRoomLocation>, openRoomOverlay: @escaping (String) -> Void) { _error = error; _progress = progress; _talkLocation = talkLocation; self.origin = origin; self.openRoomOverlay = openRoomOverlay }
         func observeRoomCalls(in view: WKWebView) {
             roomWebView = view
             let observer = CXCallObserver()
@@ -404,9 +440,12 @@ struct WorkspaceBrowser: UIViewRepresentable {
             view.setAllMediaPlaybackSuspended(callActive, completionHandler: nil)
         }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-            guard message.name == "roomOverlay", message.frameInfo.isMainFrame,
-                  let url = message.frameInfo.request.url, permits(url),
-                  let path = message.body as? String,
+            guard message.frameInfo.isMainFrame, let url = message.frameInfo.request.url, permits(url) else { return }
+            if message.name == "talkRoomState", let value = message.body as? String, let location = TalkRoomLocation(rawValue: value) {
+                talkLocation = location
+                return
+            }
+            guard message.name == "roomOverlay", let path = message.body as? String,
                   path == "notifications" || path == "dm" || (path.hasPrefix("dm/") && SiteWorkspace.validKey(String(path.dropFirst(3)))) else { return }
             openRoomOverlay(path)
         }
