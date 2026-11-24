@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {validateDuetGuide} from './duet-guide.js';
 import {coverClassificationWrites} from './music-classification.js';
 import {one,query,now,id,fail,str,json,rate} from './db.js';
@@ -10,33 +11,33 @@ import {duetSource,otherPart} from './duets.js';
 // transcoding, playback, like and comment paths; the audio goes to /api/uploads/:id/audio then /complete.
 export async function coverRoute(req,env,path,user){
  if(path!=='/api/covers')return null;
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  requireUser(user);await rate(env,'upload-cover:'+user.id,60,60);
  const b=await req.json();
  const mode=b.cover_mode??'solo',parent=b.duet_parent_id||null;
  const publication=mode==='solo'?'solo':parent?'duet_complete':'duet_invitation';
  // New clients confirm publication intent separately from the recorder's remembered mode.
  // Keep old released clients compatible; never guess the recording type from the original song.
- if(b.publish_as!==undefined&&b.publish_as!==publication)fail(400,'선택한 공개 종류와 녹음 정보가 일치하지 않아요. 공개 종류를 다시 확인해주세요.');
+ if(b.publish_as!==undefined&&b.publish_as!==publication)fail(400,'선택한 공개 종류와 녹음 정보가 일치하지 않습니다. 공개 종류를 다시 확인해 주세요.');
  let part=b.duet_part||'';
  // Existing duet_part values are opaque legacy storage slots, not singer genders.
  if(b.duet_slot!==undefined){
-  if(mode==='duet'&&b.duet_slot!==(parent?'second':'first')||mode==='solo'&&b.duet_slot!=='')fail(400,'듀엣 참여 순서를 확인해주세요.');
+  if(mode==='duet'&&b.duet_slot!==(parent?'second':'first')||mode==='solo'&&b.duet_slot!=='')fail(400,'듀엣 참여 순서를 확인해 주세요.');
   part=mode==='solo'?'':parent?'female':'male';
  }
  if(mode==='duet'&&!parent&&!part)part='male';
- if(!['solo','duet'].includes(mode)||mode==='solo'&&(parent||part)||mode==='duet'&&!['male','female'].includes(part))fail(400,'솔로 또는 듀엣과 부를 파트를 선택해주세요.');
+ if(!['solo','duet'].includes(mode)||mode==='solo'&&(parent||part)||mode==='duet'&&!['male','female'].includes(part))fail(400,'솔로 또는 듀엣과 부를 파트를 선택해 주세요.');
  let first=null;
  if(parent){
-  if(mode!=='duet'||typeof parent!=='string')fail(400,'듀엣 참여 대상을 확인해주세요.');
+  if(mode!=='duet'||typeof parent!=='string')fail(400,'듀엣 참여 대상을 확인해 주세요.');
   const duet=await duetSource(env,parent,user);first=duet.source;
   if(b.duet_slot==='second')part=otherPart(first.duet_part);
-  if(b.original_id!==duet.original.id||part!==otherPart(first.duet_part))fail(400,'원곡과 듀엣의 빈 파트가 일치하지 않아요.');
- }else if(mode==='duet'&&b.duet_consent!==true)fail(400,'다른 사람이 이 녹음에 목소리를 더하는 것에 동의해주세요.');
- if(b.own_voice!==true||b.rights!==true)fail(400,'직접 부른 녹음이고 공개할 권리가 있는지 확인해주세요.');
- if(!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');
+  if(b.original_id!==duet.original.id||part!==otherPart(first.duet_part))fail(400,'원곡과 듀엣의 빈 파트가 일치하지 않습니다.');
+ }else if(mode==='duet'&&b.duet_consent!==true)fail(400,'다른 사람이 이 녹음에 목소리를 더하는 것에 동의해 주세요.');
+ if(b.own_voice!==true||b.rights!==true)fail(400,'직접 부른 녹음이고 공개할 권리가 있는지 확인해 주세요.');
+ if(!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'80MB 이하 WAV·FLAC·MP3 파일을 선택해 주세요.');
  const original=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND t.kind='original' AND t.karaoke_at>0 AND ${VISIBLE()}`,str(b.original_id,80));
- if(!original)fail(404,'커버할 수 있는 원곡을 찾을 수 없습니다. 원곡자가 노래방 · 커버를 허락한 공개 곡만 커버할 수 있어요.');
+ if(!original)fail(404,'커버할 수 있는 원곡을 찾을 수 없습니다. 원곡자가 노래방 · 커버를 허락한 공개 곡만 커버할 수 있습니다.');
  const guide=mode==='duet'?(first?first.duet_guide:await validateDuetGuide(env,b.duet_guide,original)):'';
  const description=str(b.description||'',1000,false),writes=[];
  // Every person has one profile; a first cover creates it from the account name.
@@ -44,14 +45,14 @@ export async function coverRoute(req,env,path,user){
  if(!profile){profile={id:id()};writes.push(query(env,'INSERT INTO producers(id,user_id,name,bio,created) VALUES(?,?,?,?,?)',profile.id,user.id,(user.name||'AIFECT 이용자').trim().slice(0,60)||'AIFECT 이용자','',now()));}
  let tid=id();
  if(b.request_id!==undefined){
-  if(typeof b.request_id!=='string'||!/^(?:[0-9a-f-]{36}|draft:[\w:-]{1,240}:\d{1,16})$/i.test(b.request_id))fail(400,'게시 요청을 다시 시작해주세요.');
+  if(typeof b.request_id!=='string'||!/^(?:[0-9a-f-]{36}|draft:[\w:-]{1,240}:\d{1,16})$/i.test(b.request_id))fail(400,'게시 요청을 다시 시작해 주세요.');
   // Stable per owner and recording across a lost create or complete response.
   const digest=await hash('recording:'+user.id+':'+b.request_id);
   tid=[digest.slice(0,8),digest.slice(8,12),digest.slice(12,16),digest.slice(16,20),digest.slice(20,32)].join('-');
  }
  const result=async()=>{
   const row=await one(env,'SELECT id,user_id,producer_id,original_id,cover_mode,duet_parent_id,status,has_cover FROM tracks WHERE id=?',tid);
-  if(!row||row.user_id!==user.id||row.original_id!==original.id||['deleted','hidden','failed'].includes(row.status))fail(409,'작품 상태가 변경됐어요. 스튜디오에서 확인해주세요.');
+  if(!row||row.user_id!==user.id||row.original_id!==original.id||['deleted','hidden','failed'].includes(row.status))fail(409,'작품 상태가 변경되었습니다. 스튜디오에서 확인해 주세요.');
   return json({id:tid,producer_id:row.producer_id,cover_mode:row.cover_mode,duet_parent_id:row.duet_parent_id,publish_as:row.cover_mode==='solo'?'solo':row.duet_parent_id?'duet_complete':'duet_invitation',status:row.status,has_cover:row.has_cover},201);
  };
  if(b.request_id&&await one(env,'SELECT id FROM tracks WHERE id=?',tid)){

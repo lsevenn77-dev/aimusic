@@ -45,7 +45,7 @@ test('the empty recording route keeps the sign-in gate and skips song reads with
   await vm.runInContext('render()',c);
   assert.deepEqual(requests,mode?['/api/karaoke/one']:[]);
   if(!me){assert.match(main.innerHTML,/SIGN_IN/);assert.equal(c.returnRoute,hash);assert.doesNotMatch(main.innerHTML,/부를 곡 고르기/);}
-  else if(!mode){assert.match(main.innerHTML,/부를 곡을 먼저 골라주세요/);assert.match(main.innerHTML,/href="#karaoke"/);assert.match(main.innerHTML,/href="#karaoke\/drafts"/);}
+  else if(!mode){assert.match(main.innerHTML,/부를 곡을 먼저 골라 주세요/);assert.match(main.innerHTML,/href="#karaoke"/);assert.match(main.innerHTML,/href="#karaoke\/drafts"/);}
   else assert.match(main.innerHTML,new RegExp('data-recording-mode="'+mode+'">one'));
  }
 });

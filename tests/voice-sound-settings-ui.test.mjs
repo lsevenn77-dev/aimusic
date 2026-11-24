@@ -21,7 +21,7 @@ test('common room sound settings keep device and personal volume controls, but n
     assert.match(html, new RegExp('id="' + id + '"'));
   }
   assert.doesNotMatch(html, /연결 진단|통계 내려받기|voice-diagnostics-summary|diagnostics-export/);
-  assert.match(html, /장치가 지원하지 않는 효과는 원음으로 연결돼요/);
+  assert.match(html, /장치가 지원하지 않는 효과는 원음으로 연결됩니다/);
 });
 
 test('removed diagnostics download action is not available, while internal transport diagnostics remain', () => {

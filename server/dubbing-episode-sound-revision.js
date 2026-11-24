@@ -37,7 +37,7 @@ export async function officialEpisodeSoundRevision(req,env,p,user){
  try{
   while(true){
    const {value,done}=await reader.read();if(done)break;
-   if(offset+value.length>expected){await reader.cancel();fail(413,'파일 크기를 확인해주세요.');}
+   if(offset+value.length>expected){await reader.cancel();fail(413,'파일 크기를 확인해 주세요.');}
    bytes.set(value,offset);offset+=value.length;
   }
  }finally{reader.releaseLock();}

@@ -4,7 +4,7 @@ import buildLibheif from './vendor/heif/libheif-1.23.7.js';
 // Keep the preview below Safari's canvas area limit even for a 48 MP phone image.
 const MAX_PIXELS = 64000000;
 const MAX_PREVIEW_EDGE = 3200;
-const invalid = 'HEIC/HEIF 사진을 해독할 수 없어요. 손상된 파일이거나 지원하지 않는 압축 방식이에요. JPG로 저장해 다시 시도해주세요.';
+const invalid = 'HEIC/HEIF 사진을 해독할 수 없습니다. 손상된 파일이거나 지원하지 않는 압축 방식입니다. JPG로 저장해 다시 시도해 주세요.';
 
 self.onmessage = async ({ data: file }) => {
   try {
@@ -15,7 +15,7 @@ self.onmessage = async ({ data: file }) => {
     if (!image) throw new Error(invalid);
     const w = image.get_width(), h = image.get_height();
     if (w <= 0 || h <= 0 || w * h > MAX_PIXELS) {
-      throw new Error('HEIC 사진의 해상도가 너무 커요. 6,400만 화소 이하로 줄여주세요.');
+      throw new Error('HEIC 사진의 해상도가 너무 큽니다. 6,400만 화소 이하로 줄여 주세요.');
     }
     const decoded = await codec.heif_js_decode_image2(image.handle, codec.heif_colorspace_RGB, codec.heif_chroma_interleaved_RGBA);
     const plane = decoded?.channels?.find(item => item.id === codec.heif_channel_interleaved);

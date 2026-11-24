@@ -9,9 +9,9 @@ test('sidebar cards keep accessible gift-hub and reward links for visitors and o
  const c=context();
  for(const viewer of [null,{id:'viewer'},{id:'owner'}]){
   c.me=viewer;const html=c.giftsPanelHTML({ranking:[]},'응원',{track:{id:'own',user_id:'owner'}});
-  assert.match(html,/아직 받은 선물이 없어요/);
+  assert.match(html,/아직 받은 선물이 없습니다/);
   assert.match(html,/<a\b[^>]*href="#gifts"[^>]*>[\s\S]*?<strong>선물로 마음 전하기<\/strong>[\s\S]*?상점 둘러보기[\s\S]*?<\/a>/);
-  assert.match(html,/<a\b[^>]*href="#rewards"[^>]*>[\s\S]*?<strong>무료 실버 받기<\/strong>[\s\S]*?출석·활동으로 실버를 모아요\.[\s\S]*?<\/a>/);
+  assert.match(html,/<a\b[^>]*href="#rewards"[^>]*>[\s\S]*?<strong>무료 실버 받기<\/strong>[\s\S]*?출석·활동으로 실버를 모읍니다\.[\s\S]*?<\/a>/);
   assert.equal((html.match(/href="#gifts"/g)||[]).length,1);assert.equal((html.match(/href="#rewards"/g)||[]).length,1);
   assert.doesNotMatch(html,/disabled|data-gift=|song-gift-heart-banner|song-silver-button/);
  }

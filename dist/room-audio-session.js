@@ -95,7 +95,7 @@ class RoomAudioSession {
    if(!c.closed&&generation===c.generation&&state)c.acceptState?.(state);
   }).catch(()=>{/* The local track and publisher are already closed. */});
   c.paint?.();c.updateListening?.();
-  c.status?.('기기 오디오가 일시 중단됐어요. 소리와 마이크를 껐어요.');
+  c.status?.('기기 오디오가 일시 중단되었습니다. 소리와 마이크를 껐습니다.');
  }
  finishCallTurn(){
   const c=this.client,active=c.state?.karaoke?.active;
@@ -113,13 +113,13 @@ class RoomAudioSession {
      const state=await c.command('karaoke',{operation:'abandon',invitation_id:turn.id,request_id:turn.request});
      if(!this.disposed&&!c.closed&&c.generation===turn.generation&&state)c.acceptState?.(state);
      this.callTurn=null;
-     c.status?.('통화로 노래를 종료하고 다음 차례로 넘겼어요.');return;
+     c.status?.('통화로 노래를 종료하고 다음 차례로 넘겼습니다.');return;
     }catch{
      if(attempt<2)await new Promise(resolve=>{this.callRetryResolve=resolve;this.callRetryTimer=setTimeout(resolve,500*(attempt+1));});
     }
    }
    if(!current())this.callTurn=null;
-   else c.status?.('노래는 중단됐어요. 연결이 돌아오면 차례 종료를 다시 요청해요.');
+   else c.status?.('노래는 중단되었습니다. 연결이 돌아오면 차례 종료를 다시 요청합니다.');
   })().finally(()=>{this.callTask=null;this.callRetryResolve=null;if(!this.callActive&&!this.callTurn)this.recover();});
   return this.callTask;
  }
@@ -138,7 +138,7 @@ class RoomAudioSession {
   if(this.disposed||this.client.closed)return false;
   if(!this.blocked)return true;
   if(this.callActive||this.session?.state==='interrupted'){
-   this.client.status?.('기기 오디오 사용이 끝난 뒤 다시 켜주세요.');return false;
+   this.client.status?.('기기 오디오 사용이 끝난 뒤 다시 켜 주세요.');return false;
   }
   const revision=this.revision,context=this.client.levelContext;
   try{await context?.resume?.();}catch{return false;}

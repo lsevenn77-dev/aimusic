@@ -20,14 +20,14 @@ async function sendProfileShareBatch(batch,people,send=api,canContinue=()=>true)
    const id=person.profile_id;if(!id||batch.sent.has(id))continue;
    if(!batch.requests.has(id))batch.requests.set(id,crypto.randomUUID());
    try{await send('/api/dm/'+encodeURIComponent(id),'POST',{body:batch.body,request_id:batch.requests.get(id)});batch.sent.add(id);}
-   catch(error){failed.push({id,name:person.name,message:error.message||'전송하지 못했어요.'});}
+   catch(error){failed.push({id,name:person.name,message:error.message||'전송하지 못했습니다.'});}
   }
   return failed;
  }finally{batch.sending=false;}
 }
 async function shareMemberProfile(p,popover){
  if(!me){popover?.hidePopover();return askLogin();}
- const body=memberProfileShareBody(p);if(!body){popover?.hidePopover();toast('프로필을 먼저 저장해주세요.');return;}
+ const body=memberProfileShareBody(p);if(!body){popover?.hidePopover();toast('프로필을 먼저 저장해 주세요.');return;}
  if(profilePreviewDialog)closeProfilePreview();
  const html=`<section class="profile-share-panel"><h2>프로필 공유</h2>
   <p class="profile-share-summary">${esc(p.name||'회원')}님의 프로필을 보낼 팔로워를 선택하세요.</p>
@@ -46,7 +46,7 @@ async function shareMemberProfile(p,popover){
   list.innerHTML=[...people.values()].map(person=>{
    const pid=person.profile_id,sent=batch.sent.has(pid);
    return `<label class="profile-share-person"><input type="checkbox" data-profile-share-person="${esc(pid||person.key)}" ${pid&&!sent&&!batch.sending?'':'disabled'} ${selected.has(pid)?'checked':''}>${avatarImage({id:pid,name:person.name,image_version:person.image_version},'producer',false,false)}<span>${esc(person.name)}${sent?'<small>전송 완료</small>':pid?'':'<small>메시지를 받을 수 없는 프로필</small>'}</span></label>`;
-  }).join('')||(form.elements.q.value.trim()?'<p class="field-help">검색된 팔로워가 없어요.</p>':'<p class="field-help">아직 팔로워가 없어요.</p>');
+  }).join('')||(form.elements.q.value.trim()?'<p class="field-help">검색된 팔로워가 없습니다.</p>':'<p class="field-help">아직 팔로워가 없습니다.</p>');
   more.hidden=next===null;count();
  };
  const load=async append=>{
@@ -57,7 +57,7 @@ async function shareMemberProfile(p,popover){
    const data=await api('/api/follow-management?'+query,'GET',undefined,{signal:controller.signal,fresh:true});
    if(!active()||controller.signal.aborted)return;
    next=data.next??null;for(const person of data.items)people.set(person.profile_id||person.key,person);more.textContent='더보기';paint();
-  }catch(e){if(active()&&!controller.signal.aborted){if(!append)list.textContent='팔로워 목록을 불러오지 못했어요.';more.textContent='다시 불러오기';more.hidden=false;toast(e.message);}}
+  }catch(e){if(active()&&!controller.signal.aborted){if(!append)list.textContent='팔로워 목록을 불러오지 못했습니다.';more.textContent='다시 불러오기';more.hidden=false;toast(e.message);}}
   finally{if(active()&&!controller.signal.aborted)more.disabled=false;}
  };
  form.elements.q.oninput=()=>{clearTimeout(timer);searchAbort?.abort();more.hidden=true;timer=setTimeout(()=>load(false),180);};
@@ -83,8 +83,8 @@ async function shareMemberProfile(p,popover){
    return;
   }
   for(const id of batch.sent)selected.delete(id);
-  result.textContent=batch.sent.size+'명에게 프로필을 보냈어요.';
-  if(failed.length)error.textContent=failed.map(person=>person.name+': '+person.message).join(' / ')+' 실패한 대상은 다시 전송할 수 있어요.';
+  result.textContent=batch.sent.size+'명에게 프로필을 보냈습니다.';
+  if(failed.length)error.textContent=failed.map(person=>person.name+': '+person.message).join(' / ')+' 실패한 대상은 다시 전송할 수 있습니다.';
   paint();if(typeof refreshMessageBadge==='function')void refreshMessageBadge();
  };
  const closed=popover?'beforetoggle':'close';
@@ -198,7 +198,7 @@ async function openProfilePreview(id,origin){
    }
    if(target.closest('[data-preview-close]'))return closeProfilePreview('dismiss');
    const gift=target.closest('[data-preview-gift]');if(gift){closeProfilePreview();await (d.artist?profileGiftDialog(d.profile.producer_id,{artistId:d.profile.id}):profileGiftDialog(gift.dataset.previewGift));return;}
-   if(target.closest('[data-preview-report]')){closeProfilePreview();if(!me)return askLogin();toast('사용자 프로필 신고는 아직 연결되지 않았어요. 신고가 접수되지 않았습니다.');return;}
+   if(target.closest('[data-preview-report]')){closeProfilePreview();if(!me)return askLogin();toast('사용자 프로필 신고는 아직 연결되지 않았습니다. 신고가 접수되지 않았습니다.');return;}
    const share=target.closest('[data-preview-share]');
    if(share)return shareMemberProfile(d.profile);
    if(target.closest('[data-person-block]')&&!me){event.stopPropagation();closeProfilePreview();return askLogin();}

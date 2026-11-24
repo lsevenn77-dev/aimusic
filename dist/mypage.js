@@ -119,7 +119,7 @@ function bindMemberHeader(profile){
  const share=header.parentElement.querySelector('#mp-profile-share');
  share.onbeforetoggle=event=>{
   if(event.newState==='open'&&share.getAttribute('aria-busy')==='true'){
-   event.preventDefault();toast('프로필을 전송 중이에요.');
+   event.preventDefault();toast('프로필을 전송 중입니다.');
   }
  };
  share.ontoggle=event=>{
@@ -160,15 +160,15 @@ function myMoments(d){
  const slot=own?`<button type="button" class="mp-photo-add" data-profile-photo-add="${esc(pid||'')}" aria-label="갤러리 사진 등록">${icon('plus',24)}</button>`:'<span class="mp-moment-placeholder" aria-hidden="true"></span>';
  const placeholders=slot.repeat(Math.max(0,4-photos.length));
  const grid=`<div class="mp-moments">${thumbnails}${placeholders}</div>`;
- const empty=photos.length?'':myEmpty(own?'빈칸을 눌러 첫 사진을 등록하세요.':'공개된 사진이 없어요.');
+ const empty=photos.length?'':myEmpty(own?'빈칸을 눌러 첫 사진을 등록하세요.':'공개된 사진이 없습니다.');
  return mySection('갤러리',grid+empty,pid?myAll('#profile-gallery/'+encodeURIComponent(pid)):myAll('#profile/edit'),photos.length,'mp-moments-card');
 }
-function myStudioBanner(){return `<section class="mp-card mp-studio"><h2>스튜디오</h2><p>나만의 음악과 더빙을<br>제작하고 관리해보세요.</p><a class="primary-button" href="#studio">스튜디오 바로가기 ${icon('arrow')}</a></section>`;}
+function myStudioBanner(){return `<section class="mp-card mp-studio"><h2>스튜디오</h2><p>나만의 음악과 더빙을<br>제작하고 관리해 보세요.</p><a class="primary-button" href="#studio">스튜디오 바로가기 ${icon('arrow')}</a></section>`;}
 function myArtists(d){
  const artists=d.artists||[],own=isMyProfile(d.profile);
  const slots=artists.slice(0,3).map(a=>`<a class="artist-ui-card mp-artist-card" href="#artist/${esc(a.id)}"><div class="artist-avatar-wrapper">${portrait(a,'artist')}</div><strong title="${esc(a.name)}">${esc(a.name)}</strong></a>`);
  while(own&&slots.length<3)slots.push(`<button type="button" class="artist-ui-card mp-artist-add" data-mp-artist-add aria-label="아티스트 추가">${icon('plus')}</button>`);
- return mySection('소속 아티스트',slots.length?`<div class="mp-artists">${slots.join('')}</div>`:myEmpty('등록된 아티스트가 없어요.'),myAll('#profile-artists/'+encodeURIComponent(d.profile.id)),artists.length,'mp-artists-card');
+ return mySection('소속 아티스트',slots.length?`<div class="mp-artists">${slots.join('')}</div>`:myEmpty('등록된 아티스트가 없습니다.'),myAll('#profile-artists/'+encodeURIComponent(d.profile.id)),artists.length,'mp-artists-card');
 }
 function myArtistAddDialog(){
  if(!me||(!myPageState?.own&&!document.querySelector('.artist-directory[data-can-manage="true"]')))return;
@@ -179,7 +179,7 @@ function myArtistAddDialog(){
   await validateImage(fd.get('image'));
   const {id}=await api('/api/studio/artists','POST',textFields(fd));
   if(fd.get('image')?.size)await uploadFile('/api/studio/artists/'+id+'/image',fd.get('image'));
-  $('#dialog').close();await refreshMyPageProfile();toast('아티스트를 추가했어요.');
+  $('#dialog').close();await refreshMyPageProfile();toast('아티스트를 추가했습니다.');
  });
 }
 
@@ -231,12 +231,12 @@ function profileWorksHref(d,tab='all',type='',query=''){
 function profileWorkJoin({t,section,mine}){
  if(section!=='recruit')return null;
  const dub=t.kind==='dubbing';
- if(!(dub?t.work_open:t.recruiting))return {reason:'모집이 마감되었어요.'};
- if(mine)return {reason:'본인 작품에는 참여할 수 없어요.'};
- if(!me)return {reason:'로그인 후 참여할 수 있어요.'};
- if(dub&&t.viewer_claimed)return {reason:'이미 참여 중인 작품이에요.'};
- if(!t.can_join)return {reason:'현재 이 작품에 참여할 권한이 없어요.'};
- if(!dub&&!t.original_id)return {reason:'원곡을 확인할 수 없어요.'};
+ if(!(dub?t.work_open:t.recruiting))return {reason:'모집이 마감되었습니다.'};
+ if(mine)return {reason:'본인 작품에는 참여할 수 없습니다.'};
+ if(!me)return {reason:'로그인 후 참여할 수 있습니다.'};
+ if(dub&&t.viewer_claimed)return {reason:'이미 참여 중인 작품입니다.'};
+ if(!t.can_join)return {reason:'현재 이 작품에 참여할 권한이 없습니다.'};
+ if(!dub&&!t.original_id)return {reason:'원곡을 확인할 수 없습니다.'};
  return {href:dub?(t.casting_combo||!t.root_id
   ?'#karaoke/dubbing?tab=discover&project='+encodeURIComponent(t.root_id||t.id)+'&target='+encodeURIComponent(t.id)
   :null):'#sing/'+encodeURIComponent(t.original_id)+'?duet='+encodeURIComponent(t.id)};
@@ -260,19 +260,19 @@ function profileWorkCard({t,type,section,mine,nickname,key},{showManagement=fals
 function bindProfileWorkJoins(root,d){
  root.querySelectorAll('[data-mp-work-join]:not(:disabled)').forEach(button=>button.onclick=async()=>{
   const route=location.hash,status=button.parentElement.querySelector('.mp-join-reason');
-  button.disabled=true;status.textContent='참여 가능 여부를 확인하고 있어요.';
+  button.disabled=true;status.textContent='참여 가능 여부를 확인하고 있습니다.';
   try{
    const current=await api('/api/producers/'+encodeURIComponent(d.profile.id)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true});
    if(!button.isConnected||location.hash!==route)return;
    const work=profileWorkCatalog(current).find(w=>w.key===button.dataset.mpWorkJoin);
    const join=work&&profileWorkJoin(work);
-   if(!join||join.reason){status.textContent=join?.reason||'모집이 마감되었거나 작품을 이용할 수 없어요.';return;}
+   if(!join||join.reason){status.textContent=join?.reason||'모집이 마감되었거나 작품을 이용할 수 없습니다.';return;}
    if(join.href){location.hash=join.href;return;}
    // Legacy dubbings claim an empty role through their existing API, then record.
    const {project:p}=await api('/api/dubbing/projects/'+encodeURIComponent(work.t.id),'GET',undefined,{fresh:true});
    if(!button.isConnected||location.hash!==route)return;
    if(p.removed||p.isOwner||!p.recordingAvailable||p.visibility!=='public'||!['recruiting','recording'].includes(p.state)||p.roles.some(r=>r.mine)||!p.roles.some(r=>!r.claimed)){
-    status.textContent='현재 참여할 수 있는 배역이 없어요.';return;
+    status.textContent='현재 참여할 수 있는 배역이 없습니다.';return;
    }
    dialog(`<div class="mypage-dialog"><h2>참여할 배역 선택</h2><p>${esc(p.title)}</p><div class="mp-join-roles">${p.roles.filter(r=>!r.claimed).map(r=>`<button type="button" class="small-button" data-mp-join-role="${esc(r.id)}">${esc(r.name)}</button>`).join('')}</div><p class="mp-join-feedback" role="status"></p></div>`);
    $('#dialog').querySelectorAll('[data-mp-join-role]').forEach(choice=>choice.onclick=async()=>{
@@ -282,14 +282,14 @@ function bindProfileWorkJoins(root,d){
     catch(error){feedback.textContent=error.message;status.textContent=error.message;}
    });
    status.textContent='';button.disabled=false;
-  }catch(error){if(button.isConnected){status.textContent=error.message||'참여 권한을 확인하지 못했어요.';button.disabled=true;}}
+  }catch(error){if(button.isConnected){status.textContent=error.message||'참여 권한을 확인하지 못했습니다.';button.disabled=true;}}
  });
 }
 function myWorksHTML(d,column='all'){
  const catalog=profileWorkCatalog(d);
  const section=(tab,limit)=>{
   const works=catalog.filter(w=>w.section===tab);
-  return mySection(profileWorkTabs[tab].label,works.length?`<div class="mp-catalog-grid">${works.slice(0,limit).map(w=>profileWorkCard(w)).join('')}</div>`:myEmpty('아직 작품이 없어요.'),myAll(profileWorksHref(d,tab)),works.length,'mp-catalog-section mp-catalog-'+tab);
+  return mySection(profileWorkTabs[tab].label,works.length?`<div class="mp-catalog-grid">${works.slice(0,limit).map(w=>profileWorkCard(w)).join('')}</div>`:myEmpty('아직 작품이 없습니다.'),myAll(profileWorksHref(d,tab)),works.length,'mp-catalog-section mp-catalog-'+tab);
  };
  const own=isMyProfile(d.profile);
  if(column==='main')return `<div class="mp-work-main">${section('original',4)}${section('complete',3)}</div>`;
@@ -327,7 +327,7 @@ function bindProfileWorks(s){
  const paint=(updateURL=true)=>{
   const scoped=s.catalog.filter(w=>s.tab==='all'||w.section===s.tab),query=search.value.trim().toLocaleLowerCase();
   const items=scoped.filter(w=>(s.type==='all'||s.type===w.type)&&(!query||[w.t.title,w.nickname,w.t.original_title].some(v=>v?.toLocaleLowerCase().includes(query))));
-  root.querySelector('.mp-catalog-results').innerHTML=items.length?`<div class="mp-catalog-grid">${items.map(w=>profileWorkCard(w,{showManagement:true})).join('')}</div>`:myEmpty(scoped.length?'검색 조건에 맞는 작품이 없어요.':'아직 작품이 없어요.');
+  root.querySelector('.mp-catalog-results').innerHTML=items.length?`<div class="mp-catalog-grid">${items.map(w=>profileWorkCard(w,{showManagement:true})).join('')}</div>`:myEmpty(scoped.length?'검색 조건에 맞는 작품이 없습니다.':'아직 작품이 없습니다.');
   for(const link of root.querySelectorAll('[data-work-tab]'))link.href=profileWorksHref(s.d,link.dataset.workTab,s.type,search.value);
   if(updateURL){
    const href=profileWorksHref(s.d,s.tab,s.type,search.value);
@@ -348,7 +348,7 @@ function myWorksBanner(tab='works'){
 async function myPageView(base,param,raw,readApi=api){
  if(base==='member'){
   const {profile}=await readApi('/api/members/'+encodeURIComponent(param));
-  return {memberHeader:profile,html:`<div class="mypage-layout mp-member-page">${myProfileHeader({profile})}<p class="field-help">아직 공개한 음악이 없어요.</p></div>`};
+  return {memberHeader:profile,html:`<div class="mypage-layout mp-member-page">${myProfileHeader({profile})}<p class="field-help">아직 공개한 음악이 없습니다.</p></div>`};
  }
  if(base==='profile-gallery')return myGalleryView(param,readApi);
  if(base==='relations')return myRelationsView(readApi);
@@ -385,15 +385,15 @@ function myActivityHTML(a,d={}){
  const preview=[...owned.map(i=>`<a href="#inventory"><img src="${esc(i.artwork)}" alt="${esc(i.name)}"><small>${i.equipped?'사용 중':i.available?'사용 가능':'사용 제한'}</small></a>`),...decorations.map(i=>`<a href="#inventory"><img src="${esc(i.product.assetPaths.thumbnail||i.product.assetPaths.roomCard)}" alt="${esc(i.product.name)}"><small>${i.stored?'사용 전 보관':i.available?'사용 가능':'기간 만료'}</small></a>`),...groups.map(i=>`<a href="#inventory"><img src="${esc(i.image)}" alt="${esc(i.gift_name)}"><strong>× ${i.quantity}</strong></a>`)];
  return `<div class="mp-activity-grid">${mySection('보유 자산',`<div class="mp-assets">${balance('보유 골드',a.wallet?.balance,'G','#gold','<span class="gold-coin">G</span>')}${balance('보유 실버',a.wallet?.silver_balance,'S','#rewards','<img src="/assets/gifts/silver-coin-v1.webp" alt="">')}</div>${myError(a.wallet)}`,'',null,'mp-activity-panel mp-assets-card')}
  ${mySection('내 레벨',p?`<div class="mp-level"><strong>Lv.${p.level}</strong><span>${number(p.xp)} / ${p.next_xp===null?'MAX':number(p.next_xp)} XP</span></div><progress value="${p.progress}" max="1" aria-label="내 레벨 경험치"></progress>`:myError(a.player),myAll('#inventory','상세'),null,'mp-activity-panel mp-level-card')}
- ${mySection('인벤토리',myError(a.inventory)+myError(a.player)+(preview.length?`<div class="mp-items">${preview.slice(0,4).join('')}</div>`:!a.inventory?.error&&!a.player?.error?myEmpty('보유한 상품이 없어요.'):'') ,myAll('#inventory'),null,'mp-activity-panel mp-inventory-card')}
- ${mySection('내 크루',c?`<a class="mp-my-crew" href="#crew/${esc(c.id)}">${crewPicture(c,'crew-circle')}<span class="mp-crew-copy"><strong title="${esc(c.name)}">${crewNameHTML(c)}</strong><small>크루 멤버 ${number(c.members)}명</small></span>${icon('chevron')}</a><p class="mp-muted">${esc(c.description||'음악을 함께 나누는 우리 크루')}</p>`:myEmpty('현재 소속된 크루가 없어요.'),myAll(c?'#crew/'+c.id:'#community/crews?browse=1'),null,'mp-activity-panel mp-crew-card')}
+ ${mySection('인벤토리',myError(a.inventory)+myError(a.player)+(preview.length?`<div class="mp-items">${preview.slice(0,4).join('')}</div>`:!a.inventory?.error&&!a.player?.error?myEmpty('보유한 상품이 없습니다.'):'') ,myAll('#inventory'),null,'mp-activity-panel mp-inventory-card')}
+ ${mySection('내 크루',c?`<a class="mp-my-crew" href="#crew/${esc(c.id)}">${crewPicture(c,'crew-circle')}<span class="mp-crew-copy"><strong title="${esc(c.name)}">${crewNameHTML(c)}</strong><small>크루 멤버 ${number(c.members)}명</small></span>${icon('chevron')}</a><p class="mp-muted">${esc(c.description||'음악을 함께 나누는 우리 크루')}</p>`:myEmpty('현재 소속된 크루가 없습니다.'),myAll(c?'#crew/'+c.id:'#community/crews?browse=1'),null,'mp-activity-panel mp-crew-card')}
  ${mySection('계정 관리',`<nav class="mp-account-links" aria-label="계정 관리"><a href="#membership">${icon('ticket')}<span>구독 · 이용권 관리</span>${icon('chevron')}</a><a href="#payouts">${icon('wallet')}<span>정산 내역</span>${icon('chevron')}</a></nav>`,'',null,'mp-activity-panel mp-account-card')}</div>`;
 }
-function myRelationsRows(items,publicView=false){return items.length?`<div class="mp-relations">${items.map(r=>`<a class="mp-relation" href="${publicView?'#producer/'+esc(r.profile_id):'#relations'}"><span class="mp-mini-avatar">${avatarImage({id:r.profile_id,name:r.name,image_version:r.image_version})}</span><span><strong>${memberNickname(r)} ${icon('heart')}</strong><small>Lv.${r.level} · ${number(r.xp)} / ${r.next_xp===null?'MAX':number(r.next_xp)} XP</small><progress value="${r.progress}" max="1" aria-label="${esc(r.name)} 관계 경험치"></progress></span></a>`).join('')}</div>`:myEmpty('관계를 맺은 회원이 없어요. 프로필에서 관계를 신청해보세요.');}
+function myRelationsRows(items,publicView=false){return items.length?`<div class="mp-relations">${items.map(r=>`<a class="mp-relation" href="${publicView?'#producer/'+esc(r.profile_id):'#relations'}"><span class="mp-mini-avatar">${avatarImage({id:r.profile_id,name:r.name,image_version:r.image_version})}</span><span><strong>${memberNickname(r)} ${icon('heart')}</strong><small>Lv.${r.level} · ${number(r.xp)} / ${r.next_xp===null?'MAX':number(r.next_xp)} XP</small><progress value="${r.progress}" max="1" aria-label="${esc(r.name)} 관계 경험치"></progress></span></a>`).join('')}</div>`:myEmpty('관계를 맺은 회원이 없습니다. 프로필에서 관계를 신청해 보세요.');}
 function myActivityAside(a){
  const received=a.activity?.received||[];
  const rows=items=>`<div class="mp-activity-rows">${items.join('')}</div>`;
- return `<div class="mp-activity-aside">${mySection('받은 선물',myError(a.activity)||(received.length?rows(received.slice(0,3).map(g=>`<a href="${g.sender_profile_id?'#producer/'+esc(g.sender_profile_id):'#notifications?filter=gifts'}"><span class="mp-mini-avatar">${avatarImage({id:g.sender_profile_id,name:g.sender_name,image_version:g.image_version})}</span><span class="mp-gift-copy"><strong>${userNickname(g.sender_name,{profileId:g.sender_profile_id,userId:g.sender_id})}</strong><small>${esc(g.gift_name||'선물')} × ${g.quantity}</small><time>${myDate(g.created)}</time></span>${icon('chevron')}</a>`)):myEmpty('아직 받은 선물이 없어요.')),myAll('#notifications?filter=gifts'),null,'mp-activity-panel mp-received-card')}</div>`;
+ return `<div class="mp-activity-aside">${mySection('받은 선물',myError(a.activity)||(received.length?rows(received.slice(0,3).map(g=>`<a href="${g.sender_profile_id?'#producer/'+esc(g.sender_profile_id):'#notifications?filter=gifts'}"><span class="mp-mini-avatar">${avatarImage({id:g.sender_profile_id,name:g.sender_name,image_version:g.image_version})}</span><span class="mp-gift-copy"><strong>${userNickname(g.sender_name,{profileId:g.sender_profile_id,userId:g.sender_id})}</strong><small>${esc(g.gift_name||'선물')} × ${g.quantity}</small><time>${myDate(g.created)}</time></span>${icon('chevron')}</a>`)):myEmpty('아직 받은 선물이 없습니다.')),myAll('#notifications?filter=gifts'),null,'mp-activity-panel mp-received-card')}</div>`;
 }
 async function mySelectTab(tab,updateURL=true,readApi=api,force=false){
  const s=myPageState;if(!s?.own||s.account!==me?.id||!['works','library','activity'].includes(tab))return;
@@ -438,7 +438,7 @@ async function mySelectTab(tab,updateURL=true,readApi=api,force=false){
   check();const result=await readApi(...args);check();return result;
  };
  scopedRead.signal=readApi.signal;scopedRead.current=()=>current()&&!timedOut;
- const timeout=new Promise(resolve=>{timer=setTimeout(()=>{if(current()){timedOut=true;showError('연결이 지연되고 있어요. 다시 시도해주세요.');}resolve();},20000);});
+ const timeout=new Promise(resolve=>{timer=setTimeout(()=>{if(current()){timedOut=true;showError('연결이 지연되고 있습니다. 다시 시도해 주세요.');}resolve();},20000);});
  try{
   const load=async()=>{
    if(tab==='works'){

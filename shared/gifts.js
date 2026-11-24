@@ -59,7 +59,7 @@ export function earningsSchedule(month,seconds=Date.now()/1000){
 
 // Amounts below are milli-won (1/1000 KRW) so per-gift shares keep their precision until settlement.
 export function splitGift(kind,netMw,partner=false){
- const s=kind==='original'&&partner?{singer:0,creator:7000}:GIFT_SPLITS[kind];if(!s)throw new Error('선물 대상을 확인해주세요.');
+ const s=kind==='original'&&partner?{singer:0,creator:7000}:GIFT_SPLITS[kind];if(!s)throw new Error('선물 대상을 확인해 주세요.');
  const singer=Math.floor(netMw*s.singer/10000),creator=Math.floor(netMw*s.creator/10000);
  return {singer,creator,platform:netMw-singer-creator};
 }
@@ -71,7 +71,7 @@ export function allocateLots(lots,gold){
   const take=Math.min(left,lot.gold-lot.used);if(take<=0)continue;
   out.push({purchase_id:lot.id,gold:take,net_mw:Math.round(take*Math.max(0,lot.price_krw-lot.fee_krw-(lot.tax_krw||0))*1000/lot.gold)});left-=take;
  }
- if(left)throw Object.assign(new Error('골드가 부족해요.'),{shortBy:left});
+ if(left)throw Object.assign(new Error('골드가 부족합니다.'),{shortBy:left});
  return out;
 }
 // Settlement periods follow Korean calendar months.

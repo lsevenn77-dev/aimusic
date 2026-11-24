@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,run,query,now,id,fail,json} from './db.js';
 import {MAX_AUDIO,objectResponse,originalKey} from './storage.js';
 
@@ -59,5 +60,5 @@ export async function originalArchiveRoute(req,env,path){
   if(originalKey(await one(env,'SELECT * FROM tracks WHERE id=?',job.track_id))!==job.output_key)await env.BUCKET.delete(job.output_key);
   return json({ok:true});
  }
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }

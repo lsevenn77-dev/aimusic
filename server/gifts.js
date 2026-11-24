@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {sentGifts} from './sent-gifts.js';
 import {giftSettlement} from './gift-settlement.js';
 import {assertDubbingGiftContext,giftBlockReason} from './gift-eligibility.js';
@@ -129,32 +130,32 @@ export async function giftRoute(req,env,path,user,verifiedSource){
  const m=path.match(/^\/api\/(tracks|producers)\/([\w-]+)\/gifts$/);if(!m)return null;
  const personal=m[1]==='producers';
  let track;
- if(personal){const p=await one(env,`SELECT p.id,p.user_id,${producerNameSQL()} name FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'`,m[2]);if(!p)fail(404,'프로필을 찾을 수 없어요.');track={id:null,user_id:p.user_id,producer_id:p.id,title:p.name,kind:'original',personal:true};}
+ if(personal){const p=await one(env,`SELECT p.id,p.user_id,${producerNameSQL()} name FROM producers p JOIN users u ON u.id=p.user_id WHERE p.id=? AND u.provider!='deleted'`,m[2]);if(!p)fail(404,'프로필을 찾을 수 없습니다.');track={id:null,user_id:p.user_id,producer_id:p.id,title:p.name,kind:'original',personal:true};}
  else track=await published(env,m[2]);
  if(method==='GET')return json(personal?await profileGifts(env,track.producer_id):await trackGifts(env,track.id));
- if((await one(env,'SELECT account_type FROM users WHERE id=?',track.user_id))?.account_type==='ai_bot')fail(400,'공식 AI 응원 계정에는 유료·실버 선물을 보낼 수 없어요.');
- if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if((await one(env,'SELECT account_type FROM users WHERE id=?',track.user_id))?.account_type==='ai_bot')fail(400,'공식 AI 응원 계정에는 유료·실버 선물을 보낼 수 없습니다.');
+ if(method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  requireUser(user);assertUnblocked(env,track.user_id);if(track.kind==='original')await assertArtistInteraction(env,track.artist_id,user.id);
  const reason=await giftBlockReason(env,user.id,track);if(reason)fail(400,reason);
  await rate(env,'gift:'+user.id,60,3600);
  const b=await req.json(),dubbing=await assertDubbingGiftContext(env,user.id,track.producer_id,b.dubbing_id);
- if(b.artist_id!=null&&(!personal||dubbing||verifiedSource))fail(400,'아티스트 프로필에서 다시 선택해주세요.');
+ if(b.artist_id!=null&&(!personal||dubbing||verifiedSource))fail(400,'아티스트 프로필에서 다시 선택해 주세요.');
  const artistSource=await artistGiftSource(env,b.artist_id,track.producer_id,user.id);
  const source=artistSource||verifiedSource||(personal&&!dubbing&&b.from_message===true?{type:'message',id:track.producer_id,title:track.title}:giftTargetSource(track,dubbing));
  if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b,source);
  const selected=b.gift_type===undefined?null:giftById(b.gift_type);
- if(b.gift_type!==undefined&&!selected)fail(400,'선물 종류를 다시 선택해주세요.');
- const quantity=b.quantity===undefined?1:b.quantity;if(!Number.isInteger(quantity)||quantity<1||quantity>100||(!selected&&quantity!==1))fail(400,'수량은 1개부터 100개까지 선택해주세요.');
- if(selected&&b.gold!==undefined&&b.gold!==selected.gold*quantity)fail(400,'선물 가격이 일치하지 않아요. 다시 선택해주세요.');
+ if(b.gift_type!==undefined&&!selected)fail(400,'선물 종류를 다시 선택해 주세요.');
+ const quantity=b.quantity===undefined?1:b.quantity;if(!Number.isInteger(quantity)||quantity<1||quantity>100||(!selected&&quantity!==1))fail(400,'수량은 1개부터 100개까지 선택해 주세요.');
+ if(selected&&b.gold!==undefined&&b.gold!==selected.gold*quantity)fail(400,'선물 가격이 일치하지 않습니다. 다시 선택해 주세요.');
  const gold=selected?selected.gold*quantity:b.gold,requestId=b.request_id??null;
- if((selected&&!requestId)||(requestId!==null&&(typeof requestId!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(requestId))))fail(400,'선물 요청을 새로 시작해주세요.');
+ if((selected&&!requestId)||(requestId!==null&&(typeof requestId!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(requestId))))fail(400,'선물 요청을 새로 시작해 주세요.');
  // Catalog gifts use their server-owned price; legacy amount-only clients retain their minimum.
- if(!Number.isInteger(gold)||gold<(selected?1:GIFT_MIN_GOLD)||gold>GIFT_MAX_GOLD)fail(400,`선물은 ${GIFT_MIN_GOLD}골드부터 ${GIFT_MAX_GOLD.toLocaleString('ko-KR')}골드까지 보낼 수 있어요.`);
+ if(!Number.isInteger(gold)||gold<(selected?1:GIFT_MIN_GOLD)||gold>GIFT_MAX_GOLD)fail(400,`선물은 ${GIFT_MIN_GOLD}골드부터 ${GIFT_MAX_GOLD.toLocaleString('ko-KR')}골드까지 보낼 수 있습니다.`);
 
- const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;await checkArtistGiftReplay(env,'gold',old.id,source);if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청이에요. 새로 선택해주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
+ const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;await checkArtistGiftReplay(env,'gold',old.id,source);if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청입니다. 새로 선택해 주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
  const previous=await replay();if(previous)return previous;
  const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw,tax_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded') ORDER BY paid_at,id",user.id);
- let spent;try{spent=allocateLots(lots,gold);}catch{fail(409,'골드가 부족해요. 충전한 뒤 다시 선물해주세요.');}
+ let spent;try{spent=allocateLots(lots,gold);}catch{fail(409,'골드가 부족합니다. 충전한 뒤 다시 선물해 주세요.');}
  const net=spent.reduce((sum,l)=>sum+l.net_mw,0),share=await giftSettlement(env,track,net),gid=id(),at=now();
  try{
   // The lot check constraint rejects overspending or spending a refunded lot, which rolls the whole batch back.
@@ -165,6 +166,6 @@ export async function giftRoute(req,env,path,user,verifiedSource){
    giftSourceEntry(env,'gold',gid,source),
    ...spent.map(l=>query(env,'INSERT INTO gift_lots(gift_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',gid,l.purchase_id,l.gold,l.net_mw)),
   ]);
- }catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(source.type==='artist'&&/gift_sources\.source_id/i.test(String(e?.message)))fail(409,'이미 다른 선물에 사용한 요청이에요.');if(/CHECK constraint/i.test(String(e?.message)))fail(409,'골드 잔액이 바뀌었어요. 다시 시도해주세요.');throw e;}
+ }catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(source.type==='artist'&&/gift_sources\.source_id/i.test(String(e?.message)))fail(409,'이미 다른 선물에 사용한 요청입니다.');if(/CHECK constraint/i.test(String(e?.message)))fail(409,'골드 잔액이 바뀌었습니다. 다시 시도해 주세요.');throw e;}
  return json({gift:{id:gid,gold,type:selected?.id??null,name:selected?.name??null,quantity},balance:await goldBalance(env,user.id)},201);
 }

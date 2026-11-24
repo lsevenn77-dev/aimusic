@@ -43,5 +43,5 @@ test('approval creates one greeting only after admission on the existing schema'
  assert.equal((await f.call(f.path+'/messages','GET',null,'other')).status,403);
  for(let i=0;i<2;i++)assert.equal((await f.call(f.path+'/applications/other','POST',{decision:'approve'})).status,200);
  const history=(await f.call(f.path+'/messages','GET',null,'other')).body.messages;
- assert.equal(history.filter(m=>m.kind==='system'&&m.user_id==='other'&&m.body.endsWith('인사를 나눠보세요.')).length,1);
+ assert.equal(history.filter(m=>m.kind==='system'&&m.user_id==='other'&&m.body.endsWith('인사를 나눠 보세요.')).length,1);
 });

@@ -1,3 +1,4 @@
+import {restrictedSQL} from './playlist-visibility.js';
 import {rows} from './db.js';
 export const CHART_WEIGHTS=Object.freeze({plays:55,reactions:25,covers:20});
 export const CHART_ORIGINAL=(t='t')=>`${t}.status='published' AND ${t}.kind='original' AND ${t}.original_id IS NULL AND ${t}.duet_parent_id IS NULL`;
@@ -36,7 +37,7 @@ export async function popularScores(env,period,where,args,limit=-1,kind='top'){
   (SELECT COALESCE(sum(g.silver),0) FROM free_gifts g WHERE g.track_id=t.id AND g.sender_id!=t.user_id AND g.created BETWEEN ?1 AND ?2) chart_stars,
   (SELECT count(DISTINCT fan) FROM (
    SELECT l.user_id fan FROM likes l WHERE l.track_id=t.id AND l.created BETWEEN ?1 AND ?2
-   UNION SELECT p.user_id fan FROM playlist_tracks pt JOIN playlists p ON p.id=pt.playlist_id WHERE pt.track_id=t.id AND pt.created BETWEEN ?1 AND ?2
+   UNION SELECT p.user_id fan FROM playlist_tracks pt JOIN playlists p ON p.id=pt.playlist_id WHERE pt.track_id=t.id AND NOT ${restrictedSQL()} AND pt.created BETWEEN ?1 AND ?2
   ) WHERE fan!=t.user_id AND ${human('fan')}) chart_reactions,
   (SELECT count(*) FROM tracks cv WHERE ${linkedCover}) chart_covers,
   (SELECT count(DISTINCT fan_day) FROM (

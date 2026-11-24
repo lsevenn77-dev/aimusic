@@ -18,7 +18,7 @@ test('all image uploads become bounded WebP files; retries reuse the same conver
 test('unsupported encoder fallback and oversized images fail explicitly without uploading mislabeled PNG',async()=>{
  const file=new File(['png'],'album.png',{type:'image/png'}),fallback=encoder({type:'image/png'});
  await assert.rejects(fallback.convert(file),/WebP/);await assert.rejects(fallback.convert(file),/WebP/);assert.equal(fallback.stats().decoded,2);assert.equal(fallback.stats().closed,2);
- const huge=encoder({width:10000,height:10000});await assert.rejects(huge.convert(file),/너무 커요/);assert.equal(huge.stats().closed,1);
+ const huge=encoder({width:10000,height:10000});await assert.rejects(huge.convert(file),/너무 큽니다/);assert.equal(huge.stats().closed,1);
  const small=encoder({width:240,height:120});await small.convert(file);assert.deepEqual(small.stats().drawn,[240,120]);
 });
 test('album artwork can opt into a correctly labeled PNG fallback without weakening strict uploads',async()=>{

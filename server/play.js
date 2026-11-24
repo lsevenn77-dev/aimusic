@@ -45,7 +45,7 @@ export async function playRoute(req,env,path,user){
  const q=(params.get('q')||'').trim().slice(0,100);
  if(path==='/api/play/songs'){
   const tab=params.get('tab')||'recommended',args=[];
-  if(!['recommended','latest','duets'].includes(tab))fail(400,'목록 종류를 확인해주세요.');
+  if(!['recommended','latest','duets'].includes(tab))fail(400,'목록 종류를 확인해 주세요.');
   const duet=tab==='duets';
   let where=duet?`${VISIBLE()} AND t.kind='cover' AND t.cover_mode='duet' AND t.duet_open=1 AND t.duet_parent_id IS NULL AND EXISTS(SELECT 1 FROM tracks d WHERE d.id=t.original_id AND ${VISIBLE('d')} AND ${SINGABLE('d')})`:`${VISIBLE()} AND ${SINGABLE()}`;
   if(duet&&user){where+=' AND t.user_id!=?';args.push(user.id);}
@@ -70,7 +70,7 @@ export async function playRoute(req,env,path,user){
   return json({projects:projects.map(p=>({...p,genres:JSON.parse(p.options_json).genres,options_json:undefined})),nextOffset:projects.length===25?offset+25:null});
  }
  const tab=params.get('tab')||'recommended',type=params.get('type')||'all';
- if(!['recommended','following','popular','latest'].includes(tab)||!['all','solo','duet','dubbing'].includes(type))fail(400,'목록 종류를 확인해주세요.');
+ if(!['recommended','following','popular','latest'].includes(tab)||!['all','solo','duet','dubbing'].includes(type))fail(400,'목록 종류를 확인해 주세요.');
  if(tab==='following')requireUser(user);
  let where=`${VISIBLE()} AND t.kind='cover' AND (t.cover_mode='solo' OR (t.cover_mode='duet' AND t.duet_parent_id IS NOT NULL AND t.duet_open=0))`,args=[];
  if(['solo','duet'].includes(type)){where+=' AND t.cover_mode=?';args.push(type);}

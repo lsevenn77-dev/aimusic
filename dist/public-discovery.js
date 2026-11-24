@@ -81,8 +81,8 @@
   }catch(error){
    if(token!==generation || error.name==='AbortError')return;
    retryURL=url.href;
-   results.innerHTML='<div class="catalog-empty"><h2>음악을 불러오지 못했어요</h2><p>연결 상태를 확인하고 다시 시도해 주세요.</p><button type="button" data-retry>다시 시도</button></div>';
-   status.textContent='음악을 불러오지 못했어요. 다시 시도해 주세요.';
+   results.innerHTML='<div class="catalog-empty"><h2>음악을 불러오지 못했습니다</h2><p>연결 상태를 확인하고 다시 시도해 주세요.</p><button type="button" data-retry>다시 시도</button></div>';
+   status.textContent='음악을 불러오지 못했습니다. 다시 시도해 주세요.';
   }finally{
    if(token===generation){pending='';results.removeAttribute('aria-busy');}
   }

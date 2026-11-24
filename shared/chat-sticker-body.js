@@ -4,8 +4,8 @@ export const stickers = new Map(catalog.map(item => [item.key,item]));
 export const token = key => '[aifect:' + key + ']';
 export const DM_BODY_LIMIT = 2000;
 export const DM_STICKER_LIMIT = 30;
-export const stickerWarning = '이모티콘은 한 번에 최대 30개까지 보낼 수 있어요.';
-export const lengthWarning = '메시지는 2,000자까지 입력할 수 있어요.';
+export const stickerWarning = '이모티콘은 한 번에 최대 30개까지 보낼 수 있습니다.';
+export const lengthWarning = '메시지는 2,000자까지 입력할 수 있습니다.';
 
 // Only catalog entries are images. Unknown tokens in old messages stay text.
 export function parts(body) {

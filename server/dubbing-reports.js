@@ -1,14 +1,15 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,run,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {dubbingVisibleSQL,dubbingRemoved} from './dubbing-access.js';
 import {reconcileDubbingGold} from './dubbing-gold.js';
 export function evidenceLinks(value){
- if(!Array.isArray(value)||value.length>5)fail(400,'증빙 링크는 최대 5개까지 입력해주세요.');
- return value.map(v=>{const text=str(v,1000);let u;try{u=new URL(text);}catch{fail(400,'증빙 링크 주소를 확인해주세요.');}if(u.protocol!=='https:'||u.username||u.password)fail(400,'증빙은 인증 정보가 없는 HTTPS 링크로 입력해주세요.');return u.href;});
+ if(!Array.isArray(value)||value.length>5)fail(400,'증빙 링크는 최대 5개까지 입력해 주세요.');
+ return value.map(v=>{const text=str(v,1000);let u;try{u=new URL(text);}catch{fail(400,'증빙 링크 주소를 확인해 주세요.');}if(u.protocol!=='https:'||u.username||u.password)fail(400,'증빙은 인증 정보가 없는 HTTPS 링크로 입력해 주세요.');return u.href;});
 }
 export async function dubbingOwnerReports(env,p){return rows(env,'SELECT id,reason,status,decision,appeal,version,created,resolved_at FROM track_reports WHERE dubbing_id=? ORDER BY created DESC LIMIT 100',p.id);}
 export async function dubbingReportRoute(req,env,p,user,action,tail){
- if(!['report','appeal'].includes(action))return null;requireUser(user);if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(!['report','appeal'].includes(action))return null;requireUser(user);if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  const body=await req.json();
  if(action==='report'){
   if(p.visibility!=='public'||p.owner_id===user.id||p.removed)fail(400,'현재 작품은 신고할 수 없습니다.');
@@ -21,18 +22,18 @@ export async function dubbingReportRoute(req,env,p,user,action,tail){
  if(p.owner_id!==user.id)fail(403,'작품 작성자만 이의신청할 수 있습니다.');
  const appeal=str(body.details,2000),evidence=evidenceLinks(body.evidence);
  const updated=await query(env,"UPDATE track_reports SET appeal=?,appeal_evidence_json=?,status='appealed',version=version+1 WHERE id=? AND dubbing_id=? AND status='removed' AND version=? RETURNING id",appeal,JSON.stringify(evidence),tail,p.id,body.version).first();
- if(!updated)fail(409,'이의신청 상태가 변경됐어요. 다시 확인해주세요.');return json({ok:true});
+ if(!updated)fail(409,'이의신청 상태가 변경되었습니다. 다시 확인해 주세요.');return json({ok:true});
 }
 export async function dubbingReportsAdminRoute(req,env,path,user){
  if(!path.startsWith('/api/admin/dubbing-reports'))return null;requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
  if(path==='/api/admin/dubbing-reports'&&req.method==='GET'){
-  const status=new URL(req.url).searchParams.get('status')||'pending';if(!['pending','removed','appealed','upheld','dismissed','restored'].includes(status))fail(400,'신고 상태를 확인해주세요.');
+  const status=new URL(req.url).searchParams.get('status')||'pending';if(!['pending','removed','appealed','upheld','dismissed','restored'].includes(status))fail(400,'신고 상태를 확인해 주세요.');
   return json({reports:await rows(env,`SELECT r.*,p.title,p.owner_id,p.generation_id,
    (SELECT json_group_array(json_object('id',x.id,'title',x.title)) FROM dubbing_projects x WHERE x.id!=p.id AND ((p.generation_id IS NOT NULL AND x.generation_id=p.generation_id) OR x.creation_hash=p.creation_hash)) linked_projects,
    (SELECT COUNT(DISTINCT x.dubbing_id) FROM track_reports x JOIN dubbing_projects dp ON dp.id=x.dubbing_id WHERE dp.owner_id=p.owner_id AND x.status IN ('removed','appealed','upheld')) violations
    FROM track_reports r JOIN dubbing_projects p ON p.id=r.dubbing_id WHERE r.status=? ORDER BY r.created,r.id LIMIT 100`,status)});
  }
- const m=path.match(/^\/api\/admin\/dubbing-reports\/([\w-]+)$/);if(!m||req.method!=='PATCH')fail(405,'지원하지 않는 요청입니다.');
+ const m=path.match(/^\/api\/admin\/dubbing-reports\/([\w-]+)$/);if(!m||req.method!=='PATCH')fail(405,AifectMessages.unsupportedRequest);
  const report=await one(env,'SELECT * FROM track_reports WHERE id=? AND dubbing_id IS NOT NULL',m[1]);if(!report)fail(404,'신고를 찾을 수 없습니다.');
  const body=await req.json(),allowed={pending:['removed','dismissed'],removed:['restored'],appealed:['restored','upheld'],upheld:['restored']};
  if(body.version!==report.version||!allowed[report.status]?.includes(body.status))fail(409,'처리 상태가 변경됐거나 지원하지 않는 결정입니다.');

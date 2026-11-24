@@ -86,7 +86,7 @@ function mountHomeChartCarousel(root,tracks,{signal,initialId}={}){
 function homeCollectionGrid(items){let html=collectionGrid(items);for(const p of items)html=homeReplaceArtwork(html,p.covers||[],'collection-tile');return html;}
 function homeMore(title,href){return href?`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+ 더보기</a>`:'';}
 function homeSection(title,href){return `<div class="section-heading"><h2>${esc(title)}</h2>${homeMore(title,href)}</div>`;}
-function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있어요.</span></div>';}
+function homePlaceholder(){return '<div class="release-placeholder" role="status" aria-label="음악을 불러오는 중"><div></div><span>음악을 불러오고 있습니다.</span></div>';}
 const homeAppStores={ios:'https://apps.apple.com/kr/app/id6819654764',android:'https://play.google.com/store/apps/details?id=kr.co.aifect.app'};
 function homeAppStoreURL(device=typeof navigator==='undefined'?{}:navigator){
  const ua=String(device.userAgent||''),platform=String(device.platform||''),hint=String(device.userAgentData?.platform||'');
@@ -112,14 +112,14 @@ function homeAppDownloadBannerHTML(b){
 // The mobile picture keeps its approved 2:1 artwork; desktop selects its own portrait.
 const homeBanners=[
  {id:'app-download',title:'앱 다운로드',headline:'아이팩트 앱 지금 다운로드하세요',subtitle:'AI 음악 · 커버 · 더빙을 더 가까이.',cta:'앱 다운로드'},
- {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려보세요',subtitle:'완성한 음악을 직접 공개해요.',cta:'제작곡 올리기',href:'#studio'},
- {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러보세요',subtitle:'내 목소리로 커버곡을 남겨요.',cta:'노래하러 가기',href:'#karaoke'},
- {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해보세요',subtitle:'원하는 파트에 목소리를 더해요.',cta:'참여하기',href:'#karaoke/dubbing?tab=discover'},
- {id:'artists',title:'AI 아티스트',headline:'AI 아티스트를 팔로우하고 응원해보세요',subtitle:'팬라운지에서 응원을 전해요.',cta:'아티스트 만나기',href:'#artists'},
- {id:'karaoke',title:'노래방',headline:'노래방에서 사람들과 함께 노래해보세요',subtitle:'노래를 나누고 서로 응원해요.',cta:'노래방 가기',href:'#live?mode=karaoke'},
- {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해보세요',subtitle:'취향을 나누고 친구를 만나요.',cta:'토킹룸 가기',href:'#voice?mode=talk'},
- {id:'crew',title:'크루',headline:'크루에 가입하고 함께 즐겨보세요',subtitle:'음악을 나누고 게임도 함께해요.',cta:'크루 둘러보기',href:'#community/crews?browse=1'},
- {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려보세요',subtitle:'고음질로 음악을 더 깊이 즐겨요.',cta:'프리미엄 혜택 보기',href:'#membership'}
+ {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려 보세요',subtitle:'완성한 음악을 직접 공개합니다.',cta:'제작곡 올리기',href:'#studio'},
+ {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러 보세요',subtitle:'내 목소리로 커버곡을 남깁니다.',cta:'노래하러 가기',href:'#karaoke'},
+ {id:'participate',title:'듀엣·더빙',headline:'듀엣·더빙으로 함께 작품을 완성해 보세요',subtitle:'원하는 파트에 목소리를 더합니다.',cta:'참여하기',href:'#karaoke/dubbing?tab=discover'},
+ {id:'artists',title:'AI 아티스트',headline:'AI 아티스트를 팔로우하고 응원해 보세요',subtitle:'팬라운지에서 응원을 전합니다.',cta:'아티스트 만나기',href:'#artists'},
+ {id:'karaoke',title:'노래방',headline:'노래방에서 사람들과 함께 노래해 보세요',subtitle:'노래를 나누고 서로 응원합니다.',cta:'노래방 가기',href:'#live?mode=karaoke'},
+ {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해 보세요',subtitle:'취향을 나누고 친구를 만나 보세요.',cta:'토킹룸 가기',href:'#voice?mode=talk'},
+ {id:'crew',title:'크루',headline:'크루에 가입하고 함께 즐겨 보세요',subtitle:'음악을 나누고 게임도 함께합니다.',cta:'크루 둘러보기',href:'#community/crews?browse=1'},
+ {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려 보세요',subtitle:'고음질로 음악을 더 깊이 즐겨 보세요.',cta:'프리미엄 혜택 보기',href:'#membership'}
 ].filter(b=>(b.id!=='premium'||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false)&&(b.id!=='app-download'||typeof inApp==='undefined'||!inApp));
 const homeRoomsArtwork='rooms-20261117';
 function homeBannerImage(id,width){
@@ -152,14 +152,14 @@ function homeBannerBackgroundImage(id,side='left'){
  return '/assets/home-banners/'+revision+'/'+id+'-'+side+'-'+(side==='right'?768:2365)+'.webp';
 }
 const homeBannerDesktopCopy={
- studio:{lines:['스튜디오에서','내 제작곡을 올려보세요'],highlight:'내 제작곡'},
- play:{lines:['플레이에서','마음에드는 노래를 불러보세요'],highlight:'플레이'},
- participate:{lines:['듀엣·더빙으로 함께','작품을 완성해보세요'],highlight:'듀엣·더빙'},
- artists:{lines:['AI 아티스트를','팔로우하고 응원해보세요'],highlight:'AI 아티스트'},
- karaoke:{lines:['노래방에서','사람들과 함께 노래해보세요'],highlight:'노래방'},
- talking:{lines:['토킹룸에서','편하게 이야기해보세요'],highlight:'토킹룸'},
- crew:{lines:['크루에 가입하고','함께 즐겨보세요'],highlight:'크루'},
- premium:{lines:['프리미엄으로 제작곡을','더 많이 올려보세요'],highlight:'프리미엄'}
+ studio:{lines:['스튜디오에서','내 제작곡을 올려 보세요'],highlight:'내 제작곡'},
+ play:{lines:['플레이에서','마음에드는 노래를 불러 보세요'],highlight:'플레이'},
+ participate:{lines:['듀엣·더빙으로 함께','작품을 완성해 보세요'],highlight:'듀엣·더빙'},
+ artists:{lines:['AI 아티스트를','팔로우하고 응원해 보세요'],highlight:'AI 아티스트'},
+ karaoke:{lines:['노래방에서','사람들과 함께 노래해 보세요'],highlight:'노래방'},
+ talking:{lines:['토킹룸에서','편하게 이야기해 보세요'],highlight:'토킹룸'},
+ crew:{lines:['크루에 가입하고','함께 즐겨 보세요'],highlight:'크루'},
+ premium:{lines:['프리미엄으로 제작곡을','더 많이 올려 보세요'],highlight:'프리미엄'}
 };
 function homeBannerText(text){
  return text.split(/([A-Za-z]+)/g).map((part,index)=>index%2?'<span class="home-promo-latin" lang="en">'+esc(part)+'</span>':esc(part)).join('');
@@ -200,7 +200,7 @@ function homePlaylistCard(p,tracks=null,{compact=false,footer=''}={}){
 function homeProfileCard(p,kind){return `<article class="home-profile-card"><a href="#${kind}/${esc(p.id)}" title="${esc(p.name)}"><div class="profile-frame-canvas avatar-frame-host">${avatarImage(p,kind,false)}</div><div class="home-profile-name"><span>${userNickname(p.name,{profileId:kind==='artist'?null:p.id,artistId:p.id,entityType:kind,userId:p.user_id})}</span>${p.partner_badge?`<span class="partner-badge" aria-label="${esc(p.partner_badge)}">✓ ${esc(p.partner_badge)}</span>`:''}</div></a></article>`;}
 // Home curation only: keep Ina's data, directory entry and profile route intact.
 const homeExcludedArtistIds=new Set(['0c2ecb21-3deb-4828-a48f-9ccf810eadff']);
-function homeProfileSection(kind,title,href){return `<section id="home-${kind}s" class="listening-section home-profile-section" data-home-kind="${kind}"><div class="section-heading"><h2 id="home-${kind}-heading">${esc(title)}</h2>${kind==='producer'?'':`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+더보기</a>`}</div><div id="home-${kind}-panel" role="group" aria-labelledby="home-${kind}-heading" aria-busy="true"><p class="home-load-message" role="status">프로필을 불러오고 있어요.</p></div></section>`;}
+function homeProfileSection(kind,title,href){return `<section id="home-${kind}s" class="listening-section home-profile-section" data-home-kind="${kind}"><div class="section-heading"><h2 id="home-${kind}-heading">${esc(title)}</h2>${kind==='producer'?'':`<a class="home-more-link" href="${href}" aria-label="${esc(title)} 더보기">+더보기</a>`}</div><div id="home-${kind}-panel" role="group" aria-labelledby="home-${kind}-heading" aria-busy="true"><p class="home-load-message" role="status">프로필을 불러오고 있습니다.</p></div></section>`;}
 function mountHomeRail(target){
  homeRailCleanups.get(target.id)?.();homeRailCleanups.delete(target.id);
  const rail=target.querySelector?.('.home-rail');if(!rail?.addEventListener)return;
@@ -215,14 +215,14 @@ function mountHomeRail(target){
 }
 function homeHTML(){return `<div class="listening-home listening-home-v2 home-content-refresh"><h1 class="sr-only">홈</h1>
  <section id="home-release" class="home-promo-carousel${homeWideBanner('studio')?' home-promo-wide':''}" aria-label="AIFECT 이용 안내 배너"></section>
- <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#charts?period=week')}<div class="home-music-grid"></div><p class="home-load-message">음악을 불러오고 있어요.</p></section>
+ <section id="home-recommended" class="listening-section" aria-busy="true">${homeSection('추천 음악','#charts?period=week')}<div class="home-music-grid"></div><p class="home-load-message">음악을 불러오고 있습니다.</p></section>
  <section id="home-popular" class="listening-section" aria-busy="true">${homeSection('인기 차트','#charts')}</section>
  <section id="home-more" class="listening-section" hidden></section>
  ${homeProfileSection('artist','지금 뜨는 AI 아티스트','#artists?sort=popular')}
  <section id="home-discovery" class="listening-section" aria-busy="true">${homeSection('발견','#discover')}<div class="home-music-grid"></div></section>
  ${homeProfileSection('producer','주목할 작곡가','#producers?sort=popular')}
  <div id="home-bridge" class="home-bridge" hidden><section id="home-sing" class="listening-section" aria-busy="true">${homeSection('이번엔 내 목소리로','#karaoke')}</section><section id="home-conversations" class="listening-section" aria-busy="true">${homeSection('같은 노래, 다른 목소리','#community/covers')}</section></div>
- <section id="home-library" class="listening-section">${homeSection('추천 플레이리스트','#collections')}<div id="home-curations" aria-busy="true"><div class="public-playlist-grid"></div><p class="home-load-message" role="status">플레이리스트를 불러오고 있어요.</p></div></section>
+ <section id="home-library" class="listening-section">${homeSection('추천 플레이리스트','#collections')}<div id="home-curations" aria-busy="true"><div class="public-playlist-grid"></div><p class="home-load-message" role="status">플레이리스트를 불러오고 있습니다.</p></div></section>
  </div>`;}
 // Escape each run before adding markup; keep Latin glyphs at the original size.
 function homeFeatureTitle(title){
@@ -360,9 +360,9 @@ function updateHomeAccount(){
 
 function homeSingHTML(tracks){
  const tile=(t,featured)=>`<article class="sing-discovery-tile ${featured?'is-featured':''}"><a class="sing-discovery-art" href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${homeCover(t,'mini-cover')}</a><div class="sing-discovery-copy"><a href="#song/${esc(t.id)}"><h3>${esc(t.title)}</h3></a><span class="sing-discovery-credits">${credits(t)}</span><small>${esc(t.genre)} · ${time(t.duration)}</small>${featured?'<p>좋아하는 이 곡을,<br>이제 당신의 목소리로.</p>':''}<div class="sing-discovery-actions"><button class="small-button" data-play="${esc(t.id)}" data-community-toggle aria-label="${esc(t.title)} 원곡 재생">${icon('ui-play-action')} 재생</button><a class="small-button sing-discovery-start" href="#sing/${esc(t.id)}" aria-label="${esc(t.title)} 부르기">${icon('mic')} 부르기</a></div><a class="sing-discovery-covers" href="#song/${esc(t.id)}?covers=all">다른 목소리 만나기 ${icon('chevron')}</a></div></article>`;
- if(!tracks.length)return homeSection('이번엔 내 목소리로','#karaoke')+'<div class="home-empty-inline"><p>다음에 부를 음악을 준비하고 있어요.</p><a href="#community/covers" class="text-link">먼저 커버곡 들어보기</a></div>';
+ if(!tracks.length)return homeSection('이번엔 내 목소리로','#karaoke')+'<div class="home-empty-inline"><p>다음에 부를 음악을 준비하고 있습니다.</p><a href="#community/covers" class="text-link">먼저 커버곡 들어보기</a></div>';
  const featured=tracks.slice(0,3),more=tracks.slice(3,6);
- return `<div class="sing-discovery"><header class="sing-discovery-heading"><div><h2>이번엔 내 목소리로</h2><p>좋아하는 노래를, 나만의 목소리로 불러보세요.</p></div>${homeMore('이번엔 내 목소리로','#karaoke')}</header><div class="sing-discovery-featured"><div class="sing-discovery-label">${icon('mic')} 당신의 목소리를 기다리는 곡</div><div class="sing-discovery-grid">${featured.map(t=>tile(t,true)).join('')}</div></div>${more.length?`<div class="sing-discovery-subheading"><h3>${icon('mic')} 이런 곡은 어때요?</h3><a class="text-link" href="#karaoke">더 많은 곡 둘러보기 ${icon('chevron')}</a></div><div class="sing-discovery-grid sing-discovery-more">${more.map(t=>tile(t,false)).join('')}</div>`:''}</div>`;
+ return `<div class="sing-discovery"><header class="sing-discovery-heading"><div><h2>이번엔 내 목소리로</h2><p>좋아하는 노래를, 나만의 목소리로 불러 보세요.</p></div>${homeMore('이번엔 내 목소리로','#karaoke')}</header><div class="sing-discovery-featured"><div class="sing-discovery-label">${icon('mic')} 당신의 목소리를 기다리는 곡</div><div class="sing-discovery-grid">${featured.map(t=>tile(t,true)).join('')}</div></div>${more.length?`<div class="sing-discovery-subheading"><h3>${icon('mic')} 이런 곡은 어때요?</h3><a class="text-link" href="#karaoke">더 많은 곡 둘러보기 ${icon('chevron')}</a></div><div class="sing-discovery-grid sing-discovery-more">${more.map(t=>tile(t,false)).join('')}</div>`:''}</div>`;
 }
 
 // Resolved CSS Grid tracks include zero-width auto-fit tracks when empty.
@@ -375,7 +375,7 @@ function homeUnique(items){return [...new Map(items.filter(t=>t?.id).map(t=>[t.i
 function homePlaylistShelf(playlists,limit){
  const items=homeUnique(playlists.filter(p=>p.tracks>0&&p.is_public&&!p.locked)).slice(0,limit);
  return '<div class="public-playlist-grid">'+items.map(p=>homePlaylistCard(p)).join('')+'</div>'+
-  (!items.length?'<p class="home-empty-inline" role="status">아직 추천 플레이리스트가 없어요.</p>':'');
+  (!items.length?'<p class="home-empty-inline" role="status">아직 추천 플레이리스트가 없습니다.</p>':'');
 }
 function homeSelectMusic(data,limits,already=[]){
  const tracks=homeUnique(data.tracks||[]),byId=new Map(tracks.map(t=>[t.id,t]));
@@ -417,7 +417,7 @@ function renderHome(ticket){
  homeCarouselCleanup=mountFeatureCarousel(release,homeBanners,{renderSlide:homeBannerHTML,prepareSlide:prepareHomeBanner,label:'AIFECT 이용 안내',previousLabel:'이전 안내 배너',nextLabel:'다음 안내 배너',dotsLabel:'안내 배너 선택',syncAudio:false,pauseForDialogs:true});
  let pool=null,playlists=null,chartIds=[],lastLayout='',requested=0;
  const capacities=()=>({music:homeCapacity('#home-recommended>.home-music-grid'),discovery:homeCapacity('#home-discovery>.home-music-grid'),playlist:homeCapacity('#home-curations>.public-playlist-grid')});
- const shelf=(id,title,href,d)=>{const target=$('#'+id),tracks=(d.tracks||[]).slice(0,12);addTracks(tracks);paint(target,homeSection(title,href)+(tracks.length?'<div class="home-music-grid">'+tracks.map(homeCard).join('')+'</div>':'<p class="home-empty-inline">아직 공개된 음악이 없어요.</p>'));};
+ const shelf=(id,title,href,d)=>{const target=$('#'+id),tracks=(d.tracks||[]).slice(0,12);addTracks(tracks);paint(target,homeSection(title,href)+(tracks.length?'<div class="home-music-grid">'+tracks.map(homeCard).join('')+'</div>':'<p class="home-empty-inline">아직 공개된 음악이 없습니다.</p>'));};
  const refreshShelves=()=>{
   const limits=capacities(),key=[limits.music,limits.discovery,limits.playlist,...chartIds].join(':');
   if(key===lastLayout)return;lastLayout=key;
@@ -426,7 +426,7 @@ function renderHome(ticket){
    const render=(id,title,href,items)=>{
     const target=$('#'+id);addTracks(items);
     paint(target,homeSection(title,href)+'<div class="home-music-grid">'+items.map(homeCard).join('')+'</div>'+
-     (!items.length?'<p class="home-empty-inline">아직 공개된 음악이 없어요.</p>':''));
+     (!items.length?'<p class="home-empty-inline">아직 공개된 음악이 없습니다.</p>':''));
    };
    render('home-recommended','추천 음악','#charts?period=week',recommended);
    render('home-discovery','발견','#discover',discovery);
@@ -438,7 +438,7 @@ function renderHome(ticket){
  const paintChart=d=>{
   const target=$('#home-popular'),tracks=d.tracks||[];addTracks(tracks);
   const initialId=homeChartCarouselCleanup?.currentId?.();homeChartCarouselCleanup?.();homeChartCarouselCleanup=null;
-  paint(target,tracks.length?homeChartHTML(tracks,{initialId}):homeSection('인기 차트','#charts')+'<p class="home-empty-inline">아직 집계된 음악이 없어요.</p>');
+  paint(target,tracks.length?homeChartHTML(tracks,{initialId}):homeSection('인기 차트','#charts')+'<p class="home-empty-inline">아직 집계된 음악이 없습니다.</p>');
   homeChartCarouselCleanup=mountHomeChartCarousel(target,tracks,{signal:controller.signal,initialId});
   chartIds=tracks.slice(0,7).map(t=>t.id);refreshShelves();bindChartPlayback();
  };
@@ -451,11 +451,11 @@ function renderHome(ticket){
   const target=$('#home-'+kind+'-panel');if(!target?.isConnected)return;const sequence=++profileRequests[kind];
   target.setAttribute('aria-busy','true');markup.delete(target);
   homeRailCleanups.get(target.id)?.();homeRailCleanups.delete(target.id);
-  target.innerHTML='<p class="home-load-message" role="status">프로필을 불러오고 있어요.</p>';
+  target.innerHTML='<p class="home-load-message" role="status">프로필을 불러오고 있습니다.</p>';
   const path='/api/discovery/profiles?'+new URLSearchParams({kind,sort:'popular'});
-  const show=d=>{if(!active(target)||sequence!==profileRequests[kind])return;const items=(d.profiles||[]).filter(p=>kind!=='artist'||!homeExcludedArtistIds.has(p.id)).slice(0,7);paint(target,items.length?'<div class="home-profile-grid">'+items.map(p=>homeProfileCard(p,kind)).join('')+'</div>':'<p class="home-empty-inline" role="status">아직 공개곡이 있는 프로필이 없어요.</p>');};
+  const show=d=>{if(!active(target)||sequence!==profileRequests[kind])return;const items=(d.profiles||[]).filter(p=>kind!=='artist'||!homeExcludedArtistIds.has(p.id)).slice(0,7);paint(target,items.length?'<div class="home-profile-grid">'+items.map(p=>homeProfileCard(p,kind)).join('')+'</div>':'<p class="home-empty-inline" role="status">아직 공개곡이 있는 프로필이 없습니다.</p>');};
   const cached=peekApiRead(path,{display:true});if(cached)show(cached);
-  try{show(await api(path,'GET',undefined,{signal:controller.signal}));}catch{if(active(target)&&sequence===profileRequests[kind]&&!cached){paint(target,'<div class="home-load-error" role="alert"><p>프로필을 불러오지 못했어요.</p><button type="button" class="small-button" data-home-profile-retry="'+kind+'">다시 시도</button></div>');}}
+  try{show(await api(path,'GET',undefined,{signal:controller.signal}));}catch{if(active(target)&&sequence===profileRequests[kind]&&!cached){paint(target,'<div class="home-load-error" role="alert"><p>프로필을 불러오지 못했습니다.</p><button type="button" class="small-button" data-home-profile-retry="'+kind+'">다시 시도</button></div>');}}
  };
  if(main.addEventListener){
   main.addEventListener('click',e=>{
@@ -471,7 +471,7 @@ function renderHome(ticket){
  };
  const jobs=[discoveryJob(slotsFor()),['/api/catalog?section=tracks&chart=top&period=week&limit=12',paintChart,'home-popular'],['/api/karaoke',paintSing,'home-sing'],['/api/community?kind=cover',paintConversations,'home-conversations'],['/api/playlists?sort=recent&home=1',paintCurations,'home-curations']];
  for(const [path,show] of jobs){const cached=peekApiRead(path,{display:true});if(cached)show(cached);}
- const load=async([path,show,id])=>{const target=$('#'+id);try{const d=await api(path,'GET',undefined,{signal:controller.signal});if(!controller.signal.aborted&&id==='home-recommended'&&ticket===renderId&&target.isConnected&&revision!==apiRevision)return renderHome(ticket);if(active(target)){show(d);updateHomeAccount();}}catch{if(active(target)&&!displayed.has(target)){paint(target,'<div class="home-load-error"><p>음악을 불러오지 못했어요.</p><button class="small-button">다시 시도</button></div>');target.querySelector('button').onclick=()=>load([path,show,id]);if(id==='home-recommended')paint($('#home-discovery'),homeSection('발견','#discover')+'<a class="text-link" href="#discover">음악 둘러보기</a>');}}};
+ const load=async([path,show,id])=>{const target=$('#'+id);try{const d=await api(path,'GET',undefined,{signal:controller.signal});if(!controller.signal.aborted&&id==='home-recommended'&&ticket===renderId&&target.isConnected&&revision!==apiRevision)return renderHome(ticket);if(active(target)){show(d);updateHomeAccount();}}catch{if(active(target)&&!displayed.has(target)){paint(target,'<div class="home-load-error"><p>음악을 불러오지 못했습니다.</p><button class="small-button">다시 시도</button></div>');target.querySelector('button').onclick=()=>load([path,show,id]);if(id==='home-recommended')paint($('#home-discovery'),homeSection('발견','#discover')+'<a class="text-link" href="#discover">음악 둘러보기</a>');}}};
  const resize=()=>{
   // A like can invalidate API reads while this exact home is still mounted.
   // Its already visible shelves must continue responding to width changes.

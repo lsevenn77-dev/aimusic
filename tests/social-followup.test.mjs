@@ -44,7 +44,7 @@ test('new crew members see messages only from their join notice; only owners man
  assert.ok(before.sequence<membership.joined_sequence);
  assert.ok(history.every(m=>m.sequence>=membership.joined_sequence));
  assert.equal(history.some(m=>m.body==='Before joining'),false);
- assert.equal(history.filter(m=>m.body==='Moon님이 크루에 참여했습니다. 인사를 나눠보세요.'&&m.kind==='system').length,1);
+ assert.equal(history.filter(m=>m.body==='Moon님이 크루에 참여했습니다. 인사를 나눠 보세요.'&&m.kind==='system').length,1);
  assert.equal((await f.call(target,'PATCH',{role:'manager'},'other')).status,403);
  assert.equal((await f.call(room+'/members/producer','DELETE')).status,400);
  assert.equal((await f.call(target,'PATCH',{role:'owner'})).status,400);

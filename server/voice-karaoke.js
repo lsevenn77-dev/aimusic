@@ -24,16 +24,16 @@ async function liveTracks(env,where,args,limit,offset=0){
 }
 
 export async function voiceKaraokeRoute(req,env,room,action,body,call){
- if(!body||typeof body!=='object'||Array.isArray(body))fail(400,'노래방 요청을 확인해주세요.');
+ if(!body||typeof body!=='object'||Array.isArray(body))fail(400,'노래방 요청을 확인해 주세요.');
  const url=new URL(req.url),generation=body.generation||url.searchParams.get('generation');
- if(typeof generation!=='string'||!generation)fail(409,'노래방에 다시 입장해주세요.');
+ if(typeof generation!=='string'||!generation)fail(409,'노래방에 다시 입장해 주세요.');
  const state=await call('state',{generation});
- if(state.room?.mode!=='karaoke')fail(409,'라이브 노래방에서만 사용할 수 있어요.');
+ if(state.room?.mode!=='karaoke')fail(409,'라이브 노래방에서만 사용할 수 있습니다.');
  if(action==='karaoke-search'){
-  if(req.method!=='GET')fail(405,'허용되지 않는 요청이에요.');
+  if(req.method!=='GET')fail(405,'허용되지 않는 요청입니다.');
   const q=(url.searchParams.get('q')||'').trim().slice(0,80);
   const offset=Number(url.searchParams.get('offset')||0);
-  if(!Number.isSafeInteger(offset)||offset<0)fail(400,'검색 페이지를 확인해주세요.');
+  if(!Number.isSafeInteger(offset)||offset<0)fail(400,'검색 페이지를 확인해 주세요.');
   if(!q){
    const collection=url.searchParams.get('collection');if(!['mine','popular'].includes(collection))return json({tracks:[]});
    const library=await call('karaoke-library',{generation,collection});
@@ -45,20 +45,20 @@ export async function voiceKaraokeRoute(req,env,room,action,body,call){
   const tracks=await liveTracks(env,where,['%'+q+'%','%'+q+'%','%'+q+'%'],31,offset);
   return json({tracks:tracks.slice(0,30).map(readable),next:tracks.length>30?offset+30:null});
  }
- if(action!=='karaoke'||req.method!=='POST')fail(405,'허용되지 않는 요청이에요.');
+ if(action!=='karaoke'||req.method!=='POST')fail(405,'허용되지 않는 요청입니다.');
  const allowed=['request','cancel','call','accept','start','abandon','finish','next','key','invite','answer-invite'];
- if(!allowed.includes(body.operation))fail(400,'노래방 동작을 확인해주세요.');
+ if(!allowed.includes(body.operation))fail(400,'노래방 동작을 확인해 주세요.');
  let track;
  if(body.operation==='request'){
   const id=identifier(body.track_id);
   const result=await liveTracks(env,'t.id=?',[id],1);
-  if(!result.length)fail(404,'부를 수 있는 곡이 아니거나 MR·가사가 준비되지 않았어요.');
+  if(!result.length)fail(404,'부를 수 있는 곡이 아니거나 MR·가사가 준비되지 않았습니다.');
   track=readable(result[0]);
  }
  if(body.operation==='start'&&state.karaoke?.active?.track){
   const id=state.karaoke.active.track.id;
   const available=await liveTracks(env,'t.id=?',[id],1);
-  if(!available.length)fail(409,'선택한 곡은 더 이상 라이브 노래방에서 사용할 수 없어요.');
+  if(!available.length)fail(409,'선택한 곡은 더 이상 라이브 노래방에서 사용할 수 없습니다.');
  }
  return json(await call('karaoke',{...body,track}));
 }

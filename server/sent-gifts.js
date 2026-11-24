@@ -1,12 +1,13 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {rows,json,fail} from './db.js';
 import {requireUser} from './auth.js';
 
 // Receipt IDs, not wallet debits or purchase rows: an inventory gift appears once.
 export async function sentGifts(req,env,user){
  requireUser(user);
- if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
  const params=new URL(req.url).searchParams,offset=Number(params.get('offset')||0);
- if(!Number.isSafeInteger(offset)||offset<0||offset>100000)fail(400,'내역 위치를 확인해주세요.');
+ if(!Number.isSafeInteger(offset)||offset<0||offset>100000)fail(400,'내역 위치를 확인해 주세요.');
  const items=await rows(env,`SELECT g.*,COALESCE(s.source_type,CASE WHEN g.track_id IS NOT NULL THEN 'work' ELSE 'profile' END) target_type,
   COALESCE(s.source_id,g.track_id,g.recipient_profile_id) target_id,s.work_kind,
   COALESCE(s.source_title,t.title,p.name,'삭제된 대상') target_name,p.name recipient_name

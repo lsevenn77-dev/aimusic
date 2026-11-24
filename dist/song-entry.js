@@ -13,7 +13,7 @@ function songEntryState(id){
  return songEntryStates.get(key);
 }
 function songEntryListHTML(d,tab){
- return d.covers.length?d.covers.map((t,i)=>songCoverItemHTML(t,tab,i+1,true)).join('')+songCoversMoreHTML(d):'<p class="empty-note">'+(tab==='duet'?'참여를 기다리는 듀엣이 없어요':'아직 등록된 커버가 없어요')+'</p>';
+ return d.covers.length?d.covers.map((t,i)=>songCoverItemHTML(t,tab,i+1,true)).join('')+songCoversMoreHTML(d):'<p class="empty-note">'+(tab==='duet'?'참여를 기다리는 듀엣이 없습니다':'아직 등록된 커버가 없습니다')+'</p>';
 }
 function songEntryPanelHTML(t,d,tab,error=''){
  return `<section class="song-covers-panel song-entry-panel" data-song-entry="true" data-cover-original="${esc(t.id)}" ${songPickAttributes(d?.pick)}><nav class="tabs covers-sort song-entry-tabs" role="tablist" aria-label="노래 참여 작품">${[['all','인기커버'],['duet','참여 대기 듀엣']].map(([key,label])=>`<button type="button" class="tab ${tab===key?'active':''}" role="tab" id="song-entry-tab-${key}" aria-controls="song-entry-list" aria-selected="${tab===key}" tabindex="${tab===key?'0':'-1'}" data-song-entry-tab="${key}">${label}${d?'<span class="song-cover-tab-count">'+number(d.counts[key])+'</span>':''}</button>`).join('')}</nav><div class="song-cover-list" id="song-entry-list" role="tabpanel" aria-labelledby="song-entry-tab-${tab}" aria-live="polite">${error?songEntryErrorHTML(error):d?songEntryListHTML(d,tab):'<p role="status">참여 작품을 불러오는 중…</p>'}</div></section>`;
@@ -21,12 +21,12 @@ function songEntryPanelHTML(t,d,tab,error=''){
 function songEntryErrorHTML(message){return '<div class="song-entry-error" role="alert"><p>'+esc(message)+'</p><button type="button" class="small-button" data-song-entry-retry>다시 시도</button></div>';}
 function songEntryHeaderHTML(t){
  const id=esc(t.id),title=esc(t.title),action=(mode,label,primary)=>t.karaoke_ready?`<a class="${primary?'primary-button':'small-button'}" href="#sing/${id}?mode=${mode}">${icon(mode==='solo'?'mic':'users')}<span>${label}</span></a>`:`<button class="${primary?'primary-button':'small-button'}" disabled>${icon(mode==='solo'?'mic':'users')}<span>${label}</span></button>`;
- return `<header class="song-entry-heading"><button type="button" class="icon-button" data-song-entry-back aria-label="이전 화면으로 돌아가기">${icon('chevron-left')}</button><h1>노래하기</h1></header><section class="song-entry-summary" aria-label="부를 곡 정보">${cover(t,'song-entry-art')}<div class="song-entry-copy"><h2 title="${title}">${title}</h2><div class="song-entry-credits">${credits(t)}<span>작곡가 ${trackNickname(t,'producer')}</span></div><p>${[t.genres?.length?t.genres.join(' · '):t.genre,time(t.duration)].filter(Boolean).map(esc).join(' · ')}</p><button type="button" class="small-button" data-play="${id}" data-community-toggle>${icon('play')}<span>원곡 듣기</span></button></div></section><div class="song-entry-actions">${action('solo','솔로로 부르기',true)}${action('duet','새 듀엣 시작하기',false)}</div>${t.karaoke_ready?'':'<p class="field-help">지금은 이 곡의 녹음을 준비할 수 없어요.</p>'}`;
+ return `<header class="song-entry-heading"><button type="button" class="icon-button" data-song-entry-back aria-label="이전 화면으로 돌아가기">${icon('chevron-left')}</button><h1>노래하기</h1></header><section class="song-entry-summary" aria-label="부를 곡 정보">${cover(t,'song-entry-art')}<div class="song-entry-copy"><h2 title="${title}">${title}</h2><div class="song-entry-credits">${credits(t)}<span>작곡가 ${trackNickname(t,'producer')}</span></div><p>${[t.genres?.length?t.genres.join(' · '):t.genre,time(t.duration)].filter(Boolean).map(esc).join(' · ')}</p><button type="button" class="small-button" data-play="${id}" data-community-toggle>${icon('play')}<span>원곡 듣기</span></button></div></section><div class="song-entry-actions">${action('solo','솔로로 부르기',true)}${action('duet','새 듀엣 시작하기',false)}</div>${t.karaoke_ready?'':'<p class="field-help">지금은 이 곡의 녹음을 준비할 수 없습니다.</p>'}`;
 }
 async function songEntryView(base,param,raw,readApi){
  if(base!=='sing'||!param||!isSongEntryRoute(raw))return null;
  const {track:t}=await readApi('/api/tracks/'+encodeURIComponent(param));
- if(t.kind!=='original')throw new Error('부를 원곡을 선택해주세요.');
+ if(t.kind!=='original')throw new Error('부를 원곡을 선택해 주세요.');
  const state=songEntryState(param);let data,error='';
  try{
   data=await readApi('/api/tracks/'+encodeURIComponent(param)+'/covers?view='+state.tab);
@@ -124,12 +124,12 @@ async function changeComposerPick(button){
   try{await refreshComposerPickPanel(panel);}catch(error){
    if(panel.isConnected){
     const list=panel.querySelector('.song-cover-list');
-    list.innerHTML='<div class="song-entry-error" role="alert"><p>PICK은 저장했지만 목록을 다시 불러오지 못했어요.</p><button type="button" class="small-button" data-pick-refresh>다시 시도</button></div>';
+    list.innerHTML='<div class="song-entry-error" role="alert"><p>PICK은 저장했지만 목록을 다시 불러오지 못했습니다.</p><button type="button" class="small-button" data-pick-refresh>다시 시도</button></div>';
     list.querySelector('[data-pick-refresh]').onclick=()=>{void refreshComposerPickPanel(panel).catch(e=>toast(e.message));};
    }
    return;
   }
-  toast(coverId?'작곡가 PICK을 저장했어요.':'PICK을 해제했어요.');
+  toast(coverId?'작곡가 PICK을 저장했습니다.':'PICK을 해제했습니다.');
  }catch(error){
   toast(error.message);
   if(error.status===409)await refreshComposerPickPanel(panel).catch(()=>{});

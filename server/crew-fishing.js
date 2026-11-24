@@ -80,7 +80,7 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
   const m=await one(env,`SELECT cm.crew_id,c.name,${publicNameSQL()} AS nickname FROM crew_members cm
     JOIN crews c ON c.id=cm.crew_id JOIN users u ON u.id=cm.user_id
     WHERE cm.user_id=?`,uid);
-  if(!m)fail(403,'크루에 가입한 뒤 이용해주세요.');
+  if(!m)fail(403,'크루에 가입한 뒤 이용해 주세요.');
   const crew=m.crew_id;
   if(req.method==='GET' && action==='lobby' && new URL(req.url).searchParams.get('mode')==='practice'){
     return respond({practice:true,scope:uid+'|'+crew,crew,name:m.name,nickname:m.nickname,day});
@@ -117,10 +117,10 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
       WHERE crew_id=? AND status='caught') SELECT user_id,fish,length,grade,nickname,end_ms,count FROM best WHERE place=1`,crew);
     return json({name:m.name,records});
   }
-  if(req.method!=='POST'||!['cast','pull'].includes(action))fail(404,'경로를 찾지 못했어요.');
+  if(req.method!=='POST'||!['cast','pull'].includes(action))fail(404,'경로를 찾지 못했습니다.');
   const body=await req.json();
   if(action==='cast'){
-    if(!/^[a-z0-9-]{16,64}$/i.test(String(body?.requestId||'')))fail(400,'도전 식별자를 확인해주세요.');
+    if(!/^[a-z0-9-]{16,64}$/i.test(String(body?.requestId||'')))fail(400,'도전 식별자를 확인해 주세요.');
     const previous=()=>one(env,'SELECT * FROM crew_fishing_casts WHERE user_id=? AND crew_id=? AND request_id=?',uid,crew,body.requestId);
     const existing=await previous();
     if(existing)return response(await expire(existing));
@@ -134,9 +134,9 @@ export async function fishingRoute(req,env,path,user,ms=Date.now(),clock={receiv
       id(),uid,crew,m.nickname,body.requestId,day,week,f.fish,f.grade,f.length,f.amount,ms+biteDelay(),f.cycle,f.goal,f.target,f.width,
       uid,crew,uid,week,day,quotaLimits.dailyLimit);
     const cast=await previous()||await active();
-    if(!cast || cast.day!==day)fail(409,'오늘 낚시 기회를 모두 사용했거나 도전이 만료됐어요.');
+    if(!cast || cast.day!==day)fail(409,'오늘 낚시 기회를 모두 사용했거나 도전이 만료되었습니다.');
     return response(cast);
   }
-  fail(404,'경로를 찾지 못했어요.');
+  fail(404,'경로를 찾지 못했습니다.');
 }
 

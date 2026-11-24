@@ -28,7 +28,7 @@ export function practiceSession(info, draw, now = Date.now) {
         }
         return snapshot();
       }
-      if (action !== 'pull' || !current || current.id !== body.id) throw Error('연습 낚시를 다시 시작해주세요.');
+      if (action !== 'pull' || !current || current.id !== body.id) throw Error('연습 낚시를 다시 시작해 주세요.');
       if(current.status!=='active'||body.seq!==current.seq+1)return snapshot();
       if(body.timeout===true){expire();return snapshot();}
       const elapsed = body.elapsed ?? now() - current.start;

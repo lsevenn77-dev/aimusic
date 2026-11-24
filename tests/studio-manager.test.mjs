@@ -44,7 +44,7 @@ test('studio tabs isolate inventory and status summaries below the shared quota 
  assert.equal((html.match(/role="tab"/g)||[]).length,2);
  assert.match(html,/전체 제작곡<\/span><strong>3/);
  assert.match(html,/업로드·변환 중<\/span><span class="studio-stat-label-compact">처리 중<\/span><strong>1/);
- assert.match(html,/이번 달 제작곡 정보를 확인하고 있어요/);
+ assert.match(html,/이번 달 제작곡 정보를 확인하고 있습니다/);
  assert.doesNotMatch(html,/PREMIUM 업그레이드|href="#membership"/,'the cached global plan is not an entitlement response');
  assert.match(html,/href="#upload"/);
  assert.doesNotMatch(html,/data-studio-select="work-1"|정산 내역|id="producer-form"|artist-editors/);
@@ -202,7 +202,7 @@ test('load-all fetches every page before full deletion is possible',async()=>{
 });
 test('empty pagination aborts rather than silently deleting an incomplete list',async()=>{
  const ctx=sandbox(sampleTracks(2));ctx.studioData.track_total=3;
- await assert.rejects(runInNewContext('studioLoadComplete()',ctx),/전부 불러오지 못했어요/);
+ await assert.rejects(runInNewContext('studioLoadComplete()',ctx),/전부 불러오지 못했습니다/);
 });
 test('studio API retains owner constraint, excludes deleted rows and pages with bound offset',()=>{
  assert.match(media,/t\.user_id=\? AND t\.status!='deleted'/);

@@ -14,21 +14,21 @@ function dubUpdateMeter(e){
  try{
   const seconds=AifectDubbing.dubbingTimeline(e.script).duration;
   e.element.querySelector('[data-editor-duration]').textContent=e.options.genres.join(' · ')+' · '+e.script.roles.length+'인극 · 예상 '+time(seconds);
- }catch{e.element.querySelector('[data-editor-duration]').textContent='음향 시작·종료 위치를 확인해주세요.';}
+ }catch{e.element.querySelector('[data-editor-duration]').textContent='음향 시작·종료 위치를 확인해 주세요.';}
 }
 async function dubCommit(e){
- if(e.busy||e.conflict)throw Error(e.conflict?'먼저 다른 기기와의 저장 충돌을 해결해주세요.':'저장 중이에요.');
+ if(e.busy||e.conflict)throw Error(e.conflict?'먼저 다른 기기와의 저장 충돌을 해결해 주세요.':'저장 중입니다.');
  const script=AifectDubbing.validateDubbingScript(e.script,e.options);
- if(script.soundCues.filter(c=>c.kind==='bgm').length>Math.max(3,e.project?.script?.soundCues?.filter(c=>c.kind==='bgm').length||0))throw Error('음향 제작에 사용할 BGM을 3개 이내로 정리해주세요.');
+ if(script.soundCues.filter(c=>c.kind==='bgm').length>Math.max(3,e.project?.script?.soundCues?.filter(c=>c.kind==='bgm').length||0))throw Error('음향 제작에 사용할 BGM을 3개 이내로 정리해 주세요.');
  e.busy=true;e.element.inert=true;
  try{
-  clearTimeout(e.timer);await dubSyncDraft(e);if(e.conflict)throw Error('작성본이 다른 기기에서 변경됐어요.');
+  clearTimeout(e.timer);await dubSyncDraft(e);if(e.conflict)throw Error('작성본이 다른 기기에서 변경되었습니다.');
   const existing=!!e.project||e.projectRevision!=null;
   const saved=await api('/api/dubbing/projects'+(existing?'/'+e.id:''),existing?'PUT':'POST',{id:e.id,options:e.options,script,generationId:e.generationId||null,revision:e.projectRevision??e.project?.revision});
   e.finished=true;e.dirty=false;
   if(e.etag){
    try{await api('/api/dubbing/editor-drafts/'+e.id,'PUT',{closed:true,etag:e.etag});}
-   catch(err){if(err.status!==409)toast('대본은 저장됐어요. 자동 저장본 정리는 연결 후 다시 확인해주세요.');}
+   catch(err){if(err.status!==409)toast('대본은 저장되었습니다. 자동 저장본 정리는 연결 후 다시 확인해 주세요.');}
   }
   localStorage.removeItem(dubDraftKey(e.id));dubbingEditor=null;
   location.hash='dubbing/'+saved.project.id+(dubEmbedded?'?editorSaved=1':'');
@@ -39,7 +39,7 @@ function dubMount(e){
  parent.onclick=null;parent.innerHTML='<section class="dub-editor"></section>';
  e.element=parent.firstElementChild;e.folded=new Set(e.position?.folded??e.script.scenes.slice(1).map(sc=>sc.id));e.account=me.id;e.etag??=null;
  dubbingEditor=e;dubRender(e);if(e.dirty||e.unsynced) dubQueueSave(e);
- if(e.conflict){dubDraftStatus(e,'다른 기기의 변경사항을 확인해주세요.');}
+ if(e.conflict){dubDraftStatus(e,'다른 기기의 변경사항을 확인해 주세요.');}
  e.element.onclick=async ev=>{
   const b=ev.target.closest('[data-edit-action]');if(!b||e.busy)return;
   try{await dubEditorAction(e,b.dataset.editAction,b.dataset.key);}catch(err){if(e.element.isConnected)dubbingMessage(e.element,err.message);}
@@ -56,7 +56,7 @@ function dubMount(e){
  e.element.oninput=ev=>{
   const el=ev.target;if(!el.matches('[data-field],[data-genre]'))return;
   if(el.dataset.genre){
-   const genres=[...e.element.querySelectorAll('[data-genre]:checked')].map(x=>x.dataset.genre);if(genres.length<1||genres.length>2){el.checked=!el.checked;dubbingMessage(e.element,'장르는 1~2개를 선택해주세요.');return;}e.options.genres=genres;e.script.genres=[...genres];
+   const genres=[...e.element.querySelectorAll('[data-genre]:checked')].map(x=>x.dataset.genre);if(genres.length<1||genres.length>2){el.checked=!el.checked;dubbingMessage(e.element,'장르는 1~2개를 선택해 주세요.');return;}e.options.genres=genres;e.script.genres=[...genres];
   }else{
    const {kind,key,field}=el.dataset,collections={line:'lines',scene:'scenes',role:'roles',cue:'soundCues'};
    const obj=kind==='script'?e.script:kind==='options'?e.options:e.script[collections[kind]]?.find(x=>x.id===key);
@@ -94,7 +94,7 @@ async function dubbingMountEditor(e){
  if(e.project){
   try{const row=await dubOpenDraft(e.id);if(row.draft){
     const stale=row.draft.projectRevision!==e.project.revision;
-    if(!stale||confirm('기존 작성본과 서버 대본의 버전이 달라요. 작성본을 사본으로 열까요?')){
+    if(!stale||confirm('기존 작성본과 서버 대본의 버전이 다릅니다. 작성본을 사본으로 열까요?')){
      if(stale){dubMount({...e,...row.draft,project:null,projectRevision:null,etag:null,id:crypto.randomUUID(),dirty:true});return;}
      dubMount({...e,...row.draft,etag:row.etag,conflict:!!row.conflict,unsynced:row.unsynced});return;
     }
@@ -115,7 +115,7 @@ async function dubStart(view,root,initial=''){
   if(action==='ai'){location.hash='dubbing/new?mode=ai';return;}
   if(action==='resume'){const row=await dubOpenDraft(key);const d=row.draft;let project=null;if(d.projectRevision!=null){project=(await api('/api/dubbing/projects/'+d.id)).project;}
    const fork=project&&(!project.canEdit||project.revision!==d.projectRevision);
-   if(fork&&!confirm('서버 대본이 변경됐어요. 보존한 작성본을 사본으로 열까요?'))return;
+   if(fork&&!confirm('서버 대본이 변경되었습니다. 보존한 작성본을 사본으로 열까요?'))return;
    dubMount({...d,project:fork?null:project,config:view.config,route:view.route,etag:fork?null:row.etag,id:fork?crypto.randomUUID():d.id,projectRevision:fork?null:d.projectRevision,conflict:!fork&&row.conflict,unsynced:!!(fork||row.unsynced)});return;}
   const e=make();e.element=root;
   if(action==='paste'){
@@ -137,6 +137,6 @@ async function dubStart(view,root,initial=''){
  const list=await dubDraftList();if(!root.isConnected)return;
  const recent=root.querySelector('[data-editor-recents]');if(!recent)return;
  if(list.items.length){recent.hidden=false;recent.querySelector('div').innerHTML=list.items.map(v=>dubButton('resume',esc(v.title||'제목 없는 대본'),v.id)).join('');}
- if(list.offline)dubbingMessage(root,'현재 기기에 남은 작성본을 표시해요.');
+ if(list.offline)dubbingMessage(root,'현재 기기에 남은 작성본을 표시합니다.');
 }
 

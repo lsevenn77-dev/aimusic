@@ -29,9 +29,9 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
   const progress=Number(html.match(/style="--studio-quota-progress:([\d.]+)%"/)[1]);
   assert.ok(Math.abs(progress-percent)<1e-10);
   assert.match(html,new RegExp(`aria-valuemax="${limit}" aria-valuenow="${used}"`));
-  assert.match(html,/완성한 음악을 들려주세요\./);
+  assert.match(html,/완성한 음악을 들려 주세요\./);
   assert.doesNotMatch(html,/이번 달 \d+곡 더 가능/);
-  if(used>=limit)assert.match(html,/이번 달 제작곡 한도를 모두 사용했어요\./);
+  if(used>=limit)assert.match(html,/이번 달 제작곡 한도를 모두 사용했습니다\./);
   assert.doesNotMatch(html,/data-icon="music"|data-icon="diamond"|PREMIUM으로 더 많이/);
   assert.equal((html.match(/매월 1일 초기화\(한국시간\) · 커버곡 무제한/g)||[]).length,1);
   assert.equal((html.match(/href="#upload"/g)||[]).length,1);
@@ -59,7 +59,7 @@ test('limits remain dynamic, over-limit expiry usage is preserved and malformed 
  assert.match(expired,/5 \/ 3곡/);
  assert.match(expired,/style="--studio-quota-progress:100%"/);
  assert.match(expired,/aria-valuemax="3" aria-valuenow="3"/);
- assert.match(expired,/이번 달 제작곡 한도를 모두 사용했어요\./);
+ assert.match(expired,/이번 달 제작곡 한도를 모두 사용했습니다\./);
  assert.doesNotMatch(expired,/-\d+곡 더 가능/);
  for(const value of [null,{plan:'free'},membership('unknown',0,3),membership('free',0,0),membership('free',-1,3),membership('premium','5',10),membership('free',NaN,3),membership('free',1,Infinity),{plan:'free',upload_quota:{used:0,limit:3}}]){
   const html=ctx.studioQuotaCard(value,'ready');
@@ -86,7 +86,7 @@ test('failed and unauthenticated refreshes clear premium status; retry recovers'
  const h=harness();h.ctx.api=async()=>({user:{id:'owner'},membership:membership('premium',5,10)});
  h.ctx.bindStudioQuota(h.root);await h.flush();assert.match(h.html,/PREMIUM 이용 중/);
  h.ctx.api=async()=>{throw Error('network');};h.listeners.get('window:focus')();await h.flush();
- assert.match(h.html,/확인하지 못했어요/);assert.doesNotMatch(h.html,/PREMIUM|5 \/ 10/);
+ assert.match(h.html,/확인하지 못했습니다/);assert.doesNotMatch(h.html,/PREMIUM|5 \/ 10/);
  h.ctx.api=async()=>({user:null,membership:membership('free',0,3)});h.listeners.get('window:focus')();await h.flush();assert.doesNotMatch(h.html,/혜택 보기|href="#membership"/);
  h.ctx.api=async()=>({user:{id:'owner'},membership:membership('free',1,3)});
  h.listeners.get('root:click')({target:{closest:()=>true}});await h.flush();assert.match(h.html,/1 \/ 3/);

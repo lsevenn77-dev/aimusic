@@ -5,20 +5,20 @@ async function cropPhotoEditor(file,{shape='square',host,signal,decodeFile,accep
  const ticket=typeof renderId==='number'?renderId:null;
  if(!decodeFile&&croppedPhotos.get(file)?.has(shape))return croppedPhotos.get(file).get(shape);
  const standard=async f=>{
-  if(!['image/jpeg','image/png','image/webp'].includes(f?.type)||f.size>5*1024*1024)throw Error('JPG·PNG·WebP, 5MB 이하 사진을 선택해주세요.');
-  const b=await decodeUploadImage(f);if(!b.width||!b.height||b.width*b.height>64000000){b.close();throw Error('이미지가 너무 커요. 가로·세로 크기를 줄여주세요.');}return b;
+  if(!['image/jpeg','image/png','image/webp'].includes(f?.type)||f.size>5*1024*1024)throw Error('JPG·PNG·WebP, 5MB 이하 사진을 선택해 주세요.');
+  const b=await decodeUploadImage(f);if(!b.width||!b.height||b.width*b.height>64000000){b.close();throw Error('이미지가 너무 큽니다. 가로·세로 크기를 줄여 주세요.');}return b;
  };
  const decode=decodeFile||standard;
- const cancelled=()=>Object.assign(Error('사진 편집을 취소했어요. 기존 사진은 유지됩니다.'),{name:'AbortError'});
+ const cancelled=()=>Object.assign(Error('사진 편집을 취소했습니다. 기존 사진은 유지됩니다.'),{name:'AbortError'});
  let bitmap=await decode(file),zoom=1,x=.5,y=.5;
  if(signal?.aborted||(ticket!==null&&ticket!==renderId)){bitmap.close();throw cancelled();}
  const circle=shape==='circle';
- const modal=document.createElement(host?'section':'dialog');modal.className='photo-crop-dialog'+(host?'':' compact-popup');modal.innerHTML='<h2>사진 편집</h2><p>사진을 움직이거나 확대·축소해 '+(circle?'원형 가이드 안':'정사각형 안')+'에 맞춰주세요. 전체 사진 버튼으로 사진을 모두 넣을 수 있어요.</p><div class="photo-crop-preview"><canvas width="800" height="800" aria-label="저장할 사진 미리보기"></canvas>'+(circle?'<span class="photo-crop-circle" aria-hidden="true"></span>':'')+'</div><label>확대·축소<input type="range" min=".5" max="4" step=".001" value="1"></label><div class="photo-crop-tools"><button type="button" class="small-button" data-crop-fit>전체 사진</button><label class="small-button">다른 사진 선택<input type="file" accept="'+accept+'" class="sr-only"></label></div><div class="inline-actions"><button type="button" class="small-button" data-crop-cancel>취소</button><button type="button" class="primary-button" data-crop-save>사진 사용</button></div><p role="alert"></p>';
+ const modal=document.createElement(host?'section':'dialog');modal.className='photo-crop-dialog'+(host?'':' compact-popup');modal.innerHTML='<h2>사진 편집</h2><p>사진을 움직이거나 확대·축소해 '+(circle?'원형 가이드 안':'정사각형 안')+'에 맞춰 주세요. 전체 사진 버튼으로 사진을 모두 넣을 수 있습니다.</p><div class="photo-crop-preview"><canvas width="800" height="800" aria-label="저장할 사진 미리보기"></canvas>'+(circle?'<span class="photo-crop-circle" aria-hidden="true"></span>':'')+'</div><label>확대·축소<input type="range" min=".5" max="4" step=".001" value="1"></label><div class="photo-crop-tools"><button type="button" class="small-button" data-crop-fit>전체 사진</button><label class="small-button">다른 사진 선택<input type="file" accept="'+accept+'" class="sr-only"></label></div><div class="inline-actions"><button type="button" class="small-button" data-crop-cancel>취소</button><button type="button" class="primary-button" data-crop-save>사진 사용</button></div><p role="alert"></p>';
  if(host){host.append(modal);modal.scrollIntoView({block:'nearest'});}else{document.body.append(modal);modal.showModal();}const canvas=modal.querySelector('canvas'),slider=modal.querySelector('[type=range]'),pointers=new Map();
  const fitZoom=()=>Math.min(bitmap.width,bitmap.height)/(circle?Math.hypot(bitmap.width,bitmap.height):Math.max(bitmap.width,bitmap.height));
  const rect=()=>{const factor=800/Math.min(bitmap.width,bitmap.height)*zoom;return {width:bitmap.width*factor,height:bitmap.height*factor};};
  const ctx=canvas.getContext('2d');
- if(!ctx){modal.remove();bitmap.close();throw Error('사진 미리보기를 열 수 없어요. 다른 앱을 닫고 다시 시도해주세요.');}
+ if(!ctx){modal.remove();bitmap.close();throw Error('사진 미리보기를 열 수 없습니다. 다른 앱을 닫고 다시 시도해 주세요.');}
  const draw=()=>{const r=rect();ctx.clearRect(0,0,800,800);ctx.drawImage(bitmap.source||bitmap,(800-r.width)*x,(800-r.height)*y,r.width,r.height);};
  const scale=v=>{zoom=Math.max(Math.min(.5,fitZoom()),Math.min(4,v));slider.min=String(Math.min(.5,fitZoom()));slider.value=zoom;draw();};slider.oninput=()=>scale(Number(slider.value));
  modal.querySelector('[data-crop-fit]').onclick=()=>{x=y=.5;scale(fitZoom());};
@@ -40,11 +40,11 @@ async function cropPhotoEditor(file,{shape='square',host,signal,decodeFile,accep
   const lock=v=>{busy=v;save.disabled=replace.disabled=v;};
   replace.onchange=async()=>{
    const f=replace.files[0];replace.value='';if(!f||busy)return;
-   lock(true);alert.textContent='사진을 열고 있어요…';
+   lock(true);alert.textContent='사진을 열고 있습니다…';
    try{
     const next=await decode(f);if(finished){next.close();return;}
     bitmap.close();bitmap=next;x=y=.5;scale(1);lock(false);alert.textContent='';
-   }catch(e){if(!finished){lock(false);save.disabled=true;alert.textContent=(e.message||'사진을 열 수 없어요.')+' 다른 사진을 선택하거나 취소해주세요.';}}
+   }catch(e){if(!finished){lock(false);save.disabled=true;alert.textContent=(e.message||'사진을 열 수 없습니다.')+' 다른 사진을 선택하거나 취소해 주세요.';}}
   };
   signal?.addEventListener('abort',cancel,{once:true});
   modal.querySelector('[data-crop-cancel]').onclick=cancel;modal.oncancel=e=>{e.preventDefault();cancel();};
@@ -52,7 +52,7 @@ async function cropPhotoEditor(file,{shape='square',host,signal,decodeFile,accep
   save.onclick=()=>{
    if(busy||save.disabled)return;
    lock(true);
-   const failed=()=>{if(!finished){lock(false);alert.textContent='자른 사진을 파일로 만들지 못했어요. 다시 시도하거나 다른 사진을 선택해주세요.';}};
+   const failed=()=>{if(!finished){lock(false);alert.textContent='자른 사진을 파일로 만들지 못했습니다. 다시 시도하거나 다른 사진을 선택해 주세요.';}};
    try{canvas.toBlob(blob=>{
     if(finished)return;
     const ext={'image/webp':'webp','image/png':'png','image/jpeg':'jpg'}[blob?.type];
@@ -60,7 +60,7 @@ async function cropPhotoEditor(file,{shape='square',host,signal,decodeFile,accep
     try{done(new File([blob],'photo.'+ext,{type:blob.type}));}catch{failed();}
    },'image/webp',.9);}catch{failed();}
   };
-  try{scale(1);}catch{done(null,Error('사진 미리보기를 그리지 못했어요. 크기를 줄이거나 다른 사진을 선택해주세요.'));}
+  try{scale(1);}catch{done(null,Error('사진 미리보기를 그리지 못했습니다. 크기를 줄이거나 다른 사진을 선택해 주세요.'));}
  });
 }
 function photoLightbox(src,label){

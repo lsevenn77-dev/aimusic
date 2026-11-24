@@ -56,7 +56,7 @@ const VoiceAudio=(()=>{
    // resuming unsuccessfully or timing out must never bypass that restriction.
    const interrupted=!!Context&&(!audioStarted||ctx?.state!=='running');
    outgoing?.getTracks().forEach(track=>track.stop());if(ctx)void ctx.close().catch(()=>{});
-   if(interrupted){raw.getAudioTracks().forEach(track=>track.enabled=false);throw Object.assign(new Error('기기 오디오를 시작하지 못했어요. 다른 앱의 오디오 사용이 끝난 뒤 마이크를 다시 켜주세요.'),{code:'AUDIO_INTERRUPTED'});}
+   if(interrupted){raw.getAudioTracks().forEach(track=>track.enabled=false);throw Object.assign(new Error('기기 오디오를 시작하지 못했습니다. 다른 앱의 오디오 사용이 끝난 뒤 마이크를 다시 켜 주세요.'),{code:'AUDIO_INTERRUPTED'});}
    return {stream:raw,fallback:true,supportsMix:false,setLevel(){},setMix(){},setPreset(){},setReverb(){},close(){}};
   }
  }

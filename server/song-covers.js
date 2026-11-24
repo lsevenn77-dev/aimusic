@@ -17,9 +17,9 @@ export function duetPartDescription(guide){
 }
 export async function songCovers(env,detail,params,user){
  const view=params.get('view');
- if(!['all','recent','duet','children'].includes(view))fail(400,'커버 목록을 확인해주세요.');
+ if(!['all','recent','duet','children'].includes(view))fail(400,'커버 목록을 확인해 주세요.');
  const offset=Number(params.get('offset')||0),limit=50;
- if(!Number.isSafeInteger(offset)||offset<0)fail(400,'목록 위치를 확인해주세요.');
+ if(!Number.isSafeInteger(offset)||offset<0)fail(400,'목록 위치를 확인해 주세요.');
  const blocked=env.AIFECT_BLOCKED||[];
  const block=(t='t')=>blocked.length?` AND ${t}.user_id NOT IN (${blocked.map(()=>'?').join(',')})`:'';
  const base=`t.original_id=? AND ${VISIBLE()}`;
@@ -34,7 +34,7 @@ export async function songCovers(env,detail,params,user){
  let where=view==='duet'?invite:complete,args=view==='duet'?inviteArgs:[detail.id],total=view==='duet'?open.n:done.n;
  if(view==='children'){
   const parent=await published(env,params.get('parent')||'');
-  if(parent.original_id!==detail.id||parent.kind!=='cover'||parent.cover_mode!=='duet'||parent.duet_parent_id!==null)fail(404,'듀엣 원본을 찾을 수 없어요.');
+  if(parent.original_id!==detail.id||parent.kind!=='cover'||parent.cover_mode!=='duet'||parent.duet_parent_id!==null)fail(404,'듀엣 원본을 찾을 수 없습니다.');
   where+=" AND t.cover_mode='duet' AND t.duet_parent_id=?";args.push(parent.id);
   total=(await one(env,`SELECT count(*) n FROM tracks t WHERE ${where}${block()}`,...args,...blocked)).n;
  }
@@ -43,7 +43,7 @@ export async function songCovers(env,detail,params,user){
  const pick=await songCoverPick(env,detail,user);
  // Detect a PICK change between pages instead of silently skipping/duplicating
  // an item after its position changes. The client reloads just this list.
- if(params.has('pick_revision')&&Number(params.get('pick_revision'))!==pick.revision)fail(409,'PICK이 변경됐어요. 목록을 다시 불러와주세요.');
+ if(params.has('pick_revision')&&Number(params.get('pick_revision'))!==pick.revision)fail(409,'PICK이 변경되었습니다. 목록을 다시 불러와 주세요.');
  const covers=['all','recent'].includes(view)?await rankedSongCovers(env,where,args,sort,offset,limit,pick.cover_id):await trackList(env,where,args,sort+',t.id',`${limit} OFFSET ${offset}`);
  if(view==='duet'&&covers.length){
   const stats=await rows(env,`SELECT t.duet_parent_id parent_id,count(*) completions,

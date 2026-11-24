@@ -75,7 +75,7 @@ export async function generateDubbingSoundPlan(env,script,options,fetcher=fetch)
  }catch{throw Object.assign(new Error('AI 음향 연출 검증에 실패했습니다.'),{status:502,usage,providerRequestId:data.id||'',planFailureCode});}
 }
 export async function generateDubbingScript(env,input,fetcher=fetch,previousStories=[],edit=null){
- if(!dubbingAIAvailable(env))fail(503,'AI 대본 연동 대기 중입니다. 직접 대본을 작성할 수 있어요.');
+ if(!dubbingAIAvailable(env))fail(503,'AI 대본 연동 대기 중입니다. 직접 대본을 작성할 수 있습니다.');
  const options=dubbingOptions(input);
  // Fixed provider origin. Never send the reused key to a client-controlled base URL.
  const response=await fetcher('https://api.openai.com/v1/responses',{
@@ -98,8 +98,8 @@ export async function retrieveDubbingScript(env,providerId,options,fetcher=fetch
   headers:{Authorization:`Bearer ${env.OPENAI_API_KEY||env.LLM_API_KEY}`},
   signal:AbortSignal.timeout(15000),redirect:'manual'
  });
- if(response.status===404||response.status===410)throw Object.assign(new Error('이전 생성 결과의 보관 시간이 지나 불러올 수 없어요.'),{status:502,providerRequestId:providerId,expired:true});
- if(!response.ok)throw new Error('대본 결과 조회에 잠시 연결하지 못했어요.');
+ if(response.status===404||response.status===410)throw Object.assign(new Error('이전 생성 결과의 보관 시간이 지나 불러올 수 없습니다.'),{status:502,providerRequestId:providerId,expired:true});
+ if(!response.ok)throw new Error('대본 결과 조회에 잠시 연결하지 못했습니다.');
  return readDubbingResponse(await response.json(),options,edit);
 }
 function readDubbingResponse(data,options,edit){
@@ -112,12 +112,12 @@ function readDubbingResponse(data,options,edit){
  const reject=(message,status=502)=>{throw Object.assign(new Error(message),{status,usage,providerRequestId:data.id||''});};
  if(data.status!=='completed')reject('대본 생성이 완료되지 않았습니다. 자동 재요청하지 않았습니다.');
  const contents=(data.output||[]).filter(o=>o.type==='message').flatMap(o=>o.content||[]);
- if(contents.some(c=>c.type==='refusal'))reject('이 설정으로 대본을 만들 수 없습니다. 이야기 설정을 바꿔주세요.',422);
+ if(contents.some(c=>c.type==='refusal'))reject('이 설정으로 대본을 만들 수 없습니다. 이야기 설정을 바꿔 주세요.',422);
  if(edit){
   try{
    const raw=JSON.parse(contents.filter(c=>c.type==='output_text').map(c=>c.text).join(''));
    return {suggestions:readDubbingEdit(raw,edit),usage,model:DUBBING_MODEL,providerRequestId:data.id||''};
-  }catch{reject('대사 수정안 검증에 실패했습니다. 원문을 유지했어요.');}
+  }catch{reject('대사 수정안 검증에 실패했습니다. 원문을 유지했습니다.');}
  }
  let script;
  try{script=validateDubbingScript(dubbingReactionCues(normalizeGeneratedDubbingScript(validateDubbingScript(JSON.parse(contents.filter(c=>c.type==='output_text').map(c=>c.text).join('')),options))),options);}

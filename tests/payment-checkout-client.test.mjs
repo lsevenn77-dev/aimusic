@@ -109,7 +109,7 @@ test('an unavailable SDK fails before issuing test state and offers a deliberate
  assert.equal(f.stored.has(STORAGE),false);assert.equal(f.sdkCalls.length,0);
  assert.equal(f.element('checkout-submit').disabled,false);
  assert.equal(f.element('checkout-error').hidden,false);
- assert.match(f.element('checkout-error').textContent,/카드 등록창을 불러오지 못했어요/);
+ assert.match(f.element('checkout-error').textContent,/카드 등록창을 불러오지 못했습니다/);
 });
 
 test('provider cancellation clears pending state and enables another deliberate attempt',async()=>{
@@ -119,8 +119,8 @@ test('provider cancellation clears pending state and enables another deliberate 
  assert.equal(f.element('checkout-submit').disabled,false);
  assert.equal(f.element('checkout-consent').checked,true);
  assert.equal(f.element('checkout-error').hidden,false);
- assert.equal(f.element('checkout-error').textContent,'테스트 카드 등록을 취소했어요.');
- assert.match(f.element('checkout-status').textContent,/실제 청구·자동결제·Premium 지급은 발생하지 않았어요/);
+ assert.equal(f.element('checkout-error').textContent,'테스트 카드 등록을 취소했습니다.');
+ assert.match(f.element('checkout-status').textContent,/실제 청구·자동결제·Premium 지급은 발생하지 않았습니다/);
  assert.equal(f.calls.filter(c=>c.method==='POST').length,1);
 });
 
@@ -134,7 +134,7 @@ test('success callback removes codes before requests and reports only an unverif
  assert.equal(f.calls[0].searchAtRequest,'');assert.equal(f.calls[0].hashAtRequest,'');
  assert.equal(f.sdkCalls.length,0);
  assert.equal(f.element('checkout-order').hidden,true);assert.equal(f.element('checkout-result').hidden,false);
- assert.equal(f.element('result-title').textContent,'테스트 카드 인증 화면에서 돌아왔어요');
+ assert.equal(f.element('result-title').textContent,'테스트 카드 인증 화면에서 돌아왔습니다');
  assert.match(f.element('result-copy').textContent,/빌링키 발급과 결제 승인은 실행하지 않았으며/);
  assert.match(f.element('result-copy').textContent,/카드 등록 완료나 실제 구독 시작을 의미하지 않습니다/);
  assert.equal(f.element('result-amount').textContent,'0원');
@@ -146,7 +146,7 @@ test('success callback removes codes before requests and reports only an unverif
 test('unexpected provider approval or entitlement claims do not become successful UI',async()=>{
  for(const data of [{...returned,provider_verified:true},{...returned,entitlements_granted:true},{...returned,test_only:false}]){
   const f=await fixture({path:'/checkout/toss/success?authKey=code&customerKey=customer',stored:JSON.stringify(order()),respond:async()=>({data})});
-  assert.equal(f.element('result-title').textContent,'돌아온 테스트 요청을 확인하지 못했어요');
+  assert.equal(f.element('result-title').textContent,'돌아온 테스트 요청을 확인하지 못했습니다');
   assert.equal(f.element('result-retry').hidden,false);
   assert.equal(f.element('checkout-error').hidden,false);
   assert.match(f.element('checkout-error').textContent,/결과 형식/);
@@ -161,7 +161,7 @@ test('missing, corrupt, expired or inaccessible return state cannot post authent
   assert.equal(f.calls.length,0);assert.equal(f.sdkCalls.length,0);
   assert.equal(f.timeline[0],'history:replace');
   assert.equal(f.element('checkout-result').hidden,false);
-  assert.equal(f.element('result-title').textContent,'테스트 요청을 확인할 수 없어요');
+  assert.equal(f.element('result-title').textContent,'테스트 요청을 확인할 수 없습니다');
   assert.match(f.element('result-copy').textContent,/없거나 만료/);
   assert.equal(f.element('result-retry').hidden,true);
   assert.equal(f.text().includes('private'),false);
@@ -174,7 +174,7 @@ test('fail callback discards provider error text and authentication parameters w
  assert.equal(f.timeline[0],'history:replace');
  assert.equal(f.calls.length,0);assert.equal(f.sdkCalls.length,0);assert.equal(f.stored.has(STORAGE),false);
  assert.equal(f.element('checkout-result').hidden,false);
- assert.equal(f.element('result-title').textContent,'테스트 카드 등록이 완료되지 않았어요');
+ assert.equal(f.element('result-title').textContent,'테스트 카드 등록이 완료되지 않았습니다');
  assert.equal(f.text().includes(injection),false);assert.equal(f.text().includes('private-auth'),false);
  assert.equal(f.markupWrites.length,0);
 });
@@ -191,7 +191,7 @@ test('server failure offers retry of the same return state without creating a ne
  assert.deepEqual(f.calls[0].body,f.calls[1].body);
  assert.equal(f.sdkCalls.length,0);assert.equal(f.stored.has(STORAGE),false);
  assert.equal(f.element('checkout-error').hidden,true);assert.equal(f.element('result-retry').hidden,true);
- assert.equal(f.element('result-title').textContent,'테스트 카드 인증 화면에서 돌아왔어요');
+ assert.equal(f.element('result-title').textContent,'테스트 카드 인증 화면에서 돌아왔습니다');
 });
 
 test('sessionStorage write denial fails closed before any SDK authentication request',async()=>{
@@ -201,5 +201,5 @@ test('sessionStorage write denial fails closed before any SDK authentication req
  assert.equal(f.element('checkout-submit').disabled,false);
  assert.equal(f.element('checkout-error').hidden,false);
  assert.match(f.element('checkout-error').textContent,/세션 저장소를 허용/);
- assert.match(f.element('checkout-status').textContent,/실제 청구·자동결제·Premium 지급은 발생하지 않았어요/);
+ assert.match(f.element('checkout-status').textContent,/실제 청구·자동결제·Premium 지급은 발생하지 않았습니다/);
 });

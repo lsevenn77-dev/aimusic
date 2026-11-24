@@ -39,7 +39,7 @@
     const res=await fetch(url,{credentials:'same-origin',...options,headers});
     let body={};
     try{body=await res.json();}catch{}
-    if(res.status===401&&url!=='/api/admin/login')showLogin('로그인 시간이 만료되었습니다. 다시 로그인해주세요.');
+    if(res.status===401&&url!=='/api/admin/login')showLogin('로그인 시간이 만료되었습니다. 다시 로그인해 주세요.');
     if(!res.ok)throw new Error(body.error||'요청을 처리하지 못했습니다.');
     return body;
   }
@@ -54,7 +54,7 @@
     gate.hidden=false;
     gate.innerHTML='<form class="admin-login" id="admin-login-form">'+
       '<img src="/assets/brand/20261117/aifect-wordmark-horizontal.webp" alt="AIFECT">'+
-      '<h1>관리자 로그인</h1><p>관리자 비밀번호를 입력해주세요.</p>'+
+      '<h1>관리자 로그인</h1><p>관리자 비밀번호를 입력해 주세요.</p>'+
       '<label>비밀번호<input id="admin-password" name="password" type="password" autocomplete="current-password" maxlength="256" required></label>'+
       '<p id="login-error" class="login-error" role="alert">'+esc(message)+'</p>'+
       '<button class="primary-button" type="submit">로그인</button>'+
@@ -348,7 +348,7 @@
 
   async function globalSearch(query){
     const q=query.trim();
-    if(q.length<2){toast('검색어를 2자 이상 입력해주세요.');return;}
+    if(q.length<2){toast('검색어를 2자 이상 입력해 주세요.');return;}
     navigate('search');
     $('#search-result-caption').textContent='“'+q+'” 검색 중...';
     $('#search-result-content').innerHTML='<div class="admin-card panel-loader">검색 중입니다.</div>';
@@ -471,7 +471,7 @@
 
   async function markPayoutPaid(id){
     const ref=prompt('송금/지급 확인 번호 또는 메모를 입력하세요.','');
-    if(ref===null||!ref.trim()){toast('지급 확인 내용을 입력해주세요.');return;}
+    if(ref===null||!ref.trim()){toast('지급 확인 내용을 입력해 주세요.');return;}
     if(!confirm('실제 송금을 완료한 정산서만 지급 완료 처리해야 합니다. 계속할까요?'))return;
     try{
       await api('/api/admin/payouts/'+encodeURIComponent(id)+'/paid',{method:'POST',body:JSON.stringify({ref:ref.trim()})});
@@ -538,7 +538,7 @@
       dubbingCreditsPanel(box);
       $('#dubbing-price-form').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{await api('/api/admin/dubbing/settings',{method:'PUT',body:JSON.stringify({soundGold:Number(e.currentTarget.elements.gold.value),version:d.settings.version})});toast('제작 가격을 저장했습니다.');await loadDubbing();}catch(err){toast(err.message);}finally{b.disabled=false;}};
       $('#dubbing-reconcile').onclick=async e=>{e.currentTarget.disabled=true;try{await api('/api/admin/dubbing/reconcile',{method:'POST',body:'{}'});await loadDubbing();toast('환급 상태를 확인했습니다.');}catch(err){toast(err.message);loadDubbing();}};
-      $$('[data-sound-reset]',box).forEach(b=>b.onclick=async()=>{const card=b.closest('.management-card'),input=card.querySelector('[data-reset-note]'),note=input.value.trim(),confirmed=!!card.querySelector('[data-unsubmitted]')?.checked;if(!note){input.reportValidity();return;}if(b.dataset.unknown==='true'&&!confirmed){toast('외부 요청이 전송되지 않았는지 먼저 확인해주세요.');return;}b.disabled=true;try{await api('/api/admin/dubbing/sound/'+b.dataset.soundReset+'/reset',{method:'POST',body:JSON.stringify({updated:Number(b.dataset.updated),note,unsubmittedConfirmed:confirmed})});toast('새 음향을 요청할 수 있게 준비했습니다. 자동 차감은 없습니다.');await loadDubbing();}catch(err){toast(err.message);b.disabled=false;}});
+      $$('[data-sound-reset]',box).forEach(b=>b.onclick=async()=>{const card=b.closest('.management-card'),input=card.querySelector('[data-reset-note]'),note=input.value.trim(),confirmed=!!card.querySelector('[data-unsubmitted]')?.checked;if(!note){input.reportValidity();return;}if(b.dataset.unknown==='true'&&!confirmed){toast('외부 요청이 전송되지 않았는지 먼저 확인해 주세요.');return;}b.disabled=true;try{await api('/api/admin/dubbing/sound/'+b.dataset.soundReset+'/reset',{method:'POST',body:JSON.stringify({updated:Number(b.dataset.updated),note,unsubmittedConfirmed:confirmed})});toast('새 음향을 요청할 수 있게 준비했습니다. 자동 차감은 없습니다.');await loadDubbing();}catch(err){toast(err.message);b.disabled=false;}});
       $$('[data-final-retry]',box).forEach(b=>b.onclick=async()=>{const input=b.closest('.management-card').querySelector('textarea'),note=input.value.trim();if(!note){input.reportValidity();return;}b.disabled=true;try{await api('/api/admin/dubbing/final/'+b.dataset.finalRetry+'/retry',{method:'POST',body:JSON.stringify({updated:Number(b.dataset.updated),note})});toast('최종 합성을 다시 예약했습니다.');await loadDubbing();}catch(err){toast(err.message);b.disabled=false;}});
     }catch(e){box.innerHTML='<div class="empty-state">'+esc(e.message)+'</div>';}
   }

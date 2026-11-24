@@ -24,11 +24,11 @@ export function loadout() {
 export function changeEquipment(id, action) {
   return navigator.locks.request(key, () => {
     const state = inventory(), item = itemById(id);
-    if (!item) throw Error('장비를 찾을 수 없어요.');
+    if (!item) throw Error('장비를 찾을 수 없습니다.');
     const owned = state.owned.includes(id);
     if (action === 'buy') {
       if (owned) return state;
-      if (state[item.currency] < item.price) throw Error('테스트 잔액이 부족해요.');
+      if (state[item.currency] < item.price) throw Error('테스트 잔액이 부족합니다.');
       state[item.currency] -= item.price;
       state.owned.push(id);
     } else if (action === 'equip' && owned) {

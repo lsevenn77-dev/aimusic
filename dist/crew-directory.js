@@ -80,7 +80,7 @@ function bindDesktopCrewDirectory(initial) {
  function paint(data,append) {
   const cards = data.crews.map(directoryCard).join('');
   if (append) grid.insertAdjacentHTML('beforeend',cards);
-  else grid.innerHTML = cards || '<p class="social-empty">조건에 맞는 크루가 없어요.</p>';
+  else grid.innerHTML = cards || '<p class="social-empty">조건에 맞는 크루가 없습니다.</p>';
   loaded=(append?loaded:0)+data.crews.length;
   count.textContent=number(data.total)+'개';
   more.hidden=loaded>=data.total;

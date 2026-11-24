@@ -31,7 +31,7 @@ export function mountOutfitShop(dialog,{api,url,esc,onChange=()=>{}}){
    if(dead)return null;
    wardrobe=result;if(selectEquipped)selected=result.equipped;
    onChange(result);note('');return result;
-  }catch(error){if(!dead){wardrobe=null;note(error.message||'의상 정보를 불러오지 못했어요.');}throw error;}
+  }catch(error){if(!dead){wardrobe=null;note(error.message||'의상 정보를 불러오지 못했습니다.');}throw error;}
   finally{if(!dead){busy=false;render();}}
  }
  async function activate(){
@@ -41,12 +41,12 @@ export function mountOutfitShop(dialog,{api,url,esc,onChange=()=>{}}){
   try{
    const result=await api(url+'/outfits/'+(buying?'buy':'equip'),'POST',{outfit});
    if(dead)return;
-   wardrobe=result;onChange(result);note(buying?'구매하고 착용했어요.':'착용했어요.');
+   wardrobe=result;onChange(result);note(buying?'구매하고 착용했습니다.':'착용했습니다.');
   }catch(error){
    if(dead)return;
    // A lost purchase response can still have committed. Refresh ownership before retrying.
    try{wardrobe=await api(url+'/outfits','GET',undefined,{fresh:true});if(!dead)onChange(wardrobe);}catch{wardrobe=null;}
-   if(!dead)note(error.message||'구매 상태를 다시 확인해주세요.');
+   if(!dead)note(error.message||'구매 상태를 다시 확인해 주세요.');
   }finally{if(!dead){busy=false;render();}}
  }
  dialog.addEventListener('click',event=>{

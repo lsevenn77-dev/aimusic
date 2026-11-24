@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,run,query,now,id,fail,json,rate} from './db.js';
 
 const COOKIE='__Host-aifect_admin';
@@ -33,13 +34,13 @@ export async function consoleViewer(req,env){
 export async function adminSessionRoute(req,env,path){
  if(!['/api/admin/session','/api/admin/login','/api/admin/logout'].includes(path))return null;
  if(path==='/api/admin/session'){
-  if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+  if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
   const operator=await consoleViewer(req,env);
   return json({authenticated:!!operator,expires:operator?.expires||null});
  }
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  const url=new URL(req.url);
- if(req.headers.get('origin')!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'관리자 페이지에서 다시 요청해주세요.');
+ if(req.headers.get('origin')!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'관리자 페이지에서 다시 요청해 주세요.');
  if(path==='/api/admin/logout'){
   const token=tokenFrom(req);
   if(/^[a-f0-9]{64}$/.test(token))await run(env,'DELETE FROM admin_sessions WHERE token_hash=?',await digest(token));

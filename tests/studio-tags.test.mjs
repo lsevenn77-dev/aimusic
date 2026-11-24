@@ -89,7 +89,7 @@ function harness({title='',lyrics='',tags='',mode='auto',rows=[]}={}){
 test('HTML retains the named comma-separated input, 300 character limit and safe legacy value',()=>{
  const e=harness(),html=e.context.songTagFieldHTML('Love, <script>" #밤');
  assert.match(html,/name="tags" maxlength="300"/u);assert.match(html,/태그 \(쉼표로 구분\)/u);
- assert.match(html,/Love, &lt;script&gt;&quot; #밤/u);assert.match(html,/제목이나 가사를 입력하면 어울리는 태그를 추천해요\./u);
+ assert.match(html,/Love, &lt;script&gt;&quot; #밤/u);assert.match(html,/제목이나 가사를 입력하면 어울리는 태그를 추천합니다\./u);
  assert.doesNotMatch(html,/name="ai_tool"/u);
 });
 

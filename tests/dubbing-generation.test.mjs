@@ -62,7 +62,7 @@ test('irrecoverable missing ID restores free turn once, retains unknown audit an
  const f=await fixture(t,enabled),id=crypto.randomUUID(),request={requestId:id,options};
  const result=(await f.call('/api/dubbing/generations','POST',request)).body;
  assert.equal(result.state,'unknown');assert.equal(result.recoverable,false);assert.equal(result.quotaRestored,true);
- assert.match(result.message,/복구할 수 없어요/);assert.equal((await f.call('/api/dubbing/config')).body.quota.remaining,1);
+ assert.match(result.message,/복구할 수 없습니다/);assert.equal((await f.call('/api/dubbing/config')).body.quota.remaining,1);
  for(let i=0;i<3;i++)await f.call('/api/dubbing/generations','POST',request);
  assert.equal(calls,1);assert.equal(f.sql.prepare('SELECT state FROM dubbing_generations').get().state,'unknown');
  assert.ok(!JSON.stringify(result).includes('private provider details'));

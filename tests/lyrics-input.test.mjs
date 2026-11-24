@@ -25,7 +25,7 @@ function setValue(el,value){el.value=value;el.selectionStart=value.length;el.sel
 test('actual auto editor clears existing labels, typed/pasted labels and submits only sung words',async()=>{
  const e=editor('[male]\n첫 가사'),source=e.auto;assert.equal(source.value,'\n첫 가사');
  setValue(source,'첫 [female][기타]가사\n[Chorus]다음 가사');source.oninput({isComposing:false});assert.equal(source.value,'첫 가사\n다음 가사');assert.equal(source.selectionStart,source.value.length);
- assert.match(e.elements.get('#lyrics-cleanup-note').textContent,/자동으로 지웠어요/);
+ assert.match(e.elements.get('#lyrics-cleanup-note').textContent,/자동으로 지웠습니다/);
  setValue(source,'[Guitar Solo]\n첫 가사');source.listeners.paste();await new Promise(resolve=>setTimeout(resolve,5));assert.equal(source.value,'\n첫 가사');
  const fd=new FormData();fd.set('lyrics_mode','auto');e.c.applyLyrics(fd);assert.equal(fd.get('lyrics_source'),'첫 가사');
 });

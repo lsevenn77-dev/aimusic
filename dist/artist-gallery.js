@@ -26,7 +26,7 @@ document.addEventListener('click',async e=>{
   dialog('<h2>갤러리 사진 추가</h2><p>이 AI 가수의 갤러리에 공개됩니다.</p><form id="gallery-upload-form"><label class="form-field">사진 선택<input name="photos" type="file" multiple accept="image/jpeg,image/png,image/webp" required></label><p class="field-help">JPG · PNG · WebP / 장당 5MB 이하 / 최대 20장</p><button type="submit" class="primary-button">사진 올리기</button><p class="gallery-upload-status" role="status"></p><p class="form-error" role="alert"></p></form>');
   const form=$('#gallery-upload-form');
   form.onsubmit=busyForm(form,async()=>{
-   const files=[...form.elements.photos.files];if(files.length>available)throw new Error('추가할 수 있는 사진은 '+available+'장이에요.');
+   const files=[...form.elements.photos.files];if(files.length>available)throw new Error('추가할 수 있는 사진은 '+available+'장입니다.');
    const status=form.querySelector('.gallery-upload-status');
    for(let i=0;i<files.length;i++){
     status.textContent=(i+1)+' / '+files.length+' 사진 업로드 중';
@@ -34,16 +34,16 @@ document.addEventListener('click',async e=>{
     catch(error){
      // Successful earlier uploads must not be sent twice when the user retries.
      const remaining=new DataTransfer();files.slice(i).forEach(f=>remaining.items.add(f));form.elements.photos.files=remaining.files;
-     status.textContent=i+'장 업로드 완료. 남은 사진을 다시 올려주세요.';throw error;
+     status.textContent=i+'장 업로드 완료. 남은 사진을 다시 올려 주세요.';throw error;
     }
    }
-   $('#dialog').close();if(location.hash.startsWith('#artist/'+aid))await render();toast('갤러리에 사진을 추가했어요.');
+   $('#dialog').close();if(location.hash.startsWith('#artist/'+aid))await render();toast('갤러리에 사진을 추가했습니다.');
   });return;
  }
  if(el.dataset.galleryDelete){
   const aid=el.dataset.galleryArtist,pid=el.dataset.galleryDelete;
   dialog('<p class="popup-prompt">이 사진을 삭제하시겠습니까?</p><p>AI 가수 갤러리에서 삭제되며 복구할 수 없습니다.</p><form id="gallery-delete-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button">사진 삭제</button></div><p class="form-error" role="alert"></p></form>');
-  const form=$('#gallery-delete-form');form.onsubmit=busyForm(form,async()=>{await api('/api/artists/'+aid+'/gallery/'+pid,'DELETE');$('#dialog').close();if(location.hash.startsWith('#artist/'+aid))await render();toast('사진을 삭제했어요.');});
+  const form=$('#gallery-delete-form');form.onsubmit=busyForm(form,async()=>{await api('/api/artists/'+aid+'/gallery/'+pid,'DELETE');$('#dialog').close();if(location.hash.startsWith('#artist/'+aid))await render();toast('사진을 삭제했습니다.');});
  }
 });
 
@@ -63,7 +63,7 @@ document.addEventListener('change',async e=>{
  try{
   await uploadFile('/api/studio/artists/'+encodeURIComponent(aid)+'/image',file);
   if(location.hash.split('?')[0]==='#artist/'+aid)await render();
-  toast('대표 이미지를 변경했어요.');
- }catch(error){toast(error.message||'사진을 변경하지 못했어요.');}
+  toast('대표 이미지를 변경했습니다.');
+ }catch(error){toast(error.message||'사진을 변경하지 못했습니다.');}
  finally{input.disabled=false;input.value='';if(button)button.disabled=false;}
 });

@@ -59,7 +59,7 @@ function studioUploadLink(){
 function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status){
  const ready=status==='ready'&&studioQuotaValid(value),loading=status==='loading';
  if(!ready)return `<section class="studio-quota-card studio-quota-pending" data-quota-state="${loading?'loading':'error'}" aria-label="이번 달 제작곡 한도" aria-busy="${loading}">
-  <div class="studio-quota-copy" role="status"><h2>${loading?'이번 달 제작곡 정보를 확인하고 있어요.':'이용권과 제작곡 사용량을 확인하지 못했어요.'}</h2><p>회원등급과 남은 제작곡 수는 조회가 완료되면 표시돼요.</p></div>
+  <div class="studio-quota-copy" role="status"><h2>${loading?'이번 달 제작곡 정보를 확인하고 있습니다.':'이용권과 제작곡 사용량을 확인하지 못했습니다.'}</h2><p>회원등급과 남은 제작곡 수는 조회가 완료되면 표시됩니다.</p></div>
   <div class="studio-quota-pending-actions">${loading?'':'<button type="button" class="small-button studio-quota-retry" data-studio-quota-refresh>다시 확인</button>'}${studioUploadLink()}</div></section>`;
  const q=value.upload_quota,premium=value.plan==='premium',progress=Math.min(100,q.used/q.limit*100),remaining=Math.max(0,q.limit-q.used);
  const usage=`${number(q.used)} / ${number(q.limit)}`;
@@ -68,8 +68,8 @@ function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status)
  return `<section class="studio-quota-card${showPremium?'':' studio-quota-manage-only'}" data-quota-state="${value.plan}" aria-label="이번 달 제작곡 한도">
   <div class="studio-quota-upload-card">
    <div class="studio-quota-meter" style="--studio-quota-progress:${progress}%" role="progressbar" aria-label="이번 달 제작곡 업로드" aria-valuemin="0" aria-valuemax="${q.limit}" aria-valuenow="${Math.min(q.used,q.limit)}" aria-valuetext="${q.used} / ${q.limit}곡 업로드"><div class="studio-quota-summary"><span>이번 달 제작곡</span><strong>${usage}곡</strong></div></div>
-   <div class="studio-quota-copy"><p class="studio-quota-eyebrow">MY STUDIO</p><h2>완성한 음악을 들려주세요.</h2><p>나만의 제작곡을 아이팩트에 공개해보세요.</p></div>
-   <div class="studio-quota-upload-actions">${studioUploadLink()}${remaining?'':'<span class="studio-quota-remaining">이번 달 제작곡 한도를 모두 사용했어요.</span>'}</div>
+   <div class="studio-quota-copy"><p class="studio-quota-eyebrow">MY STUDIO</p><h2>완성한 음악을 들려 주세요.</h2><p>나만의 제작곡을 아이팩트에 공개해 보세요.</p></div>
+   <div class="studio-quota-upload-actions">${studioUploadLink()}${remaining?'':'<span class="studio-quota-remaining">이번 달 제작곡 한도를 모두 사용했습니다.</span>'}</div>
    <p class="studio-quota-note">매월 1일 초기화(한국시간) · 커버곡 무제한</p>
   </div>
   ${showPremium?`<aside class="studio-quota-membership" aria-label="프리미엄 ${premium?'이용 현황':'안내'}">
@@ -207,11 +207,11 @@ function studioCloseSearch(){
 }
 async function studioLoadComplete(data=studioData,read=api){
  const total=Number(data.track_total??data.tracks.length),seen=new Set(data.tracks.map(t=>t.id));
- const changed=()=>new Error("작품 목록이 바뀌었어요. 다시 불러온 뒤 시도해주세요.");
+ const changed=()=>new Error("작품 목록이 바뀌었습니다. 다시 불러온 뒤 시도해 주세요.");
  if(!Number.isSafeInteger(total)||total<seen.size||seen.size!==data.tracks.length)throw changed();
  while(data.tracks.length<total){
   const page=await read("/api/studio?offset="+data.tracks.length,"GET",undefined,{fresh:true});
-  if(!page.tracks?.length)throw new Error("작품 목록을 전부 불러오지 못했어요. 삭제는 진행되지 않았습니다.");
+  if(!page.tracks?.length)throw new Error("작품 목록을 전부 불러오지 못했습니다. 삭제는 진행되지 않았습니다.");
   if(Number(page.track_total)!==total||page.tracks.length+data.tracks.length>total)throw changed();
   for(const track of page.tracks){if(seen.has(track.id))throw changed();seen.add(track.id);data.tracks.push(track);}
  }
@@ -239,7 +239,7 @@ async function studioBulkDialog(kind,singleId=null){
    <p class="studio-progress" role="status" aria-live="polite"></p><p class="form-error" role="alert"></p></form>`);
   const form=document.getElementById('studio-bulk-confirm-form');
   form.onsubmit=busyForm(form,async fd=>{
-   if(deleting&&fd.get('verify')!=='삭제')throw new Error('확인란에 삭제를 정확히 입력해주세요.');
+   if(deleting&&fd.get('verify')!=='삭제')throw new Error('확인란에 삭제를 정확히 입력해 주세요.');
    if(studioManage.loading||!root.isConnected||me?.id!==owner)return;
    studioManage.loading=true;studioSyncBulk();
    const modal=form.closest("dialog"),preventClose=e=>e.preventDefault();

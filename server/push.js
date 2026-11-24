@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {SignJWT,importPKCS8} from 'jose';
 import {one,rows,run,now,fail,json,rate} from './db.js';
 import {requireUser,hash,cookies} from './auth.js';
@@ -19,22 +20,22 @@ export async function pushRoute(req,env,path,user){
  requireUser(user);
  if(path==='/api/push/preferences'){
   if(req.method==='GET')return json(await one(env,'SELECT '+kinds.join(',')+' FROM push_preferences WHERE user_id=?',user.id)||Object.fromEntries(kinds.map(k=>[k,1])));
-  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
+  if(req.method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
   const b=await req.json();
-  if(b.account_id!==undefined&&b.account_id!==user.id)fail(409,'로그인 계정이 바뀌었어요.');
+  if(b.account_id!==undefined&&b.account_id!==user.id)fail(409,'로그인 계정이 바뀌었습니다.');
   delete b.account_id;
-  for(const k of Object.keys(b))if(!kinds.includes(k)||typeof b[k]!=='boolean')fail(400,'알림 설정을 확인해주세요.');
+  for(const k of Object.keys(b))if(!kinds.includes(k)||typeof b[k]!=='boolean')fail(400,'알림 설정을 확인해 주세요.');
   await run(env,'INSERT OR IGNORE INTO push_preferences(user_id) VALUES(?)',user.id);
   if(Object.hasOwn(b,'comment')&&!Object.hasOwn(b,'participation'))b.participation=b.comment;
   for(const k of kinds)if(Object.hasOwn(b,k))await run(env,`UPDATE push_preferences SET ${k}=? WHERE user_id=?`,Number(b[k]),user.id);
   return json({ok:true});
  }
- if(path!=='/api/push/device')fail(404,'알림 설정을 찾을 수 없어요.');
+ if(path!=='/api/push/device')fail(404,'알림 설정을 찾을 수 없습니다.');
  const b=await req.json();
- if(typeof b.token!=='string'||b.token.length<30||b.token.length>4096||!/^[\w:-]+$/.test(b.token))fail(400,'알림 기기를 확인해주세요.');
+ if(typeof b.token!=='string'||b.token.length<30||b.token.length>4096||!/^[\w:-]+$/.test(b.token))fail(400,'알림 기기를 확인해 주세요.');
  if(req.method==='DELETE'){await run(env,'DELETE FROM push_devices WHERE token=? AND user_id=?',b.token,user.id);return json({ok:true});}
- if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
- if(!['android','ios'].includes(b.platform)||b.account_id!==user.id)fail(409,'로그인 계정이 바뀌었어요.');
+ if(req.method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
+ if(!['android','ios'].includes(b.platform)||b.account_id!==user.id)fail(409,'로그인 계정이 바뀌었습니다.');
  await rate(env,'push-device:'+user.id,60,3600);
  const sessionHash=await hash(cookies(req).aifect_session);
  await run(env,`INSERT INTO push_devices(token,user_id,session_token,updated) VALUES(?,?,?,?)
@@ -63,14 +64,14 @@ export function notificationData(event){
   const {source_type,source_id,gift_source_title,href}=event.source;
   const direct=source_id===event.target&&(source_type==='profile'&&event.kind==='person_gift'||event.kind==='gift'&&event.source.gift_source_kind==='song');
   return {kind:direct?event.kind:'notifications',activity:event.kind,notification_id:event.id,target:event.target,recipient:event.recipient,
-   source_type:source_type||'',source_id:source_id||'',route:href||'#notifications?filter=gifts',title:'선물이 도착했어요',body:gift_source_title?gift_source_title+'에서 받은 선물을 확인해보세요.':'알림함에서 받은 선물을 확인해보세요.'};
+   source_type:source_type||'',source_id:source_id||'',route:href||'#notifications?filter=gifts',title:'선물이 도착했습니다',body:gift_source_title?gift_source_title+'에서 받은 선물을 확인해 보세요.':'알림함에서 받은 선물을 확인해 보세요.'};
  }
  // Existing native apps already open song targets for comment notifications.
- if(event.kind==='artist_digest')return {notification_id:'',kind:'notifications',activity:'artist_digest',target:event.target,recipient:event.recipient,route:'#notifications?filter=artists',title:'오늘의 아티스트 소식',body:event.body||'새 팔로워와 신곡 소식을 알림함에서 확인해보세요.'};
- if(['fan_comment','crew_invite','crew_approved','crew_request','dubbing_complete','dubbing_participation','work_status'].includes(event.kind)){const titles={fan_comment:'팬라운지에 댓글·답글이 달렸어요',crew_invite:'크루 초대를 받았어요',crew_approved:'크루 가입이 승인됐어요',crew_request:'작품 참여 요청이 도착했어요',dubbing_complete:'참여한 더빙이 완성됐어요',dubbing_participation:'내 작품에 더빙 참여가 공개됐어요',work_status:'작품 공개 상태를 확인해주세요'};return {notification_id:event.id||'',kind:'notifications',activity:event.kind,target:event.target,recipient:event.recipient,route:event.route||'#notifications',title:titles[event.kind],body:event.body||'알림함에서 자세한 내용을 확인해보세요.'};}
- if(event.kind==='participation')return {kind:'comment',activity:'participation',target:event.target,recipient:event.recipient,title:'내 음악에 새로운 참여가 있어요',body:'새 커버·듀엣이 공개됐어요. 알림 기록에서 확인해보세요.'};
- const title=event.kind==='crew'?'크루 새 메시지':event.kind==='dm'?'새 메시지':event.kind==='comment'?'새 댓글':'선물이 도착했어요';
- const body=event.kind==='crew'?'크루에 새 메시지가 도착했어요.':event.kind==='person_gift'?'나에게 선물이 도착했어요.':event.kind==='dm'?'새 메시지가 도착했어요.':event.kind==='comment'?'내 음악에 새로운 댓글이 달렸어요.':'내 음악에 선물이 도착했어요.';
+ if(event.kind==='artist_digest')return {notification_id:'',kind:'notifications',activity:'artist_digest',target:event.target,recipient:event.recipient,route:'#notifications?filter=artists',title:'오늘의 아티스트 소식',body:event.body||'새 팔로워와 신곡 소식을 알림함에서 확인해 보세요.'};
+ if(['fan_comment','crew_invite','crew_approved','crew_request','dubbing_complete','dubbing_participation','work_status'].includes(event.kind)){const titles={fan_comment:'팬라운지에 댓글·답글이 달렸습니다',crew_invite:'크루 초대를 받았습니다',crew_approved:'크루 가입이 승인되었습니다',crew_request:'작품 참여 요청이 도착했습니다',dubbing_complete:'참여한 더빙이 완성되었습니다',dubbing_participation:'내 작품에 더빙 참여가 공개되었습니다',work_status:'작품 공개 상태를 확인해 주세요'};return {notification_id:event.id||'',kind:'notifications',activity:event.kind,target:event.target,recipient:event.recipient,route:event.route||'#notifications',title:titles[event.kind],body:event.body||'알림함에서 자세한 내용을 확인해 보세요.'};}
+ if(event.kind==='participation')return {kind:'comment',activity:'participation',target:event.target,recipient:event.recipient,title:'내 음악에 새로운 참여가 있습니다',body:'새 커버·듀엣이 공개되었습니다. 알림 기록에서 확인해 보세요.'};
+ const title=event.kind==='crew'?'크루 새 메시지':event.kind==='dm'?'새 메시지':event.kind==='comment'?'새 댓글':'선물이 도착했습니다';
+ const body=event.kind==='crew'?'크루에 새 메시지가 도착했습니다.':event.kind==='person_gift'?'나에게 선물이 도착했습니다.':event.kind==='dm'?'새 메시지가 도착했습니다.':event.kind==='comment'?'내 음악에 새로운 댓글이 달렸습니다.':'내 음악에 선물이 도착했습니다.';
  return {kind:event.kind,target:event.target,recipient:event.recipient,title,body};
 }
 

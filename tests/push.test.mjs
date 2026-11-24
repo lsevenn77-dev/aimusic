@@ -45,7 +45,7 @@ test('delivery ignores expired login and disabled alerts, retries failure, remov
  let deliveries=[];let payloads=[];let status=503;
  globalThis.fetch=async(url,options)=>url.includes('oauth2')?Response.json({access_token:'isolated-test',expires_in:3600}):
   (payloads.push(JSON.parse(options.body).message),deliveries.push(JSON.parse(options.body).message.token),Response.json(status===404?{error:{details:[{errorCode:'UNREGISTERED'}]}}:{},{status}));
- await dispatchPush(env);assert.deepEqual(deliveries,['live']);assert.equal(payloads[0].apns.payload.aps.alert.body,'내 음악에 선물이 도착했어요.');assert.equal(payloads[0].apns.headers['apns-push-type'],'alert');assert.equal(f.sql.prepare('SELECT delivered FROM push_outbox').get().delivered,0);
+ await dispatchPush(env);assert.deepEqual(deliveries,['live']);assert.equal(payloads[0].apns.payload.aps.alert.body,'내 음악에 선물이 도착했습니다.');assert.equal(payloads[0].apns.headers['apns-push-type'],'alert');assert.equal(f.sql.prepare('SELECT delivered FROM push_outbox').get().delivered,0);
  f.sql.exec('UPDATE push_outbox SET lease_until=0');status=404;
  await dispatchPush(env);assert.equal(f.sql.prepare("SELECT count(*) n FROM push_devices WHERE token='live'").get().n,0);
  assert.equal(f.sql.prepare('SELECT delivered FROM push_outbox').get().delivered,1);

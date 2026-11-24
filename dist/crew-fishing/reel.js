@@ -21,7 +21,7 @@ export function createReel({initial,request,requestBatch,onChange,onConfirmed=()
             if(e.retryable!==true)throw e;
             result=(await send()).cast; // Same cast and sequence, including a lost acknowledgement.
           }
-          if(!result||result.id!==confirmed.id)throw Error('낚시 판정을 다시 확인해주세요.');
+          if(!result||result.id!==confirmed.id)throw Error('낚시 판정을 다시 확인해 주세요.');
         }catch(error){
           if(disposed)return;
           queue=[];shown={...confirmed};onChange(shown,'reset');onError(error);return;

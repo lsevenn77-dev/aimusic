@@ -81,7 +81,7 @@ export function mountRacingLobby(startPractice) {
     ['A  D', '좌우 버튼으로 이동'],
     ['SPACE', '게이지 절반으로 1.6초 가속'],
     ['⤴', '코너 끝에서 방향을 떼면 부스터 충전'],
-    ['✷', '벽에 닿으면 속도가 크게 줄어요'],
+    ['✷', '벽에 닿으면 속도가 크게 줄어듭니다'],
   ];
   root.querySelectorAll('.howto > div').forEach((tile, i) => {
     const label = tile.querySelector('b');

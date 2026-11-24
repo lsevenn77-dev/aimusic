@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {analyzeLyrics,lyricPlainText,LYRIC_ANALYSIS_VERSION,LYRIC_TAG_BY_ID} from '../shared/lyric-semantics.js';
 import {one,rows,run,query,now,id,json,fail} from './db.js';
 import {hash,requireUser,isAdmin} from './auth.js';
@@ -99,15 +100,15 @@ export async function lyricAnalysisStatus(env){
 }
 export async function lyricAnalysisAdmin(req,env,path,user){
  if(path!=='/api/admin/lyric-analysis')return null;
- requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있어요.');
+ requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
  if(req.method==='GET')return json(await lyricAnalysisStatus(env));
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  const body=await req.json(),action=body.action;
  const audit=query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)",id(),user.id,'lyrics:'+String(action).slice(0,20),JSON.stringify({track_id:body.track_id||null,tag_id:body.tag_id||null,mode:body.mode||null}),now());
  if(action==='retry_failed')await env.DB.batch([query(env,"UPDATE lyric_analysis_jobs SET state='queued',attempts=0,lease_until=0,lease_token='',updated=? WHERE state='failed'",now()),audit]);
  else if(action==='rebuild')await env.DB.batch([query(env,"UPDATE lyric_analysis_jobs SET version='',state='queued',attempts=0,lease_until=0,lease_token='',updated=?",now()),query(env,"UPDATE lyric_analysis_control SET cursor='',scan_done=0,lease_until=0,lease_token='' WHERE id=?",ENGINE),audit]);
  else if(action==='pin'){
-  if(!LYRIC_TAG_BY_ID.has(body.tag_id)||!['include','exclude','clear'].includes(body.mode))fail(400,'태그와 고정 방식을 확인해주세요.');
+  if(!LYRIC_TAG_BY_ID.has(body.tag_id)||!['include','exclude','clear'].includes(body.mode))fail(400,'태그와 고정 방식을 확인해 주세요.');
   const track=await one(env,"SELECT id FROM tracks WHERE id=? AND status!='deleted'",String(body.track_id||''));if(!track)fail(404,'음원을 찾을 수 없습니다.');
   await env.DB.batch([
    body.mode==='clear'?query(env,'DELETE FROM lyric_tag_overrides WHERE track_id=? AND tag_id=?',track.id,body.tag_id):query(env,'INSERT INTO lyric_tag_overrides(track_id,tag_id,mode,operator_id,updated) VALUES(?,?,?,?,?) ON CONFLICT(track_id,tag_id) DO UPDATE SET mode=excluded.mode,operator_id=excluded.operator_id,updated=excluded.updated',track.id,body.tag_id,body.mode,user.id,now()),

@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {gameLimits} from './crew-game-limits.js';
 import {query,one,rows,json,fail,id,rate} from './db.js';
 import {requireUser} from './auth.js';
@@ -22,7 +23,7 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
  if(!match)return null;
  requireUser(user);
  const crew=match[1],uid=user.id;
- if(!await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',crew,uid))fail(403,'소속 크루에서 참여해주세요.');
+ if(!await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',crew,uid))fail(403,'소속 크루에서 참여해 주세요.');
  if(match[2]?.startsWith('outfits'))return jumpOutfitsRoute(req,env,match[2],uid);
  const calendar=seasonTime(ms,env),{day,week,seed,open}=calendar;
  if(!match[2]&&req.method==='GET'){
@@ -51,13 +52,13 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
   return json({week,open,seed,version:VERSION,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),best:myRecord?.points??null,personalRank:myRecord?.place??null,individualRanking,team:own?.points??0,teamRank:own?.place??null,ranking,participated:mission.completed>0});
 
  }
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  await rate(env,'crew-jump-write:'+uid,45,60);
  const body=await req.json();
  if(match[2]==='start'){
   const limits=await gameLimits(env,uid,ms);
-  if(!open)fail(409,'공식 도전 기간이 아니에요.');
-  if(typeof body.requestId!=='string'||!/^[\w-]{12,64}$/.test(body.requestId))fail(400,'다시 시도해주세요.');
+  if(!open)fail(409,'공식 도전 기간이 아닙니다.');
+  if(typeof body.requestId!=='string'||!/^[\w-]{12,64}$/.test(body.requestId))fail(400,AifectMessages.retry);
   // One SQLite statement serializes quota, active-round and crew checks across tabs.
   await query(env,`INSERT OR IGNORE INTO crew_jump_runs(id,user_id,crew_id,week,day,request_id,seed,version,starts)
     SELECT ?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM crew_jump_runs WHERE user_id=? AND day=?)<?
@@ -67,28 +68,28 @@ export async function jumpRoute(req,env,path,user,ms=Date.now()){
   const run=await one(env,'SELECT id,seed,version,starts,score,inputs FROM crew_jump_runs WHERE user_id=? AND request_id=? AND crew_id=? AND day=?',uid,body.requestId,crew,day);
   if(!run||run.inputs!==null||run.score!==null||ms>run.starts+RUN_TTL_MS){
    const used=await one(env,'SELECT COUNT(*) n FROM crew_jump_runs WHERE user_id=? AND day=?',uid,day);
-   if(used.n>=limits.dailyLimit)fail(409,`오늘 공식 도전 ${limits.dailyLimit}회를 모두 사용했어요. 한국시간 자정에 초기화돼요.`);
-   fail(409,'진행 중인 도전을 확인해주세요.');
+   if(used.n>=limits.dailyLimit)fail(409,`오늘 공식 도전 ${limits.dailyLimit}회를 모두 사용했습니다. 한국시간 자정에 초기화됩니다.`);
+   fail(409,'진행 중인 도전을 확인해 주세요.');
   }
   return json({...run,serverNow:ms});
  }
 
  const run=await one(env,'SELECT * FROM crew_jump_runs WHERE id=? AND user_id=? AND crew_id=?',body.id||'',uid,crew);
- if(!run)fail(404,'도전을 찾을 수 없어요.');
+ if(!run)fail(404,'도전을 찾을 수 없습니다.');
  if(match[2]==='abandon'){
   await query(env,"UPDATE crew_jump_runs SET inputs='null' WHERE id=? AND score IS NULL AND inputs IS NULL",run.id).run();
   return json({ok:true});
  }
- if(run.inputs==='null')fail(409,'이탈한 도전이에요.');
+ if(run.inputs==='null')fail(409,'이탈한 도전입니다.');
  // A verified row is the durable participation event. Mission consumers can deduplicate by this key.
  const completion=score=>json({score,missionEventKey:'crew-jump:'+run.id});
  if(run.score!==null)return completion(run.score);
- if(run.version!==VERSION||ms>run.starts+RUN_TTL_MS)fail(409,'제출 시간이 지났어요.');
+ if(run.version!==VERSION||ms>run.starts+RUN_TTL_MS)fail(409,'제출 시간이 지났습니다.');
  let result;
- try{result=replay(run.seed,body.inputs)}catch{console.warn('crew_jump_invalid_replay');fail(400,'점프 기록을 확인해주세요.')}
- if(ms<run.starts+Math.floor(result.tick*1000/HZ)-100)fail(409,'도전을 마친 뒤 제출해주세요.');
+ try{result=replay(run.seed,body.inputs)}catch{console.warn('crew_jump_invalid_replay');fail(400,'점프 기록을 확인해 주세요.')}
+ if(ms<run.starts+Math.floor(result.tick*1000/HZ)-100)fail(409,'도전을 마친 뒤 제출해 주세요.');
  await query(env,'UPDATE crew_jump_runs SET score=?,inputs=? WHERE id=? AND score IS NULL AND inputs IS NULL',result.score,JSON.stringify(body.inputs),run.id).run();
  const saved=await one(env,'SELECT score FROM crew_jump_runs WHERE id=?',run.id);
- if(saved.score===null)fail(409,'도전이 종료됐어요.');
+ if(saved.score===null)fail(409,'도전이 종료되었습니다.');
  return completion(saved.score);
 }

@@ -54,26 +54,26 @@ function dmSearchMatch(p,query,label=''){
  return !query||[label,chatNickname(p||{}),p?.last_message_display,p?.last_message].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
 }
 function dmConversationRow(p,selected=''){
- return '<article data-list-row class="conversation-row'+(selected===p.id?' is-selected':'')+(Number(p.unread)>0?' is-unread':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'>'+conversationCopyHTML(p,chatNickname(p),'대화를 시작해보세요.')+conversationMetaHTML(p)+'</a></article>';
+ return '<article data-list-row class="conversation-row'+(selected===p.id?' is-selected':'')+(Number(p.unread)>0?' is-unread':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'>'+conversationCopyHTML(p,chatNickname(p),'대화를 시작해 보세요.')+conversationMetaHTML(p)+'</a></article>';
 }
 function noticeInboxHTML(notices,selected){
  const latest=notices[0]||{},p={...latest,unread:notices.reduce((n,p)=>n+Number(p.unread||0),0),muted:notices.length>0&&notices.every(p=>p.muted)};
  const active=selected==='notice'||notices.some(p=>p.id===selected);
- return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'공지','아직 받은 공지가 없어요.',true)+conversationMetaHTML(p)+'</a>';
+ return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'공지','아직 받은 공지가 없습니다.',true)+conversationMetaHTML(p)+'</a>';
 }
 function conversationListHTML(conversations=[],crew=null,selected=''){
  const {notices,direct}=dmOrderedConversations(conversations),query=dmInboxQuery;
  const notice=(!query||dmSearchMatch({},query,'공지')||notices.some(p=>dmSearchMatch(p,query)))?noticeInboxHTML(notices,selected):'';
- const crewRow=dmSearchMatch(crew,query,'크루채팅')?(crewInboxHTML(crew,selected)||'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있어요.</p></div></a>'):'';
+ const crewRow=dmSearchMatch(crew,query,'크루채팅')?(crewInboxHTML(crew,selected)||'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있습니다.</p></div></a>'):'';
  const rows=direct.filter(p=>dmSearchMatch(p,query)).map(p=>dmConversationRow(p,selected)).join('');
- return '<div class="conversation-list">'+notice+crewRow+rows+'</div>'+(!notice&&!crewRow&&!rows?'<div class="dm-empty" role="status"><p>검색 결과가 없어요.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해보세요.</p></div>':'');
+ return '<div class="conversation-list">'+notice+crewRow+rows+'</div>'+(!notice&&!crewRow&&!rows?'<div class="dm-empty" role="status"><p>검색 결과가 없습니다.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해 보세요.</p></div>':'');
 }
 function chatTextHTML(body){return esc(body).replace(/(?:[ \t]*\r?\n[ \t]*)?https:\/\/aifect\.co\.kr\/#(voice|live)\/([a-zA-Z0-9_-]{16,64})(?![a-zA-Z0-9_-])/g,(_,route,id)=>'<a class="small-button dm-room-invite" href="#'+route+'/'+id+'">방 입장하기</a>').replace(/(?:[ \t]*\r?\n[ \t]*)?https:\/\/aifect\.co\.kr\/#(producer|member)\/([a-zA-Z0-9_-]{1,80})(?![a-zA-Z0-9_/-])/g,(_,route,id)=>'<a class="dm-profile-share" href="#'+route+'/'+id+'" aria-label="공유된 프로필 보기">프로필 보기</a>');}
 function chatBodyHTML(body){return body?.includes('[aifect:')?AifectStickers.render(body,chatTextHTML):chatTextHTML(body);}
 function chatHTML(messages,peer=null,crew=null){
  let day='',previous=null;return messages.map(m=>{
   const currentDay=new Date(m.created*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'}),separator=currentDay!==day?'<div class="chat-day">'+currentDay+'</div>':'';day=currentDay;
-  if(m.kind==='system'){previous=null;return separator+'<div class="chat-system">'+esc(m.display_body??m.body)+(crew&&m.body.endsWith('님이 크루에 참여했습니다. 인사를 나눠보세요.')?' <button type="button" class="text-link" data-crew-hello="'+esc(m.id)+'" data-intro="'+(m.user_id===me?.id)+'">인사하기</button>':'')+'</div>';}
+  if(m.kind==='system'){previous=null;return separator+'<div class="chat-system">'+esc(m.display_body??m.body)+(crew&&m.body.endsWith('님이 크루에 참여했습니다. 인사를 나눠 보세요.')?' <button type="button" class="text-link" data-crew-hello="'+esc(m.id)+'" data-intro="'+(m.user_id===me?.id)+'">인사하기</button>':'')+'</div>';}
   const mine=m.sender_id===me?.id||m.user_id===me?.id,name=m.chat_nickname||m.name||(mine?'나':chatNickname(peer||{}))||'리스너',label=crew?crewDisplayName({...m,name}):name;
   const failed=mine&&m.delivery==='failed'&&String(m.id).startsWith('pending:');
   const delivery=m.delivery==='sending'?'<small class="chat-delivery">전송 중…</small>':'';
@@ -88,7 +88,7 @@ function chatHTML(messages,peer=null,crew=null){
   const invitation=!crew&&m.crew_invite_id?'<a class="small-button dm-crew-invite" href="#crew/'+esc(m.crew_invite_id)+'">'+icon('users')+' 초대받은 크루 보기 '+icon('chevron')+'</a>':'';
   const body=invitation?m.body.replace('\n크루 둘러보기: https://aifect.co.kr/#crew/'+m.crew_invite_id,''):m.body;
   return separator+'<article class="dm-message '+(mine?'mine':'')+(grouped?' is-grouped':'')+(failed?' is-failed':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body))+'</span>'+invitation+'</div><div class="chat-message-meta">'+actions+'<time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
- }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠보세요.</p></div>';
+ }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠 보세요.</p></div>';
 }
 function chatPanelHTML(label,initial=null,peer=null,dm=!!peer){
  // The message workspace also enables the rich editor for crew channels.
@@ -172,7 +172,7 @@ function watchSocialChat(query,changed,status,revoked){
   source.addEventListener('retry',failed);source.onerror=failed;
   source.addEventListener('revoked',()=>{cleanup();revoked();});
  };
- const failed=()=>{if(!current())return;disconnect();failures++;retryAt=Date.now()+Math.min(15000,1000*2**Math.min(failures-1,4));status(failures>3?'새 메시지 연결을 확인하고 있어요.':'');changed();lastFallback=Date.now();};
+ const failed=()=>{if(!current())return;disconnect();failures++;retryAt=Date.now()+Math.min(15000,1000*2**Math.min(failures-1,4));status(failures>3?'새 메시지 연결을 확인하고 있습니다.':'');changed();lastFallback=Date.now();};
  const visibility=()=>{disconnect();if(document.hidden||!navigator.onLine)status(navigator.onLine?'':'오프라인 · 연결되면 다시 불러옵니다');else connect();};
  const pagehide=()=>disconnect();
  const cleanup=()=>{closed=true;disconnect();clearInterval(timer);document.removeEventListener('visibilitychange',visibility);window.removeEventListener('online',visibility);window.removeEventListener('offline',visibility);window.removeEventListener('pagehide',pagehide);window.removeEventListener('pageshow',visibility);};
@@ -324,7 +324,7 @@ function bindSocialChat(view){
   directRevision++;threadBinding?.directChanged?.();void loadInbox();
  },text=>threadBinding?.directStatus?.(text),()=>{
   historyCache.clear();threadBinding?.deny?.();
-  const error=$('#dm-list-error');if(error)error.textContent='로그인 상태를 다시 확인해주세요.';
+  const error=$('#dm-list-error');if(error)error.textContent='로그인 상태를 다시 확인해 주세요.';
  });
  function unbindPanel(){threadBinding?.();threadBinding=null;stopNotice?.();stopNotice=null;stopFinder?.();stopFinder=null;}
  function bindPanel(panelView){
@@ -370,7 +370,7 @@ function bindSocialChat(view){
     pane.setAttribute('aria-busy','true');
     if(!pane.firstElementChild?.classList.contains('dm-loading-spinner'))pane.innerHTML=dmLoadingSpinnerHTML;
     const data=await readDmPanel(path,historyCache,timedSignal);
-    if(!active())throw new DOMException('대화가 변경되었어요.','AbortError');
+    if(!active())throw new DOMException('대화가 변경되었습니다.','AbortError');
     return data;
    };
    try{
@@ -384,7 +384,7 @@ function bindSocialChat(view){
     if(crewRevision!==crewAt)threadBinding?.crewChanged?.();
    }catch(error){
     if(!active())return;
-    pane.innerHTML='<p role="alert">'+esc(timedSignal.aborted?'연결 응답이 늦어지고 있어요.':error.message)+'</p><button type="button" class="small-button">다시 시도</button>';
+    pane.innerHTML='<p role="alert">'+esc(timedSignal.aborted?'연결 응답이 늦어지고 있습니다.':error.message)+'</p><button type="button" class="small-button">다시 시도</button>';
     pane.querySelector('button').onclick=()=>session.select(raw);
    }finally{if(active())pane.removeAttribute('aria-busy');}
   }
@@ -445,7 +445,7 @@ function bindChatThread(view,workspace=null){
  merge(initial?.messages||[]);
  const mobileChat=()=>window.AifectMobileInput?.isMobile()??innerWidth<=800;
  const paint=(older=false,forceBottom=false)=>{const nearBottom=forceBottom||log.scrollHeight-log.scrollTop-log.clientHeight<90,top=log.scrollTop,height=log.scrollHeight;const html=chatHTML(sorted(),peer,crew);if(html===lastHTML){if(forceBottom)log.scrollTop=log.scrollHeight;return;}lastHTML=html;patchChatLog(log,html);if(older)log.scrollTop=top+log.scrollHeight-height;else if(nearBottom)log.scrollTop=log.scrollHeight;};
- const deny=()=>{if(!current())return;denied=true;stopBinding(false);if(crew){chatGeneration++;unsent.pending.clear();clearChatPending(uid,path);setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해주세요.';};
+ const deny=()=>{if(!current())return;denied=true;stopBinding(false);if(crew){chatGeneration++;unsent.pending.clear();clearChatPending(uid,path);setDraft('');saveDraft();messages.clear();latestSequence=0;lastHTML=null;paint(false,true);}if(editor)editor.disable();else input.disabled=true;sendButton.disabled=true;$('#chat-connection').textContent='연결 종료';$('#chat-error').textContent='로그인 또는 크루 가입 상태를 다시 확인해 주세요.';};
  if(initial||unsent.pending.size)paint(false,true);
  else log.innerHTML=workspace?dmLoadingSpinnerHTML:'<p class="quiet" role="status">대화를 불러오는 중…</p>';
  const load=async(older=false)=>{
@@ -484,7 +484,7 @@ function bindChatThread(view,workspace=null){
    if(result.message){messages.delete(pending.id);merge([result.message]);paint(false,true);}else await load();
   }catch(e){if(unsent.pending.has(pending.id))pending.delivery='failed';if(current()){
    // A stream may confirm the same request before the POST response is lost.
-   if(messages.has(pending.id)){pending.delivery='failed';paint();$('#chat-error').textContent=e.message;if(!persisted&&typeof toast==='function')toast('전송 실패 메시지를 이 기기에 저장하지 못했어요. 창을 닫기 전에 내용을 복사해주세요.');}
+   if(messages.has(pending.id)){pending.delivery='failed';paint();$('#chat-error').textContent=e.message;if(!persisted&&typeof toast==='function')toast('전송 실패 메시지를 이 기기에 저장하지 못했습니다. 창을 닫기 전에 내용을 복사해 주세요.');}
    if([401,403].includes(e.status))deny();
   }}finally{sending=false;unsent.sending=false;if(current())sendButton.disabled=denied;}
  };
@@ -503,7 +503,7 @@ function bindChatThread(view,workspace=null){
  });
  bindChatImageUpload(peer,path,send,()=>sending||denied||!current());
  // Opening a room also acknowledges older unread messages outside the last page.
- if(initial)acknowledge().then(changed=>{if(current()&&changed&&!workspace)void refreshMessageBadge();}).catch(e=>{if(current())$('#chat-error').textContent='읽음 상태를 반영하지 못했어요. '+e.message;});
+ if(initial)acknowledge().then(changed=>{if(current()&&changed&&!workspace)void refreshMessageBadge();}).catch(e=>{if(current())$('#chat-error').textContent='읽음 상태를 반영하지 못했습니다. '+e.message;});
  const query=crew?'?crew='+encodeURIComponent(crew.id):view.inbox?'':'?peer='+encodeURIComponent(path.split('/').at(-1));
  // History must not wait for the first SSE event or a stream timeout.
  if(!initial)void load();
@@ -542,9 +542,9 @@ document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-crew-member]');if(!button)return;event.preventDefault();
  try{
   const cid=button.dataset.crew,pid=button.dataset.crewMember,d=await api('/api/crews/'+cid),person=d.members.find(p=>p.id===pid);
-  if(!person)return toast('이미 크루에서 나간 멤버예요.');
+  if(!person)return toast('이미 크루에서 나간 멤버입니다.');
   if(!['owner','deputy'].includes(d.membership?.role))return void(location.hash='producer/'+pid);
-  dialog(`<h2>${userNickname(person.name,{profileId:pid,userId:person.user_id})}</h2><a class="text-link" href="#producer/${esc(pid)}" data-close-dialog>프로필 보기</a><form id="crew-role-form" ${d.membership?.role==='owner'?'':'hidden'}><label class="form-field">크루 직책<select name="role">${Object.entries(crewRoleLabels).filter(([role])=>role!=='owner').map(([role,label])=>`<option value="${role}" ${person.role===role?'selected':''}>${label}</option>`).join('')}</select></label><p class="field-help">직책 변경은 크루장, 강퇴는 크루장·부크루장이 할 수 있어요.</p><button class="primary-button">직책 저장</button><p class="form-error" role="alert"></p></form><button class="small-button crew-kick" id="crew-kick">크루에서 강퇴</button>`);
+  dialog(`<h2>${userNickname(person.name,{profileId:pid,userId:person.user_id})}</h2><a class="text-link" href="#producer/${esc(pid)}" data-close-dialog>프로필 보기</a><form id="crew-role-form" ${d.membership?.role==='owner'?'':'hidden'}><label class="form-field">크루 직책<select name="role">${Object.entries(crewRoleLabels).filter(([role])=>role!=='owner').map(([role,label])=>`<option value="${role}" ${person.role===role?'selected':''}>${label}</option>`).join('')}</select></label><p class="field-help">직책 변경은 크루장, 강퇴는 크루장·부크루장이 할 수 있습니다.</p><button class="primary-button">직책 저장</button><p class="form-error" role="alert"></p></form><button class="small-button crew-kick" id="crew-kick">크루에서 강퇴</button>`);
   const refresh=async()=>{const draft=$('#chat-compose textarea')?.value;$('#dialog').close();await render();if(draft&&$('#chat-compose textarea'))$('#chat-compose textarea').value=draft;};
   const form=$('#crew-role-form');form.onsubmit=busyForm(form,async fd=>{await api(`/api/crews/${cid}/members/${pid}`,'PATCH',{role:fd.get('role')});await refresh();});
   $('#crew-kick').onclick=async()=>{if(!confirm(person.name+'님을 강퇴할까요? 이 크루에 다시 가입할 수 없게 됩니다.'))return;try{await api(`/api/crews/${cid}/members/${pid}`,'DELETE');await refresh();}catch(e){toast(e.message);}};

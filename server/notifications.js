@@ -21,7 +21,7 @@ export async function notificationsRoute(req,env,path,user){
  if(!path.startsWith('/api/notifications'))return null;
  requireUser(user);
  if(path==='/api/notifications/crew-requests'&&req.method==='POST'){
-  const b=await req.json();if(!/^[\w-]{16,80}$/.test(b.request_id||''))fail(400,'요청 ID를 확인해주세요.');
+  const b=await req.json();if(!/^[\w-]{16,80}$/.test(b.request_id||''))fail(400,'요청 ID를 확인해 주세요.');
   await rate(env,'crew-request:'+user.id,30,3600);
   const key='crew-request:'+user.id+':'+b.request_id;
   const prior=await one(env,'SELECT * FROM crew_participation_requests WHERE id=?',key);
@@ -30,40 +30,40 @@ export async function notificationsRoute(req,env,path,user){
    SELECT ?,cm.crew_id,cm.user_id,peer.user_id,t.id,? FROM crew_members cm JOIN crew_members peer ON peer.crew_id=cm.crew_id JOIN tracks t ON t.user_id=cm.user_id
    JOIN users u ON u.id=peer.user_id WHERE cm.user_id=? AND cm.crew_id=? AND peer.user_id=? AND peer.user_id!=cm.user_id AND t.id=? AND ${VISIBLE()} AND u.provider!='deleted'
    AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=cm.user_id AND blocked_id=peer.user_id) OR (user_id=peer.user_id AND blocked_id=cm.user_id))`,key,now(),user.id,b.crew_id,b.recipient_id,b.track_id);
-  if(!await one(env,'SELECT 1 FROM crew_participation_requests WHERE id=?',key))fail(403,'내 공개 작품과 현재 크루원을 선택해주세요.');return json({id:key},201);
+  if(!await one(env,'SELECT 1 FROM crew_participation_requests WHERE id=?',key))fail(403,'내 공개 작품과 현재 크루원을 선택해 주세요.');return json({id:key},201);
  }
  const request=path.match(/^\/api\/notifications\/crew-requests\/(.+)$/);
  if(request&&req.method==='GET'){
   const item=await one(env,'SELECT r.*,t.title FROM crew_participation_requests r JOIN tracks t ON t.id=r.track_id JOIN crew_members cm ON cm.crew_id=r.crew_id AND cm.user_id=r.recipient WHERE r.id=? AND r.recipient=?',decodeURIComponent(request[1]),user.id);
-  if(!item)fail(404,'참여 요청을 찾을 수 없어요.');
-  const access=await resolveNotification(env,{kind:'cover',target:item.track_id,recipient:user.id});if(!access.available)fail(404,'참여 작품을 볼 수 없어요.');return json({title:item.title,href:access.href});
+  if(!item)fail(404,'참여 요청을 찾을 수 없습니다.');
+  const access=await resolveNotification(env,{kind:'cover',target:item.track_id,recipient:user.id});if(!access.available)fail(404,'참여 작품을 볼 수 없습니다.');return json({title:item.title,href:access.href});
  }
  const open=path.match(/^\/api\/notifications\/([^/]+)\/open$/);
  if(open&&req.method==='POST'){
   const n=await one(env,`SELECT n.* FROM activity_notifications n WHERE n.id=? AND n.recipient=? AND ${allowed}`,decodeURIComponent(open[1]),user.id);
-  if(!n)fail(404,'알림을 찾을 수 없어요.');
+  if(!n)fail(404,'알림을 찾을 수 없습니다.');
   const resolved=await resolveNotification(env,n,{opening:true});await run(env,'UPDATE activity_notifications SET read_at=? WHERE id=? AND recipient=?',now(),n.id,user.id);
   return json(resolved);
  }
  if(path==='/api/notifications/read'&&req.method==='POST'){
   const b=await req.json();
   if(b.through!==undefined){
-   if(!Number.isSafeInteger(b.through)||b.through<0)fail(400,'읽음 처리 범위를 확인해주세요.');
+   if(!Number.isSafeInteger(b.through)||b.through<0)fail(400,'읽음 처리 범위를 확인해 주세요.');
    await run(env,'UPDATE activity_notifications SET read_at=? WHERE recipient=? AND read_at=0 AND rowid<=?',now(),user.id,b.through);
   }else{
-  if(!Array.isArray(b.ids)||b.ids.length>50||b.ids.some(x=>typeof x!=='string'||x.length>200))fail(400,'읽음 처리할 알림을 확인해주세요.');
+  if(!Array.isArray(b.ids)||b.ids.length>50||b.ids.some(x=>typeof x!=='string'||x.length>200))fail(400,'읽음 처리할 알림을 확인해 주세요.');
   if(b.ids.length)await run(env,`UPDATE activity_notifications SET read_at=? WHERE recipient=? AND read_at=0 AND id IN (${b.ids.map(()=>'?').join(',')})`,now(),user.id,...b.ids);
   }
   const {unread}=await one(env,`SELECT count(*) unread FROM activity_notifications n WHERE recipient=? AND read_at=0 AND ${allowed}`,user.id);
   return json({ok:true,unread});
  }
- if(req.method!=='GET'||!['/api/notifications','/api/notifications/summary'].includes(path))fail(404,'알림을 찾을 수 없어요.');
+ if(req.method!=='GET'||!['/api/notifications','/api/notifications/summary'].includes(path))fail(404,'알림을 찾을 수 없습니다.');
  const {unread}=await one(env,`SELECT count(*) unread FROM activity_notifications n WHERE recipient=? AND read_at=0 AND ${allowed}`,user.id);
  if(path.endsWith('/summary'))return json({unread});
  const q=new URL(req.url).searchParams,filter=q.get('filter')||'all';
- if(!['all','gifts','participation','comments','works','artists','crew'].includes(filter))fail(400,'알림 종류를 확인해주세요.');
+ if(!['all','gifts','participation','comments','works','artists','crew'].includes(filter))fail(400,'알림 종류를 확인해 주세요.');
  const before=q.get('before'),cursor=before?await one(env,'SELECT created,id FROM activity_notifications WHERE id=? AND recipient=?',before,user.id):null;
- if(before&&!cursor)fail(400,'알림 목록을 새로 열어주세요.');
+ if(before&&!cursor)fail(400,'알림 목록을 새로 열어 주세요.');
  const type=filter==='gifts'?"AND n.kind IN ('gift','person_gift')":filter==='participation'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='comments'?"AND n.kind IN ('comment','fan_comment','fan_post')":filter==='works'?"AND n.kind IN ('cover','duet','dubbing_participation','dubbing_complete','work_status')":filter==='artists'?"AND n.kind IN ('follow','artist_follower','artist_release')":filter==='crew'?"AND n.kind IN ('crew_notice','crew_invite','crew_approved','crew_request')":'';
  const {read_through}=await one(env,'SELECT COALESCE(MAX(rowid),0) read_through FROM activity_notifications WHERE recipient=?',user.id);
  const items=await rows(env,`SELECT n.*,CASE WHEN n.kind='work_status' AND n.actor_id IS NULL THEN 'AIFECT' ELSE COALESCE(${publicNameSQL('u')},'탈퇴한 회원') END actor_name,p.id actor_profile_id,p.image_version actor_image_version,
@@ -94,7 +94,7 @@ async function resolveGift(env,n,opening){
   if(route==='voice'||route==='live'){
    if(opening){
     const response=await voiceCall(env,{id:n.recipient},id,'presence');
-    if(!response.ok&&response.status!==404&&response.status!==410)fail(503,'방 상태를 확인하지 못했어요. 잠시 후 다시 시도해주세요.');
+    if(!response.ok&&response.status!==404&&response.status!==410)fail(503,'방 상태를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
     const state=response.ok?await response.json():null;
     if(!state?.active||(state.mode==='karaoke')!==(route==='live')){href='';reason='room';}
    }
@@ -111,7 +111,7 @@ async function resolveGift(env,n,opening){
   }
  }
  return {source_type:type||null,source_id:id||null,gift_source_kind:route||null,gift_source_target:id||null,gift_source_title:title,
-  clickable:!passive,href,available:Number(passive||!!href),unavailable_reason:passive||href?'':reason,unavailable:passive||href?'':reason==='source'?'이 선물의 발생 위치를 확인할 수 없어요.':reason==='room'?'종료되었거나 삭제된 방이에요.':'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.'};
+  clickable:!passive,href,available:Number(passive||!!href),unavailable_reason:passive||href?'':reason,unavailable:passive||href?'':reason==='source'?'이 선물의 발생 위치를 확인할 수 없습니다.':reason==='room'?'종료되었거나 삭제된 방입니다.':'삭제·비공개 또는 접근 권한이 변경된 콘텐츠입니다.'};
 }
 
 // Revalidate at click/dispatch time: stored history never grants access to content.
@@ -146,5 +146,5 @@ export async function resolveNotification(env,n,{opening=false}={}){
    const cid=n.entity_id||n.id.slice(8),c=await one(env,'SELECT id FROM comments WHERE id=? AND track_id=? AND deleted_at=0',cid,n.target);ok=ok&&!!c;href+='?comment='+enc(cid);
   }
  }
- return {available:Number(ok),href:ok?href:'',unavailable:ok?'':'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.'};
+ return {available:Number(ok),href:ok?href:'',unavailable:ok?'':'삭제·비공개 또는 접근 권한이 변경된 콘텐츠입니다.'};
 }

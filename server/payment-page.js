@@ -46,9 +46,9 @@ function paymentPage(){
       <p class="checkout-kicker">PREMIUM · 월 정기구독</p>
       <h2 id="premium-title">${esc(PREMIUM.name)}</h2>
       <p class="checkout-product-price">월 ${number(PREMIUM.price)}원 <small>부가세 포함</small></p>
-      <p class="checkout-product-copy">음악을 더 편하게 듣고, 더 많이 모아보세요.</p>
-      <ul class="checkout-benefits"><li>전체곡 AAC 256kbps 고음질 감상</li><li>싱크 가사 · 현재 줄 강조 · 자동 스크롤</li><li>가사를 누르면 해당 구간으로 이동</li><li>플레이리스트 · 마이박스 무제한</li><li>제작곡 업로드 매월 10곡</li><li>커버 업로드 무제한 · 광고 없음</li></ul>
-      <p class="checkout-field-help">고음질 준비 중인 곡은 AAC 128kbps로 제공됩니다. 플레이리스트와 마이박스 생성, 공개 플레이리스트 저장은 모두 개수 제한이 없습니다.</p>
+      <p class="checkout-product-copy">음악을 더 편하게 듣고, 더 많이 모아 보세요.</p>
+      <ul class="checkout-benefits"><li>전체곡 AAC 256kbps 고음질 감상</li><li>싱크 가사 · 현재 줄 강조 · 자동 스크롤</li><li>가사를 누르면 해당 구간으로 이동</li><li>플레이리스트 무제한</li><li>제작곡 업로드 매월 10곡</li><li>커버 업로드 무제한 · 광고 없음</li></ul>
+      <p class="checkout-field-help">고음질 준비 중인 곡은 AAC 128kbps로 제공됩니다. 플레이리스트 생성과 공개 플레이리스트 저장에는 개수 제한이 없습니다.</p>
       <div class="checkout-billing-info"><h3>실제 구독의 결제 주기</h3><p>월 단위 자동갱신 상품으로 매월 ${number(PREMIUM.price)}원(부가세 포함)이 정기결제됩니다. 가입일부터 1개월마다 갱신되며, 해당 월에 같은 날짜가 없으면 그 달의 마지막 날을 기준으로 합니다.</p><p id="premium-next-billing-copy">실제 가입 시 이용 시작일과 다음 결제일을 결제 전에 안내합니다. 이 테스트는 구독을 시작하거나 자동결제를 예약하지 않습니다.</p><p>다음 결제 전 언제든 해지를 요청할 수 있습니다. 해지·청약철회·이용 중 환불 기준은 <a href="/refund">환불 · 해지 정책</a>에서 확인하세요.</p></div>
      </section>
      <section class="checkout-summary" aria-labelledby="checkout-summary-title">
@@ -75,7 +75,7 @@ function paymentPage(){
    <p class="checkout-field-help">실제 청구·자동결제·Premium 이용권 지급은 발생하지 않습니다.</p>
    <div class="checkout-result-actions"><button class="checkout-primary" id="result-retry" type="button" hidden>테스트 결과 다시 확인</button><a class="checkout-secondary" href="/checkout/toss">새 카드 등록 테스트</a><a href="/#home">음악으로 돌아가기</a></div>
   </section>
-  <noscript><p class="checkout-error">테스트 결제를 확인하려면 브라우저의 JavaScript를 켜주세요.</p></noscript>
+  <noscript><p class="checkout-error">테스트 결제를 확인하려면 브라우저의 JavaScript를 켜 주세요.</p></noscript>
   <section class="checkout-information" aria-labelledby="checkout-info-title">
    <h2 id="checkout-info-title">테스트 카드 등록 안내</h2>
    <p>AIFECT Premium 월 정기구독을 위한 카드 등록 절차를 테스트합니다. 카드 등록 인증 후 돌아온 결과를 확인하며, 이 테스트로 결제 승인을 요청하거나 실제 구독을 시작하지 않습니다.</p>

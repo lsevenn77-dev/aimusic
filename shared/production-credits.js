@@ -32,15 +32,15 @@ export function productionCreditFields(body,current){
  const invalid=message=>{throw Object.assign(new Error(message),{status:400});};
  if(!Object.hasOwn(body,'ai_tool')){
   if(current)return {ai_tool:current.ai_tool??'',is_ai:current.ai_tool===NO_AI_LABEL?0:(current.is_ai===0?0:1)};
-  invalid('사용한 AI 도구 또는 AI 사용 안 함을 선택해주세요.');
+  invalid('사용한 AI 도구 또는 AI 사용 안 함을 선택해 주세요.');
  }
- if(typeof body.ai_tool!=='string')invalid('사용한 AI 도구를 확인해주세요.');
+ if(typeof body.ai_tool!=='string')invalid('사용한 AI 도구를 확인해 주세요.');
  const tool=body.ai_tool.trim();
- if(!tool)invalid('사용한 AI 도구 또는 AI 사용 안 함을 선택해주세요.');
- if(tool.length>AI_TOOL_LIMIT)invalid('AI 도구 이름은 합계 100자 이내로 입력해주세요.');
+ if(!tool)invalid('사용한 AI 도구 또는 AI 사용 안 함을 선택해 주세요.');
+ if(tool.length>AI_TOOL_LIMIT)invalid('AI 도구 이름은 합계 100자 이내로 입력해 주세요.');
  const noAI=tool===NO_AI_LABEL;
- if(!noAI&&tool.split(/[,，;\n]+/).some(value=>value.trim()===NO_AI_LABEL))invalid('AI 사용 안 함과 AI 도구를 함께 선택할 수 없어요.');
- if(!noAI&&(body.is_ai===false||body.is_ai===0||body.is_ai==='false'||body.is_ai==='0'))invalid('AI 사용 여부와 선택한 도구를 확인해주세요.');
+ if(!noAI&&tool.split(/[,，;\n]+/).some(value=>value.trim()===NO_AI_LABEL))invalid('AI 사용 안 함과 AI 도구를 함께 선택할 수 없습니다.');
+ if(!noAI&&(body.is_ai===false||body.is_ai===0||body.is_ai==='false'||body.is_ai==='0'))invalid('AI 사용 여부와 선택한 도구를 확인해 주세요.');
  return {ai_tool:tool,is_ai:noAI?0:1};
 }
 export function productionCreditLabel(value){

@@ -113,7 +113,7 @@ test('room failures reuse the same request and unavailable recipients never open
 test('inventory read failure is explicit and purchases stay usable; guests never fetch private inventory',async()=>{
  const wallet={balance:500,free:{balance:5}},profile={profile:{id:'friend',user_id:'other',name:'친구'}};
  const b=browser(async path=>{if(path.includes('gift-inventory'))throw Error('offline');return path==='/api/gold'?wallet:profile;});await b.c.profileGiftDialog('friend');
- assert.match(b.html,/보유 아이템을 불러오지 못했어요/);assert.match(b.html,/data-gift-inventory-retry/);assert.equal(b.nodes['#gift-send'].disabled,false);
+ assert.match(b.html,/보유 아이템을 불러오지 못했습니다/);assert.match(b.html,/data-gift-inventory-retry/);assert.equal(b.nodes['#gift-send'].disabled,false);
  const paths=[];const guest=browser(async p=>{paths.push(p);return profile;},null);await guest.c.profileGiftDialog('friend');assert.ok(!paths.some(p=>p.includes('gift-inventory')));assert.match(guest.html,/로그인하면 보유한 선물/);
 });
 test('unavailable inventory is disabled and a changed account cannot send another account inventory',async t=>{
@@ -122,7 +122,7 @@ test('unavailable inventory is disabled and a changed account cannot send anothe
  f.sql.exec("DELETE FROM gold_orders WHERE id='paid'");await b.c.profileGiftDialog('friend');b.c.me={id:'other'};await b.submit();assert.match(b.form.error.textContent,/계정이 변경/);assert.equal(calls.filter(r=>r.method==='POST').length,0);
 });
 test('song entry makes the profile recipient explicit for stored gifts and preserves track purchases',async t=>{
- const {b,f,calls}=await setup(t);f.sql.exec("INSERT INTO artists(id,producer_id,name,created) VALUES('friend-artist','friend','Guest artist',0);UPDATE tracks SET user_id='other',producer_id='friend',artist_id='friend-artist' WHERE id='one'");await b.c.giftDialog('one');assert.match(b.nodes['#gift-send-summary'].innerHTML,/프로필에 보내요/);await b.submit();await b.submit();assert.equal(calls.find(r=>r.path.endsWith('/send')).body.profile_id,'friend');
+ const {b,f,calls}=await setup(t);f.sql.exec("INSERT INTO artists(id,producer_id,name,created) VALUES('friend-artist','friend','Guest artist',0);UPDATE tracks SET user_id='other',producer_id='friend',artist_id='friend-artist' WHERE id='one'");await b.c.giftDialog('one');assert.match(b.nodes['#gift-send-summary'].innerHTML,/프로필에 보냅니다/);await b.submit();await b.submit();assert.equal(calls.find(r=>r.path.endsWith('/send')).body.profile_id,'friend');
  await b.c.giftDialog('one','silver-letter');await b.submit();assert.ok(calls.some(r=>r.path==='/api/tracks/one/gifts'&&r.method==='POST'));
  const gifts=(await f.call('/api/notifications?filter=gifts','GET',null,'other')).body.items;
  assert.equal(gifts.length,2);

@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,json,fail,now} from './db.js';
 import {requireUser} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
@@ -8,7 +9,7 @@ const tabs=['followers','following','artists','blocks'];
 const actor='(SELECT viewer FROM ctx)',owner='(SELECT owner FROM ctx)',artist='(SELECT artist FROM ctx)';
 const personal=(left,right)=>`EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=${left} AND b.blocked_id=${right}) OR (b.user_id=${right} AND b.blocked_id=${left}))`;
 export async function assertArtistInteraction(env,aid,uid){
- if(aid&&uid&&await one(env,'SELECT 1 FROM artist_follow_blocks WHERE artist_id=? AND user_id=?',aid,uid))fail(403,'이 아티스트와는 상호작용할 수 없어요.');
+ if(aid&&uid&&await one(env,'SELECT 1 FROM artist_follow_blocks WHERE artist_id=? AND user_id=?',aid,uid))fail(403,'이 아티스트와는 상호작용할 수 없습니다.');
 }
 // This is the reverse personal follow edge; artist fans are a separate relationship.
 export async function producerFollowsViewer(env,ownerId,viewerId){
@@ -17,17 +18,17 @@ export async function producerFollowsViewer(env,ownerId,viewerId){
 }
 async function scope(env,user,q){
  const tab=q.get('tab')||'followers',aid=q.get('artist')||'',requested=q.get('user');
- if(!tabs.includes(tab)||aid&&tab!=='artists')fail(400,'목록을 확인해주세요.');
+ if(!tabs.includes(tab)||aid&&tab!=='artists')fail(400,'목록을 확인해 주세요.');
  let uid=requested||user?.id,artistName='';
  if(aid){
   const a=await one(env,`SELECT a.name,p.user_id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=? AND ${namedArtistSQL()}`,aid);
-  if(!a||requested&&requested!==a.user_id)fail(404,'아티스트를 찾을 수 없어요.');
+  if(!a||requested&&requested!==a.user_id)fail(404,'아티스트를 찾을 수 없습니다.');
   uid=a.user_id;artistName=a.name;await assertArtistInteraction(env,aid,user?.id);
  }
  if(!uid)requireUser(user);
  assertUnblocked(env,uid);
  const member=await one(env,`SELECT ${publicNameSQL()} name FROM users u WHERE u.id=? AND u.provider!='deleted'`,uid);
- if(!member)fail(404,'회원을 찾을 수 없어요.');
+ if(!member)fail(404,'회원을 찾을 수 없습니다.');
  const own=uid===user?.id;
  if(!own&&(tab==='blocks'||tab==='artists'&&!aid))fail(403,'본인만 볼 수 있는 목록입니다.');
  return {tab,uid,aid,own,name:artistName||member.name,viewer:user?.id||'',kind:q.get('kind')||''};
@@ -75,7 +76,7 @@ const sortKeys=`, sortkeys(key,rest,token) AS (
 const nameOrder="CASE WHEN name GLOB '[가-힣ㄱ-ㅣᄀ-ᇿ]*' THEN 0 WHEN name GLOB '[A-Za-z]*' THEN 1 WHEN name GLOB '[0-9]*' THEN 2 ELSE 3 END,sk.token COLLATE BINARY,m.key";
 async function list(env,s,q){
  const word=(q.get('q')||'').trim().normalize('NFC'),offset=Number(q.get('offset')||0),keys=q.get('keys')==='1',byName=q.get('sort')==='name'&&!keys;
- if(word.length>100||!Number.isSafeInteger(offset)||offset<0)fail(400,'검색 조건을 확인해주세요.');
+ if(word.length>100||!Number.isSafeInteger(offset)||offset<0)fail(400,'검색 조건을 확인해 주세요.');
  const cte=source(s),args=binds(s),pattern=matchPattern(word),limit=keys?500:50;
  const filtered=cte+', matched AS (SELECT * FROM people WHERE lower(name) GLOB ?)';
  const count=query(env,cte+' SELECT count(*) total,count(CASE WHEN lower(name) GLOB ? THEN 1 END) matched FROM people',...args,pattern);
@@ -97,8 +98,8 @@ async function list(env,s,q){
 async function mutate(req,env,s){
  const b=await req.json(),keys=b.keys,op=b.action;
  const ops={followers:['remove','block','follow','unfollow'],following:['unfollow','block'],artists:['remove','block'],blocks:['unblock']};
- if(!s.own||!ops[s.tab].includes(op)||s.tab==='artists'&&!s.aid)fail(403,'이 목록을 관리할 수 없어요.');
- if(!Array.isArray(keys)||!keys.length||keys.length>80||new Set(keys).size!==keys.length||keys.some(k=>typeof k!=='string'||k.length>200))fail(400,'선택 대상을 확인해주세요.');
+ if(!s.own||!ops[s.tab].includes(op)||s.tab==='artists'&&!s.aid)fail(403,'이 목록을 관리할 수 없습니다.');
+ if(!Array.isArray(keys)||!keys.length||keys.length>80||new Set(keys).size!==keys.length||keys.some(k=>typeof k!=='string'||k.length>200))fail(400,'선택 대상을 확인해 주세요.');
  const cte=source(s)+`, targets AS (SELECT * FROM people WHERE key IN (SELECT value FROM json_each(?)) AND ${owner}=${actor} ${s.tab==='artists'?`AND EXISTS(SELECT 1 FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=${artist} AND p.user_id=${actor})`:''}
  ${['block','follow'].includes(op)?`AND (uid!=${actor} OR artist_id IS NOT NULL)`:''}) `;
  const q=(sql,...args)=>query(env,cte+sql,...binds(s),JSON.stringify(keys),...args);
@@ -128,5 +129,5 @@ export async function followManagement(req,env,path,user){
  const q=new URL(req.url).searchParams,s=await scope(env,user,q);
  if(req.method==='GET')return list(env,s,q);
  if(req.method==='POST')return mutate(req,env,s);
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }

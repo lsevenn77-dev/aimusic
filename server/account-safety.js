@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,run,now,id,fail,json,rate} from './db.js';
 import {requireUser,appleClientSecret,viewerBlockedIds,viewerBlockedArtists} from './auth.js';
 import {cancelSubscription} from './billing.js';
@@ -17,11 +18,11 @@ export async function rememberAppleToken(env,uid,token){
 }
 export async function revokeAppleLogin(env,uid){
  const saved=await one(env,'SELECT cipher FROM apple_login_tokens WHERE user_id=?',uid);
- if(!saved)fail(409,'Apple로 다시 로그인한 뒤 계정 삭제를 진행해주세요.');
+ if(!saved)fail(409,'Apple로 다시 로그인한 뒤 계정 삭제를 진행해 주세요.');
  const [iv,cipher]=saved.cipher.split('.');
  const token=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:from64(iv),additionalData:encoder.encode(uid)},await tokenKey(env),from64(cipher)));
- let response;try{response=await fetch('https://appleid.apple.com/auth/revoke',{method:'POST',body:new URLSearchParams({client_id:env.APPLE_CLIENT_ID,client_secret:await appleClientSecret(env),token,token_type_hint:'refresh_token'}),signal:AbortSignal.timeout(10000)});}catch{fail(502,'Apple 연결 해제를 완료하지 못했어요. 잠시 후 다시 시도해주세요.');}
- if(!response.ok)fail(502,'Apple 연결 해제를 완료하지 못했어요. 다시 로그인한 뒤 시도해주세요.');
+ let response;try{response=await fetch('https://appleid.apple.com/auth/revoke',{method:'POST',body:new URLSearchParams({client_id:env.APPLE_CLIENT_ID,client_secret:await appleClientSecret(env),token,token_type_hint:'refresh_token'}),signal:AbortSignal.timeout(10000)});}catch{fail(502,'Apple 연결 해제를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.');}
+ if(!response.ok)fail(502,'Apple 연결 해제를 완료하지 못했습니다. 다시 로그인한 뒤 시도해 주세요.');
 }
 
 export async function blockedContext(env,user){
@@ -112,6 +113,17 @@ export async function deleteAccount(env,user){
   else writes.push(q('DELETE FROM crews WHERE id=?',crew.id));
  }
  const ownTracks='SELECT id FROM tracks WHERE user_id=?';
+ // Remove playback references as before, while retaining an unavailable typed
+ // slot in another user's private mix if the departing user supplied a cover.
+ // Otherwise account deletion can turn duplicate mixed titles into AI-only lists.
+ writes.push(q(`INSERT OR IGNORE INTO playlist_extra_items(playlist_id,kind,content_id,position,created)
+  SELECT pt.playlist_id,'cover',pt.track_id,pt.position,pt.created FROM playlist_tracks pt
+  JOIN playlists p ON p.id=pt.playlist_id JOIN tracks t ON t.id=pt.track_id
+  WHERE t.user_id=? AND t.kind='cover' AND p.user_id!=?`,uid,uid));
+ writes.push(q(`UPDATE playlists SET is_public=0,revision=revision+1,updated=unixepoch()
+  WHERE is_public=1 AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=playlists.id AND t.user_id=?)
+  AND NOT EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=playlists.id AND t.user_id!=?)`,uid,uid));
+
  for(const table of ['lyric_jobs','karaoke_jobs','premium_audio_jobs','original_archives','track_reports','playlist_tracks','likes','free_gifts','comments'])writes.push(q(`DELETE FROM ${table} WHERE track_id IN (${ownTracks})`,uid));
  for(const table of ['welcome_receipts','player_equipment','player_inventory','player_xp','sessions','account_handles','apple_login_tokens','push_devices','push_preferences','user_blocks','comment_reports','comment_likes','comments','likes','follows','playlist_saves','playlist_preferences','playlists','listens','free_gift_claims','free_gift_wallets','crew_bans','crew_xp','crew_messages','crew_members'])writes.push(q(`DELETE FROM ${table} WHERE user_id=?`,uid));
  writes.push(q("UPDATE track_reports SET rightsholder='',contact='',details='',evidence_json='[]' WHERE user_id=?",uid));
@@ -139,7 +151,7 @@ export async function accountSafetyRoute(req,env,path,user){
   requireUser(user);await rate(env,'account-delete:'+user.id,5,900);
   const {confirmation,account_id}=await req.json();
   if(account_id!==undefined&&account_id!==user.id)fail(409,'로그인 계정이 변경됐습니다. 화면을 새로고침해 삭제할 계정을 확인해 주세요.');
-  if(confirmation!=='DELETE')fail(400,'계정 영구 삭제를 확인해주세요.');
+  if(confirmation!=='DELETE')fail(400,'계정 영구 삭제를 확인해 주세요.');
   await deleteAccount(env,user);
   return json({ok:true,deleted:true},200,{'set-cookie':'aifect_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0'});
  }
@@ -148,11 +160,11 @@ export async function accountSafetyRoute(req,env,path,user){
  }
  const m=path.match(/^\/api\/blocks\/([\w-]+)$/);if(!m)return null;
  requireUser(user);const target=await one(env,"SELECT id FROM users WHERE id=? AND provider!='deleted'",m[1]);
- if(!target||target.id===user.id)fail(400,'차단할 이용자를 확인해주세요.');
+ if(!target||target.id===user.id)fail(400,'차단할 이용자를 확인해 주세요.');
  if(req.method==='PUT'){
   await rate(env,'block:'+user.id,60,3600);
   await run(env,'INSERT OR IGNORE INTO user_blocks(user_id,blocked_id,created) VALUES(?,?,?)',user.id,target.id,now());
  }else if(req.method==='DELETE')await run(env,'DELETE FROM user_blocks WHERE user_id=? AND blocked_id=?',user.id,target.id);
- else fail(405,'지원하지 않는 요청입니다.');
+ else fail(405,AifectMessages.unsupportedRequest);
  return json({ok:true});
 }

@@ -35,7 +35,7 @@ export async function reserveDubbingGeneration(env,userId,gid,inputHash,at=now()
 // Server-only entry point for a provider-authenticated callback, never a browser
 // endpoint. A timer or client "ad watched" event cannot grant a generation.
 export async function creditVerifiedDubbingAd(env,{userId,transactionId,completedAt},at=now()){
- if(typeof transactionId!=='string'||!transactionId||transactionId.length>200||!Number.isSafeInteger(completedAt)||completedAt>at+30||at-completedAt>3600)fail(400,'광고 완료 기록을 확인해주세요.');
+ if(typeof transactionId!=='string'||!transactionId||transactionId.length>200||!Number.isSafeInteger(completedAt)||completedAt>at+30||at-completedAt>3600)fail(400,'광고 완료 기록을 확인해 주세요.');
  const day=dubbingDay(completedAt),current=dubbingDay(at);
  if(day.day!==current.day)fail(409,'지난 날짜의 광고 보상은 받을 수 없습니다.');
  const old=await one(env,'SELECT user_id,day FROM dubbing_script_rewards WHERE transaction_id=?',transactionId);

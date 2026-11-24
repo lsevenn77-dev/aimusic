@@ -6,16 +6,16 @@ import {assertArtistInteraction} from './follow-management.js';
 // The recipient is the existing creator profile. An artist identifies the entry point only.
 export async function artistGiftSource(env,artistId,profileId,viewer){
  if(artistId==null)return null;
- if(typeof artistId!=='string')fail(400,'아티스트를 확인해주세요.');
+ if(typeof artistId!=='string')fail(400,'아티스트를 확인해 주세요.');
  const artist=await one(env,`SELECT a.id,a.name FROM artists a JOIN producers p ON p.id=a.producer_id JOIN users u ON u.id=p.user_id
   WHERE a.id=? AND p.id=? AND u.provider!='deleted' AND ${namedArtistSQL()}`,artistId,profileId);
- if(!artist)fail(400,'아티스트의 소속 제작자를 확인해주세요.');
+ if(!artist)fail(400,'아티스트의 소속 제작자를 확인해 주세요.');
  await assertArtistInteraction(env,artist.id,viewer);
  return {type:'artist',id:artist.id,title:artist.name};
 }
 export async function checkArtistGiftReplay(env,currency,giftId,source){
  const prior=await one(env,"SELECT source_id FROM gift_sources WHERE currency=? AND gift_id=? AND source_type='artist'",currency,giftId);
- if((prior?.source_id||null)!==(source?.type==='artist'?source.id:null))fail(409,'이미 다른 선물에 사용한 요청이에요.');
+ if((prior?.source_id||null)!==(source?.type==='artist'?source.id:null))fail(409,'이미 다른 선물에 사용한 요청입니다.');
 }
 
 // Callers construct this from a verified route target, never from a client label.

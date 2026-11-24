@@ -27,9 +27,9 @@ import {dubbingRewardAvailable} from './dubbing-ad-config.js';
 import {dubbingRecordingRoute,dubbingRecordingStatus,recordingEnabled} from './dubbing-recording.js';
 import {dubbingCastingRoute,castingInfo,baseRecordingSQL,CASTING_LICENSE} from './dubbing-casting.js';
 
-const uuid=value=>{if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))fail(400,'요청 식별자를 확인해주세요.');return value;};
-const revision=value=>{if(!Number.isSafeInteger(value)||value<1)fail(400,'저장 버전을 확인해주세요.');return value;};
-const conflict=()=>fail(409,'다른 변경이 먼저 저장되었습니다. 최신 내용을 다시 불러와주세요.');
+const uuid=value=>{if(typeof value!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value))fail(400,'요청 식별자를 확인해 주세요.');return value;};
+const revision=value=>{if(!Number.isSafeInteger(value)||value<1)fail(400,'저장 버전을 확인해 주세요.');return value;};
+const conflict=()=>fail(409,'다른 변경이 먼저 저장되었습니다. 최신 내용을 다시 불러와 주세요.');
 const activeOwner="EXISTS(SELECT 1 FROM users u WHERE u.id=dubbing_projects.owner_id AND u.provider!='deleted')";
 const unblocked=`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))`;
 async function project(env,pid,user){
@@ -56,7 +56,7 @@ async function storeScript(env,ownerId,pid,script,rev){
  if(!env.BUCKET)fail(503,'대본 저장소 연결이 필요합니다.');
  const key=`dubbing/${ownerId}/${pid}/scripts/${rev}-${id()}.json`;
  try{await env.BUCKET.put(key,JSON.stringify({script,soundPlan:script.soundCues,timeline:dubbingTimeline(script)}),{httpMetadata:{contentType:'application/json',cacheControl:'private, no-store'}});}
- catch{fail(503,'대본을 저장하지 못했습니다. 내용을 유지한 채 다시 시도해주세요.');}
+ catch{fail(503,'대본을 저장하지 못했습니다. 내용을 유지한 채 다시 시도해 주세요.');}
  return key;
 }
 async function discard(env,key){
@@ -79,9 +79,9 @@ export async function dubbingRoute(req,env,path,user){
    FROM dubbing_gold_orders o LEFT JOIN dubbing_projects p ON p.id=o.project_id WHERE o.user_id=? ORDER BY o.created DESC,o.job_id DESC LIMIT 50`,user.id)});
  }
  if(path==='/api/dubbing/projects'&&method==='GET'){
-  const tab=url.searchParams.get('tab')||'latest';if(!['latest','popular','open','complete','mine'].includes(tab))fail(400,'목록을 확인해주세요.');
+  const tab=url.searchParams.get('tab')||'latest';if(!['latest','popular','open','complete','mine'].includes(tab))fail(400,'목록을 확인해 주세요.');
   const search=(url.searchParams.get('q')||'').trim().slice(0,100);
-  const genre=url.searchParams.get('genre')||'';if(genre&&!DUBBING_GENRES.includes(genre))fail(400,'장르를 확인해주세요.');
+  const genre=url.searchParams.get('genre')||'';if(genre&&!DUBBING_GENRES.includes(genre))fail(400,'장르를 확인해 주세요.');
   if(tab==='mine')requireUser(user);
   const offset=Math.max(0,Math.min(10000,Math.floor(Number(url.searchParams.get('offset'))||0)));
   const discovery=url.searchParams.get('discovery')==='1'&&tab!=='mine';
@@ -114,10 +114,10 @@ export async function dubbingRoute(req,env,path,user){
   const inputHash=edit?'edit:'+await hash(JSON.stringify([options,edit])):await hash(JSON.stringify(options));
   let g=await one(env,'SELECT * FROM dubbing_generations WHERE id=?',gid);
   if(g){if(g.user_id!==user.id)fail(404,'생성 요청을 찾을 수 없습니다.');if(g.input_hash!==inputHash)conflict();return generationResult(env,g);}
-  if(!dubbingAIAvailable(env))fail(503,'AI 대본 연동 대기 중입니다. 직접 대본을 작성할 수 있어요.');
+  if(!dubbingAIAvailable(env))fail(503,'AI 대본 연동 대기 중입니다. 직접 대본을 작성할 수 있습니다.');
   await rate(env,'dubbing-ai-user:'+user.id,20,86400);await rate(env,'dubbing-ai-all',100,86400);
   const reserved=await reserveDubbingGeneration(env,user.id,gid,inputHash);
-  if(!reserved){g=await one(env,'SELECT * FROM dubbing_generations WHERE id=? AND user_id=?',gid,user.id);if(!g)fail(429,`오늘의 대본 작성 횟수를 모두 사용했어요. 광고 보상은 하루 최대 ${DUBBING_DAILY_AD_LIMIT}회까지 받을 수 있습니다.`);if(g.input_hash!==inputHash)conflict();return generationResult(env,g);}
+  if(!reserved){g=await one(env,'SELECT * FROM dubbing_generations WHERE id=? AND user_id=?',gid,user.id);if(!g)fail(429,`오늘의 대본 작성 횟수를 모두 사용했습니다. 광고 보상은 하루 최대 ${DUBBING_DAILY_AD_LIMIT}회까지 받을 수 있습니다.`);if(g.input_hash!==inputHash)conflict();return generationResult(env,g);}
   try{
    await run(env,"UPDATE dubbing_generations SET result_json=? WHERE id=? AND state='running'",JSON.stringify({options,...(edit?{edit}:{})}),gid);
    const recent=await rows(env,"SELECT result_json FROM dubbing_generations WHERE user_id=? AND state='ready' ORDER BY created DESC LIMIT 6",user.id);
@@ -150,7 +150,7 @@ export async function dubbingRoute(req,env,path,user){
   const creationHash=await hash(JSON.stringify({options,script})),existing=await one(env,'SELECT * FROM dubbing_projects WHERE id=?',pid);
   if(existing){if(existing.owner_id!==user.id)fail(404,'작품을 찾을 수 없습니다.');if(existing.creation_hash!==creationHash)conflict();return json({project:await dto(env,await project(env,pid,user),user)});}
   let generationId=null;
-  if(body.generationId){generationId=uuid(body.generationId);if(!await one(env,"SELECT id FROM dubbing_generations WHERE id=? AND user_id=? AND state='ready'",generationId,user.id))fail(400,'AI 대본 생성 기록을 확인해주세요.');}
+  if(body.generationId){generationId=uuid(body.generationId);if(!await one(env,"SELECT id FROM dubbing_generations WHERE id=? AND user_id=? AND state='ready'",generationId,user.id))fail(400,'AI 대본 생성 기록을 확인해 주세요.');}
   const key=await storeScript(env,user.id,pid,script,1);
   try{
    const inserted=await query(env,`INSERT INTO dubbing_projects(id,owner_id,title,options_json,script_json,script_key,creation_hash,source,generation_id,role_count,duration,write_token,created,updated)
@@ -165,16 +165,16 @@ export async function dubbingRoute(req,env,path,user){
  const pid=uuid(match[1]),action=match[2],roleId=match[3],p=await project(env,pid,user);
  const report=await dubbingReportRoute(req,env,p,user,action,roleId);if(report)return report;
  if(!action&&method==='DELETE')return deleteDubbingProject(req,env,p,user);
- if(p.removed&&(action||method!=='GET'))fail(403,'권리 신고 검토로 이용이 중단된 작품입니다. 이의신청을 이용해주세요.');
+ if(p.removed&&(action||method!=='GET'))fail(403,'권리 신고 검토로 이용이 중단된 작품입니다. 이의신청을 이용해 주세요.');
  if(action==='plays'&&!roleId)return recordDubbingPlay(req,env,p,user);
  if(!['GET','HEAD','DELETE'].includes(method)&&user)await assertDubbingCreator(env,user.id);
  if(action==='poster'&&!roleId)return projectPoster(req,env,p,user);
  const managed=await one(env,'SELECT project_id FROM dubbing_combinations WHERE project_id=? UNION ALL SELECT project_id FROM dubbing_casting_drafts WHERE project_id=?',pid,pid);
- if(managed&&['claims','performances'].includes(action)&&method!=='GET')fail(409,'참여 조합의 빈 배역에서 녹음해주세요. 제출된 배역은 변경할 수 없어요.');
- if(action==='publish'&&await one(env,'SELECT project_id FROM dubbing_casting_drafts WHERE project_id=?',pid))fail(409,'개인 녹음은 녹음 화면의 공개 설정으로 제출해주세요.');
+ if(managed&&['claims','performances'].includes(action)&&method!=='GET')fail(409,'참여 조합의 빈 배역에서 녹음해 주세요. 제출된 배역은 변경할 수 없습니다.');
+ if(action==='publish'&&await one(env,'SELECT project_id FROM dubbing_casting_drafts WHERE project_id=?',pid))fail(409,'개인 녹음은 녹음 화면의 공개 설정으로 제출해 주세요.');
  if(action==='completed'&&method==='GET'){
   const offset=Number(new URL(req.url).searchParams.get('offset')||0);
-  if(!Number.isSafeInteger(offset)||offset<0)fail(400,'목록 위치를 확인해주세요.');
+  if(!Number.isSafeInteger(offset)||offset<0)fail(400,'목록 위치를 확인해 주세요.');
   const items=await completedDubbingWorks(env,p.id,user,offset),total=items[0]?.total||0;
   return json({items:items.slice(0,50).map(({options_json,...t})=>({...t,genres:JSON.parse(options_json).genres||[]})),total,next_offset:items.length>50?offset+50:null});
  }
@@ -190,7 +190,7 @@ export async function dubbingRoute(req,env,path,user){
  if(!action&&method==='PUT'){
   owner(p,user);const options=dubbingOptions(body.options),script=validateDubbingScript(body.script,options);
   let generationId=p.generation_id;
-  if(body.generationId){generationId=uuid(body.generationId);if(!await one(env,"SELECT id FROM dubbing_generations WHERE id=? AND user_id=? AND state='ready'",generationId,user.id))fail(400,'AI 대본 생성 기록을 확인해주세요.');}
+  if(body.generationId){generationId=uuid(body.generationId);if(!await one(env,"SELECT id FROM dubbing_generations WHERE id=? AND user_id=? AND state='ready'",generationId,user.id))fail(400,'AI 대본 생성 기록을 확인해 주세요.');}
   const key=await storeScript(env,user.id,pid,script,rev+1);
   try{
    const updated=await query(env,`UPDATE dubbing_projects SET title=?,options_json=?,script_json=?,script_key=?,role_count=?,duration=?,generation_id=?,source=?,revision=revision+1,write_token=?,updated=?
@@ -202,7 +202,7 @@ export async function dubbingRoute(req,env,path,user){
   }catch(e){await discard(env,key);throw e;}
   await reconcileDubbingGold(env);
  }else if(['publish','unpublish'].includes(action)&&method==='POST'){
-  owner(p,user);if(action==='publish'&&body.rightsAccepted!==true)fail(400,'대본을 공개하고 함께 연기할 권한을 확인해주세요.');
+  owner(p,user);if(action==='publish'&&body.rightsAccepted!==true)fail(400,'대본을 공개하고 함께 연기할 권한을 확인해 주세요.');
   const updated=await query(env,`UPDATE dubbing_projects SET visibility=?,state=CASE WHEN first_recorded_at>0 THEN state ELSE ? END,rights_at=?,revision=revision+1,write_token=?,updated=?
    WHERE id=? AND owner_id=? AND revision=? AND ${activeOwner} AND ${dubbingVisibleSQL('dubbing_projects')} RETURNING id`,
    action==='publish'?'public':'private',action==='publish'?'recruiting':'script_ready',action==='publish'?now():p.rights_at,token,now(),pid,user.id,rev).first();
@@ -212,14 +212,14 @@ export async function dubbingRoute(req,env,path,user){
   const claim=await one(env,'SELECT user_id FROM dubbing_role_claims WHERE project_id=? AND role_id=?',pid,roleId);
   if(method==='POST'&&claim?.user_id===user.id)return json({project:await dto(env,p,user)});
   if(method==='DELETE'&&claim?.user_id!==user.id)fail(403,'내가 선택한 배역만 취소할 수 있습니다.');
-  if(method==='DELETE'&&await one(env,'SELECT id FROM dubbing_recordings WHERE project_id=? AND role_id=?',pid,roleId))fail(409,'이미 녹음을 시작한 배역입니다. 녹음 화면에서 이어서 진행해주세요.');
+  if(method==='DELETE'&&await one(env,'SELECT id FROM dubbing_recordings WHERE project_id=? AND role_id=?',pid,roleId))fail(409,'이미 녹음을 시작한 배역입니다. 녹음 화면에서 이어서 진행해 주세요.');
   const update=query(env,`UPDATE dubbing_projects SET revision=revision+1,write_token=?,updated=? WHERE id=? AND revision=?
    ${method==='POST'?"AND visibility='public' AND state IN ('recruiting','recording')":'AND NOT EXISTS(SELECT 1 FROM dubbing_recordings WHERE project_id=dubbing_projects.id AND role_id=?)'} AND ${activeOwner} AND ${dubbingVisibleSQL('dubbing_projects')} RETURNING id`,token,now(),pid,rev,...(method==='DELETE'?[roleId]:[]));
   const write=method==='POST'?query(env,`INSERT INTO dubbing_role_claims(project_id,role_id,user_id,created)
    SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?) AND EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted')`,pid,roleId,user.id,now(),pid,token,user.id):
    query(env,'DELETE FROM dubbing_role_claims WHERE project_id=? AND role_id=? AND user_id=? AND EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?)',pid,roleId,user.id,pid,token);
   let result;
-  try{result=await env.DB.batch([update,write]);}catch(e){if(/unique|constraint/i.test(e.message))fail(409,'이미 선택된 배역입니다. 한 작품에서는 한 배역을 선택할 수 있어요.');throw e;}
+  try{result=await env.DB.batch([update,write]);}catch(e){if(/unique|constraint/i.test(e.message))fail(409,'이미 선택된 배역입니다. 한 작품에서는 한 배역을 선택할 수 있습니다.');throw e;}
   if(!result[0]?.results?.length)conflict();
   if(method==='DELETE'&&p.visibility==='private'&&p.owner_id!==user.id)return json({released:true,project:null});
  }else fail(405,'허용되지 않는 요청입니다.');

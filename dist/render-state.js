@@ -13,7 +13,7 @@
  function mount(){
   const message=document.getElementById('route-pending-message');
   const actions=document.getElementById('route-pending-actions');
-  if(message)message.textContent=state()==='error'?'화면을 준비하지 못했어요. 연결을 확인한 뒤 다시 시도해주세요.':'AIFECT 화면을 준비하고 있어요.';
+  if(message)message.textContent=state()==='error'?'화면을 준비하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.':'AIFECT 화면을 준비하고 있습니다.';
   if(actions)actions.hidden=state()!=='error';
   const button=document.getElementById('route-retry');
   if(button)button.onclick=()=>{if(!initialized||assetsFailed||!retry)location.reload();else retry();};

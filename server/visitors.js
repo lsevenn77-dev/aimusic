@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {fail,json,now,rate,query} from './db.js';
 import {hash} from './auth.js';
 import {sourceFromRequest} from './signup-source.js';
@@ -6,10 +7,10 @@ export const visitDay=(at=now())=>Math.floor((at+9*3600)/86400);
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 
 export async function recordVisit(req,env){
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  if(!req.headers.get('content-type')?.startsWith('application/json'))fail(415,'JSON 형식이 필요합니다.');
  const payload=await req.json().catch(()=>null);
- if(!uuid.test(payload?.token)||typeof payload.token!=='string')fail(400,'방문 번호를 확인해주세요.');
+ if(!uuid.test(payload?.token)||typeof payload.token!=='string')fail(400,'방문 번호를 확인해 주세요.');
  const day=visitDay();
  if(payload.day!==day)return json({day,recorded:false});
  const ua=req.headers.get('user-agent')||'';

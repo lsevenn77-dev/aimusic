@@ -6,7 +6,7 @@ function musicProfileItems(d,tab='all'){
  const all=[...new Map([...originals,...covers].map(t=>[t.id,t])).values()].sort((a,b)=>(Number(b.created)||0)-(Number(a.created)||0));
  return tab==='tracks'?originals:tab==='covers'?covers:tab==='duets'?covers.filter(t=>t.cover_mode==='duet'):all;
 }
-function playlistSaveButton(t){if(t.kind==='cover')return `<button type="button" class="small-button music-save" data-box-add="${esc(t.id)}" data-kind="cover">${icon('ui-plus-action')}<span>마이박스에 담기</span></button>`;if(!AifectPlaylist.isPlaylistEligibleTrack(t))return "";return `<button type="button" class="small-button music-save" data-add="${esc(t.id)}" aria-label="${esc(t.title)} 담기">${icon('ui-plus-action')}<span>담기</span></button>`;}
+function playlistSaveButton(t){if(!globalThis.AifectUnifiedPlaylists&&t.kind==='cover')return `<button type="button" class="small-button music-save" data-box-add="${esc(t.id)}" data-kind="cover">${icon('ui-plus-action')}<span>마이박스에 담기</span></button>`;if(!AifectPlaylist.isPlaylistEligibleTrack(t))return "";return `<button type="button" class="small-button music-save" data-add="${esc(t.id)}" aria-label="${esc(t.title)} 담기">${icon('ui-plus-action')}<span>담기</span></button>`;}
 function musicPerson(t){const p={id:t.producer_id,name:t.producer||'음악가',image_version:t.producer_image_version||'',player_xp:t.player_xp,profile_frame:t.profile_frame,profile_frame_artwork:t.profile_frame_artwork};return p;}
 function musicTrackCard(t,{social=true}={}){
  const p=musicPerson(t),own=!!me&&t.user_id===me.id;
@@ -20,10 +20,10 @@ function musicMyShortcuts(){return `<nav class="music-my-links" aria-label="내 
 function peopleListHTML(items,kind='producer'){
  return '<div class="people-list">'+items.map(p=>{
   const pid=p.target_id||p.id,href=pid?'#'+kind+'/'+encodeURIComponent(pid):'#follower/'+encodeURIComponent(p.user_id);
-  return '<a data-list-row class="surface people-list-row" href="'+esc(href)+'" aria-label="'+esc(p.name)+' 페이지 보기">'+portrait(p,kind)+'<span class="people-list-copy"><strong>'+userNickname(p.name,{profileId:kind==='artist'?null:p.id,artistId:p.id,entityType:kind,userId:p.user_id})+'</strong><small>'+esc(p.bio||'음악으로 만나요.')+'</small></span>'+icon('chevron')+'</a>';
+  return '<a data-list-row class="surface people-list-row" href="'+esc(href)+'" aria-label="'+esc(p.name)+' 페이지 보기">'+portrait(p,kind)+'<span class="people-list-copy"><strong>'+userNickname(p.name,{profileId:kind==='artist'?null:p.id,artistId:p.id,entityType:kind,userId:p.user_id})+'</strong><small>'+esc(p.bio||'음악으로 만나 뵙겠습니다.')+'</small></span>'+icon('chevron')+'</a>';
  }).join('')+'</div>';
 }
-function listenerProfileHTML(p,counts){const stats=counts?'<div class="mp-stats"><a href="#follow?tab=followers&amp;user='+encodeURIComponent(p.user_id)+'">팔로워 '+number(counts.followers)+'</a><a href="#follow?tab=following&amp;user='+encodeURIComponent(p.user_id)+'">팔로잉 '+number(counts.following)+'</a></div>':'';return '<section class="surface listener-profile">'+portrait(p,'producer')+'<h2>'+memberNickname(p)+'</h2><p class="mp-public-id">ID · '+esc(p.public_id||'발급 확인 중')+'</p><p>'+esc(p.bio||'좋아하는 음악을 함께 듣고 있어요.')+'</p><p class="field-help">아직 공개한 음악이 없어요.</p>'+stats+'</section>';}
+function listenerProfileHTML(p,counts){const stats=counts?'<div class="mp-stats"><a href="#follow?tab=followers&amp;user='+encodeURIComponent(p.user_id)+'">팔로워 '+number(counts.followers)+'</a><a href="#follow?tab=following&amp;user='+encodeURIComponent(p.user_id)+'">팔로잉 '+number(counts.following)+'</a></div>':'';return '<section class="surface listener-profile">'+portrait(p,'producer')+'<h2>'+memberNickname(p)+'</h2><p class="mp-public-id">ID · '+esc(p.public_id||'발급 확인 중')+'</p><p>'+esc(p.bio||'좋아하는 음악을 함께 듣고 있습니다.')+'</p><p class="field-help">아직 공개한 음악이 없습니다.</p>'+stats+'</section>';}
 
 
 function musicLayout(scope){try{return localStorage.getItem('aifect-music-layout-'+scope)==='list'?'list':'grid';}catch{return 'grid';}}

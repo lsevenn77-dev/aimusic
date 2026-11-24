@@ -183,7 +183,7 @@ function roomMessages(client,sheet){
     const art=notice?'<span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span>':avatarImage({...p,profile_id:id});
     const name=notice?esc(chatNickname(p)):userNickname(chatNickname(p),{profileId:id,userId:p.user_id});
     return `<button type="button" data-room-peer="${esc(id)}">${art}<span><strong>${name}</strong><small>${esc(AifectStickers.preview(p.last_message||''))}</small></span>${p.unread?`<b>${Number(p.unread)}</b>`:''}<time>${p.updated?esc(inboxTime(p.updated)):''}</time></button>`;
-   }).join('')||'<p>표시할 대화가 없어요.</p>';
+   }).join('')||'<p>표시할 대화가 없습니다.</p>';
   };
   list.onclick=e=>{const id=e.target.closest('[data-room-peer]')?.dataset.roomPeer;if(id)(noticeIds.has(id)?welcome():thread(id)).catch(report);};
   input.oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>load().catch(report),150);};
@@ -299,7 +299,7 @@ function bindRoomGiftWallet(form){
    balance.textContent=number(d.balance)+' G';
    let chosen=packs?.[0]?.gold;
    area.innerHTML=(packs||[]).map(p=>`<button type="button" class="room-wallet-pack" data-room-pack="${Number(p.gold)}" aria-pressed="${chosen===p.gold}"><strong>${number(p.total_gold??p.gold)} G<small>${number(p.gold)} G${p.bonus_gold?' + '+number(p.bonus_gold)+' G':''}</small></strong><span>${number(p.price)}원</span></button>`).join('')+`<button class="room-wallet-confirm" type="button" ${!chosen||!ready?'disabled':''}>결제 내용 확인</button>`;
-   if(!ready)status.textContent='현재 골드 충전을 이용할 수 없어요.';
+   if(!ready)status.textContent='현재 골드 충전을 이용할 수 없습니다.';
    area.onclick=async e=>{
     const item=e.target.closest('[data-room-pack]');
     if(item){chosen=Number(item.dataset.roomPack);for(const b of area.querySelectorAll('[data-room-pack]'))b.setAttribute('aria-pressed',String(b===item));return;}

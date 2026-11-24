@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,query,fail,json,now} from './db.js';
 import {requireUser} from './auth.js';
 import {published,VISIBLE,trackList} from './catalog.js';
@@ -18,14 +19,14 @@ export async function songCoverPick(env,detail,user){
 export async function coverPickRoute(req,env,tid,user){
  const detail=await published(env,tid);
  if(req.method==='GET')return json(await songCoverPick(env,detail,user));
- if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
  requireUser(user);
- if(!(await one(env,`SELECT 1 FROM tracks o WHERE o.id=? AND ${pickOwnerSQL()}`,tid,user.id,user.id)))fail(403,'이 곡의 작곡가만 PICK을 변경할 수 있어요.');
+ if(!(await one(env,`SELECT 1 FROM tracks o WHERE o.id=? AND ${pickOwnerSQL()}`,tid,user.id,user.id)))fail(403,'이 곡의 작곡가만 PICK을 변경할 수 있습니다.');
  const b=await req.json(),coverId=b.cover_id,revision=b.expected_revision;
- if(!(coverId===null||typeof coverId==='string'&&/^[\w-]{1,100}$/.test(coverId))||!Number.isSafeInteger(revision)||revision<0)fail(400,'PICK 요청을 확인해주세요.');
+ if(!(coverId===null||typeof coverId==='string'&&/^[\w-]{1,100}$/.test(coverId))||!Number.isSafeInteger(revision)||revision<0)fail(400,'PICK 요청을 확인해 주세요.');
  if(coverId){
   const target=await published(env,coverId);
-  if(target.original_id!==tid||!(await one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${completedCoverSQL()}`,coverId)))fail(400,'같은 원곡의 공개된 완성 커버만 PICK으로 선택할 수 있어요.');
+  if(target.original_id!==tid||!(await one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${completedCoverSQL()}`,coverId)))fail(400,'같은 원곡의 공개된 완성 커버만 PICK으로 선택할 수 있습니다.');
  }
  // The INSERT SELECT repeats authorization and eligibility inside the one
  // atomic write, closing races with moderation, deletion and ownership edits.
@@ -35,6 +36,6 @@ export async function coverPickRoute(req,env,tid,user){
    AND (?=0 OR EXISTS(SELECT 1 FROM song_cover_picks sp WHERE sp.original_id=o.id AND sp.revision=?))
   ON CONFLICT(original_id) DO UPDATE SET cover_id=excluded.cover_id,revision=song_cover_picks.revision+1,updated_by=excluded.updated_by,updated=excluded.updated
    WHERE song_cover_picks.revision=? RETURNING revision`,coverId,user.id,now(),tid,user.id,user.id,coverId,coverId,revision,revision,revision).all();
- if(!result.results.length)fail(409,'PICK 또는 공개 상태가 변경됐어요. 목록을 새로 확인한 뒤 다시 선택해주세요.');
+ if(!result.results.length)fail(409,'PICK 또는 공개 상태가 변경되었습니다. 목록을 새로 확인한 뒤 다시 선택해 주세요.');
  return json(await songCoverPick(env,detail,user));
 }

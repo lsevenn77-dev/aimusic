@@ -7,7 +7,7 @@ const nativeSinging=()=>window.Capacitor?.isNativePlatform?.()&&window.Capacitor
 const singBusy=s=>['loading','stopping','exporting','rendering'].includes(s?.state);
 const singLive=s=>['singing','preroll'].includes(s?.state);
 function singRouteHref(s){const q=new URLSearchParams();if(s.parent)q.set('duet',s.parent);else{q.set('mode',s.mode==='duet'?'duet':'solo');if(s.mode==='duet')q.set('part',s.part||'male');}return '#sing/'+encodeURIComponent(s.id)+'?'+q;}
-async function loadSingRoute(trackId,q,readApi=api){const parent=q.get('duet'),d=await readApi(parent?'/api/duets/'+encodeURIComponent(parent):'/api/karaoke/'+encodeURIComponent(trackId));if(d.track?.id!==trackId||parent&&d.duet?.parent_id!==parent)throw new Error('참여할 듀엣을 확인하지 못했어요. 듀엣 참여에서 다시 열어주세요.');return {...d,chooseMode:!parent&&!['solo','duet'].includes(q.get('mode'))&&q.get('draft')!=='1',mode:parent||q.get('mode')==='duet'?'duet':'solo',part:d.duet?.part||(q.get('part')==='female'?'female':'male')};}
+async function loadSingRoute(trackId,q,readApi=api){const parent=q.get('duet'),d=await readApi(parent?'/api/duets/'+encodeURIComponent(parent):'/api/karaoke/'+encodeURIComponent(trackId));if(d.track?.id!==trackId||parent&&d.duet?.parent_id!==parent)throw new Error('참여할 듀엣을 확인하지 못했습니다. 듀엣 참여에서 다시 열어 주세요.');return {...d,chooseMode:!parent&&!['solo','duet'].includes(q.get('mode'))&&q.get('draft')!=='1',mode:parent||q.get('mode')==='duet'?'duet':'solo',part:d.duet?.part||(q.get('part')==='female'?'female':'male')};}
 function singRecordingModeHTML(d){
  if(d.duet?.parent_id||d.parent)return '';
  return '<div class="sing-mode-switch" role="group" aria-label="녹음 방식">'+['solo','duet'].map(mode=>'<button type="button" data-sing-record-mode="'+mode+'" aria-pressed="'+((d.mode||'solo')===mode)+'">'+(mode==='solo'?'솔로':'듀엣')+'</button>').join('')+'</div>';
@@ -27,7 +27,7 @@ function askSingModeChange(s,mode){
  const trigger=document.activeElement,label=mode==='duet'?'듀엣':'솔로';
  return new Promise(resolve=>{
   let accepted=false;
-  dialog('<div class="sing-mode-change-dialog"><p class="popup-prompt">'+label+'로 전환할까요?</p><p>현재 녹음은 비우고 처음부터 녹음해요. 이미 저장한 초안과 오디오 설정은 유지돼요.</p><div class="inline-actions"><button type="button" class="small-button" data-mode-cancel>취소</button><button type="button" class="primary-button" data-mode-confirm>전환하기</button></div></div>');
+  dialog('<div class="sing-mode-change-dialog"><p class="popup-prompt">'+label+'로 전환할까요?</p><p>현재 녹음은 비우고 처음부터 녹음합니다. 이미 저장한 초안과 오디오 설정은 유지됩니다.</p><div class="inline-actions"><button type="button" class="small-button" data-mode-cancel>취소</button><button type="button" class="primary-button" data-mode-confirm>전환하기</button></div></div>');
   dlg.classList.add('sing-mode-change-popup');
   dlg.addEventListener('close',()=>{dlg.classList.remove('sing-mode-change-popup');if(trigger?.isConnected)trigger.focus();resolve(accepted&&sing===s);},{once:true});
   dlg.querySelector('[data-mode-cancel]').onclick=()=>dlg.close();
@@ -50,9 +50,9 @@ async function switchSingRecordingMode(mode){
   const href=singRouteHref(s);history.replaceState(history.state,'',href);s.routeHash=href;s.historyKey=window.navigation?.currentEntry?.key||s.historyKey;
   const main=$('#main');if(main)main.dataset.route=href.slice(1);window.AifectRender?.syncTarget?.();
   document.querySelectorAll('[data-recording-mode-label]').forEach(label=>label.textContent=mode==='duet'?'듀엣':'솔로');
-  renderDuetGuide();renderSingPanel();drawLyrics(0);setSingStatus((mode==='duet'?'듀엣':'솔로')+' 녹음을 준비했어요. 녹음 시작을 눌러주세요.');
+  renderDuetGuide();renderSingPanel();drawLyrics(0);setSingStatus((mode==='duet'?'듀엣':'솔로')+' 녹음을 준비했습니다. 녹음 시작을 눌러 주세요.');
   return true;
- }catch(error){if(sing===s)setSingStatus(error.message||'녹음 방식을 바꾸지 못했어요. 다시 시도해주세요.',true);return false;}
+ }catch(error){if(sing===s)setSingStatus(error.message||'녹음 방식을 바꾸지 못했습니다. 다시 시도해 주세요.',true);return false;}
  finally{s.modeSwitchPending=false;if(sing===s){updateTransport();if(trigger?.isConnected&&singPreparationVisible(s))trigger.focus();}}
 }
 async function restartSinging(){
@@ -63,7 +63,7 @@ async function restartSinging(){
   if(sing!==s)return false;
   s.previewRequest=(s.previewRequest||0)+1;stopPreview();cleanupPunch(s);
   s.editorStep=1;s.punchRange=null;s.punchPage=null;s.editingRecording=true;s.preparationOpen=true;s.cursor=0;s.shownLine=-1;s.state=s.voice?'review':'idle';
-  renderSingPanel();drawLyrics(0);setSingStatus('처음부터 다시 시작할 준비가 됐어요.');return true;
+  renderSingPanel();drawLyrics(0);setSingStatus('처음부터 다시 시작할 준비가 되었습니다.');return true;
  }finally{s.restartPending=false;if(sing===s)updateTransport();}
 }
 // A paused take is still on the recording screen until the singer chooses 완료.
@@ -78,7 +78,7 @@ function askSingExit(s,kind){
  dlg.setAttribute('aria-labelledby','sing-exit-title');
  dlg.setAttribute('aria-describedby','sing-exit-note');
  dlg.innerHTML=`<p class="popup-prompt" id="sing-exit-title">${edit?'편집한 녹음을 초안으로 저장할까요?':'녹음을 중단하고 나갈까요?'}</p>
- <p id="sing-exit-note">${edit?'초안으로 저장하면 나중에 이어서 편집할 수 있어요. 저장하지 않으면 이번 편집 내용은 사라집니다.':'지금 나가면 진행 중인 녹음은 저장되지 않고 내 초안에도 추가되지 않아요.'}</p>
+ <p id="sing-exit-note">${edit?'초안으로 저장하면 나중에 이어서 편집할 수 있습니다. 저장하지 않으면 이번 편집 내용은 사라집니다.':'지금 나가면 진행 중인 녹음은 저장되지 않고 내 초안에도 추가되지 않습니다.'}</p>
  <p class="form-error" role="alert" hidden></p>
  <div class="sing-exit-actions"><button type="button" class="small-button" data-choice="stay" autofocus>${edit?'편집 계속':'계속 녹음'}</button>
  <button type="button" class="small-button" data-choice="discard">${edit?'저장하지 않고 나가기':'녹음 버리고 나가기'}</button>
@@ -98,7 +98,7 @@ function askSingExit(s,kind){
    try{await saveSingDraft(s);finish(true);}
    catch{
     const error=dlg.querySelector('[role="alert"]');
-    error.textContent='초안을 저장하지 못했어요. 브라우저 저장 공간을 확인한 뒤 다시 시도해주세요.';
+    error.textContent='초안을 저장하지 못했습니다. 브라우저 저장 공간을 확인한 뒤 다시 시도해 주세요.';
     error.hidden=false;saving=false;
     buttons.forEach(button=>button.disabled=false);
     dlg.querySelector('[data-choice="save"]').focus();
@@ -109,7 +109,7 @@ function askSingExit(s,kind){
 }
 async function requestSingExit(s,leave){
  if(s.exitPending||sing!==s)return;
- if(singBusy(s)&&!s.startingRecording&&(!s.voice||s.state==='stopping'||s.state==='exporting')){toast('녹음을 정리한 뒤 이동해주세요.');return;}
+ if(singBusy(s)&&!s.startingRecording&&(!s.voice||s.state==='stopping'||s.state==='exporting')){toast('녹음을 정리한 뒤 이동해 주세요.');return;}
  const kind=singExitKind(s);
  s.exitPending=true;
  try{
@@ -178,19 +178,19 @@ function cleanupSing(){
  s.previewPitch?.close();s.lyricResize?.disconnect();s.micObserver?.disconnect();s.micCheck?.destroy();cancelKeyProcessing(s);cancelVocalEffects(s);if($('#dialog')?.classList.contains('punch-complete-dialog'))$('#dialog').close();stopStandbyMonitor(s);releaseRun(s.run);s.preview?.forEach(n=>{try{n.stop();}catch{}});s.wake?.release?.().catch(()=>{});s.ctx?.close().catch(()=>{});
 }
 function karaokeListHTML(tracks,duets=[]){
- remember([...tracks,...duets]);return '<a class="small-button" href="#karaoke/drafts">초안</a>'+duetLobbyHTML(duets)+heading('노래방','마이크와 이어폰을 준비하고 MR·가사와 함께 불러보세요.')+(tracks.length?`<div class="track-list">${tracks.map((t,i)=>`<div data-list-row class="live-track"><span class="track-rank">${i+1}</span>${cover(t,'mini-cover')}<div class="track-info"><a href="#song/${t.id}"><strong>${esc(t.title)}</strong></a><span>${credits(t)}</span></div><span class="track-time">${time(t.duration)}</span><a class="small-button" href="#sing/${t.id}">${icon('mic')} 부르기</a></div>`).join('')}</div>`:'<p class="surface empty-note">아직 부를 수 있는 곡이 없어요.</p>');
+ remember([...tracks,...duets]);return '<a class="small-button" href="#karaoke/drafts">초안</a>'+duetLobbyHTML(duets)+heading('노래방','마이크와 이어폰을 준비하고 MR·가사와 함께 불러 보세요.')+(tracks.length?`<div class="track-list">${tracks.map((t,i)=>`<div data-list-row class="live-track"><span class="track-rank">${i+1}</span>${cover(t,'mini-cover')}<div class="track-info"><a href="#song/${t.id}"><strong>${esc(t.title)}</strong></a><span>${credits(t)}</span></div><span class="track-time">${time(t.duration)}</span><a class="small-button" href="#sing/${t.id}">${icon('mic')} 부르기</a></div>`).join('')}</div>`:'<p class="surface empty-note">아직 부를 수 있는 곡이 없습니다.</p>');
 }
 function singEntryHTML(){
- return `<div class="sing-entry-page"><header class="sing-entry-heading"><h1>노래 녹음</h1><p>좋아하는 노래를 내 목소리로 녹음해보세요.</p></header><section class="sing-entry-state" aria-labelledby="sing-entry-title"><div class="sing-entry-icon" aria-hidden="true">${icon('mic')}</div><h2 id="sing-entry-title">부를 곡을 먼저 골라주세요</h2><p>플레이에서 곡을 선택하면 반주와 가사를 보며 녹음할 수 있어요.</p><div class="sing-entry-actions"><a class="primary-button" href="#karaoke">부를 곡 고르기</a><a class="small-button" href="#karaoke/drafts">내 초안</a></div></section></div>`;
+ return `<div class="sing-entry-page"><header class="sing-entry-heading"><h1>노래 녹음</h1><p>좋아하는 노래를 내 목소리로 녹음해 보세요.</p></header><section class="sing-entry-state" aria-labelledby="sing-entry-title"><div class="sing-entry-icon" aria-hidden="true">${icon('mic')}</div><h2 id="sing-entry-title">부를 곡을 먼저 골라 주세요</h2><p>플레이에서 곡을 선택하면 반주와 가사를 보며 녹음할 수 있습니다.</p><div class="sing-entry-actions"><a class="primary-button" href="#karaoke">부를 곡 고르기</a><a class="small-button" href="#karaoke/drafts">내 초안</a></div></section></div>`;
 }
 function singHTML(d){
  if(d.chooseMode)return '';
  const t=d.track;
  return `<section class="surface sing web-studio" id="sing">
  <ol class="take-steps" aria-label="녹음 후 편집 단계" hidden><li data-step-marker="1" aria-current="step"><b>1</b> 음원 편집</li><li data-step-marker="2"><b>2</b> 게시 설정</li></ol><header class="sing-head"><a class="sing-back icon-button" href="#sing/${esc(t.id)}" aria-label="노래하기로 돌아가기">${icon('chevron-left')}</a>${cover(t,"sing-artwork")}<div class="studio-song-meta"><span class="studio-page-label" data-editor-caption hidden>녹음 편집</span><h1 title="${esc(t.title)}">${esc(t.title)}</h1><p class="record-credit" title="${esc(t.producer||t.artist)}">${esc(t.producer||t.artist)}</p><p class="review-credit">${esc(t.artist)} · ${esc(t.genre||'음악')} · <span data-recording-mode-label>${d.mode==='duet'?'듀엣':'솔로'}</span> · <small data-recording-key>원곡 키</small></p></div><div class="sing-header-mode"><div class="sing-prep-controls" data-sing-prep-controls>${singRecordingModeHTML(d)}<div id="duet-guide"></div></div><button type="button" class="record-settings-icon" data-sing-settings aria-label="녹음 설정">${recordSettingsIcon()}</button></div></header>
- ${d.duet?`<div class="sing-duet-context"><span>${icon('users')}</span><div><strong>듀엣 참여 · 내 파트 녹음</strong><p><a href="#producer/${esc(d.duet.partner.producer_id)}">${userNickname(d.duet.partner.producer,{profileId:d.duet.partner.producer_id})}</a>님의 녹음에 이어 부릅니다. 상대 목소리와 반주가 함께 재생돼요.</p></div></div>`:''}
+ ${d.duet?`<div class="sing-duet-context"><span>${icon('users')}</span><div><strong>듀엣 참여 · 내 파트 녹음</strong><p><a href="#producer/${esc(d.duet.partner.producer_id)}">${userNickname(d.duet.partner.producer,{profileId:d.duet.partner.producer_id})}</a>님의 녹음에 이어 부릅니다. 상대 목소리와 반주가 함께 재생됩니다.</p></div></div>`:''}
  <div class="sing-recording"><div class="sing-punch-record-header" hidden><strong>선택 구간 녹음</strong><span data-punch-record-range></span><button type="button" class="small-button" data-punch-cancel>취소</button></div>${nativeSinging()?'':window.AifectMicrophoneCheck?.html()||''}<div class="sing-recording-info"><span data-record-mic role="status">${nativeSinging()?'앱에서 마이크 확인':'마이크 확인 필요'}</span>${duetLegendHTML(d.mode||'solo')}</div>
- <div class="sing-wheel" id="sing-wheel" aria-label="가사와 녹음 위치" tabindex="0">${(d.words||[]).map((line,i)=>`<button type="button" data-sing-line="${i}" data-second="${line.s}" aria-label="${time(line.s)} ${esc(line.w.map(w=>w.t).join(' '))}"><small>${time(line.s)}</small><span class="sing-line-text">${line.w.map((w,j)=>`<span data-word="${j}">${esc(w.t)}</span>`).join(' ')}</span></button>`).join('')||'<p class="field-help">싱크 가사가 없는 곡이에요. 아래 막대로 부를 위치를 골라주세요.</p>'}</div>
+ <div class="sing-wheel" id="sing-wheel" aria-label="가사와 녹음 위치" tabindex="0">${(d.words||[]).map((line,i)=>`<button type="button" data-sing-line="${i}" data-second="${line.s}" aria-label="${time(line.s)} ${esc(line.w.map(w=>w.t).join(' '))}"><small>${time(line.s)}</small><span class="sing-line-text">${line.w.map((w,j)=>`<span data-word="${j}">${esc(w.t)}</span>`).join(' ')}</span></button>`).join('')||'<p class="field-help">싱크 가사가 없는 곡입니다. 아래 막대로 부를 위치를 골라 주세요.</p>'}</div>
  <div class="sing-progress"><span id="sing-now">0:00</span><input class="sing-seek" id="sing-seek" type="range" min="0" max="${t.duration}" step=".05" value="0" aria-label="노래 위치"><span id="sing-duration">${time(t.duration)}</span></div>
  <div class="sing-countdown" aria-live="polite" aria-hidden="true" data-active="false"><strong data-punch-countdown data-count="0" aria-label="녹음 대기">${'<i aria-hidden="true"></i>'.repeat(3)}</strong></div>
  <div class="sing-transport studio-transport">
@@ -198,10 +198,10 @@ function singHTML(d){
   <div class="studio-record-slot"><button type="button" data-sing-start class="studio-record" aria-label="녹음 시작" title="녹음 시작">${icon('mic')}</button></div>
   <button type="button" data-sing-stop aria-label="완료" title="완료" disabled>${studioIcon('check')}</button>
  </div>
- <p class="studio-position-help">가사를 누르면 일시정지하고 소절을 선택할 수 있어요.</p></div>
+ <p class="studio-position-help">가사를 누르면 일시정지하고 소절을 선택할 수 있습니다.</p></div>
  <aside id="sing-live-settings" class="studio-sidebar" aria-label="녹음 설정">${liveStudioSettingsHTML(K().defaultVocalMix())}</aside>
- <p class="sing-status" id="sing-status" role="status">${d.duet?'파트너 녹음을 먼저 듣고, 내 파트를 이어 불러주세요.':'가사를 확인하고 녹음을 시작하세요.'}</p><div id="sing-panel">${singStartHTML()}</div>
- <p class="field-help sing-local-note">초안 저장을 선택하면 녹음과 효과를 이 기기에 보관해요.</p></section>`;
+ <p class="sing-status" id="sing-status" role="status">${d.duet?'파트너 녹음을 먼저 듣고, 내 파트를 이어 불러 주세요.':'가사를 확인하고 녹음을 시작하세요.'}</p><div id="sing-panel">${singStartHTML()}</div>
+ <p class="field-help sing-local-note">초안 저장을 선택하면 녹음과 효과를 이 기기에 보관합니다.</p></section>`;
 }
 function liveStudioSettingsHTML(m){return `<section class="studio-setting-card"><h2>${studioIcon('headphones')} 오디오 설정</h2>${studioRangeHTML(m,'voice','마이크 볼륨',0,2,.01)}${studioRangeHTML(m,'mr','반주 볼륨',0,1.5,.01)}<label class="sing-monitor"><span>이어폰 모니터링<small>내 목소리를 실시간으로 듣기</small></span><input id="sing-monitor" type="checkbox" role="switch" aria-label="이어폰으로 내 목소리 듣기"></label></section><section class="studio-setting-card"><h2>${icon('list')} 노래 설정</h2>${singingKeyHTML()}<div class="studio-size"><span>가사 크기</span>${lyricSizeControlsHTML()}</div></section>${spaceEffectsHTML(m,true)}`;}
 function spaceEffectsHTML(m,live=false){
@@ -214,7 +214,7 @@ function spaceEffectsHTML(m,live=false){
 }
 function liveSpaceControlsHTML(m){return `<div data-preset-strength>${studioRangeHTML(m,'strength','효과 강도',0,1,.01)}</div><div data-post-custom hidden>${studioRangeHTML(m,'room','잔향감',0,1,.01)}${studioRangeHTML(m,'size','룸 크기',0,1,.01)}${studioRangeHTML(m,'tone','음색 선명도',-1,2,.01)}</div>`;}
 function reviewSpaceControlsHTML(m){return `<p class="field-help" data-preset-description></p><div data-preset-strength>${studioRangeHTML(m,'strength','효과 강도',0,1,.01)}</div><details class="sing-effect-details" data-custom-controls><summary>사용자 설정</summary>${studioRangeHTML(m,'echo','에코 효과',0,.65,.001)}${studioRangeHTML(m,'size','룸 크기',0,1,.01)}${studioRangeHTML(m,'room','리버브 강도',0,1,.01)}</details>`;}
-const singStartHTML=(message='')=>`${message?`<p class="form-error">${esc(message)}</p>`:''}${nativeSinging()?`<p class="field-help">에코 · 룸 리버브와 실시간 이어폰 청음을 지원해요.</p><button class="primary-button" data-sing-start>${icon('mic')} 노래방 열기</button>`:''}`;
+const singStartHTML=(message='')=>`${message?`<p class="form-error">${esc(message)}</p>`:''}${nativeSinging()?`<p class="field-help">에코 · 룸 리버브와 실시간 이어폰 청음을 지원합니다.</p><button class="primary-button" data-sing-start>${icon('mic')} 노래방 열기</button>`:''}`;
 function bindSing(id){
  cleanupSing();if(!$('#sing')||!routeSing)return;
  sing={id,routeHash:location.hash,historyKey:window.navigation?.currentEntry?.key,owner:me?.id,data:routeSing,state:'loading',cursor:0,keySemitones:0,mix:preferredRecordingMix(me?.id),mode:routeSing.mode||'solo',part:routeSing.part||'male',parent:routeSing.duet?.parent_id||null};if(!canEditPaid())sing.mix.tone=0;sing.duetGuide=sing.parent?routeSing.duet?.guide||null:{version:1,mode:'free',lines:[]};
@@ -232,7 +232,7 @@ function bindSing(id){
  seek.addEventListener('pointerdown',begin);seek.addEventListener('input',()=>select(Number(seek.value)));seek.addEventListener('change',end);seek.addEventListener('pointercancel',end);
  // A first tap pauses only; a later tap chooses the target without auto-resuming.
  const pauseLyrics=async()=>{if(sing!==s||singBusy(s))return;if(singLive(s)){s.editingRecording=true;await finishSinging();}else if(s.preview){stopPreview();updateTransport();}setSingStatus('일시정지 · 다시 부를 가사를 선택하세요.');};
- wheel.addEventListener('click',e=>{if(singBusy(s)||s.punchRange)return;if(singLive(s)||s.preview){void pauseLyrics();return;}const row=e.target.closest('[data-second]');if(row){s.cursor=clampPosition(Number(row.dataset.second));s.shownLine=-1;drawLyrics(s.cursor);setSingStatus('선택한 소절부터 다시 부를 준비가 됐어요.');}});
+ wheel.addEventListener('click',e=>{if(singBusy(s)||s.punchRange)return;if(singLive(s)||s.preview){void pauseLyrics();return;}const row=e.target.closest('[data-second]');if(row){s.cursor=clampPosition(Number(row.dataset.second));s.shownLine=-1;drawLyrics(s.cursor);setSingStatus('선택한 소절부터 다시 부를 준비가 되었습니다.');}});
  wheel.addEventListener('keydown',e=>{if(!['ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();if(singLive(s)||s.preview){void pauseLyrics();return;}if(singBusy(s)||s.punchRange)return;const lines=s.data.words,i=K().wordAt(lines,s.cursor).line,j=Math.max(0,Math.min(lines.length-1,i+(e.key==='ArrowDown'?1:-1)));if(lines[j]){s.cursor=lines[j].s;s.shownLine=-1;drawLyrics(s.cursor);}});
  $('#sing-monitor').onchange=e=>setMonitorEnabled(e.target.checked);const monitorButton=$('[data-monitor-toggle]');if(monitorButton)monitorButton.onclick=()=>setMonitorEnabled(!$('#sing-monitor').checked);
  document.querySelectorAll('button[data-lyric-size]').forEach(button=>button.onclick=()=>applyLyricSize(button.dataset.lyricSize));applyLyricSize(preferredLyricSize());
@@ -285,14 +285,14 @@ async function uploadDuetStems(s,id,report){
   src.buffer=vocal?voiceBuffer(s):backingBuffer(s);gain.gain.value=(vocal?s.mix.voice:s.mix.mr)*(s.exportScale??1);src.connect(gain).connect(ctx.destination);
   const shift=vocal?s.mix.offset/1000:0;src.start(Math.max(0,-shift),Math.max(0,shift));
   const out=await ctx.startRendering(),file=await encodeCoverMp3(out,{signal:s.abort?.signal,onProgress:v=>report((i+v*.8)/2)});
-  if(sing!==s)throw Error('녹음 화면이 닫혔어요.');
+  if(sing!==s)throw Error('녹음 화면이 닫혔습니다.');
   await uploadFile('/api/uploads/'+encodeURIComponent(id)+'/duet-'+part,file,v=>report((i+.8+.2*v/100)/2));
  }
 }
 async function loadDuetStems(s,ctx){
- const stems=s.data.duet.stems,read=async url=>{const r=await fetch(url,{credentials:'same-origin',signal:s.abort.signal});if(!r.ok)throw Error('듀엣 트랙을 불러오지 못했어요. 다시 시도해주세요.');return ctx.decodeAudioData(await r.arrayBuffer());};
+ const stems=s.data.duet.stems,read=async url=>{const r=await fetch(url,{credentials:'same-origin',signal:s.abort.signal});if(!r.ok)throw Error('듀엣 트랙을 불러오지 못했습니다. 다시 시도해 주세요.');return ctx.decodeAudioData(await r.arrayBuffer());};
  const [backing,partner]=await Promise.all([read(stems.instrument),read(stems.partner)]);
- if(backing.duration>600||Math.abs(backing.duration-partner.duration)>.06)throw Error('듀엣 트랙의 길이가 일치하지 않아요.');
+ if(backing.duration>600||Math.abs(backing.duration-partner.duration)>.06)throw Error('듀엣 트랙의 길이가 일치하지 않습니다.');
  const combined=ctx.createBuffer(2,backing.length,ctx.sampleRate);
  for(let c=0;c<2;c++){const out=combined.getChannelData(c),a=backing.getChannelData(Math.min(c,backing.numberOfChannels-1)),b=partner.getChannelData(Math.min(c,partner.numberOfChannels-1));for(let i=0;i<out.length;i++)out[i]=a[i]+(b[i]||0);}
  s.instrumentStem=backing;s.partnerStem=partner;s.mr=combined;
@@ -301,12 +301,12 @@ async function loadDuetStems(s,ctx){
 
 async function loadSingAudio(s){
  const ctx=await prepareVocalContext(s);
- if(!s.mr){s.abort=new AbortController();if(s.data.duet?.stems)await loadDuetStems(s,ctx);else {const r=await fetch(s.data.mr,{credentials:'same-origin',signal:s.abort.signal});if(!r.ok)throw new Error('반주를 불러오지 못했어요. 다시 로그인하고 시도해주세요.');s.mr=await ctx.decodeAudioData(await r.arrayBuffer());}}
- if(s.mr.duration>600)throw new Error('10분 이하 곡만 녹음할 수 있어요.');
+ if(!s.mr){s.abort=new AbortController();if(s.data.duet?.stems)await loadDuetStems(s,ctx);else {const r=await fetch(s.data.mr,{credentials:'same-origin',signal:s.abort.signal});if(!r.ok)throw new Error('반주를 불러오지 못했습니다. 다시 로그인하고 시도해 주세요.');s.mr=await ctx.decodeAudioData(await r.arrayBuffer());}}
+ if(s.mr.duration>600)throw new Error('10분 이하 곡만 녹음할 수 있습니다.');
  return ctx;
 }
 async function resumeSingContext(s){
- if(!window.AudioContext&&!window.webkitAudioContext)throw new Error('이 브라우저는 녹음을 지원하지 않아요. 최신 브라우저에서 열어주세요.');
+ if(!window.AudioContext&&!window.webkitAudioContext)throw new Error('이 브라우저는 녹음을 지원하지 않습니다. 최신 브라우저에서 열어 주세요.');
  const ctx=s.ctx||(s.ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE,latencyHint:'interactive'}));
  // Call resume in the button gesture, before timers, permission prompts or downloads.
  return ctx.resume().then(()=>ctx);
@@ -323,28 +323,28 @@ async function startSinging(){
  if(!sing||singBusy(sing)||singLive(sing)||sing.modeSwitchPending||sing.restartPending)return;
  const partIssue=duetAssignmentIssue(sing);if(partIssue){setSingStatus(partIssue);openDuetEditor();return;}
  if(nativeSinging()&&!sing.punchRange){
-  const s=sing,preparationOpen=s.preparationOpen;s.preparationOpen=false;s.startingRecording=true;++playSerial;window.AifectAudioAds?.cancel();audio.pause();s.state='loading';updateTransport();$('#sing-panel').innerHTML='<p class="field-help">노래방을 열고 있어요…</p>';
-  try{const result=await nativeSinging().open({trackId:s.id,coverMode:s.mode,duetPart:s.part,duetParentId:s.parent||''});if(result.uploadedId){if(sing===s)cleanupSing();toast('커버곡을 올렸어요! 변환이 끝나면 공개돼요.');location.hash='studio';return;}if(sing===s){s.preparationOpen=preparationOpen;s.state='idle';$('#sing-panel').innerHTML=singStartHTML();}}
-  catch(e){if(sing===s){s.preparationOpen=preparationOpen;s.state='idle';setSingStatus(e.message||'노래방을 열지 못했어요.',true);$('#sing-panel').innerHTML=singStartHTML(e.message||'노래방을 열지 못했어요.');}}
+  const s=sing,preparationOpen=s.preparationOpen;s.preparationOpen=false;s.startingRecording=true;++playSerial;window.AifectAudioAds?.cancel();audio.pause();s.state='loading';updateTransport();$('#sing-panel').innerHTML='<p class="field-help">노래방을 열고 있습니다…</p>';
+  try{const result=await nativeSinging().open({trackId:s.id,coverMode:s.mode,duetPart:s.part,duetParentId:s.parent||''});if(result.uploadedId){if(sing===s)cleanupSing();toast('커버곡을 올렸습니다! 변환이 끝나면 공개됩니다.');location.hash='studio';return;}if(sing===s){s.preparationOpen=preparationOpen;s.state='idle';$('#sing-panel').innerHTML=singStartHTML();}}
+  catch(e){if(sing===s){s.preparationOpen=preparationOpen;s.state='idle';setSingStatus(e.message||'노래방을 열지 못했습니다.',true);$('#sing-panel').innerHTML=singStartHTML(e.message||'노래방을 열지 못했습니다.');}}
   finally{s.startingRecording=false;if(sing===s)updateTransport();}return;
  }
- const s=sing,preparationOpen=s.preparationOpen;if(s.punchRange&&!s.punchAuthorized){setSingStatus('프리미엄 권한을 다시 확인해주세요.');return;}s.punchAuthorized=false;s.preparationOpen=false;s.startingRecording=true;let stream,run;stopPreview();s.micCheck?.prepare();s.monitorSerial=(s.monitorSerial||0)+1;stopStandbyMonitor(s);++playSerial;window.AifectAudioAds?.cancel();audio.pause();s.state='loading';updateTransport();setSingStatus('반주와 마이크를 준비하고 있어요…');
+ const s=sing,preparationOpen=s.preparationOpen;if(s.punchRange&&!s.punchAuthorized){setSingStatus('프리미엄 권한을 다시 확인해 주세요.');return;}s.punchAuthorized=false;s.preparationOpen=false;s.startingRecording=true;let stream,run;stopPreview();s.micCheck?.prepare();s.monitorSerial=(s.monitorSerial||0)+1;stopStandbyMonitor(s);++playSerial;window.AifectAudioAds?.cancel();audio.pause();s.state='loading';updateTransport();setSingStatus('반주와 마이크를 준비하고 있습니다…');
  try{
-  if(!window.AudioContext&&!window.webkitAudioContext)throw new Error('이 브라우저는 녹음을 지원하지 않아요.');
+  if(!window.AudioContext&&!window.webkitAudioContext)throw new Error('이 브라우저는 녹음을 지원하지 않습니다.');
   const context=s.ctx||(s.ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE,latencyHint:'interactive'}));const resume=context.resume();
-  if(!navigator.mediaDevices?.getUserMedia)throw new Error('마이크를 사용할 수 없는 브라우저예요. HTTPS 주소에서 최신 브라우저로 열어주세요.');
+  if(!navigator.mediaDevices?.getUserMedia)throw new Error('마이크를 사용할 수 없는 브라우저입니다. HTTPS 주소에서 최신 브라우저로 열어 주세요.');
   // Request only after the user starts recording. A denied request cannot start an MR or leave a live mic.
   stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
   if(sing!==s){stream.getTracks().forEach(t=>t.stop());return;}
-  s.pendingMic=stream;await resume;if(sing!==s)return;const ctx=await prepareSing(s,true);if(ctx.state!=='running')throw new Error('오디오가 일시정지됐어요. 노래 시작을 다시 눌러주세요.');
-  if(!stream.getAudioTracks().some(t=>t.readyState==='live'&&t.enabled))throw new Error('사용 가능한 마이크 입력이 없어요. 브라우저의 마이크 장치를 확인해주세요.');
-  if(sing!==s||document.hidden)throw new Error('화면으로 돌아와 노래 시작을 눌러주세요.');
+  s.pendingMic=stream;await resume;if(sing!==s)return;const ctx=await prepareSing(s,true);if(ctx.state!=='running')throw new Error('오디오가 일시정지되었습니다. 노래 시작을 다시 눌러 주세요.');
+  if(!stream.getAudioTracks().some(t=>t.readyState==='live'&&t.enabled))throw new Error('사용 가능한 마이크 입력이 없습니다. 브라우저의 마이크 장치를 확인해 주세요.');
+  if(sing!==s||document.hidden)throw new Error('화면으로 돌아와 노래 시작을 눌러 주세요.');
   if(!s.worklet){
    await ctx.audioWorklet.addModule('/recorder-worklet.js?v=20260929');s.worklet=true;
   }
-  if(sing!==s||document.hidden)throw new Error('화면으로 돌아와 다시 시작해주세요.');
+  if(sing!==s||document.hidden)throw new Error('화면으로 돌아와 다시 시작해 주세요.');
   const recordAt=clampPosition(s.cursor),from=s.punchRange?Math.max(0,recordAt-3):recordingPrerollStart(s.data?.words,recordAt);
-  const t0=ctx.currentTime+.15+Math.max(0,3-(recordAt-from)),clock={t0,recordClock:t0+recordAt-from};if(recordAt>=s.mr.duration-.05)throw new Error('곡이 끝났어요. 가사를 움직여 다시 부를 위치를 골라주세요.');
+  const t0=ctx.currentTime+.15+Math.max(0,3-(recordAt-from)),clock={t0,recordClock:t0+recordAt-from};if(recordAt>=s.mr.duration-.05)throw new Error('곡이 끝났습니다. 가사를 움직여 다시 부를 위치를 골라 주세요.');
   const mic=ctx.createMediaStreamSource(stream),node=new AudioWorkletNode(ctx,'aifect-recorder',{numberOfInputs:1,numberOfOutputs:1,outputChannelCount:[1],channelCount:1,channelCountMode:'explicit'}),mute=ctx.createGain(),monitor=ctx.createGain(),src=ctx.createBufferSource(),chunks=[];
   run={stream,mic,node,mute,monitor,src,chunks,recordAt,from,punchRange:s.punchRange?{...s.punchRange}:null,t0:clock.t0,recordClock:clock.recordClock??clock.t0+recordAt-from,micCheck:s.micCheck};s.run=run;s.pendingMic=null;
   s.micCheck?.attach(stream,ctx);
@@ -359,8 +359,8 @@ async function startSinging(){
   s.state=ctx.currentTime<run.recordClock?'preroll':'singing';if(!run.punchRange){s.dirty=true;s.revision=(s.revision||0)+1;}src.onended=()=>{if(sing===s&&singLive(s)){s.editingRecording=!!run.punchRange;finishSinging({offerPunchChoice:!!run.punchRange});}};
   $('#sing-panel').innerHTML='';bindMixControls();updateTransport();
   try{s.wake=await navigator.wakeLock?.request('screen');if(sing!==s||!singLive(s))s.wake?.release?.().catch(()=>{});}catch{}
-  const tick=()=>{if(sing!==s||!singLive(s))return;const t=Math.min(run.punchRange?.end||s.mr.duration,from+Math.max(0,ctx.currentTime-run.t0));const waiting=ctx.currentTime<run.recordClock;s.state=waiting?'preroll':'singing';s.cursor=t;paintPunchCountdown(s,run);setSingStatus(waiting?`준비 · ${K().punchCountdown(run.recordClock,ctx.currentTime)}초 뒤 녹음 시작`:run.punchRange?'선택 구간 녹음 중':'녹음 중 · 가사 영역을 누르면 일시정지해요.');drawLyrics(waiting?recordAt:t);s.frame=requestAnimationFrame(tick);};tick();
- }catch(e){releaseRun(run);stream?.getTracks().forEach(t=>t.stop());if(sing===s){s.preparationOpen=preparationOpen;s.micCheck?.error(e);s.run=null;if(s.punchRange){s.punchRange=null;s.punchPage='select';s.editingRecording=false;}paintPunchCountdown(s,null);s.state=s.voice?'review':'idle';renderSingPanel();setSingStatus(e.name==='NotAllowedError'?'마이크 권한을 허용한 뒤 다시 시작해주세요.':e.message||'녹음을 시작하지 못했어요.',true);}}
+  const tick=()=>{if(sing!==s||!singLive(s))return;const t=Math.min(run.punchRange?.end||s.mr.duration,from+Math.max(0,ctx.currentTime-run.t0));const waiting=ctx.currentTime<run.recordClock;s.state=waiting?'preroll':'singing';s.cursor=t;paintPunchCountdown(s,run);setSingStatus(waiting?`준비 · ${K().punchCountdown(run.recordClock,ctx.currentTime)}초 뒤 녹음 시작`:run.punchRange?'선택 구간 녹음 중':'녹음 중 · 가사 영역을 누르면 일시정지합니다.');drawLyrics(waiting?recordAt:t);s.frame=requestAnimationFrame(tick);};tick();
+ }catch(e){releaseRun(run);stream?.getTracks().forEach(t=>t.stop());if(sing===s){s.preparationOpen=preparationOpen;s.micCheck?.error(e);s.run=null;if(s.punchRange){s.punchRange=null;s.punchPage='select';s.editingRecording=false;}paintPunchCountdown(s,null);s.state=s.voice?'review':'idle';renderSingPanel();setSingStatus(e.name==='NotAllowedError'?'마이크 권한을 허용한 뒤 다시 시작해 주세요.':e.message||'녹음을 시작하지 못했습니다.',true);}}
  finally{s.startingRecording=false;s.pendingMic=null;if(sing===s)updateTransport();}
 }
 function recordingLyricWindow(wheel,row){
@@ -385,7 +385,7 @@ function drawLyrics(t,follow=true){
  if(follow&&!s.scrubbing&&at.line!==s.shownLine){s.shownLine=at.line;const mobileTop=recordingLyricWindow(wheel,row);if(mobileTop!==null)wheel.scrollTo({top:mobileTop,behavior:singLive(s)?'smooth':'instant'});else if(row)wheel.scrollTop=Math.max(0,row.offsetTop+row.offsetHeight/2-wheel.clientHeight*.3125);}
 }
 async function finishSinging({discardPunch=false}={}){
- const s=sing;if(!singLive(s))return;const run=s.run,ctx=s.ctx,end=Math.min(run.punchRange?.end||s.mr.duration,run.from+Math.max(0,ctx.currentTime-run.t0));s.state='stopping';cancelAnimationFrame(s.frame);paintPunchCountdown(s,null);updateTransport();setSingStatus('녹음한 구간을 정리하고 있어요…');
+ const s=sing;if(!singLive(s))return;const run=s.run,ctx=s.ctx,end=Math.min(run.punchRange?.end||s.mr.duration,run.from+Math.max(0,ctx.currentTime-run.t0));s.state='stopping';cancelAnimationFrame(s.frame);paintPunchCountdown(s,null);updateTransport();setSingStatus('녹음한 구간을 정리하고 있습니다…');
  run.src.onended=null;try{run.src.stop();}catch{}run.monitor.gain.value=0;
  await new Promise(resolve=>{const timer=setTimeout(resolve,600);run.flushed=()=>{clearTimeout(timer);resolve();};run.node.port.postMessage('stop');});releaseRun(run);s.wake?.release?.().catch(()=>{});
  if(sing!==s)return;s.run=null;
@@ -394,10 +394,10 @@ async function finishSinging({discardPunch=false}={}){
   s.punchRange=null;s.punchAuthorized=false;s.editingRecording=false;s.state='review';s.cursor=run.recordAt;
   if(!discardPunch&&captured){
    const samples=K().replaceTakeRange(s.voice.getChannelData(0),run.chunks,run.recordClock,ctx.sampleRate,run.recordAt,end),voice=ctx.createBuffer(1,samples.length,ctx.sampleRate);voice.copyToChannel(samples,0);
-   s.pendingPunch={voice,range:{start:run.recordAt,end},selection:{...s.punchSelection}};showPunchComplete(s,s.pendingPunch.range);setSingStatus('다시 녹음한 구간을 확인한 뒤 사용할지 선택해주세요.');
-  }else{s.punchPage='select';renderSingPanel();setSingStatus(discardPunch?'구간 녹음을 취소했어요. 기존 녹음은 유지했어요.':'녹음된 마이크 입력이 없어요. 기존 녹음은 유지했어요.');}return;
+   s.pendingPunch={voice,range:{start:run.recordAt,end},selection:{...s.punchSelection}};showPunchComplete(s,s.pendingPunch.range);setSingStatus('다시 녹음한 구간을 확인한 뒤 사용할지 선택해 주세요.');
+  }else{s.punchPage='select';renderSingPanel();setSingStatus(discardPunch?'구간 녹음을 취소했습니다. 기존 녹음은 유지했습니다.':'녹음된 마이크 입력이 없습니다. 기존 녹음은 유지했습니다.');}return;
  }
- if(!captured){s.state=s.voice?'review':'idle';renderSingPanel();setSingStatus('녹음된 마이크 입력이 없어요. 기존 녹음은 유지했어요.');return;}
+ if(!captured){s.state=s.voice?'review':'idle';renderSingPanel();setSingStatus('녹음된 마이크 입력이 없습니다. 기존 녹음은 유지했습니다.');return;}
  const samples=K().mergeTake(s.voice?.getChannelData(0),run.chunks,run.recordClock,ctx.sampleRate,run.recordAt,end);
  if(samples.length){
   s.beforePunch=null;s.editMixBaseline=null;
@@ -406,8 +406,8 @@ async function finishSinging({discardPunch=false}={}){
   s.keyEvents=events.filter((event,i)=>!i||event.key!==events[i-1].key);
   s.keyMR=null;
   s.voice=ctx.createBuffer(1,samples.length,ctx.sampleRate);s.voice.copyToChannel(samples,0);s.processed=null;}
- refreshVocalGuide(s);renderDuetGuide();s.cursor=s.voice?.duration||run.recordAt;s.state=s.voice?'review':'idle';renderSingPanel();drawLyrics(s.cursor);setSingStatus(`${time(s.voice.duration)} 녹음했어요. 들어보고 싱크·효과를 조절하세요.`);
- if((run.peak||0)<.00001)setSingStatus('마이크 소리가 감지되지 않았어요. 선택한 마이크와 음소거 설정을 확인하고 다시 불러주세요.',true);
+ refreshVocalGuide(s);renderDuetGuide();s.cursor=s.voice?.duration||run.recordAt;s.state=s.voice?'review':'idle';renderSingPanel();drawLyrics(s.cursor);setSingStatus(`${time(s.voice.duration)} 녹음했습니다. 들어보고 싱크·효과를 조절하세요.`);
+ if((run.peak||0)<.00001)setSingStatus('마이크 소리가 감지되지 않았습니다. 선택한 마이크와 음소거 설정을 확인하고 다시 불러 주세요.',true);
 }
 function studioRangeHTML(m,key,label,min,max,step,unit='%'){
  return `<label class="studio-range"><span><b class="studio-control-name">${['voice','mr','size','echo','room'].includes(key)?studioControlIcon(key):''}${label}</b><output data-mix-label="${key}">${mixLabel(key,m[key])}</output></span><input type="range" min="${min}" max="${max}" step="${step}" value="${m[key]}" data-mix="${key}" aria-label="${label}"></label>`;
@@ -450,7 +450,7 @@ function refreshEffectControls(){
  document.querySelectorAll('[data-mix]').forEach(input=>{const k=input.dataset.mix;input.value=m[k]??.5;input.style.setProperty('--position',100*(Number(input.value)-Number(input.min))/(Number(input.max)-Number(input.min))+'%');document.querySelectorAll('[data-mix-label="'+k+'"]').forEach(v=>v.textContent=k==='tone'&&v.closest('[data-post-custom]')&&v.closest('#sing-live-settings,.recording-settings')?Math.round((Number(input.value)+1)/3*100)+'%':mixLabel(k,m[k]??.5));input.disabled=singBusy(sing)||k==='tone'&&!canEditPaid()||k==='partner'&&!sing.partnerStem||k==='strength'&&['original','custom'].includes(m.preset);});
  document.querySelectorAll('[data-vocal-tone]').forEach(b=>{b.setAttribute('aria-pressed',String(Number(b.dataset.vocalTone)===m.tone));b.disabled=singBusy(sing)||!canEditPaid();});
  document.querySelectorAll('[data-vocal-noise]').forEach(b=>b.setAttribute('aria-pressed',String(Number(b.dataset.vocalNoise)===m.noise)));
- document.querySelectorAll('[data-preset-description]').forEach(note=>note.textContent=K().vocalPresets.find(p=>p.id===m.preset)?.description||'사용자 설정 · 직접 조절한 효과를 사용하고 있어요.');
+ document.querySelectorAll('[data-preset-description]').forEach(note=>note.textContent=K().vocalPresets.find(p=>p.id===m.preset)?.description||'사용자 설정 · 직접 조절한 효과를 사용하고 있습니다.');
 }
 function applyMixChange(key){const s=sing;if(!s.settingsOpen)queueSingDraft(s);s.run?.effects?.update(s.mix);if(s.standbyMonitor){s.standbyMonitor.effects.update?.(s.mix);s.standbyMonitor.gain?.gain.setTargetAtTime(s.mix.voice,s.ctx.currentTime,.015);}if(s.run){s.run.voiceGain.gain.setTargetAtTime(s.mix.voice,s.ctx.currentTime,.015);s.run.gain.gain.setTargetAtTime(s.mix.mr,s.ctx.currentTime,.015);}if(s.state==='backing')s.previewMixUpdate?.(s.mix);if(s.state==='playing'){if(key==='offset'||key==='reset')previewMix(s.ctx.currentTime-s.previewAt,s.previewUntil??Infinity);else{s.previewMixUpdate?.(s.mix);if(!['voice','mr','partner'].includes(key))refreshPreviewEffects(s);}}if(key==='offset'){refreshVocalGuide(s);renderDuetGuide();}refreshEffectControls();}
 const recordingSpaceFields=['preset','strength','presetStrengths','custom','echo','room','size','tone','noise','roomScaleVersion'];
@@ -495,7 +495,7 @@ function connectEffects(ctx,source,destination,m){
 }
 function protectOutput(ctx,connect=true){const c=ctx.createDynamicsCompressor();c.threshold.value=-3;c.knee.value=0;c.ratio.value=20;c.attack.value=.001;c.release.value=.08;if(connect)c.connect(ctx.destination);return c;}
 function scheduleMix(ctx,from,at,s=sing,until=Infinity){
- const end=Math.min(s.mode==='duet'?s.mr.duration:s.voice.duration,until),remaining=end-from;if(remaining<=0)throw new Error('다시 들을 위치를 골라주세요.');
+ const end=Math.min(s.mode==='duet'?s.mr.duration:s.voice.duration,until),remaining=end-from;if(remaining<=0)throw new Error('다시 들을 위치를 골라 주세요.');
  const m=s.mix,shift=m.offset/1000,g={mr:ctx.createGain(),voice:ctx.createGain()},offline=typeof ctx.startRendering==='function';g.mr.gain.value=m.mr;g.voice.gain.value=m.voice;
  const nodes=[g.mr,g.voice],master=offline?ctx.destination:protectOutput(ctx, false);
  if(!offline){const listen=ctx.createGain();listen.gain.value=s.listenVolume??1;master.connect(listen).connect(ctx.destination);s.previewListen=listen;nodes.push(master,listen);}
@@ -528,14 +528,14 @@ function runPreview(s,sources,at,from,mode,nodes=[]){
 async function previewMix(from=0,until=Infinity){
  const s=sing;if(!s?.voice||singLive(s)||singBusy(s))return;if(!canEditPaid())s.mix.tone=0;
  const request=s.previewRequest=(s.previewRequest||0)+1;
- try{await prepareSing(s);if(sing!==s||request!==s.previewRequest)return;stopPreview();s.state='rendering';updateTransport();setSingStatus('미리 듣기 소리를 준비하고 있어요…');await prepareVocalEffects(s);if(sing!==s||request!==s.previewRequest)return;s.state='review';s.ctx.resume();const duration=reviewDuration(s);from=Math.max(0,from>=duration-.02?0:from);if(s.abEnabled&&!s.punchPage&&s.editorStep!==2){const r=reviewRange(s);from=from<r.start||from>=r.end-.02?r.start:from;until=r.end;}until=Math.min(duration,until);if(from>=until){updateTransport();return;}const at=s.ctx.currentTime+.05,mix=scheduleMix(s.ctx,from,at,s,until);runPreview(s,mix.sources,at,from,'playing',mix.nodes);s.previewUntil=until;s.previewMixUpdate=mix.updateMix;s.previewReplaceVoice=mix.replaceVoice;setSingStatus('녹음 들어보기 · 위치를 옮겨도 재생이 이어져요.');}
- catch(e){if(sing===s&&request===s.previewRequest){stopPreview();s.state='review';updateTransport();setSingStatus(e.message||'녹음을 재생하지 못했어요. 다시 시도해주세요.');}}
+ try{await prepareSing(s);if(sing!==s||request!==s.previewRequest)return;stopPreview();s.state='rendering';updateTransport();setSingStatus('미리 듣기 소리를 준비하고 있습니다…');await prepareVocalEffects(s);if(sing!==s||request!==s.previewRequest)return;s.state='review';s.ctx.resume();const duration=reviewDuration(s);from=Math.max(0,from>=duration-.02?0:from);if(s.abEnabled&&!s.punchPage&&s.editorStep!==2){const r=reviewRange(s);from=from<r.start||from>=r.end-.02?r.start:from;until=r.end;}until=Math.min(duration,until);if(from>=until){updateTransport();return;}const at=s.ctx.currentTime+.05,mix=scheduleMix(s.ctx,from,at,s,until);runPreview(s,mix.sources,at,from,'playing',mix.nodes);s.previewUntil=until;s.previewMixUpdate=mix.updateMix;s.previewReplaceVoice=mix.replaceVoice;setSingStatus('녹음 들어보기 · 위치를 옮겨도 재생이 이어집니다.');}
+ catch(e){if(sing===s&&request===s.previewRequest){stopPreview();s.state='review';updateTransport();setSingStatus(e.message||'녹음을 재생하지 못했습니다. 다시 시도해 주세요.');}}
 }
 
 async function previewGuide(from=sing?.cursor||0){
- const s=sing;if(!s||singLive(s)||singBusy(s))return;stopPreview();++playSerial;window.AifectAudioAds?.cancel();audio.pause();s.state='loading';updateTransport();setSingStatus('원곡 가이드를 불러오고 있어요…');
- try{const ctx=await prepareSing(s,true);if(!s.guide){const r=await fetch(`/media/${encodeURIComponent(s.id)}/stream`,{credentials:'same-origin',signal:s.abort?.signal});if(!r.ok)throw new Error('원곡 가이드를 불러오지 못했어요.');s.guide=await ctx.decodeAudioData(await r.arrayBuffer());}if(sing!==s)return;const src=ctx.createBufferSource();src.buffer=s.guide;from=Math.max(0,Math.min(from,s.guide.duration-.05));const at=ctx.currentTime+.05;s.previewPitch=connectLiveBacking(s,src,ctx.destination,at,from,s.guide.duration-from);src.start(at,from);runPreview(s,[src],at,from,'guide');setSingStatus('원곡 가이드 · 일시정지 후 가사를 골라 그 위치부터 불러보세요.');}
- catch(e){if(sing===s){s.state=s.voice?'review':'idle';updateTransport();setSingStatus(e.message||'원곡을 불러오지 못했어요.');}}
+ const s=sing;if(!s||singLive(s)||singBusy(s))return;stopPreview();++playSerial;window.AifectAudioAds?.cancel();audio.pause();s.state='loading';updateTransport();setSingStatus('원곡 가이드를 불러오고 있습니다…');
+ try{const ctx=await prepareSing(s,true);if(!s.guide){const r=await fetch(`/media/${encodeURIComponent(s.id)}/stream`,{credentials:'same-origin',signal:s.abort?.signal});if(!r.ok)throw new Error('원곡 가이드를 불러오지 못했습니다.');s.guide=await ctx.decodeAudioData(await r.arrayBuffer());}if(sing!==s)return;const src=ctx.createBufferSource();src.buffer=s.guide;from=Math.max(0,Math.min(from,s.guide.duration-.05));const at=ctx.currentTime+.05;s.previewPitch=connectLiveBacking(s,src,ctx.destination,at,from,s.guide.duration-from);src.start(at,from);runPreview(s,[src],at,from,'guide');setSingStatus('원곡 가이드 · 일시정지 후 가사를 골라 그 위치부터 불러 보세요.');}
+ catch(e){if(sing===s){s.state=s.voice?'review':'idle';updateTransport();setSingStatus(e.message||'원곡을 불러오지 못했습니다.');}}
 }
 async function renderSung(s,onProgress,publicationMode=s.mode){
  if(!canEditPaid())s.mix.tone=0;
@@ -544,16 +544,16 @@ async function renderSung(s,onProgress,publicationMode=s.mode){
  s.exportScale=highest>.96?.96/highest:1;if(s.exportScale<1)for(const c of channels)for(let i=0;i<c.length;i++)c[i]*=s.exportScale;return encodeCoverMp3(out,{signal:s.abort?.signal,onProgress});
 }
 async function saveSung(){
- const s=sing;if(!s?.voice||singBusy(s)||singLive(s))return;stopPreview();s.state='exporting';updateTransport();setSingStatus('부른 구간을 파일로 만들고 있어요…');
- try{const file=await renderSung(s,p=>{if(sing===s)setSingStatus('고음질 MP3로 변환 중 '+Math.round(p*100)+'%');});if(sing!==s)return;const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=`AIFECT-cover-${s.id}.mp3`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);setSingStatus('녹음 파일을 저장했어요.');}catch(e){if(sing===s)setSingStatus(e.message||'파일을 저장하지 못했어요.');}finally{if(sing===s){s.state='review';updateTransport();}}
+ const s=sing;if(!s?.voice||singBusy(s)||singLive(s))return;stopPreview();s.state='exporting';updateTransport();setSingStatus('부른 구간을 파일로 만들고 있습니다…');
+ try{const file=await renderSung(s,p=>{if(sing===s)setSingStatus('고음질 MP3로 변환 중 '+Math.round(p*100)+'%');});if(sing!==s)return;const url=URL.createObjectURL(file),a=document.createElement('a');a.href=url;a.download=`AIFECT-cover-${s.id}.mp3`;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);setSingStatus('녹음 파일을 저장했습니다.');}catch(e){if(sing===s)setSingStatus(e.message||'파일을 저장하지 못했습니다.');}finally{if(sing===s){s.state='review';updateTransport();}}
 }
 function coverPublicationHTML(s){
- return s.parent?'<p class="field-help">공개 종류: 완성 듀엣 · 함께 녹음한 두 사람의 작품으로 공개해요.</p><input type="hidden" name="publish_as" value="duet_complete">':`<label class="form-field">공개 종류<select name="publish_as" required><option value="">공개할 종류를 선택해주세요</option><option value="solo">솔로 커버 · 내 녹음으로 완성</option><option value="duet_invitation">듀엣 참여 모집 · 다른 사람이 이어 부르기</option></select></label><p class="field-help">녹음 모드와 별도로 선택해요. 솔로 커버는 둘러보기, 듀엣 모집은 참여 목록에 표시돼요.</p>`;
+ return s.parent?'<p class="field-help">공개 종류: 완성 듀엣 · 함께 녹음한 두 사람의 작품으로 공개합니다.</p><input type="hidden" name="publish_as" value="duet_complete">':`<label class="form-field">공개 종류<select name="publish_as" required><option value="">공개할 종류를 선택해 주세요</option><option value="solo">솔로 커버 · 내 녹음으로 완성</option><option value="duet_invitation">듀엣 참여 모집 · 다른 사람이 이어 부르기</option></select></label><p class="field-help">녹음 모드와 별도로 선택합니다. 솔로 커버는 둘러보기, 듀엣 모집은 참여 목록에 표시됩니다.</p>`;
 }
 function coverPublication(s,fd){
  const kind=fd.get('publish_as');
- if(!['solo','duet_invitation','duet_complete'].includes(kind)||Boolean(s.parent)!==(kind==='duet_complete'))throw new Error('공개할 종류를 선택해주세요. 다른 사람의 녹음에 참여한 작품은 완성 듀엣으로 공개해요.');
- if(kind==='duet_invitation'&&!fd.has('duet_consent'))throw new Error('듀엣 참여 모집은 다른 사람이 이어 부르는 것에 동의해주세요.');
+ if(!['solo','duet_invitation','duet_complete'].includes(kind)||Boolean(s.parent)!==(kind==='duet_complete'))throw new Error('공개할 종류를 선택해 주세요. 다른 사람의 녹음에 참여한 작품은 완성 듀엣으로 공개합니다.');
+ if(kind==='duet_invitation'&&!fd.has('duet_consent'))throw new Error('듀엣 참여 모집은 다른 사람이 이어 부르는 것에 동의해 주세요.');
  const mode=kind==='solo'?'solo':'duet',guide=kind==='duet_invitation'?(s.mode==='duet'?s.duetGuide:{version:1,mode:'free',lines:[]}):undefined;
  if(guide?.mode==='free'&&s.voice)guide.activity=AifectDuetGuide.detectVocalActivity(s.voice.getChannelData(0),s.voice.sampleRate,s.mix.offset,s.mr?.duration||s.data.track.duration);
  return {publish_as:kind,cover_mode:mode,duet_slot:kind==='solo'?'':s.parent?'second':'first',duet_parent_id:s.parent||null,duet_consent:kind==='duet_invitation',duet_guide:guide};
@@ -562,38 +562,38 @@ async function uploadSung(fd){
  const s=sing;if(!s?.voice||singBusy(s)||singLive(s))return;const publication=coverPublication(s,fd),form=$('#sing-upload-form');if(form._photoError)throw Error(form._photoError);
  s.publishRequest??=crypto.randomUUID();const photo=s.coverFile;
  stopPreview();s.state='exporting';updateTransport();
- const progress=$('#sing-upload-form .upload-progress'),note=progress.querySelector('p');progress.hidden=false;note.textContent='부른 구간을 합치고 있어요…';
+ const progress=$('#sing-upload-form .upload-progress'),note=progress.querySelector('p');progress.hidden=false;note.textContent='부른 구간을 합치고 있습니다…';
  try{
   refreshVocalGuide(s);const file=await renderSung(s,p=>{if(sing===s)note.textContent='고음질 MP3로 변환 중 '+Math.round(p*100)+'%';},publication.cover_mode);if(sing!==s)return;
   const draft=await api('/api/covers','POST',{request_id:s.publishRequest,original_id:s.id,...publication,description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:'mp3',bytes:file.size});
-  if(draft.cover_mode!==publication.cover_mode||draft.publish_as!==publication.publish_as||(draft.duet_parent_id||null)!==publication.duet_parent_id)throw new Error('저장된 공개 종류가 선택과 달라 업로드를 중단했어요. 녹음은 그대로 보관돼요.');
+  if(draft.cover_mode!==publication.cover_mode||draft.publish_as!==publication.publish_as||(draft.duet_parent_id||null)!==publication.duet_parent_id)throw new Error('저장된 공개 종류가 선택과 달라 업로드를 중단했습니다. 녹음은 그대로 보관됩니다.');
   let completed={};
   if(!['published','processing','queued'].includes(draft.status)){
    await uploadFile(`/api/uploads/${draft.id}/audio`,file,value=>{progress.querySelector('progress').value=value;note.textContent=`올리는 중 ${Math.round(value)}%`;});
    if(publication.publish_as==='duet_invitation')await uploadDuetStems(s,draft.id,v=>{note.textContent='듀엣 트랙 저장 중 '+Math.round(v*100)+'%';});
-   if(photo){note.textContent='커버사진을 저장하고 있어요.';await uploadFile(`/api/uploads/${draft.id}/cover`,photo,undefined,{allowFallback:true});}
+   if(photo){note.textContent='커버사진을 저장하고 있습니다.';await uploadFile(`/api/uploads/${draft.id}/cover`,photo,undefined,{allowFallback:true});}
    else if(draft.has_cover)await api(`/api/studio/tracks/${draft.id}/image`,'DELETE');
    completed=await api(`/api/uploads/${draft.id}/complete`,'POST');
   }
-  if(sing!==s)return;await removeSingDraft(s);s.dirty=false;cleanupSing();toast('커버곡을 올렸어요! 변환이 끝나면 공개돼요.');location.hash='studio';if(completed.show_upload_ad)window.AifectUploadAds?.afterCoverUpload(draft.id);
+  if(sing!==s)return;await removeSingDraft(s);s.dirty=false;cleanupSing();toast('커버곡을 올렸습니다! 변환이 끝나면 공개됩니다.');location.hash='studio';if(completed.show_upload_ad)window.AifectUploadAds?.afterCoverUpload(draft.id);
  }finally{if(sing===s){s.state='review';updateTransport();}}
 }
 document.addEventListener('click',e=>{
  const el=e.target.closest('[data-sing-start],[data-sing-stop],[data-sing-preview],[data-sing-pause],[data-sing-guide],[data-sing-save],[data-sing-settings],[data-sing-redo]');if(!el||!sing)return;
- if(el.hasAttribute('data-sing-start')){if(singLive(sing)){sing.editingRecording=true;finishSinging();}else startSinging();}else if(el.hasAttribute('data-sing-stop')){sing.editingRecording=false;if(singLive(sing))finishSinging();else renderSingPanel();}else if(el.hasAttribute('data-sing-preview'))previewMix(el.hasAttribute('data-full-preview')?0:sing.cursor);else if(el.hasAttribute('data-sing-pause')){if(singLive(sing)){sing.editingRecording=true;finishSinging();}else{stopPreview();updateTransport();drawLyrics(sing.cursor);setSingStatus('일시정지했어요.');}}else if(el.hasAttribute('data-sing-guide'))previewGuide();else if(el.hasAttribute('data-sing-save'))saveSung();else if(el.hasAttribute('data-sing-settings'))openSingSettings();else if(el.hasAttribute('data-sing-redo')){void restartSinging().then(restarted=>{if(restarted)$('#sing')?.scrollIntoView({block:'start'});});}
+ if(el.hasAttribute('data-sing-start')){if(singLive(sing)){sing.editingRecording=true;finishSinging();}else startSinging();}else if(el.hasAttribute('data-sing-stop')){sing.editingRecording=false;if(singLive(sing))finishSinging();else renderSingPanel();}else if(el.hasAttribute('data-sing-preview'))previewMix(el.hasAttribute('data-full-preview')?0:sing.cursor);else if(el.hasAttribute('data-sing-pause')){if(singLive(sing)){sing.editingRecording=true;finishSinging();}else{stopPreview();updateTransport();drawLyrics(sing.cursor);setSingStatus('일시정지했습니다.');}}else if(el.hasAttribute('data-sing-guide'))previewGuide();else if(el.hasAttribute('data-sing-save'))saveSung();else if(el.hasAttribute('data-sing-settings'))openSingSettings();else if(el.hasAttribute('data-sing-redo')){void restartSinging().then(restarted=>{if(restarted)$('#sing')?.scrollIntoView({block:'start'});});}
 });
 document.addEventListener('visibilitychange',()=>{if(document.hidden){if(sing){sing.micCheck?.setBusy(false);sing.monitorSerial=(sing.monitorSerial||0)+1;stopStandbyMonitor(sing);const input=$('#sing-monitor');if(input)input.checked=false;document.querySelectorAll('[data-monitor-toggle]').forEach(b=>b.setAttribute('aria-pressed','false'));}if(sing?.state==='backing'){stopPreview();updateTransport();}if(singLive(sing)){sing.editingRecording=true;finishSinging();}}});
 window.addEventListener?.('beforeunload',e=>{if(singExitKind(sing)||sing?.state==='exporting'){e.preventDefault();e.returnValue='';}});
 
-function duetLobbyHTML(tracks){return `<section class="surface duet-lobby"><h2>커버 둘러보기</h2><p class="field-help">다른 사람의 솔로·듀엣 커버를 들어보세요.</p><div class="cover-browse-links"><a class="small-button" href="#community/covers?mode=solo">솔로 커버 듣기</a><a class="small-button" href="#community/covers?mode=duet">듀엣 커버 듣기</a></div><h2>참여를 기다리는 듀엣</h2>${tracks.length?tracks.map(t=>`<div class="duet-invitation">${cover(t,'mini-cover')}<div><a href="#song/${esc(t.id)}"><strong>${esc(t.title)}</strong></a><p>${trackNickname(t,'producer')} · 먼저 녹음한 목소리</p></div><a class="primary-button" href="${t.user_id===me?.id?'#song/'+esc(t.id):'#sing/'+esc(t.original_id)+'?duet='+esc(t.id)}">${t.user_id===me?.id?'내 듀엣 보기':'듀엣 참여'}</a></div>`).join(''):'<p class="empty-note">아직 참여를 기다리는 듀엣이 없어요. 아래 곡을 골라 첫 파트를 남겨보세요.</p>'}</section>`;}
+function duetLobbyHTML(tracks){return `<section class="surface duet-lobby"><h2>커버 둘러보기</h2><p class="field-help">다른 사람의 솔로·듀엣 커버를 들어보세요.</p><div class="cover-browse-links"><a class="small-button" href="#community/covers?mode=solo">솔로 커버 듣기</a><a class="small-button" href="#community/covers?mode=duet">듀엣 커버 듣기</a></div><h2>참여를 기다리는 듀엣</h2>${tracks.length?tracks.map(t=>`<div class="duet-invitation">${cover(t,'mini-cover')}<div><a href="#song/${esc(t.id)}"><strong>${esc(t.title)}</strong></a><p>${trackNickname(t,'producer')} · 먼저 녹음한 목소리</p></div><a class="primary-button" href="${t.user_id===me?.id?'#song/'+esc(t.id):'#sing/'+esc(t.original_id)+'?duet='+esc(t.id)}">${t.user_id===me?.id?'내 듀엣 보기':'듀엣 참여'}</a></div>`).join(''):'<p class="empty-note">아직 참여를 기다리는 듀엣이 없습니다. 아래 곡을 골라 첫 파트를 남겨 보세요.</p>'}</section>`;}
 function duetTime(seconds){const n=Math.round(Math.max(0,seconds)*10);return Math.floor(n/600)+':'+String(Math.floor(n%600/10)).padStart(2,'0')+'.'+n%10;}
 function refreshVocalGuide(s){if(s)s.waveRoles=null;if(s?.mode==='duet'&&!s.parent&&s.voice&&s.duetGuide?.mode==='free')s.duetGuide.activity=AifectDuetGuide.detectVocalActivity(s.voice.getChannelData(0),s.voice.sampleRate,s.mix.offset,s.mr?.duration||s.data.track.duration);}
 function duetRoleLabel(part,second=false){return part==='both'?'함께':part==='A'?(second?'상대 파트':'내 파트'):part==='B'?(second?'내 파트':'상대 파트'):part==='partial'?'일부 빈 구간':'미지정';}
 function duetAssignmentIssue(s){
  if(s?.mode!=='duet'||s.parent||s.duetGuide?.mode!=='lyrics')return '';
  const lines=s.data.words.map((_,i)=>s.duetGuide.lines?.[i]||''),missing=lines.filter(p=>!['A','B','both'].includes(p)).length;
- if(missing)return '아직 '+missing+'줄의 파트가 비어 있어요. 아래에서 선택해주세요.';
- if(!lines.length||!lines.some(p=>p==='A'||p==='both')||!lines.some(p=>p==='B'||p==='both'))return '내 파트와 파트너가 부를 파트를 모두 지정해주세요.';
+ if(missing)return '아직 '+missing+'줄의 파트가 비어 있습니다. 아래에서 선택해 주세요.';
+ if(!lines.length||!lines.some(p=>p==='A'||p==='both')||!lines.some(p=>p==='B'||p==='both'))return '내 파트와 파트너가 부를 파트를 모두 지정해 주세요.';
  return '';
 }
 function duetLegendHTML(mode){return '<div class="duet-color-key"'+(mode?' data-sing-part-legend'+(mode==='duet'?'':' hidden'):'')+' aria-label="듀엣 파트 색상"><span data-role="mine"><i></i>내 파트</span><span data-role="partner"><i></i>상대 파트</span><span data-role="both"><i></i>함께</span></div>';}
@@ -629,7 +629,7 @@ function duetEditorHTML(s){
  const brush=s.duetBrush||'A';
  const brushes=second?'':'<div class="duet-brushes" role="group" aria-label="지정할 파트">'+[['A','내 파트','mine'],['B','상대 파트','partner'],['both','함께 부르기','both']].map(([value,label,role])=>'<button type="button" data-duet-brush="'+value+'" data-part-role="'+role+'" aria-pressed="'+(brush===value)+'">'+label+'</button>').join('')+'</div>';
  const rows=words.map((line,i)=>{const part=AifectDuetGuide.linePart(guide,words,i,duration),role=AifectDuetGuide.lineRole(part,second),text=line.w.map(w=>w.t).join(' ');return '<button type="button" role="checkbox" aria-checked="'+!!part+'" class="duet-edit-line" data-edit-line="'+i+'" data-part-role="'+role+'" '+(second?'disabled':'data-duet-line="'+i+'"')+' aria-label="'+esc(text)+' · '+duetRoleLabel(part,second)+'"><span class="duet-edit-check" aria-hidden="true"></span><span class="duet-edit-lyric">'+esc(text)+'</span></button>';}).join('');
- return '<section class="duet-editor"><h2>'+(second?'듀엣 파트 보기':'듀엣 파트 나누기')+'</h2>'+modes+brushes+'<div class="duet-editor-lines" aria-label="가사 파트 지정">'+rows+(!words.length?'<p class="empty-note">싱크 가사가 없는 곡은 자유롭게 나눠 불러주세요.</p>':'')+'</div><p data-duet-note role="status">'+(second?'내 파트 · 함께 · 상대 파트를 색으로 확인하세요.':'클릭·드래그 또는 여러 줄을 차례로 터치해 지정하세요.')+'</p><div class="duet-editor-footer">'+(!second?'<button type="button" class="small-button" data-duet-reset>'+icon('restart')+' 초기화</button>':'')+'<button type="button" class="primary-button" data-duet-done>'+(second?'닫기':'적용하기')+'</button></div></section>';
+ return '<section class="duet-editor"><h2>'+(second?'듀엣 파트 보기':'듀엣 파트 나누기')+'</h2>'+modes+brushes+'<div class="duet-editor-lines" aria-label="가사 파트 지정">'+rows+(!words.length?'<p class="empty-note">싱크 가사가 없는 곡은 자유롭게 나눠 불러 주세요.</p>':'')+'</div><p data-duet-note role="status">'+(second?'내 파트 · 함께 · 상대 파트를 색으로 확인하세요.':'클릭·드래그 또는 여러 줄을 차례로 터치해 지정하세요.')+'</p><div class="duet-editor-footer">'+(!second?'<button type="button" class="small-button" data-duet-reset>'+icon('restart')+' 초기화</button>':'')+'<button type="button" class="primary-button" data-duet-done>'+(second?'닫기':'적용하기')+'</button></div></section>';
 }
 function openDuetEditor(){
  const s=sing;if(!s||singBusy(s)||singLive(s))return;const draft=duetEditorDraft(s);
@@ -650,7 +650,7 @@ function openDuetEditor(){
    guide.mode='lyrics';guide.lines||=[];while(guide.lines.length<s.data.words.length)guide.lines.push('');guide.lines[i]=value;
    const row=b.closest('[data-edit-line]');row.dataset.partRole=AifectDuetGuide.lineRole(value,false);row.setAttribute('aria-label',s.data.words[i].w.map(w=>w.t).join(' ')+' · '+duetRoleLabel(value));
    row.setAttribute('aria-checked','true');
-   host.querySelector('[data-duet-note]').textContent=duetAssignmentIssue(draft)||'적용하기를 누르면 선택한 파트가 저장돼요.';
+   host.querySelector('[data-duet-note]').textContent=duetAssignmentIssue(draft)||'적용하기를 누르면 선택한 파트가 저장됩니다.';
   };
   rows.forEach(b=>{
    b.onclick=()=>{if(!dragged)assign(b);};
@@ -702,7 +702,7 @@ function renderStudioEditTool(tool){
   slider.oninput=()=>set(Number(slider.value));host.querySelectorAll('[data-sync-step]').forEach(b=>b.onclick=()=>set(-s.mix.offset+Number(b.dataset.syncStep)));host.querySelector('[data-sync-reset]').onclick=()=>set(0);paint();
  }else if(tool==='balance'){
   const joinedMix=s.parent&&!s.data.duet?.stems;
-  host.innerHTML='<h3>볼륨 밸런스</h3>'+studioRangeHTML(m,'voice','내 목소리',0,2,.01)+(s.mode==='duet'?studioRangeHTML(m,'partner','상대 목소리',0,1.5,.01):'')+studioRangeHTML(m,'mr',joinedMix?'반주 · 상대 목소리':'반주',0,1.5,.01)+(s.mode==='duet'&&!s.partnerStem?'<p>'+(!s.parent?'아직 상대 녹음이 없어요.':joinedMix?'이전 듀엣은 상대 목소리와 반주를 함께 조절해요.':'상대 녹음을 준비하고 있어요.')+'</p>':'');
+  host.innerHTML='<h3>볼륨 밸런스</h3>'+studioRangeHTML(m,'voice','내 목소리',0,2,.01)+(s.mode==='duet'?studioRangeHTML(m,'partner','상대 목소리',0,1.5,.01):'')+studioRangeHTML(m,'mr',joinedMix?'반주 · 상대 목소리':'반주',0,1.5,.01)+(s.mode==='duet'&&!s.partnerStem?'<p>'+(!s.parent?'아직 상대 녹음이 없습니다.':joinedMix?'이전 듀엣은 상대 목소리와 반주를 함께 조절합니다.':'상대 녹음을 준비하고 있습니다.')+'</p>':'');
  }else if(tool==='noise'){
   host.innerHTML=`<h3>노이즈 제거</h3><p>배경 잡음을 줄일 강도를 선택하세요.</p><div class="studio-noise-levels">${['끄기','약하게','보통','강하게','최대로'].map((name,i)=>`<button type="button" data-vocal-noise="${i}" aria-pressed="${m.noise===i}">${name}</button>`).join('')}</div>`;
  }else if(tool==='space')host.innerHTML=spaceEffectsHTML(m);
@@ -721,7 +721,7 @@ function bindStudioEditor(){
  document.querySelectorAll('[data-range]').forEach(input=>input.oninput=()=>{if(singBusy(s))return;const playing=s.state==='playing';stopPreview();const r=reviewRange(s),key=input.dataset.range;
   r[key]=Number(input.value);if(key==='start')r.start=Math.min(r.start,r.end-.1);else r.end=Math.max(r.end,r.start+.1);s.selection=K().normalizeTakeRange(r.start,r.end,reviewDuration(s));refreshStudioSelection();updateTransport();if(playing)previewMix(s.selection.start);});
  const tabs=[...document.querySelectorAll('[data-edit-tool]')];tabs.forEach(b=>{b.onclick=()=>renderStudioEditTool(b.dataset.editTool);b.onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;e.preventDefault();const allowed=tabs.filter(t=>!t.disabled),i=allowed.indexOf(b),next=allowed[e.key==='Home'?0:e.key==='End'?allowed.length-1:(i+(e.key==='ArrowRight'?1:-1)+allowed.length)%allowed.length];next?.focus();if(next)next.click();};});
- $('[data-reset-mix]').onclick=()=>{if(s.beforePunch){stopPreview();s.voice=s.beforePunch;s.beforePunch=null;s.processed=null;refreshVocalGuide(s);renderDuetGuide();drawLyrics(s.cursor);}s.mix={...s.editMixBaseline};if(!canEditPaid())s.mix.tone=0;applyMixChange('reset');renderStudioEditTool(s.editTool);setSingStatus('편집 전 소리로 복원했어요.');};
+ $('[data-reset-mix]').onclick=()=>{if(s.beforePunch){stopPreview();s.voice=s.beforePunch;s.beforePunch=null;s.processed=null;refreshVocalGuide(s);renderDuetGuide();drawLyrics(s.cursor);}s.mix={...s.editMixBaseline};if(!canEditPaid())s.mix.tone=0;applyMixChange('reset');renderStudioEditTool(s.editTool);setSingStatus('편집 전 소리로 복원했습니다.');};
  $('[data-open-punch]').onclick=()=>openPunchSelection(s);
  $('[data-ab]').onclick=e=>{const playing=s.state==='playing';stopPreview();s.abEnabled=!s.abEnabled;e.currentTarget.setAttribute('aria-pressed',String(s.abEnabled));$('#take-ab-range').hidden=!s.abEnabled;refreshStudioSelection();updateTransport();if(playing)previewMix(s.abEnabled?reviewRange(s).start:s.cursor);};
  document.querySelectorAll('[data-skip]').forEach(b=>b.onclick=()=>{const forward=Number(b.dataset.skip)>0,r=s.abEnabled?reviewRange(s):{start:0,end:reviewDuration(s)},points=[r.start,...s.data.words.map(l=>l.s).filter(t=>t>r.start&&t<r.end),r.end],at=forward?(points.find(t=>t>s.cursor+.1)??r.end):([...points].reverse().find(t=>t<s.cursor-.1)??r.start);if(s.state==='playing')previewMix(at);else{s.cursor=at;drawLyrics(at);}});
@@ -733,9 +733,9 @@ function bindStudioEditor(){
 function stopStandbyMonitor(s=sing){const m=s?.standbyMonitor;if(!m)return;s.standbyMonitor=null;s.micCheck?.detach(m.stream);m.stream.getTracks().forEach(t=>t.stop());for(const n of [m.mic,m.gain,...m.effects])try{n.disconnect();}catch{}}
 async function setMonitorEnabled(enabled){
  const s=sing;if(!s)return;const input=$('#sing-monitor');s.monitorSerial=(s.monitorSerial||0)+1;const serial=s.monitorSerial;input.checked=enabled;document.querySelectorAll('[data-monitor-toggle]').forEach(b=>b.setAttribute('aria-pressed',String(enabled)));
- if(s.run){s.run.monitor.gain.setTargetAtTime(enabled?1:0,s.ctx.currentTime,.015);return;}stopStandbyMonitor(s);if(!enabled){s.micCheck?.stop();s.micCheck?.setBusy(false);setSingStatus('모니터링을 껐어요.');return;}s.micCheck?.prepare();s.micCheck?.setBusy(true);
- try{if(!navigator.mediaDevices?.getUserMedia)throw new Error('마이크를 사용할 수 없어요.');const ready=prepareVocalContext(s).then(ctx=>({ctx}),error=>({error}));const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});if(sing!==s||serial!==s.monitorSerial||document.hidden){stream.getTracks().forEach(t=>t.stop());return;}const monitor={stream,effects:[]};s.standbyMonitor=monitor;const prepared=await ready;if(prepared.error)throw prepared.error;const ctx=prepared.ctx;if(ctx.state!=='running')throw new Error('오디오가 일시정지됐어요. 모니터링을 다시 눌러주세요.');if(sing!==s||serial!==s.monitorSerial||document.hidden){stream.getTracks().forEach(t=>t.stop());if(s.standbyMonitor===monitor)stopStandbyMonitor(s);return;}const mic=ctx.createMediaStreamSource(stream),gain=ctx.createGain();gain.gain.value=s.mix.voice;gain.connect(ctx.destination);Object.assign(s.standbyMonitor,{mic,gain,effects:connectEffects(ctx,mic,gain,s.mix)});s.micCheck?.attach(stream,ctx);s.micCheck?.setBusy(false);setSingStatus('이어폰 모니터링 중 · 녹음은 아직 시작하지 않았어요.');}
- catch(e){if(serial===s.monitorSerial)stopStandbyMonitor(s);if(sing===s&&serial===s.monitorSerial){s.micCheck?.setBusy(false);s.micCheck?.error(e);input.checked=false;document.querySelectorAll('[data-monitor-toggle]').forEach(b=>b.setAttribute('aria-pressed','false'));setSingStatus(e.name==='NotAllowedError'?'모니터링하려면 마이크 권한을 허용해주세요.':e.message||'모니터링을 시작하지 못했어요.');}}
+ if(s.run){s.run.monitor.gain.setTargetAtTime(enabled?1:0,s.ctx.currentTime,.015);return;}stopStandbyMonitor(s);if(!enabled){s.micCheck?.stop();s.micCheck?.setBusy(false);setSingStatus('모니터링을 껐습니다.');return;}s.micCheck?.prepare();s.micCheck?.setBusy(true);
+ try{if(!navigator.mediaDevices?.getUserMedia)throw new Error('마이크를 사용할 수 없습니다.');const ready=prepareVocalContext(s).then(ctx=>({ctx}),error=>({error}));const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});if(sing!==s||serial!==s.monitorSerial||document.hidden){stream.getTracks().forEach(t=>t.stop());return;}const monitor={stream,effects:[]};s.standbyMonitor=monitor;const prepared=await ready;if(prepared.error)throw prepared.error;const ctx=prepared.ctx;if(ctx.state!=='running')throw new Error('오디오가 일시정지되었습니다. 모니터링을 다시 눌러 주세요.');if(sing!==s||serial!==s.monitorSerial||document.hidden){stream.getTracks().forEach(t=>t.stop());if(s.standbyMonitor===monitor)stopStandbyMonitor(s);return;}const mic=ctx.createMediaStreamSource(stream),gain=ctx.createGain();gain.gain.value=s.mix.voice;gain.connect(ctx.destination);Object.assign(s.standbyMonitor,{mic,gain,effects:connectEffects(ctx,mic,gain,s.mix)});s.micCheck?.attach(stream,ctx);s.micCheck?.setBusy(false);setSingStatus('이어폰 모니터링 중 · 녹음은 아직 시작하지 않았습니다.');}
+ catch(e){if(serial===s.monitorSerial)stopStandbyMonitor(s);if(sing===s&&serial===s.monitorSerial){s.micCheck?.setBusy(false);s.micCheck?.error(e);input.checked=false;document.querySelectorAll('[data-monitor-toggle]').forEach(b=>b.setAttribute('aria-pressed','false'));setSingStatus(e.name==='NotAllowedError'?'모니터링하려면 마이크 권한을 허용해 주세요.':e.message||'모니터링을 시작하지 못했습니다.');}}
 }
 
 function showPunchComplete(s,range){

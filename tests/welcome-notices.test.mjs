@@ -144,7 +144,7 @@ test('personalized greetings use only the public nickname and preserve nickname 
  assert.match(hidden.body.guide.greeting,/^리스너 /);
  f.sql.prepare('UPDATE producers SET name=?,nickname_confirmed=1 WHERE user_id=?').run('별빛 $& <친구>','oauth-hidden');
  const chosen=await f.call('/api/notices/welcome','GET',undefined,'oauth-hidden');
- assert.ok(chosen.body.guide.greeting.startsWith('별빛 $& <친구>님, 반가워요!'));
+ assert.ok(chosen.body.guide.greeting.startsWith('별빛 $& <친구>님, 반갑습니다!'));
  assert.equal(chosen.body.guide.greeting.includes('{닉네임}'),false);
 });
 

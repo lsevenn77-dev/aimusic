@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {gameLimits,gameDayWindow} from './crew-game-limits.js';
 import {query,one,rows,run,json,fail,id,now,rate} from './db.js';
 import {requireUser} from './auth.js';
@@ -30,7 +31,7 @@ async function buyCar(env,uid,car) {
   const writes=[];
   if(car.currency==='G'){
     const available=await rows(env,`SELECT * FROM gold_purchases WHERE user_id=? AND used<gold AND ${decorationSpendableSQL} ORDER BY paid_at,id`,uid);
-    try{lots=allocateLots(available,car.price);}catch{if((await garage(env,uid)).owned.includes(car.id))return;fail(409,'골드가 부족해요.');}
+    try{lots=allocateLots(available,car.price);}catch{if((await garage(env,uid)).owned.includes(car.id))return;fail(409,'골드가 부족합니다.');}
     for(const lot of lots)writes.push(query(env,`UPDATE gold_purchases SET used=CASE WHEN ${decorationSpendableSQL} THEN used+? ELSE -1 END WHERE id=? AND user_id=?`,lot.gold,lot.purchase_id,uid));
   }else{
     writes.push(query(env,'INSERT OR IGNORE INTO free_gift_wallets(user_id,balance) VALUES(?,0)',uid),
@@ -41,18 +42,18 @@ async function buyCar(env,uid,car) {
     await env.DB.batch([query(env,"INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) VALUES(?,?,?,'race_car',?,?)",id(),uid,receipt,car.id,now()),...writes]);
   }catch(e){
     if((await garage(env,uid)).owned.includes(car.id))return;
-    if(/constraint/i.test(e.message))fail(409,'잔액 또는 기존 구매 상태를 확인해주세요.');
+    if(/constraint/i.test(e.message))fail(409,'잔액 또는 기존 구매 상태를 확인해 주세요.');
     throw e;
   }
 }
 
 export function validateRace(course,events,ms,speedBonus=0){
-  if(!Array.isArray(events)||events.length>7700)fail(400,'올바르지 않은 입력 기록이에요.');
+  if(!Array.isArray(events)||events.length>7700)fail(400,'올바르지 않은 입력 기록입니다.');
   let last=-1;
   for(const event of events){
-    if(!Array.isArray(event)||event.length!==2)fail(400,'올바르지 않은 입력 기록이에요.');
+    if(!Array.isArray(event)||event.length!==2)fail(400,'올바르지 않은 입력 기록입니다.');
     const [tick,mask]=event;
-    if(!Number.isInteger(tick)||tick<=last||tick>=7700||!Number.isInteger(mask)||mask<0||mask>7)fail(400,'올바르지 않은 입력 기록이에요.');
+    if(!Number.isInteger(tick)||tick<=last||tick>=7700||!Number.isInteger(mask)||mask<0||mask>7)fail(400,'올바르지 않은 입력 기록입니다.');
     last=tick;
   }
   const race=createRace(course),state=newRun(speedBonus);
@@ -62,7 +63,7 @@ export function validateRace(course,events,ms,speedBonus=0){
     state.input.left=!!(mask&1);state.input.right=!!(mask&2);state.input.boost=!!(mask&4);
     race.step(state,STEP);tick++;
   }
-  if(!state.ended||index!==events.length||ms+350<tick*STEP*1000||ms>3600000)fail(409,'주행 시간을 확인할 수 없어요.');
+  if(!state.ended||index!==events.length||ms+350<tick*STEP*1000||ms>3600000)fail(409,'주행 시간을 확인할 수 없습니다.');
   return computeScore(state.finished,state.t,Math.min(1,state.z/race.TRACK_LEN));
 }
 
@@ -93,25 +94,25 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
   ) SELECT c.name,c.image_version,r.* FROM ranked r JOIN crews c ON c.id=r.crew_id WHERE place<=100 OR crew_id=? ORDER BY place,c.name,r.crew_id`,week,crew);
     return json({week,course,...limits,remaining:Math.max(0,limits.dailyLimit-used.n),crew:crew||null,ranking,individualRanking,signedIn:!!uid,crewMember:!!crew,...(uid?await garage(env,uid):{owned:['c2'],equipped:'c2'})});
   }
-  if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+  if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
   requireUser(user);
   await rate(env,'crew-race:'+uid,40,60);
   const body=await req.json();
   if(action==='buy'||action==='equip'){
     const car=CARS.find(c=>c.id===body.car);
-    if(!car)fail(400,'차량을 확인해주세요.');
+    if(!car)fail(400,'차량을 확인해 주세요.');
     if(action==='buy')await buyCar(env,uid,car);
     else{
-      if(!(await garage(env,uid)).owned.includes(car.id))fail(403,'보유한 차량만 장착할 수 있어요.');
+      if(!(await garage(env,uid)).owned.includes(car.id))fail(403,'보유한 차량만 장착할 수 있습니다.');
       await run(env,`INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) VALUES(?,?,?,'race_equip','active',?)
         ON CONFLICT(user_id,source,source_ref) DO UPDATE SET item_key=excluded.item_key`,id(),uid,car.id,now());
     }
     return json(await showroomState(env,uid));
   }
-  if(!crew)fail(403,'크루에 가입하면 공식 순위에 참여할 수 있어요.');
+  if(!crew)fail(403,'크루에 가입하면 공식 순위에 참여할 수 있습니다.');
   if(action==='start'){
-    if(body.course!==course)fail(409,'이번 주 코스가 바뀌었어요. 대기실을 새로고침해주세요.');
-    if(body.rules!==SPEED_RULES)fail(409,'차량 최고속도 규칙이 바뀌었어요. 레이싱을 다시 열어주세요.');
+    if(body.course!==course)fail(409,'이번 주 코스가 바뀌었습니다. 대기실을 새로고침해 주세요.');
+    if(body.rules!==SPEED_RULES)fail(409,'차량 최고속도 규칙이 바뀌었습니다. 레이싱을 다시 열어 주세요.');
     const {equipped}=await garage(env,uid);
     const {speedBonus}=CARS.find(c=>c.id===equipped);
     // The opaque run ID is stored and matched in full. Freeze the server-owned rule/bonus
@@ -121,18 +122,18 @@ export async function racingRoute(req,env,path,user,ms=Date.now()){
     await run(env,`INSERT INTO crew_racing_runs(id,user_id,crew_id,week,course,starts)
       SELECT ?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM crew_racing_runs WHERE user_id=? AND starts>=? AND starts<?)<?`,
       key,uid,crew,week,course,ms,uid,day.start,day.end,limits.dailyLimit);
-    if(!await one(env,'SELECT id FROM crew_racing_runs WHERE id=?',key))fail(409,`오늘 공식 도전 ${limits.dailyLimit}회를 모두 사용했어요. 한국시간 자정에 초기화돼요.`);
+    if(!await one(env,'SELECT id FROM crew_racing_runs WHERE id=?',key))fail(409,`오늘 공식 도전 ${limits.dailyLimit}회를 모두 사용했습니다. 한국시간 자정에 초기화됩니다.`);
     const used=await one(env,'SELECT COUNT(*) n FROM crew_racing_runs WHERE user_id=? AND starts>=? AND starts<?',uid,day.start,day.end);
     return json({id:key,equipped,speedBonus,...limits,remaining:Math.max(0,limits.dailyLimit-used.n)});
   }
   if(action==='finish'){
     const record=await one(env,'SELECT * FROM crew_racing_runs WHERE id=? AND user_id=?',String(body.id),uid);
-    if(!record||record.crew_id!==crew)fail(404,'주행 기록을 찾지 못했어요.');
+    if(!record||record.crew_id!==crew)fail(404,'주행 기록을 찾지 못했습니다.');
     if(record.score!==null)return json({score:record.score});
     const bonus=Number(/\.kart2-(0|2|4|6|8|10)$/.exec(record.id)?.[1] || 0);
     const score=validateRace(record.course,body.events,ms-record.starts,bonus);
     await run(env,'UPDATE crew_racing_runs SET score=? WHERE id=? AND score IS NULL',score,record.id);
     return json(await one(env,'SELECT score FROM crew_racing_runs WHERE id=?',record.id));
   }
-  fail(404,'경로를 찾지 못했어요.');
+  fail(404,'경로를 찾지 못했습니다.');
 }

@@ -1,6 +1,7 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,query,run,now,json,fail} from './db.js';
 import {publicNameSQL} from './identity.js';
-import {WELCOME_CAMPAIGN_ID,WELCOME_PEER_ID,WELCOME_PREVIEW,WELCOME_GUIDE} from '../shared/welcome-guide.js';
+import {WELCOME_CAMPAIGN_ID,WELCOME_PEER_ID,WELCOME_PREVIEW,WELCOME_GUIDE,updateWelcomeCopy} from '../shared/welcome-guide.js';
 
 const eligible = "u.account_type='human' AND u.provider!='deleted'";
 const peer = receipt => ({id:WELCOME_PEER_ID,name:'아이팩트 안내',chat_nickname:'아이팩트 안내',is_notice:true,notice_type:'welcome',read_only:true,last_message:WELCOME_PREVIEW,updated:receipt.created,unread:receipt.read_at?0:1});
@@ -48,26 +49,26 @@ export async function welcomeConversation(env,userId) {
 
 export async function welcomeNoticeRoute(req,env,path,user) {
  if(path!=='/api/notices/welcome')return null;
- if(!user)fail(401,'로그인 후 이용해주세요.');
+ if(!user)fail(401,AifectMessages.signIn);
  if(!['GET','PATCH'].includes(req.method))fail(405,'읽기 전용 안내입니다.');
  const receipt=await one(env,`SELECT r.created,r.read_at,c.content_json,${publicNameSQL()} nickname
   FROM welcome_receipts r JOIN welcome_campaigns c ON c.id=r.campaign_id JOIN users u ON u.id=r.user_id LEFT JOIN producers p ON p.user_id=u.id
   WHERE r.campaign_id=? AND r.user_id=? AND ${eligible}`,WELCOME_CAMPAIGN_ID,user.id);
- if(!receipt)fail(404,'아직 도착한 안내가 없어요.');
+ if(!receipt)fail(404,'아직 도착한 안내가 없습니다.');
  if(req.method==='PATCH'){
-  let body;try{body=await req.json();}catch{fail(400,'읽은 안내를 다시 확인해주세요.');}
-  if(!body||typeof body!=='object'||Array.isArray(body)||body.campaign_id!==WELCOME_CAMPAIGN_ID||Object.keys(body).some(key=>key!=='campaign_id'))fail(400,'읽은 안내를 다시 확인해주세요.');
+  let body;try{body=await req.json();}catch{fail(400,'읽은 안내를 다시 확인해 주세요.');}
+  if(!body||typeof body!=='object'||Array.isArray(body)||body.campaign_id!==WELCOME_CAMPAIGN_ID||Object.keys(body).some(key=>key!=='campaign_id'))fail(400,'읽은 안내를 다시 확인해 주세요.');
   await run(env,'UPDATE welcome_receipts SET read_at=? WHERE campaign_id=? AND user_id=? AND read_at=0',now(),WELCOME_CAMPAIGN_ID,user.id);
   return json({ok:true});
  }
- const guide=JSON.parse(receipt.content_json),nickname=String(receipt.nickname||'').trim();
+ const guide=updateWelcomeCopy(JSON.parse(receipt.content_json)),nickname=String(receipt.nickname||'').trim();
  // Apply the owner's presentation change to saved notices without redelivery.
  delete guide.stickers;
  if(!guide.sections.some(section=>section.id==='crew')){
   const after=guide.sections.findIndex(section=>section.id==='talking');
   guide.sections.splice(after<0?guide.sections.length:after+1,0,WELCOME_GUIDE.sections.find(section=>section.id==='crew'));
  }
- guide.greeting=nickname?guide.greeting.replace('{닉네임}',()=>nickname):'반가워요! 👋\n아이팩트에 오신 걸 환영해요.';
+ guide.greeting=nickname?guide.greeting.replace('{닉네임}',()=>nickname):'반갑습니다! 👋\n아이팩트에 오신 걸 환영합니다.';
  return json({peer:peer(receipt),campaign_id:WELCOME_CAMPAIGN_ID,created:receipt.created,read_at:receipt.read_at,guide});
 }
 

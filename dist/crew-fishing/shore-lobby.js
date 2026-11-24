@@ -33,7 +33,7 @@ function renderShop(root,state) {
   root.innerHTML = `<div class="fl-layout fs-layout">
     <section class="fl-hero fl-card fs-hero"><div class="fl-intro"><small>AIFECT CREW GAMES</small><h1>별물결 낚시터</h1><p>낚시 전용 상점</p></div>
     <div class="fs-wallet" aria-label="이 기기의 테스트 잔액"><b>테스트 잔액</b><span><i class="fs-coin S">S</i> ${fmt(state.S)} S</span><span><i class="fs-coin G">G</i> ${fmt(state.G)} G</span></div></section>
-    ${sections}<details class="fs-rules"><summary>장비 효과 안내</summary><p>스킨은 모든 낚시에 표시돼요. 연습 낚시에서는 낚시대와 미끼의 행운 합계만큼의 확률(%)로 한 번 더 추첨해 높은 등급을 선택해요. 미끼는 입질 대기를 최소 1초까지 줄여줘요.</p></details>
+    ${sections}<details class="fs-rules"><summary>장비 효과 안내</summary><p>스킨은 모든 낚시에 표시됩니다. 연습 낚시에서는 낚시대와 미끼의 행운 합계만큼의 확률(%)로 한 번 더 추첨해 높은 등급을 선택합니다. 미끼는 입질 대기를 최소 1초까지 줄여 줍니다.</p></details>
     <div class="fs-feedback" role="status" aria-live="polite"></div></div>`;
 }
 function showTab(tab) {
@@ -42,7 +42,7 @@ function showTab(tab) {
   const opening = tab === 'shop';
   if (opening) {
     try { renderShop(shop,inventory()); }
-    catch { shop.textContent = '테스트 상점 정보를 불러오지 못했어요. 대기실로 돌아가 다시 열어주세요.'; }
+    catch { shop.textContent = '테스트 상점 정보를 불러오지 못했습니다. 대기실로 돌아가 다시 열어 주세요.'; }
   }
   lobby.hidden = opening;
   shop.hidden = !opening;
@@ -71,7 +71,7 @@ document.addEventListener('click',async event=>{
     root.querySelector('[data-fs-item="'+item.id+'"]:not(:disabled)')?.focus({preventScroll:true});
   } catch {
     button.disabled = false;
-    root.querySelector('[role=status]').textContent = '변경을 저장하지 못했어요. 잔액을 확인하고 다시 시도해 주세요.';
+    root.querySelector('[role=status]').textContent = '변경을 저장하지 못했습니다. 잔액을 확인하고 다시 시도해 주세요.';
   }
 });
 window.addEventListener('storage',()=>{const root=document.getElementById('fs-shop');if(root && !root.hidden)renderShop(root,inventory());});

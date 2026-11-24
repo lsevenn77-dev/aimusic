@@ -91,7 +91,7 @@ test('shared discovery filters playable script roots and keeps the writing and f
  const join=c.dubDiscoveryHTML({...view,raw:'karaoke/dubbing?tab=join&genre=사극&q=작가+12',play:{mode:'dubbing',tab:'join'}});
  assert.match(join,/시대극<\/a>/);assert.match(join,/project=r12/);assert.match(join,/참여 가능 · 서연/);
  assert.equal((join.match(/class="dub-poster-card"/g)||[]).length,1);
- assert.match(c.dubDiscoveryHTML({...view,raw:view.raw+'&genre=SF&q=작가+12'}),/검색 조건에 맞는 작품이 없어요/);
+ assert.match(c.dubDiscoveryHTML({...view,raw:view.raw+'&genre=SF&q=작가+12'}),/검색 조건에 맞는 작품이 없습니다/);
 });
 
 test('desktop casting availability excludes the submitted owner role and leaves the legacy response intact',async t=>{

@@ -19,7 +19,7 @@ export function uploadQuotaResult(user,used,at=now()){
  return {limit,used,remaining:Math.max(0,limit-used),month:month.label,resets_at:month.end,covers_unlimited:true};
 }
 export async function requireUploadQuota(env,user){
- const quota=await uploadQuota(env,user);if(!quota.remaining)fail(429,`이번 달 제작곡 ${quota.limit}곡을 모두 올렸어요. 다음 달 1일에 다시 올릴 수 있어요. 커버곡은 제한 없이 올릴 수 있어요.`);
+ const quota=await uploadQuota(env,user);if(!quota.remaining)fail(429,`이번 달 제작곡 ${quota.limit}곡을 모두 올렸습니다. 다음 달 1일에 다시 올릴 수 있습니다. 커버곡은 제한 없이 올릴 수 있습니다.`);
  return quota;
 }
 export async function completeUpload(env,track,user){

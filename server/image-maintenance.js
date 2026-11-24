@@ -10,7 +10,7 @@ const uuid=/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/;
 
 export async function replaceStoredPNG(req,env){
  const {kind,entityId,expectedVersion}=await req.json();
- if(!Object.hasOwn(sources,kind)||!uuid.test(entityId)||!uuid.test(expectedVersion))fail(400,'이미지 종류와 버전을 확인해주세요.');
+ if(!Object.hasOwn(sources,kind)||!uuid.test(entityId)||!uuid.test(expectedVersion))fail(400,'이미지 종류와 버전을 확인해 주세요.');
  const {table,version,type}=sources[kind];
  const row=await one(env,`SELECT ${version} AS version,${type} AS mime FROM ${table} WHERE id=?`,entityId);
  if(row?.version!==expectedVersion||row?.mime!=='image/png')return json({state:'skipped'});

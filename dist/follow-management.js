@@ -38,7 +38,7 @@ async function readFollowData(params){
  if(prior&&(prior.pending||prior.until>Date.now()))return structuredClone(await prior.promise);
  const entry={pending:true,until:0};
  entry.promise=api('/api/follow-management?'+q,'GET',undefined,{fresh:true}).then(data=>{
-  if(stamp!==followStamp())throw Object.assign(new Error('관계 정보가 변경됐어요.'),{name:'AbortError'});
+  if(stamp!==followStamp())throw Object.assign(new Error('관계 정보가 변경되었습니다.'),{name:'AbortError'});
   entry.pending=false;entry.until=Date.now()+60000;return data;
  }).catch(error=>{if(followDataCache.get(key)===entry)followDataCache.delete(key);throw error;});
  followDataCache.set(key,entry);while(followDataCache.size>48)followDataCache.delete(followDataCache.keys().next().value);
@@ -218,7 +218,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
    previous=li;
   }
   for(const li of existing.values())li.remove();
-  if(ready&&!rows.length&&!status.textContent)status.textContent=input.value.trim()?'검색 결과가 없어요.':'아직 등록된 대상이 없어요.';
+  if(ready&&!rows.length&&!status.textContent)status.textContent=input.value.trim()?AifectMessages.searchEmpty:'아직 등록된 대상이 없습니다.';
   status.classList.toggle('fm-feedback',!rows.length&&loading.hidden&&!!status.textContent);
  }
  function showLoading(show){
@@ -237,7 +237,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
  }
  async function selectAll(){
   if(chosen.size===d.matched&&chosen.size){chosen.clear();paint();return;}
-  const ticket=invalidate(),q=options(),selection=new Map();q.set('keys','1');busy=true;status.textContent='선택 대상을 확인하고 있어요.';paint();
+  const ticket=invalidate(),q=options(),selection=new Map();q.set('keys','1');busy=true;status.textContent='선택 대상을 확인하고 있습니다.';paint();
   try{let after='';do{q.set('after',after);const res=await api('/api/follow-management?'+q,'GET',undefined,{fresh:true,signal:reader.signal});if(!alive()||ticket!==seq)return;
    for(const r of res.items)selection.set(r.key,r.name);after=res.next;
   }while(after);chosen=selection;status.textContent='';}catch(e){if(alive()&&ticket===seq)status.textContent=e.message;}
@@ -245,8 +245,8 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
  }
  function confirmAction(op,targets){
   const scope=tab==='artists'?d.name+'의 팬 관계':tab==='blocks'?'선택한 각 계정·아티스트의 차단 범위':tab==='following'?'내가 팔로우한 계정·아티스트':'내 개인 계정';
-  const detail=op==='unblock'?'차단을 풀어도 이전 팔로우는 복구되지 않아요.':op==='block'?'해당 범위에서 팔로우와 새 상호작용을 제한해요. 기존 기록은 유지돼요.':op==='remove'?'상대가 나를 팔로우한 관계만 해제해요.':'내가 보낸 팔로우만 해제해요.';
-  dialog('<p class="popup-prompt">선택한 '+number(targets.size)+'명을 '+followOps[op]+'하시겠습니까?</p><p>'+esc(scope)+' · '+esc([...targets.values()].slice(0,3).join(', '))+(targets.size>3?' 외 '+number(targets.size-3)+'명':'')+'</p><p>'+esc(tab==='artists'&&op==='remove'?'이 아티스트를 향한 팔로우만 해제해요.':detail)+'</p><div class="fm-confirm">'+btn('dismiss','취소')+btn('confirm',followOps[op])+'</div>');
+  const detail=op==='unblock'?'차단을 풀어도 이전 팔로우는 복구되지 않습니다.':op==='block'?'해당 범위에서 팔로우와 새 상호작용을 제한합니다. 기존 기록은 유지됩니다.':op==='remove'?'상대가 나를 팔로우한 관계만 해제합니다.':'내가 보낸 팔로우만 해제합니다.';
+  dialog('<p class="popup-prompt">선택한 '+number(targets.size)+'명을 '+followOps[op]+'하시겠습니까?</p><p>'+esc(scope)+' · '+esc([...targets.values()].slice(0,3).join(', '))+(targets.size>3?' 외 '+number(targets.size-3)+'명':'')+'</p><p>'+esc(tab==='artists'&&op==='remove'?'이 아티스트를 향한 팔로우만 해제합니다.':detail)+'</p><div class="fm-confirm">'+btn('dismiss','취소')+btn('confirm',followOps[op])+'</div>');
   const modal=document.querySelector('#dialog');
   const dismissOutside=event=>{
    if(event.target!==modal)return;
@@ -293,7 +293,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   try{
    const response=await api('/api/follow-management?'+base,'POST',{action:following?'follow':'unfollow',keys:[row.key]});
    if(viewer!==me?.id)return;
-   if(!response.ok.includes(row.key))throw new Error('관계가 변경되었어요. 목록을 다시 확인해주세요.');
+   if(!response.ok.includes(row.key))throw new Error('관계가 변경되었습니다. 목록을 다시 확인해 주세요.');
    const [kind,id]=key.split('/');
    updateFollowLocal(kind,id,following,{name:row.name,image_version:row.image_version});
    if(alive())syncRelation(row,following);
@@ -313,7 +313,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   if(busy||!alive())return;busy=true;input.disabled=sort.disabled=true;const picker=find('.fm-artist');if(picker)picker.disabled=true;
   const failed=new Map(),ok=[],all=[...targets.keys()];let uncertain='';
   paint();status.textContent='처리 중…';
-  try{for(let i=0;i<all.length;i+=80){if(viewer!==me?.id){uncertain='계정이 변경됐어요.';for(const k of all.slice(i))failed.set(k,targets.get(k));break;}const keys=all.slice(i,i+80);
+  try{for(let i=0;i<all.length;i+=80){if(viewer!==me?.id){uncertain='계정이 변경되었습니다.';for(const k of all.slice(i))failed.set(k,targets.get(k));break;}const keys=all.slice(i,i+80);
    try{const r=await api('/api/follow-management?'+base,'POST',{action:op,keys});ok.push(...r.ok);for(const k of r.failed)failed.set(k,targets.get(k));}
    catch(e){uncertain=e.message;for(const k of all.slice(i))failed.set(k,targets.get(k));break;}
   }}finally{
@@ -337,7 +337,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   try{
    const response=await api('/api/follow-management?'+base,'POST',{action:op,keys:[row.key]});
    if(viewer!==me?.id)return;
-   if(!response.ok.includes(row.key))throw new Error('관계가 변경되었어요. 목록을 다시 확인해주세요.');
+   if(!response.ok.includes(row.key))throw new Error('관계가 변경되었습니다. 목록을 다시 확인해 주세요.');
    ++followRevision;void refreshLibrary(true).catch(()=>{});
    if(alive()){
     rows=rows.filter(item=>item!==row);card?.remove();

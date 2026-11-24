@@ -95,10 +95,10 @@ test('stale revision and refunded funds abort the entire D1 activation/applicati
  const choice=await selectRoomEntitlement(env,'owner',sku,stock,true);
  f.sql.exec("INSERT INTO room_decorations(room_id,host_id,sku,revision,updated) VALUES('stale','owner','basic_dark',2,0)");
  const metadata={key:uuid(),action:'settings',fingerprint:'test'};
- await assert.rejects(commitRoomTheme(env,'owner',{id:'stale',host_id:'owner',settings_revision:1},choice,metadata),/바뀌었어요/);
+ await assert.rejects(commitRoomTheme(env,'owner',{id:'stale',host_id:'owner',settings_revision:1},choice,metadata),/바뀌었습니다/);
  assert.equal(records(f,'decoration_redemptions').length,0);assert.equal(records(f,'room_theme_applications').length,0);
  f.sql.exec("INSERT INTO gold_orders(id,user_id,request_id,state,created,expires,updated) VALUES('funds','owner','refund','refund_review',0,1,0)");
- await assert.rejects(commitRoomTheme(env,'owner',{id:'new-room',host_id:'owner'},choice,{...metadata,key:uuid()}),/바뀌었어요/);
+ await assert.rejects(commitRoomTheme(env,'owner',{id:'new-room',host_id:'owner'},choice,{...metadata,key:uuid()}),/바뀌었습니다/);
  assert.equal(records(f,'decoration_redemptions').length,0);
  assert.equal(f.sql.prepare('SELECT revoked,expires_at FROM player_inventory WHERE id=?').get(stock).revoked,0);
 });

@@ -39,10 +39,10 @@ export function randomDubbingIdea(options,previous='',random=Math.random){
  const mood=['경쾌한 소동','숨 막히는 심리전','담담한 관찰','모험의 경이로움','서툰 진심','긴박한 선택','재치 있는 논쟁','낯선 불안'];
  let value='';
  for(let n=0;n<8;n++){
-  value=`${pick(places)}에서 ${options.roleCount}명이 ${pick(trouble)}. 관계의 출발점: ${pick(relation)}. ${options.genres.join(' · ')} 장르, ${options.mood&&options.mood!=='랜덤'?options.mood:pick(mood)}. 약 ${Math.round(options.minutes*60)}초. ${options.ending&&options.ending!=='랜덤'?options.ending:pick(ending)}. 인원이 1명이면 관계를 독백이나 전달받은 정보로 표현하고 배역을 늘리지 마세요. 소재를 자연스럽게 재해석하되 선택한 장르를 지켜주세요.`;
+  value=`${pick(places)}에서 ${options.roleCount}명이 ${pick(trouble)}. 관계의 출발점: ${pick(relation)}. ${options.genres.join(' · ')} 장르, ${options.mood&&options.mood!=='랜덤'?options.mood:pick(mood)}. 약 ${Math.round(options.minutes*60)}초. ${options.ending&&options.ending!=='랜덤'?options.ending:pick(ending)}. 인원이 1명이면 관계를 독백이나 전달받은 정보로 표현하고 배역을 늘리지 마세요. 소재를 자연스럽게 재해석하되 선택한 장르를 지켜 주세요.`;
   if(value!==previous)return value;
  }
- return `${places[(places.indexOf(value)+1)%places.length]||places[0]}에서 ${options.roleCount}명이 작은 비밀을 함께 지켜내는 ${options.genres.join(' · ')} 이야기. 약 ${Math.round(options.minutes*60)}초, 유쾌한 반전으로 마무리해주세요.`;
+ return `${places[(places.indexOf(value)+1)%places.length]||places[0]}에서 ${options.roleCount}명이 작은 비밀을 함께 지켜내는 ${options.genres.join(' · ')} 이야기. 약 ${Math.round(options.minutes*60)}초, 유쾌한 반전으로 마무리해 주세요.`;
 }
 export function simpleDubbingText(script,sceneId){
  return script.lines.filter(l=>l.sceneId===sceneId).map(l=>`${String.fromCharCode(65+script.roles.findIndex(r=>r.id===l.roleId))}: ${l.text}`).join('\n');
@@ -55,19 +55,19 @@ export function applySimpleDubbingText(script,sceneId,text){
   if(!raw.trim())continue;
   const m=raw.match(/^\s*([A-Za-z])\s*[:：]\s*(.*)$/);
   if(!m){
-   if(!parsed.length)throw new Error(`${index+1}번째 줄을 A: 대사 형식으로 적어주세요.`);
+   if(!parsed.length)throw new Error(`${index+1}번째 줄을 A: 대사 형식으로 적어 주세요.`);
    const last=parsed.at(-1);
    last.text+='\n'+raw.trim();
-   if(last.text.length>700)throw new Error(`${index+1}번째 대사는 700자까지 적을 수 있어요.`);
+   if(last.text.length>700)throw new Error(`${index+1}번째 대사는 700자까지 적을 수 있습니다.`);
    continue;
   }
   const role=s.roles[m[1].toUpperCase().charCodeAt(0)-65];
-  if(!role)throw new Error(`${index+1}번째 줄의 ${m[1].toUpperCase()} 배역이 없어요.`);
-  if(!m[2].trim())throw new Error(`${index+1}번째 줄에 대사를 적어주세요.`);
-  if(m[2].length>700)throw new Error(`${index+1}번째 대사는 700자까지 적을 수 있어요.`);
+  if(!role)throw new Error(`${index+1}번째 줄의 ${m[1].toUpperCase()} 배역이 없습니다.`);
+  if(!m[2].trim())throw new Error(`${index+1}번째 줄에 대사를 적어 주세요.`);
+  if(m[2].length>700)throw new Error(`${index+1}번째 대사는 700자까지 적을 수 있습니다.`);
   parsed.push({roleId:role.id,text:m[2].trim()});
  }
- if(parsed.length+s.lines.length-old.length>120)throw new Error('대사는 최대 120개까지 적을 수 있어요.');
+ if(parsed.length+s.lines.length-old.length>120)throw new Error('대사는 최대 120개까지 적을 수 있습니다.');
  const matched=parsed.map(p=>{const l=old.find(l=>!used.has(l.id)&&l.roleId===p.roleId&&l.text===p.text);if(l)used.add(l.id);return l;});
  const next=parsed.map((p,i)=>{
   let l=matched[i];

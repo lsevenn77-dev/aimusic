@@ -36,7 +36,7 @@ function bindCrewSettingsMenu(trigger) {
    detail=await api(path,'GET',undefined,{fresh:true,signal:controller.signal});
    if(controller.signal.aborted||!trigger.isConnected||account!==me?.id) return;
    const actions=crewActionsFor(detail.membership?.role);
-   if(!actions.length) {toast('크루 운영진만 설정을 열 수 있어요.');await render();return;}
+   if(!actions.length) {toast('크루 운영진만 설정을 열 수 있습니다.');await render();return;}
    menu.innerHTML=actions.map(a=>`<button type="button" role="menuitem" tabindex="-1" data-action="${a.key}">${icon(a.icon,18)}${a.label}</button>`).join('');
    menu.hidden=false;
    trigger.setAttribute('aria-expanded','true');
@@ -152,7 +152,7 @@ function bindCrewInfo(ui,detail) {
  if(!owner){
   form.elements.name.readOnly=true;
   for(const key of ['join_policy','minimum_level']) form.elements[key].disabled=true;
-  form.querySelector('#crew-name-help').textContent='크루 이름은 크루장만 변경할 수 있어요.';
+  form.querySelector('#crew-name-help').textContent='크루 이름은 크루장만 변경할 수 있습니다.';
  }
  form.elements.minimum_level.required=true;
  const saved=crewInfoValues(form);
@@ -167,7 +167,7 @@ function bindCrewInfo(ui,detail) {
   void ui.run(async()=>{
    photo.check();
    const patch=changes();
-   if(patch.name!==undefined&&!confirm('크루 이름을 변경하면 30일(720시간) 동안 다시 변경할 수 없어요. 변경할까요?'))return;
+   if(patch.name!==undefined&&!confirm('크루 이름을 변경하면 30일(720시간) 동안 다시 변경할 수 없습니다. 변경할까요?'))return;
    if(Object.keys(patch).length){
     const updated=await api(ui.path,'PATCH',{...patch,version});
     version=updated.crew.version;
@@ -176,9 +176,9 @@ function bindCrewInfo(ui,detail) {
    }
    let uploaded;
    try{uploaded=await photo.persist(ui.path);}
-   catch(e){e.message=(infoSaved?'크루 정보는 저장됐어요. ':'')+e.message;throw e;}
+   catch(e){e.message=(infoSaved?'크루 정보는 저장되었습니다. ':'')+e.message;throw e;}
    if(uploaded)ui.refresh=true;
-   if(modal.open){if(ui.refresh)toast(uploaded?'크루 대표 사진 저장을 확인했어요.':'크루 정보를 저장했어요.');modal.close();}
+   if(modal.open){if(ui.refresh)toast(uploaded?'크루 대표 사진 저장을 확인했습니다.':'크루 정보를 저장했습니다.');modal.close();}
   });
  };
 }
@@ -197,7 +197,7 @@ function bindCrewMemberList(ui,detail) {
    return `<div class="crew-manage-row" data-member="${esc(m.id)}"><a href="#producer/${esc(m.id)}">${name}</a><div class="crew-row-actions">
     ${role==='owner'?`<select aria-label="${name} 직책">${options}</select>`:`<span>${esc(crewRoleLabels[value])}</span>`}
     ${role==='owner'||(role==='deputy'&&m.role!=='deputy')?`<button type="button" class="small-button" data-kick aria-label="${name} 강퇴">강퇴</button>`:''}</div></div>`;
-  }).join('')||`<p>${members.length?'검색 결과가 없어요.':'관리할 멤버가 없어요.'}</p>`;
+  }).join('')||`<p>${members.length?AifectMessages.searchEmpty:'관리할 멤버가 없습니다.'}</p>`;
  }
  search.oninput=show;
  function update(control,kick){
@@ -210,7 +210,7 @@ function bindCrewMemberList(ui,detail) {
    try {
     detail=await api(ui.path+'/members/'+encodeURIComponent(id),kick?'DELETE':'PATCH',kick?undefined:{role:control.value});
     ui.refresh=true;
-    if(ui.modal.open)toast(kick?'멤버를 강퇴했어요.':'직책을 변경했어요.');
+    if(ui.modal.open)toast(kick?'멤버를 강퇴했습니다.':'직책을 변경했습니다.');
    } finally {if(ui.modal.open)show();}
   });
  }
@@ -235,8 +235,8 @@ function bindCrewActivity(ui) {
   try{
    const d=await api(ui.path+'/'+tab,'GET',undefined,{fresh:true,signal:ui.signal});
    if(!ui.modal.open||ticket!==serial)return;
-   body.innerHTML=tab==='applications'?d.applications.map(a=>`<div class="crew-manage-row" data-applicant="${esc(a.user_id)}"><strong>${memberNickname(a)}</strong><div class="crew-row-actions"><button class="small-button" data-decision="approve">승인</button><button class="small-button" data-decision="reject">거절</button></div></div>`).join('')||'<p>대기 중인 가입 신청이 없어요.</p>':
-    d.events.map(e=>`<article class="crew-audit-event"><strong>${esc(labels[e.action]||e.action)}</strong><small>${esc(new Date(e.created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</small>${e.detail?`<p>${esc(e.detail)}</p>`:''}</article>`).join('')||'<p>아직 운영 기록이 없어요.</p>';
+   body.innerHTML=tab==='applications'?d.applications.map(a=>`<div class="crew-manage-row" data-applicant="${esc(a.user_id)}"><strong>${memberNickname(a)}</strong><div class="crew-row-actions"><button class="small-button" data-decision="approve">승인</button><button class="small-button" data-decision="reject">거절</button></div></div>`).join('')||'<p>대기 중인 가입 신청이 없습니다.</p>':
+    d.events.map(e=>`<article class="crew-audit-event"><strong>${esc(labels[e.action]||e.action)}</strong><small>${esc(new Date(e.created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</small>${e.detail?`<p>${esc(e.detail)}</p>`:''}</article>`).join('')||'<p>아직 운영 기록이 없습니다.</p>';
   }catch(e){if(ui.modal.open&&ticket===serial){ui.error.textContent=e.message;body.innerHTML='<button class="small-button" data-retry>다시 불러오기</button>';}}
  }
  for(const b of tabs){
@@ -251,7 +251,7 @@ function bindCrewActivity(ui) {
   void ui.run(async()=>{
    await api(ui.path+'/applications/'+encodeURIComponent(id),'POST',{decision:b.dataset.decision});
    ui.refresh=true;
-   if(ui.modal.open){toast(b.dataset.decision==='approve'?'가입을 승인했어요.':'가입을 거절했어요.');await load('applications');}
+   if(ui.modal.open){toast(b.dataset.decision==='approve'?'가입을 승인했습니다.':'가입을 거절했습니다.');await load('applications');}
   });
  };
  void load('applications');
@@ -259,7 +259,7 @@ function bindCrewActivity(ui) {
 
 function bindCrewTransfer(ui,detail) {
  const eligible=detail.members.filter(m=>m.role!=='owner'&&m.user_id!==me?.id);
- ui.body.innerHTML=`<label class="form-field">새 크루장<select><option value="">크루원 선택</option>${eligible.map(m=>`<option value="${esc(m.user_id)}">${esc(m.profile_name||m.name)}</option>`).join('')}</select></label><p class="field-help">${eligible.length?'위임하면 내 직책은 크루원이 돼요. 다시 크루장이 되려면 새 크루장이 위임해야 해요.':'위임할 수 있는 크루원이 없어요.'}</p>`;
+ ui.body.innerHTML=`<label class="form-field">새 크루장<select><option value="">크루원 선택</option>${eligible.map(m=>`<option value="${esc(m.user_id)}">${esc(m.profile_name||m.name)}</option>`).join('')}</select></label><p class="field-help">${eligible.length?'위임하면 내 직책은 크루원이 됩니다. 다시 크루장이 되려면 새 크루장이 위임해야 합니다.':'위임할 수 있는 크루원이 없습니다.'}</p>`;
  ui.footer.innerHTML='<button class="small-button" data-cancel>취소</button><button class="primary-button" data-transfer disabled>위임하기</button>';
  const select=ui.body.querySelector('select'),button=ui.footer.querySelector('[data-transfer]');
  select.disabled=!eligible.length;
@@ -272,7 +272,7 @@ function bindCrewTransfer(ui,detail) {
   void ui.run(async()=>{
    await api(ui.path+'/leadership','POST',{user_id:person.user_id});
    ui.refresh=true;
-   if(ui.modal.open){toast('크루장 권한을 위임했어요.');ui.modal.close();}
+   if(ui.modal.open){toast('크루장 권한을 위임했습니다.');ui.modal.close();}
   });
  };
 }

@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {publicContentContext} from './block-policy.js';
 import {genreFilterSQL} from '../shared/genres.js';
 import {producerNameSQL} from './identity.js';
@@ -11,12 +12,12 @@ export {rankingPeriod} from './ranking-period.js';
 export async function coverRankingRoute(req,env,path){
  if(path!=='/api/cover-rankings')return null;
  env=publicContentContext(env);
- if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
  const p=new URL(req.url).searchParams,period=rankingPeriod(p.get('period')||'today'),kind=p.get('kind')||'tracks';
- if(!['tracks','singers'].includes(kind))fail(400,'랭킹 종류를 확인해주세요.');
+ if(!['tracks','singers'].includes(kind))fail(400,'랭킹 종류를 확인해 주세요.');
  const genre=p.get('genre')||'',q=(p.get('q')||'').trim().slice(0,100),original=p.get('original_id')||'';
- if(genre&&!validGenre(genre))fail(400,'장르를 확인해주세요.');
- if(original){const t=await published(env,original);if(t.kind!=='original')fail(400,'원곡을 선택해주세요.');}
+ if(genre&&!validGenre(genre))fail(400,'장르를 확인해 주세요.');
+ if(original){const t=await published(env,original);if(t.kind!=='original')fail(400,'원곡을 선택해 주세요.');}
  const requested=Number(p.get('limit')||50),limit=Number.isInteger(requested)&&requested>0?Math.min(requested,100):50;
  let where=`${VISIBLE()} AND t.kind='cover'`,args=[];
  if(genre){where+=' AND '+genreFilterSQL();args.push(genre,genre);}

@@ -199,7 +199,7 @@ test('browse artwork keeps each project genre and detail URL across recommended 
  assert.deepEqual([...html.matchAll(/href="(#[^"]*draft=1)"/g)].map(m=>m[1]),[...old.matchAll(/href="(#[^"]*draft=1)"/g)].map(m=>m[1]));
  for(const key of ['data-draft-key','data-delete-draft','data-draft-title'])assert.deepEqual([...html.matchAll(new RegExp(key+'="([^"]+)"','g'))].map(m=>m[1]),[...old.matchAll(new RegExp(key+'="([^"]+)"','g'))].map(m=>m[1]));
  assert.doesNotMatch(html,/MY RECORDINGS|draft-workspace|recording-draft/);assert.match(html,/&lt;길고 긴 제목>/);assert.match(html,/play-draft-row/);
- const empty=c.playDraftRows([]);assert.match(empty,/data-delete-all-drafts disabled/);assert.match(empty,/첫 목소리를 기다리고 있어요/);
+ const empty=c.playDraftRows([]);assert.match(empty,/data-delete-all-drafts disabled/);assert.match(empty,/첫 목소리를 기다리고 있습니다/);
  });
 
 test('PLAY duet counts and child pages use the exact half ID and distinct visible participants',async t=>{

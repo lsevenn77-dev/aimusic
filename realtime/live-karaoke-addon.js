@@ -3,7 +3,7 @@
 const baseRoomSettings=roomSettings;
 roomSettings=function(input,actor,previous={}){
  const s=baseRoomSettings(input,actor,previous),mode=input.mode??previous.mode??'talk';
- if(!['talk','karaoke'].includes(mode))fault(400,'방 유형을 확인해주세요.');
+ if(!['talk','karaoke'].includes(mode))fault(400,'방 유형을 확인해 주세요.');
  return {...s,mode};
 };
 const LIVE_INVITE_MS=15000;
@@ -29,7 +29,7 @@ function liveNext(room,allowEmpty=false){
 
   return;
  }
- if(!allowEmpty)fault(409,'노래 신청 대기열이 비어 있어요.');
+ if(!allowEmpty)fault(409,'노래 신청 대기열이 비어 있습니다.');
 }
 async function liveCatalogueEvent(room,actor,action,track,id){
  await room.env.ROOM_DB.prepare('INSERT OR IGNORE INTO voice_room_events(id,room_id,actor_id,action,target_id,created) VALUES(?,?,?,?,?,?)').bind(action+':'+id,room.data.config.id,actor.id,action,track,Date.now()).run();
@@ -41,84 +41,84 @@ async function liveCommand(room,actor,b){
  room.limited(actor,'live-karaoke',75);
  switch(b.operation){
   case 'key': {
-   if(!k.active||k.active.invitation_id!==b.invitation_id)fault(409,'현재 곡이 변경됐어요.');
-   if(!isHost&&p.id!==k.active.user_id)fault(403,'가창자와 방장만 반주 키를 바꿀 수 있어요.');
-   if(!Number.isInteger(b.key)||Math.abs(b.key)>8)fault(400,'반주 키 범위를 확인해주세요.');
+   if(!k.active||k.active.invitation_id!==b.invitation_id)fault(409,'현재 곡이 변경되었습니다.');
+   if(!isHost&&p.id!==k.active.user_id)fault(403,'가창자와 방장만 반주 키를 바꿀 수 있습니다.');
+   if(!Number.isInteger(b.key)||Math.abs(b.key)>8)fault(400,'반주 키 범위를 확인해 주세요.');
    k.active.key=b.key;k.revision++;break;
   }
   case 'invite': {
    const target=d.members[identifier(b.target_id)];
-   if(!isHost)fault(403,'방장만 예약에 초대할 수 있어요.');
-   if(!target||target.locked||target.id===p.id||k.active?.user_id===target.id||k.queue.some(q=>q.user_id===target.id))fault(409,'초대할 수 없는 참여자예요.');
+   if(!isHost)fault(403,'방장만 예약에 초대할 수 있습니다.');
+   if(!target||target.locked||target.id===p.id||k.active?.user_id===target.id||k.queue.some(q=>q.user_id===target.id))fault(409,'초대할 수 없는 참여자입니다.');
    const previous=d.seatInvites[target.id];
    if(previous&&previous.expires>Date.now())return room.snapshot(actor);
    d.seatInvites[target.id]={id:crypto.randomUUID(),target:target.id,kind:'reservation',expires:Date.now()+10000};break;
   }
   case 'answer-invite': {
    const invitation=d.seatInvites[p.id];
-   if(!invitation||invitation.kind!=='reservation'||invitation.id!==b.invitation_id||invitation.expires<=Date.now())fault(409,'예약 초대가 만료됐어요.');
+   if(!invitation||invitation.kind!=='reservation'||invitation.id!==b.invitation_id||invitation.expires<=Date.now())fault(409,'예약 초대가 만료되었습니다.');
    delete d.seatInvites[p.id];break;
   }
   case 'request': {
    const rid=requestId(b.request_id),t=b.track;
-   if(!t||typeof t.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(t.id)||typeof t.title!=='string'||!t.title.trim()||t.title.length>150||typeof t.artist!=='string'||t.artist.length>150||!Number.isFinite(t.duration)||t.duration<=0||t.duration>600)fault(400,'사용할 수 있는 노래방 곡인지 확인해주세요.');
-   if(p.locked)fault(403,'마이크 사용이 제한되어 있어요.');
+   if(!t||typeof t.id!=='string'||!/^[a-zA-Z0-9_-]{1,80}$/.test(t.id)||typeof t.title!=='string'||!t.title.trim()||t.title.length>150||typeof t.artist!=='string'||t.artist.length>150||!Number.isFinite(t.duration)||t.duration<=0||t.duration>600)fault(400,'사용할 수 있는 노래방 곡인지 확인해 주세요.');
+   if(p.locked)fault(403,'마이크 사용이 제한되어 있습니다.');
    if(k.active?.user_id===p.id&&k.active.invitation_id===rid&&k.active.track.id===t.id)return room.snapshot(actor);
-   if(k.active?.user_id===p.id)fault(409,'현재 가창자는 다시 신청할 수 없어요.');
+   if(k.active?.user_id===p.id)fault(409,'현재 가창자는 다시 신청할 수 없습니다.');
    const receipts=k.requestReceipts||=[];
    const previous=receipts.find(x=>x.user_id===p.id&&x.id===rid);
-   if(previous){if(previous.track_id===t.id)return room.snapshot(actor);fault(409,'이미 사용한 예약 요청이에요.');}
+   if(previous){if(previous.track_id===t.id)return room.snapshot(actor);fault(409,'이미 사용한 예약 요청입니다.');}
    const prior=k.queue.find(x=>x.user_id===p.id);
-   if(prior?.request_id===rid){if(prior.track.id===t.id)return room.snapshot(actor);fault(409,'이미 사용한 예약 요청이에요.');}
-   if(!prior&&k.queue.length>=20)fault(409,'신청 대기열은 최대 20곡이에요.');
+   if(prior?.request_id===rid){if(prior.track.id===t.id)return room.snapshot(actor);fault(409,'이미 사용한 예약 요청입니다.');}
+   if(!prior&&k.queue.length>=20)fault(409,'신청 대기열은 최대 20곡입니다.');
    await liveCatalogueEvent(room,p,'karaoke-reserve',t.id,rid);
    receipts.push({user_id:p.id,id:rid,track_id:t.id});if(receipts.length>200)receipts.splice(0,receipts.length-200);
    k.queue=k.queue.filter(q=>q.user_id!==p.id);
    k.queue.push({user_id:p.id,name:p.name,request_id:rid,track:t});k.revision++;
-   room.notice(p,p.name+'님이 '+t.title+' 노래를 신청했어요.');
+   room.notice(p,p.name+'님이 '+t.title+' 노래를 신청했습니다.');
    if(!k.active)liveNext(room,true);
    break;
   }
   case 'cancel': {
    const target=b.target_id?identifier(b.target_id):p.id;
-   if(target!==p.id&&!isHost)fault(403,'다른 사람의 신청은 취소할 수 없어요.');
+   if(target!==p.id&&!isHost)fault(403,'다른 사람의 신청은 취소할 수 없습니다.');
    const before=k.queue.length;k.queue=k.queue.filter(x=>x.user_id!==target);
-   if(k.queue.length===before)fault(404,'신청을 찾을 수 없어요.');
+   if(k.queue.length===before)fault(404,'신청을 찾을 수 없습니다.');
    k.revision++;break;
   }
   case 'call':
-   if(!isHost)fault(403,'방장만 다음 가창자를 부를 수 있어요.');
+   if(!isHost)fault(403,'방장만 다음 가창자를 부를 수 있습니다.');
    if(k.active)return room.snapshot(actor); // Older host clients may still call.
    liveNext(room);break;
   case 'accept': {
-   if(!k.active||k.active.user_id!==p.id)fault(403,'호출된 본인만 부르기를 누를 수 있어요.');
-   if(!b.invitation_id||b.invitation_id!==k.active.invitation_id)fault(409,'노래 순서가 변경됐어요. 현재 차례를 확인해주세요.');
+   if(!k.active||k.active.user_id!==p.id)fault(403,'호출된 본인만 부르기를 누를 수 있습니다.');
+   if(!b.invitation_id||b.invitation_id!==k.active.invitation_id)fault(409,'노래 순서가 변경되었습니다. 현재 차례를 확인해 주세요.');
    if(k.phase==='ready')return room.snapshot(actor); // A retry must not restart the invitation timer.
-   if(k.phase!=='invited'||Date.now()>=k.inviteExpiresAt)fault(409,'응답 시간이 지났어요. 다시 예약해주세요.');
+   if(k.phase!=='invited'||Date.now()>=k.inviteExpiresAt)fault(409,'응답 시간이 지났습니다. 다시 예약해 주세요.');
    k.phase='ready';k.inviteExpiresAt=0;k.readyExpiresAt=Date.now()+LIVE_READY_MS;k.revision++;
    break;
   }
   case 'start':{
-   if(!k.active||k.phase!=='ready'||Date.now()>=k.readyExpiresAt)fault(409,'시작할 수 있는 차례가 아니에요.');
-   if(k.active.user_id!==p.id)fault(403,'이번 차례인 가창자만 시작할 수 있어요.');
-   if(b.invitation_id&&b.invitation_id!==k.active.invitation_id)fault(409,'노래 순서가 변경됐어요. 현재 차례를 확인해주세요.');
+   if(!k.active||k.phase!=='ready'||Date.now()>=k.readyExpiresAt)fault(409,'시작할 수 있는 차례가 아닙니다.');
+   if(k.active.user_id!==p.id)fault(403,'이번 차례인 가창자만 시작할 수 있습니다.');
+   if(b.invitation_id&&b.invitation_id!==k.active.invitation_id)fault(409,'노래 순서가 변경되었습니다. 현재 차례를 확인해 주세요.');
    const singer=d.members[k.active.user_id];
-   if(!singer||singer.expires<=Date.now()||!singer.pub?.ready||singer.muted)fault(409,'가창자가 마이크를 켜야 시작할 수 있어요.');
+   if(!singer||singer.expires<=Date.now()||!singer.pub?.ready||singer.muted)fault(409,'가창자가 마이크를 켜야 시작할 수 있습니다.');
    await liveCatalogueEvent(room,p,'karaoke-sung',k.active.track.id,k.active.invitation_id);
    k.phase='singing';k.startsAt=Date.now()+3000;k.readyExpiresAt=0;k.revision++;
 
    break;
   }
   case 'abandon':case 'finish':case 'next': {
-   if(b.operation==='next'&&!isHost)fault(403,'방장만 다음 순서를 진행할 수 있어요.');
-   if(!isHost&&k.active?.user_id!==p.id)fault(403,'방장 또는 가창자만 종료할 수 있어요.');
-   if((b.operation==='abandon'||b.invitation_id)&&(!b.invitation_id||b.invitation_id!==k.active?.invitation_id))fault(409,'노래 순서가 변경됐어요. 현재 차례를 확인해주세요.');
-   if(b.operation==='abandon'&&k.active){const singer=d.members[k.active.user_id];if(singer)room.notice(singer,singer.name+'님이 노래를 포기했어요.');}
+   if(b.operation==='next'&&!isHost)fault(403,'방장만 다음 순서를 진행할 수 있습니다.');
+   if(!isHost&&k.active?.user_id!==p.id)fault(403,'방장 또는 가창자만 종료할 수 있습니다.');
+   if((b.operation==='abandon'||b.invitation_id)&&(!b.invitation_id||b.invitation_id!==k.active?.invitation_id))fault(409,'노래 순서가 변경되었습니다. 현재 차례를 확인해 주세요.');
+   if(b.operation==='abandon'&&k.active){const singer=d.members[k.active.user_id];if(singer)room.notice(singer,singer.name+'님이 노래를 포기했습니다.');}
    if(k.active)await liveStopSinger(room);
    liveNext(room,true);
    break;
   }
-  default:fault(400,'노래방 명령을 확인해주세요.');
+  default:fault(400,'노래방 명령을 확인해 주세요.');
  }
  d.revision++;room.notify();return room.snapshot(actor);
 }
@@ -134,7 +134,7 @@ function resetLiveRoomMode(room, next, actor){
   member.pub=null;member.sub=null;member.muted=true;
   member.seat=member.id===d.config.host_id?0:null;
  }
- room.notice(actor,'방장이 '+(next==='karaoke'?'라이브 노래방':'토킹룸')+'으로 전환했어요.');
+ room.notice(actor,'방장이 '+(next==='karaoke'?'라이브 노래방':'토킹룸')+'으로 전환했습니다.');
 }
 const originalLoad=VoiceRoom.prototype.load;
 VoiceRoom.prototype.load=async function(...a){
@@ -189,12 +189,12 @@ VoiceRoom.prototype.expire=async function(...a){
  if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k&&!k.active&&k.queue.length){liveNext(this,true);this.data.revision++;this.notify();}
  if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&k.phase==='invited'&&Date.now()>=k.inviteExpiresAt){
   const member=this.data.members[k.active.user_id];
-  if(member)this.notice(member,member.name+'님이 응답하지 않아 다음 예약자로 넘어가요.');
+  if(member)this.notice(member,member.name+'님이 응답하지 않아 다음 예약자로 넘어갑니다.');
   await liveStopSinger(this);liveNext(this,true);this.data.revision++;this.notify();
  }
  if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&k.phase==='ready'&&Date.now()>=k.readyExpiresAt){
   const member=this.data.members[k.active.user_id];
-  if(member)this.notice(member,member.name+'님의 마이크 준비 시간이 지나 다음 예약자로 넘어가요.');
+  if(member)this.notice(member,member.name+'님의 마이크 준비 시간이 지나 다음 예약자로 넘어갑니다.');
   await liveStopSinger(this);liveNext(this,true);this.data.revision++;this.notify();
  }
  if(this.data?.config?.mode==='karaoke'&&!this.data.config.closed&&k?.active&&k.phase==='singing'&&Date.now()>=k.startsAt+(k.active.track.duration+3)*1000){
@@ -205,7 +205,7 @@ const originalCommand=VoiceRoom.prototype.command;
 VoiceRoom.prototype.command=async function(action,actor,b={},roomId){
  if(action==='karaoke-library'){
   this.access(actor,!!this.data.members[actor.id]);this.member(actor,b.generation);
-  if(this.data.config.mode!=='karaoke')fault(409,'노래방에서만 사용할 수 있어요.');
+  if(this.data.config.mode!=='karaoke')fault(409,'노래방에서만 사용할 수 있습니다.');
   const mine=b.collection==='mine',sql=mine?
    "SELECT target_id id,MAX(created) recent FROM voice_room_events WHERE action='karaoke-sung' AND actor_id=? GROUP BY target_id ORDER BY recent DESC LIMIT 100":
    "SELECT target_id id,COUNT(*) reservations,MAX(created) recent FROM voice_room_events WHERE action='karaoke-reserve' AND created>=? GROUP BY target_id ORDER BY reservations DESC,recent DESC LIMIT 100";
@@ -215,33 +215,33 @@ VoiceRoom.prototype.command=async function(action,actor,b={},roomId){
  if(action==='request-mic'&&b.request_id&&this.data.config?.mode!=='karaoke'){
   this.access(actor,!!this.data.members[actor.id]);const member=this.member(actor,b.generation),rid=requestId(b.request_id);
   const receipts=member.seatReceipts||=[];const previous=receipts.find(r=>r.id===rid);
-  if(previous){if(previous.seat!==b.seat)fault(409,'이미 사용한 좌석 요청이에요.');return this.snapshot(actor);}
+  if(previous){if(previous.seat!==b.seat)fault(409,'이미 사용한 좌석 요청입니다.');return this.snapshot(actor);}
   const started=performance.now(),state=await originalCommand.call(this,action,actor,b,roomId);
   receipts.push({id:rid,seat:b.seat});if(receipts.length>32)receipts.shift();
   return {...state,commandTiming:{processingMs:performance.now()-started}};
  }
  if(action==='presence'){const result=await originalCommand.call(this,action,actor,b,roomId);return {...result,mode:this.data.config?.mode||'talk'};}
- if(action==='karaoke'){if(this.data.config?.mode!=='karaoke')fault(409,'라이브 노래방에서만 가능한 명령이에요.');return liveCommand(this,actor,b);}
+ if(action==='karaoke'){if(this.data.config?.mode!=='karaoke')fault(409,'라이브 노래방에서만 가능한 명령입니다.');return liveCommand(this,actor,b);}
  if(action==='release-mic'){
   this.access(actor,!!this.data.members[actor.id]);
   const member=this.member(actor,b.generation);
   if(this.data.config?.mode==='karaoke'&&this.data.karaoke.active?.user_id===member.id){
-   if(!b.invitation_id||b.invitation_id!==this.data.karaoke.active.invitation_id)fault(409,'현재 노래 순서가 변경됐어요.');
+   if(!b.invitation_id||b.invitation_id!==this.data.karaoke.active.invitation_id)fault(409,'현재 노래 순서가 변경되었습니다.');
    await liveStopSinger(this);member.seat=null;liveNext(this,true);
   }else{await this.stopPublish(member);member.seat=null;this.clearRequest(member);}
   this.data.revision++;this.notify();return this.snapshot(actor);
  }
  if(this.data.config?.mode==='karaoke'&&action!=='create'){
-  if(['seat-invite','seat-answer','request-mic','cancel-mic','reject-mic','approve-mic','release-mic','music'].includes(action))fault(409,'라이브 노래방은 한 명씩 노래해요.');
-  if(action==='moderate'&&['remove-seat','move-seat'].includes(b.operation))fault(409,'노래방 순서에서 관리해주세요.');
+  if(['seat-invite','seat-answer','request-mic','cancel-mic','reject-mic','approve-mic','release-mic','music'].includes(action))fault(409,'라이브 노래방은 한 명씩 노래합니다.');
+  if(action==='moderate'&&['remove-seat','move-seat'].includes(b.operation))fault(409,'노래방 순서에서 관리해 주세요.');
   const canSing=this.data.karaoke.active?.user_id===actor.id&&['ready','singing'].includes(this.data.karaoke.phase);
-  if(action==='published'&&!canSing)fault(403,'부르기를 수락한 가창자만 송출할 수 있어요.');
-  if(action==='self-mute'&&b.muted===false&&!canSing)fault(403,'부르기를 수락한 가창자만 마이크를 켤 수 있어요.');
+  if(action==='published'&&!canSing)fault(403,'부르기를 수락한 가창자만 송출할 수 있습니다.');
+  if(action==='self-mute'&&b.muted===false&&!canSing)fault(403,'부르기를 수락한 가창자만 마이크를 켤 수 있습니다.');
  }
  return originalCommand.call(this,action,actor,b,roomId);
 };
 const originalPrepareMedia=VoiceRoom.prototype.prepareMedia;
 VoiceRoom.prototype.prepareMedia=function(action,actor,b,...rest){
- if(action==='publish'&&this.data.config?.mode==='karaoke'&&(this.data.karaoke.active?.user_id!==actor.id||!['ready','singing'].includes(this.data.karaoke.phase)))fault(403,'부르기를 수락한 가창자만 마이크를 송출할 수 있어요.');
+ if(action==='publish'&&this.data.config?.mode==='karaoke'&&(this.data.karaoke.active?.user_id!==actor.id||!['ready','singing'].includes(this.data.karaoke.phase)))fault(403,'부르기를 수락한 가창자만 마이크를 송출할 수 있습니다.');
  return originalPrepareMedia.call(this,action,actor,b,...rest);
 };

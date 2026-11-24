@@ -66,6 +66,6 @@ test('crew ranking replaces the song shelf, uses server rankings and displays le
  assert.match(html,/크루 랭킹/);assert.match(html,/LV 4/);assert.match(html,/1500 XP/);assert.match(html,/&lt;First>/);
  assert.ok(html.indexOf('#crew/first')<html.indexOf('#crew/second'));assert.ok(html.indexOf('#crew/second')<html.indexOf('#crew/third'));
  assert.doesNotMatch(html,/내 크루의 새 음악|Not a ranking/);assert.equal(rankings[0].id,'second');
- assert.match(c.crewRankingSidebarHTML([]),/아직 등록된 크루가 없어요/);
+ assert.match(c.crewRankingSidebarHTML([]),/아직 등록된 크루가 없습니다/);
  assert.match(c.crewRankingSidebarHTML(),/불러오는 중/);
 });

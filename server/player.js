@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {decorationInventory,decorationFundingSQL} from './decorations.js';
 import {one,rows,run,query,fail,json,now} from './db.js';
 import {PLAYER_ITEMS,PLAYER_RULES,playerProgress} from '../shared/player.js';
@@ -26,7 +27,7 @@ export async function playerBackfill(env){
 }
 export async function playerBackfillRoute(req,env){
  if(!env.TRANSCODER_TOKEN||req.headers.get('authorization')!==`Bearer ${env.TRANSCODER_TOKEN}`)fail(401,'인증이 필요합니다.');
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  return json(await playerBackfill(env));
 }
 
@@ -53,25 +54,25 @@ export async function playerSummary(env,uid){
  return {server_now:now(),player:playerProgress(identity.player_xp),profile:identity,crew:currentCrew,rules:PLAYER_RULES,recent,decorations:decorations.filter(i=>i.source==='decoration'&&i.product.kind==='TALKING_ROOM_THEME'),stored_decorations:decorations.filter(i=>i.source==='decoration_stock'),
   rewards:rewards.filter(([key])=>!inventory.some(i=>i.item_key===key)).map(([key,item])=>({item_key:key,...item,owned:false,available:false,equipped:false,reason:item.min_level?`유저 레벨 ${item.min_level} 달성 시 자동 지급`:`크루 레벨 ${item.min_crew_level} 이상 가입 시 자동 지급`})),
   inventory:inventory.filter(i=>i.source!=='decoration_stock'&&PLAYER_ITEMS[i.item_key]&&!i.revoked&&(!i.expires_at||i.expires_at>now())).map(i=>{
-   const item=PLAYER_ITEMS[i.item_key],reason=item.paid&&!decorations.find(d=>d.id===i.id)?.available?'사용 기간이나 결제 상태를 확인해주세요.':i.revoked?'사용이 종료된 아이템이에요.':i.expires_at&&i.expires_at<=now()?'사용 기간이 끝났어요.':item.membership&&!crew?'크루에 가입하면 사용할 수 있어요.':item.min_crew_level&&currentCrew.level<item.min_crew_level?`크루 레벨 ${item.min_crew_level} 이상에서 사용할 수 있어요.`:'';
+   const item=PLAYER_ITEMS[i.item_key],reason=item.paid&&!decorations.find(d=>d.id===i.id)?.available?'사용 기간이나 결제 상태를 확인해 주세요.':i.revoked?'사용이 종료된 아이템입니다.':i.expires_at&&i.expires_at<=now()?'사용 기간이 끝났습니다.':item.membership&&!crew?'크루에 가입하면 사용할 수 있습니다.':item.min_crew_level&&currentCrew.level<item.min_crew_level?`크루 레벨 ${item.min_crew_level} 이상에서 사용할 수 있습니다.`:'';
    const rental=decorations.find(d=>d.id===i.id);
    return {id:i.id,item_key:i.item_key,...item,owned:true,status:'ACTIVE',activated_at:rental?.activated_at??null,period_code:rental?.period_code??null,applied:!reason&&!!i.equipped,source:i.source,granted_at:i.granted_at,expires_at:i.expires_at,available:!reason,reason,equipped:!reason&&!!i.equipped};
   })};
 }
 export async function playerRoute(req,env,path,user){
  if(!['/api/me/player','/api/me/player/equipment'].includes(path))return null;
- if(!user)fail(401,'로그인 후 이용해주세요.');
+ if(!user)fail(401,AifectMessages.signIn);
  if(path.endsWith('/equipment')){
-  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
+  if(req.method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
   const b=await req.json();
-  if(!Object.hasOwn(b,'frame_inventory_id')||(b.frame_inventory_id!==null&&typeof b.frame_inventory_id!=='string'))fail(400,'장착할 액자를 선택해주세요.');
+  if(!Object.hasOwn(b,'frame_inventory_id')||(b.frame_inventory_id!==null&&typeof b.frame_inventory_id!=='string'))fail(400,'장착할 액자를 선택해 주세요.');
   const target=b.frame_inventory_id;
   // A single conditional statement closes the leave/expiry/equip race.
   if(target!==null){
    const i=await one(env,`SELECT pi.id FROM player_inventory pi WHERE pi.id=? AND pi.user_id=? AND pi.revoked=0 AND (pi.expires_at=0 OR pi.expires_at>unixepoch()) AND ${usableSQL('pi','pi.user_id')}`,target,user.id);
-   if(!i)fail(409,'지금 사용할 수 없는 액자예요. 보관함을 새로 확인해주세요.');
+   if(!i)fail(409,'지금 사용할 수 없는 액자입니다. 보관함을 새로 확인해 주세요.');
   }
   await run(env,`INSERT INTO player_equipment(user_id,frame_inventory_id) SELECT ?,? WHERE ? IS NULL OR EXISTS(SELECT 1 FROM player_inventory pi WHERE pi.id=? AND pi.user_id=? AND pi.revoked=0 AND (pi.expires_at=0 OR pi.expires_at>unixepoch()) AND ${usableSQL('pi','pi.user_id')}) ON CONFLICT(user_id) DO UPDATE SET frame_inventory_id=excluded.frame_inventory_id`,user.id,target,target,target,user.id);
- }else if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+ }else if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
  return json(await playerSummary(env,user.id));
 }

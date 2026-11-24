@@ -38,7 +38,7 @@ function dubDraftStatus(e,message){
 function dubWriteLocal(e){
  if(e.finished||!me||e.account!==me.id)return false;
  try{localStorage.setItem(dubDraftKey(e.id),JSON.stringify({etag:e.etag??null,draft:dubDraftSnapshot(e),unsynced:e.unsynced}));return true;}
- catch{dubDraftStatus(e,'기기 저장 공간을 확인해주세요.');return false;}
+ catch{dubDraftStatus(e,'기기 저장 공간을 확인해 주세요.');return false;}
 }
 function dubQueueSave(e){
  if(e.finished)return;

@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {json,fail,rate} from './db.js';
 import {authenticateMcp} from './admin-mcp-auth.js';
 import {ADMIN_MCP_TOOLS,validateArguments} from './admin-mcp-tools.js';
@@ -9,10 +10,10 @@ const instructions='AIFECT 운영자 전용입니다. 이용자는 조회 결과
 const rpc=(id,result)=>json({jsonrpc:'2.0',id,result});
 const rpcError=(id,code,message,status=200)=>json({jsonrpc:'2.0',id,error:{code,message}},status);
 async function readBody(req) {
- if(Number(req.headers.get('content-length')||0)>16384)fail(413,'요청이 너무 큽니다.');
+ if(Number(req.headers.get('content-length')||0)>16384)fail(413,AifectMessages.requestTooLarge);
  if(!req.body)fail(400,'JSON 요청이 필요합니다.');
  const reader=req.body.getReader(),parts=[];let size=0;
- try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>16384){await reader.cancel();fail(413,'요청이 너무 큽니다.');}parts.push(value);}}finally{reader.releaseLock();}
+ try{for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>16384){await reader.cancel();fail(413,AifectMessages.requestTooLarge);}parts.push(value);}}finally{reader.releaseLock();}
  const bytes=new Uint8Array(size);let at=0;for(const part of parts){bytes.set(part,at);at+=part.byteLength;}
  return new TextDecoder().decode(bytes);
 }
@@ -51,6 +52,6 @@ export async function adminMcpRoute(req,env) {
   }
  }catch(e){
   if(!e.status)console.error('AIFECT MCP transport failed',e.name);
-  return json({jsonrpc:'2.0',id:callId,error:{code:e.status===401?-32001:e.status===403?-32003:-32000,message:e.status?e.message:'관리자 연결을 확인해주세요.'}},e.status||500,e.status===401?{'WWW-Authenticate':'Bearer realm="AIFECT admin"'}:{});
+  return json({jsonrpc:'2.0',id:callId,error:{code:e.status===401?-32001:e.status===403?-32003:-32000,message:e.status?e.message:'관리자 연결을 확인해 주세요.'}},e.status||500,e.status===401?{'WWW-Authenticate':'Bearer realm="AIFECT admin"'}:{});
  }
 }

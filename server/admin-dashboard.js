@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {visitDay} from './visitors.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {one,rows,now,fail,json,str} from './db.js';
@@ -13,18 +14,18 @@ const kstStart=at=>Math.floor((at+9*3600)/86400)*86400-9*3600;
 
 async function memberDirectory(env,params,at){
  const group=params.get('group')||'all',day=params.get('day'),cursor=params.get('cursor');
- if(!['all','today','premium'].includes(group))fail(400,'회원 구분을 확인해주세요.');
+ if(!['all','today','premium'].includes(group))fail(400,'회원 구분을 확인해 주세요.');
  const conditions=[currentMember],args=[];
  if(group==='today'||day!==null){
   const start=day===null?kstStart(at):Date.parse(day+'T00:00:00+09:00')/1000;
   if(day!==null&&(group==='today'||!/^\d{4}-\d{2}-\d{2}$/.test(day)||!Number.isFinite(start)||
-    new Date((start+9*3600)*1000).toISOString().slice(0,10)!==day))fail(400,'가입일을 확인해주세요.');
+    new Date((start+9*3600)*1000).toISOString().slice(0,10)!==day))fail(400,'가입일을 확인해 주세요.');
   conditions.push('u.created>=? AND u.created<?');args.push(start,start+86400);
  }
  if(group==='premium'){conditions.push(premiumMember);args.push(at);}
  if(cursor!==null){
   const match=/^(\d{1,12}):([^:\s]{1,128})$/.exec(cursor);
-  if(!match)fail(400,'목록 위치를 확인해주세요.');
+  if(!match)fail(400,'목록 위치를 확인해 주세요.');
   conditions.push('(u.created,u.id)<(?,?)');args.push(Number(match[1]),match[2]);
  }
  const pageSize=50;
@@ -59,7 +60,7 @@ async function searchDashboard(env,q){
 export async function adminDashboardRoute(req,env,path,user){
  if(!path.startsWith('/api/admin/dashboard'))return null;
  requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
- if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
  const url=new URL(req.url);
  if(path==='/api/admin/dashboard/members')return memberDirectory(env,url.searchParams,now());
  if(path==='/api/admin/dashboard/search'){

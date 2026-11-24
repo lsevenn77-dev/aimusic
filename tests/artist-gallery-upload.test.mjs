@@ -63,7 +63,7 @@ test('artist gallery uploads three Safari PNG fallbacks sequentially with correc
 
 test('a failed gallery upload retains only unsent photos and reuses the PNG conversion on retry',async()=>{
  const ui=galleryUpload({failAttempt:2});await ui.open();
- await assert.rejects(ui.submit(),/연결이 끊어졌어요/);
+ await assert.rejects(ui.submit(),/연결이 끊어졌습니다/);
  assert.equal(ui.saved.length,1);assert.equal(ui.stats().closed,0);assert.equal(ui.stats().renders,0);
  assert.deepEqual(ui.form.elements.photos.files,ui.files.slice(1));assert.match(ui.status.textContent,/1장 업로드 완료/);
  await ui.submit();

@@ -4,9 +4,9 @@ export const PLAYLIST_TRACK_KIND = 'original';
 export function normalizePlaylistTitle(value) {
  return String(value??'').normalize('NFKC').trim().replace(/\s+/gu,' ').toLowerCase();
 }
-export const PLAYLIST_INELIGIBLE_MESSAGE = '플레이리스트에는 제작곡만 추가할 수 있어요.';
+export const PLAYLIST_INELIGIBLE_MESSAGE = '플레이리스트에 추가할 수 없는 콘텐츠입니다.';
 export function isPlaylistEligibleTrack(track) {
- return track?.kind === PLAYLIST_TRACK_KIND;
+ return track?.kind === PLAYLIST_TRACK_KIND || track?.kind === 'cover';
 }
 export function playlistEligibleSQL(alias='t') {
  if(!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(alias))throw new Error('Invalid track alias');

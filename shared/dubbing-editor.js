@@ -15,7 +15,7 @@ export function duplicateEditorScene(script,id){
  const source=script.scenes.find(s=>s.id===id);
  const lines=script.lines.filter(l=>l.sceneId===id),cues=script.soundCues.filter(c=>c.sceneId===id);
  const roleBgm=script.soundCues.filter(c=>c.kind==='bgm').length+cues.filter(c=>c.kind==='bgm').length;
- if(script.scenes.length>=12||script.lines.length+lines.length>120||script.soundCues.length+cues.length>24||roleBgm>3)throw Error('복제하면 장면·대사 또는 음향 개수를 초과해요.');
+ if(script.scenes.length>=12||script.lines.length+lines.length>120||script.soundCues.length+cues.length>24||roleBgm>3)throw Error('복제하면 장면·대사 또는 음향 개수를 초과합니다.');
  const scene={...source,id:newId(),title:source.title};
  script.scenes.splice(script.scenes.indexOf(source)+1,0,scene);
  const ids=new Map(lines.map(l=>[l.id,newId()]));

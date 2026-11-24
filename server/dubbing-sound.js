@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {dubbingSettings,dubbingPriceSQL} from './dubbing-settings.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {one,rows,query,run,now,id,json,fail} from './db.js';
@@ -26,12 +27,12 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
   if(!j?.output_key)fail(404,'배경 오디오가 아직 준비되지 않았습니다.');
   return objectResponse(req,env,j.output_key,'audio/mp4');
  }
- if(action!=='sound')fail(405,'지원하지 않는 요청입니다.');
+ if(action!=='sound')fail(405,AifectMessages.unsupportedRequest);
  if(req.method==='GET')return json({sound:await dubbingSoundStatus(env,p)});
  requireUser(user);if(p.owner_id!==user.id)fail(403,'작품 작성자만 음향을 만들 수 있습니다.');
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  const body=await req.json();
- if(!/^[0-9a-f-]{36}$/.test(body.requestId||'')||!['ai','basic'].includes(body.mode))fail(400,'음향 요청을 확인해주세요.');
+ if(!/^[0-9a-f-]{36}$/.test(body.requestId||'')||!['ai','basic'].includes(body.mode))fail(400,'음향 요청을 확인해 주세요.');
  const existing=await one(env,'SELECT * FROM dubbing_sound_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
  if(existing){if(existing.mode!==body.mode)fail(409,'이 대본에 이미 배경 오디오 작업이 있습니다.');return json({sound:await dubbingSoundStatus(env,p)});}
  if(body.revision!==p.revision||p.first_recorded_at)fail(409,'대본이 변경되었거나 녹음이 시작되었습니다.');
@@ -40,7 +41,7 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
  const script=JSON.parse(p.script_json);
  const useScriptCues=body.cueSource==='script';
  if(useScriptCues&&(body.mode!=='ai'||p.source!=='manual'||!script.soundCues.length||script.soundCues.filter(c=>c.kind==='bgm').length>3)){
-  fail(400,'직접 등록한 대본과 최대 3개의 배경음악을 확인해주세요.');
+  fail(400,'직접 등록한 대본과 최대 3개의 배경음악을 확인해 주세요.');
  }
  const timeline=useScriptCues?dubbingTimeline(script):dubbingSoundTimeline(script);
  if(useScriptCues){
@@ -51,7 +52,7 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
  }
  if(body.mode==='ai'){
   if(!pikaAvailable(env))fail(503,'Pika 연결과 유료 API 실행 승인이 필요합니다.');
-  if(body.acceptedGold!==priceGold||body.acceptedChargeGold!==(dubbingGoldEnabled(env)?priceGold:0))fail(409,'음향 제작 가격이 변경되었습니다. 화면을 새로 열어 차감 금액을 확인해주세요.');
+  if(body.acceptedGold!==priceGold||body.acceptedChargeGold!==(dubbingGoldEnabled(env)?priceGold:0))fail(409,'음향 제작 가격이 변경되었습니다. 화면을 새로 열어 차감 금액을 확인해 주세요.');
   if(!script.soundCues.length&&!dubbingAIAvailable(env))fail(503,'직접 작성한 대본의 AI 음향 연출 연결을 기다리고 있습니다.');
   timeline.sounds.forEach(pikaRequest);
  }
@@ -77,7 +78,7 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
   if(/unique|constraint/i.test(e.message)){
    const replay=await one(env,'SELECT mode FROM dubbing_sound_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
    if(replay?.mode===body.mode)return json({sound:await dubbingSoundStatus(env,p)});
-   fail(409,'잔액 또는 작업 상태가 변경되었습니다. 다시 확인해주세요.');
+   fail(409,'잔액 또는 작업 상태가 변경되었습니다. 다시 확인해 주세요.');
   }throw e;
  }
  const saved=await one(env,'SELECT mode FROM dubbing_sound_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
@@ -85,7 +86,7 @@ export async function dubbingSoundProjectRoute(req,env,p,user,action){
   const count=await one(env,'SELECT count FROM rate_limits WHERE key=?',rateKey);
   if(count?.count>=soundStartLimit){
    const retryAfterSeconds=Math.max(1,retryAt-now());
-   return json({error:`음향 제작 요청이 잠시 몰렸어요. ${retryAfterSeconds}초 후 다시 시도해주세요. 골드는 차감되지 않았습니다.`,retryAfterSeconds},429,{'Retry-After':String(retryAfterSeconds)});
+   return json({error:`음향 제작 요청이 잠시 몰렸습니다. ${retryAfterSeconds}초 후 다시 시도해 주세요. 골드는 차감되지 않았습니다.`,retryAfterSeconds},429,{'Retry-After':String(retryAfterSeconds)});
   }
  }
  if(!saved||saved.mode!==body.mode)fail(409,'대본 또는 음향 작업이 변경되었습니다.');
@@ -113,7 +114,7 @@ async function saveAsset(env,j,a,result){
  result.id,result.status,JSON.stringify(result.usage),JSON.stringify(billing),now(),j.id,a.cue_id,result.status)
  ]);
  if(!changed[0].results.length)fail(409,'음향 작업이 변경되었습니다.');
- if(result.status==='failed')await checkpoint(env,j,"state='failed',error=?,lease_token=NULL,lease_until=0",['Pika 음향 생성에 실패했습니다. 비용과 작업 기록을 확인한 뒤 다시 진행해주세요.']);
+ if(result.status==='failed')await checkpoint(env,j,"state='failed',error=?,lease_token=NULL,lease_until=0",['Pika 음향 생성에 실패했습니다. 비용과 작업 기록을 확인한 뒤 다시 진행해 주세요.']);
 }
 export async function dubbingSoundInternalRoute(req,env,path){
  if(!path.startsWith('/internal/dubbing/'))return null;
@@ -206,8 +207,8 @@ export async function dubbingSoundInternalRoute(req,env,path){
  const outputKey=`dubbing/${j.owner_id}/${j.project_id}/audio/${j.id}/${j.lease_token}.m4a`;
  if(action==='output'&&req.method==='PUT'){
   if(j.state!=='mixing'||req.headers.get('content-type')!=='audio/mp4')fail(400,'합성 파일 형식이 올바르지 않습니다.');
-  const length=Number(req.headers.get('content-length'));if(!Number.isSafeInteger(length)||length<24||length>12*1024*1024)fail(413,'합성 파일 크기를 확인해주세요.');
-  const data=await req.arrayBuffer();if(data.byteLength!==length||new TextDecoder().decode(data.slice(4,8))!=='ftyp')fail(400,'오디오 컨테이너를 확인해주세요.');
+  const length=Number(req.headers.get('content-length'));if(!Number.isSafeInteger(length)||length<24||length>12*1024*1024)fail(413,'합성 파일 크기를 확인해 주세요.');
+  const data=await req.arrayBuffer();if(data.byteLength!==length||new TextDecoder().decode(data.slice(4,8))!=='ftyp')fail(400,'오디오 컨테이너를 확인해 주세요.');
   await env.BUCKET.put(outputKey,data,{httpMetadata:{contentType:'audio/mp4',cacheControl:'private, no-store'}});
   await checkpoint(env,j,'output_key=?',[outputKey]);return json({ok:true});
  }
@@ -224,6 +225,6 @@ export async function dubbingSoundInternalRoute(req,env,path){
   }
   await checkpoint(env,j,"state='ready',output_meta=?,lease_until=0,lease_token=NULL",[JSON.stringify({duration:meta.duration,sampleRate:48000,peakDb:meta.peakDb})]);return json({ok:true});
  }
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }
 import {objectResponse} from './storage.js';

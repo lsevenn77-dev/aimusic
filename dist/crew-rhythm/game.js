@@ -253,7 +253,7 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
     starting = true;
     $('practiceBtn').disabled = $('practiceAgainBtn').disabled = true;
     $('startReason').hidden = false;
-    $('startReason').textContent = '음원을 준비하고 있어요…';
+    $('startReason').textContent = '음원을 준비하고 있습니다…';
     try {
       actx ??= new (window.AudioContext || window.webkitAudioContext)();
       await actx.resume();
@@ -266,14 +266,14 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
       if(official){
         await lobbyReady;
         session=await api('start',{difficulty:diff,requestId:startKey??=crypto.randomUUID()});
-        if(session.version!==VERSION)throw new Error('게임 규칙이 바뀌었어요. 새로고침해주세요.');
+        if(session.version!==VERSION)throw new Error('게임 규칙이 바뀌었습니다. 새로고침해 주세요.');
         startKey=null;
       }
       pendingSession=session;beginRun();
       $('startReason').hidden = true;
     } catch (error) {
       toLobby();
-      $('startReason').hidden=false;$('startReason').textContent = error.message || '게임을 준비하지 못했어요. 다시 시도해주세요.';
+      $('startReason').hidden=false;$('startReason').textContent = error.message || '게임을 준비하지 못했습니다. 다시 시도해 주세요.';
       console.error(error);
     } finally {
       starting = false;
@@ -300,7 +300,7 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
     $('resultOv').hidden = true; $('pauseOv').hidden = true;
     $('hudDiff').textContent = $('diffM').textContent = diff.toUpperCase();
     $('readyMeta').textContent = `RIRI · ${diff.toUpperCase()} · ${G.session?'공식 도전':'연습 모드'}`;
-    $('readyHint').textContent = matchMedia('(pointer: coarse)').matches ? '레인을 터치해서 입력해요' : 'F G H J 로 입력해요';
+    $('readyHint').textContent = matchMedia('(pointer: coarse)').matches ? '레인을 터치해서 입력합니다' : 'F G H J 로 입력합니다';
     $('readyOv').hidden = false;
     hud();
     cancelAnimationFrame(raf); raf = requestAnimationFrame(frame);
@@ -389,7 +389,7 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
     G.paused = true; pressed.fill(false); pointerLane.clear(); actx.suspend();
 
     $('pauseMeta').textContent = 'RIRI · ' + G.diff.toUpperCase() + (G.session?' · 공식 도전':' · 연습 모드');
-    $('pauseNote').textContent = '계속하기를 누르면 같은 지점에서 이어져요.';
+    $('pauseNote').textContent = '계속하기를 누르면 같은 지점에서 이어집니다.';
     $('pauseOv').hidden = false;
   }
   async function resume() {
@@ -490,7 +490,7 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
   function previewLoop(ts) { if ($('play').hidden) { drawPreview(ts); requestAnimationFrame(previewLoop); } }
   async function api(action,body){
     const response=await fetch('/api/crew-rhythm/'+action,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
-    const data=await response.json();if(!response.ok)throw Object.assign(new Error(data.error||'기록을 확인하지 못했어요.'),{status:response.status});return data;
+    const data=await response.json();if(!response.ok)throw Object.assign(new Error(data.error||'기록을 확인하지 못했습니다.'),{status:response.status});return data;
   }
   async function loadLobby(){
     try{
@@ -498,7 +498,7 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
       if(!pendingReport){try{pendingReport=JSON.parse(sessionStorage.getItem('aifect.rhythm.pending:'+lobbyInfo.userId));if(pendingReport)void submitReport();}catch{}}
       $('officialBtn').disabled=Boolean(pendingReport)||!lobbyInfo.open||!lobbyInfo.remaining;
       $('retryLobbyReportBtn').hidden=!pendingReport;
-      $('officialStatus').textContent=lobbyInfo.open?`오늘 남은 공식 도전 ${lobbyInfo.remaining} / ${lobbyInfo.dailyLimit??3}회 · 한국시간 자정 초기화`:'이번 주 공식 도전이 마감됐어요.';
+      $('officialStatus').textContent=lobbyInfo.open?`오늘 남은 공식 도전 ${lobbyInfo.remaining} / ${lobbyInfo.dailyLimit??3}회 · 한국시간 자정 초기화`:'이번 주 공식 도전이 마감되었습니다.';
       $('teamScore').textContent=fmt(lobbyInfo.team)+'점';
       renderGameRankings($('rhythmRankings'),{crews:lobbyInfo.ranking,players:lobbyInfo.individualRanking,crewId:lobbyInfo.crew});
       updateLobby();
@@ -506,16 +506,16 @@ import {VERSION,RULES,CHART,notesFor,computeScore,createRhythmRun,advanceRhythm,
   }
   async function submitReport(){
     if(!pendingReport)return;
-    const report=pendingReport;$('resNotice').textContent='서버에서 기록을 확인하고 있어요…';$('retryReportBtn').hidden=true;
+    const report=pendingReport;$('resNotice').textContent='서버에서 기록을 확인하고 있습니다…';$('retryReportBtn').hidden=true;
     try{
       const result=await api('finish',report);
       if(pendingReport!==report)return;
       pendingReport=null;savePending();
-      if(G?.session?.id===report.id){$('resScore').textContent=fmt(result.score);$('resNotice').textContent='공식 '+fmt(result.score)+'점 · 서버 랭킹에 저장했어요.';}
+      if(G?.session?.id===report.id){$('resScore').textContent=fmt(result.score);$('resNotice').textContent='공식 '+fmt(result.score)+'점 · 서버 랭킹에 저장했습니다.';}
       await loadLobby();$('officialAgainBtn').disabled=!lobbyInfo?.open||!lobbyInfo.remaining;
     }catch(e){
       $('resNotice').textContent='기록 전송 대기 · '+e.message;$('retryReportBtn').hidden=false;$('retryLobbyReportBtn').hidden=false;
-      if([400,404,409].includes(e.status)){pendingReport=null;savePending();$('resNotice').textContent='기록이 승인되지 않았어요 · '+e.message;void loadLobby();}
+      if([400,404,409].includes(e.status)){pendingReport=null;savePending();$('resNotice').textContent='기록이 승인되지 않았습니다 · '+e.message;void loadLobby();}
     }
   }
   function savePending(){try{const key='aifect.rhythm.pending:'+lobbyInfo.userId;if(pendingReport)sessionStorage.setItem(key,JSON.stringify(pendingReport));else sessionStorage.removeItem(key);}catch{}}

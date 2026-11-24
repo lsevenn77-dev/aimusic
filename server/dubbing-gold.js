@@ -11,7 +11,7 @@ const spendable=`status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE 
 export async function dubbingChargeWrites(env,{jobId,userId,projectId,scriptKey,priceGold}){
  if(!dubbingGoldEnabled(env))return [];
  const lots=await rows(env,`SELECT * FROM gold_purchases WHERE user_id=? AND used<gold AND ${spendable} ORDER BY paid_at,id`,userId);
- let spent;try{spent=allocateLots(lots,priceGold);}catch{fail(409,`골드가 부족해요. ${priceGold}G가 필요합니다.`);}
+ let spent;try{spent=allocateLots(lots,priceGold);}catch{fail(409,`골드가 부족합니다. ${priceGold}G가 필요합니다.`);}
  const at=now(),orderExists="EXISTS(SELECT 1 FROM dubbing_gold_orders WHERE job_id=? AND state='charged')";
  return [query(env,`INSERT INTO dubbing_gold_orders(job_id,user_id,project_id,gold,created,updated)
  SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE id=? AND project_id=? AND script_key=? AND mode='ai')`,jobId,userId,projectId,priceGold,at,at,jobId,projectId,scriptKey),

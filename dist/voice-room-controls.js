@@ -17,7 +17,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.host.querySelector('.voice-chat-panel').addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#voice-emoji-picker').hidden){e.preventDefault();e.stopPropagation();this.toggleEmojiPicker(false,true);}},options);
   this.bindTalkViews();
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
-  for(const [id,key] of [['voice-echo','echoCancellation'],['voice-noise','noiseSuppression']])if(supported[key]===false){$('#'+id).disabled=true;$('#'+id).title='이 브라우저에서 지원하지 않는 설정이에요.';}
+  for(const [id,key] of [['voice-echo','echoCancellation'],['voice-noise','noiseSuppression']])if(supported[key]===false){$('#'+id).disabled=true;$('#'+id).title='이 브라우저에서 지원하지 않는 설정입니다.';}
   $('#voice-echo').checked=this.preferences.echo;$('#voice-echo').onchange=()=>this.safe(async()=>{this.preferences.echo=$('#voice-echo').checked;await this.stream?.getAudioTracks()[0]?.applyConstraints({echoCancellation:this.preferences.echo});});
   $('#voice-playlist-volume').oninput=()=>{this.preferences.music=Number($('#voice-playlist-volume').value)/100;this.syncPersonalVolume();this.syncMusic();};
   this.host.addEventListener('close',e=>{if(e.target.id==='voice-sound')this.stopMicTest();},{...options,capture:true});
@@ -87,7 +87,7 @@ Object.assign(VoiceRoomClient.prototype,{
  openSeatPicker(seat){
   if(this.state.members.find(p=>p.id===this.state.self)?.role!=='host')return;
   this.invitingSeat=seat;this.showSheet('voice-seat-picker');
-  $('#voice-seat-candidates').innerHTML=this.state.members.filter(p=>p.seat===null).map(p=>`<button type="button" class="voice-member-row" data-voice="invite-seat-user" data-target="${esc(p.id)}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></button>`).join('')||'<p class="quiet">현재 청취 중인 참여자가 없어요.</p>';
+  $('#voice-seat-candidates').innerHTML=this.state.members.filter(p=>p.seat===null).map(p=>`<button type="button" class="voice-member-row" data-voice="invite-seat-user" data-target="${esc(p.id)}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></button>`).join('')||'<p class="quiet">현재 청취 중인 참여자가 없습니다.</p>';
  },
  canDock(){return !this.liveMode&&window.innerWidth>800&&window.innerHeight>=600&&this.host.clientWidth>=680;},
  paintTalkPanel(self,micOn){
@@ -105,7 +105,7 @@ Object.assign(VoiceRoomClient.prototype,{
    if(applicant)request.innerHTML=`<span class="talk-applicant"><strong title="${esc(applicant.name)}">${userNickname(applicant.name,{profileId:applicant.profile_id,userId:applicant.id})}</strong><small>좌석 신청 <time data-room-deadline="${Number(applicant.requestExpires)}"></time></small></span><button type="button" data-voice="approve-mic" data-target="${esc(applicant.id)}" data-request="${applicant.requestVersion??applicant.requestExpires}" ${busy}>수락</button><button type="button" data-voice="reject-mic" data-target="${esc(applicant.id)}" data-request="${applicant.requestVersion??applicant.requestExpires}" ${busy}>거절</button>`;
    else if(self.requested)request.innerHTML=`<span>좌석 신청 중 <time data-room-deadline="${Number(self.requestExpires)}"></time></span><button type="button" data-voice="cancel-mic" data-request="${self.requestVersion??self.requestExpires}" ${busy}>신청 취소</button>`;
    else if(s.seat_invites?.length){const i=s.seat_invites[0];request.innerHTML=roomInviteButtons(i);}
-   else request.textContent=this.micNoticeUntil>Date.now()?'마이크가 켜졌어요.':self.locked?'마이크 사용 제한':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해주세요.':seated?(micOn?'대화 중이에요.':'마이크를 켜고 대화해보세요.'):'좌석을 눌러 참여해보세요.';
+   else request.textContent=this.micNoticeUntil>Date.now()?'마이크가 켜졌습니다.':self.locked?'마이크 사용 제한':this.micState==='failed'?'마이크 연결 실패 · 다시 시도해 주세요.':seated?(micOn?'대화 중입니다.':'마이크를 켜고 대화해 보세요.'):'좌석을 눌러 참여해 보세요.';
   }
   const mic=this.host.querySelector('.talk-central [data-voice=toggle-mic]');
   if(mic.dataset.on!==String(micOn)){mic.dataset.on=String(micOn);mic.innerHTML=voiceGlyph(micOn?'talkMicOff':'talkMic')+'<span>'+(micOn?'끄기':'켜기')+'</span>';}
@@ -231,7 +231,7 @@ Object.assign(VoiceRoomClient.prototype,{
   if(action==='ask-kick'){if(!this.canManageMember(target))return true;this.kickTarget=target;this.showSheet('voice-kick-confirm');return true;}
   if(action==='confirm-kick'){if(!this.canManageMember(this.kickTarget)){this.closeRoomPopup();return true;}await this.command('moderate',{target_id:this.kickTarget,operation:'kick'});$('#voice-kick-confirm').close();this.closeMemberTools();await this.refresh();return true;}
   if(action==='invite-seat-user'){await this.command('seat-invite',{target_id:target,seat:this.invitingSeat});$('#voice-seat-picker').close();await this.refresh();return true;}
-  if(action==='member-invite'){const empty=Array.from({length:8},(_,i)=>i).find(i=>!this.state.members.some(m=>m.seat===i));if(empty===undefined)throw Error('빈 좌석이 없어요.');await this.command('seat-invite',{target_id:this.memberTarget,seat:empty});toast('좌석 초대를 보냈어요.');await this.refresh();return true;}
+  if(action==='member-invite'){const empty=Array.from({length:8},(_,i)=>i).find(i=>!this.state.members.some(m=>m.seat===i));if(empty===undefined)throw Error('빈 좌석이 없습니다.');await this.command('seat-invite',{target_id:this.memberTarget,seat:empty});toast('좌석 초대를 보냈습니다.');await this.refresh();return true;}
   if(['member-move','member-remove'].includes(action)){await this.command('moderate',{target_id:this.memberTarget,operation:action==='member-move'?'move-seat':'remove-seat',seat:Number($('#voice-move-seat')?.value)});this.closeMemberTools();await this.refresh();return true;}
   if(['seat-accept','seat-reject'].includes(action)){await this.command('seat-answer',{invitation_id:target,accept:action==='seat-accept'});await this.refresh();return true;}
   if(action==='music-repeat'){const current=this.state.music.repeat||'off';await this.musicCommand('repeat',{mode:{off:'one',one:'all',all:'off'}[current]});return true;}
@@ -247,9 +247,9 @@ Object.assign(VoiceRoomClient.prototype,{
   const m=this.state.music;if(!m)return;const host=this.state.members.find(p=>p.id===this.state.self)?.role==='host',track=m.queue[m.index],hasQueue=!!m.queue.length;
   const playRequested=m.playing||m.pendingStart!=null;
   $('#voice-host-audio').hidden=!host||!this.liveMode;$('#voice-room-volume').value=m.volume*100;$('#voice-balance').value=m.balance*100;
-  $('#voice-sound-current').innerHTML=track?'현재 곡: '+esc(track.title)+' · '+trackNickname(track):'선택된 음악이 없어요.';
+  $('#voice-sound-current').innerHTML=track?'현재 곡: '+esc(track.title)+' · '+trackNickname(track):'선택된 음악이 없습니다.';
   $('#voice-music-search').hidden=!host;$('#voice-music-results').hidden=!host;$('#voice-queue-area').hidden=!hasQueue;$('#voice-playlist-empty').hidden=hasQueue||!!$('#voice-music-query').value.trim();
-  $('#voice-playlist-empty').querySelector('p').textContent=host?'위 검색창에서 노래를 찾아 + 버튼으로 추가해 주세요.':'방장이 추가한 음악을 이곳에서 함께 들을 수 있어요.';
+  $('#voice-playlist-empty').querySelector('p').textContent=host?'위 검색창에서 노래를 찾아 + 버튼으로 추가해 주세요.':'방장이 추가한 음악을 이곳에서 함께 들을 수 있습니다.';
   this.host.querySelector('.voice-music-transport').hidden=!host||!hasQueue;$('#voice-queue-heading').hidden=true;$('#voice-music-seek').max=track?.duration||0;
   $('#voice-queue-count').textContent=m.queue.length+'곡';this.host.querySelector('[data-voice="music-clear"]').hidden=!host;
   this.paintMusicSelection?.();
@@ -267,13 +267,13 @@ Object.assign(VoiceRoomClient.prototype,{
     art.hidden=!track;
     if(track){const src=track.cover||trackArtworkPath(track);if(art.firstElementChild.getAttribute('src')!==src)art.firstElementChild.src=src;}
     const title=mini.querySelector('.talk-track strong'),subtitle=mini.querySelector('.talk-track small');
-    title.textContent=track?.title||(this.host.hasAttribute('data-room-pc-controls')?'재생할 곡이 없어요':'선택된 곡이 없어요');subtitle.textContent=credit;
+    title.textContent=track?.title||(this.host.hasAttribute('data-room-pc-controls')?'재생할 곡이 없습니다':'선택된 곡이 없습니다');subtitle.textContent=credit;
     mini.querySelector('.talk-track').title=[track?.title,credit].filter(Boolean).join(' · ');
     for(const b of mini.querySelectorAll('[data-voice^="music-"]:not([data-voice="music-picker"])')){
      b.disabled=!hasQueue;b.hidden=b.dataset.voice===(playRequested?'music-play':'music-pause');
     }
     mini.querySelector('#voice-mini-volume').value=this.preferences.music*100;
-   }else $('#voice-music-player').innerHTML=(track?`<img src="${esc(track.cover)}" alt=""><span><strong>${esc(track.title)}</strong><small>${trackNickname(track)}</small></span>`:'<span><strong>함께 들을 음악을 선택해보세요</strong></span>')+`<div>${host?button('previous','이전 곡',voiceGlyph('previous'),!hasQueue)+button(m.playing?'pause':'play',m.playing?'일시정지':'재생',(m.playing?icon('pause'):icon('audio-play')),!hasQueue)+button('next','다음 곡',voiceGlyph('next'),!hasQueue)+button('repeat','반복',voiceGlyph('repeat'),!hasQueue):''}<label class="voice-mini-volume">${icon('volume')}<input id="voice-mini-volume" type="range" min="0" max="100" value="${this.preferences.music*100}" aria-label="개인 음악 볼륨"></label>${button('picker','플레이리스트',voiceGlyph('playlist'))}</div>`;
+   }else $('#voice-music-player').innerHTML=(track?`<img src="${esc(track.cover)}" alt=""><span><strong>${esc(track.title)}</strong><small>${trackNickname(track)}</small></span>`:'<span><strong>함께 들을 음악을 선택해 보세요</strong></span>')+`<div>${host?button('previous','이전 곡',voiceGlyph('previous'),!hasQueue)+button(m.playing?'pause':'play',m.playing?'일시정지':'재생',(m.playing?icon('pause'):icon('audio-play')),!hasQueue)+button('next','다음 곡',voiceGlyph('next'),!hasQueue)+button('repeat','반복',voiceGlyph('repeat'),!hasQueue):''}<label class="voice-mini-volume">${icon('volume')}<input id="voice-mini-volume" type="range" min="0" max="100" value="${this.preferences.music*100}" aria-label="개인 음악 볼륨"></label>${button('picker','플레이리스트',voiceGlyph('playlist'))}</div>`;
    $('#voice-popup-current').innerHTML=track?`<img src="${esc(track.cover)}" alt=""><div><strong>${esc(track.title)}</strong><small>${trackNickname(track)}</small></div>`:'';
    $('#voice-music-queue').innerHTML=m.queue.map((t,i)=>`<article class="voice-queue-row ${i===m.index?'is-current':''}" ${i===m.index?'aria-current="true"':''}><span class="voice-queue-number">${i===m.index&&m.playing?voiceGlyph('wave'):i+1}</span><img src="${esc(t.cover)}" alt=""><span class="voice-queue-info"><strong>${esc(t.title)}</strong><small>${trackNickname(t)}</small></span><time>${time(t.duration)}</time>${host?`<button type="button" data-voice="music-up" data-target="${i}" aria-label="${esc(t.title)} 위로 이동" ${i===0?'disabled':''}>↑</button><button type="button" data-voice="music-down" data-target="${i}" aria-label="${esc(t.title)} 아래로 이동" ${i===m.queue.length-1?'disabled':''}>↓</button><button type="button" data-voice="music-remove" data-target="${i}" aria-label="${esc(t.title)} 삭제">${voiceGlyph('trash')}</button>`:''}</article>`).join('');
   }
@@ -294,7 +294,7 @@ Object.assign(VoiceRoomClient.prototype,{
     const graph=await VoiceAudio.microphone(raw,this.preferences.preset,this.preferences.input,this.liveVocalMix);
     if(this.closed||attempt!==this.testAttempt){graph.close();raw.getTracks().forEach(t=>t.stop());return;}
     this.testGraph=graph;
-    if(graph.fallback)throw Error('이 브라우저에서는 입력 레벨 분석을 지원하지 않아요.');
+    if(graph.fallback)throw Error('이 브라우저에서는 입력 레벨 분석을 지원하지 않습니다.');
    }catch(error){
     if(attempt===this.testAttempt)this.stopMicTest();else raw.getTracks().forEach(t=>t.stop());
     if(error.code==='AUDIO_INTERRUPTED')this.roomAudio?.interrupt('context');throw error;
@@ -446,7 +446,7 @@ Object.assign(VoiceRoomClient.prototype,{
    const applied=options.current_theme||room.theme;
    fillRoomThemeChoices(form,options,applied?.sku||room.theme_sku||room.background,applied?.inventory_id);
    form.elements.crew_id.value=room.crew_id||(options.crews.length===1?options.crews[0].id:'');
-   const crew=form.querySelector('.voice-crew-setting');crew.textContent=options.crews.length===1?options.crews[0].name:'소속 크루가 있어야 선택할 수 있어요.';crew.hidden=form.elements.visibility.value!=='crew';
+   const crew=form.querySelector('.voice-crew-setting');crew.textContent=options.crews.length===1?options.crews[0].name:'소속 크루가 있어야 선택할 수 있습니다.';crew.hidden=form.elements.visibility.value!=='crew';
    form.querySelector('[name=visibility][value=crew]').disabled=options.crews.length!==1;
    const stillOwner=this.state.self===this.state.room.host_id;
    for(const el of form.elements)el.disabled=!stillOwner||(el.name==='visibility'&&el.value==='crew'&&options.crews.length!==1);
@@ -462,7 +462,7 @@ Object.assign(VoiceRoomClient.prototype,{
   const draft=this.settingsDraft,ticket=this.settingsTicket,sheet=this.host.querySelector('#voice-room-settings');
   if(!draft||draft.ticket!==ticket||!sheet?.open)return;
   const values=Object.fromEntries(new FormData(form)),capacity=Number(values.max_members);
-  if(!Number.isInteger(capacity)||capacity<2||capacity>30||capacity<this.state.members.length)throw Error('최대 참여 인원은 현재 참여 인원 이상, 2~30명으로 입력해주세요.');
+  if(!Number.isInteger(capacity)||capacity<2||capacity>30||capacity<this.state.members.length)throw Error('최대 참여 인원은 현재 참여 인원 이상, 2~30명으로 입력해 주세요.');
   const changes={};
   for(const key of ['mode','title','visibility','crew_id','max_members','background','theme_sku','announcement'])if(key in values&&values[key]!==draft.values[key])changes[key]=values[key];
   if('max_members' in changes)changes.max_members=capacity;
@@ -478,7 +478,7 @@ Object.assign(VoiceRoomClient.prototype,{
    // The server snapshot may replace the room view, or the user may have
    // opened another popup while saving. Never close that newer surface.
    if(ticket===this.settingsTicket&&sheet.isConnected&&sheet.open)sheet.close();
-   toast('방 설정을 저장했어요.');
+   toast('방 설정을 저장했습니다.');
   }
   finally{this.savingTalkSettings=false;}
  },
@@ -512,19 +512,19 @@ Object.assign(VoiceRoomClient.prototype,{
   if(!more){out.textContent='팔로우 목록을 불러오는 중…';this.sharePeople=new Map();}
   try{const d=await api('/api/follow-management?tab=following&kind=producers&sort=name&q='+encodeURIComponent(q)+'&offset='+(more?this.shareNext||0:0),'GET',undefined,{signal:controller.signal,fresh:true});
    if(this.closed||controller.signal.aborted)return;this.shareNext=d.next;for(const p of d.items)this.sharePeople.set(p.profile_id||p.key,p);
-   out.innerHTML=[...this.sharePeople.values()].map(p=>`<label class="room-share-person"><input type="checkbox" data-share-id="${esc(p.profile_id||p.key)}" ${p.profile_id?'':'disabled'} ${this.shareSelected.has(p.profile_id)?'checked':''}>${avatarImage({profile_id:p.profile_id,name:p.name,image_version:p.image_version})}<span>${memberNickname(p)}${p.profile_id?'':' · 메시지 수신 프로필 없음'}</span></label>`).join('')||'<p>검색된 팔로우가 없어요.</p>';
+   out.innerHTML=[...this.sharePeople.values()].map(p=>`<label class="room-share-person"><input type="checkbox" data-share-id="${esc(p.profile_id||p.key)}" ${p.profile_id?'':'disabled'} ${this.shareSelected.has(p.profile_id)?'checked':''}>${avatarImage({profile_id:p.profile_id,name:p.name,image_version:p.image_version})}<span>${memberNickname(p)}${p.profile_id?'':' · 메시지 수신 프로필 없음'}</span></label>`).join('')||'<p>검색된 팔로우가 없습니다.</p>';
    $('#room-share-more').hidden=d.next===null;
-  }catch(e){if(!controller.signal.aborted){out.textContent='목록을 불러오지 못했어요.';throw e;}}
+  }catch(e){if(!controller.signal.aborted){out.textContent='목록을 불러오지 못했습니다.';throw e;}}
  },
  async sendRoomShare(){
-  if(this.roomShareSending)return;if(!this.shareSelected.size)throw Error('공유할 팔로우를 선택해주세요.');
+  if(this.roomShareSending)return;if(!this.shareSelected.size)throw Error('공유할 팔로우를 선택해 주세요.');
   const form=$('#voice-invite-form'),selected=[...this.shareSelected.values()];
   const note=form.elements.note.value.trim();
   const key=JSON.stringify([selected.map(p=>p.profile_id).sort(),note]);
   if(this.shareBatch?.key!==key)this.shareBatch={key,requests:new Map(selected.map(p=>[p.profile_id,crypto.randomUUID()])),sent:new Set()};
   const batch=this.shareBatch;this.roomShareSending=true;const failures=[];
   try{for(const p of selected){if(batch.sent.has(p.profile_id))continue;try{await this.command('invite',{profile_id:p.profile_id,note,request_id:batch.requests.get(p.profile_id)});batch.sent.add(p.profile_id);}catch(e){failures.push(p.name+': '+e.message);}}
-   $('#room-share-result').textContent=batch.sent.size+'명에게 전송했어요.'+(failures.length?' 전송 실패 '+failures.join(' / '):'');
+   $('#room-share-result').textContent=batch.sent.size+'명에게 전송했습니다.'+(failures.length?' 전송 실패 '+failures.join(' / '):'');
    if(!failures.length){this.shareBatch=null;form.elements.note.value='';this.shareSelected.clear();this.paintShareCount();for(const el of form.querySelectorAll('[data-share-id]'))el.checked=false;}
   }finally{this.roomShareSending=false;this.paintShareCount();}
  }

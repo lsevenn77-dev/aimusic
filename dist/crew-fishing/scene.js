@@ -157,7 +157,7 @@ export function createScene(stage,{goal=3,progress=0}={}){
         lp.x=lerp(lp.from.x,to.x,easeOut(k));lp.y=lerp(lp.from.y,to.y,easeOut(k))-Math.sin(k*Math.PI)*Hh*.12;
         lp.scale=lerp(.32,1,easeOut(k));lp.rot=lerp(-.7,0,easeOut(k));
         if(k<.6&&Math.random()<dt*40)drops.push({x:lp.x,y:lp.y+10,vx:(Math.random()-.5)*60,vy:20,life:1,r:1.5+Math.random()*2});
-        if(k>=.85&&!lp.burst){lp.burst=true;burst(lp.x,lp.y,'common');S.glow=1;say('낚아 올렸어요!','catch')}
+        if(k>=.85&&!lp.burst){lp.burst=true;burst(lp.x,lp.y,'common');S.glow=1;say('낚아 올렸습니다!','catch')}
       }
       if(t>=2.25&&S.done){S.done();S.done=null}
     }else if(S.phase==='escape'){
@@ -277,9 +277,9 @@ export function createScene(stage,{goal=3,progress=0}={}){
     pull(kind,progress){
       if(S.phase!=='fight')return;
       S.progress=progress;S.hookTo=hookFor(progress);
-      if(kind==='success'){S.jerk=.32;splash(S.hook.x,S.hook.y,14,170);say('당겼어요!','good')}
-      else if(kind==='warning'){S.jerk=-.12;S.shadow.thrash=1;S.shake=.45;splash(S.hook.x,S.hook.y,30,260);say('줄이 느슨해졌어요','miss')}
-      else if(kind==='miss'){S.slack=.6;ring(S.hook.x,S.hook.y,20);say('줄이 느슨해졌어요','miss')}
+      if(kind==='success'){S.jerk=.32;splash(S.hook.x,S.hook.y,14,170);say('당겼습니다!','good')}
+      else if(kind==='warning'){S.jerk=-.12;S.shadow.thrash=1;S.shake=.45;splash(S.hook.x,S.hook.y,30,260);say('줄이 느슨해졌습니다','miss')}
+      else if(kind==='miss'){S.slack=.6;ring(S.hook.x,S.hook.y,20);say('줄이 느슨해졌습니다','miss')}
       else S.jerk=.08;
     },
     land(){
@@ -288,7 +288,7 @@ export function createScene(stage,{goal=3,progress=0}={}){
     },
     escape(){
       if(reduced)return Promise.resolve();
-      return wait(()=>{S.phase='escape';S.pt=0;S.shadow.vx=-(W*.35);S.shadow.thrash=1;splash(S.hook.x,S.hook.y,24,240);S.shake=.3;say('물고기가 도망갔어요','warn')});
+      return wait(()=>{S.phase='escape';S.pt=0;S.shadow.vx=-(W*.35);S.shadow.thrash=1;splash(S.hook.x,S.hook.y,24,240);S.shake=.3;say('물고기가 도망갔습니다','warn')});
     },
     destroy(){alive=false;cancelAnimationFrame(raf);ro.disconnect();S.done?.();S.done=null}
   };

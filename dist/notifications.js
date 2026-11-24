@@ -5,7 +5,7 @@ function activityRowHTML(n){
  const gift=['gift','person_gift'].includes(n.kind),label=gift?'받은 선물':({fan_comment:'팬라운지 댓글·답글',fan_post:'새 응원글',artist_follower:'아티스트 새 팔로워',artist_release:'아티스트 신곡',crew_invite:'크루 초대',crew_approved:'크루 가입 승인',crew_request:'작품 참여 요청',dubbing_complete:'참여 더빙 완성',dubbing_participation:'더빙 참여 공개',work_status:'작품 상태·중요 안내',crew_notice:'크루 공지',duet:'듀엣 참여',cover:'커버 참여',comment:'댓글',follow:'팔로우'}[n.kind]||'활동');
  const product=gift?(n.currency==='silver'?AifectGifts.silverGiftById(n.gift_type):AifectGifts.giftById(n.gift_type)):null;
  const giftName=n.gift_name==='은화'?'실버':n.gift_name;
- const action=gift?`${product?`<img class="activity-gift-art" src="${esc(product.image)}" alt="${esc(giftName||product.name)}" title="${esc(giftName||product.name)}" width="28" height="28" loading="lazy" decoding="async">`:esc(giftName)} <b class="activity-gift-quantity">× ${number(n.quantity)}개</b>를 보냈어요.`:({fan_comment:'팬라운지에 댓글·답글을 남겼어요.',fan_post:'팬라운지에 응원글을 남겼어요.',artist_follower:'AI 아티스트를 팔로우했어요.',artist_release:'새 제작곡을 공개했어요.',crew_invite:'크루에 초대했어요.',crew_approved:'크루 가입을 승인했어요.',crew_request:'작품 참여를 요청했어요.',dubbing_complete:'함께 참여한 더빙이 완성됐어요.',dubbing_participation:'더빙 참여 작품을 공개했어요.',work_status:'작품 처리 결과가 도착했어요.',crew_notice:'크루 공지를 등록했어요.',duet:'내 듀엣에 참여했어요.',cover:'내 곡으로 커버를 공개했어요.',comment:'내 음악에 댓글을 남겼어요.',follow:'나를 팔로우했어요.'}[n.kind]||'새로운 활동을 남겼어요.');
+ const action=gift?`${product?`<img class="activity-gift-art" src="${esc(product.image)}" alt="${esc(giftName||product.name)}" title="${esc(giftName||product.name)}" width="28" height="28" loading="lazy" decoding="async">`:esc(giftName)} <b class="activity-gift-quantity">× ${number(n.quantity)}개</b>를 보냈습니다.`:({fan_comment:'팬라운지에 댓글·답글을 남겼습니다.',fan_post:'팬라운지에 응원글을 남겼습니다.',artist_follower:'AI 아티스트를 팔로우했습니다.',artist_release:'새 제작곡을 공개했습니다.',crew_invite:'크루에 초대했습니다.',crew_approved:'크루 가입을 승인했습니다.',crew_request:'작품 참여를 요청했습니다.',dubbing_complete:'함께 참여한 더빙이 완성되었습니다.',dubbing_participation:'더빙 참여 작품을 공개했습니다.',work_status:'작품 처리 결과가 도착했습니다.',crew_notice:'크루 공지를 등록했습니다.',duet:'내 듀엣에 참여했습니다.',cover:'내 곡으로 커버를 공개했습니다.',comment:'내 음악에 댓글을 남겼습니다.',follow:'나를 팔로우했습니다.'}[n.kind]||'새로운 활동을 남겼습니다.');
  const href=n.href??(n.kind==='crew_notice'&&n.available?'#crew/'+encodeURIComponent(n.target)+'?tab=notice':!gift&&n.available?(n.kind==='follow'?'#producer/':'#song/')+encodeURIComponent(n.target):'');
  const passive=gift&&(['talking_room','karaoke','message'].includes(n.source_type)||n.clickable===false);
  const rowTag=passive?'div':'a';
@@ -19,7 +19,7 @@ function activityRowHTML(n){
  const created=new Date(n.created*1000);
  const time=created.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'});
  const unreadDot=n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>';
- const textAction=gift?`${giftName||product?.name||'선물'} × ${number(n.quantity)}개를 보냈어요.`:action;
+ const textAction=gift?`${giftName||product?.name||'선물'} × ${number(n.quantity)}개를 보냈습니다.`:action;
  const rowTitle=[`${n.actor_name||''}${n.kind==='work_status'?' · ':'님이 '}${textAction}`,gift?`${number(n.amount)} ${n.currency==='gold'?'G':'S'} · ${giftSource}`:['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>n[k]).join(' · '),`${label} · ${time}`].filter(Boolean).join('\n');
  return `<${rowTag} data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" ${passive?'':`data-activity-open="${esc(n.id)}" href="${esc(destination)}"`} title="${esc(rowTitle)}" aria-label="${esc(rowTitle)}${passive?'':' · '+purpose}">
   <div class="activity-avatar">${unreadDot}<img src="${esc(avatar)}" alt="" loading="lazy"></div>
@@ -46,19 +46,19 @@ function activityGroupsHTML(items){let day='';return items.map(n=>{const next=ac
 const activitySettingsIcon='<svg class="lucide lucide-settings" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>';
 async function notificationsView(base,raw,readApi=api){
  if(base!=='notifications')return null;
- if(!me)return {html:empty('로그인하면 알림을 볼 수 있어요','내 음악에 도착한 참여와 선물을 모아드려요.','#account','로그인'),tracks:[]};
+ if(!me)return {html:empty('로그인하면 알림을 볼 수 있습니다','내 음악에 도착한 참여와 선물을 모아 드립니다.','#account','로그인'),tracks:[]};
  const q=new URLSearchParams(raw.split('?')[1]||'');
  if(q.has('unavailable')){
-  const message={room:'종료되었거나 삭제된 방이에요.',source:'이 선물의 발생 위치를 확인할 수 없어요.'}[q.get('unavailable')]||'삭제·비공개 또는 접근 권한이 변경된 콘텐츠예요.';
-  return {html:heading('알림 안내')+empty('콘텐츠를 열 수 없어요',message+' 뒤로 가면 이전 알림 목록으로 돌아갈 수 있어요.','#notifications','알림함'),tracks:[]};
+  const message={room:'종료되었거나 삭제된 방입니다.',source:'이 선물의 발생 위치를 확인할 수 없습니다.'}[q.get('unavailable')]||'삭제·비공개 또는 접근 권한이 변경된 콘텐츠입니다.';
+  return {html:heading('알림 안내')+empty('콘텐츠를 열 수 없습니다',message+' 뒤로 가면 이전 알림 목록으로 돌아갈 수 있습니다.','#notifications','알림함'),tracks:[]};
  }
- if(q.has('request')){let r;try{r=await readApi('/api/notifications/crew-requests/'+encodeURIComponent(q.get('request')));}catch{return {html:heading('참여 요청 안내')+empty('요청을 열 수 없어요','크루 가입 상태 또는 작품의 공개 상태가 변경되었어요.','#notifications','알림함'),tracks:[]};}return {html:heading('작품 참여 요청')+`<section class="activity-page"><p>${esc(r.title)} 작품 참여 요청이 도착했어요.</p><a class="small-button" href="${esc(r.href)}">작품 확인</a><a class="small-button" href="#notifications">알림함</a></section>`,tracks:[]};}
+ if(q.has('request')){let r;try{r=await readApi('/api/notifications/crew-requests/'+encodeURIComponent(q.get('request')));}catch{return {html:heading('참여 요청 안내')+empty('요청을 열 수 없습니다','크루 가입 상태 또는 작품의 공개 상태가 변경되었습니다.','#notifications','알림함'),tracks:[]};}return {html:heading('작품 참여 요청')+`<section class="activity-page"><p>${esc(r.title)} 작품 참여 요청이 도착했습니다.</p><a class="small-button" href="${esc(r.href)}">작품 확인</a><a class="small-button" href="#notifications">알림함</a></section>`,tracks:[]};}
  const data=await readApi('/api/notifications','GET',undefined,{fresh:true});
  const resume=activityResume?.account===me.id?activityResume:null;
  activityResume=null;
  return {activity:{...data,account:me.id,restoreCount:resume?.count,restoreScroll:resume?.scroll},tracks:[],html:`<section class="activity-page activity-inbox" aria-label="알림">
   <div class="activity-toolbar"><h1 class="activity-title">알림</h1><button type="button" class="activity-settings-trigger" aria-label="알림 설정" title="알림 설정" aria-haspopup="dialog" aria-controls="activity-preferences">${activitySettingsIcon}<span>알림 설정</span></button></div>
-  ${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없어요</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있어요.</p></div>`}</div>
+  ${activitySettingsHTML()}<div id="activity-list">${data.items.length?activityGroupsHTML(data.items):`<div class="activity-empty">${icon('bell')}<h2>아직 도착한 알림이 없습니다</h2><p>누군가 내 곡에 참여하거나 선물을 보내면<br>이곳에서 확인할 수 있습니다.</p></div>`}</div>
   <button class="small-button activity-more" data-activity-more ${data.next?'':'hidden'}>이전 알림 더 보기</button><p class="activity-error" role="status"></p></section>`};
 }
 function bindNotifications(view){
@@ -151,7 +151,7 @@ async function refreshActivityBadge(){
  const uid=me?.id||null;if(activityAccount!==uid){activityAccount=uid;activityCount=null;paintActivityBadge(0);}
  if(!uid||document.hidden||activityBusy)return;activityBusy=true;
  const revision=activityReadRevision;
- try{const d=await api('/api/notifications/summary','GET',undefined,{fresh:true});if(uid!==me?.id||revision!==activityReadRevision)return;if(activityCount!==null&&d.unread>activityCount&&!location.hash.startsWith('#notifications'))toast('새로운 활동 알림이 도착했어요. 알림에서 확인해보세요.');activityCount=d.unread;paintActivityBadge(d.unread);}catch{}finally{activityBusy=false;}
+ try{const d=await api('/api/notifications/summary','GET',undefined,{fresh:true});if(uid!==me?.id||revision!==activityReadRevision)return;if(activityCount!==null&&d.unread>activityCount&&!location.hash.startsWith('#notifications'))toast('새로운 활동 알림이 도착했습니다. 알림에서 확인해 보세요.');activityCount=d.unread;paintActivityBadge(d.unread);}catch{}finally{activityBusy=false;}
 }
 setInterval(refreshActivityBadge,30000);
 window.addEventListener('focus',refreshActivityBadge);
@@ -167,7 +167,7 @@ function activitySettingsHTML(){
    <div class="activity-preferences-scroll">
     <p>푸시 알림을 꺼도 알림함 기록은 유지됩니다.</p>
     <div class="activity-preference-groups">${groups}</div>
-    <p>아티스트 소식은 한국 시간 오후 8시에 하루 한 번 모아 보내며, 새 응원글은 알림함에서만 확인할 수 있어요. 계정·결제 등 서비스 필수 안내는 별도로 처리됩니다.</p>
+    <p>아티스트 소식은 한국 시간 오후 8시에 하루 한 번 모아 보내며, 새 응원글은 알림함에서만 확인할 수 있습니다. 계정·결제 등 서비스 필수 안내는 별도로 처리됩니다.</p>
    </div>
    <footer><p role="status" data-preference-status></p><button type="submit" class="small-button" disabled>설정 저장</button></footer>
   </form>
@@ -187,7 +187,7 @@ function bindActivitySettings(root,account){
   const id=++opening;
   lock(true);
   form.reset();
-  status.textContent='설정을 불러오는 중이에요.';
+  status.textContent='설정을 불러오는 중입니다.';
   modal.showModal();
   form.querySelector('.activity-preferences-scroll').scrollTop=0;
   try{
@@ -208,11 +208,11 @@ function bindActivitySettings(root,account){
   const body={account_id:account};
   for(const input of inputs)body[input.name]=input.checked;
   lock(true);
-  status.textContent='저장 중이에요.';
+  status.textContent='저장 중입니다.';
   pendingSave=api('/api/push/preferences','PUT',body);
   try{
    await pendingSave;
-   if(active(id))status.textContent='알림 설정을 저장했어요.';
+   if(active(id))status.textContent='알림 설정을 저장했습니다.';
   }catch(error){if(active(id))status.textContent=error.message;}
   finally{pendingSave=null;if(active(id))lock(false);}
  };

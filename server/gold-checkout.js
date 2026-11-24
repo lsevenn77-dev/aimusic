@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,run,now,id,fail,json,rate} from './db.js';
 import {WEB_GOLD_PACKS} from '../shared/gifts.js';
 import {includedKoreanVat} from '../shared/gifts.js';
@@ -16,15 +17,15 @@ const safeOrder=o=>({id:o.id,gold:o.gold,price:o.price_krw,state:o.state,review_
 
 export async function createGoldCheckout(req,env,user){
  const review=reviewAvailable(env,user);
- if(!review&&(!goldCheckoutEnabled(env)||reviewAccount(env,user)))fail(409,'골드 충전은 결제 준비가 끝나면 열려요.');
- if(!env.NICEPAY_CLIENT_ID||!env.NICEPAY_SECRET_KEY)fail(503,'결제 연결을 준비하고 있어요.');
+ if(!review&&(!goldCheckoutEnabled(env)||reviewAccount(env,user)))fail(409,'골드 충전은 결제 준비가 끝나면 열립니다.');
+ if(!env.NICEPAY_CLIENT_ID||!env.NICEPAY_SECRET_KEY)fail(503,'결제 연결을 준비하고 있습니다.');
  await rate(env,'gold-checkout:'+user.id,20,3600);
  const b=await req.json(),pack=WEB_GOLD_PACKS.find(p=>p.gold===b.gold);
- if(!pack||typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'충전할 골드 상품을 다시 선택해주세요.');
- if(!review&&b.consent!==true)fail(400,'골드 구매 및 환불 안내를 확인해주세요.');
+ if(!pack||typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'충전할 골드 상품을 다시 선택해 주세요.');
+ if(!review&&b.consent!==true)fail(400,'골드 구매 및 환불 안내를 확인해 주세요.');
  // Retries preserve the quantity recorded on the original order, including pre-promotion orders.
  let order=await one(env,SELECT+' WHERE o.user_id=? AND o.request_id=?',user.id,b.request_id);
- if(order&&(order.price_krw!==pack.price||![pack.gold,pack.total_gold].includes(order.gold)||!!order.review_only!==review))fail(409,'새 결제 요청으로 다시 선택해주세요.');
+ if(order&&(order.price_krw!==pack.price||![pack.gold,pack.total_gold].includes(order.gold)||!!order.review_only!==review))fail(409,'새 결제 요청으로 다시 선택해 주세요.');
  if(!order){
   const oid='ag_'+id().replaceAll('-',''),at=now(),fee=review?0:Math.ceil(pack.price*feeBasis(env)/10000);
   try{await env.DB.batch([
@@ -33,8 +34,8 @@ export async function createGoldCheckout(req,env,user){
   ]);}catch(e){if(!/UNIQUE constraint/i.test(String(e.message)))throw e;}
   order=await one(env,SELECT+' WHERE o.user_id=? AND o.request_id=?',user.id,b.request_id);
  }
- if(order&&(order.price_krw!==pack.price||![pack.gold,pack.total_gold].includes(order.gold)||!!order.review_only!==review))fail(409,'새 결제 요청으로 다시 선택해주세요.');
- if(!order||order.state!=='created'||order.expires<=now())fail(409,'결제 내역을 확인한 뒤 새로 시도해주세요.');
+ if(order&&(order.price_krw!==pack.price||![pack.gold,pack.total_gold].includes(order.gold)||!!order.review_only!==review))fail(409,'새 결제 요청으로 다시 선택해 주세요.');
+ if(!order||order.state!=='created'||order.expires<=now())fail(409,'결제 내역을 확인한 뒤 새로 시도해 주세요.');
  const origin=new URL(req.url).origin;
  return json({order:safeOrder(order),payment:{clientId:env.NICEPAY_CLIENT_ID,method:'card',orderId:order.id,amount:order.price_krw,goodsName:`AIFECT 골드 ${order.gold}G`,returnUrl:origin+'/api/gold/nicepay/callback?state='+await stateFor(env,order.id),mallReserved:order.id,currency:'KRW',cardQuota:'0',skinType:'purple'}},201);
 }
@@ -45,7 +46,7 @@ async function reconcile(env,order){
  const p=await findPayment(env,{id:order.id,created:order.created});
  await run(env,'UPDATE gold_orders SET last_checked=? WHERE id=?',now(),order.id);
  if(p.resultCode!=='0000')return;
- if(p.orderId!==order.id||p.amount!==order.price_krw||p.currency!=='KRW'||p.payMethod!=='card'||typeof p.tid!=='string'||!p.tid||(order.tid&&order.tid!==p.tid)||!Number.isInteger(p.balanceAmt)||p.balanceAmt<0||p.balanceAmt>p.amount||(p.signature&&!await verifyNiceSignature(env,p)))fail(502,'골드 결제 확인이 필요합니다. 고객센터로 문의해주세요.');
+ if(p.orderId!==order.id||p.amount!==order.price_krw||p.currency!=='KRW'||p.payMethod!=='card'||typeof p.tid!=='string'||!p.tid||(order.tid&&order.tid!==p.tid)||!Number.isInteger(p.balanceAmt)||p.balanceAmt<0||p.balanceAmt>p.amount||(p.signature&&!await verifyNiceSignature(env,p)))fail(502,'골드 결제 확인이 필요합니다. 고객센터로 문의해 주세요.');
  const at=now();
  if(p.status==='paid'&&p.balanceAmt===p.amount){
   // Terminal refunds/holds cannot be undone by a delayed success notification.
@@ -72,8 +73,8 @@ export async function syncGoldOrder(env,oid){
  try{await reconcile(env,await readOrder(env,oid));return true;}finally{await run(env,'UPDATE gold_orders SET lease_until=0 WHERE id=?',oid);}
 }
 export async function goldCallback(req,env){
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
- const text=await req.text();if(text.length>16384)fail(413,'요청이 너무 큽니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
+ const text=await req.text();if(text.length>16384)fail(413,AifectMessages.requestTooLarge);
  const b=Object.fromEntries(new URLSearchParams(text)),order=await readOrder(env,String(b.orderId||''));
  if(!order||!equalSecret(new URL(req.url).searchParams.get('state')||'',await stateFor(env,order.id)))fail(403,'결제 요청을 확인할 수 없습니다.');
  const done=()=>new Response(null,{status:303,headers:{Location:'/#gold?order='+encodeURIComponent(order.id),'Cache-Control':'no-store','Referrer-Policy':'no-referrer'}});
@@ -110,9 +111,9 @@ export async function goldTick(env){
 }
 export async function goldOrderRoute(req,env,path,user){
  const m=path.match(/^\/api\/gold\/orders\/(ag_[\w-]+)$/);if(!m)return null;
- if(!user)fail(401,'로그인 후 이용해주세요.');
+ if(!user)fail(401,AifectMessages.signIn);
  const o=await readOrder(env,m[1]);if(!o||o.user_id!==user.id)fail(404,'내 결제 내역을 찾을 수 없습니다.');
  if(req.method==='POST'){await rate(env,'gold-sync:'+user.id,20,300);if(o.last_checked<now()-10)await syncGoldOrder(env,o.id);}
- else if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+ else if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
  return json({order:safeOrder(await readOrder(env,o.id))});
 }

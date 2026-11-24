@@ -57,7 +57,7 @@
         const selection=getSelection();selection.removeAllRanges();selection.addRange(range);
         let copied=false;
         try {copied=document.execCommand('copy');} catch {copied=false;}
-        status.textContent=copied?'이메일 주소를 복사했습니다.':'선택된 이메일 주소를 복사해주세요.';
+        status.textContent=copied?'이메일 주소를 복사했습니다.':'선택된 이메일 주소를 복사해 주세요.';
       }
     });
   }

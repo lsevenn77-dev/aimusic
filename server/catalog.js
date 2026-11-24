@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {publicContentContext,trackBlockScope,artistBlockScope} from './block-policy.js';
 import {playlistEligibleSQL} from '../shared/playlist-policy.js';
 import {exactSongScope,fallbackSongScope,songBlockScope} from './song-search.js';
@@ -83,8 +84,8 @@ export async function catalogRoute(req,env,path,user){
  if(path==='/api/community'&&method==='GET'){
   const kind=url.searchParams.get('kind'),following=url.searchParams.get('following')==='1';
   let where=VISIBLE(),args=[];
-  if(kind){if(!['cover','original'].includes(kind))fail(400,'곡 종류를 확인해주세요.');where+=' AND t.kind=?';args.push(kind);}
-  const mode=url.searchParams.get('cover_mode');if(mode){if(!['solo','duet'].includes(mode))fail(400,'커버 종류를 확인해주세요.');where+=" AND t.kind='cover' AND t.cover_mode=?";args.push(mode);}
+  if(kind){if(!['cover','original'].includes(kind))fail(400,'곡 종류를 확인해 주세요.');where+=' AND t.kind=?';args.push(kind);}
+  const mode=url.searchParams.get('cover_mode');if(mode){if(!['solo','duet'].includes(mode))fail(400,'커버 종류를 확인해 주세요.');where+=" AND t.kind='cover' AND t.cover_mode=?";args.push(mode);}
   if(url.searchParams.get('completed')==='1')where+=" AND t.kind='cover' AND (t.cover_mode='solo' OR t.duet_parent_id IS NOT NULL)";
   if(following){requireUser(user);where+=" AND EXISTS(SELECT 1 FROM follows f WHERE f.user_id=? AND ((f.kind='producer' AND f.target_id=t.producer_id) OR (f.kind='artist' AND f.target_id=t.artist_id)))";args.push(user.id);}
   return json({tracks:await trackList(env,where,args,'t.created DESC',60)});
@@ -114,7 +115,7 @@ export async function catalogRoute(req,env,path,user){
   const ranked=['top','rising','releases',...pageCharts].includes(chart);
   if(ranked){env=publicContentContext(env);where+=' AND '+CHART_ORIGINAL();}
   const section=url.searchParams.get('section')||'all';
-  if(!['all','tracks','artists','producers'].includes(section))fail(400,'목록 종류를 확인해주세요.');
+  if(!['all','tracks','artists','producers'].includes(section))fail(400,'목록 종류를 확인해 주세요.');
   const requested=Number(url.searchParams.get('limit')||100),limit=Number.isFinite(requested)?Math.max(1,Math.min(100,Math.trunc(requested))):100;
   const period=ranked?rankingPeriod(url.searchParams.get('period')||(chart==='top'?'week':'all')):null;
   let comparison=null,correction=null;
@@ -158,10 +159,10 @@ export async function catalogRoute(req,env,path,user){
    return json({track:{...tracks[0],gift_block_reason:await giftBlockReason(env,user?.id,detail),ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
   }
   if(m[2]==='covers'){
-   if(method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+   if(method!=='GET')fail(405,AifectMessages.unsupportedRequest);
    if(url.searchParams.has('view'))return songCovers(env,detail,url.searchParams,user);
-   const sort=url.searchParams.get('sort')||'popular';if(!Object.hasOwn(COVER_SORTS,sort))fail(400,'정렬 기준을 확인해주세요.');
-   const mode=url.searchParams.get('mode')||'all';if(!['all','solo','duet'].includes(mode))fail(400,'커버 종류를 확인해주세요.');
+   const sort=url.searchParams.get('sort')||'popular';if(!Object.hasOwn(COVER_SORTS,sort))fail(400,'정렬 기준을 확인해 주세요.');
+   const mode=url.searchParams.get('mode')||'all';if(!['all','solo','duet'].includes(mode))fail(400,'커버 종류를 확인해 주세요.');
    const filter=mode==='all'?'':" AND t.cover_mode='"+mode+"'";
    const base=`t.original_id=? AND t.kind='cover' AND ${VISIBLE()}`;
    const blocked=env.AIFECT_BLOCKED||[];
@@ -171,7 +172,7 @@ export async function catalogRoute(req,env,path,user){
   if(m[2]==='like'){
    requireUser(user);
    if(method==='PUT')await run(env,'INSERT OR IGNORE INTO likes(user_id,track_id,created) VALUES(?,?,?)',user.id,tid,now());
-   else if(method==='DELETE')await run(env,'DELETE FROM likes WHERE user_id=? AND track_id=?',user.id,tid);else fail(405,'지원하지 않는 요청입니다.');
+   else if(method==='DELETE')await run(env,'DELETE FROM likes WHERE user_id=? AND track_id=?',user.id,tid);else fail(405,AifectMessages.unsupportedRequest);
    return json({ok:true});
   }
   if(m[2]==='comments'){
@@ -184,7 +185,7 @@ export async function catalogRoute(req,env,path,user){
    if(method==='POST'){
     requireUser(user);await rate(env,'comment:'+user.id,20,3600);const b=await req.json(),text=str(b.body,2000);
     const t=await published(env,tid),timestamp=b.timestamp==null?null:Number(b.timestamp);
-    if(timestamp!==null&&(!Number.isFinite(timestamp)||timestamp<0||timestamp>t.duration))fail(400,'곡 안의 시간을 지정해주세요.');
+    if(timestamp!==null&&(!Number.isFinite(timestamp)||timestamp<0||timestamp>t.duration))fail(400,'곡 안의 시간을 지정해 주세요.');
     if(b.parent_id){const parent=await one(env,'SELECT user_id FROM comments WHERE id=?',b.parent_id);if(parent)assertUnblocked(env,parent.user_id);}
    if(b.parent_id&&!await one(env,'SELECT id FROM comments WHERE id=? AND track_id=? AND parent_id IS NULL AND deleted_at=0',b.parent_id,tid))fail(400,'답글 대상을 찾을 수 없습니다.');
     const cid=id();await run(env,'INSERT INTO comments(id,track_id,user_id,parent_id,body,timestamp,created) VALUES(?,?,?,?,?,?,?)',cid,tid,user.id,b.parent_id||null,text,timestamp,now());return json({id:cid},201);
@@ -196,12 +197,12 @@ export async function catalogRoute(req,env,path,user){
   requireUser(user);const c=await one(env,'SELECT * FROM comments WHERE id=?',m[1]);if(!c)fail(404,'댓글을 찾을 수 없습니다.');const track=await published(env,c.track_id);if(track.kind==='original')await assertArtistInteraction(env,track.artist_id,user?.id);if(c.deleted_at)fail(409,'이미 삭제된 댓글입니다.');
   if(m[2]){
    if(method==='PUT')await run(env,'INSERT OR IGNORE INTO comment_likes(user_id,comment_id) VALUES(?,?)',user.id,c.id);
-   else if(method==='DELETE')await run(env,'DELETE FROM comment_likes WHERE user_id=? AND comment_id=?',user.id,c.id);else fail(405,'지원하지 않는 요청입니다.');
+   else if(method==='DELETE')await run(env,'DELETE FROM comment_likes WHERE user_id=? AND comment_id=?',user.id,c.id);else fail(405,AifectMessages.unsupportedRequest);
   }else{
    if(c.user_id!==user.id&&!(method==='DELETE'&&track.user_id===user.id))fail(403,'내 댓글 또는 내 작품의 댓글만 삭제할 수 있습니다.');
    if(method==='PATCH'){const b=await req.json();await run(env,'UPDATE comments SET body=?,edited=? WHERE id=? AND deleted_at=0',str(b.body,2000),now(),c.id);}
    else if(method==='DELETE')await removeComment(env,c.id,user.id);
-   else fail(405,'지원하지 않는 요청입니다.');
+   else fail(405,AifectMessages.unsupportedRequest);
   }return json({ok:true});
  }
  m=path.match(/^\/api\/(artists|producers)\/([\w-]+)(\/follow)?$/);
@@ -235,7 +236,7 @@ export async function catalogRoute(req,env,path,user){
   }
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO follows(user_id,kind,target_id,created) VALUES(?,?,?,?)',user.id,kind,entity.id,now());
-  else if(method==='DELETE')await run(env,'DELETE FROM follows WHERE user_id=? AND kind=? AND target_id=?',user.id,kind,entity.id);else fail(405,'지원하지 않는 요청입니다.');
+  else if(method==='DELETE')await run(env,'DELETE FROM follows WHERE user_id=? AND kind=? AND target_id=?',user.id,kind,entity.id);else fail(405,AifectMessages.unsupportedRequest);
   const [ai,counts,followsViewer]=await Promise.all([
    kind==='producer'?supportFollowCount(env,entity.user_id,user.id):0,
    followCounts(env,owner.user_id,user.id,kind==='artist'?entity.id:''),

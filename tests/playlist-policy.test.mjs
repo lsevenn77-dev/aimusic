@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 import * as policy from '../shared/playlist-policy.js';
-import {cleanupPlaylistTracks,playlistCleanupStatus} from '../server/playlist-cleanup.js';
+import {playlistCleanupStatus} from '../server/playlist-cleanup.js';
 import {nicknameContext} from './nickname-context.mjs';
 
 function works(sql) {
@@ -15,20 +15,19 @@ function works(sql) {
 }
 test('shared policy uses actual kind, never titles, source IDs, labels or duration',()=>{
  assert.equal(policy.isPlaylistEligibleTrack({kind:'original',title:'커버곡'}),true);
- for(const kind of ['cover','duet','dubbing','completed','recruiting','future',null,undefined])assert.equal(policy.isPlaylistEligibleTrack({kind,original_id:'one',title:'제작곡'}),false);
+ assert.equal(policy.isPlaylistEligibleTrack({kind:'cover'}),true);
+ for(const kind of ['duet','dubbing','completed','recruiting','future',null,undefined])assert.equal(policy.isPlaylistEligibleTrack({kind,original_id:'one',title:'제작곡'}),false);
  assert.equal(policy.isPlaylistEligibleTrack(null),false);
 });
-test('single add and atomic create reject every non-original ID including forged type',async t=>{
+test('audio IDs resolve the stored type and typed writes reject a forged discriminator',async t=>{
  const {sql,call}=await fixture(t);works(sql);
- const p=(await call('/api/playlists','POST',{name:'제작곡',track_ids:['one']})).body.id;
- assert.equal((await call(`/api/playlists/${p}/tracks/two`,'PUT')).status,200);
- for(const tid of ['solo','recruiting','completed','future','dub','missing']){
-  for(const r of [await call(`/api/playlists/${p}/tracks/${tid}`,'PUT',{kind:'original'}),await call('/api/playlists','POST',{name:'불가',track_ids:['three',tid],kind:'original'})]){
-   assert.equal(r.status,400,tid);assert.equal(r.body.error,policy.PLAYLIST_INELIGIBLE_MESSAGE);
-  }
- }
+ const pid=(await call('/api/playlists','POST',{name:'제작곡',track_ids:['one']})).body.id,path='/api/playlists/'+pid;
+ for(const tid of ['two','solo','recruiting','completed'])assert.equal((await call(path+'/tracks/'+tid,'PUT')).status,200);
+ for(const tid of ['future','dub','missing'])assert.equal((await call(path+'/tracks/'+tid,'PUT')).status,400);
+ assert.equal((await call(path+'/items','PUT',{kind:'original',content_id:'solo'})).status,404);
+ assert.equal((await call('/api/playlists','POST',{name:'불가',items:[{kind:'cover',content_id:'one'}]})).status,404);
  assert.equal(sql.prepare('SELECT count(*) n FROM playlists').get().n,1);
- assert.deepEqual((await call('/api/playlists/'+p)).body.tracks.map(x=>x.id),['one','two']);
+ assert.deepEqual((await call(path)).body.tracks.map(x=>x.id),['one','two','solo','recruiting','completed']);
 });
 test('candidate API filters search, likes and history on the server and keeps ordinary likes intact',async t=>{
  const {sql,call}=await fixture(t);works(sql);
@@ -39,79 +38,43 @@ test('candidate API filters search, likes and history on the server and keeps or
  for(const source of ['search','likes','history']){
   const r=await call('/api/playlists/candidates?source='+source);assert.equal(r.status,200);
   assert.ok(r.body.tracks.length);assert.ok(r.body.tracks.every(policy.isPlaylistEligibleTrack));
-  if(source!=='search')assert.deepEqual(r.body.tracks.map(t=>t.id),['one']);
+  if(source!=='search')assert.deepEqual(r.body.tracks.map(t=>t.id).sort(),['completed','one','recruiting','solo']);
  }
- assert.deepEqual((await call('/api/playlists/candidates?q='+encodeURIComponent('제작곡'))).body.tracks,[]);
+ const matched=(await call('/api/playlists/candidates?q='+encodeURIComponent('제작곡'))).body.items;
+ assert.ok(matched.some(i=>i.kind==='dubbing' && i.content_id==='dub'));assert.ok(matched.some(i=>i.kind==='cover'));
  assert.equal((await call('/api/playlists/candidates','GET',null,null)).status,401);
  assert.ok((await call('/api/library')).body.likes.some(t=>t.kind==='cover'));
 });
-test('legacy mixed playlists filter detail, counts, duration, artwork and ordering before cleanup',async t=>{
+test('legacy public flags cannot expose a mixed list, including through public discovery or artwork',async t=>{
  const {sql,call}=await fixture(t);works(sql);
  const p=(await call('/api/playlists','POST',{name:'혼합',is_public:true,track_ids:['one','two']})).body.id;
  sql.prepare('INSERT INTO playlist_tracks VALUES(?,?,?,?)').run(p,'solo',0,2);
- for(const result of [(await call('/api/playlists/'+p)).body.playlist,...(await call('/api/library')).body.playlists,...(await call('/api/playlists')).body.playlists]){
-  assert.equal(result.tracks,2);assert.equal(result.duration,40);assert.ok(result.covers.every(policy.isPlaylistEligibleTrack));
+ const own=(await call('/api/playlists/'+p)).body;assert.equal(own.playlist.tracks,3);assert.equal(own.playlist.is_public,0);
+ for(const user of [null,'other']){
+  for(const suffix of ['/api/playlists/'+p,'/media/playlist/'+p+'/image'])
+   assert.equal((await call(suffix,'GET',null,user)).status,404);
+  for(const url of ['/api/search?q='+encodeURIComponent('혼합'),'/api/playlists','/api/playlists?home=1'])
+   assert.equal((await call(url,'GET',null,user)).body.playlists.length,0);
  }
- assert.deepEqual((await call('/api/playlists/'+p)).body.tracks.map(t=>t.id),['one','two']);
- assert.equal((await call(`/api/playlists/${p}/order`,'PUT',{track_ids:['two','one']})).status,200);
- assert.equal((await call(`/api/playlists/${p}/order`,'PUT',{track_ids:['two','solo','one']})).status,409);
+ assert.equal((await call('/api/playlists/'+p+'/order','PUT',{track_ids:['two','solo','one']})).status,200);
+ assert.deepEqual((await call('/api/playlists/'+p)).body.tracks.map(t=>t.id),['two','solo','one']);
 });
-test('cleanup commits report and recoverable backups first; preserves all originals and is idempotent',async t=>{
+test('retired original-only cleanup reports historical records without modifying memberships',async t=>{
  const f=await fixture(t);works(f.sql);
- const p=(await f.call('/api/playlists','POST',{name:'정리',track_ids:['one','two']})).body.id;
- for(const [i,tid] of ['hidden','solo','recruiting','completed','future'].entries())f.sql.prepare('INSERT INTO playlist_tracks VALUES(?,?,?,?)').run(p,tid,0,i+2);
- const originals=f.sql.prepare("SELECT pt.* FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE t.kind='original' ORDER BY track_id").all();
- const totalTracks=f.sql.prepare('SELECT count(*) n FROM tracks').get().n;
- const DB={...f.DB,async batch(statements){
-  assert.equal(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='playlist:originals:plan'").get().n,1);
-  assert.equal(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='playlist:originals:backup'").get().n,4);
-  return f.DB.batch(statements);
- }};
- const result=await cleanupPlaylistTracks({DB});assert.equal(result.removed,4);assert.equal(result.remaining,0);
- assert.equal(result.plan.groups.reduce((n,g)=>n+g.count,0),4);
- assert.deepEqual(f.sql.prepare('SELECT * FROM playlist_tracks ORDER BY track_id').all(),originals);
- assert.equal(f.sql.prepare('SELECT count(*) n FROM tracks').get().n,totalTracks);
- await cleanupPlaylistTracks({DB});assert.equal((await playlistCleanupStatus({DB})).removed,4);
+ const pid=(await f.call('/api/playlists','POST',{name:'보관',track_ids:['one','solo']})).body.id;
+ f.sql.prepare('INSERT INTO admin_audit VALUES(?,?,?,?,?)').run('playlist-originals:20261106:old','admin','playlist:originals:removed','{"removed":7}',0);
+ for(let i=0;i<2;i++){const status=await playlistCleanupStatus({DB:f.DB});assert.equal(status.retired,true);assert.equal(status.removed,7);assert.equal(status.remaining,0);}
+ assert.deepEqual((await f.call('/api/playlists/'+pid)).body.tracks.map(t=>t.id),['one','solo']);
 });
-test('PC/mobile shared renderers remove cover save actions and preserve playback',()=>{
- const c=nicknameContext({AifectPlaylist:policy,esc:String,icon:()=>'',me:null,liked:()=>false,number:String,giftButton:()=>'',cover:()=>'',musicLayout:()=>'',trackMap:new Map(),dialog(html){c.html=html;},paintInteractions(){}});
+test('shared renderers support saving originals and covers and preserve playback',()=>{
+ const c=nicknameContext({AifectUnifiedPlaylists:true,AifectPlaylist:policy,esc:String,icon:()=>'',me:null,liked:()=>false,number:String,giftButton:()=>'',cover:()=>'',musicLayout:()=>'',trackMap:new Map(),dialog(html){c.html=html;},paintInteractions(){}});
  vm.runInContext(readFileSync(new URL('../dist/music-ui.js',import.meta.url),'utf8'),c);
  const explorer=readFileSync(new URL('../dist/explorer.js',import.meta.url),'utf8');
  vm.runInContext(explorer.slice(explorer.indexOf('function trackMenu('),explorer.indexOf('function chartTrackPopover(')),c);
  for(const kind of ['original','cover','duet','dubbing','completed','recruiting',undefined]){
   const track={id:'test',kind,title:'제작곡',status:'published'};c.trackMap.set('test',track);
-  assert.equal(c.playlistSaveButton(track).includes('data-add='),kind==='original');
-  c.trackMenu('test');assert.equal(c.html.includes('data-add='),kind==='original');assert.ok(c.html.includes('data-play='));
+  assert.equal(c.playlistSaveButton(track).includes('data-add='),['original','cover'].includes(kind));
+  c.trackMenu('test');assert.equal(c.html.includes('data-add='),['original','cover'].includes(kind));assert.ok(c.html.includes('data-play='));
  }
- assert.doesNotMatch(c.coverCollectionItem({id:'solo',title:'제작곡',kind:'cover'}),/data-add=/);
-});
-
-test('cleanup rechecks a track corrected to original after backup and rolls back failed deletions',async t=>{
- const f=await fixture(t);works(f.sql);
- const p=(await f.call('/api/playlists','POST',{name:'정리 안전성',track_ids:['one']})).body.id;
- f.sql.prepare('INSERT INTO playlist_tracks VALUES(?,?,0,1)').run(p,'solo');
- const corrected={...f.DB,async batch(statements){f.sql.exec("UPDATE tracks SET kind='original' WHERE id='solo'");return f.DB.batch(statements);}};
- assert.equal((await cleanupPlaylistTracks({DB:corrected})).removed,0);
- assert.equal(f.sql.prepare('SELECT count(*) n FROM playlist_tracks').get().n,2);
- f.sql.exec("UPDATE tracks SET kind='cover' WHERE id='solo'; CREATE TRIGGER test_audit_failure BEFORE INSERT ON admin_audit WHEN NEW.action='playlist:originals:removed' BEGIN SELECT RAISE(ABORT,'test failure'); END;");
- await assert.rejects(cleanupPlaylistTracks({DB:f.DB}),/test failure/);
- assert.equal(f.sql.prepare('SELECT count(*) n FROM playlist_tracks').get().n,2);
- f.sql.exec('DROP TRIGGER test_audit_failure');
- f.sql.prepare('UPDATE playlist_tracks SET position=9 WHERE track_id=?').run('solo');
- const result=await cleanupPlaylistTracks({DB:f.DB});assert.equal(result.removed,1);assert.equal(result.remaining,0);
- assert.equal(f.sql.prepare("SELECT count(*) n FROM playlist_tracks WHERE track_id='one'").get().n,1);
-});
-
-test('cleanup handles more than one batch without losing the initial type counts',async t=>{
- const f=await fixture(t);works(f.sql);
- for(let i=0;i<205;i++){
-  const pid='legacy-'+i;
-  f.sql.prepare("INSERT INTO playlists(id,user_id,name,created) VALUES(?,'owner','Legacy',0)").run(pid);
-  f.sql.prepare('INSERT INTO playlist_tracks VALUES(?,?,0,0)').run(pid,'solo');
- }
- for(const count of [100,200,205]){
-  const status=await cleanupPlaylistTracks({DB:f.DB});assert.equal(status.removed,count);assert.equal(status.remaining,205-count);
-  assert.equal(status.plan.groups[0].count,205);
- }
- assert.equal(f.sql.prepare("SELECT count(*) n FROM tracks WHERE kind='original'").get().n,4);
+ assert.match(c.playlistSaveButton({id:'solo',title:'제작곡',kind:'cover'}),/data-add=/);
 });

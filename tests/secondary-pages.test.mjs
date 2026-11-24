@@ -44,7 +44,7 @@ test('draft rendering offers separate edit/delete controls, empty state and safe
  const {c}=setup();const html=c.karaokeDraftsHTML([{draftKey:'owner:<bad>',id:'gone',mode:'solo',title:'<img onerror=x>',duration:10,updated:0}]);
  assert.match(html,/data-delete-draft="owner:&lt;bad&gt;"/);assert.match(html,/data-delete-all-drafts/);assert.match(html,/#sing\/gone\?mode=solo/);assert.doesNotMatch(html,/<img onerror/);
  assert.match(c.karaokeDraftsHTML([]),/data-delete-all-drafts disabled/);assert.match(c.karaokeDraftsHTML([]),/첫 목소리/);
- assert.match(read('sing-drafts.js'),/복구할 수 없어요/);assert.match(read('sing-drafts.js'),/cancel-draft-delete'\)\.onclick=\(\)=>\$\('#dialog'\)\.close/);
+ assert.match(read('sing-drafts.js'),/복구할 수 없습니다/);assert.match(read('sing-drafts.js'),/cancel-draft-delete'\)\.onclick=\(\)=>\$\('#dialog'\)\.close/);
 });
 test('MR cards retain six actual song IDs and co-located play, sing and cover discovery actions',()=>{
  const {c}=setup();vm.runInContext(read('home.js'),c);const tracks=Array.from({length:8},(_,i)=>({id:'song'+i,title:'Title '+i,artist:'<Singer>',covers:i,duration:100}));

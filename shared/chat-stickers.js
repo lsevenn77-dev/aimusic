@@ -171,11 +171,11 @@ export function bind({picker, form, input, toggle, selected = [], close, glyph, 
     if (button.hasAttribute('data-cat-send')) return form.requestSubmit();
     if (button.dataset.catKey) {
       if (inline) {
-        status.textContent = inline.insertSticker(button.dataset.catKey) ? '' : (inline.insertionWarning?.() || '메시지 길이 제한에 도달했어요.');
+        status.textContent = inline.insertSticker(button.dataset.catKey) ? '' : (inline.insertionWarning?.() || '메시지 길이 제한에 도달했습니다.');
         return;
       }
       if (input.value.length + token(button.dataset.catKey).length > input.maxLength) {
-        status.textContent = '메시지 길이 제한에 도달했어요.';
+        status.textContent = '메시지 길이 제한에 도달했습니다.';
         return;
       }
       selected.push(button.dataset.catKey);

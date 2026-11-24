@@ -11,10 +11,10 @@ export const dubbingPlayCountSQL=(alias='p')=>`(SELECT CASE
 
 
 export async function recordDubbingPlay(req,env,project,user){
- if(req.method!=='POST')fail(405,'재생 요청을 확인해주세요.');
+ if(req.method!=='POST')fail(405,'재생 요청을 확인해 주세요.');
  if(project.visibility!=='public'||project.state!=='complete')fail(404,'공개된 완성본을 찾을 수 없습니다.');
  const {requestId}=await req.json();
- if(typeof requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId))fail(400,'재생 식별자를 확인해주세요.');
+ if(typeof requestId!=='string'||!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId))fail(400,'재생 식별자를 확인해 주세요.');
  const recording=await dubbingRecordingStatus(env,project,user);
  if(!recording.final?.audioUrl)fail(404,'완성 음원이 준비되지 않았습니다.');
  const exists=await one(env,'SELECT 1 present FROM dubbing_plays WHERE project_id=? AND request_id=?',project.id,requestId);

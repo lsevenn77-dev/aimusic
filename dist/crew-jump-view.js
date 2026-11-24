@@ -28,7 +28,7 @@ export function mount(root,{crew,viewer,api,esc}){
    <p class="arc-look-balance" data-shop-balance></p><div class="arc-fitting"><div class="arc-run-model" aria-hidden="true"></div><div aria-live="polite"><small>달리기 미리보기</small><h3 data-look-name></h3><b data-look-price></b></div></div>
    <div class="arc-look-shelves"></div><div class="arc-look-actions"><button type="button" class="primary-button" data-look-action disabled>의상 선택</button><button type="button" class="small-button" data-shop-retry hidden>다시 확인</button></div><p class="arc-look-note" data-shop-status role="status"></p></dialog>
  <div class="jump-stage" hidden aria-label="점프게임"><canvas width="960" height="540" tabindex="0" aria-label="스페이스 또는 화면을 눌러 점프"></canvas><div class="jump-hud" hidden><span>점수 <b>0</b></span><span>남은 시간 <b>${LIMIT/HZ}초</b></span><span>콤보 <b>0</b></span><small class="jump-speed"></small><span class="jump-mode" data-game-mode></span></div><div class="jump-overlay"></div></div>
- <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog compact-popup"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있어요. 장애물에 닿으면 도전이 끝나요.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속해요. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주해요.</p><p>공식 도전은 하루 3회, 프리미엄은 4회. 주말에도 도전할 수 있어요. 한국시간 월요일 0시를 기준으로 크루원별 주간 최고점 상위 10개를 합산해요. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있어요.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
+ <dialog class="jump-wide-dialog" aria-label="가로 게임 화면"><div class="jump-wide-layout"><div class="jump-wide-controls"><button class="small-button" type="button" data-wide-pause hidden>일시정지</button><button class="small-button" type="button" data-wide-exit>축소</button></div></div></dialog><div class="jump-summary" aria-live="polite"></div><dialog class="surface jump-dialog compact-popup"><h2>주간 게임 규칙</h2><p>화면을 누르거나 스페이스바로 점프하세요. 공중에서 한 번 더 점프할 수 있습니다. 장애물에 닿으면 도전이 끝납니다.</p><p>별 젤리를 연속으로 모으면 콤보 보너스! 낮에는 10초마다 1.2배로 가속합니다. 70초부터 야간 도로에서 네온 링을 모으세요. 밤에는 5초마다 1.1배로 가속하고 ${LIMIT/HZ}초에 완주합니다.</p><p>공식 도전은 하루 3회, 프리미엄은 4회. 주말에도 도전할 수 있습니다. 한국시간 월요일 0시를 기준으로 크루원별 주간 최고점 상위 10개를 합산합니다. 참여 미션 보상은 크루 경험치이며, 현재 지급은 꺼져 있습니다.</p><button class="primary-button" data-close>확인</button></dialog></section>`;
  const $=s=>root.querySelector(s),canvas=$('canvas'),ctx=canvas.getContext('2d'),layer=$('.jump-overlay'),hud=$('.jump-hud'),summary=$('.jump-summary'),dialog=$('.jump-dialog:not(.arc-store-dialog)'),shop=$('.arc-store-dialog');
  const waiting=$('.jump-lobby'),stage=$('.jump-stage'),modeLabel=$('[data-game-mode]');
  const outfitShop=mountOutfitShop(shop,{api,url,esc,onChange:wardrobe=>{
@@ -81,7 +81,7 @@ export function mount(root,{crew,viewer,api,esc}){
    return '<li><b>'+Number(row.place)+'</b><i class="arc-avatar" aria-hidden="true">'+esc(Array.from(row.name||'✦')[0])+avatar+'</i><span>'+(kind==='crew'?esc(row.name):userNickname(row.name,{profileId:row.profile_id,userId:row.user_id}))+'</span><strong>'+Number(row.points).toLocaleString()+'점</strong></li>';
   }).join('');
   return '<section class="jump-leaders"><div class="arc-rank-title"><h2>'+title+'</h2><small>TOP 100</small></div><p>'+description+'</p><div class="arc-scroll" tabindex="0" role="region" aria-label="'+title+' 최대 100위">'+
-   (list?'<ol>'+list+'</ol>':'<div class="arc-empty"><span aria-hidden="true">✧</span>아직 공식 기록이 없어요.</div>')+
+   (list?'<ol>'+list+'</ol>':'<div class="arc-empty"><span aria-hidden="true">✧</span>아직 공식 기록이 없습니다.</div>')+
    '</div><div class="arc-own">'+own+'</div></section>';
  }
  function board(){
@@ -117,10 +117,10 @@ export function mount(root,{crew,viewer,api,esc}){
   panel('RUN RESULT',game.finished==='survived'?'별빛 도시 완주!':'도전 결과',stats(),saved?'':buttons());
   summary.textContent='연습 기록 · 주간 최고 '+(info.best??'—')+'점 · 공식 도전 '+info.remaining+'회 남음';
   if(saved){
-   phase='saving';summary.textContent='서버 검증 중 · 아직 확정되지 않은 기록이에요.';
+   phase='saving';summary.textContent='서버 검증 중 · 아직 확정되지 않은 기록입니다.';
    try{const result=await api(url+'/finish','POST',{id:saved.id,inputs:taps});if(dead)return;
     rememberRun(true,result.score);info=await api(url,'GET',undefined,{fresh:true});if(dead)return;
-    board();summary.textContent=(before===null||result.score>before?'주간 최고점 갱신! · ':'')+'공식 '+result.score+'점 · 주간 최고 '+info.best+'점 · '+(info.remaining?'공식 도전 '+info.remaining+'회 남음':'오늘 공식 도전을 모두 사용했어요.');
+    board();summary.textContent=(before===null||result.score>before?'주간 최고점 갱신! · ':'')+'공식 '+result.score+'점 · 주간 최고 '+info.best+'점 · '+(info.remaining?'공식 도전 '+info.remaining+'회 남음':'오늘 공식 도전을 모두 사용했습니다.');
     layer.querySelector('.jump-actions').innerHTML=buttons();round=null;
    }catch(e){if(dead)return;summary.textContent=e.message;layer.querySelector('.jump-actions').innerHTML=btn('retry','기록 다시 제출')+btn('lobby','대기실로')}
    phase='result';
@@ -153,8 +153,8 @@ export function mount(root,{crew,viewer,api,esc}){
  }
  async function begin(official){
   if(phase!=='lobby')return;
-  if(official&&(!info.open||info.remaining<=0)){summary.hidden=false;summary.textContent=info.remaining<=0?'오늘 공식 도전을 모두 사용했어요. 한국시간 자정에 초기화돼요.':'공식 도전 기간이 아니에요.';return;}
-  if(outfitShop.busy){summary.hidden=false;summary.textContent='의상 처리가 끝난 뒤 시작해주세요.';return;}
+  if(official&&(!info.open||info.remaining<=0)){summary.hidden=false;summary.textContent=info.remaining<=0?'오늘 공식 도전을 모두 사용했습니다. 한국시간 자정에 초기화됩니다.':'공식 도전 기간이 아닙니다.';return;}
+  if(outfitShop.busy){summary.hidden=false;summary.textContent='의상 처리가 끝난 뒤 시작해 주세요.';return;}
   phase='starting';$('[data-rules]').disabled=true;
   sounds.unlock();enterWide();
   waiting.querySelectorAll('button').forEach(b=>b.disabled=true);
@@ -166,7 +166,7 @@ export function mount(root,{crew,viewer,api,esc}){
    if(dead||document.hidden){if(!dead)await refresh();return}
    round=official?await api(url+'/start','POST',{requestId:requestId??=crypto.randomUUID()}):null;
    if(dead||document.hidden){if(round)abandon();if(!dead)await refresh();return}
-   if((round?.version??info.version)!==VERSION)throw Error('규칙이 바뀌었어요. 새로고침해주세요.');
+   if((round?.version??info.version)!==VERSION)throw Error('규칙이 바뀌었습니다. 새로고침해 주세요.');
    wasOfficial=official;requestId=null;game=start(round?.seed??info.seed);taps=[];queued=0;pressed=null;
    origin=performance.now()+(round?round.starts-round.serverNow:3000);phase='countdown';$('.jump-board').hidden=true;
    waiting.hidden=true;stage.hidden=false;summary.hidden=false;layer.hidden=false;
@@ -200,7 +200,7 @@ export function mount(root,{crew,viewer,api,esc}){
  }
  listen(document,'visibilitychange',()=>{
   if(document.hidden)sounds.quiet();
-  if(document.hidden&&round){abandon();if(phase==='abandoned'){leaveWide();hud.hidden=true;panel('OFFICIAL RUN','도전을 종료했어요','공식 도전 중 화면을 떠나 이번 기록은 집계되지 않아요.',btn('lobby','대기실로'));summary.textContent='';}}
+  if(document.hidden&&round){abandon();if(phase==='abandoned'){leaveWide();hud.hidden=true;panel('OFFICIAL RUN','도전을 종료했습니다','공식 도전 중 화면을 떠나 이번 기록은 집계되지 않습니다.',btn('lobby','대기실로'));summary.textContent='';}}
   else if(!round&&['countdown','play'].includes(phase)){if(document.hidden){pausedAt=performance.now();cancelAnimationFrame(frame)}else if(pausedAt){origin+=performance.now()-pausedAt;pausedAt=0;frame=requestAnimationFrame(advance)}}
  });
  listen(window,'pagehide',abandon);

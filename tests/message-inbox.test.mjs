@@ -18,7 +18,7 @@ test('empty channels stay visible and search covers channel names and previews',
  const c=make();c.icon=()=>'';assert.match(c.conversationListHTML([]),/공지/);assert.match(c.conversationListHTML([]),/크루채팅/);
  assert.equal(c.dmSearchMatch({name:'별빛',last_message:'내일 합주'},'합주'),true);
  assert.equal(c.dmSearchMatch({name:'별빛'},'공지','공지'),true);
- vm.runInContext("dmInboxQuery='없는말'",c);assert.match(c.conversationListHTML([]),/검색 결과가 없어요/);
+ vm.runInContext("dmInboxQuery='없는말'",c);assert.match(c.conversationListHTML([]),/검색 결과가 없습니다/);
 });
 
 test('notice routing only opens server-verified channels and retains all official conversations',async()=>{

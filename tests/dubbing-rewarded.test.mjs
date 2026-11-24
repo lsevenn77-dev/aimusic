@@ -117,7 +117,7 @@ test('close before grant gives no reward and clears listeners',async()=>{
 });
 test('unsupported, no fill, abort and timeout do not issue rewards',async()=>{
  const unsupported=fakeGPT({unsupported:true});await assert.rejects(playDubbingReward({gpt:unsupported.gpt,adUnit:'/1234/u'}),/지원하지/);
- const empty=fakeGPT(),p=playDubbingReward({gpt:empty.gpt,adUnit:'/1234/u'});empty.emit('slotRenderEnded',{isEmpty:true});await assert.rejects(p,/광고가 없어요/);
+ const empty=fakeGPT(),p=playDubbingReward({gpt:empty.gpt,adUnit:'/1234/u'});empty.emit('slotRenderEnded',{isEmpty:true});await assert.rejects(p,/광고가 없습니다/);
  const stopped=fakeGPT(),abort=new AbortController(),q=playDubbingReward({gpt:stopped.gpt,adUnit:'/1234/u',signal:abort.signal});abort.abort();await assert.rejects(q,/취소/);
  await assert.rejects(playDubbingReward({gpt:fakeGPT().gpt,adUnit:'/1234/u',timeoutMs:5}),/불러올/);
 });

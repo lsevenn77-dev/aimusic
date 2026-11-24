@@ -1,5 +1,6 @@
 // Home-only candidate reads. Cold selection sorts narrow public IDs once; no
 // chart recalculation, mood histogram, per-card SQL or object-storage probes.
+import {publicPlaylistSQL} from './playlist-visibility.js';
 import {playlistEligibleSQL} from '../shared/playlist-policy.js';
 import {query,rows} from './db.js';
 import {CHART_ORIGINAL,chartPublication} from './popular-chart.js';
@@ -79,19 +80,19 @@ export async function homePlaylists(env,uid){
  const {cte,args}=blockContext(env),visible=playable(env)+' AND '+playlistEligibleSQL(),size=48;
  // Sort only a capped window of IDs once. Run lock, member and artwork checks
  // on bounded pages, and fetch full summaries only for the final six.
- const index=await seeds('playlists',()=>rows(env,`SELECT p.id FROM playlists p WHERE p.is_public=1
+ const index=await seeds('playlists',()=>rows(env,`SELECT p.id FROM playlists p WHERE ${publicPlaylistSQL()}
   ORDER BY p.created DESC,p.id LIMIT ?`,size*ROUNDS));
  const owner="EXISTS(SELECT 1 FROM users u WHERE u.id=p.user_id AND u.provider!='deleted')"+
   (env.AIFECT_BLOCKED?.length?' AND p.user_id NOT IN (SELECT value FROM home_blocks)':'');
  const ids=[];
  for(let i=0;i<index.length&&ids.length<6;i+=size){
   const page=await rows(env,cte+`SELECT p.id FROM playlists p WHERE p.id IN (${hasIds})
-   AND p.is_public=1 AND ${owner} AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id
+   AND ${publicPlaylistSQL()} AND ${owner} AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id
    WHERE pt.playlist_id=p.id AND ${visible}) ORDER BY p.created DESC,p.id LIMIT ?`,...args,JSON.stringify(index.slice(i,i+size).map(p=>p.id)),6-ids.length);
   ids.push(...page.map(p=>p.id));
  }
  if(!ids.length)return [];
- return playlistSummaries(env,uid,`p.is_public=1 AND p.id IN (${hasIds}) AND ${owner} AND ${activePlaylistSQL()}`,
+ return playlistSummaries(env,uid,`${publicPlaylistSQL()} AND p.id IN (${hasIds}) AND ${owner} AND ${activePlaylistSQL()}`,
   [JSON.stringify(ids)],'p.created DESC,p.id',6,[],{cte,args,visible:playable({...env,AIFECT_BLOCKED:[],AIFECT_BLOCKED_ARTISTS:[]})});
 }
 

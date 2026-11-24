@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {WEB_GOLD_PACKS} from '../shared/gifts.js';
 import {fail,json,now} from './db.js';
 
@@ -27,14 +28,14 @@ function sessionCookie(req){
  return /^[A-Za-z0-9_-]{43}$/.test(value)?value:null;
 }
 async function boundedText(req){
- if(Number(req.headers.get('content-length')||0)>MAX_BODY)fail(413,'요청이 너무 큽니다.');
+ if(Number(req.headers.get('content-length')||0)>MAX_BODY)fail(413,AifectMessages.requestTooLarge);
  if(!req.body)return '';
  const reader=req.body.getReader(),chunks=[];let length=0;
  try{
   while(true){
    const {done,value}=await reader.read();if(done)break;
    length+=value.byteLength;
-   if(length>MAX_BODY){await reader.cancel().catch(()=>{});fail(413,'요청이 너무 큽니다.');}
+   if(length>MAX_BODY){await reader.cancel().catch(()=>{});fail(413,AifectMessages.requestTooLarge);}
    chunks.push(value);
   }
  }finally{reader.releaseLock();}
@@ -44,18 +45,18 @@ async function boundedText(req){
 }
 async function mutationBody(req){
  const origin=new URL(req.url).origin,site=req.headers.get('sec-fetch-site');
- if(req.headers.get('origin')!==origin||(site&&site!=='same-origin'))fail(403,'사이트에서 다시 요청해주세요.');
+ if(req.headers.get('origin')!==origin||(site&&site!=='same-origin'))fail(403,'사이트에서 다시 요청해 주세요.');
  if(!/^application\/json(?:\s*;|$)/i.test(req.headers.get('content-type')||''))fail(415,'JSON 요청이 필요합니다.');
  let body;
- try{body=JSON.parse(await boundedText(req));}catch(e){if(e.status)throw e;fail(400,'요청 내용을 확인해주세요.');}
- if(!body||typeof body!=='object'||Array.isArray(body))fail(400,'요청 내용을 확인해주세요.');
+ try{body=JSON.parse(await boundedText(req));}catch(e){if(e.status)throw e;fail(400,'요청 내용을 확인해 주세요.');}
+ if(!body||typeof body!=='object'||Array.isArray(body))fail(400,'요청 내용을 확인해 주세요.');
  return body;
 }
 function selectedPack(gold){return WEB_GOLD_PACKS.find(pack=>pack.gold===gold);}
 function orderSummary(order){return {id:order.orderId,gold:order.gold,bonus_gold:order.bonus_gold,total_gold:order.total_gold,amount:order.amount,currency:order.currency,expires_at:order.expiresAt};}
 async function createOrder(req,env,body){
  const pack=selectedPack(body.gold);
- if(!pack||body.consent!==true||Object.keys(body).some(k=>!['gold','consent'].includes(k)))fail(400,'골드 상품과 심사용 테스트 결제창 안내를 확인해주세요.');
+ if(!pack||body.consent!==true||Object.keys(body).some(k=>!['gold','consent'].includes(k)))fail(400,'골드 상품과 심사용 테스트 결제창 안내를 확인해 주세요.');
  const key=await signingKey(env),session=sessionCookie(req)||base64url(crypto.getRandomValues(new Uint8Array(32))),created=now();
  const order={v:1,test_only:true,flow:FLOW,merchantId:env.TOSS_GOLD_TEST_MID,orderId:'agt_'+crypto.randomUUID().replaceAll('-',''),gold:pack.gold,bonus_gold:pack.bonus_gold,total_gold:pack.total_gold,amount:pack.price,currency:'KRW',customerKey:'agp_'+crypto.randomUUID().replaceAll('-',''),issuedAt:created,expiresAt:created+ORDER_SECONDS,origin:new URL(req.url).origin,binding:await binding(key,session)};
  const payload=base64url(encoder.encode(JSON.stringify(order))),order_token=payload+'.'+await sign(key,'AIFECT:TOSS-GOLD-TEST:CARD-AUTH-PREVIEW:ORDER:v1:'+payload);
@@ -64,14 +65,14 @@ async function createOrder(req,env,body){
 }
 async function boundOrder(req,env,body){
  const session=sessionCookie(req);
- if(!session||typeof body.order_token!=='string'||body.order_token.length>3000)fail(403,'심사용 골드 결제창을 다시 열어주세요.');
+ if(!session||typeof body.order_token!=='string'||body.order_token.length>3000)fail(403,'심사용 골드 결제창을 다시 열어 주세요.');
  let order,key;
  try{
   const parts=body.order_token.split('.');if(parts.length!==2)throw new Error('Invalid token');
   key=await signingKey(env);
   if(!await crypto.subtle.verify('HMAC',key,unbase64url(parts[1]),encoder.encode('AIFECT:TOSS-GOLD-TEST:CARD-AUTH-PREVIEW:ORDER:v1:'+parts[0])))throw new Error('Invalid token');
   order=JSON.parse(decoder.decode(unbase64url(parts[0])));
- }catch{fail(403,'심사용 골드 결제창을 다시 열어주세요.');}
+ }catch{fail(403,'심사용 골드 결제창을 다시 열어 주세요.');}
  const pack=selectedPack(order?.gold),at=now();
  if(!pack||order.v!==1||order.test_only!==true||order.flow!==FLOW||order.merchantId!==env.TOSS_GOLD_TEST_MID||order.origin!==new URL(req.url).origin||order.binding!==await binding(key,session)||!Number.isSafeInteger(order.issuedAt)||!Number.isSafeInteger(order.expiresAt)||order.issuedAt>at||order.expiresAt<=at||order.expiresAt-order.issuedAt!==ORDER_SECONDS||order.amount!==pack.price||order.bonus_gold!==pack.bonus_gold||order.total_gold!==pack.total_gold||order.currency!=='KRW'||!/^agt_[a-f0-9]{32}$/.test(order.orderId)||!/^agp_[a-f0-9]{32}$/.test(order.customerKey))fail(403,'심사용 골드 요청이 만료되었거나 일치하지 않습니다.');
  if(body.orderId!==order.orderId||!Number.isSafeInteger(body.amount)||body.amount!==order.amount||body.currency!=='KRW'||typeof body.paymentKey!=='string'||!body.paymentKey||body.paymentKey.length>200||/[\u0000-\u0020\u007f]/.test(body.paymentKey)||Object.keys(body).some(k=>!['order_token','paymentKey','orderId','amount','currency'].includes(k)))fail(400,'골드 결제창의 반환 요청이 일치하지 않습니다.');
@@ -93,10 +94,10 @@ export async function tossGoldTestCheckoutRoute(req,env,path=new URL(req.url).pa
    if(req.method!=='GET')fail(405,'GET 요청만 지원합니다.');
    return json({available:tossGoldTestCheckoutReady(env),test_only:true,flow:FLOW,currency:'KRW',products:products(),client_key:tossGoldTestCheckoutReady(env)?env.TOSS_GOLD_TEST_CLIENT_KEY:null});
   }
-  if(![ROOT+'/orders',ROOT+'/auth-return'].includes(path))fail(404,'페이지를 찾을 수 없습니다.');
+  if(![ROOT+'/orders',ROOT+'/auth-return'].includes(path))fail(404,AifectMessages.notFound);
   if(req.method!=='POST')fail(405,'POST 요청만 지원합니다.');
-  if(!tossGoldTestCheckoutReady(env))fail(503,'심사용 골드 테스트 결제창 연결을 준비하고 있어요.');
+  if(!tossGoldTestCheckoutReady(env))fail(503,'심사용 골드 테스트 결제창 연결을 준비하고 있습니다.');
   const body=await mutationBody(req);
   return path===ROOT+'/orders'?await createOrder(req,env,body):await authReturn(req,env,body);
- }catch(e){return json({error:e.status?e.message:'심사용 골드 요청을 처리하지 못했어요.'},e.status||503);}
+ }catch(e){return json({error:e.status?e.message:'심사용 골드 요청을 처리하지 못했습니다.'},e.status||503);}
 }

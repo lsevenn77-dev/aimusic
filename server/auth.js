@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {sourceFromRequest} from './signup-source.js';
 import {rememberAppleToken} from './account-safety.js';
 import {ensureWelcomeReceipt} from './welcome-notices.js';
@@ -35,7 +36,7 @@ export async function viewer(req,env){
  viewerArtistBlocks.set(resolved,JSON.parse(blocked_artists||'[]'));
  return resolved;
 }
-export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};
+export const requireUser=u=>{if(!u)fail(401,AifectMessages.signIn);return u;};
 async function passwordHash(password,salt,env){
  if(!env.AUTH_PEPPER)fail(503,'로그인 설정을 준비하고 있습니다.');
  const key=await crypto.subtle.importKey('raw',enc.encode(password+env.AUTH_PEPPER),'PBKDF2',false,['deriveBits']);
@@ -73,7 +74,7 @@ export async function authRoute(req,env,path,user){
  if((path==='/api/auth/google/token'||path==='/api/auth/google/callback')&&req.method==='POST'){
   const isRedirect=path.endsWith('/callback'),jar=cookies(req);
   const b=isRedirect?Object.fromEntries(new URLSearchParams(await req.text())):await req.json();
-  if(isRedirect&&(!jar.g_csrf_token||!b.g_csrf_token||!equal(jar.g_csrf_token,b.g_csrf_token)))fail(403,'로그인 요청을 확인할 수 없습니다. 다시 시도해주세요.');
+  if(isRedirect&&(!jar.g_csrf_token||!b.g_csrf_token||!equal(jar.g_csrf_token,b.g_csrf_token)))fail(403,'로그인 요청을 확인할 수 없습니다. 다시 시도해 주세요.');
   const state=jar.aifect_google_oauth||'';
   const st=await query(env,"DELETE FROM oauth_states WHERE state=? AND provider='google-id' AND expires>? RETURNING *",await hash(state),now()).first();
   if(!st||!env.GOOGLE_CLIENT_ID)fail(400,'로그인 요청이 만료됐습니다.');
@@ -95,9 +96,9 @@ export async function authRoute(req,env,path,user){
   return json({ok:true},200,{'set-cookie':cookie('aifect_session','',0,secure)});
  }
  if(path==='/api/account/password'&&req.method==='PUT'){
-  requireUser(user);if(user.provider!=='email')fail(400,'소셜 로그인 비밀번호는 해당 서비스에서 변경해주세요.');
+  requireUser(user);if(user.provider!=='email')fail(400,'소셜 로그인 비밀번호는 해당 서비스에서 변경해 주세요.');
   await rate(env,'password-change:'+user.id,8,900);const b=await req.json(),current=str(b.current_password,128),next=str(b.new_password,128);
-  if(next.length<12||next===current)fail(400,'현재 비밀번호와 다른 12자 이상의 새 비밀번호를 입력해주세요.');
+  if(next.length<12||next===current)fail(400,'현재 비밀번호와 다른 12자 이상의 새 비밀번호를 입력해 주세요.');
   const stored=await one(env,"SELECT password FROM users WHERE id=? AND provider='email'",user.id),[salt,saved]=(stored?.password||'invalid:invalid').split(':');
   if(!saved||!equal(await passwordHash(current,salt,env),saved))fail(403,'현재 비밀번호가 올바르지 않습니다.');
   const newSalt=id(),encoded=newSalt+':'+await passwordHash(next,newSalt,env),token=id()+id();
@@ -106,16 +107,16 @@ export async function authRoute(req,env,path,user){
    query(env,'DELETE FROM sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND password=?)',user.id,user.id,encoded),
    query(env,'INSERT INTO sessions(token,user_id,expires) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND password=?)',await hash(token),user.id,now()+86400*30,user.id,encoded)
   ]);
-  if(!await one(env,'SELECT token FROM sessions WHERE token=?',await hash(token)))fail(409,'계정 정보가 변경됐습니다. 다시 로그인해주세요.');
+  if(!await one(env,'SELECT token FROM sessions WHERE token=?',await hash(token)))fail(409,'계정 정보가 변경됐습니다. 다시 로그인해 주세요.');
   return json({ok:true},200,{'set-cookie':cookie('aifect_session',token,86400*30,secure)});
  }
  if(['/api/auth/register','/api/auth/login'].includes(path)&&req.method==='POST'){
   const body=await req.json(),email=str(body.email,254).toLowerCase(),password=str(body.password,128);
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<12)fail(400,'이메일과 12자 이상의 비밀번호를 입력해주세요.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<12)fail(400,'이메일과 12자 이상의 비밀번호를 입력해 주세요.');
   await rate(env,'auth-email:'+await hash(email),12,900);
   let u=await one(env,"SELECT * FROM users WHERE email=? AND provider='email'",email);
   if(path.endsWith('/register')){
-   if(u)fail(409,'이미 가입된 이메일입니다. 로그인해주세요.');
+   if(u)fail(409,'이미 가입된 이메일입니다. 로그인해 주세요.');
    const salt=id(),name=nickname(body.name).name,uid=id();
    await nicknameBatch(env,uid,name,[query(env,'INSERT INTO users(id,email,name,password,provider,subject,created,signup_source) VALUES(?,?,?,?,?,?,?,?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,now(),sourceFromRequest(req))]);
    u={id:uid,email,name,provider:'email'};
@@ -143,7 +144,7 @@ export async function authRoute(req,env,path,user){
  }
  const params=req.method==='POST'?new URLSearchParams(await req.text()):url.searchParams;
  const state=params.get('state')||'',code=params.get('code');
- if(!state||cookies(req).aifect_oauth!==state||!code)fail(400,'로그인이 취소되었거나 만료됐습니다. 다시 시도해주세요.');
+ if(!state||cookies(req).aifect_oauth!==state||!code)fail(400,'로그인이 취소되었거나 만료됐습니다. 다시 시도해 주세요.');
  const st=await query(env,'DELETE FROM oauth_states WHERE state=? AND provider=? AND expires>? RETURNING *',await hash(state),p,now()).first();
  if(!st)fail(400,'로그인 요청이 만료됐습니다.');
  const tokenURL={google:'https://oauth2.googleapis.com/token',kakao:'https://kauth.kakao.com/oauth/token',apple:'https://appleid.apple.com/auth/token'}[p];

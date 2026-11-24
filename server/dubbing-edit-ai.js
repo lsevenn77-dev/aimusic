@@ -10,10 +10,10 @@ const directives={
 };
 export function dubbingEditInput(raw){
  if(!raw)return null;
- if(!Object.hasOwn(directives,raw.mode)||!Array.isArray(raw.lines)||!raw.lines.length||raw.lines.length>(['scene','flow'].includes(raw.mode)?120:1))fail(400,'AI가 수정할 대사를 선택해주세요.');
+ if(!Object.hasOwn(directives,raw.mode)||!Array.isArray(raw.lines)||!raw.lines.length||raw.lines.length>(['scene','flow'].includes(raw.mode)?120:1))fail(400,'AI가 수정할 대사를 선택해 주세요.');
  const ids=new Set();
  const lines=raw.lines.map(l=>{
-  if(!l||typeof l.id!=='string'||!(/^[\w-]{1,64}$/.test(l.id))||ids.has(l.id)||typeof l.text!=='string'||!l.text.trim()||l.text.length>700||typeof l.speaker!=='string'||l.speaker.length>40)fail(400,'수정할 대사와 배역을 확인해주세요.');
+  if(!l||typeof l.id!=='string'||!(/^[\w-]{1,64}$/.test(l.id))||ids.has(l.id)||typeof l.text!=='string'||!l.text.trim()||l.text.length>700||typeof l.speaker!=='string'||l.speaker.length>40)fail(400,'수정할 대사와 배역을 확인해 주세요.');
   ids.add(l.id);return {id:l.id,speaker:l.speaker,text:l.text};
  });
  return {mode:raw.mode,scene:String(raw.scene||'').slice(0,80),description:String(raw.description||'').slice(0,500),lines};
@@ -27,9 +27,9 @@ export function dubbingEditPrompt(edit){
  };
 }
 export function readDubbingEdit(raw,edit){
- if(!raw||Object.keys(raw).length!==1||!Array.isArray(raw.lines)||raw.lines.length!==edit.lines.length)throw Error('수정할 대사 수가 달라요.');
+ if(!raw||Object.keys(raw).length!==1||!Array.isArray(raw.lines)||raw.lines.length!==edit.lines.length)throw Error('수정할 대사 수가 다릅니다.');
  return raw.lines.map((line,i)=>{
-  if(!line||Object.keys(line).length!==2||line.id!==edit.lines[i].id||typeof line.text!=='string'||!line.text.trim()||line.text.length>700)throw Error('수정할 대사를 확인해주세요.');
+  if(!line||Object.keys(line).length!==2||line.id!==edit.lines[i].id||typeof line.text!=='string'||!line.text.trim()||line.text.length>700)throw Error('수정할 대사를 확인해 주세요.');
   return {id:line.id,text:line.text.trim()};
  });
 }

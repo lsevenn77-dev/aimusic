@@ -68,8 +68,8 @@ function peakNear(input,predicted,radius){
  return best;
 }
 export function correctVocalPitch(input,rate,level,onProgress=()=>{}){
- if(!(input instanceof Float32Array)||!Number.isFinite(rate)||rate<8000||rate>96000||input.length>rate*600)throw new Error('음정 보정은 10분 이하의 녹음에서 사용할 수 있어요.');
- if(!input.every(Number.isFinite))throw new Error('녹음 데이터를 확인하지 못했어요.');
+ if(!(input instanceof Float32Array)||!Number.isFinite(rate)||rate<8000||rate>96000||input.length>rate*600)throw new Error('음정 보정은 10분 이하의 녹음에서 사용할 수 있습니다.');
+ if(!input.every(Number.isFinite))throw new Error('녹음 데이터를 확인하지 못했습니다.');
  level=correctionLevel(level);const output=input.slice();
  if(!level||input.length<rate*.15){onProgress(100);return {samples:output,correctedSeconds:0};}
  const frames=analyzeVocalPitch(input,rate,onProgress),curve=correctionCurve(frames,level);

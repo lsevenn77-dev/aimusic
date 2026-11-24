@@ -16,7 +16,7 @@ test('My gallery follows profile identity and precedes music; visitor has no mut
  assert.match(own,/profile-gallery-photos/);assert.match(own,/href="#profile-gallery\/person"/);
  assert.doesNotMatch(own,/data-profile-photo-(add|delete)/);assert.match(own,/data-gallery-photo="\/media\/profile-gallery\/p\?v=1"/);
  c.me={id:'visitor'};const visitor=c.profileGalleryHTML(d,'person');assert.match(visitor,/profile-gallery-photo/);assert.doesNotMatch(visitor,/data-profile-photo-(add|delete)/);
- assert.match(c.profileGalleryHTML({...d,gallery:[]},'person'),/등록된 사진이 없어요/);
+ assert.match(c.profileGalleryHTML({...d,gallery:[]},'person'),/등록된 사진이 없습니다/);
  const view=read('views.js').split('function personProfileHTML')[1].split('function giftsPanelHTML')[0];
  assert.ok(view.indexOf('person-profile social-profile')<view.indexOf('profileGalleryHTML(d,id)'));
  assert.ok(view.indexOf('profileGalleryHTML(d,id)')<view.indexOf('profile-page-layout'));
@@ -32,7 +32,7 @@ test('singing discovery distinguishes own open duet and preserves actual song ID
  const c=context(),track={id:'duet',original_id:'original',user_id:'owner',producer:'Singer',title:'Song'};
  assert.match(c.singingDiscoverHTML([track]),/href="#song\/duet"/);
  c.me=null;assert.match(c.singingDiscoverHTML([track]),/href="#sing\/original\?duet=duet"/);
- assert.match(c.singingDiscoverHTML([]),/아직 참여를 기다리는 듀엣이 없어요/);
+ assert.match(c.singingDiscoverHTML([]),/아직 참여를 기다리는 듀엣이 없습니다/);
 });
 test('the recording redesign keeps controller hooks exactly once and mode choices in its header',()=>{
  const c=context();c.time=String;c.liked=()=>false;c.preferredLyricSize=()=> 'normal';

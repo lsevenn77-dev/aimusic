@@ -43,6 +43,6 @@ test('search, genre and sorting preserve source data and the correct playback ID
 test('card text is escaped and empty filters offer a reset',()=>{
  const {c}=setup(),html=c.singingCollectionCards([{...duet,title:'<script>x</script>',producer:'" onload="bad',genre:'<img>'}],true);
  assert.doesNotMatch(html,/<script>|<img>|onload="bad/);assert.match(html,/&lt;script&gt;/);
- assert.match(c.singingCollectionHTML([],'duets'),/아직 참여를 기다리는 반곡이 없어요/);
+ assert.match(c.singingCollectionHTML([],'duets'),/아직 참여를 기다리는 반곡이 없습니다/);
  assert.match(c.singingCollectionEmpty(true,true),/data-sing-filter-reset/);
 });

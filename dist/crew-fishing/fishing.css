@@ -67,7 +67,7 @@ main{padding:24px 0 52px}button,.button{font:inherit;font-weight:650;color:inher
  .stage .stagefoot>div{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1fr)}
  .stage .stagefoot>div::before,.stage #pullfeedback{grid-area:1 / 1}
  /* Measure the longest reel prompt at the current font size so the gauge stays still. */
- .stage .stagefoot>div::before{content:"줄이 느슨해졌어요. 다시 당겨보세요.";visibility:hidden;font-size:.9rem;line-height:1.6}
+ .stage .stagefoot>div::before{content:"줄이 느슨해졌습니다. 다시 당겨 보세요.";visibility:hidden;font-size:.9rem;line-height:1.6}
  .stage .stagefoot small{grid-row:2}
 
 

@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,run,query,now,id,fail,json} from './db.js';
 import {MAX_AUDIO,objectResponse,originalKey} from './storage.js';
 import {isPremium} from './membership.js';
@@ -50,5 +51,5 @@ export async function premiumAudioRoute(req,env,path){
  if(action==='fail'&&req.method==='POST'){
   await run(env,"UPDATE premium_audio_jobs SET state=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,lease_until=0,lease_token=NULL,updated=? WHERE track_id=? AND lease_token=? AND state='processing'",now(),job.track_id,job.lease_token);return json({ok:true});
  }
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }

@@ -325,11 +325,11 @@ function sparks(x,y,c,text){
 return {async ready(outfitId=DEFAULT_OUTFIT){
  await SHEET.decode();
  const selected=JUMP_OUTFITS.find(item=>item.id===outfitId);
- if(!selected)throw Error('의상 정보를 다시 확인해주세요.');
+ if(!selected)throw Error('의상 정보를 다시 확인해 주세요.');
  if(!selected.sprite){outfitSheet=null;outfit=selected;return;}
  let image=outfitImages.get(selected.id);
  if(!image){image=new Image();image.src=selected.sprite;outfitImages.set(selected.id,image);}
- try{await image.decode();}catch{outfitImages.delete(selected.id);throw Error('의상 이미지를 불러오지 못했어요. 다시 시작해주세요.');}
+ try{await image.decode();}catch{outfitImages.delete(selected.id);throw Error('의상 이미지를 불러오지 못했습니다. 다시 시작해 주세요.');}
  outfit=selected;outfitSheet=image;
 },draw(s){
  if(!s){G=null;bgT=0;prev=null;parts=[];draw();return}

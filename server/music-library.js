@@ -1,3 +1,4 @@
+import {publicPlaylistSQL} from './playlist-visibility.js';
 import {boxSummaries} from './my-boxes.js';
 import {rows,one,json,fail} from './db.js';
 import {requireUser} from './auth.js';
@@ -12,7 +13,7 @@ export async function musicLibraryRoute(req,env,path,user){
  const p=new URL(req.url).searchParams,section=p.get('section')||'saved';
  if(!['saved','likes','history','playlists','myboxes'].includes(section))fail(400,'보관함 분류를 확인해주세요.');
  const q=(p.get('q')||'').trim().slice(0,100),sort=['recent','oldest','title','custom','played'].includes(p.get('sort'))?p.get('sort'):'recent';
- const offset=Math.max(0,Math.min(100000,Math.floor(Number(p.get('offset'))||0))),limit=Math.max(1,Math.min(50,Math.floor(Number(p.get('limit'))||12)));
+ const offset=Math.max(0,Math.floor(Number(p.get('offset'))||0)),limit=Math.max(1,Math.min(50,Math.floor(Number(p.get('limit'))||12)));
  const blocked=env.AIFECT_BLOCKED||[],scope=VISIBLE()+(blocked.length?' AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''),uid=user.id;
  const sources={likes:{condition:'EXISTS(SELECT 1 FROM likes l WHERE l.track_id=t.id AND l.user_id=?)',date:'(SELECT created FROM likes l WHERE l.track_id=t.id AND l.user_id=?)'},history:{condition:'EXISTS(SELECT 1 FROM listens l WHERE l.track_id=t.id AND l.user_id=?)',date:'(SELECT MAX(started) FROM listens l WHERE l.track_id=t.id AND l.user_id=?)'}};
  const counts={saved:null};
@@ -27,11 +28,11 @@ export async function musicLibraryRoute(req,env,path,user){
  if(section==='myboxes')return json({...response,...await boxSummaries(env,uid,p)});
  if(section==='playlists'){
   const filter=p.get('filter')||'all';
-  const extra=(filter==='mine'?' AND p.user_id=?':filter==='saved'?' AND p.user_id!=?':'')+(q?' AND (p.user_id=? OR p.is_public=1)'+(blocked.length?' AND p.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':'')+' AND (instr(lower(p.name),lower(?))>0 OR instr(lower('+publicNameSQL()+'),lower(?))>0)':''),args=[...(['mine','saved'].includes(filter)?[uid]:[]),...(q?[uid,...blocked,q,q]:[])];
+  const extra=(filter==='mine'?' AND p.user_id=?':filter==='saved'?' AND p.user_id!=?':'')+(q?` AND (p.user_id=? OR ${publicPlaylistSQL()})`+(blocked.length?' AND p.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':'')+' AND (instr(lower(p.name),lower(?))>0 OR instr(lower('+publicNameSQL()+'),lower(?))>0)':''),args=[...(['mine','saved'].includes(filter)?[uid]:[]),...(q?[uid,...blocked,q,q]:[])];
   response.total=await collectionCount(extra,args);
-  const order=sort==='title'?"CASE WHEN p.user_id='"+uid.replaceAll("'","''")+"' OR p.is_public=1 THEN p.name ELSE '' END COLLATE NOCASE,p.id":sort==='oldest'?'p.created,p.id':sort==='custom'?'position,p.created DESC,p.id':sort==='played'?"COALESCE((SELECT played FROM playlist_recents r WHERE r.playlist_id=p.id AND r.user_id='"+uid.replaceAll("'","''")+"'),0) DESC,p.id":'p.updated DESC,p.created DESC,p.id';
+  const order=sort==='title'?"CASE WHEN p.user_id='"+uid.replaceAll("'","''")+"' OR "+publicPlaylistSQL()+" THEN p.name ELSE '' END COLLATE NOCASE,p.id":sort==='oldest'?'p.created,p.id':sort==='custom'?'position,p.created DESC,p.id':sort==='played'?"COALESCE((SELECT played FROM playlist_recents r WHERE r.playlist_id=p.id AND r.user_id='"+uid.replaceAll("'","''")+"'),0) DESC,p.id":'p.updated DESC,p.created DESC,p.id';
   response.items=await playlistSummaries(env,uid,collectionWhere+extra,[...collectionArgs,...args],order,`${limit+1} OFFSET ${offset}`,[],{includeUnavailable:true});
-  if(p.get('contains')&&response.items.length){const contained=new Set((await rows(env,'SELECT playlist_id FROM playlist_tracks WHERE track_id=? AND playlist_id IN (SELECT value FROM json_each(?))',p.get('contains'),JSON.stringify(response.items.filter(x=>x.user_id===uid).map(x=>x.id)))).map(x=>x.playlist_id));response.items=response.items.map(x=>({...x,contains:contained.has(x.id)}));}
+  if(p.get('contains')&&response.items.length){const contained=new Set((await rows(env,'SELECT playlist_id FROM playlist_items WHERE content_id=? AND kind=COALESCE(?,(SELECT kind FROM tracks WHERE id=?)) AND playlist_id IN (SELECT value FROM json_each(?))',p.get('contains'),p.get('kind'),p.get('contains'),JSON.stringify(response.items.filter(x=>x.user_id===uid).map(x=>x.id)))).map(x=>x.playlist_id));response.items=response.items.map(x=>({...x,contains:contained.has(x.id)}));}
  }else{
   const s=sources[section],search=q?' AND (instr(lower(t.title),lower(?))>0 OR instr(lower(a.name),lower(?))>0 OR instr(lower('+producerNameSQL()+'),lower(?))>0)':'',searchArgs=q?Array(3).fill(q):[];
   response.total=(await one(env,`SELECT count(*) n FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id WHERE ${scope} AND ${s.condition}${search}`,...blocked,uid,...searchArgs)).n;

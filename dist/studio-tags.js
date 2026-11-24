@@ -33,7 +33,7 @@ function songTagFieldHTML(value=''){
   <div class="classification-options song-tag-selected" data-song-tag-selected aria-label="선택한 태그" hidden></div>
   <div class="song-tag-recommendations">
    <div class="song-tag-heading"><strong>추천 태그</strong><button type="button" class="small-button song-tag-refresh" data-song-tag-refresh disabled>추천 새로 받기</button></div>
-   <p class="field-help" id="${id}-help">제목이나 가사를 입력하면 어울리는 태그를 추천해요.</p>
+   <p class="field-help" id="${id}-help">제목이나 가사를 입력하면 어울리는 태그를 추천합니다.</p>
    <div class="classification-options song-tag-suggestions" data-song-tag-suggestions aria-label="추천 태그" hidden></div>
    <p class="field-help song-tag-status" id="${id}-status" data-song-tag-status role="status" aria-live="polite"></p>
   </div>
@@ -82,7 +82,7 @@ function bindSongTagSuggestions(root=document){
    clearTimeout(state.timer);state.timer=null;cancelRequest();
    state.payload=payload;state.key=key;state.tags=[];state.tagMessage='';
    const hasText=!!(payload.title||payload.lyrics);
-   state.phase=hasText?'waiting':'empty';state.message=hasText?'입력을 마치면 추천 태그를 준비해요.':'';
+   state.phase=hasText?'waiting':'empty';state.message=hasText?'입력을 마치면 추천 태그를 준비합니다.':'';
    render();
    if(hasText&&schedule&&!state.composing)state.timer=setTimeout(requestSuggestions,songTagSuggestionDelay);
    return true;
@@ -94,11 +94,11 @@ function bindSongTagSuggestions(root=document){
    if(state.composing||!state.payload||!(state.payload.title||state.payload.lyrics)||state.phase==='loading')return;
    cancelRequest();
    const serial=state.serial,key=state.key,payload={...state.payload},controller=new AbortController();
-   state.phase='loading';state.tags=[];state.message='제목과 가사에 어울리는 태그를 찾고 있어요.';state.tagMessage='';render();
+   state.phase='loading';state.tags=[];state.message='제목과 가사에 어울리는 태그를 찾고 있습니다.';state.tagMessage='';render();
    const current=()=>valid()&&state.serial===serial&&!state.composing;
    state.request={controller,timeout:setTimeout(()=>{
     if(!current())return;
-    cancelRequest();state.phase='error';state.message='추천을 불러오지 못했어요. 직접 입력하거나 다시 시도해 주세요.';render();
+    cancelRequest();state.phase='error';state.message='추천을 불러오지 못했습니다. 직접 입력하거나 다시 시도해 주세요.';render();
    },songTagSuggestionTimeout)};
    try{
     const data=await api('/api/studio/tag-suggestions','POST',payload,{signal:controller.signal});
@@ -109,17 +109,17 @@ function bindSongTagSuggestions(root=document){
     state.tags=data.tags.filter(tag=>typeof tag==='string').map(songTagText).filter(tag=>{
      const normalized=songTagKey(tag);if(!normalized||tag.length>300||tag.includes(',')||seen.has(normalized))return false;seen.add(normalized);return true;
     }).slice(0,8);
-    state.phase='ready';state.message=state.tags.length?'마음에 드는 태그를 눌러 추가하세요.':'어울리는 태그를 찾지 못했어요. 직접 입력할 수 있어요.';
+    state.phase='ready';state.message=state.tags.length?'마음에 드는 태그를 눌러 추가하세요.':'어울리는 태그를 찾지 못했습니다. 직접 입력할 수 있습니다.';
    }catch(error){
     if(!current()){if(!valid())destroy();return;}
-    state.phase='error';state.message='추천을 불러오지 못했어요. 직접 입력하거나 다시 시도해 주세요.';
+    state.phase='error';state.message='추천을 불러오지 못했습니다. 직접 입력하거나 다시 시도해 주세요.';
    }finally{
     if(valid()&&state.serial===serial){clearTimeout(state.request?.timeout);state.request=null;render();}
    }
   }
   function commitTags(tags){
    const value=tags.join(', '),max=input.maxLength>0?input.maxLength:300;
-   if(value.length>max){state.tagMessage=`태그는 쉼표를 포함해 ${max}자까지 입력할 수 있어요.`;render();return false;}
+   if(value.length>max){state.tagMessage=`태그는 쉼표를 포함해 ${max}자까지 입력할 수 있습니다.`;render();return false;}
    input.value=value;state.tagsDirty=true;state.tagMessage='';
    input.dispatchEvent(new Event('input',{bubbles:true}));render();return true;
   }

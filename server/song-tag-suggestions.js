@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {requireUser} from './auth.js';
 import {fail,json,rate} from './db.js';
 import {CLASSIFICATION_MODEL} from './music-classification.js';
@@ -47,24 +48,24 @@ export async function suggestSongTags(env,input,{fetcher=fetch}={}){
 
 async function requestInput(req){
  const stated=Number(req.headers.get('content-length'));
- if(Number.isFinite(stated)&&stated>maxRequestBytes)fail(413,'제목과 가사 길이를 확인해주세요.');
+ if(Number.isFinite(stated)&&stated>maxRequestBytes)fail(413,'제목과 가사 길이를 확인해 주세요.');
  const reader=req.body?.getReader();
- if(!reader)fail(400,'제목이나 가사를 입력해주세요.');
+ if(!reader)fail(400,'제목이나 가사를 입력해 주세요.');
  const decoder=new TextDecoder();let size=0,body='';
  try{
   while(true){
    const {value,done}=await reader.read();if(done)break;
    size+=value.byteLength;
-   if(size>maxRequestBytes){await reader.cancel();fail(413,'제목과 가사 길이를 확인해주세요.');}
+   if(size>maxRequestBytes){await reader.cancel();fail(413,'제목과 가사 길이를 확인해 주세요.');}
    body+=decoder.decode(value,{stream:true});
   }
   body+=decoder.decode();
  }finally{reader.releaseLock();}
  let data;
- try{data=JSON.parse(body);}catch{fail(400,'제목과 가사를 확인해주세요.');}
- if(!data||typeof data!=='object'||Array.isArray(data))fail(400,'제목과 가사를 확인해주세요.');
+ try{data=JSON.parse(body);}catch{fail(400,'제목과 가사를 확인해 주세요.');}
+ if(!data||typeof data!=='object'||Array.isArray(data))fail(400,'제목과 가사를 확인해 주세요.');
  for(const [key,max] of [['title',SONG_TAG_TITLE_LIMIT],['lyrics',SONG_TAG_LYRICS_LIMIT]]){
-  if(data[key]!==undefined&&(typeof data[key]!=='string'||data[key].length>max))fail(400,'제목은 120자, 가사는 20,000자 이내로 입력해주세요.');
+  if(data[key]!==undefined&&(typeof data[key]!=='string'||data[key].length>max))fail(400,'제목은 120자, 가사는 20,000자 이내로 입력해 주세요.');
  }
  return songTagInput(data);
 }
@@ -72,7 +73,7 @@ async function requestInput(req){
 export async function songTagSuggestionsRoute(req,env,path,user){
  if(path!==pathName)return null;
  requireUser(user);
- if(req.method!=='POST')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
  const data=await requestInput(req);
  if(!data.title&&!data.lyrics)return json({tags:[],source:'empty'});
  await rate(env,'song-tag-suggestions:'+user.id,30,3600);

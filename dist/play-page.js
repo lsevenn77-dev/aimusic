@@ -183,7 +183,7 @@ function bindPlayDuetChildren(root){
    const d=await api('/api/tracks/'+encodeURIComponent(button.dataset.original)+'/covers?view=children&parent='+encodeURIComponent(parent)+'&offset='+(button.dataset.offset||0),'GET',undefined,{fresh:true});
    if(!root.isConnected||!target.isConnected)return;
    remember(d.covers);const html=playDuetChildrenHTML(d,parent,button.dataset.original);
-   if(button===toggle){target.innerHTML=html||'<p class="empty-note">아직 완성된 참여작이 없어요.</p>';target.dataset.loaded='true';setSongCoverExpanded(button,target,true);}
+   if(button===toggle){target.innerHTML=html||'<p class="empty-note">아직 완성된 참여작이 없습니다.</p>';target.dataset.loaded='true';setSongCoverExpanded(button,target,true);}
    else {button.insertAdjacentHTML('beforebegin',html);button.remove();}
    paintInteractions();bindSongCoverPlayback();
   }catch(error){toast(error.message);}
@@ -199,15 +199,15 @@ function playToolbar(s){
  return s.mode==='browse'?`<div class="play-discovery-tools">${search}<div class="play-type-filter"><select data-dropdown="sm" id="play-work-type" aria-label="작품 유형">${playTypes.map(([k,l])=>`<option value="${k}" ${s.type===k?'selected':''}>${l}</option>`).join('')}</select></div></div>`:search;
 }
 function playDraftRows(drafts){
- return `<section class="play-drafts" aria-label="저장한 녹음"><header class="play-draft-toolbar"><h2>저장한 녹음 <span>${drafts.length}</span></h2><button class="small-button danger-button" data-delete-all-drafts ${drafts.length?'':'disabled'}>${icon('trash')} 전체 삭제</button></header><p class="play-draft-note">이 계정으로 현재 기기·브라우저에 저장한 녹음이에요. 다른 기기에는 표시되지 않아요.<br>공개한 커버곡은 초안을 삭제해도 유지돼요.</p>`+(drafts.length?'<div class="play-draft-list">'+drafts.map(d=>{
+ return `<section class="play-drafts" aria-label="저장한 녹음"><header class="play-draft-toolbar"><h2>저장한 녹음 <span>${drafts.length}</span></h2><button class="small-button danger-button" data-delete-all-drafts ${drafts.length?'':'disabled'}>${icon('trash')} 전체 삭제</button></header><p class="play-draft-note">이 계정으로 현재 기기·브라우저에 저장한 녹음입니다. 다른 기기에는 표시되지 않습니다.<br>공개한 커버곡은 초안을 삭제해도 유지됩니다.</p>`+(drafts.length?'<div class="play-draft-list">'+drafts.map(d=>{
   const query=d.parent?'duet='+encodeURIComponent(d.parent):'mode='+d.mode+'&part='+encodeURIComponent(d.part),title=d.title||'임시 저장한 녹음';
   return `<article data-list-row class="play-draft-row" data-draft-key="${esc(d.draftKey)}"><span class="play-draft-art" aria-hidden="true">${icon('mic')}</span><div class="play-draft-copy"><h3 title="${esc(title)}">${esc(title)}</h3><p><span>${esc(d.artist||'나의 목소리')}</span><span>${d.mode==='duet'?'DUET':'SOLO'} · ${time(d.duration)}</span><span>${esc(new Date(d.updated).toLocaleDateString('ko-KR'))} 저장</span></p></div><a class="list-action small-button play-draft-resume" href="#sing/${encodeURIComponent(d.id)}?${esc(query)}&draft=1">${icon('edit')} 이어하기</a><button class="list-action icon-button play-draft-delete" data-delete-draft="${esc(d.draftKey)}" data-draft-title="${esc(title)}" aria-label="${esc(title)} 삭제">${icon('trash')}</button></article>`;
- }).join('')+'</div>':`<div class="play-empty" role="status"><h3>첫 목소리를 기다리고 있어요</h3><p>녹음 후 임시 저장하면 여기에 모여요.<br>마음에 들 때까지 편집하고, 준비되면 공개하세요.</p><a class="small-button" href="#karaoke">부를 곡 찾기 ${icon('arrow')}</a></div>`)+'</section>';
+ }).join('')+'</div>':`<div class="play-empty" role="status"><h3>첫 목소리를 기다리고 있습니다</h3><p>녹음 후 임시 저장하면 여기에 모입니다.<br>마음에 들 때까지 편집하고, 준비되면 공개하세요.</p><a class="small-button" href="#karaoke">부를 곡 찾기 ${icon('arrow')}</a></div>`)+'</section>';
 }
 function playResults(view){
  const s=view.play,items=view.items;
  if(view.discovery)return dubDiscoveryHTML(view);
- if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다려요':'아직 표시할 작품이 없어요',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모여요.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모여요.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
+ if(!items.length)return playEmpty(s.tab==='following'?'팔로잉한 창작자의 완성작을 기다립니다':'아직 표시할 작품이 없습니다',s.mode==='browse'?'공개 완료된 솔로·듀엣·더빙이 여기에 모입니다.':s.mode==='dubbing'?'공개된 극본을 둘러보거나 내 이야기를 시작해 보세요.':'MR이 준비된 곡과 참여할 수 있는 듀엣이 여기에 모입니다.',s.mode==='dubbing'?'#dubbing/new':undefined,'더빙 만들기');
  if(s.mode==='dubbing')return s.tab==='mine'?playProjectRows(items,s.tab):dubbingCastingHTML(view);
  if(s.mode==='song')return `<div class="play-song-unified">${playSongRows(items,s.tab)}</div>`;
  return `<div class="home-music-grid play-grid">${items.map(t=>t.type==='dubbing'?playDubbingCard(t):playMusicCard(t,s.mode==='song'?(s.tab==='duets'?'duet':'song'):null)).join('')}</div>`;
@@ -233,10 +233,10 @@ function cachePlayView(view){
 }
 function playListHTML(view){
  if(view.pending)return '<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';
- if(view.error)return `<div class="play-empty" role="alert"><h2>목록을 불러오지 못했어요</h2><p>${esc(view.error)}</p><button class="small-button" data-play-retry>다시 불러오기</button></div>`;
+ if(view.error)return `<div class="play-empty" role="alert"><h2>목록을 불러오지 못했습니다</h2><p>${esc(view.error)}</p><button class="small-button" data-play-retry>다시 불러오기</button></div>`;
  if(view.gated)return gate();
  if(view.play.mode==='song'&&view.play.tab==='drafts')return playDraftRows(view.drafts||[]);
- return (view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+playResults(view);
+ return (view.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중입니다.</p>':'')+playResults(view);
 }
 function playToolsHidden(view){return view.gated||view.play.mode==='song'&&view.play.tab==='drafts';}
 function playExtraHTML(view){return !view.gated&&view.play.mode==='dubbing'&&view.play.tab==='mine'?castingMineTabs(view.play.kind):'';}
@@ -332,7 +332,7 @@ async function refreshPlayRoute(raw,ticket,readApi=api,visible){
  const root=paintPlayRoute(pending,raw),mounted=()=>ticket===renderId&&root.isConnected&&root._playView===pending,current=()=>mounted()&&account===playCacheAccount();
  visible?.();
  let timedOut=false;
- const timer=setTimeout(()=>{if(current()){timedOut=true;paintPlayRoute({...pending,pending:false,error:'연결이 지연되고 있어요. 다시 시도해주세요.'},raw);}},20000);
+ const timer=setTimeout(()=>{if(current()){timedOut=true;paintPlayRoute({...pending,pending:false,error:'연결이 지연되고 있습니다. 다시 시도해 주세요.'},raw);}},20000);
  try{
   // The first shell is visible while boot resolves the account. A quick tab
   // click must not settle a guest gate or read before that identity is known.
@@ -404,7 +404,7 @@ function bindPlay(view){
    if(ticket!==generation||!current()||revision!==playCacheRevision())return;
    const items=d.tracks||d.works||d.projects||[];view.items=append?[...view.items,...items]:items;view.nextOffset=d.nextOffset??null;view.revision=revision;
    paint();
-  }catch(e){if(e.name!=='AbortError'&&ticket===generation&&current()){let note=root.querySelector('.play-load-error');if(!note){note=document.createElement('p');note.className='play-load-error';note.setAttribute('role','alert');results.before(note);}note.textContent=e.message+' · 다시 검색하거나 더 보기를 눌러주세요.';}}
+  }catch(e){if(e.name!=='AbortError'&&ticket===generation&&current()){let note=root.querySelector('.play-load-error');if(!note){note=document.createElement('p');note.className='play-load-error';note.setAttribute('role','alert');results.before(note);}note.textContent=e.message+' · 다시 검색하거나 더 보기를 눌러 주세요.';}}
   finally{if(ticket===generation&&current()){more.disabled=false;results.removeAttribute('aria-busy');}}
  };
  form.onsubmit=e=>{e.preventDefault();view.query=form.querySelector('input').value.trim();root.querySelector('.play-load-error')?.remove();void load();};

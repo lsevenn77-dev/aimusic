@@ -12,6 +12,6 @@ export function inputElapsed(cast,elapsed,receivedTime){
   const current=receivedTime-cast.start;
   if(elapsed===undefined)return current; // Existing open pages remain compatible.
   if(!Number.isFinite(elapsed)||elapsed<0||elapsed>current+250||elapsed<current-2000)
-    throw new RangeError('연결이 지연되어 이번 입력을 판정하지 않았어요. 막대에 맞춰 다시 눌러주세요.');
+    throw new RangeError('연결이 지연되어 이번 입력을 판정하지 않았습니다. 막대에 맞춰 다시 눌러 주세요.');
   return elapsed;
 }

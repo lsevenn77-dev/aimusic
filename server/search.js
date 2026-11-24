@@ -1,6 +1,7 @@
 import {artistBlockScope} from './block-policy.js';
 import {validGenre,MOODS,genreFilterSQL} from '../shared/genres.js';
 import {VISIBLE,trackList} from './catalog.js';
+import {publicPlaylistSQL} from './playlist-visibility.js';
 import {playlistSummaries} from './discovery.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {publicNameSQL} from './identity.js';
@@ -12,8 +13,8 @@ import {searchRank} from './search-rank.js';
 // Display labels never become text predicates for taxonomy searches.
 export async function unifiedSearch(env,user,params){
  const q=(params.get('q')||'').trim().slice(0,100),genre=params.get('genre')||'',mood=params.get('mood')||'';
- if(genre&&!validGenre(genre))fail(400,'장르를 다시 선택해주세요.');
- if(mood&&!MOODS.some(m=>m.id===mood))fail(400,'분위기를 다시 선택해주세요.');
+ if(genre&&!validGenre(genre))fail(400,'장르를 다시 선택해 주세요.');
+ if(mood&&!MOODS.some(m=>m.id===mood))fail(400,'분위기를 다시 선택해 주세요.');
  if(!q&&!genre&&!mood)return json({tracks:[],artists:[],producers:[],playlists:[],recommended:[],counts:{tracks:0,artists:0,producers:0,playlists:0},has_more:false});
  const offset=Math.max(0,Math.min(100000,Math.trunc(Number(params.get('offset')))||0));
  const classified=!!(genre||mood),args=[];
@@ -32,7 +33,7 @@ export async function unifiedSearch(env,user,params){
  const artistBase=`${namedArtistSQL('artist.name')}${artistBlock.sql} AND EXISTS(SELECT 1 FROM tracks t WHERE t.artist_id=artist.id AND ${VISIBLE()} AND t.kind='original')`;
  const producerFrom='FROM users u JOIN public_profile_ids m ON m.user_id=u.id LEFT JOIN producers p ON p.user_id=u.id';
  const producerBase=`u.provider!='deleted'${blocked.length?' AND u.id NOT IN ('+blocked.map(()=>'?').join(',')+')':''}`;
- const playlistBase=`p.is_public=1 AND ${activePlaylistSQL()}${blocked.length?' AND p.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''}`;
+ const playlistBase=`${publicPlaylistSQL()} AND ${activePlaylistSQL()}${blocked.length?' AND p.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''}`;
  const [artistLimit,producerLimit,playlistLimit]=q&&!classified&&!song?.exact?await Promise.all([
   one(env,`SELECT count(*) n FROM artists artist WHERE ${artistBase} AND ${artistRank.sql}<6`,...artistBlock.args,artistRank.plan),
   one(env,`SELECT count(*) n ${producerFrom} WHERE ${producerBase} AND ${producerRank.sql}<6`,...blocked,producerRank.plan),

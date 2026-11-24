@@ -2,7 +2,7 @@
 const welcomeGuideHrefs=new Set(['#karaoke','#live?mode=karaoke','#voice?mode=talk','#community/crews','#karaoke/duets','#karaoke/dubbing?tab=join','#artists','#upload','#membership']);
 function welcomeGuideHTML(d){
  const g=d.guide;
- if(!g||typeof g.greeting!=='string'||!Array.isArray(g.sections)||!g.sections.length)throw new Error('이용 안내를 불러오지 못했어요. 다시 열어주세요.');
+ if(!g||typeof g.greeting!=='string'||!Array.isArray(g.sections)||!g.sections.length)throw new Error('이용 안내를 불러오지 못했습니다. 다시 열어 주세요.');
  const paragraphs=items=>(Array.isArray(items)?items:[]).filter(text=>typeof text==='string').map(text=>'<p>'+esc(text)+'</p>').join('');
  const sections=g.sections.map(s=>{
   const action=welcomeGuideHrefs.has(s.href)?'<a class="text-link welcome-guide-link" href="'+esc(s.href)+'">'+esc(s.label)+' <span aria-hidden="true">→</span></a>':'';
@@ -33,7 +33,7 @@ function bindWelcomeNotice(view,acknowledged=()=>{}){
    done=true;synchronize();
   }catch(error){
    if(!current())return;
-   if(status){status.querySelector('span').textContent='읽음 상태를 반영하지 못했어요. '+(timedOut?'연결 응답이 늦어지고 있어요. 다시 시도해주세요.':error.message);status.hidden=false;}
+   if(status){status.querySelector('span').textContent='읽음 상태를 반영하지 못했습니다. '+(timedOut?'연결 응답이 늦어지고 있습니다. 다시 시도해 주세요.':error.message);status.hidden=false;}
    const delay=[1000,3000,8000][retries++];
    if(delay!==undefined&&(!error.status||error.status===408||error.status===429||error.status>=500))retryTimer=setTimeout(()=>{retryTimer=null;void acknowledge();},delay);
   }finally{clearTimeout(deadline);pending=false;if(retry)retry.disabled=false;}
@@ -52,7 +52,7 @@ async function dmNoticeView(raw,readApi=api,knownInbox=null,layout=dmInboxHTML){
  const inbox=knownInbox||await readApi('/api/dm'),{notices}=dmOrderedConversations(inbox.conversations);
  rememberDmInbox(inbox);
  const back='<a class="chat-ui-icon chat-ui-plain dm-back" href="#dm" aria-label="대화 목록으로 돌아가기">'+icon('back')+'</a>';
- if(!notices.length)return {html:layout(inbox,'<header class="dm-thread-header">'+back+'<h1>공지</h1></header><div class="dm-empty"><p>아직 받은 공지가 없어요.</p></div>','notice'),inbox:true,refreshInbox:true,selectedConversation:'notice'};
+ if(!notices.length)return {html:layout(inbox,'<header class="dm-thread-header">'+back+'<h1>공지</h1></header><div class="dm-empty"><p>아직 받은 공지가 없습니다.</p></div>','notice'),inbox:true,refreshInbox:true,selectedConversation:'notice'};
  const requested=new URLSearchParams(raw.split('?')[1]||'').get('peer'),peer=notices.find(p=>p.id===requested)||notices[0];
  const channels=notices.length>1?'<label class="dm-notice-channel"><span class="sr-only">공지 선택</span><select data-notice-channel>'+notices.map(p=>'<option value="'+esc(p.id)+'"'+(p.id===peer.id?' selected':'')+'>'+esc(chatNickname(p))+'</option>').join('')+'</select></label>':'';
  if(peer.notice_type==='welcome'&&peer.read_only===true){
@@ -92,10 +92,10 @@ function bindDmFriendFinder(panel,addTarget){
      const route='dm/'+encodeURIComponent(person.id);addTarget(route);
      return '<li><a class="dm-finder-person" href="#'+esc(route)+'"><span class="artist-portrait profile-avatar">'+avatarImage({...person,name:person.nickname},'producer',false)+'</span><span class="dm-finder-identity"><strong>'+esc(person.nickname)+'</strong><small>'+esc(person.public_id)+'</small></span></a></li>';
     }).join('');
-    status.textContent=members.length?'검색 결과 '+members.length+'명':'검색 결과가 없어요.';
+    status.textContent=members.length?'검색 결과 '+members.length+'명':AifectMessages.searchEmpty;
    }catch(error){
     if(!current())return;
-    status.textContent='검색하지 못했어요. 다시 시도해주세요.';retry.hidden=false;
+    status.textContent='검색하지 못했습니다. 다시 시도해 주세요.';retry.hidden=false;
    }finally{if(current())results.removeAttribute('aria-busy');}
   },delay);
  }

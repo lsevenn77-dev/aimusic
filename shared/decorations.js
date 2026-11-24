@@ -55,7 +55,7 @@ export function roomThemeProduct(sku){
  return product?.kind==='TALKING_ROOM_THEME'?product:FREE_ROOM_THEMES.find(t=>t.sku===sku);
 }
 export function quoteDecoration(sku,period){
- if(!Object.hasOwn(DECORATIONS,sku)||!Object.hasOwn(PERIOD_LABELS,period))throw new RangeError('상품과 이용 기간을 확인해주세요.');
+ if(!Object.hasOwn(DECORATIONS,sku)||!Object.hasOwn(PERIOD_LABELS,period))throw new RangeError('상품과 이용 기간을 확인해 주세요.');
  return {sku,period,gold:DECORATIONS[sku].periodPrices[period],currency:'G'};
 }
 // Epoch seconds, matching the existing inventory. Month arithmetic is in KST.

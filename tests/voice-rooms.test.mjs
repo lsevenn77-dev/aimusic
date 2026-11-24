@@ -139,8 +139,8 @@ test('room gift entry uses the shared dialog and keeps delivery bound to current
  assert.deepEqual(requests,[{url:'/api/voice/rooms/test-room/gifts',body:{...payload,generation:'generation-1'}}]);
  response={error:'잔액이 부족해요.'};status=409;await assert.rejects(()=>roomGift.send(payload),{message:response.error,status:409});
  client.generation='generation-2';await assert.rejects(()=>roomGift.send(payload),/입장 정보/);client.generation='generation-1';
- client.state.members=[self,other];await assert.rejects(()=>roomGift.send(payload),/나갔어요/);
- await assert.rejects(()=>roomGift.send({...payload,profile_id:self.profile_id}),/나갔어요/);assert.equal(requests.length,2,'invalid room context must never reach the gift endpoint');
+ client.state.members=[self,other];await assert.rejects(()=>roomGift.send(payload),/나갔습니다/);
+ await assert.rejects(()=>roomGift.send({...payload,profile_id:self.profile_id}),/나갔습니다/);assert.equal(requests.length,2,'invalid room context must never reach the gift endpoint');
  await client.roomUIAction('gift');assert.equal(dialogs[1].id,other.profile_id,'a selected current member remains selected on reopening');
  client.state.members=[self];await client.roomUIAction('gift');assert.deepEqual(sheets,['voice-gift-sheet']);assert.equal(dialogs.length,2,'an empty room keeps the existing non-sendable state');
  client.joined=false;await assert.rejects(()=>roomGift.send({...payload,profile_id:other.profile_id}),/입장 정보/);assert.equal(requests.length,2);

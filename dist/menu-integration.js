@@ -62,6 +62,6 @@ async function integratedMenuView(base,param,raw,readApi=api){
  const data=await readApi('/api/play/works?'+new URLSearchParams({tab:'following',type,q:search,offset}),'GET',undefined,{fresh:true});
  const view={play:{mode:'browse',tab:'following',type},items:data.works,tracks:data.works.filter(t=>t.type!=='dubbing'),nextOffset:data.nextOffset,dubbingAvailable:data.dubbingAvailable};
  const types='<nav class="genre-chips play-types" aria-label="작품 유형">'+playTypes.map(([key,label])=>'<a class="genre-chip '+(type===key?'active':'')+'" href="'+esc(menuHref('community/following',{type:key,offset:null},raw))+'">'+label+'</a>').join('')+'</nav>';
- view.html=shell(types+playToolbar(view.play).replace('name="q"','name="q" value="'+esc(search)+'"')+(data.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중이에요.</p>':'')+'<div id="play-results" aria-live="polite">'+playResults(view)+'</div><button class="small-button play-more" id="play-more" '+(view.nextOffset===null?'hidden':'')+'>더 보기</button>');
+ view.html=shell(types+playToolbar(view.play).replace('name="q"','name="q" value="'+esc(search)+'"')+(data.dubbingAvailable===false?'<p class="field-help">더빙 목록은 현재 준비 중입니다.</p>':'')+'<div id="play-results" aria-live="polite">'+playResults(view)+'</div><button class="small-button play-more" id="play-more" '+(view.nextOffset===null?'hidden':'')+'>더 보기</button>');
  return view;
 }

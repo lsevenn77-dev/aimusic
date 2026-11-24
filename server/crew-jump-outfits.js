@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,json,fail,id,now,rate} from './db.js';
 import {allocateLots} from '../shared/gifts.js';
 import {decorationSpendableSQL} from './decorations.js';
@@ -30,13 +31,13 @@ const equipment=(env,uid,outfit)=>query(env,`INSERT INTO player_inventory(id,use
 async function buy(env,uid,outfit){
  const current=await inventory(env,uid);
  if(current.owned.includes(outfit.id))return; // Item uniqueness is the durable purchase replay key.
- if(current.blocked.includes(outfit.id))fail(409,'이 의상의 구매 상태를 확인 중이에요.');
+ if(current.blocked.includes(outfit.id))fail(409,'이 의상의 구매 상태를 확인 중입니다.');
  let lots=[];const debits=[];
  if(outfit.unit==='G'){
   const available=await rows(env,`SELECT * FROM gold_purchases WHERE user_id=? AND used<gold AND ${decorationSpendableSQL} ORDER BY paid_at,id`,uid);
   try{lots=allocateLots(available,outfit.price);}catch{
    if((await inventory(env,uid)).owned.includes(outfit.id))return;
-   fail(409,'골드가 부족해요.');
+   fail(409,'골드가 부족합니다.');
   }
   for(const lot of lots)debits.push(query(env,`UPDATE gold_purchases SET used=CASE WHEN ${decorationSpendableSQL} THEN used+? ELSE -1 END WHERE id=? AND user_id=?`,lot.gold,lot.purchase_id,uid));
  }else{
@@ -52,21 +53,21 @@ async function buy(env,uid,outfit){
   ]);
  }catch(error){
   if((await inventory(env,uid)).owned.includes(outfit.id))return;
-  if(/constraint/i.test(error.message))fail(409,'잔액 또는 구매 상태가 바뀌었어요. 다시 확인해주세요.');
+  if(/constraint/i.test(error.message))fail(409,'잔액 또는 구매 상태가 바뀌었습니다. 다시 확인해 주세요.');
   throw error;
  }
 }
 export async function jumpOutfitsRoute(req,env,action,uid){
  if(action==='outfits'&&req.method==='GET')return json(await jumpWardrobe(env,uid));
- if(req.method!=='POST'||!['outfits/buy','outfits/equip'].includes(action))fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='POST'||!['outfits/buy','outfits/equip'].includes(action))fail(405,AifectMessages.unsupportedRequest);
  await rate(env,'jump-outfit:'+uid,30,60);
  const body=await req.json(),outfit=JUMP_OUTFITS.find(item=>item.id===body?.outfit);
- if(!outfit)fail(400,'의상을 확인해주세요.');
+ if(!outfit)fail(400,'의상을 확인해 주세요.');
  if(action==='outfits/buy')await buy(env,uid,outfit);
  else{
-  if(!(await inventory(env,uid)).owned.includes(outfit.id))fail(403,'보유한 의상만 착용할 수 있어요.');
+  if(!(await inventory(env,uid)).owned.includes(outfit.id))fail(403,'보유한 의상만 착용할 수 있습니다.');
   await equipment(env,uid,outfit.id).run();
-  if((await inventory(env,uid)).equipped!==outfit.id)fail(409,'의상 상태가 바뀌었어요. 다시 확인해주세요.');
+  if((await inventory(env,uid)).equipped!==outfit.id)fail(409,'의상 상태가 바뀌었습니다. 다시 확인해 주세요.');
  }
  return json(await jumpWardrobe(env,uid));
 }

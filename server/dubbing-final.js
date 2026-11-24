@@ -43,8 +43,8 @@ export async function dubbingFinalInternalRoute(req,env,path){
   await env.BUCKET.put(output,bytes,{httpMetadata:{contentType:'audio/mp4',cacheControl:'private, no-store'}});return json({ok:true});
  }
  if(action==='finish'&&req.method==='POST'){
-  const meta=await req.json();if(meta.sampleRate!==48000||!Number.isFinite(meta.duration)||Math.abs(meta.duration-manifest.duration)>.1||!Number.isFinite(meta.peakDb)||meta.peakDb> -1)fail(400,'합성 길이와 피크를 확인해주세요.');
-  if(!await env.BUCKET.head(output))fail(409,'완성 오디오를 먼저 저장해주세요.');
+  const meta=await req.json();if(meta.sampleRate!==48000||!Number.isFinite(meta.duration)||Math.abs(meta.duration-manifest.duration)>.1||!Number.isFinite(meta.peakDb)||meta.peakDb> -1)fail(400,'합성 길이와 피크를 확인해 주세요.');
+  if(!await env.BUCKET.head(output))fail(409,'완성 오디오를 먼저 저장해 주세요.');
   const result=await env.DB.batch([
    query(env,`UPDATE dubbing_final_jobs SET state='ready',output_key=?,output_meta=?,lease_until=0,updated=? WHERE id=? AND lease_token=? AND lease_until>? AND state='mixing'
     AND EXISTS(SELECT 1 FROM dubbing_final_jobs j JOIN dubbing_projects p ON p.id=j.project_id WHERE j.id=dubbing_final_jobs.id AND ${active}) RETURNING id`,output,JSON.stringify({...meta,playTracking:1}),now(),job.id,job.lease_token,now()),

@@ -26,12 +26,12 @@ export function imageCacheControl(req,isPublic,imageVersion){
 function matchesEtag(value,etag){
  return value?.split(',').some(tag=>tag.trim()==='*'||tag.trim().replace(/^W\//,'')===etag);
 }
-export async function objectResponse(req,env,key,type,isPublic=false,{imageVersion}={}){
+export async function objectResponse(req,env,key,type,isPublic=false,{imageVersion,allowMirror=true}={}){
  const head=await env.BUCKET.head(key);if(!head)fail(404,'파일을 찾을 수 없습니다.');
  const image=type.startsWith('image/'),headers={'content-type':type,'accept-ranges':'bytes','cache-control':image?imageCacheControl(req,isPublic,imageVersion):isPublic?'public, max-age=3600':'private, no-store','x-content-type-options':'nosniff'};
  if(image){
   headers.vary='X-Aifect-Image-Mirror';
-  if(wantsImageGrant(req,env)){
+  if(allowMirror&&wantsImageGrant(req,env)){
    const grant=await imageGrant(req,env,head,type);
    if(grant){
     // Only a public, exact-version image already eligible for immutable HTTP caching

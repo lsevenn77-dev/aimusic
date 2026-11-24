@@ -55,7 +55,7 @@ function dubInfoView(e){
 function dubEditorHTML(e){
  const s=e.script;
  return `<header class="dub-editor-head"><h1>대본 편집</h1><span role="status" data-editor-status>${e.unsynced?'편집 중':'비공개 작성본'}</span>${dubButton('retry','동기화')}${dubButton('save','대본 저장','')}</header>
- <div class="dub-actions" data-editor-conflict ${e.conflict?'':'hidden'}>다른 기기의 변경사항이 있어요. ${dubButton('fork','내 버전을 사본으로 저장')}${dubButton('remote','서버 버전 열기')}</div>
+ <div class="dub-actions" data-editor-conflict ${e.conflict?'':'hidden'}>다른 기기의 변경사항이 있습니다. ${dubButton('fork','내 버전을 사본으로 저장')}${dubButton('remote','서버 버전 열기')}</div>
  <p class="dubbing-feedback" role="status"></p><div class="dub-editor-layout ${e.info?'with-info':''}">
  <nav class="dub-index" aria-label="장면 목록">${s.scenes.map((sc,i)=>dubButton('goto',String(i+1).padStart(2,'0')+' '+esc(sc.title),sc.id)).join('')}</nav>
  <section class="dub-cards">${dubField('작품 제목','script','','title',s.title)}${e.sourceText?'<details><summary>붙여넣은 원문과 분류 확인</summary><pre>'+esc(e.sourceText)+'</pre>'+(e.notes||[]).map(n=>'<p>'+n.row+'행 · '+esc(n.text)+'</p>').join('')+'</details>':''}<div class="dub-line-head"><span data-editor-duration></span>${dubButton('info','작품 설정')}</div>

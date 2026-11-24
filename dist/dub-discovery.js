@@ -50,8 +50,8 @@ function dubCard(project,tab){
 }
 function dubBanners(){
  const link=(href,symbol,title,copy)=>'<a href="'+esc(href)+'">'+icon(symbol)+'<span><strong>'+title+'</strong><small>'+copy+'</small></span>'+icon('chevron')+'</a>';
- return '<footer class="dub-hub-banners">'+link(dubbingNewURL(),'file-pen-line','더빙 대본 만들기','나만의 이야기를 직접 만들어보세요.')+
-  link(playHref('browse','latest','dubbing'),'headphones','완성작 보러가기','다른 이용자들의 완성된 더빙을 감상해보세요.')+'</footer>';
+ return '<footer class="dub-hub-banners">'+link(dubbingNewURL(),'file-pen-line','더빙 대본 만들기','나만의 이야기를 직접 만들어 보세요.')+
+  link(playHref('browse','latest','dubbing'),'headphones','완성작 보러가기','다른 이용자들의 완성된 더빙을 감상해 보세요.')+'</footer>';
 }
 function reviewCard(){
  return '<div class="dub-review-card">'+icon('clipboard-clock')+'<span>작품 검토중</span></div>';
@@ -75,10 +75,10 @@ function dubDiscoveryHTML(view,limit=10){
   const starters=items.filter(p=>p.beginnerRecommended===true).sort((a,b)=>Number(b.roleCount===2&&b.duration>=240&&b.duration<=300)-Number(a.roleCount===2&&a.duration>=240&&a.duration<=300)||latest(a,b)).slice(0,3);
   // Vacant editorial slots are markup only and never appear in filtered results.
   const slots=filtering?0:3-starters.length;
-  body+=section('더빙이 처음이라면',starters.length||slots?grid(starters,slots):blank('조건에 맞는 추천 작품이 없어요.'));
+  body+=section('더빙이 처음이라면',starters.length||slots?grid(starters,slots):blank('조건에 맞는 추천 작품이 없습니다.'));
  }
  const title=tab==='discover'?'신규 작품':tab==='popular'?'인기더빙':'참여 가능한 작품';
- body+=section(title,items.length?grid(items.slice(0,limit))+(items.length>limit?'<button class="small-button play-more" type="button" data-dub-more>더 보기</button>':''):blank(filtering?'검색 조건에 맞는 작품이 없어요.':'현재 참여할 수 있는 더빙 작품이 없어요.'));
+ body+=section(title,items.length?grid(items.slice(0,limit))+(items.length>limit?'<button class="small-button play-more" type="button" data-dub-more>더 보기</button>':''):blank(filtering?'검색 조건에 맞는 작품이 없습니다.':'현재 참여할 수 있는 더빙 작품이 없습니다.'));
  const mine='<a class="dub-mine-link" href="'+esc(playHref('dubbing','mine'))+'">내 더빙 작업 '+icon('chevron')+'</a>';
  return '<div class="dub-hub">'+body+mine+(tab==='discover'?dubBanners():'')+'</div>';
 }

@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,run,now,json} from './db.js';
 import {retrieveDubbingScript} from './dubbing-ai.js';
 import {dubbingTimeline} from '../shared/dubbing.js';
@@ -28,7 +29,7 @@ export async function reconcileDubbingGeneration(env,g){
   // A lost submission acknowledgement cannot be fetched. Keep the unknown cost
   // outcome for audit but release the user's free script turn, not a Gold refund.
   await run(env,`UPDATE dubbing_generations SET result_json=json_set(COALESCE(result_json,'{}'),'$.quotaRestored',json('true')),
-   error='이전 요청의 조회 번호를 받지 못해 대본을 복구할 수 없어요. 무료 작성 횟수는 복원됐어요. 새 대본은 직접 작성 버튼을 눌러 시작해주세요.'
+   error='이전 요청의 조회 번호를 받지 못해 대본을 복구할 수 없습니다. 무료 작성 횟수는 복원되었습니다. 새 대본은 직접 작성 버튼을 눌러 시작해 주세요.'
    WHERE id=? AND state='unknown' AND provider_id=''`,g.id);
   g=await one(env,'SELECT * FROM dubbing_generations WHERE id=?',g.id);
  }
@@ -45,13 +46,13 @@ export async function generationResult(env,g){
  };
  return json({id:g.id,state:g.state,...(g.state==='ready'?{...data,usage:JSON.parse(g.usage_json)}:{}),
   recoverable:g.state==='running'||g.state==='ready',quotaRestored:g.state==='failed'||!!data.quotaRestored,
-  message:g.state==='running'?'대본을 만들고 있어요. 완료되면 자동으로 열려요. 이 화면을 나가도 이전 결과 확인으로 이어볼 수 있어요.':terminal?g.error||'생성 결과를 확인할 수 없어요.':g.error||''
+  message:g.state==='running'?'대본을 만들고 있습니다. 완료되면 자동으로 열립니다. 이 화면을 나가도 이전 결과 확인으로 이어볼 수 있습니다.':terminal?g.error||'생성 결과를 확인할 수 없습니다.':g.error||''
  },g.state==='running'?202:200);
 }
 // Called only after media.internalRoute authenticates TRANSCODER_TOKEN.
 export async function dubbingGenerationInternalRoute(req,env,path){
  if(path!=='/internal/dubbing-generations/reconcile')return null;
- if(req.method!=='POST')return json({error:'지원하지 않는 요청입니다.'},405);
+ if(req.method!=='POST')return json({error:AifectMessages.unsupportedRequest},405);
  if(env.DUBBING_ENABLED!=='true')return json({checked:0});
  const pending=await rows(env,`SELECT g.* FROM dubbing_generations g JOIN users u ON u.id=g.user_id
   WHERE g.state='running' AND g.input_hash NOT LIKE 'sound-plan:%' AND u.provider!='deleted'

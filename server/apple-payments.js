@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {Buffer} from 'node:buffer';
 import {Environment} from '@apple/app-store-server-library/dist/models/Environment.js';
 import {APPLE_ROOT_G3} from './apple-root.js';
@@ -13,7 +14,7 @@ export const APPLE_PRODUCTS=Object.freeze({
 });
 const bundle='kr.co.aifect.app',appleId=6819654764;
 export async function verifyApple(signed,notification=false){
- if(typeof signed!=='string'||signed.length>30000)fail(400,'Apple 구매 내역을 확인해주세요.');
+ if(typeof signed!=='string'||signed.length>30000)fail(400,'Apple 구매 내역을 확인해 주세요.');
  const {SignedDataVerifier,VerificationStatus}=await import('@apple/app-store-server-library/dist/jws_verification.js');
  // Sandbox notifications omit appAppleId. Check Sandbox first so Apple's
  // production-only app ID check cannot mask INVALID_ENVIRONMENT.
@@ -22,7 +23,7 @@ export async function verifyApple(signed,notification=false){
   try{return await verifier[notification?'verifyAndDecodeNotification':'verifyAndDecodeTransaction'](signed);}
   catch(e){
    if(e.status===VerificationStatus.INVALID_ENVIRONMENT)continue;
-   if(e.status===VerificationStatus.RETRYABLE_VERIFICATION_FAILURE)fail(503,'Apple 구매 검증 연결이 지연되고 있습니다. 잠시 후 복원해주세요.');
+   if(e.status===VerificationStatus.RETRYABLE_VERIFICATION_FAILURE)fail(503,'Apple 구매 검증 연결이 지연되고 있습니다. 잠시 후 복원해 주세요.');
    break;
   }
  }
@@ -36,8 +37,8 @@ export async function fulfillApple(env,t,requestUser=null,{refundReversed=false}
  if(product.kind==='subscription'&&(!Number.isSafeInteger(t.expiresDate)||t.type!=='Auto-Renewable Subscription'))fail(400,'구독 기간을 확인하지 못했습니다.');
  if(product.kind==='gold'&&t.type!=='Consumable')fail(400,'골드 상품 유형이 올바르지 않습니다.');
  const account=t.appAccountToken?await one(env,'SELECT user_id FROM apple_accounts WHERE token=?',t.appAccountToken.toLowerCase()):null;
- if(!account)fail(409,'이 구매를 연결한 AIFECT 계정으로 로그인해주세요.');
- if(requestUser&&account.user_id!==requestUser.id)fail(409,'다른 AIFECT 계정에 연결된 구매입니다. 구매한 계정으로 로그인해주세요.');
+ if(!account)fail(409,'이 구매를 연결한 AIFECT 계정으로 로그인해 주세요.');
+ if(requestUser&&account.user_id!==requestUser.id)fail(409,'다른 AIFECT 계정에 연결된 구매입니다. 구매한 계정으로 로그인해 주세요.');
  const original=await one(env,'SELECT user_id FROM apple_transactions WHERE environment=? AND original_id=? LIMIT 1',t.environment,t.originalTransactionId);
  if(original&&original.user_id!==account.user_id)fail(409,'이미 다른 계정에 연결된 구매입니다.');
  const key='apple:'+t.environment+':'+t.transactionId,uid=account.user_id,time=now(),sandbox=t.environment==='Sandbox';
@@ -52,7 +53,7 @@ export async function fulfillApple(env,t,requestUser=null,{refundReversed=false}
  VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET expires=excluded.expires,revoked=CASE WHEN ?=1 THEN excluded.revoked ELSE MAX(apple_transactions.revoked,excluded.revoked) END,refund_review=CASE WHEN ?=1 THEN 0 ELSE apple_transactions.refund_review END,signed_date=excluded.signed_date WHERE excluded.signed_date>=apple_transactions.signed_date`,key,t.environment,t.transactionId,t.originalTransactionId,uid,t.productId,Math.floor(t.purchaseDate/1000),expires,revoked,t.signedDate,time,refundReversed?1:0,refundReversed?1:0));
  if(!sandbox&&product.kind==='gold'){
   // StoreKit supplies milliunits of currency. Korea is the enabled storefront.
-  if(t.currency!=='KRW'||!Number.isSafeInteger(t.price)||t.price<=0)fail(409,'결제 통화 및 금액을 확인하지 못했습니다. 고객 지원에 문의해주세요.');
+  if(t.currency!=='KRW'||!Number.isSafeInteger(t.price)||t.price<=0)fail(409,'결제 통화 및 금액을 확인하지 못했습니다. 고객 지원에 문의해 주세요.');
   const amount=Math.round(t.price/1000);
   statements.push(query(env,`INSERT INTO gold_purchases(id,user_id,channel,gold,used,price_krw,fee_krw,tax_krw,status,provider_ref,created,paid_at)
  SELECT ?,?,'apple',?,0,?,?,?,'paid',?,?,? WHERE EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND revoked=0)
@@ -67,9 +68,9 @@ export async function fulfillApple(env,t,requestUser=null,{refundReversed=false}
 export async function appleNotification(req,env){
  if(req.method!=='POST')fail(405,'POST 요청이 필요합니다.');
  const reader=req.body?.getReader();if(!reader)fail(400,'요청 본문이 없습니다.');
- const chunks=[];let size=0;try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>60000){await reader.cancel();fail(413,'요청이 너무 큽니다.');}chunks.push(value);}}finally{reader.releaseLock();}
+ const chunks=[];let size=0;try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>60000){await reader.cancel();fail(413,AifectMessages.requestTooLarge);}chunks.push(value);}}finally{reader.releaseLock();}
  const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.byteLength;}const text=new TextDecoder().decode(bytes);
- let body;try{body=JSON.parse(text);}catch{fail(400,'요청 형식을 확인해주세요.');}
+ let body;try{body=JSON.parse(text);}catch{fail(400,'요청 형식을 확인해 주세요.');}
  const n=await verifyApple(body.signedPayload,true);
  if(n.notificationType==='TEST')return json({ok:true});
  if(n.data?.signedTransactionInfo){

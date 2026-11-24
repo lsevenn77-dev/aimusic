@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
 import {isAdmin,requireUser,hash} from './auth.js';
 import {readImage} from './images.js';
@@ -20,18 +21,18 @@ const validName=value=>nickname(value).name;
 
 export async function aiBotsRoute(req,env,path,user){
  if(!path.startsWith(base))return null;
- requireUser(user);if(!isAdmin(env,user))fail(403,'운영자만 사용할 수 있어요.');
+ requireUser(user);if(!isAdmin(env,user))fail(403,'운영자만 사용할 수 있습니다.');
  const method=req.method,url=new URL(req.url),tail=path.slice(base.length);
  if(method!=='GET')await rate(env,'ai-bots-admin:'+user.id,2000,3600);
  if(tail==='/settings'){
   if(method==='GET'){const s=await botSettings(env);return json({config:s.config,revision:s.revision});}
-  if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
+  if(method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
   const b=await req.json();let config;try{config=botConfig(b.config);}catch(e){fail(400,e.message);}
-  const at=now(),s=await botSettings(env);if(b.revision!==s.revision)fail(409,'설정이 변경됐어요. 새로고침해주세요.');
+  const at=now(),s=await botSettings(env);if(b.revision!==s.revision)fail(409,'설정이 변경되었습니다. 새로고침해 주세요.');
   const key=id();await env.DB.batch([
    query(env,'UPDATE ai_bot_settings SET json=?,revision=revision+1,updated=? WHERE id=1 AND revision=?',JSON.stringify(config),at,b.revision),
    query(env,'INSERT INTO ai_bot_audit SELECT ?,?,?,?,? WHERE changes()>0',key,user.id,'settings',JSON.stringify(config),at)
-  ]);if(!await one(env,'SELECT 1 FROM ai_bot_audit WHERE id=?',key))fail(409,'설정이 변경됐어요.');
+  ]);if(!await one(env,'SELECT 1 FROM ai_bot_audit WHERE id=?',key))fail(409,'설정이 변경되었습니다.');
   return json({config,revision:s.revision+1});
  }
  if(tail==='/stop'&&method==='POST'){
@@ -50,20 +51,20 @@ export async function aiBotsRoute(req,env,path,user){
   return json({accounts:(await rows(env,`SELECT b.*,p.id profile_id,p.name,p.image_version FROM ai_bots b JOIN producers p ON p.user_id=b.user_id WHERE (p.name LIKE ? OR b.user_id LIKE ?) ORDER BY b.number LIMIT ? OFFSET ?`,q,q,...page)).map(b=>({...b,personality:botPersonality(b)})),total:(await one(env,'SELECT count(*) n FROM ai_bots')).n});
  }
  if(tail==='/accounts/bulk'&&method==='PATCH'){
-  const b=await req.json();if(!Array.isArray(b.ids)||!b.ids.length||b.ids.length>90||b.ids.some(v=>typeof v!=='string')||typeof b.active!=='boolean')fail(400,'최대 90개 계정을 선택해주세요.');
+  const b=await req.json();if(!Array.isArray(b.ids)||!b.ids.length||b.ids.length>90||b.ids.some(v=>typeof v!=='string')||typeof b.active!=='boolean')fail(400,'최대 90개 계정을 선택해 주세요.');
   await env.DB.batch([query(env,`UPDATE ai_bots SET active=?,updated=? WHERE user_id IN (${b.ids.map(()=>'?')})`,b.active?1:0,now(),...b.ids),audit(env,user,'accounts_bulk',{ids:b.ids,active:b.active})]);return json({ok:true});
  }
  const account=tail.match(/^\/accounts\/(ai_\d+)$/);
  if(account&&method==='PATCH'){
-  const b=await req.json(),bot=await one(env,'SELECT * FROM ai_bots WHERE user_id=?',account[1]);if(!bot)fail(404,'계정을 찾을 수 없어요.');
+  const b=await req.json(),bot=await one(env,'SELECT * FROM ai_bots WHERE user_id=?',account[1]);if(!bot)fail(404,'계정을 찾을 수 없습니다.');
   const name=validName(b.name),style=b.style,emoji=str(b.emoji??'',12,false),limit=b.daily_limit;
-  if(!BOT_STYLES.includes(style)||!Number.isInteger(limit)||limit<0||limit>100||typeof b.active!=='boolean')fail(400,'계정 설정을 확인해주세요.');
+  if(!BOT_STYLES.includes(style)||!Number.isInteger(limit)||limit<0||limit>100||typeof b.active!=='boolean')fail(400,'계정 설정을 확인해 주세요.');
   const chosen=await requireAvailableBotNickname(env,account[1],name);
   await botNicknameWrite(env,[query(env,'UPDATE ai_bots SET style=?,emoji=?,daily_limit=?,active=?,updated=? WHERE user_id=?',style,emoji,limit,b.active?1:0,now(),account[1]),query(env,'UPDATE users SET name=? WHERE id=?',name,account[1]),query(env,'UPDATE producers SET name=? WHERE user_id=?',name,account[1]),query(env,'INSERT INTO account_handles(user_id,normalized) VALUES(?,?) ON CONFLICT(user_id) DO UPDATE SET normalized=excluded.normalized',account[1],chosen.key),audit(env,user,'account_edit',{id:account[1],...b})]);return json({ok:true});
  }
  if(tail==='/assets'&&method==='POST'){
-  if(!env.BUCKET)fail(503,'이미지 저장소가 연결되지 않았어요.');
-  const img=await readImage(req);if(img.type!=='image/webp')fail(400,'WebP로 최적화한 이미지만 등록해주세요.');
+  if(!env.BUCKET)fail(503,'이미지 저장소가 연결되지 않았습니다.');
+  const img=await readImage(req);if(img.type!=='image/webp')fail(400,'WebP로 최적화한 이미지만 등록해 주세요.');
   const sha=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',img.data)),n=>n.toString(16).padStart(2,'0')).join('');
   const existing=await one(env,'SELECT user_id FROM ai_bots WHERE image_sha=?',sha);if(existing)return json({sha,duplicate:true,user_id:existing.user_id});
   await env.BUCKET.put(assetKey(sha),img.data,{httpMetadata:{contentType:img.type}});
@@ -72,16 +73,16 @@ export async function aiBotsRoute(req,env,path,user){
  }
  const image=tail.match(/^\/accounts\/(ai_\d+)\/image$/);
  if(image&&method==='PUT'){
-  const b=await req.json(),sha=str(b.sha,64),bot=await one(env,'SELECT * FROM ai_bots WHERE user_id=?',image[1]);if(!bot)fail(404,'계정을 찾을 수 없어요.');
-  const asset=await one(env,'SELECT * FROM ai_bot_assets WHERE sha=?',sha);if(!asset)fail(400,'이미지를 먼저 등록해주세요.');
-  if(await one(env,'SELECT 1 FROM ai_bots WHERE image_sha=? AND user_id!=?',sha,image[1]))fail(409,'다른 AI 계정에서 사용 중인 이미지예요.');
-  const object=await env.BUCKET.get(assetKey(sha));if(!object)fail(409,'등록 이미지가 만료됐어요. 다시 선택해주세요.');
+  const b=await req.json(),sha=str(b.sha,64),bot=await one(env,'SELECT * FROM ai_bots WHERE user_id=?',image[1]);if(!bot)fail(404,'계정을 찾을 수 없습니다.');
+  const asset=await one(env,'SELECT * FROM ai_bot_assets WHERE sha=?',sha);if(!asset)fail(400,'이미지를 먼저 등록해 주세요.');
+  if(await one(env,'SELECT 1 FROM ai_bots WHERE image_sha=? AND user_id!=?',sha,image[1]))fail(409,'다른 AI 계정에서 사용 중인 이미지입니다.');
+  const object=await env.BUCKET.get(assetKey(sha));if(!object)fail(409,'등록 이미지가 만료되었습니다. 다시 선택해 주세요.');
   await env.BUCKET.put(`images/producer/${image[1]}/${sha}`,object.body,{httpMetadata:{contentType:'image/webp'}});
-  try{await env.DB.batch([query(env,'UPDATE ai_bots SET image_sha=?,updated=? WHERE user_id=?',sha,now(),image[1]),query(env,"UPDATE producers SET image_version=?,image_type='image/webp' WHERE id=?",sha,image[1]),audit(env,user,'account_image',{id:image[1],sha})]);}catch(e){if(/UNIQUE/.test(e.message))fail(409,'다른 AI 계정에서 사용 중인 이미지예요.');throw e;}
+  try{await env.DB.batch([query(env,'UPDATE ai_bots SET image_sha=?,updated=? WHERE user_id=?',sha,now(),image[1]),query(env,"UPDATE producers SET image_version=?,image_type='image/webp' WHERE id=?",sha,image[1]),audit(env,user,'account_image',{id:image[1],sha})]);}catch(e){if(/UNIQUE/.test(e.message))fail(409,'다른 AI 계정에서 사용 중인 이미지입니다.');throw e;}
   return json({ok:true});
  }
  if(tail==='/import/preview'&&method==='POST'){
-  const b=await req.json();if(!Array.isArray(b.items)||b.items.length>100||b.items.some(i=>!i||typeof i!=='object')||b.owned_ai!==true)fail(400,'사용 권한이 있는 AI 이미지인지 확인해주세요. 최대 100개씩 검토할 수 있어요.');
+  const b=await req.json();if(!Array.isArray(b.items)||b.items.length>100||b.items.some(i=>!i||typeof i!=='object')||b.owned_ai!==true)fail(400,'사용 권한이 있는 AI 이미지인지 확인해 주세요. 최대 100개씩 검토할 수 있습니다.');
   const seen=new Set(),items=[],hashes=b.items.map(i=>String(i.sha||'')),sources=b.items.map(i=>String(i.source_key||''));
   const assets=new Set((hashes.length?await rows(env,`SELECT sha FROM ai_bot_assets WHERE sha IN (${hashes.map(()=>'?')})`,...hashes):[]).map(a=>a.sha));
   const existing=new Set(),names=new Set((await rows(env,"SELECT lower(trim(p.name)) name FROM ai_bots b JOIN producers p ON p.user_id=b.user_id")).map(r=>r.name));
@@ -89,10 +90,10 @@ export async function aiBotsRoute(req,env,path,user){
   for(const [col,values] of [['image_sha',hashes],['source_key',sources]])if(values.length)for(const row of await rows(env,`SELECT image_sha,source_key FROM ai_bots WHERE ${col} IN (${values.map(()=>'?')})`,...values)){existing.add(row.image_sha);existing.add(row.source_key);}
   for(const raw of b.items){try{
    const item={name:validName(raw.name),source_key:sourceKey(raw.source_key),sha:str(raw.sha,64)};
-   if(!/^[a-f0-9]{64}$/.test(item.sha))throw new Error('이미지 파일을 선택해주세요.');
+   if(!/^[a-f0-9]{64}$/.test(item.sha))throw new Error('이미지 파일을 선택해 주세요.');
    const duplicate=seen.has(item.sha)||seen.has(item.source_key)||existing.has(item.sha)||existing.has(item.source_key);
    seen.add(item.sha);seen.add(item.source_key);
-   if(!assets.has(item.sha))throw new Error('이미지를 먼저 업로드해주세요.');
+   if(!assets.has(item.sha))throw new Error('이미지를 먼저 업로드해 주세요.');
    if(!duplicate){const key=item.name.toLowerCase();if(names.has(key))throw new Error('다른 봇이 사용 중인 닉네임입니다.');names.add(key);}
    items.push({...item,status:duplicate?'duplicate':'ready'});
   }catch(e){items.push({name:String(raw.name||''),status:'failed',error:e.message});}}
@@ -100,24 +101,24 @@ export async function aiBotsRoute(req,env,path,user){
  }
  if(tail==='/import/execute'&&method==='POST'){
   // Keep each mutation request small enough for constrained Worker/D1 plans.
-  const b=await req.json();if(!Array.isArray(b.items)||!b.items.length||b.items.length>100||b.items.some(i=>!i||typeof i!=='object')||b.owned_ai!==true||b.preview_token!==await importToken(env,user,b.items))fail(409,'먼저 동일한 항목을 미리보기에서 확인해주세요.');
-  if(b.items.length>5)fail(400,'등록 실행은 한 번에 5개씩 요청해주세요.');
+  const b=await req.json();if(!Array.isArray(b.items)||!b.items.length||b.items.length>100||b.items.some(i=>!i||typeof i!=='object')||b.owned_ai!==true||b.preview_token!==await importToken(env,user,b.items))fail(409,'먼저 동일한 항목을 미리보기에서 확인해 주세요.');
+  if(b.items.length>5)fail(400,'등록 실행은 한 번에 5개씩 요청해 주세요.');
   const results=[];
-  for(const item of b.items){try{results.push(await provisionBot(env,user,item));}catch(e){await audit(env,user,'import_failed',{source_key:String(item.source_key||'').slice(0,160),error:String(e.message).slice(0,200)}).run();results.push({source_key:item.source_key,status:'failed',error:e.status?e.message:'등록에 실패했어요. 해당 항목을 다시 실행할 수 있어요.'});}}
+  for(const item of b.items){try{results.push(await provisionBot(env,user,item));}catch(e){await audit(env,user,'import_failed',{source_key:String(item.source_key||'').slice(0,160),error:String(e.message).slice(0,200)}).run();results.push({source_key:item.source_key,status:'failed',error:e.status?e.message:'등록에 실패했습니다. 해당 항목을 다시 실행할 수 있습니다.'});}}
   return json({results});
  }
  if(tail==='/templates'){
   if(method==='GET')return json({templates:await rows(env,'SELECT * FROM ai_bot_templates ORDER BY category,id LIMIT 1000')});
   if(method==='POST'){
    const b=await req.json(),tid=id(),body=str(b.body,300),category=b.category,style=b.style;
-   if(!BOT_CATEGORIES.includes(category)||!BOT_STYLES.includes(style))fail(400,'분류와 말투를 확인해주세요.');
+   if(!BOT_CATEGORIES.includes(category)||!BOT_STYLES.includes(style))fail(400,'분류와 말투를 확인해 주세요.');
    await env.DB.batch([query(env,'INSERT INTO ai_bot_templates VALUES(?,?,?,?,1,?)',tid,category,style,body,now()),audit(env,user,'template_add',{id:tid,category,style,body})]);return json({id:tid},201);
   }
  }
  const template=tail.match(/^\/templates\/([\w-]+)$/);
  if(template&&['PATCH','DELETE'].includes(method)){
   const b=method==='DELETE'?{}:await req.json();
-  if(method==='PATCH'&&(!BOT_CATEGORIES.includes(b.category)||!BOT_STYLES.includes(b.style)||typeof b.active!=='boolean'))fail(400,'템플릿 설정을 확인해주세요.');
+  if(method==='PATCH'&&(!BOT_CATEGORIES.includes(b.category)||!BOT_STYLES.includes(b.style)||typeof b.active!=='boolean'))fail(400,'템플릿 설정을 확인해 주세요.');
   await env.DB.batch([method==='DELETE'?query(env,'DELETE FROM ai_bot_templates WHERE id=?',template[1]):query(env,'UPDATE ai_bot_templates SET category=?,style=?,body=?,active=?,updated=? WHERE id=?',b.category,b.style,str(b.body,300),b.active?1:0,now(),template[1]),audit(env,user,'template_'+method.toLowerCase(),{id:template[1],...b})]);return json({ok:true});
  }
  if(tail==='/activities'&&method==='GET')return json({activities:await rows(env,`SELECT a.*,p.name FROM ai_bot_activities a LEFT JOIN producers p ON p.user_id=a.bot_id ORDER BY a.created DESC,a.id LIMIT ? OFFSET ?`,...paging(url)),jobs:await rows(env,"SELECT * FROM ai_bot_jobs WHERE state IN ('pending','failed','skipped') ORDER BY updated DESC,id DESC LIMIT 50 OFFSET ?",paging(url)[1]),audit:await rows(env,'SELECT * FROM ai_bot_audit ORDER BY created DESC,id DESC LIMIT 50 OFFSET ?',paging(url)[1])});
@@ -128,15 +129,15 @@ export async function aiBotsRoute(req,env,path,user){
  if(tail==='/existing-targets'&&method==='GET')return json({targets:await rows(env,`SELECT 'track' target_type,t.id,t.title,t.user_id owner_id,u.name owner_name,CASE WHEN t.kind='original' THEN 'original' ELSE t.cover_mode END category FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.status='published' AND u.account_type='human' AND (t.kind='original' OR t.duet_open=0) UNION ALL SELECT 'dubbing',p.id,p.title,p.owner_id,u.name,'dubbing' FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.state='complete' AND p.visibility='public' AND p.deleted_at=0 AND u.account_type='human' LIMIT 100`)});
  if(tail==='/test-existing'&&method==='POST'){
   const b=await req.json(),type=b.target_type,targetId=str(b.target_id,80),s=await botSettings(env);
-  if(!s.config.enabled||!await one(env,'SELECT 1 FROM ai_bots WHERE active=1 LIMIT 1'))fail(409,'계정과 전체 자동 활동을 먼저 활성화해주세요.');
-  if(b.confirmed!==true||!['track','dubbing'].includes(type))fail(400,'실제 공개 작품에 대한 테스트임을 확인해주세요.');
+  if(!s.config.enabled||!await one(env,'SELECT 1 FROM ai_bots WHERE active=1 LIMIT 1'))fail(409,'계정과 전체 자동 활동을 먼저 활성화해 주세요.');
+  if(b.confirmed!==true||!['track','dubbing'].includes(type))fail(400,'실제 공개 작품에 대한 테스트임을 확인해 주세요.');
   const target=type==='track'?await one(env,"SELECT t.user_id owner_id,CASE WHEN t.kind='original' THEN 'original' ELSE t.cover_mode END category FROM tracks t JOIN users u ON u.id=t.user_id WHERE t.id=? AND t.status='published' AND u.account_type='human' AND (t.kind='original' OR t.duet_open=0)",targetId):await one(env,"SELECT p.owner_id,'dubbing' category FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id=? AND p.state='complete' AND p.visibility='public' AND p.deleted_at=0 AND u.account_type='human'",targetId);
   if(!target||!s.config.kinds.includes(target.category))fail(404,'지원 가능한 공개 작품이 아닙니다.');
   const at=now(),actions=[...(s.config.comments>0?['comment']:[]),...(s.config.gifts?['gift']:[])];
   await env.DB.batch([...actions.map(action=>query(env,"INSERT OR IGNORE INTO ai_bot_jobs(id,target_type,target_id,owner_id,category,action,slot,due,state,created,updated) VALUES(?,?,?,?,?,?,0,?,'pending',?,?)",id(),type,targetId,target.owner_id,target.category,action,at,at,at)),audit(env,user,'test_existing',{target_type:type,target_id:targetId,actions})]);
   return json({ok:true,jobs:await rows(env,'SELECT action,state,due FROM ai_bot_jobs WHERE target_type=? AND target_id=? AND slot=0',type,targetId)});
  }
- fail(404,'AI 봇 관리 항목을 찾을 수 없어요.');
+ fail(404,'AI 봇 관리 항목을 찾을 수 없습니다.');
 }
 
 async function importToken(env,user,items){
@@ -147,14 +148,14 @@ async function importToken(env,user,items){
 }
 async function provisionBot(env,user,item){
  const name=validName(item.name),source=sourceKey(item.source_key),sha=str(item.sha,64),asset=await one(env,'SELECT * FROM ai_bot_assets WHERE sha=?',sha);
- if(!asset)fail(400,'이미지를 먼저 등록해주세요.');
+ if(!asset)fail(400,'이미지를 먼저 등록해 주세요.');
  const duplicate=await one(env,'SELECT user_id,source_key,image_sha FROM ai_bots WHERE source_key=? OR image_sha=?',source,sha);if(duplicate){
   // Repair an interrupted R2 copy without making a second identity.
   if(duplicate.source_key===source&&duplicate.image_sha===sha){const staged=await env.BUCKET.get(assetKey(sha));if(staged)await env.BUCKET.put(`images/producer/${duplicate.user_id}/${sha}`,staged.body,{httpMetadata:{contentType:'image/webp'}});}
   return {source_key:source,status:'duplicate',user_id:duplicate.user_id};
  }
  const chosen=await requireAvailableBotNickname(env,'',name);
- const object=await env.BUCKET.get(assetKey(sha));if(!object)fail(409,'이미지 파일을 다시 등록해주세요.');
+ const object=await env.BUCKET.get(assetKey(sha));if(!object)fail(409,'이미지 파일을 다시 등록해 주세요.');
  // Sequence allocation, credentials-free identity, profile, metadata and audit are one D1 transaction.
  // The immutable content-addressed object is copied to the final producer path after allocation.
  const token=id();await botNicknameWrite(env,[

@@ -4,11 +4,11 @@ export const COVER_MP3_KBPS=256;
 
 export class CoverMp3Encoder{
  constructor(Encoder,frames,rate=COVER_MP3_RATE){
-  if(rate!==COVER_MP3_RATE||!Number.isSafeInteger(frames)||frames<1||frames>rate*600)throw new Error('커버 녹음 길이를 확인해주세요.');
+  if(rate!==COVER_MP3_RATE||!Number.isSafeInteger(frames)||frames<1||frames>rate*600)throw new Error('커버 녹음 길이를 확인해 주세요.');
   this.encoder=new Encoder(2,rate,COVER_MP3_KBPS);this.frames=frames;this.received=0;this.chunks=[];this.bytes=0;
  }
  push(channels){
-  if(!Array.isArray(channels)||channels.length!==2||channels.some(c=>!(c instanceof Float32Array))||channels[0].length!==channels[1].length||!channels[0].length||channels[0].length>65536||this.received+channels[0].length>this.frames)throw new Error('녹음 데이터를 확인하지 못했어요.');
+  if(!Array.isArray(channels)||channels.length!==2||channels.some(c=>!(c instanceof Float32Array))||channels[0].length!==channels[1].length||!channels[0].length||channels[0].length>65536||this.received+channels[0].length>this.frames)throw new Error('녹음 데이터를 확인하지 못했습니다.');
   const left=new Int16Array(1152),right=new Int16Array(1152);
   for(let start=0;start<channels[0].length;start+=1152){
    const n=Math.min(1152,channels[0].length-start);
@@ -22,7 +22,7 @@ export class CoverMp3Encoder{
  }
  add(bytes){if(bytes.length){const copy=Uint8Array.from(bytes);this.chunks.push(copy);this.bytes+=copy.length;}}
  finish(){
-  if(this.received!==this.frames)throw new Error('녹음 변환이 아직 끝나지 않았어요.');
+  if(this.received!==this.frames)throw new Error('녹음 변환이 아직 끝나지 않았습니다.');
   this.add(this.encoder.flush());
   const data=new Uint8Array(this.bytes);let offset=0;for(const chunk of this.chunks){data.set(chunk,offset);offset+=chunk.length;}
   this.chunks=[];return gaplessMp3(data,this.frames);
@@ -34,13 +34,13 @@ export class CoverMp3Encoder{
 export function gaplessMp3(data,inputFrames){
  let offset=0,frames=0;
  while(offset<data.length){
-  if(data[offset]!==255||(data[offset+1]&254)!==250)throw new Error('MP3 변환 결과를 확인하지 못했어요.');
+  if(data[offset]!==255||(data[offset+1]&254)!==250)throw new Error('MP3 변환 결과를 확인하지 못했습니다.');
   const bitrates=[0,32,40,48,56,64,80,96,112,128,160,192,224,256,320],rate=[44100,48000,32000][data[offset+2]>>2&3],kbps=bitrates[data[offset+2]>>4];
   if(rate!==COVER_MP3_RATE||kbps!==COVER_MP3_KBPS||data[offset+3]>>6===3)throw new Error('MP3 음질 설정이 올바르지 않습니다.');
   offset+=Math.floor(144*kbps*1000/rate)+(data[offset+2]>>1&1);frames++;
  }
  const delay=576,padding=frames*1152-inputFrames-delay;
- if(offset!==data.length||padding<0||padding>4095)throw new Error('MP3 녹음 시간을 확인하지 못했어요.');
+ if(offset!==data.length||padding<0||padding>4095)throw new Error('MP3 녹음 시간을 확인하지 못했습니다.');
  const tag=new Uint8Array(1152),view=new DataView(tag.buffer),text=(at,value)=>tag.set(new TextEncoder().encode(value),at);
  tag.set(data.subarray(0,4));tag[2]&=253; // one unpadded 256 kbps/32 kHz stereo frame
  text(36,'Info');view.setUint32(40,3);view.setUint32(44,frames);view.setUint32(48,data.length+tag.length);

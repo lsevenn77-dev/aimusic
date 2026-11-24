@@ -2,7 +2,7 @@
 let profileEditor=null,profileEditorSerial=0;
 function profileEditorNameError(value,original,availableAt,at=Date.now()/1000){
  if(value.trim()===original)return ''; // Preserve unchanged legacy nicknames.
- return nicknamePolicy(value).error||(availableAt>at?'닉네임은 30일에 한 번 변경할 수 있어요.':'');
+ return nicknamePolicy(value).error||(availableAt>at?'닉네임은 30일에 한 번 변경할 수 있습니다.':'');
 }
 function profileEditorHTML(p){
  const path=playerFrameURL(p),frame=path&&!AifectPlayer.PLAYER_ITEMS[p.profile_frame]?.paid?'<img class="player-frame-artwork" src="'+esc(profileFrameCanvasArtwork(path))+'" alt="" aria-hidden="true">':'';
@@ -23,7 +23,7 @@ function profileEditorHTML(p){
    <div class="profile-edit-banner-preview"><img data-profile-banner-preview ${background?'src="'+esc(background)+'"':''} alt="프로필 배경 미리보기" ${background?'':'hidden'}><span data-profile-banner-empty ${background?'hidden':''}>사이트 배경</span></div>
    <div class="profile-edit-banner-actions"><button type="button" class="small-button" data-profile-banner-change>배경 변경</button><button type="button" class="small-button" data-profile-banner-remove ${p.banner_version?'':'hidden'}>배경 삭제</button></div>
    <input type="file" name="banner" accept="image/jpeg,image/png,image/webp" aria-label="프로필 배경 이미지 선택" hidden>
-   <p class="field-help">배경을 삭제하면 프로필 사진이, 사진도 없으면 사이트 배경이 보여요.</p>
+   <p class="field-help">배경을 삭제하면 프로필 사진이, 사진도 없으면 사이트 배경이 보입니다.</p>
   </div>
   <label class="form-field profile-edit-bio">소개<textarea name="bio" rows="3" maxlength="1000">${esc(p.bio||'')}</textarea></label>
   <p class="form-error" role="alert"></p>
@@ -85,8 +85,8 @@ async function openProfileEditor(origin=document.activeElement){
     const file=input.files?.[0];input.value='';if(!file)return;
     const revision=++selection;s.selections.add(field);error.textContent='';validate();
     try{
-     if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('JPG·PNG·WebP 이미지를 선택해주세요.');
-     if(file.size>5*1024*1024)throw Error('이미지는 각각 5MB 이하로 선택해주세요.');
+     if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw Error('JPG·PNG·WebP 이미지를 선택해 주세요.');
+     if(file.size>5*1024*1024)throw Error('이미지는 각각 5MB 이하로 선택해 주세요.');
      const bitmap=await decodeUploadImage(file);bitmap.close();
      if(profileEditor!==s||revision!==selection)return;
      if(s[urlKey])URL.revokeObjectURL(s[urlKey]);s[urlKey]=URL.createObjectURL(file);s[fileKey]=file;s[removedKey]=false;paintProfileDraft(s);
@@ -96,7 +96,7 @@ async function openProfileEditor(origin=document.activeElement){
   }
   form.onsubmit=async event=>{
    event.preventDefault();if(s.saving||s.selections.size||!validate())return;
-   if(form.elements.bio.value.length>1000){error.textContent='소개는 1,000자 이하로 입력해주세요.';return;}
+   if(form.elements.bio.value.length>1000){error.textContent='소개는 1,000자 이하로 입력해 주세요.';return;}
    s.saving=true;error.textContent='';panel.setAttribute('aria-busy','true');panel.querySelectorAll('button,input,textarea').forEach(b=>b.disabled=true);submit.textContent='저장 중…';
    let out;
    try{
@@ -105,13 +105,13 @@ async function openProfileEditor(origin=document.activeElement){
     if(s.bannerFile)draft.set('banner',await optimizeUploadImage(s.bannerFile));else if(s.bannerRemoved)draft.set('remove_banner','true');
     if(profileEditor!==s||uid!==me?.id)return;
     const response=await fetch('/api/me/profile',{method:'PUT',credentials:'same-origin',body:draft,signal:s.controller.signal});
-    out=await response.json();if(!response.ok)throw Error(out.error||'프로필을 저장하지 못했어요. 다시 시도해주세요.');
-   }catch(e){if(profileEditor===s)error.textContent=e.name==='AbortError'?'저장이 중단되었어요.':e.message||'프로필을 저장하지 못했어요.';return;}
+    out=await response.json();if(!response.ok)throw Error(out.error||'프로필을 저장하지 못했습니다. 다시 시도해 주세요.');
+   }catch(e){if(profileEditor===s)error.textContent=e.name==='AbortError'?'저장이 중단되었습니다.':e.message||'프로필을 저장하지 못했습니다.';return;}
    finally{
     s.saving=false;if(profileEditor===s){panel.removeAttribute('aria-busy');panel.querySelectorAll('button,input,textarea').forEach(b=>b.disabled=false);submit.textContent='저장';validate();}
    }
    if(profileEditor!==s||uid!==me?.id)return;
-   closeProfileEditor(true);syncSavedProfile(out,s.profile);toast('프로필을 저장했어요.');
+   closeProfileEditor(true);syncSavedProfile(out,s.profile);toast('프로필을 저장했습니다.');
   };
  }catch(error){if(serial===profileEditorSerial)toast(error.message);}
 }

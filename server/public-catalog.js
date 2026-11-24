@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {VISIBLE} from './catalog.js';
 import {trackBlockScope} from './block-policy.js';
 import {producerNameSQL} from './identity.js';
@@ -104,12 +105,12 @@ export function catalogResult(tracks,f,error=false){
  const filtered=!!(f.q||f.kind||f.genre||f.sort), list=tracks.slice(0,size);
  const prev=f.page>1?`<a data-catalog-link href="${esc(catalogURL({...f,page:f.page-1}))}">이전 페이지</a>`:'';
  const next=tracks.length>size&&f.page<500?`<a data-catalog-link href="${esc(catalogURL({...f,page:f.page+1}))}">다음 페이지</a>`:'';
- const html=error?`<div class="catalog-empty"><h2>음악을 불러오지 못했어요</h2><p>연결 상태를 확인하고 다시 시도해 주세요.</p><a href="${esc(catalogURL(f))}" data-catalog-link>다시 시도</a></div>`:
+ const html=error?`<div class="catalog-empty"><h2>음악을 불러오지 못했습니다</h2><p>연결 상태를 확인하고 다시 시도해 주세요.</p><a href="${esc(catalogURL(f))}" data-catalog-link>다시 시도</a></div>`:
   (list.length?`<div class="discover-grid">${list.map(trackCard).join('')}</div>`:
    '<div class="catalog-empty"><h2>조건에 맞는 공개 음악이 없습니다</h2><p>다른 활동명이나 장르로 찾아보세요.</p><a href="/music" data-catalog-link>전체 음악 보기</a></div>')+
   (prev||next?`<nav class="discover-pages" aria-label="음악 목록 페이지">${prev}<span aria-current="page">${f.page} 페이지</span>${next}</nav>`:'');
  return {html,filters:f,title:'공개 음악'+(f.page>1?' · '+f.page+' 페이지':'')+' | AIFECT',
   canonical:'https://aifect.co.kr/music'+(f.page>1?'?page='+f.page:''),noindex:filtered||!list.length,
-  announcement:error?'음악 목록을 불러오지 못했어요.':list.length?`${f.page}페이지에 음악 ${list.length}곡을 표시했습니다.`:'검색 결과가 없습니다.',
+  announcement:error?'음악 목록을 불러오지 못했습니다.':list.length?`${f.page}페이지에 음악 ${list.length}곡을 표시했습니다.`:AifectMessages.searchEmpty,
   status:error?503:f.page>1&&!list.length&&!filtered?404:200};
 }

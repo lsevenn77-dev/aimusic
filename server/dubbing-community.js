@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {officialSupport} from './ai-bots.js';
 import {one,rows,run,now,id,fail,str,json,rate} from './db.js';
 import {requireUser} from './auth.js';
@@ -17,7 +18,7 @@ export async function dubbingCommunityRoute(req,env,p,user,action,tail){
  if(action==='like'){
   requireUser(user);
   if(method==='PUT')await run(env,'INSERT OR IGNORE INTO likes(user_id,dubbing_id,created) VALUES(?,?,?)',uid,p.id,now());
-  else if(method==='DELETE')await run(env,'DELETE FROM likes WHERE user_id=? AND dubbing_id=?',uid,p.id);else fail(405,'지원하지 않는 요청입니다.');
+  else if(method==='DELETE')await run(env,'DELETE FROM likes WHERE user_id=? AND dubbing_id=?',uid,p.id);else fail(405,AifectMessages.unsupportedRequest);
   return json(await dubbingCommunityStatus(env,p,user));
  }
  if(!tail&&method==='GET'){
@@ -31,13 +32,13 @@ export async function dubbingCommunityRoute(req,env,p,user,action,tail){
  requireUser(user);
  if(!tail&&method==='POST'){
   await assertDubbingCreator(env,uid);const body=await req.json(),text=str(body.body,2000),cid=body.id;
-  if(!/^[0-9a-f-]{36}$/.test(cid||''))fail(400,'댓글 요청 식별자를 확인해주세요.');
+  if(!/^[0-9a-f-]{36}$/.test(cid||''))fail(400,'댓글 요청 식별자를 확인해 주세요.');
   const prior=await one(env,'SELECT * FROM comments WHERE id=?',cid);
-  if(prior){if(prior.user_id!==uid||prior.dubbing_id!==p.id||prior.body!==text)fail(409,'댓글 요청이 변경됐어요.');return json({id:cid});}
+  if(prior){if(prior.user_id!==uid||prior.dubbing_id!==p.id||prior.body!==text)fail(409,'댓글 요청이 변경되었습니다.');return json({id:cid});}
   await rate(env,'comment:'+uid,20,3600);
   await run(env,'INSERT OR IGNORE INTO comments(id,dubbing_id,user_id,body,created) VALUES(?,?,?,?,?)',cid,p.id,uid,text,now());
   const saved=await one(env,'SELECT user_id,dubbing_id,body FROM comments WHERE id=?',cid);
-  if(saved?.user_id!==uid||saved.dubbing_id!==p.id||saved.body!==text)fail(409,'댓글 요청이 변경됐어요.');
+  if(saved?.user_id!==uid||saved.dubbing_id!==p.id||saved.body!==text)fail(409,'댓글 요청이 변경되었습니다.');
   return json({id:cid},201);
  }
  const [cid,sub,...extra]=(tail||'').split('/');if(extra.length)fail(404,'댓글 경로가 없습니다.');
@@ -47,9 +48,9 @@ export async function dubbingCommunityRoute(req,env,p,user,action,tail){
  }
  if(sub==='report'&&method==='POST'){
   if(c.deleted_at||c.user_id===uid)fail(400,'신고할 수 없는 댓글입니다.');const body=await req.json();
-  if(!REPORT_REASONS.includes(body.reason))fail(400,'신고 사유를 확인해주세요.');
+  if(!REPORT_REASONS.includes(body.reason))fail(400,'신고 사유를 확인해 주세요.');
   await rate(env,'comment-report:'+uid,20,3600);
   await run(env,'INSERT OR IGNORE INTO comment_reports(id,comment_id,user_id,reason,details,body_snapshot,created) VALUES(?,?,?,?,?,?,?)',id(),cid,uid,body.reason,str(body.details||'',500,false),c.body,now());return json({ok:true});
  }
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }

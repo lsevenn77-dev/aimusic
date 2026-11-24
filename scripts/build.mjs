@@ -35,7 +35,7 @@ await cp('dist/room-audio-session.js','dist/client/room-audio-session.js');
 await cp('dist/selection-states.css','dist/client/selection-states.css');
 await cp('dist/page-tabs.css','dist/client/page-tabs.css');
 for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js','live-karaoke.js','live-karaoke.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['library-v2.js','library-v2.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['library-v2.js','library-v2.css','playlist-editor.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
 await cp('dist/song-sidebar.css','dist/client/song-sidebar.css');
 for(const file of ['song-covers.js','song-covers.css'])await cp('dist/'+file,'dist/client/'+file);
@@ -117,6 +117,7 @@ await build({entryPoints:['shared/dubbing-reward-player.js'],outfile:'dist/clien
 await build({entryPoints:['shared/gifts.js'],outfile:'dist/client/gifts-core.js',bundle:true,format:'iife',globalName:'AifectGifts',target:'es2022',minify:true});
 await build({entryPoints:['shared/site-info.js'],outfile:'dist/client/site-info.js',bundle:true,format:'iife',globalName:'AifectSite',target:'es2022',minify:true});
 await build({entryPoints:['shared/crew-tags.js'],outfile:'dist/client/crew-tags-core.js',bundle:true,format:'iife',globalName:'AifectCrewTags',target:'es2022',minify:true});
+await build({entryPoints:['shared/system-messages.js'],outfile:'dist/client/system-messages.js',bundle:true,format:'iife',globalName:'AifectMessages',target:'es2022',minify:true});
 await build({entryPoints:['shared/genres.js'],outfile:'dist/client/genres-core.js',bundle:true,format:'iife',globalName:'AifectGenres',target:'es2022',minify:true});
 await build({entryPoints:['shared/production-credits.js'],outfile:'dist/client/production-credits-core.js',bundle:true,format:'iife',globalName:'AifectProductionCredits',target:'es2022',minify:true});
 await build({entryPoints:['shared/alignment.js'],outfile:'dist/client/alignment-core.js',bundle:true,format:'iife',globalName:'AifectAlignment',target:'es2022',minify:true});

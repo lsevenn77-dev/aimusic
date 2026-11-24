@@ -18,21 +18,21 @@ export async function dubbingVersions(env,p,user){
 export async function startDubbingPerformance(req,env,p,user){
  requireUser(user);
  const body=await req.json(),pid=body.id,roleId=body.roleId;
- if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pid||''))fail(400,'요청 식별자를 확인해주세요.');
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pid||''))fail(400,'요청 식별자를 확인해 주세요.');
  const root=await one(env,`SELECT p.* FROM dubbing_projects p WHERE p.id=? AND p.visibility='public' AND ${dubbingVisibleSQL()}`,p.root_id||p.id);
  if(!root||env.AIFECT_BLOCKED?.includes(root.owner_id))fail(404,'참여할 대본을 찾을 수 없습니다.');
  const script=JSON.parse(root.script_json);
- if(!script.roles.some(r=>r.id===roleId))fail(400,'시작할 배역을 선택해주세요.');
+ if(!script.roles.some(r=>r.id===roleId))fail(400,'시작할 배역을 선택해 주세요.');
  const prior=await one(env,'SELECT * FROM dubbing_projects WHERE id=?',pid);
  if(prior){
-  if(prior.deleted_at)fail(409,'이미 삭제된 참여 요청입니다. 새로 시작해주세요.');
+  if(prior.deleted_at)fail(409,'이미 삭제된 참여 요청입니다. 새로 시작해 주세요.');
   if(prior.owner_id!==user.id||prior.root_id!==root.id||!await one(env,'SELECT role_id FROM dubbing_role_claims WHERE project_id=? AND role_id=? AND user_id=?',pid,roleId,user.id))fail(409,'다른 참여 요청입니다.');
   return json({id:pid});
  }
  await rate(env,'dubbing-performance:'+user.id,30,3600);
  const bg=await one(env,"SELECT * FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready'",root.id,root.script_key);
- if(!bg)fail(409,'대본 작성자가 배경 오디오를 준비한 뒤 새 더빙을 시작할 수 있어요.');
- const source=await env.BUCKET.get(bg.output_key);if(!source)fail(409,'배경 오디오를 준비하고 있어요.');
+ if(!bg)fail(409,'대본 작성자가 배경 오디오를 준비한 뒤 새 더빙을 시작할 수 있습니다.');
+ const source=await env.BUCKET.get(bg.output_key);if(!source)fail(409,'배경 오디오를 준비하고 있습니다.');
  const scriptKey=`dubbing/${user.id}/${pid}/scripts/${id()}.json`,audioKey=`dubbing/${user.id}/${pid}/audio/${id()}.m4a`,at=now();
  await env.BUCKET.put(scriptKey,JSON.stringify({script,timeline:JSON.parse(bg.timeline_json)}),{httpMetadata:{contentType:'application/json',cacheControl:'private, no-store'}});
  await env.BUCKET.put(audioKey,source.body,{httpMetadata:{contentType:'audio/mp4',cacheControl:'private, no-store'}});
@@ -49,7 +49,7 @@ export async function startDubbingPerformance(req,env,p,user){
   ]);
   if(!writes[0].results.length){
    const replay=await one(env,'SELECT id FROM dubbing_projects WHERE id=? AND owner_id=? AND root_id=? AND deleted_at=0',pid,user.id,root.id);
-   if(!replay)fail(409,'대본이 변경됐어요. 다시 확인해주세요.');
+   if(!replay)fail(409,'대본이 변경되었습니다. 다시 확인해 주세요.');
   }
  }finally{
   // Keep committed objects after an uncertain acknowledgement.
@@ -58,8 +58,8 @@ export async function startDubbingPerformance(req,env,p,user){
  return json({id:pid},201);
 }
 export async function deleteDubbingProject(req,env,p,user){
- requireUser(user);if(p.owner_id!==user.id)fail(403,'올린 사람만 삭제할 수 있어요.');
- const body=await req.json();if(body.revision!==p.revision)fail(409,'대본이 변경됐어요. 다시 확인해주세요.');
+ requireUser(user);if(p.owner_id!==user.id)fail(403,'올린 사람만 삭제할 수 있습니다.');
+ const body=await req.json();if(body.revision!==p.revision)fail(409,'대본이 변경되었습니다. 다시 확인해 주세요.');
  const at=now();
  const result=await query(env,`UPDATE dubbing_projects SET deleted_at=?,visibility='private',revision=revision+1,updated=?
  WHERE id=? AND owner_id=? AND revision=? AND deleted_at=0 RETURNING id`,at,at,p.id,user.id,body.revision).first();

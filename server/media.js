@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {productionCreditFields} from '../shared/production-credits.js';
 import {queueClassification,classificationFields} from './music-classification.js';
@@ -31,7 +32,7 @@ export async function mediaRoute(req,env,path,user){
  const download=path.match(/^\/api\/covers\/([\w-]+)\/download$/);
  if(download&&['GET','HEAD'].includes(method)){
   requireUser(user);
-  const t=await published(env,download[1]);if(t.kind!=='cover'||t.user_id!==user.id)fail(403,'본인이 녹음한 커버만 저장할 수 있어요. 다른 사람의 음악은 다운로드할 수 없어요.');
+  const t=await published(env,download[1]);if(t.kind!=='cover'||t.user_id!==user.id)fail(403,'본인이 녹음한 커버만 저장할 수 있습니다. 다른 사람의 음악은 다운로드할 수 없습니다.');
   if(t.original_ext==='mp3'){
    const r=await objectResponse(req,env,originalKey(t),'audio/mpeg'),h=new Headers(r.headers);h.set('content-disposition',`attachment; filename="AIFECT-cover.mp3"; filename*=UTF-8''${encodeURIComponent(t.title+'.mp3')}`);return new Response(r.body,{status:r.status,headers:h});
   }
@@ -61,13 +62,13 @@ export async function mediaRoute(req,env,path,user){
  if(path==='/api/uploads'&&method==='POST'){
   requireUser(user);await rate(env,'upload-original:'+user.id,30,60);await requireUploadQuota(env,user);
   const b=await req.json(),title=str(b.title,120),producerName=str(b.producer,60),credit=productionCreditFields(b),tool=credit.ai_tool,lyricData=lyricsFields(b);
-  const performance=b.performance_mode??'solo';if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해주세요.');
+  const performance=b.performance_mode??'solo';if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해 주세요.');
   if(b.rights!==true)fail(400,'음원 권리 보유 확인이 필요합니다.');
   if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');
   const termsVersion='upload_consent_version' in b?b.upload_consent_version:KARAOKE_TERMS_VERSION;
-  if('upload_consent_version' in b && termsVersion!==ORIGINAL_UPLOAD_TERMS_VERSION)fail(400,'현재 음원 이용허락 내용을 확인하고 다시 동의해주세요.');
+  if('upload_consent_version' in b && termsVersion!==ORIGINAL_UPLOAD_TERMS_VERSION)fail(400,'현재 음원 이용허락 내용을 확인하고 다시 동의해 주세요.');
   const classification=classificationFields(b);b.genre=classification.genres[0];
-  if(!validGenre(b.genre)||!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'지원하는 장르와 80MB 이하 WAV·FLAC·MP3 파일을 선택해주세요.');
+  if(!validGenre(b.genre)||!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'지원하는 장르와 80MB 이하 WAV·FLAC·MP3 파일을 선택해 주세요.');
   let producer=await one(env,'SELECT * FROM producers WHERE user_id=?',user.id);
   if(!producer){producer={id:id()};await nicknameBatch(env,user.id,producerName,[query(env,'INSERT INTO producers(id,user_id,name,bio,created,nickname_confirmed) VALUES(?,?,?,?,?,1)',producer.id,user.id,producerName,str(b.producer_bio||'',1000,false),now())]);}
   const artist=await chooseArtist(env,producer.id,b,b.genre);
@@ -93,27 +94,27 @@ export async function mediaRoute(req,env,path,user){
   if(action==='karaoke'&&method==='POST'){
    if(t.kind==='cover')fail(400,'커버곡은 노래방 MR 대상이 아닙니다.');
    // Tracks uploaded before the clause existed opt in here; an existing consent keeps its original version and time.
-   if((await req.json().catch(()=>({}))).accept!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해주세요.');
+   if((await req.json().catch(()=>({}))).accept!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해 주세요.');
    if(!t.karaoke_at){
     const at=now();await run(env,"UPDATE tracks SET karaoke_terms=?,karaoke_at=? WHERE id=? AND karaoke_at=0",KARAOKE_TERMS_VERSION,at,t.id);
     const writes=await karaokeQueue(env,{...t,karaoke_at:at});if(writes.length)await env.DB.batch(writes);
    }
    return json({ok:true});
   }
-  if(action==='unpublish'&&method==='POST'){if(!['published','hidden'].includes(t.status))fail(409,'공개한 곡만 비공개로 바꿀 수 있어요.');const changed=await query(env,"UPDATE tracks SET status='hidden' WHERE id=? AND status IN ('published','hidden') RETURNING id",t.id).first();if(!changed)fail(409,'곡의 상태가 변경되었어요. 목록을 새로 확인해주세요.');return json({ok:true});}
+  if(action==='unpublish'&&method==='POST'){if(!['published','hidden'].includes(t.status))fail(409,'공개한 곡만 비공개로 바꿀 수 있습니다.');const changed=await query(env,"UPDATE tracks SET status='hidden' WHERE id=? AND status IN ('published','hidden') RETURNING id",t.id).first();if(!changed)fail(409,'곡의 상태가 변경되었습니다. 목록을 새로 확인해 주세요.');return json({ok:true});}
   if(action==='retry'&&method==='POST'){
    if(t.status==='hidden'){
     // Hiding changes visibility only. Reuse the existing playable rendition, even if the source was archived.
     const restored=await query(env,"UPDATE tracks SET status='published' WHERE id=? AND user_id=? AND status='hidden' RETURNING id",t.id,user.id).first();
-    if(!restored)fail(409,'곡의 상태가 변경되었어요.');return json({ok:true,status:'published'});
+    if(!restored)fail(409,'곡의 상태가 변경되었습니다.');return json({ok:true,status:'published'});
    }
    if(t.status!=='failed'||!await env.BUCKET.head(originalKey(t)))fail(409,'다시 처리할 원본이 없습니다.');
    const retried=await query(env,"UPDATE tracks SET status='queued',error=NULL,attempts=0,lease_until=0 WHERE id=? AND user_id=? AND status='failed' RETURNING id",t.id,user.id).first();
-   if(!retried)fail(409,'곡의 상태가 변경되었어요.');return json({ok:true,status:'queued'});
+   if(!retried)fail(409,'곡의 상태가 변경되었습니다.');return json({ok:true,status:'queued'});
   }
   if(t.status!=='uploading')fail(409,'이미 제출한 업로드입니다.');
   if(['duet-instrument','duet-partner'].includes(action)&&method==='PUT'){
-   if(t.kind!=='cover'||t.cover_mode!=='duet'||!t.duet_open||t.duet_parent_id)fail(409,'듀엣 모집 녹음만 트랙을 저장할 수 있어요.');
+   if(t.kind!=='cover'||t.cover_mode!=='duet'||!t.duet_open||t.duet_parent_id)fail(409,'듀엣 모집 녹음만 트랙을 저장할 수 있습니다.');
    await put(env,'karaoke/'+t.id+'/'+action+'.mp3',req,20*1024*1024,'audio/mpeg');return json({ok:true});
   }
   if(action==='audio'&&method==='PUT'){
@@ -124,7 +125,7 @@ export async function mediaRoute(req,env,path,user){
    const image=await storeImage(req,env,'track',t.id);await run(env,'UPDATE tracks SET has_cover=1,cover_version=?,cover_type=? WHERE id=?',image.version,image.type,t.id);return json({ok:true});
   }
   if(action==='complete'&&method==='POST'){
-   const original=await env.BUCKET.head(`original/${t.id}.${t.original_ext}`);if(original?.size!==t.original_bytes)fail(409,'음원 파일 업로드를 먼저 완료해주세요.');
+   const original=await env.BUCKET.head(`original/${t.id}.${t.original_ext}`);if(original?.size!==t.original_bytes)fail(409,'음원 파일 업로드를 먼저 완료해 주세요.');
    await completeUpload(env,t,user);return json({ok:true,show_upload_ad:!isPremium(user)});
   }
  }
@@ -132,7 +133,7 @@ export async function mediaRoute(req,env,path,user){
  if(m&&['GET','HEAD'].includes(method)){
   const kind=m[2],t=kind==='cover'?await one(env,`SELECT t.id,${VISIBLE()} visible,${trackArtworkSQL()},t.cover_type,o.cover_type original_cover_type FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id WHERE t.id=? AND t.status!='deleted' AND (${VISIBLE()} OR t.user_id=?)`,m[1],user?.id||''):await published(env,m[1]);if(!t)fail(404,'커버를 찾을 수 없습니다.');if(kind==='stream')requireUser(user);
   if(kind==='premium'){
-   requireUser(user);if(!isPremium(user))fail(403,'AAC 256 감상은 Premium 이용권이 필요해요.');
+   requireUser(user);if(!isPremium(user))fail(403,'AAC 256 감상은 Premium 이용권이 필요합니다.');
    const high=await premiumAudio(env,t,user);if(!high)fail(404,'고음질 파일을 준비하고 있습니다.');
    return objectResponse(req,env,high.output_key,'audio/mp4');
   }
@@ -190,7 +191,7 @@ export async function internalRoute(req,env,path){
   await one(env,'SELECT 1 healthy');await env.BUCKET.head('__aifect_healthcheck__');return json({database:true,storage:true});
  }
  if(path==='/internal/jobs/claim'&&req.method==='POST'){
-  await run(env,"UPDATE tracks SET status='failed',error='변환 시간이 초과됐습니다. 다시 시도해주세요.' WHERE status='processing' AND lease_until<? AND attempts>=3",now());
+  await run(env,"UPDATE tracks SET status='failed',error='변환 시간이 초과됐습니다. 다시 시도해 주세요.' WHERE status='processing' AND lease_until<? AND attempts>=3",now());
   const token=id();const job=await query(env,"UPDATE tracks SET status='processing',lease_until=?,lease_token=?,attempts=attempts+1 WHERE id=(SELECT id FROM tracks WHERE (status='queued' OR (status='processing' AND lease_until<?)) AND attempts<3 ORDER BY created LIMIT 1) RETURNING id,original_ext,CASE WHEN cover_version='' THEN has_cover ELSE 0 END has_cover,lease_token",now()+900,token,now()).first();return json({job});
  }
  const m=path.match(/^\/internal\/jobs\/([\w-]+)\/(original|cover-source|stream|preview|cover|finish|fail)$/);if(!m)fail(404,'경로를 찾을 수 없습니다.');
@@ -211,6 +212,6 @@ export async function internalRoute(req,env,path){
   const writes=await karaokeQueue(env,{...t,status:'published',duration},{mr:'auto'});if(writes.length)await env.DB.batch(writes);
   return json({ok:true});
  }
- if(action==='fail'&&req.method==='POST'){await run(env,"UPDATE tracks SET status='failed',error='파일을 변환하지 못했습니다. 음원 형식과 파일을 확인해주세요.',lease_until=0 WHERE id=? AND lease_token=?",t.id,t.lease_token);return json({ok:true});}
- fail(405,'지원하지 않는 요청입니다.');
+ if(action==='fail'&&req.method==='POST'){await run(env,"UPDATE tracks SET status='failed',error='파일을 변환하지 못했습니다. 음원 형식과 파일을 확인해 주세요.',lease_until=0 WHERE id=? AND lease_token=?",t.id,t.lease_token);return json({ok:true});}
+ fail(405,AifectMessages.unsupportedRequest);
 }

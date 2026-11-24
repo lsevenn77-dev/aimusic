@@ -14,13 +14,13 @@ export async function dubbingAdminRoute(req,env,path,user){
   const found=await rows(env,`SELECT u.id,${publicNameSQL()} name,h.normalized handle FROM users u
    LEFT JOIN account_handles h ON h.user_id=u.id WHERE u.provider!='deleted'
    AND (u.id=? OR h.normalized=? OR lower(trim(${publicNameSQL()}))=?) LIMIT 2`,search.name,search.key,search.key);
-  if(!found.length)fail(404,'일치하는 계정이 없습니다. 정확한 활동명 또는 계정 ID를 입력해주세요.');
-  if(found.length>1)fail(409,'같은 이름의 계정이 있습니다. 계정 ID로 조회해주세요.');
+  if(!found.length)fail(404,'일치하는 계정이 없습니다. 정확한 활동명 또는 계정 ID를 입력해 주세요.');
+  if(found.length>1)fail(409,'같은 이름의 계정이 있습니다. 계정 ID로 조회해 주세요.');
   return json({account:found[0],quota:await dubbingQuota(env,found[0].id)});
  }
  if(path==='/api/admin/dubbing/script-credits'&&req.method==='POST'){
   const body=await req.json(),requestId=str(body.requestId,36),userId=str(body.userId,100),reason=str(body.reason,200),amount=body.amount;
-  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)||!Number.isSafeInteger(amount)||amount<1||amount>20)fail(400,'지급 횟수는 1~20회 정수로 입력해주세요.');
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)||!Number.isSafeInteger(amount)||amount<1||amount>20)fail(400,'지급 횟수는 1~20회 정수로 입력해 주세요.');
   if(!await one(env,"SELECT id FROM users WHERE id=? AND provider!='deleted'",userId))fail(404,'계정을 찾을 수 없습니다.');
   const at=now();
   await env.DB.batch([
@@ -31,7 +31,7 @@ export async function dubbingAdminRoute(req,env,path,user){
     FROM dubbing_script_credits WHERE id=? ON CONFLICT(id) DO NOTHING`,requestId)
   ]);
   const grant=await one(env,'SELECT id,user_id,amount,reason,created FROM dubbing_script_credits WHERE id=?',requestId);
-  if(!grant||grant.user_id!==userId||grant.amount!==amount||grant.reason!==reason)fail(409,'이미 사용된 지급 요청입니다. 지급 내역을 확인해주세요.');
+  if(!grant||grant.user_id!==userId||grant.amount!==amount||grant.reason!==reason)fail(409,'이미 사용된 지급 요청입니다. 지급 내역을 확인해 주세요.');
   return json({grant,quota:await dubbingQuota(env,userId)});
  }
  if(path==='/api/admin/dubbing/pika-status'&&req.method==='GET'){
@@ -64,12 +64,12 @@ export async function dubbingAdminRoute(req,env,path,user){
   return json({days,summary,generations,pika:assets,gold,jobs,payments,settings,flags:{enabled:env.DUBBING_ENABLED==='true',charging:env.DUBBING_GOLD_ENABLED==='true',paidAPI:env.DUBBING_PAID_API_ENABLED==='true'},costNote:'Pika 정산 완료 청구액 기준입니다. 원화는 생성 당시 환율 설정이 있는 건의 추정치이며 OpenAI 비용은 포함하지 않습니다.'});
  }
  if(path==='/api/admin/dubbing/settings'&&req.method==='PUT'){
-  const body=await req.json();if(!Number.isSafeInteger(body.soundGold)||body.soundGold<1||body.soundGold>10000||!Number.isSafeInteger(body.version)||body.version<0)fail(400,'가격은 1~10,000G 정수로 입력해주세요.');
+  const body=await req.json();if(!Number.isSafeInteger(body.soundGold)||body.soundGold<1||body.soundGold>10000||!Number.isSafeInteger(body.version)||body.version<0)fail(400,'가격은 1~10,000G 정수로 입력해 주세요.');
   const at=now(),result=await env.DB.batch([
    query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) SELECT ?,?,'dubbing-price',?,? WHERE COALESCE((SELECT version FROM dubbing_settings WHERE key='default'),0)=?",id(),user.id,JSON.stringify({soundGold:body.soundGold,fromVersion:body.version}),at,body.version),
    query(env,`INSERT INTO dubbing_settings(key,sound_gold,version,updated,updated_by) SELECT 'default',?,1,?,? WHERE COALESCE((SELECT version FROM dubbing_settings WHERE key='default'),0)=?
     ON CONFLICT(key) DO UPDATE SET sound_gold=excluded.sound_gold,version=dubbing_settings.version+1,updated=excluded.updated,updated_by=excluded.updated_by WHERE dubbing_settings.version=? RETURNING key`,body.soundGold,at,user.id,body.version,body.version)
-  ]);if(!result[1].results.length)fail(409,'가격 설정이 변경됐습니다. 새로고침 후 확인해주세요.');return json({settings:await dubbingSettings(env)});
+  ]);if(!result[1].results.length)fail(409,'가격 설정이 변경됐습니다. 새로고침 후 확인해 주세요.');return json({settings:await dubbingSettings(env)});
  }
  if(path==='/api/admin/dubbing/reconcile'&&req.method==='POST'){await reconcileDubbingGold(env);return json({ok:true});}
  const soundReset=path.match(/^\/api\/admin\/dubbing\/sound\/([\w-]+)\/reset$/);
@@ -77,9 +77,9 @@ export async function dubbingAdminRoute(req,env,path,user){
   const body=await req.json(),note=str(body.note,500),jid=soundReset[1];
   const job=await one(env,'SELECT j.*,p.script_key current_key,p.first_recorded_at FROM dubbing_sound_jobs j JOIN dubbing_projects p ON p.id=j.project_id WHERE j.id=?',jid);
   if(!job||!['failed','unknown'].includes(job.state)||job.updated!==body.updated||job.script_key!==job.current_key||job.first_recorded_at)fail(409,'작업 상태가 변경되었습니다.');
-  if(job.state==='unknown'&&(body.unsubmittedConfirmed!==true||await one(env,'SELECT provider_id FROM dubbing_sound_assets WHERE job_id=? AND provider_id IS NOT NULL',jid)))fail(409,'접수 결과를 알 수 없는 요청은 초기화할 수 없습니다. 외부 요청이 전송되지 않았음을 확인해주세요.');
+  if(job.state==='unknown'&&(body.unsubmittedConfirmed!==true||await one(env,'SELECT provider_id FROM dubbing_sound_assets WHERE job_id=? AND provider_id IS NOT NULL',jid)))fail(409,'접수 결과를 알 수 없는 요청은 초기화할 수 없습니다. 외부 요청이 전송되지 않았음을 확인해 주세요.');
   await reconcileDubbingGold(env);
-  if(await one(env,"SELECT job_id FROM dubbing_gold_orders WHERE job_id=? AND state!='refunded'",jid))fail(409,'환급 완료 후 다시 확인해주세요.');
+  if(await one(env,"SELECT job_id FROM dubbing_gold_orders WHERE job_id=? AND state!='refunded'",jid))fail(409,'환급 완료 후 다시 확인해 주세요.');
   // Detach only the failed attempt from the current script. Preserve all billing/audit rows.
   const guard="id=? AND script_key=? AND updated=? AND state IN ('failed','unknown') AND (state!='unknown' OR NOT EXISTS(SELECT 1 FROM dubbing_sound_assets a WHERE a.job_id=dubbing_sound_jobs.id AND a.provider_id IS NOT NULL)) AND NOT EXISTS(SELECT 1 FROM dubbing_gold_orders o WHERE o.job_id=dubbing_sound_jobs.id AND o.state!='refunded') AND EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=dubbing_sound_jobs.project_id AND p.script_key=dubbing_sound_jobs.script_key AND p.first_recorded_at=0 AND p.deleted_at=0)";
   const r=await env.DB.batch([

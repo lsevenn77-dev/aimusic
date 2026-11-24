@@ -179,10 +179,10 @@ function bindTalkingDirectory(root){
  function ready(){
   if(sentinel.hidden!==done)sentinel.hidden=done;
   watchEnd(!done);
-  if(root.dataset.enabled==='false')notice('라이브 서비스 연결을 준비하고 있어요.');
+  if(root.dataset.enabled==='false')notice('라이브 서비스 연결을 준비하고 있습니다.');
   else if(!items.size&&done&&!composing){
-   if(search.value.trim())notice('검색 결과가 없어요.');
-   else notice('아직 열린 공개방이 없어요.','empty');
+   if(search.value.trim())notice(AifectMessages.searchEmpty);
+   else notice('아직 열린 공개방이 없습니다.','empty');
   }else notice();
  }
  async function load(){
@@ -191,7 +191,7 @@ function bindTalkingDirectory(root){
   watchEnd(false);const active=controller=new AbortController(),requestRevision=currentRevision();
   grid.setAttribute('aria-busy','true');
   const pendingNotice=!snapshotReady&&setTimeout(()=>{
-   if(controller===active&&!disposed)notice('라이브 목록을 불러오는 중이에요.','loading');
+   if(controller===active&&!disposed)notice('라이브 목록을 불러오는 중입니다.','loading');
   },450);
   try{
    const params=new URLSearchParams({limit:'24',mode}),query=search.value.trim();
@@ -207,7 +207,7 @@ function bindTalkingDirectory(root){
    }
    done=!page.next_cursor||page.next_cursor===cursor;cursor=page.next_cursor;
    expireCovers();ready();rememberRead();
-  }catch(e){if(!active.signal.aborted&&!disposed&&currentViewer()){readFailed=true;notice('라이브 목록을 불러오지 못했어요.','error');}}
+  }catch(e){if(!active.signal.aborted&&!disposed&&currentViewer()){readFailed=true;notice('라이브 목록을 불러오지 못했습니다.','error');}}
   finally{clearTimeout(pendingNotice);if(controller===active){controller=null;grid.setAttribute('aria-busy','false');}}
  }
  function reset(){
@@ -350,7 +350,7 @@ function bindVoiceLobby(){
    fields.visibility.value='public';fields.max_members.value='30';
    fillRoomThemeChoices(form,options);
    const crews=options.crews||[];currentCrew=crews.length===1?crews[0]:null;
-   crewIssue=crews.length?'크루 소속 정보를 확인해주세요. 새로고침 후 다시 시도할 수 있어요.':'소속 크루가 있어야 크루 방을 만들 수 있어요.';
+   crewIssue=crews.length?'크루 소속 정보를 확인해 주세요. 새로고침 후 다시 시도할 수 있습니다.':'소속 크루가 있어야 크루 방을 만들 수 있습니다.';
    crewChoice.disabled=!currentCrew;crewChoice.closest('label').title=currentCrew?'':crewIssue;
    fields.crew_id.value=currentCrew?.id||'';
    form.querySelector('#voice-notice-length').textContent='0/200';updateMode();updateCrew();updateCapacity();
@@ -384,7 +384,7 @@ function bindVoiceLobby(){
  });
  form.onsubmit=busyForm(form,async data=>{
   const b=Object.fromEntries(data),capacity=Number(b.max_members);
-  if(!String(b.max_members??'').trim()||!Number.isInteger(capacity)||capacity<2||capacity>30)throw Error('참여 인원은 2~30명 사이의 정수로 입력해주세요.');
+  if(!String(b.max_members??'').trim()||!Number.isInteger(capacity)||capacity<2||capacity>30)throw Error('참여 인원은 2~30명 사이의 정수로 입력해 주세요.');
   if(b.visibility==='crew'&&!currentCrew)throw Error(crewIssue);
   const theme=await confirmRoomTheme(form);if(theme===null)return;Object.assign(b,theme);
   b.crew_id=b.visibility==='crew'?currentCrew.id:'';prepareVoiceListening();
@@ -402,7 +402,7 @@ async function playBrowseV3(raw,readApi=api){
  const p=new URLSearchParams(raw.split('?')[1]||''),type=['solo','duet','dubbing','following'].includes(p.get('type'))?p.get('type'):'solo';
  let html=heading('플레이','완성된 목소리를 만나보세요.')+singingHubNav('browse')+'<nav class="v3-segments" aria-label="작품 둘러보기">'+[['solo','솔로'],['duet','듀엣'],['dubbing','더빙'],['following','팔로잉']].map(([key,label])=>'<a href="#karaoke/browse?type='+key+'" '+(key===type?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
  if(type==='following'&&!me){returnRoute=location.hash;return {html:html+gate()};}
- if(type==='dubbing'){const d=await readApi('/api/dubbing/projects?tab=complete');return {html:html+'<div class="dubbing-grid">'+(d.projects.map(dubbingCard).join('')||'<p class="v3-empty">아직 공개된 완성 더빙이 없어요.</p>')+'</div>'};}
+ if(type==='dubbing'){const d=await readApi('/api/dubbing/projects?tab=complete');return {html:html+'<div class="dubbing-grid">'+(d.projects.map(dubbingCard).join('')||'<p class="v3-empty">아직 공개된 완성 더빙이 없습니다.</p>')+'</div>'};}
  const d=await readApi('/api/community?kind=cover&completed=1&'+(type==='following'?'following=1':'cover_mode='+type));return {html:html+communityFeed(d.tracks),tracks:d.tracks};
 }
 function communityRankingOptions(raw){
@@ -437,7 +437,7 @@ function communityRankingRow(r,rank){
  return '<li><a class="ranking-row" href="'+esc(r.href)+'" aria-label="'+rank+'위 '+esc(r.name)+'"><span class="ranking-number">'+rank+'</span>'+communityRankingImage(r)+'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a>'+rankingCoverActions(r)+'</li>';
 }
 function communityRankingResults(rows,period='week'){
- if(!rows.length)return '<div class="ranking-empty" role="status"><h2>아직 집계된 순위가 없어요</h2><p>'+(period==='month'?'이번 달':'이번 주')+' 유효한 활동이 쌓이면 순위를 표시해요.</p></div>';
+ if(!rows.length)return '<div class="ranking-empty" role="status"><h2>아직 집계된 순위가 없습니다</h2><p>'+(period==='month'?'이번 달':'이번 주')+' 유효한 활동이 쌓이면 순위를 표시합니다.</p></div>';
  const podium=rows.slice(0,3).map((r,i)=>'<li class="ranking-place ranking-place-'+(i+1)+'"><a href="'+esc(r.href)+'" aria-label="'+(i+1)+'위 '+esc(r.name)+'">'+communityRankingImage(r)+'<span class="ranking-medal" aria-hidden="true">'+(i+1)+'</span><strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a>'+rankingCoverActions(r)+'</li>').join('');
  return '<ol class="ranking-podium" aria-label="상위 3위">'+podium+'</ol><ol class="ranking-list" start="4" aria-label="4위 이하">'+rows.slice(3).map((r,i)=>communityRankingRow(r,i+4)).join('')+'</ol>';
 }
@@ -462,7 +462,7 @@ async function communityRankingV3(raw,readApi=api){
   const d=await readApi('/api/community/rankings?'+new URLSearchParams({...options,limit:20}));
   ranking.rows=d.rows||[];ranking.nextOffset=d.next_offset??null;ranking.from=d.from;
   html+='<div class="ranking-results">'+communityRankingResults(ranking.rows,options.period)+'</div><div class="ranking-more-area"><button type="button" class="ranking-more" data-ranking-more '+(ranking.nextOffset===null?'hidden':'')+'>더 보기</button><p class="ranking-status" role="status" aria-live="polite"></p></div>'+communityRankingInfo(d);
- }catch(e){html+='<div class="ranking-empty" role="alert"><h2>랭킹을 불러오지 못했어요</h2><p>'+esc(e.message)+'</p><button type="button" class="ranking-more" data-ranking-retry>다시 시도</button></div>';}
+ }catch(e){html+='<div class="ranking-empty" role="alert"><h2>랭킹을 불러오지 못했습니다</h2><p>'+esc(e.message)+'</p><button type="button" class="ranking-more" data-ranking-retry>다시 시도</button></div>';}
  return {html:html+'</section>',ranking};
 }
 function bindCommunityRanking(view){
@@ -482,8 +482,8 @@ function bindCommunityRanking(view){
    const seen=new Set(state.rows.map(r=>r.id));state.rows.push(...d.rows.filter(r=>!seen.has(r.id)));
    const added=state.rows.length;root.querySelector('.ranking-results').innerHTML=communityRankingResults(state.rows,state.options.period);
    if(state.options.category==='cover'){paintInteractions();syncSongCoverPlayback();}
-   state.nextOffset=d.next_offset??null;more.hidden=state.nextOffset===null;status.textContent=added+'위까지 표시했어요.';
-  }catch(e){if(root.isConnected)status.textContent='불러오지 못했어요. 더 보기를 눌러 다시 시도해주세요.';}
+   state.nextOffset=d.next_offset??null;more.hidden=state.nextOffset===null;status.textContent=added+'위까지 표시했습니다.';
+  }catch(e){if(root.isConnected)status.textContent='불러오지 못했습니다. 더 보기를 눌러 다시 시도해 주세요.';}
   finally{more.disabled=false;more.textContent='더 보기';}
  };
 }
@@ -491,5 +491,5 @@ function bindCommunityRanking(view){
 function crewV3SettingsHTML(c){return `<label class="form-field">가입 방식<select name="join_policy">${[['open','자유가입'],['approval','승인제'],['invite_only','초대전용']].map(([v,n])=>`<option value="${v}" ${c?.join_policy===v?'selected':''}>${n}</option>`).join('')}</select></label><label class="form-field">최소 사용자 레벨<input type="number" name="minimum_level" min="1" max="100" value="${c?.minimum_level||1}"></label><label class="form-field">공지<textarea name="notice" maxlength="1000">${esc(c?.notice||'')}</textarea></label>`;}
 function crewV3WorksHTML(d){
  const items=[...(d.tracks||[]).map(t=>({id:t.id,title:t.title,kind:t.cover_mode==='duet'?'duet':'solo',created:t.created,href:'#song/'+t.id,track:t})),...(d.dubbings||[]).map(p=>({...p,kind:'dubbing',created:p.updated,href:'#dubbing/'+p.id}))].sort((a,b)=>b.created-a.created||a.id.localeCompare(b.id));
- return '<div class="section-heading"><h2>크루 작품</h2><span>공개일 최신순</span></div>'+(items.length?'<div class="v3-crew-works">'+items.map(w=>'<article data-list-row class="v3-crew-work">'+(w.track||w.posterUrl?cover(w.track||w,'mini-cover'):'<span class="mini-cover">'+icon('mic')+'</span>')+'<a href="'+esc(w.href)+'"><strong>'+icon(w.kind==='duet'?'users':w.kind==='dubbing'?'message':'mic')+esc(w.title)+'</strong><small>'+({solo:'솔로',duet:'듀엣',dubbing:'더빙'}[w.kind])+'</small></a>'+(w.track?'<button class="list-action icon-button" data-play="'+esc(w.id)+'" title="'+esc(w.title)+' 재생" aria-label="'+esc(w.title)+' 재생">'+icon('play')+'</button>':'')+'</article>').join('')+'</div>':'<p class="v3-empty">현재 크루원이 공개한 완성 작품이 없어요.</p>');
+ return '<div class="section-heading"><h2>크루 작품</h2><span>공개일 최신순</span></div>'+(items.length?'<div class="v3-crew-works">'+items.map(w=>'<article data-list-row class="v3-crew-work">'+(w.track||w.posterUrl?cover(w.track||w,'mini-cover'):'<span class="mini-cover">'+icon('mic')+'</span>')+'<a href="'+esc(w.href)+'"><strong>'+icon(w.kind==='duet'?'users':w.kind==='dubbing'?'message':'mic')+esc(w.title)+'</strong><small>'+({solo:'솔로',duet:'듀엣',dubbing:'더빙'}[w.kind])+'</small></a>'+(w.track?'<button class="list-action icon-button" data-play="'+esc(w.id)+'" title="'+esc(w.title)+' 재생" aria-label="'+esc(w.title)+' 재생">'+icon('play')+'</button>':'')+'</article>').join('')+'</div>':'<p class="v3-empty">현재 크루원이 공개한 완성 작품이 없습니다.</p>');
 }

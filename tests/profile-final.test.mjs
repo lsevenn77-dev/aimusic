@@ -35,13 +35,13 @@ test('inventory groups preserve source, availability and all instance IDs withou
  const groups=c.inventoryGiftGroups(items);assert.equal(groups.length,3);assert.equal(groups[0].quantity,2);assert.equal(JSON.stringify(groups.flatMap(x=>x.ids)),JSON.stringify(['a','b','c','d']));assert.equal(items.length,4);
 });
 test('read errors remain visible, unknown counts are not presented as zero, and guests do not read private stock',async()=>{
- const calls=[],c=ui({api:async path=>{calls.push(path);throw Error('읽기 실패');}});let v=await c.unifiedInventoryView('inventory');assert.match(v.html,/다시 시도/);assert.match(c.inventorySummary(v.unifiedInventory),/—/);assert.doesNotMatch(v.html,/보유한 상품이 없어요/);
+ const calls=[],c=ui({api:async path=>{calls.push(path);throw Error('읽기 실패');}});let v=await c.unifiedInventoryView('inventory');assert.match(v.html,/다시 시도/);assert.match(c.inventorySummary(v.unifiedInventory),/—/);assert.doesNotMatch(v.html,/보유한 상품이 없습니다/);
  c.me=null;calls.length=0;v=await c.unifiedInventoryView('inventory');assert.match(v.html,/LOGIN/);assert.equal(calls.length,0);
 });
 test('activity retains actual gold/silver and restored links while hiding deferred widgets; library includes My Box and preserves likes/history',async()=>{
  const calls=[],c=ui({crewPicture:()=>'',avatarImage:()=>'',api:async path=>{calls.push(path);return {};}});await c.myActivityData();assert.ok(!calls.some(x=>/diamonds|relations|membership/.test(x)));
  const a={wallet:{balance:123,silver_balance:456},player:{inventory:[],player:{level:1,xp:0,next_xp:100,progress:0}},inventory:{items:[]},activity:{},notifications:{}};
- const html=c.myActivityHTML(a);assert.match(html,/123 G/);assert.match(html,/456 S/);assert.doesNotMatch(html,/다이아|보유 이용권|나의 관계|내 도구함|#relations|받은 선물/);assert.equal(JSON.stringify([...html.matchAll(/<h2>([^<]+)/g)].map(m=>m[1])),JSON.stringify(['보유 자산','내 레벨','인벤토리','내 크루','계정 관리']));assert.match(html,/#membership/);assert.match(html,/#payouts/);assert.match(html,/현재 소속된 크루가 없어요/);
+ const html=c.myActivityHTML(a);assert.match(html,/123 G/);assert.match(html,/456 S/);assert.doesNotMatch(html,/다이아|보유 이용권|나의 관계|내 도구함|#relations|받은 선물/);assert.equal(JSON.stringify([...html.matchAll(/<h2>([^<]+)/g)].map(m=>m[1])),JSON.stringify(['보유 자산','내 레벨','인벤토리','내 크루','계정 관리']));assert.match(html,/#membership/);assert.match(html,/#payouts/);assert.match(html,/현재 소속된 크루가 없습니다/);
  const aside=c.myActivityAside(a);assert.equal(JSON.stringify([...aside.matchAll(/<h2>([^<]+)/g)].map(m=>m[1])),JSON.stringify(['받은 선물']));assert.doesNotMatch(html+aside,/#gold\/history|보낸 선물|#account|data-mp-recent|알림 기록/);assert.doesNotMatch(aside,/#membership|#payouts|내 크루|계정 관리/);
  const tabs=c.musicLibraryTabs({options:{section:'likes'},data:{counts:{likes:3,history:4,playlists:1}}});assert.equal((tabs.match(/role="tab"/g)||[]).length,4);assert.doesNotMatch(tabs,/보관한 음악/);assert.doesNotMatch(c.musicLibraryAside({tracks:[]}),/다운로드|mp-studio/);
  assert.equal(c.menuAlias('#profile?view=library&section=saved&q=keep'),'#profile?view=library&section=likes&q=keep');assert.equal(c.menuAlias('#gift-inventory'),'#inventory');

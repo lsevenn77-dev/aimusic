@@ -72,7 +72,7 @@ for(const renderer of ['missing','instant'])test(`page honors waiting and automa
   await p.advance(15000);assert.equal(p.stage.classList.contains('casting'),false);assert.deepEqual(p.buzz,[15000]);
   await p.advance(17999);assert.ok(p.stage);
   await p.advance(18000);assert.equal(p.requests.at(-1).body.timeout,true);
-  assert.match(p.html,/물고기가 도망갔어요/);assert.equal(p.stage,null);assert.deepEqual(p.buzz,[15000]);
+  assert.match(p.html,/물고기가 도망갔습니다/);assert.equal(p.stage,null);assert.deepEqual(p.buzz,[15000]);
 });
 test('page touch resets the timer immediately, and leaving cancels its pending callbacks',async()=>{
   const p=page({delay:1000});await p.ready();await p.action('start');

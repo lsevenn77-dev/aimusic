@@ -90,7 +90,7 @@
   const item={id:++requestId,paused:false,progressAt:Date.now(),remaining:null,markup:$('#now-playing').innerHTML,mode:$('#listen-mode').textContent,disabled:controls.map(s=>$(s).disabled)};
   item.promise=new Promise(resolve=>item.resolve=resolve);active=item;
   audio.pause();setPlayerVisible(true);panel.classList.add('audio-ad-active');controls.forEach(s=>$(s).disabled=true);
-  $('#now-playing').innerHTML='<span class="audio-ad-label">광고</span><div><strong>AIFECT 무료 음악 감상</strong><span id="audio-ad-status" role="status">음성광고를 준비하고 있어요</span></div><button type="button" id="audio-ad-skip" hidden>광고 건너뛰기</button>';
+  $('#now-playing').innerHTML='<span class="audio-ad-label">광고</span><div><strong>AIFECT 무료 음악 감상</strong><span id="audio-ad-status" role="status">음성광고를 준비하고 있습니다</span></div><button type="button" id="audio-ad-skip" hidden>광고 건너뛰기</button>';
   $('#listen-mode').textContent='음성광고';$('#play-toggle').setAttribute('aria-label','광고 일시정지');
   $('#audio-ad-skip').onclick=()=>{if(item.manager?.getAdSkippableState())item.manager.skip();};
   window.dispatchEvent(new Event('aifect-ad-start'));

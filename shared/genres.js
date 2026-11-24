@@ -2,10 +2,10 @@ export const GENRES=['K-POP','Pop','Dark Pop','Ballad','R&B','Soul','Hip-Hop','R
 export const validGenre=value=>typeof value==='string'&&value.trim().length>0&&value===value.trim()&&value.length<=80&&!/[\x00-\x1f\x7f]/.test(value);
 export const MOODS=[
  {id:'comfort',name:'위로 · 감성',caption:'마음을 다독이는 음악',symbol:'heart'},
- {id:'energy',name:'기분 업',caption:'오늘의 에너지를 채워요',symbol:'sparkles'},
+ {id:'energy',name:'기분 업',caption:'오늘의 에너지를 채웁니다',symbol:'sparkles'},
  {id:'focus',name:'집중',caption:'작업과 공부에 몰입할 때',symbol:'volume'},
  {id:'drive',name:'드라이브',caption:'길 위에서 만나는 사운드',symbol:'compass'},
- {id:'sleep',name:'잠들기 전',caption:'하루를 천천히 마무리해요',symbol:'clock'},
+ {id:'sleep',name:'잠들기 전',caption:'하루를 천천히 마무리합니다',symbol:'clock'},
  {id:'workout',name:'운동',caption:'리듬에 맞춰 한 걸음 더',symbol:'chart'},
  {id:'romance',name:'설렘 · 사랑',caption:'마음이 가까워지는 순간',symbol:'heart'},
  {id:'nostalgia',name:'추억',caption:'다시 떠오르는 그때의 마음',symbol:'clock'},

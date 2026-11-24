@@ -2,7 +2,7 @@
 const vocalPlaybackBuffer=s=>s.voice;
 const vocalEffectKey=m=>JSON.stringify([m.noise,m.echo,m.room,m.size,m.tone]);
 function cancelVocalEffects(s){
- clearTimeout(s?.effectTimer);if(!s?.effectJob)return;const job=s.effectJob;s.effectJob=null;job.worker.terminate();job.reject(Object.assign(new Error('효과 설정이 변경됐어요.'),{cancelled:true}));
+ clearTimeout(s?.effectTimer);if(!s?.effectJob)return;const job=s.effectJob;s.effectJob=null;job.worker.terminate();job.reject(Object.assign(new Error('효과 설정이 변경되었습니다.'),{cancelled:true}));
 }
 async function prepareVocalEffects(s,source=vocalPlaybackBuffer(s)){
  if(s.mix.preset==='original'){cancelVocalEffects(s);return source;}
@@ -12,10 +12,10 @@ async function prepareVocalEffects(s,source=vocalPlaybackBuffer(s)){
  cancelVocalEffects(s);const worker=new Worker('/vocal-render-worker.js?v=20261017-tone-range'),job={worker,source,key};
  s.effectJob=job;
  const result=new Promise((resolve,reject)=>{
-  job.reject=reject;worker.onerror=()=>reject(new Error('미리 듣기 효과를 준비하지 못했어요. 다시 재생해주세요.'));
+  job.reject=reject;worker.onerror=()=>reject(new Error('미리 듣기 효과를 준비하지 못했습니다. 다시 재생해 주세요.'));
   worker.onmessage=({data})=>{try{
    if(data.error){reject(new Error(data.error));return;}
-   if(sing!==s||s.effectJob!==job||(vocalPlaybackBuffer(s)!==source&&s.pendingPunch?.voice!==source)||vocalEffectKey(s.mix)!==key){reject(Object.assign(new Error('효과 설정이 변경됐어요.'),{cancelled:true}));return;}
+   if(sing!==s||s.effectJob!==job||(vocalPlaybackBuffer(s)!==source&&s.pendingPunch?.voice!==source)||vocalEffectKey(s.mix)!==key){reject(Object.assign(new Error('효과 설정이 변경되었습니다.'),{cancelled:true}));return;}
    const buffer=s.ctx.createBuffer(1,data.samples.length,source.sampleRate);buffer.copyToChannel(data.samples,0);s.processed={key,source,buffer};resolve(buffer);
   }catch(error){reject(error);}};
   const samples=source.getChannelData(0).slice();worker.postMessage({samples,sampleRate:source.sampleRate,mix:{...s.mix}},[samples.buffer]);
@@ -27,7 +27,7 @@ function refreshPreviewEffects(s){
  // Keep the existing audio playing while rendering, then replace only the vocal
  // with a short crossfade. Repeated slider changes never restart the backing.
  s.effectTimer=setTimeout(async()=>{
-  try{setSingStatus('효과를 반영하고 있어요…');const buffer=await prepareVocalEffects(s);if(sing===s&&s.state==='playing'&&s.preview===preview){s.previewReplaceVoice?.(buffer);setSingStatus('효과가 반영됐어요. 재생하면서 계속 조절할 수 있어요.');}}
+  try{setSingStatus('효과를 반영하고 있습니다…');const buffer=await prepareVocalEffects(s);if(sing===s&&s.state==='playing'&&s.preview===preview){s.previewReplaceVoice?.(buffer);setSingStatus('효과가 반영되었습니다. 재생하면서 계속 조절할 수 있습니다.');}}
   catch(error){if(!error.cancelled&&sing===s)setSingStatus(error.message);}
  },80);
 }

@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {one,rows,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
@@ -11,7 +12,7 @@ import officialEditions from './dubbing-original-editions.json' with {type:'json
 export const recordingEnabled=env=>env.DUBBING_RECORDING_ENABLED==='true'&&!!env.BUCKET&&!!env.TRANSCODER_TOKEN;
 const active=`${dubbingVisibleSQL()} AND EXISTS(SELECT 1 FROM users WHERE id=p.owner_id AND provider!='deleted')`;
 const uuid=v=>typeof v==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
-const conflict=()=>fail(409,'녹음이 다른 창에서 변경됐어요. 저장된 내용을 다시 불러와주세요.');
+const conflict=()=>fail(409,'녹음이 다른 창에서 변경되었습니다. 저장된 내용을 다시 불러와 주세요.');
 async function audioResponse(req,env,key,type='audio/wav'){
  if(!key)fail(404,'오디오 파일을 찾을 수 없습니다.');
  return objectResponse(req,env,key,type);
@@ -62,20 +63,20 @@ export async function queueDubbingFinal(env,p){
 export async function dubbingRecordingRoute(req,env,p,user,action,rest=''){
  if(!['recording','final'].includes(action))return null;
  if(action==='final'){
-  if(!['GET','HEAD'].includes(req.method))fail(405,'지원하지 않는 요청입니다.');
+  if(!['GET','HEAD'].includes(req.method))fail(405,AifectMessages.unsupportedRequest);
   const status=await dubbingRecordingStatus(env,p,user);if(!status.final?.audioUrl)fail(404,'완성 오디오가 아직 준비되지 않았습니다.');
   const job=await one(env,"SELECT output_key FROM dubbing_final_jobs WHERE project_id=? AND script_key=? AND state='ready'",p.id,p.script_key);
   return audioResponse(req,env,job?.output_key,'audio/mp4');
  }
  requireUser(user);
- if(!recordingEnabled(env))fail(503,'더빙 녹음 기능을 준비하고 있어요.');
+ if(!recordingEnabled(env))fail(503,'더빙 녹음 기능을 준비하고 있습니다.');
  const claims=await rows(env,'SELECT role_id FROM dubbing_role_claims WHERE project_id=? AND user_id=?',p.id,user.id);
- if(!claims.length)fail(403,'먼저 참여할 배역을 선택해주세요.');
+ if(!claims.length)fail(403,'먼저 참여할 배역을 선택해 주세요.');
  if(!rest&&req.method==='GET')return json(await recordingView(env,p,user));
  if(rest==='prepare'&&req.method==='POST'){
   // A claimed participant may prepare silence, but cannot spend the owner's
   // Gold or replace an existing paid sound job.
-  if(env.DUBBING_SOUND_ENABLED!=='true')fail(503,'녹음 준비 서버를 확인하고 있어요.');
+  if(env.DUBBING_SOUND_ENABLED!=='true')fail(503,'녹음 준비 서버를 확인하고 있습니다.');
   if(!await one(env,'SELECT id FROM dubbing_sound_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key)){
    await rate(env,'dubbing-record-prepare:'+user.id,20,3600);
    const timeline=dubbingTimeline(JSON.parse(p.script_json));timeline.sounds=[];
@@ -99,7 +100,7 @@ export async function dubbingRecordingRoute(req,env,p,user,action,rest=''){
  if(!claims.some(claim=>claim.role_id===role))fail(403,'내가 선택한 배역만 녹음할 수 있습니다.');
  if(operation==='start'&&req.method==='POST'){
   const body=await req.json(),bg=await one(env,"SELECT id FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready'",p.id,p.script_key);
-  if(!bg||body.soundId!==bg.id)fail(409,'완성된 배경 오디오를 확인한 뒤 녹음해주세요.');
+  if(!bg||body.soundId!==bg.id)fail(409,'완성된 배경 오디오를 확인한 뒤 녹음해 주세요.');
   const token=id(),at=now();
   await env.DB.batch([
    query(env,`UPDATE dubbing_projects AS p SET first_recorded_at=CASE WHEN first_recorded_at=0 THEN ? ELSE first_recorded_at END,state='recording',updated=? WHERE id=? AND script_key=? AND state IN ('recruiting','recording') AND ${active} AND EXISTS(SELECT 1 FROM dubbing_role_claims WHERE project_id=p.id AND role_id=? AND user_id=?)`,at,at,p.id,p.script_key,role,user.id),
@@ -112,10 +113,10 @@ export async function dubbingRecordingRoute(req,env,p,user,action,rest=''){
   return json(await recordingView(env,p,user));
  }
  const record=await one(env,'SELECT * FROM dubbing_recordings WHERE project_id=? AND role_id=? AND user_id=?',p.id,role,user.id);
- if(!record)fail(409,'녹음을 먼저 시작해주세요.');
+ if(!record)fail(409,'녹음을 먼저 시작해 주세요.');
  if(operation==='lines'&&req.method==='PUT'){
   const params=new URL(req.url).searchParams,rev=Number(params.get('revision')),takeId=params.get('take');
-  if(!uuid(takeId)||!Number.isSafeInteger(rev)||rev<1)fail(400,'녹음 저장 정보를 확인해주세요.');
+  if(!uuid(takeId)||!Number.isSafeInteger(rev)||rev<1)fail(400,'녹음 저장 정보를 확인해 주세요.');
   const window=dubbingRecordingWindows(JSON.parse(p.script_json)).lines.find(l=>l.id===lineId&&l.roleId===role);if(!window)fail(404,'내 배역의 대사가 아닙니다.');
   await rate(env,'dubbing-take:'+user.id,300,3600);
   const max=44+Math.ceil((window.recordEnd-window.start)*48000)*2;
@@ -149,12 +150,12 @@ export async function dubbingRecordingRoute(req,env,p,user,action,rest=''){
  if(operation==='submit'&&req.method==='POST'){
   const body=await req.json();
   const casting=await submitCastingRecording(env,p,user,record,body);if(casting)return json({...await recordingView(env,p,user),casting});
-  if(body.rightsAccepted!==true)fail(400,'내 음성의 공동 작품 공개에 동의해주세요.');
+  if(body.rightsAccepted!==true)fail(400,'내 음성의 공동 작품 공개에 동의해 주세요.');
   if(record.state==='submitted'){await queueDubbingFinal(env,p);return json(await recordingView(env,p,user));}
   const count=JSON.parse(p.script_json).lines.filter(l=>l.roleId===role).length;
   const saved=await query(env,`UPDATE dubbing_recordings SET state='submitted',revision=revision+1,rights_at=?,updated=? WHERE id=? AND revision=? AND state='draft'
    AND (SELECT COUNT(*) FROM dubbing_recording_lines WHERE recording_id=?)=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted') AND EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=dubbing_recordings.project_id AND ${dubbingVisibleSQL()}) RETURNING id`,now(),now(),record.id,body.revision,record.id,count,user.id).first();
-  if(!saved)fail(409,'모든 대사를 저장하고 최신 녹음 상태에서 제출해주세요.');
+  if(!saved)fail(409,'모든 대사를 저장하고 최신 녹음 상태에서 제출해 주세요.');
   await queueDubbingFinal(env,p);return json(await recordingView(env,p,user));
  }
  fail(405,'지원하지 않는 녹음 요청입니다.');

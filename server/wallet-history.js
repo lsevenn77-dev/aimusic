@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {rows,fail,json} from './db.js';
 import {requireUser} from './auth.js';
 import {DECORATIONS,PERIOD_LABELS} from '../shared/decorations.js';
@@ -6,9 +7,9 @@ import {JUMP_OUTFITS} from '../dist/crew-jump-art/outfits.js';
 // Account-scoped read only view of existing receipts. Never recompute balances.
 export async function walletHistory(req,env,user){
  requireUser(user);
- if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
  const currency=new URL(req.url).searchParams.get('currency');
- if(!['silver','gold'].includes(currency))fail(400,'실버 또는 골드를 선택해주세요.');
+ if(!['silver','gold'].includes(currency))fail(400,'실버 또는 골드를 선택해 주세요.');
  const uid=user.id;
  let earned,spent;
  if(currency==='silver'){

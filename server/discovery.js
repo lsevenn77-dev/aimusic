@@ -1,4 +1,5 @@
 import {pageParams,libraryTransaction} from './library-transactions.js';
+import {publicPlaylistSQL,restrictedSQL} from './playlist-visibility.js';
 import {playlistEligibleSQL} from '../shared/playlist-policy.js';
 import {followCounts} from './follow-management.js';
 import {unifiedSearch} from './search.js';
@@ -17,9 +18,11 @@ export {MOODS};
 function moodFilter(mood){return {sql:'EXISTS(SELECT 1 FROM json_each(t.moods_json) jm WHERE jm.value=?)',args:[mood.id]};}
 
 export async function playlistSummaries(env,userId='',where='p.is_public=1',args=[],sort='p.created DESC,p.id',limit=100,sortArgs=[],scope={}){
- const visible="("+ (scope.visible||VISIBLE()) +") AND "+playlistEligibleSQL();
- const data=await rows(env,(scope.cte||'')+`SELECT p.id,p.user_id,p.name,p.description,p.is_public,p.created,p.updated,p.revision,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
- (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible}) tracks,
+ const visible="("+ (scope.visible||VISIBLE()) +") AND t.kind IN ('original','cover')";
+ const data=await rows(env,(scope.cte||'')+`SELECT p.id,p.user_id,p.name,p.description,${publicPlaylistSQL()} is_public,${restrictedSQL()} restricted,p.created,p.updated,p.revision,p.image_version,${publicNameSQL()} owner_name,${activePlaylistSQL()} active,
+ (SELECT count(*) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible})
+  +(SELECT count(*) FROM playlist_extra_items x WHERE x.playlist_id=p.id) tracks,
+ (SELECT count(*) FROM playlist_items i WHERE i.playlist_id=p.id) item_count,
  (SELECT COALESCE(sum(t.duration),0) FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${visible}) duration,
  COALESCE(pref.position,0) position,
  EXISTS(SELECT 1 FROM playlist_saves saved WHERE saved.user_id=? AND saved.playlist_id=p.id) saved,
@@ -31,10 +34,12 @@ export async function playlistSummaries(env,userId='',where='p.is_public=1',args
    FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id LEFT JOIN tracks o ON o.id=t.original_id
    LEFT JOIN artists a ON a.id=t.artist_id LEFT JOIN producers preview_producer ON preview_producer.id=t.producer_id
    LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers first_producer ON first_producer.id=dt.producer_id
-   WHERE pt.playlist_id=p.id AND ${visible} ORDER BY pt.position,pt.created,pt.track_id LIMIT 4) c) covers_json
+   WHERE pt.playlist_id=p.id AND ${visible} ORDER BY pt.position,
+    CASE WHEN substr(pt.playlist_id,1,9)='from-box-' THEN 0 ELSE pt.created END,
+    CASE WHEN substr(pt.playlist_id,1,9)='from-box-' THEN t.kind ELSE '' END,pt.track_id LIMIT 4) c) covers_json
  FROM playlists p JOIN users u ON u.id=p.user_id
  LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=?
- WHERE (${where}) AND (p.user_id=? OR p.is_public=1${scope.includeUnavailable?' OR EXISTS(SELECT 1 FROM playlist_saves unav WHERE unav.playlist_id=p.id AND unav.user_id=?)':''}) ORDER BY ${sort} LIMIT ${limit}`,...(scope.args||[]),userId,userId,...args,userId,...(scope.includeUnavailable?[userId]:[]),...sortArgs);
+ WHERE (${where}) AND (p.user_id=? OR ${publicPlaylistSQL()}${scope.includeUnavailable?' OR EXISTS(SELECT 1 FROM playlist_saves unav WHERE unav.playlist_id=p.id AND unav.user_id=?)':''}) ORDER BY ${sort} LIMIT ${limit}`,...(scope.args||[]),userId,userId,...args,userId,...(scope.includeUnavailable?[userId]:[]),...sortArgs);
  return data.map(({covers_json,...p})=>p.user_id!==userId&&!p.is_public?{id:p.id,name:'이용할 수 없는 플레이리스트',saved:true,unavailable:true,covers:[],tracks:0}:{...p,locked:false,covers:JSON.parse(covers_json||'[]')});
 }
 async function accessibleLibrary(env,uid){return playlistSummaries(env,uid,'(p.user_id=? OR (p.is_public=1 AND EXISTS(SELECT 1 FROM playlist_saves s WHERE s.user_id=? AND s.playlist_id=p.id)))',[uid,uid],'position ASC,p.updated DESC,p.id',20);}
@@ -43,7 +48,7 @@ export async function discoveryRoute(req,env,path,user){
  const url=new URL(req.url),method=req.method;
  if(path==='/api/discovery/profiles'&&method==='GET'){
   const kind=url.searchParams.get('kind'),sort=url.searchParams.get('sort')||'popular';
-  if(!['artist','producer'].includes(kind)||!['popular','latest'].includes(sort))fail(400,'프로필 탐색 조건을 확인해주세요.');
+  if(!['artist','producer'].includes(kind)||!['popular','latest'].includes(sort))fail(400,'프로필 탐색 조건을 확인해 주세요.');
   return json({profiles:await profileDiscovery(env,kind,sort),sort});
  }
  const member=path.match(/^\/api\/members\/([A-Za-z]{3}[0-9]{4})$/);
@@ -54,7 +59,7 @@ export async function discoveryRoute(req,env,path,user){
 
  if(path==='/api/discovery'&&method==='GET'){
   const mood=MOODS.find(m=>m.id===url.searchParams.get('mood')),genre=url.searchParams.get('genre'),following=url.searchParams.get('following')==='1';
-  if(url.searchParams.has('mood')&&!mood)fail(400,'분위기를 다시 선택해주세요.');
+  if(url.searchParams.has('mood')&&!mood)fail(400,'분위기를 다시 선택해 주세요.');
   let where=VISIBLE()+" AND t.kind='original'",args=[];
   if(mood){const f=moodFilter(mood);where+=' AND '+f.sql;args.push(...f.args);}
   if(genre&&validGenre(genre)){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
@@ -66,7 +71,7 @@ export async function discoveryRoute(req,env,path,user){
  if(path==='/api/playlists'&&method==='GET'){
   const q=(url.searchParams.get('q')||'').slice(0,100),{limit,offset}=pageParams(url.searchParams),sort='p.created DESC,p.id';
   const blocked=q?(env.AIFECT_BLOCKED||[]):[],block=blocked.length?' AND p.user_id NOT IN (SELECT value FROM json_each(?))':'';
-  const playlists=await playlistSummaries(env,user?.id||'',`p.is_public=1${block} AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} AND ${playlistEligibleSQL()}) AND (instr(lower(p.name),lower(?))>0 OR instr(lower(p.description),lower(?))>0 OR instr(lower(${publicNameSQL()}),lower(?))>0)`,[...(blocked.length?[JSON.stringify(blocked)]:[]),...Array(3).fill(q)],sort,`${limit+1} OFFSET ${offset}`);
+  const playlists=await playlistSummaries(env,user?.id||'',`${publicPlaylistSQL()}${block} AND ${activePlaylistSQL()} AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND ${VISIBLE()} AND ${playlistEligibleSQL()}) AND (instr(lower(p.name),lower(?))>0 OR instr(lower(p.description),lower(?))>0 OR instr(lower(${publicNameSQL()}),lower(?))>0)`,[...(blocked.length?[JSON.stringify(blocked)]:[]),...Array(3).fill(q)],sort,`${limit+1} OFFSET ${offset}`);
   const nextOffset=playlists.length>limit?offset+limit:null;if(nextOffset!==null)playlists.pop();return json({playlists,nextOffset});
  }
  if(path==='/api/follows'&&method==='GET'){
@@ -79,8 +84,8 @@ export async function discoveryRoute(req,env,path,user){
   return json({membership:plan,likes,playlists:items,collections:items,follows});
  }
  if(path==='/api/library/playlists/order'&&method==='PUT'){
-  requireUser(user);const b=await req.json(),ids=b.playlist_ids;if(!Array.isArray(ids)||ids.length>500||ids.some(x=>typeof x!=='string')||new Set(ids).size!==ids.length)fail(400,'목록 순서를 다시 확인해주세요.');
-  const stored=await accessibleLibrary(env,user.id);if(ids.length!==stored.length||ids.some(id=>!stored.some(p=>p.id===id)))fail(409,'보관함이 변경됐습니다. 다시 열어주세요.');
+  requireUser(user);const b=await req.json(),ids=b.playlist_ids;if(!Array.isArray(ids)||ids.length>500||ids.some(x=>typeof x!=='string')||new Set(ids).size!==ids.length)fail(400,'목록 순서를 다시 확인해 주세요.');
+  const stored=await accessibleLibrary(env,user.id);if(ids.length!==stored.length||ids.some(id=>!stored.some(p=>p.id===id)))fail(409,'보관함이 변경됐습니다. 다시 열어 주세요.');
   // Reorder this bounded window while preserving the ranks of every later page.
   if(ids.length)await libraryTransaction(env,[],[query(env,`WITH ranked AS (SELECT p.id,ROW_NUMBER() OVER(ORDER BY COALESCE(pref.position,0),p.updated DESC,p.id)-1 rank FROM playlists p LEFT JOIN playlist_preferences pref ON pref.playlist_id=p.id AND pref.user_id=? WHERE p.user_id=? OR (p.is_public=1 AND EXISTS(SELECT 1 FROM playlist_saves s WHERE s.playlist_id=p.id AND s.user_id=?))) INSERT INTO playlist_preferences(user_id,playlist_id,position) SELECT ?,id,CASE WHEN rank<? THEN (SELECT CAST(key AS INTEGER) FROM json_each(?) WHERE value=ranked.id) ELSE rank END FROM ranked WHERE 1 ON CONFLICT(user_id,playlist_id) DO UPDATE SET position=excluded.position`,user.id,user.id,user.id,user.id,ids.length,JSON.stringify(ids))]);
   return json({ok:true});

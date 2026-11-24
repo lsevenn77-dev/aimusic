@@ -1,4 +1,5 @@
 /* Scoped to the private library. Shared profile, shell, player and brand tokens are unchanged. */
+#music-library[data-unified=true] .ml-tabs{grid-template-columns:repeat(3,minmax(0,1fr))}
 .mp-library{min-width:0;max-width:100%;padding:0;background:none;border:0;border-radius:0;box-shadow:none}
 .ml-tabs{display:flex;gap:8px;overflow-x:auto;max-width:100%;scrollbar-width:none;padding:2px 1px 12px;overscroll-behavior-x:contain;position:relative}
 .ml-tabs::-webkit-scrollbar{display:none}.ml-tabs>button{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:10px 15px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-muted);white-space:nowrap;font:inherit;cursor:pointer;transition:color .18s,background .18s}

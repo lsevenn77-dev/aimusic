@@ -9,13 +9,13 @@ export async function roomThemeChoices(env,uid){
 }
 export async function assertRoomTheme(env,uid,sku){
  const product=roomThemeProduct(sku);
- if(!product)fail(400,'테마를 확인해주세요.');
+ if(!product)fail(400,'테마를 확인해 주세요.');
  if(!product.kind)return sku;
- if(!await one(env,`SELECT id FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')}`,uid,sku))fail(403,'보유 중인 유효한 테마만 선택할 수 있어요.');
+ if(!await one(env,`SELECT id FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')}`,uid,sku))fail(403,'보유 중인 유효한 테마만 선택할 수 있습니다.');
  return sku;
 }
 export async function saveRoomTheme(env,actor,room,sku,{creating=false}={}){
- if(room.host_id!==actor.id)fail(403,'방장만 테마를 변경할 수 있어요.');
+ if(room.host_id!==actor.id)fail(403,'방장만 테마를 변경할 수 있습니다.');
  await assertRoomTheme(env,actor.id,sku);
  // A late response from an earlier settings revision cannot overwrite a later save.
  await run(env,`INSERT INTO room_decorations(room_id,host_id,sku,revision,updated) VALUES(?,?,?,?,?) ON CONFLICT(room_id) ${creating?'DO NOTHING':'DO UPDATE SET host_id=excluded.host_id,sku=excluded.sku,revision=excluded.revision,updated=excluded.updated WHERE room_decorations.revision<excluded.revision'}`,room.id,actor.id,sku,room.settings_revision||0,now());

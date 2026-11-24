@@ -129,7 +129,7 @@ test('initial loading settles once and repeated, failed and resumed empty reads 
  d.fireTimeout(450);assert.equal(status.dataset.state,'loading');assert.equal(art.getAttribute('src'),null);
  initial.resolve(emptyPage());await d.flush();
  const expected=[caption.textContent,caption.writes,grid.writes,art.getAttribute('src')];
- assert.equal(expected[0],'아직 열린 공개방이 없어요.');assert.equal(expected[3],'/assets/aifect-empty-all.webp');
+ assert.equal(expected[0],'아직 열린 공개방이 없습니다.');assert.equal(expected[3],'/assets/aifect-empty-all.webp');
  const check=()=>{
   assert.equal(status.hidden,false);assert.equal(status.dataset.state,'empty');
   assert.deepEqual([caption.textContent,caption.writes,grid.writes,art.getAttribute('src')],expected);

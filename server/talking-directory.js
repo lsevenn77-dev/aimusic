@@ -14,17 +14,17 @@ async function directoryHosts(env,rooms){
 
 export async function talkingRoomPage(env,user,params,readDirectory){
  const limit=Number(params.get('limit')),search=(params.get('q')||'').trim().toLowerCase(),cursor=params.get('cursor')||null;
- if(!Number.isInteger(limit)||limit<1||limit>24||search.length>100||(cursor&&!/^\d{1,15}:[\w-]{1,80}$/.test(cursor)))fail(400,'검색 조건을 확인해주세요.');
+ if(!Number.isInteger(limit)||limit<1||limit>24||search.length>100||(cursor&&!/^\d{1,15}:[\w-]{1,80}$/.test(cursor)))fail(400,'검색 조건을 확인해 주세요.');
  // Older directory rows contain host IDs, not nicknames. Join only this
  // indexed window to the site's privacy-safe public identities.
  const mode=params.get('mode')||'talk';
- if(!['all','talk','karaoke'].includes(mode))fail(400,'방 유형을 확인해주세요.');
+ if(!['all','talk','karaoke'].includes(mode))fail(400,'방 유형을 확인해 주세요.');
  const blocked=new Set(user?viewerBlockedIds(user):[]);
  const matches=(r,hosts)=>!blocked.has(r.host_id)&&(!search||(r.title+' '+(hosts.get(r.host_id)?.name||'')).toLowerCase().includes(search));
  let ids,next=null;
  if(params.has('ids')){
   ids=[...new Set(params.get('ids').split(','))];
-  if(cursor||ids.length>limit||ids.some(id=>!/^[-\w]{1,80}$/.test(id)))fail(400,'방 목록을 확인해주세요.');
+  if(cursor||ids.length>limit||ids.some(id=>!/^[-\w]{1,80}$/.test(id)))fail(400,'방 목록을 확인해 주세요.');
  }else{
   const page=await readDirectory('candidates',{cursor,size:search?96:24});
   const hosts=search?await directoryHosts(env,page.rooms):null;

@@ -1,5 +1,6 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {withSourceCookie} from './signup-source.js';
-import {queueLibraryMigration} from './library-migration.js';
+import {boxCutoverRoute} from './library-unification.js';
 import {playlistsRoute} from './playlists.js';
 import {myBoxesRoute} from './my-boxes.js';
 import {queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
@@ -126,7 +127,7 @@ async function fetchRequest(req,env,ctx){
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
-  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueLibraryMigration(env,ctx);queueBotHeartbeat(env,ctx);retryPush(env,ctx);queueLyricAnalysis(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
+  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueBotHeartbeat(env,ctx);retryPush(env,ctx);queueLyricAnalysis(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
   // Render signed-in deletion locally. The public renderer never receives a user's identity.
   if(path==='/account/delete'&&req.method==='GET'){
    const account=await viewer(req,env);if(account)return accountPageRoute(req,path,account);
@@ -141,7 +142,7 @@ async function fetchRequest(req,env,ctx){
   const originPage=await publicDiscoveryRoute(req,env,path)??await tryPublicOrigin(req,env,path);if(originPage)return originPage;
   const accountPage=accountPageRoute(req,path);if(accountPage)return accountPage;
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
-  if(['/admin','/admin/','/admin.html'].includes(path))return new Response('페이지를 찾을 수 없습니다.',{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
+  if(['/admin','/admin/','/admin.html'].includes(path))return new Response(AifectMessages.notFound,{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
   const publicResponse=publicPageRoute(req,path,{checkoutOpen:checkoutEnabled(env)});if(publicResponse)return publicResponse;
   const paymentResponse=paymentPageRoute(req,path);if(paymentResponse)return paymentResponse;
   const goldPaymentResponse=goldPaymentPageRoute(req,path);if(goldPaymentResponse)return goldPaymentResponse;
@@ -161,7 +162,7 @@ async function fetchRequest(req,env,ctx){
   const oauthCallback=/^\/api\/auth\/(google|apple)\/callback$/.test(path);
   if(!['GET','HEAD','OPTIONS'].includes(req.method)&&!oauthCallback){
    const origin=req.headers.get('origin');
-   if(origin!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'사이트에서 다시 요청해주세요.');
+   if(origin!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'사이트에서 다시 요청해 주세요.');
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
   const editorPayload=/^\/api\/dubbing\/editor-drafts\/[\w-]+$/.test(path);
@@ -173,21 +174,22 @@ async function fetchRequest(req,env,ctx){
   // The official producer upload handler checks the manifest digest and enforces its own byte limits.
   const officialAudioUpload=req.method==='PUT'&&/^\/api\/dubbing\/projects\/[\w-]+\/sound\/official-rebuild\/(?:manifest|asset\/[\w-]+)$/.test(path);
   if(!['GET','HEAD'].includes(req.method)&&!binary&&!profileMultipart&&!officialAudioUpload&&req.body){
-   if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,'요청이 너무 큽니다.');
+   if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,AifectMessages.requestTooLarge);
    const reader=req.body.getReader(),chunks=[];let size=0;
-   try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxJson){await reader.cancel().catch(()=>{});fail(413,'요청이 너무 큽니다.');}chunks.push(value);}}finally{reader.releaseLock();}
+   try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxJson){await reader.cancel().catch(()=>{});fail(413,AifectMessages.requestTooLarge);}chunks.push(value);}}finally{reader.releaseLock();}
    const body=new Uint8Array(size);let offset=0;for(const chunk of chunks){body.set(chunk,offset);offset+=chunk.byteLength;}
    req=new Request(req,{body});
   }
   if(path==='/api/visits')return await recordVisit(req,env);
   const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
+  const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;
   const welcome=await welcomeNoticeRoute(req,env,path,user);if(welcome)return welcome;
   if(path==='/api/admin/mcp/identity'){
-   if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해주세요.');
+   if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해 주세요.');
    if(req.method!=='GET')fail(405,'GET만 지원합니다.');
    const principal=req.headers.get('oai-authenticated-user-id');
-   if(!principal)fail(401,'이 도메인에서 ChatGPT로 로그인한 뒤 다시 확인해주세요.');
+   if(!principal)fail(401,'이 도메인에서 ChatGPT로 로그인한 뒤 다시 확인해 주세요.');
    return json({principal_id:principal,registered:principal===env.AIFECT_MCP_OWNER_ID,enabled:env.AIFECT_MCP_ENABLED==='true'});
   }
   const bots=await aiBotsRoute(req,env,path,user);if(bots)return bots;
@@ -242,10 +244,10 @@ async function fetchRequest(req,env,ctx){
    }
    return req.method==='GET'&&!/^\/api\/(apple|play|gold|diamonds|billing|payout|account|me|studio)/.test(path)?await filterBlockedResponse(env,result):result;
   }
-  return json({error:'페이지를 찾을 수 없습니다.'},404);
+  return json({error:AifectMessages.notFound},404);
  }catch(e){
   if(!e.status)console.error(JSON.stringify({path,error:e.name,...((path.includes('/billing/')||path.includes('/gold/')||path.includes('/play/')||path.includes('/apple/'))?{}:{message:String(e.message).slice(0,300)})}));
-  const status=e.status||500,message=e.status?e.message:'잠시 연결이 원활하지 않습니다. 입력 내용은 유지되니 다시 시도해주세요.';
+  const status=e.status||500,message=e.status?e.message:'잠시 연결이 원활하지 않습니다. 입력 내용은 유지되니 다시 시도해 주세요.';
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);
  }

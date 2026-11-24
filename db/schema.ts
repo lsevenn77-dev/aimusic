@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, primaryKey, index, uniqueIndex, check } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, sqliteView, text, integer, real, primaryKey, index, uniqueIndex, check } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 import {officialDubbingProducerId} from '../shared/dubbing-official.js';
 // Local lyric semantics are independent of uploader metadata and audio classification.
@@ -95,6 +95,16 @@ export const playlistRecents=sqliteTable('playlist_recents',{userId:text('user_i
 export const myBoxes=sqliteTable('my_boxes',{id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),name:text('name').notNull(),created:integer('created').notNull(),updated:integer('updated').notNull(),revision:integer('revision').notNull().default(1),sourcePlaylistId:text('source_playlist_id')},t=>[index('my_boxes_owner_updated').on(t.userId,t.updated,t.id),uniqueIndex('my_boxes_migration_source').on(t.sourcePlaylistId)]);
 export const myBoxItems=sqliteTable('my_box_items',{boxId:text('box_id').notNull().references(()=>myBoxes.id,{onDelete:'cascade'}),kind:text('kind').notNull(),contentId:text('content_id').notNull(),position:integer('position').notNull(),created:integer('created').notNull()},t=>[primaryKey({columns:[t.boxId,t.kind,t.contentId]}),check('my_box_content_kind',sql`${t.kind} IN ('original','cover','dubbing')`),index('my_box_items_order').on(t.boxId,t.position,t.kind,t.contentId)]);
 export const playlistTracks=sqliteTable('playlist_tracks',{playlistId:text('playlist_id').notNull().references(()=>playlists.id,{onDelete:'cascade'}),trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),created:integer('created').notNull(),position:integer('position').notNull().default(0)},t=>[primaryKey({columns:[t.playlistId,t.trackId]})]);
+export const playlistExtraItems=sqliteTable('playlist_extra_items',{
+ playlistId:text('playlist_id').notNull().references(()=>playlists.id,{onDelete:'cascade'}),
+ kind:text('kind').notNull(),contentId:text('content_id').notNull(),position:integer('position').notNull(),created:integer('created').notNull()
+},t=>[primaryKey({columns:[t.playlistId,t.kind,t.contentId]}),check('playlist_extra_kind',sql`${t.kind} IN ('original','cover','dubbing')`)]);
+export const playlistItems=sqliteView('playlist_items',{
+ playlistId:text('playlist_id'),kind:text('kind'),contentId:text('content_id'),position:integer('position'),created:integer('created')
+}).as(sql`SELECT pt.playlist_id,t.kind,pt.track_id AS content_id,pt.position,pt.created
+ FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id
+ UNION ALL SELECT playlist_id,kind,content_id,position,created FROM playlist_extra_items`);
+export const libraryUnificationState=sqliteTable('library_unification_state',{key:text('key').primaryKey(),value:text('value').notNull()});
 export const playlistSaves=sqliteTable('playlist_saves',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),playlistId:text('playlist_id').notNull().references(()=>playlists.id,{onDelete:'cascade'}),created:integer('created').notNull()},t=>[primaryKey({columns:[t.userId,t.playlistId]}),index('playlist_saves_playlist').on(t.playlistId)]);
 export const playlistPreferences=sqliteTable('playlist_preferences',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),playlistId:text('playlist_id').notNull().references(()=>playlists.id,{onDelete:'cascade'}),pinned:integer('pinned').notNull().default(0),position:integer('position').notNull().default(0)},t=>[primaryKey({columns:[t.userId,t.playlistId]})]);
 export const listens=sqliteTable('listens',{id:text('id').primaryKey(),trackId:text('track_id').notNull().references(()=>tracks.id,{onDelete:'cascade'}),listener:text('listener').notNull(),userId:text('user_id').references(()=>users.id,{onDelete:'cascade'}),started:integer('started').notNull(),seconds:real('seconds').notNull().default(0),day:text('day').notNull(),qualified:integer('qualified').notNull().default(0)},t=>[index('listens_track_day').on(t.trackId,t.day),index('listens_track_qualified_started').on(t.trackId,t.qualified,t.started),index('listens_user_time').on(t.userId,t.started)]);

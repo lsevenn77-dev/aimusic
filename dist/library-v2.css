@@ -5,3 +5,22 @@
 #fork-rows .playlist-order-row{grid-template-columns:24px minmax(0,1fr) 44px 44px auto;gap:4px}#fork-rows .small-button{min-width:44px;min-height:44px;padding:6px}#fork-results{display:grid;gap:8px}#library-picker-search input{min-width:0;flex:1}#library-picker-list{max-height:45vh;overflow:auto}
 @media(max-width:768px){.mybox-grid{grid-template-columns:minmax(0,1fr)}.mybox-item-main a{gap:8px}.mybox-item-actions{gap:0}.mybox-item .mini-cover{width:36px;height:36px;flex-basis:36px}.mybox-card-copy small{font-size:12px}.mybox-detail .ml-toolbar{display:flex;flex-wrap:wrap}.mybox-detail .ml-toolbar input{width:100%}}
 @media(max-width:360px){.mybox-item{flex-wrap:wrap}.mybox-item-main{flex-basis:100%}.mybox-item-actions{margin-left:auto}.mybox-card .mini-cover,.mybox-art{width:44px;height:44px;flex-basis:44px}}
+
+.playlist-confirm{box-sizing:border-box;max-width:min(420px,calc(100vw - 32px));padding:24px;color:var(--ds-text);background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card)}
+.playlist-confirm::backdrop{background:rgba(0,0,0,.55)}
+.playlist-confirm p{margin:0 0 16px;line-height:1.6}
+.playlist-confirm .inline-actions{display:flex;justify-content:flex-end;gap:8px}
+#dialog #playlist-editor-items .playlist-order-row{grid-template-columns:20px minmax(0,1fr) repeat(3,44px);gap:4px;align-items:center}
+#dialog #playlist-editor-items .playlist-order-row>div{min-width:0}
+#dialog #playlist-editor-items .playlist-order-row strong{display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#dialog #playlist-editor-items .small-button{box-sizing:border-box;min-width:0;width:44px;height:44px;padding:4px}
+.playlist-candidates{margin-block:12px}
+.playlist-candidates [data-candidate-results]{max-height:32vh;overflow:auto}
+.unified-playlist-preview{max-width:680px;margin-block:16px}
+.unified-playlist-detail .ml-playlist-status{display:flex;align-items:center;gap:6px;color:var(--ds-muted)}
+.unified-playlist-detail .ml-playlist-status svg{width:16px;height:16px}
+.unified-playlist-detail .mybox-item-main{overflow:hidden}
+#main #music-library[data-unified=true] .ml-toolbar{--ui-control-height:var(--ml-control-height)}
+#main #music-library[data-unified=true] .ml-create{height:var(--ml-control-height);max-height:var(--ml-control-height);padding-block:0}
+#music-library[data-unified=true] .collection-card-actions{justify-content:flex-start;align-items:center}
+#music-library[data-unified=true] .collection-card-actions button{margin-left:auto}

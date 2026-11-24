@@ -256,7 +256,7 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
     S.input.left = S.input.right = S.input.boost = false;
     updateDrivingFeedback(S,true);
     $('pauseKind').textContent = S.session ? '공식 주행' : '연습 주행';
-    $('pauseNote').textContent = '중간에 그만두면 이번 주행은 저장하지 않아요.';
+    $('pauseNote').textContent = '중간에 그만두면 이번 주행은 저장하지 않습니다.';
     $('pauseOv').hidden = false;
   }
   function resume() {
@@ -277,7 +277,7 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
     const saved = S.finished ? RULES.limit - Math.round(S.t * 100) / 100 : 0;
     $('resBreak').innerHTML = S.finished
       ? `<tr><td>완주 기본 점수</td><td>${fmt(RULES.finishBase)}</td></tr><tr><td>60초에서 ${saved.toFixed(2)}초 단축 × 10,000</td><td>+${fmt(saved * RULES.perSecond)}</td></tr>${ghost && ghost.finished ? `<tr><td>내 고스트(${clock(ghost.time)})와 차이</td><td>${(S.t - ghost.time > 0 ? '+' : '') + (S.t - ghost.time).toFixed(2)}초</td></tr>` : ''}`
-      : `<tr><td>주행 진행도 ${Math.round(progress * 100)}% × 390,000</td><td>${fmt(score)}</td></tr><tr><td colspan="2" class="muted" style="text-align:left">완주하면 최소 400,000점이에요.</td></tr>`;
+      : `<tr><td>주행 진행도 ${Math.round(progress * 100)}% × 390,000</td><td>${fmt(score)}</td></tr><tr><td colspan="2" class="muted" style="text-align:left">완주하면 최소 400,000점입니다.</td></tr>`;
     $('rDrift').textContent = S.drifts; $('rWall').textContent = S.walls; $('rBoost').textContent = S.boosts;
     if (S.finished) {
       const best = store.get('rc-best-' + COURSE_ID, null);
@@ -288,13 +288,13 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
 
     const prev = store.get('rc-ghost-' + COURSE_ID, null), newGhost = !quit && (!prev || score > prev.score);
     if (newGhost) { record(S); store.set('rc-ghost-' + COURSE_ID, { score, finished: S.finished, time: S.t, car: S.runCar, z: S.trace.z, x: S.trace.x }); }
-    $('resNotice').textContent = quit ? '이번 주행은 저장하지 않았어요.' : newGhost ? '이 브라우저의 코스 최고 점수예요. 다음 주행에서 내 고스트와 달려보세요.' : '연습 주행을 마쳤어요.';
+    $('resNotice').textContent = quit ? '이번 주행은 저장하지 않았습니다.' : newGhost ? '이 브라우저의 코스 최고 점수입니다. 다음 주행에서 내 고스트와 달려 보세요.' : '연습 주행을 마쳤습니다.';
 
     $('readyOv').hidden = true; $('pauseOv').hidden = true; $('resultOv').hidden = false;
     if(!quit&&S.session){
       const run=S;
       api('finish',{id:run.session,events:run.events}).then(result=>{
-        if(S===run)$('resNotice').textContent='공식 '+fmt(result.score)+'점 · 서버 랭킹에 저장했어요.';
+        if(S===run)$('resNotice').textContent='공식 '+fmt(result.score)+'점 · 서버 랭킹에 저장했습니다.';
         return loadLobby();
       }).catch(e=>{if(S===run)$('resNotice').textContent=e.message;});
     }
@@ -306,7 +306,7 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
     $('pauseCourse').textContent = COURSE.name; $('hudCourse').textContent = COURSE.name;
     const best = store.get('rc-best-' + COURSE_ID, null); $('bestTxt').textContent = best ? clock(best) : '-';
     const g = store.get('rc-ghost-' + COURSE_ID, null); $('ghostTxt').textContent = g ? fmt(g.score) : '-';
-    $('targetTxt').textContent = g ? (g.finished ? '내 고스트 ' + clock(g.time) : `내 고스트 ${fmt(g.score)}점`) : '내 연습 최고 점수가 고스트가 돼요';
+    $('targetTxt').textContent = g ? (g.finished ? '내 고스트 ' + clock(g.time) : `내 고스트 ${fmt(g.score)}점`) : '내 연습 최고 점수가 고스트가 됩니다';
     drawMap();
   }
   // 코스 지도: 커브를 누적해 위에서 본 모양
@@ -376,7 +376,7 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
   async function api(action,body){
     const response=await fetch('/api/crew-racing/'+action,body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{cache:'no-store'});
     const data=await response.json();
-    if(!response.ok)throw new Error(data.error||'요청을 처리하지 못했어요.');
+    if(!response.ok)throw new Error(data.error||'요청을 처리하지 못했습니다.');
     return data;
   }
   function garageState(data){
@@ -403,17 +403,17 @@ import {CARS,raceCalendar,SPEED_RULES} from "./catalog.js?v=kart2";
       updateLobby();
       renderGameRankings($('racingRankings'),{crews:data.ranking,players:data.individualRanking,crewId:data.crew});
       decorateRankings($('racingRankings'));
-      $('garageStatus').textContent=signedIn?'':'로그인하면 차량을 구매하고 장착할 수 있어요.';
+      $('garageStatus').textContent=signedIn?'':'로그인하면 차량을 구매하고 장착할 수 있습니다.';
     }catch{
-      $('garageStatus').textContent='차고 정보를 불러오지 못했어요. 새로고침해서 다시 시도해주세요.';
-      $('racingRankings').textContent='순위를 불러오지 못했어요.';
+      $('garageStatus').textContent='차고 정보를 불러오지 못했습니다. 새로고침해서 다시 시도해 주세요.';
+      $('racingRankings').textContent='순위를 불러오지 못했습니다.';
     }
   }
   async function changeCar(action,c,button){
     if(garagePending)return;
     if(action==='buy'&&!confirm(c.name+'를 '+c.price+c.currency+'에 구매할까요?'))return;
     ++garageEpoch;garagePending=true;button.disabled=true;
-    try{garageState(await api(action,{car:c.id}));$('garageStatus').textContent=action==='buy'?'구매했어요. 장착하기를 눌러주세요.':c.name+' 장착 완료';}
+    try{garageState(await api(action,{car:c.id}));$('garageStatus').textContent=action==='buy'?'구매했습니다. 장착하기를 눌러 주세요.':c.name+' 장착 완료';}
     catch(e){$('garageStatus').textContent=e.message;garagePending=false;await refreshGarage();}
     finally{garagePending=false;renderShop();showroom.focusSelection();}
   }
