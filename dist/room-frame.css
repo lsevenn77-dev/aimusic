@@ -33,6 +33,7 @@
   &[data-room-pc-controls] {
     --room-action-size: 42px;
     --room-action-gap: 12px;
+    --room-action-icon: 18px;
   }
   & .talk-seat-controls .talk-seat-actions, & #live-actions, & .live-stage-main .room-key {
     align-items: center; gap: var(--room-action-gap);
@@ -43,7 +44,9 @@
     box-sizing: border-box; flex: none; width: var(--room-action-size); min-width: var(--room-action-size);
     height: var(--room-action-size); min-height: var(--room-action-size); padding: 0; border-radius: 50%;
   }
-  & #live-karaoke-stage #live-actions button svg { width: var(--room-action-icon); height: var(--room-action-icon); }
+  & .talk-seat-controls .talk-seat-actions > button svg, & #live-karaoke-stage #live-actions button svg {
+    width: var(--room-action-icon); height: var(--room-action-icon);
+  }
   & #live-current > span:not(.room-singer-avatar), & .live-stage-main .room-key button {
     border: 0; box-shadow: none; background: var(--room-seat-fill); color: var(--room-text);
     -webkit-backdrop-filter: var(--room-round-frost); backdrop-filter: var(--room-round-frost);
