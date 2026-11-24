@@ -53,10 +53,10 @@ function bindRoomViewport(client){
   write(room,'--voice-viewport',Math.max(0,end-start)+'px');
   const pc=roomUsesDesktopControls();
   room.toggleAttribute?.('data-room-pc-controls',pc);
-  if(pc&&room.classList?.contains('talking-room')){
-   write(room,'--talk-room-width',box.width+'px');
+  if(pc){
+   write(room,'--room-width',box.width+'px');
    const content=room.querySelector('#voice-content');
-   if(content)write(room,'--talk-content-scrollbar',Math.max(0,content.offsetWidth-content.clientWidth)+'px');
+   if(content)write(room,'--room-content-scrollbar',Math.max(0,content.offsetWidth-content.clientWidth)+'px');
   }
   if(pc)write(room,'--room-display-ratio',String(window.devicePixelRatio || 1));
   if(composerHeight)write(room,'--room-composer',composerHeight+'px');

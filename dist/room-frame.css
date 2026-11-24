@@ -1,0 +1,119 @@
+@media (min-width:801px) and (hover:hover) and (pointer:fine) {
+ #main[data-room-entered] .voice-room[data-voice-room][data-room-design][data-room-pc-controls] {
+  --room-frame-max: 1086px;
+  --room-frame-gutter: max(18px, calc((var(--room-width) - var(--room-frame-max)) / 2));
+  --room-base-width: calc(var(--room-width) - 2 * var(--room-frame-gutter) - var(--room-content-scrollbar, 0px));
+  --room-column: clamp(244px, calc(var(--room-base-width) * .385), 420px);
+  --room-gap: 8px;
+  --room-panel-max: 715px;
+  --room-frame-top: clamp(10px,2.2vh,24px);
+  --room-header-height: 60px;
+  --room-header-gap: 10px;
+  padding-block: var(--room-frame-top) max(14px,calc(var(--room-visible) - var(--room-frame-top) - var(--room-header-height) - var(--room-header-gap) - var(--room-panel-max)));
+  padding-inline: var(--room-frame-gutter);
+  @media (min-width:1200px) {
+    padding-inline: calc(var(--room-frame-gutter) - 6px) calc(var(--room-frame-gutter) + 6px);
+  }
+  & .room-meta [data-room-occupancy] { width: 5ch; }
+  & .room-meta [data-room-elapsed] { width: 8.5ch; }
+  & .room-header { height: var(--room-header-height); min-height: var(--room-header-height); margin-bottom: var(--room-header-gap); margin-right: var(--room-content-scrollbar, 0px); }
+  & #voice-content { overflow-y: auto; scrollbar-width: thin; }
+  & .room-header nav { justify-content: space-between; padding-inline: clamp(0px,calc(var(--room-column) - 250px),38px) 12px; }
+  & #voice-content .voice-chat-panel { padding-inline-start: 0; }
+  @media (max-height:820px) { --room-frame-top:16px; --room-header-gap:4px; }
+  @media (max-width:1200px) { --room-frame-gutter:16px; }
+ }
+}
+
+#main[data-room-entered] .voice-room[data-voice-room][data-room-design] {
+  --room-chat-inset: calc(clamp(10px,1vw,16px) + 1px);
+  --room-action-size: 44px;
+  --room-action-gap: 8px;
+  --room-action-icon: 21px;
+  &[data-room-pc-controls] {
+    --room-action-size: 42px;
+    --room-action-gap: 12px;
+  }
+  & .talk-seat-controls .talk-seat-actions, & #live-actions, & .live-stage-main .room-key {
+    align-items: center; gap: var(--room-action-gap);
+  }
+  & .talk-seat-controls .talk-seat-actions > button,
+  & #live-karaoke-stage #live-actions button:not([data-voice="karaoke-retry"]),
+  & #live-karaoke-stage .live-stage-main .room-key button {
+    box-sizing: border-box; flex: none; width: var(--room-action-size); min-width: var(--room-action-size);
+    height: var(--room-action-size); min-height: var(--room-action-size); padding: 0; border-radius: 50%;
+  }
+  & #live-karaoke-stage #live-actions button svg { width: var(--room-action-icon); height: var(--room-action-icon); }
+  & #live-current > span:not(.room-singer-avatar), & .live-stage-main .room-key button {
+    border: 0; box-shadow: none; background: var(--room-seat-fill); color: var(--room-text);
+    -webkit-backdrop-filter: var(--room-round-frost); backdrop-filter: var(--room-round-frost);
+  }
+  & .live-stage-main .room-key {
+    height: auto; padding: 0; border: 0; background: none; box-shadow: none;
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+  }
+  &:not([data-room-pc-controls]) {
+    & #live-karaoke-stage .live-stage-main { padding-inline: 0; }
+    & .live-stage-main .live-song-progress { left: 0; }
+    & .live-request-area #live-queue {
+      --queue-gap: 3px; gap: var(--queue-gap); align-items: center;
+      grid-auto-columns: calc((100% - 5 * var(--queue-gap)) / 6);
+    }
+    & #live-queue > li:not(.live-queue-empty) { min-width: 0; align-self: center; padding-inline: 0; gap: 2px; }
+    & #live-queue .room-empty-order {
+      width: var(--room-queue-photo); height: var(--room-queue-photo);
+      max-width: 100%; margin-block: calc((var(--room-avatar-slot) - var(--room-queue-photo)) / 2);
+      background: var(--room-seat-fill);
+    }
+    & #live-queue strong, & #live-queue strong > span:last-child {
+      display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; line-height: 16px;
+    }
+    & #live-queue strong:has(.room-host-crown) { display: flex; align-items: center; justify-content: center; }
+    @media (max-width:365px) {
+      & .live-stage-main:has(#live-actions button:not([hidden])) { padding-top: 48px; }
+    }
+    @media (min-width:801px), (pointer:coarse) and (orientation:landscape) and (min-width:560px) and (max-height:500px) {
+      &.live-karaoke-room .voice-stage { padding-bottom: var(--room-chat-inset); }
+      & .voice-stage > .voice-unlock-audio { order: -1; }
+    }
+    @media (pointer:coarse) and (orientation:landscape) and (min-width:560px) and (max-height:500px) {
+      & #live-karaoke-stage { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0,1fr) auto; }
+      & .live-stage-main { justify-content: flex-start; overflow-y: auto; padding-block: 4px; }
+      & .live-stage-main .live-song-progress { position: static; align-self: stretch; flex: none; margin-top: 6px; }
+      @media (max-width:800px) {
+        &.live-karaoke-room .voice-stage { padding-bottom: 6px; }
+      }
+    }
+  }
+  &.live-karaoke-room[data-room-pc-controls] {
+    & .voice-columns > .voice-stage { padding-bottom: var(--room-chat-inset); }
+    & .voice-stage > .voice-unlock-audio { order: -1; }
+    & .live-stage-main { padding-inline: 0; }
+    @container (max-height:380px) {
+      & .live-stage-main #live-current { padding-top: 4px; }
+      & #live-current strong { margin-top: 8px; }
+      & .live-stage-main #live-lyrics { margin-top: 20px; }
+    }
+    @container (max-width:405px) {
+      & .live-stage-main:has(.room-key:not([hidden])) #live-current { padding-top: 54px; }
+    }
+    @container (max-width:311px) {
+      & .live-stage-main:has(.room-key:not([hidden])) #live-actions { top: 56px; }
+      & .live-stage-main:has(.room-key:not([hidden])) #live-current { padding-top: 104px; }
+    }
+    & .room-key, & #live-actions { height: var(--room-action-size); top: 8px; }
+    & .room-key { left: 0; }
+    & #live-actions { right: 0; gap: var(--room-action-gap); }
+    & #live-queue > li { min-width: 0; }
+    & #live-queue .room-empty-order, & #live-queue .live-queue-avatar {
+      box-sizing: border-box; flex: none; width: 100%; max-width: 57px; height: 57px;
+      min-height: 0; display: grid; place-items: center;
+    }
+    & #live-queue .room-empty-order { background: none; position: relative; isolation: isolate; line-height: 1; }
+    & #live-queue .room-empty-order::before {
+      content: ""; position: absolute; z-index: -1; width: min(100%,38px); aspect-ratio: 1;
+      border-radius: 50%; background: var(--room-seat-fill);
+    }
+    & #live-queue strong { overflow: hidden; white-space: nowrap; }
+  }
+}

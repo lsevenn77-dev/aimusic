@@ -61,8 +61,10 @@ const talkingRoomStyle = await readFile('dist/talking-room.css', 'utf8');
 const {code: flatTalkingRoomStyle} = await transform(talkingRoomStyle, {loader: 'css', supported: {nesting: false}});
 await writeFile('dist/client/talking-room.css', flatTalkingRoomStyle);
 await cp('dist/talking-playlist.js','dist/client/talking-playlist.js');
-const {code: talkingPlaylistStyle} = await transform(await readFile('dist/talking-playlist.css','utf8'), {loader:'css',supported:{nesting:false}});
-await writeFile('dist/client/talking-playlist.css',talkingPlaylistStyle);
+for(const stylesheet of ['talking-playlist.css','room-frame.css']){
+ const {code}=await transform(await readFile('dist/'+stylesheet,'utf8'),{loader:'css',supported:{nesting:false}});
+ await writeFile('dist/client/'+stylesheet,code);
+}
 for(const file of ['user-nickname.js','profile-editor.js','profile-editor.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/uiux-space.css','dist/client/uiux-space.css');
 await cp('dist/main-layout.css','dist/client/main-layout.css');
@@ -102,7 +104,7 @@ await cp('dist/ui-region-scale.css','dist/client/ui-region-scale.css');
 await cp('dist/gift-scale.css','dist/client/gift-scale.css');
 await cp('dist/sing-recording-scale.css','dist/client/sing-recording-scale.css');
 for(const name of await readdir('dist/client')){
- if(name==='talking-playlist.css')continue; // Four stable 52px rows; final desktop font sizes.
+ if(['talking-playlist.css','room-frame.css'].includes(name))continue; // Approved room dimensions use final CSS pixels.
  // Shared chat controls, singing presentation and popup roles use final CSS pixels. Their feature
  // geometry and the verified 20/15/14/13px popup type scale must not be remapped.
  if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','public-discovery.css','scroll-top.css','room-release.css','room-bubbles.css','room-interior.css','chat-ui.css','messages-ui.css','page-tabs.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'].includes(name))continue;

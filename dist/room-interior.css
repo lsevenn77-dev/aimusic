@@ -141,7 +141,7 @@
 
   & .room-header nav > button + button::before { content: none; }
   & #voice-content .voice-chat-panel {
-    box-sizing: border-box; padding: calc(clamp(10px,1vw,16px) + 1px) 0 calc(clamp(10px,1vw,16px) + 1px) clamp(10px,1vw,16px);
+    box-sizing: border-box; padding: var(--room-chat-inset) 0 var(--room-chat-inset) clamp(10px,1vw,16px);
     background: none; border: 0; border-radius: 0; box-shadow: none; backdrop-filter: none;
   }
   & #voice-content .room-solid-icon { fill: currentColor; stroke: none; }
@@ -509,7 +509,7 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
     --room-lyric: 24px;
     --room-lyric-line: 50px;
     --room-count-space: 53px;
-    & #live-karaoke-stage { grid-template-rows: minmax(0,1fr) 20px 148px; gap: 12px; }
+    & #live-karaoke-stage { grid-template-rows: minmax(0,1fr) 20px auto; gap: 12px; }
     & .live-stage-main { container-type: size; height: auto; min-height: 0; overflow-y: auto; }
     & .live-stage-main #live-current { --room-singer: inherit; flex-shrink: 0; }
     & .live-stage-main .room-live-guide { flex-shrink: 0; align-self: stretch; }
@@ -539,20 +539,21 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
     & #live-countdown .live-start-dot { margin-top: 26px; }
     & #live-karaoke-stage > .live-song-progress {
       position: static; display: flex; align-items: center; gap: 7px; width: auto; max-width: none;
-      height: 20px; min-height: 0; margin: 0; padding: 0 23px; box-sizing: border-box;
+      height: 20px; min-height: 0; margin: 0; padding: 0; box-sizing: border-box;
     }
     & .live-time-icon { display: inline-flex; align-items: center; flex: none; }
     & .live-time-icon svg { width: 18px; height: 18px; }
     & #live-timer { color: var(--room-text); font-size: 14px; line-height: 20px; white-space: nowrap; }
-    & .live-request-area { height: 148px; min-height: 148px; padding: 14px 22px; gap: 12px; }
+    & .live-request-area { height: auto; min-height: 0; padding: 8px clamp(6px,1vw,14px); gap: 8px; }
     & .live-request-area .live-request-button { min-height: 44px; height: 44px; padding-inline: 14px; }
     & #live-queue {
-      height: 100%; padding: 2px 0; gap: 8px; align-items: center;
-      grid-auto-columns: minmax(max(60px,calc((100% - 40px)/6)),1fr);
+      height: auto; padding: 0; gap: var(--queue-gap); align-items: center;
+      --queue-gap: clamp(2px,.4vw,6px);
+      grid-auto-columns: calc((100% - 5 * var(--queue-gap)) / 6);
     }
     & #live-queue > li, & #live-queue > li:not(.live-queue-empty) {
       --room-queue-photo: 38px; --room-avatar-slot: 57px;
-      align-self: center; gap: 10px; padding: 0;
+      align-self: center; gap: 2px; padding: 0;
     }
     & #live-queue .live-queue-avatar { position: relative; inset: auto; width: 57px; height: 57px; min-height: 57px; }
     & #live-queue .room-member-photo,
@@ -596,7 +597,7 @@ body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast 
     & .room-heading h1 { font-size: 18px; }
     & .room-heading small { font-size: 11px; }
     & .voice-columns, &.talking-room .voice-columns { height: 100%; grid-template-rows: minmax(0, min(360px,48%)) minmax(0,1fr); gap: 8px; }
-    &[data-room-chat-active] .voice-columns { grid-template-rows: minmax(0,24%) minmax(0,1fr); }
+    &[data-room-chat-active] #voice-content .voice-columns { grid-template-rows: minmax(0,24%) minmax(0,1fr); }
     & .voice-columns > .voice-stage { display: flex; flex-direction: column; height: 100%; overflow: auto; }
     & #voice-content .voice-chat-panel { padding: 6px 0; }
     & #voice-content .voice-chat-panel #voice-chat-form { margin-top: 4px; }
