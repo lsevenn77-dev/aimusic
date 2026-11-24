@@ -1,6 +1,6 @@
 import * as AifectMessages from '../shared/system-messages.js';
 import {withSourceCookie} from './signup-source.js';
-import {boxCutoverRoute} from './library-unification.js';
+import {boxCutoverRoute,queueConfiguredBoxRetirement} from './library-unification.js';
 import {playlistsRoute} from './playlists.js';
 import {myBoxesRoute} from './my-boxes.js';
 import {queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
@@ -127,7 +127,7 @@ async function fetchRequest(req,env,ctx){
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
-  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueBotHeartbeat(env,ctx);retryPush(env,ctx);queueLyricAnalysis(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
+  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueConfiguredBoxRetirement(env,ctx);queueBotHeartbeat(env,ctx);retryPush(env,ctx);queueLyricAnalysis(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
   // Render signed-in deletion locally. The public renderer never receives a user's identity.
   if(path==='/account/delete'&&req.method==='GET'){
    const account=await viewer(req,env);if(account)return accountPageRoute(req,path,account);

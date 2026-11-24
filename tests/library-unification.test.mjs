@@ -5,8 +5,9 @@ import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {fixture} from './fixture.mjs';
 import {verifyLibraryBackup} from '../scripts/verify-library-backup.mjs';
-import {applyBoxUnification} from '../server/library-unification.js';
+import {applyBoxUnification,retireMyBoxes} from '../server/library-unification.js';
 import {migrateLibraryBatch} from '../server/library-migration.js';
+import worker from '../server/index.js';
 
 function seed(sql) {
   sql.exec(`UPDATE tracks SET kind='cover' WHERE id='two';
@@ -79,4 +80,42 @@ test('source edits racing with cutover and copy verification failures roll back 
   assert.equal(sql.prepare('SELECT count(*) n FROM playlists').get().n,1);
   assert.equal(sql.prepare('SELECT count(*) n FROM library_unification_state').get().n,0);
   assert.equal(sql.prepare('SELECT count(*) n FROM my_box_items').get().n,5);
+});
+
+test('authorized retirement checks its backup and enables the new library only after both legacy tables are empty',async t => {
+  const {sql,DB,call}=await fixture(t);
+  seed(sql);
+  sql.exec(`INSERT INTO playlists(id,user_id,name,name_key,is_public,created) VALUES('kept','owner','원본','원본',1,1);
+    INSERT INTO playlist_tracks VALUES('kept','one',1,0);`);
+  const saved=await backup(t,sql);
+  const proof={boxes:saved.boxes,items:saved.items,source_sha256:saved.source_sha256,backup_sha256:saved.file_sha256};
+  const preserved=Object.fromEntries(['tracks','playlists','playlist_tracks','playlist_saves'].map(name=>[name,sql.prepare('SELECT * FROM '+name).all()]));
+  await assert.rejects(retireMyBoxes({DB},{...proof,items:proof.items+1}),e=>e.status===409);
+  sql.exec("CREATE TRIGGER interrupt_delete BEFORE DELETE ON my_boxes BEGIN SELECT RAISE(ABORT,'test rollback'); END;");
+  await assert.rejects(retireMyBoxes({DB},proof),/test rollback/);
+  assert.equal(sql.prepare('SELECT count(*) n FROM my_box_items').get().n,5);
+  assert.equal((await call('/api/library/unification')).body.ready,false);
+  sql.exec('DROP TRIGGER interrupt_delete');
+
+  const env={DB,TRANSCODER_TOKEN:'local-fixture-token'};
+  async function claim(config,token) {
+    const jobs=[];
+    const headers=token ? {Authorization:'Bearer '+token} : {};
+    const req=new Request('https://aifect.test/internal/jobs/claim',{method:'POST',headers});
+    const res=await worker.fetch(req,{...env,AIFECT_MY_BOX_RETIREMENT:config},{waitUntil(p){jobs.push(p);}});
+    await Promise.allSettled(jobs);
+    return res.status;
+  }
+  assert.equal(await claim(null,env.TRANSCODER_TOKEN),200);
+  assert.equal(await claim(JSON.stringify(proof)),401);
+  assert.equal(sql.prepare('SELECT count(*) n FROM my_boxes').get().n,2);
+  assert.equal(await claim(JSON.stringify(proof),env.TRANSCODER_TOKEN),200);
+  assert.deepEqual((await call('/api/library/unification')).body,{ready:true,legacy_boxes_removed:true});
+  assert.equal((await call('/api/my-boxes','POST',{name:'새 마이박스'})).status,410);
+  assert.equal(sql.prepare('SELECT count(*) n FROM my_boxes').get().n,0);
+  assert.equal(sql.prepare('SELECT count(*) n FROM my_box_items').get().n,0);
+  const result=await retireMyBoxes({DB},proof);
+  assert.equal(result.mode,'deleted');assert.equal(result.boxes,2);assert.equal(result.items,5);
+  assert.equal(sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='library:v3:deleted'").get().n,1);
+  for(const [name,records] of Object.entries(preserved))assert.deepEqual(sql.prepare('SELECT * FROM '+name).all(),records);
 });

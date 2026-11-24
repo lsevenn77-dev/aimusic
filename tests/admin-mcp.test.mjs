@@ -6,8 +6,6 @@ import {executeAdminTool} from '../server/admin-mcp-operations.js';
 import {BUSINESS} from '../shared/site-info.js';
 import {finalizeGiftDiamonds} from '../server/diamonds.js';
 import {sampleScript,options,memoryBucket} from './dubbing-fixtures.mjs';
-import {hash} from '../server/auth.js';
-import {inspectBoxSource} from '../shared/library-backup.js';
 
 const owner='site-scoped-operator-123';
 const settings={AIFECT_MCP_ENABLED:'true',AIFECT_MCP_OWNER_ID:owner};
@@ -48,9 +46,8 @@ test('MCP protocols, catalog, schema enforcement, notifications and bounded body
  assert.equal((await f.rpc('initialize',{protocolVersion:'2025-06-18'})).body.result.protocolVersion,'2025-06-18');
  assert.equal((await f.rpc('initialize')).body.result.serverInfo.title,'AIFECT 관리자');
  const list=(await f.rpc('tools/list')).body.result.tools;
- assert.equal(list.length,10);assert.ok(list.every(t=>t.inputSchema.additionalProperties===false));
+ assert.equal(list.length,9);assert.ok(list.every(t=>t.inputSchema.additionalProperties===false));
  assert.equal(list.find(t=>t.name==='aifect_grant_test_gold').annotations.readOnlyHint,false);
- assert.equal(list.find(t=>t.name==='aifect_retire_my_boxes').annotations.destructiveHint,true);
  assert.equal((await f.rpc('unknown')).body.error.code,-32601);
  assert.equal((await f.tool('run_sql',{sql:'DROP TABLE users'})).body.error.code,-32602);
  assert.equal((await f.rpc('tools/list',{}, {raw:'['})).body.error.code,-32700);
@@ -61,40 +58,6 @@ test('MCP protocols, catalog, schema enforcement, notifications and bounded body
  assert.equal((await f.rpc('tools/call',{name:'aifect_grant_test_gold',arguments:grant()}, {envelope:{id:undefined}})).status,400);
  for(const args of [grant({gold:0}),grant({gold:-1}),grant({gold:1.5}),grant({gold:10001}),grant({user_id:''}),grant({request_id:'x'}),{...grant(),admin:true},{...grant(),__proto__:null,sql:'select'}])assert.equal((await f.tool('aifect_grant_test_gold',args)).body.error.code,-32602);
  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM gold_purchases').get().n,0);
-});
-
-test('My Box retirement requires a matching backup and deletes only old box rows before enabling the new library',async t=>{
- const f=await setup(t);
- f.sql.exec(`INSERT INTO my_boxes(id,user_id,name,created,updated) VALUES('old','owner','보관함',1,1),('empty','other','빈 목록',1,1);
-  INSERT INTO my_box_items VALUES('old','original','one',0,1);
-  INSERT INTO playlists(id,user_id,name,name_key,is_public,created) VALUES('kept','owner','같은 이름','같은 이름',1,1),('other-list','other','같은 이름','같은 이름',0,1);
-  INSERT INTO playlist_tracks VALUES('kept','one',1,0);
-  INSERT INTO playlist_saves VALUES('other','kept',1);`);
- const source=await inspectBoxSource((sql,...args)=>f.sql.prepare(sql).get(...args),hash);
- const backup={source_sha256:source.fingerprint,backup_sha256:'b'.repeat(64),...source.counts};
- const name='aifect_retire_my_boxes';
- assert.equal((await f.tool(name,backup,{headers:{'oai-authenticated-user-id':null,Cookie:'aifect_session=owner'}})).status,401);
- assert.equal((await f.tool(name,{...backup,items:2})).body.result.isError,true);
- assert.equal((await f.call('/api/library/unification')).body.ready,false);
- assert.equal(f.sql.prepare('SELECT count(*) n FROM my_boxes').get().n,2);
-
- f.sql.exec("CREATE TRIGGER interrupt_delete BEFORE DELETE ON my_boxes BEGIN SELECT RAISE(ABORT,'test rollback'); END;");
- assert.equal((await f.tool(name,backup)).body.result.isError,true);
- assert.equal(f.sql.prepare('SELECT count(*) n FROM my_box_items').get().n,1);
- assert.equal((await f.call('/api/library/unification')).body.ready,false);
- f.sql.exec('DROP TRIGGER interrupt_delete');
-
- const preserved=Object.fromEntries(['tracks','playlists','playlist_tracks','playlist_saves'].map(name=>[name,f.sql.prepare('SELECT * FROM '+name).all()]));
- const result=output(await f.tool(name,backup));
- assert.equal(result.mode,'deleted');
- assert.equal(result.boxes,2);assert.equal(result.items,1);
- assert.deepEqual(output(await f.tool(name,backup)),result);
- assert.equal(f.sql.prepare('SELECT count(*) n FROM my_boxes').get().n,0);
- assert.equal(f.sql.prepare('SELECT count(*) n FROM my_box_items').get().n,0);
- for(const [name,records] of Object.entries(preserved))assert.deepEqual(f.sql.prepare('SELECT * FROM '+name).all(),records);
- assert.deepEqual((await f.call('/api/library/unification')).body,{ready:true,legacy_boxes_removed:true});
- assert.equal((await f.call('/api/my-boxes','POST',{name:'새 마이박스'})).status,410);
- assert.equal(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='library:v3:deleted'").get().n,1);
 });
 
 test('nickname search is public identity, escaped, bounded and excludes deleted accounts',async t=>{

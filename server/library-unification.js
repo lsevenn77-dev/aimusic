@@ -99,7 +99,11 @@ export async function applyBoxUnification(env, backup) {
   return result;
 }
 
-export async function retireMyBoxes(env, actor, backup) {
+export async function retireMyBoxes(env, backup) {
+  if (!backup || ![backup.source_sha256,backup.backup_sha256].every(value => typeof value === 'string' && /^[a-f0-9]{64}$/u.test(value)) ||
+      ![backup.boxes,backup.items].every(count => Number.isSafeInteger(count) && count >= 0)) {
+    fail(400,'검증한 마이박스 백업의 체크섬과 원본 건수가 필요합니다.');
+  }
   const matchesBackup = result => result?.mode === 'deleted' &&
     result.source_sha256 === backup.source_sha256 && result.backup_sha256 === backup.backup_sha256 &&
     result.boxes === backup.boxes && result.items === backup.items;
@@ -124,7 +128,7 @@ export async function retireMyBoxes(env, actor, backup) {
       query(env,`INSERT INTO library_write_guards(id,allowed) SELECT ?,
         CASE WHEN NOT EXISTS(SELECT 1 FROM my_boxes) AND NOT EXISTS(SELECT 1 FROM my_box_items) THEN 1 ELSE 0 END`,auditId),
       query(env,'INSERT INTO library_unification_state(key,value) VALUES(?,?)',verifiedKey,JSON.stringify(result)),
-      query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,'library:v3:deleted',?,?)",auditId,actor.id,JSON.stringify(result),result.verified_at),
+      query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,'sites-deployment','library:v3:deleted',?,?)",auditId,JSON.stringify(result),result.verified_at),
       query(env,'DELETE FROM library_write_guards WHERE id=?',auditId)
     ]);
   } catch (error) {
@@ -133,6 +137,26 @@ export async function retireMyBoxes(env, actor, backup) {
     throw error;
   }
   return result;
+}
+
+const retirementAttempts = new WeakMap();
+
+// Only called by the existing authenticated jobs heartbeat. Runtime config is
+// set by the Sites owner for a verified backup, never by the heartbeat caller.
+export function queueConfiguredBoxRetirement(env,ctx) {
+  const setting = env.AIFECT_MY_BOX_RETIREMENT;
+  if (!setting || !ctx?.waitUntil) return;
+  const last = retirementAttempts.get(env.DB);
+  if (last?.setting === setting && Date.now() < last.next) return;
+  const attempt = {setting,next:Date.now()+60000};
+  retirementAttempts.set(env.DB,attempt);
+  ctx.waitUntil((async () => {
+    if (!await boxesUnified(env)) {
+      const result = await retireMyBoxes(env,JSON.parse(setting));
+      console.log('My Box retirement verified',JSON.stringify({boxes:result.boxes,items:result.items}));
+    }
+    attempt.next = Infinity;
+  })().catch(error => console.error('My Box retirement stopped',error.status || error.name)));
 }
 
 export async function boxCutoverRoute(req,env,path,user) {
