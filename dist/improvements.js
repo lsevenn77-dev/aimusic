@@ -117,10 +117,11 @@ async function improvementsView(base,param,raw,readApi=api){
   if(base==='rewards'){const d=await readApi('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 실버','작은 활동을 모아 좋아하는 음악에 응원해 보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
   // On direct entry, mount the workspace before the history request, just like a row selection.
   if(param&&raw.split('?')[0]!=='dm/tools/friends'){
-   const inbox=param==='notice'?await readApi(unifiedDmInboxPath):
+   const official=isOfficialNoticePeer(param);
+   const inbox=official?await readApi(unifiedDmInboxPath):
     (dmInboxSnapshot?.uid===me.id?dmInboxSnapshot.data:{conversations:[]});
-   const selected=raw.split('?')[0].slice(3);
-   return {html:dmInboxHTML(inbox,dmLoadingSpinnerHTML,selected),inbox:true,selectedConversation:selected,openThread:true,refreshInbox:param!=='notice'};
+   const selected=official?'notice':raw.split('?')[0].slice(3);
+   return {html:dmInboxHTML(inbox,dmLoadingSpinnerHTML,selected),inbox:true,selectedConversation:selected,openThread:true,refreshInbox:!official};
   }
   return dmRouteView(param,raw,readApi);
  }
@@ -132,7 +133,7 @@ async function dmRouteView(param,raw,readApi,inbox=null,layout=dmInboxHTML){
   const data=inbox||await readApi(unifiedDmInboxPath);
   return {html:layout(data,dmFriendFinderHTML()),inbox:true,friendFinder:true};
  }
- if(param==='notice')return dmNoticeView(raw,readApi,inbox,layout);
+ if(isOfficialNoticePeer(param))return dmNoticeView(raw,readApi,inbox,layout);
  if(param==='crew')return dmWorkspaceView(await crewChatView(raw,readApi),layout);
  const path='/api/dm/'+encodeURIComponent(param);
  let data;

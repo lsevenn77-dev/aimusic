@@ -174,9 +174,11 @@ async function dmNoticeView(raw,readApi=api,knownInbox=null,layout=dmInboxHTML){
  const [inbox,feed]=await Promise.all([knownInbox||readApi(unifiedDmInboxPath),readApi(officialNoticePath)]);
  rememberDmInbox(inbox);
  const back='<a class="chat-ui-icon chat-ui-plain dm-back" href="#dm" aria-label="대화 목록으로 돌아가기">'+icon('back')+'</a>';
- const header='<header class="dm-thread-header">'+back+'<div class="dm-thread-person"><div><h1>공지</h1><small>'+esc(feed.channel.name)+'</small></div></div></header>';
+ const header='<header class="dm-thread-header">'+back+'<div class="dm-thread-person"><div><h1>'+esc(feed.channel.name)+'</h1></div></div></header>';
  const params=new URLSearchParams(raw.split('?')[1]||'');
- return {html:layout(inbox,header+officialNoticeTimeline(feed),'notice'),inbox:true,selectedConversation:'notice',noticeFeed:feed,noticeAnchor:params.get('entry')||params.get('peer')||''};
+ const peer=params.get('peer')||raw.split('?')[0].split('/')[1];
+ const anchor=params.get('entry')||(peer==='premium-open-event-20261231-v1'?'campaign:'+peer:peer==='aifect-guide'?peer:params.get('peer')||'');
+ return {html:layout(inbox,header+officialNoticeTimeline(feed),'notice'),inbox:true,selectedConversation:'notice',noticeFeed:feed,noticeAnchor:anchor};
 }
 function dmFriendFinderHTML(){
  return '<header class="dm-thread-header"><a href="#dm" class="icon-button dm-finder-back" aria-label="뒤로 가기">'+icon('back')+'</a><h1>친구 찾기</h1></header>'+

@@ -104,7 +104,7 @@ test('the approved premium release checks event rights and the banner before one
  assert.deepEqual(receipts().map(r=>[r.user_id,r.read_at]),[['other',0],['owner',0]]);
  assert.equal((await f.call(path,'GET',null,null)).status,401);
  const firstDevice=await f.call(path);
- assert.equal(firstDevice.body.peer.name,'AIFECT 운영팀');
+ assert.equal(firstDevice.body.peer.name,'아이팩트 안내');
  assert.equal(firstDevice.body.peer.read_only,true);
  assert.deepEqual(firstDevice.body.notice,PREMIUM_OPEN_NOTICE);
  assert.equal((await f.call('/api/dm')).body.notice_unread,2);
@@ -113,7 +113,8 @@ test('the approved premium release checks event rights and the banner before one
  const secondDevice=(await f.call('/api/dm')).body;
  assert.equal(secondDevice.notice_unread,1);
  assert.equal(secondDevice.conversations.find(p=>p.notice_type==='welcome').unread,1);
- assert.equal(secondDevice.conversations.find(p=>p.id===PREMIUM_OPEN_NOTICE_ID).unread,0);
+ assert.equal(secondDevice.conversations.filter(p=>p.is_notice&&p.read_only).length,1);
+ assert.equal(secondDevice.conversations.some(p=>p.id===PREMIUM_OPEN_NOTICE_ID),false);
  assert.equal((await f.call(path,'GET',null,'other')).body.read_at,0);
  assert.equal(await launch(),false);
  assert.deepEqual(await counts(),report);
