@@ -56,13 +56,14 @@ function dmSearchMatch(p,query,label=''){
 function dmConversationRow(p,selected=''){
  return '<article data-list-row class="conversation-row'+(selected===p.id?' is-selected':'')+(Number(p.unread)>0?' is-unread':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'>'+conversationCopyHTML(p,chatNickname(p),'대화를 시작해 보세요.')+conversationMetaHTML(p)+'</a></article>';
 }
+function isOfficialNoticePeer(id){return ['notice','aifect-guide','premium-open-event-20261231-v1','aifect-official-notice'].includes(id);}
 function noticeInboxHTML(p={},selected){
- const active=selected==='notice';
- return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'공지','아직 받은 공지가 없습니다.',true)+conversationMetaHTML(p)+'</a>';
+ const active=isOfficialNoticePeer(selected);
+ return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'아이팩트 안내','아직 받은 공지가 없습니다.',true)+conversationMetaHTML(p)+'</a>';
 }
 function conversationListHTML(conversations=[],crew=null,selected=''){
  const {notice:official,direct}=dmOrderedConversations(conversations),query=dmInboxQuery;
- const notice=dmSearchMatch(official,query,'공지')?noticeInboxHTML(official,selected):'';
+ const notice=dmSearchMatch(official,query,'아이팩트 안내 공지')?noticeInboxHTML(official,selected):'';
  const crewRow=dmSearchMatch(crew,query,'크루채팅')?(crewInboxHTML(crew,selected)||'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있습니다.</p></div></a>'):'';
  const rows=direct.filter(p=>dmSearchMatch(p,query)).map(p=>dmConversationRow(p,selected)).join('');
  return '<div class="conversation-list">'+notice+crewRow+rows+'</div>'+(!notice&&!crewRow&&!rows?'<div class="dm-empty" role="status"><p>검색 결과가 없습니다.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해 보세요.</p></div>':'');
@@ -261,7 +262,7 @@ function bindSocialChat(view){
  const ticket=renderId,uid=me?.id,root=document.querySelector('.message-workspace');
  let closed=false,threadBinding=null,stopNotice=null,stopFinder=null,returnLog=null,watchedCrew=null,stopCrewInbox=null;
  let inboxData=uid&&dmInboxSnapshot?.uid===uid?dmInboxSnapshot.data:null;
- let selection=view.selectedConversation||'',directRevision=0,crewRevision=0;
+ let selection=isOfficialNoticePeer(view.selectedConversation)?'notice':view.selectedConversation||'',directRevision=0,crewRevision=0;
  const current=()=>!closed&&ticket===renderId&&uid===me?.id;
  const changes=new Map(),receipts=new Map();
  const targets=new Set(),historyCache=new Map();
@@ -350,7 +351,7 @@ function bindSocialChat(view){
    if(finder&&oldLog)returnLog={route:session.route,top:oldLog.scrollTop,pinned:oldLog.scrollHeight-oldLog.clientHeight-oldLog.scrollTop<90};
    const restore=leavingFinder&&returnLog?.route===raw?returnLog:null;
    if(!finder)returnLog=null;
-   unbindPanel();session.route=raw;selection=finder?'':raw.split('?')[0].slice(3);
+   unbindPanel();session.route=raw;selection=finder?'':isOfficialNoticePeer(param)?'notice':raw.split('?')[0].slice(3);
    root.classList.toggle('has-thread',!!param);
    selectDmRow(root,selection);
    addTarget(raw);main.dataset.route=raw;

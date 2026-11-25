@@ -5,7 +5,7 @@ import worker from '../server/index.js';
 import {hash} from '../server/auth.js';
 import {chatStreamRoute} from '../server/chat-stream.js';
 import {activateWelcomeCampaign,ensureWelcomeReceipt,welcomeNoticeStatus,queueWelcomeCampaign} from '../server/welcome-notices.js';
-import {WELCOME_CAMPAIGN_ID,WELCOME_PEER_ID} from '../shared/welcome-guide.js';
+import {WELCOME_CAMPAIGN_ID,WELCOME_PEER_ID,WELCOME_PREVIEW} from '../shared/welcome-guide.js';
 import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
 
 const at=()=>Math.floor(Date.now()/1000);
@@ -18,6 +18,11 @@ async function member(f,id,{provider='email',name=id,accountType='human',profile
 }
 function dm(f,id,sender,recipient,body){
  f.sql.prepare('INSERT INTO direct_messages(id,sender_id,recipient_id,body,request_id,created) VALUES(?,?,?,?,?,?)').run(id,sender,recipient,body,id,at());
+}
+
+function premiumNotice(f,{users=['owner','other'],created=at()+1,content=PREMIUM_OPEN_NOTICE}={}){
+ f.sql.prepare('INSERT INTO welcome_campaigns(id,content_json,created,recipient_max_rowid) VALUES(?,?,?,0)').run(PREMIUM_OPEN_NOTICE_ID,JSON.stringify(content),created);
+ for(const user of users)f.sql.prepare("INSERT INTO welcome_receipts(campaign_id,user_id,created,source) VALUES(?,?,?,'broadcast')").run(PREMIUM_OPEN_NOTICE_ID,user,created);
 }
 
 test('the official inbox has one channel and combines old guides, event cards and member-scoped operator history',async t=>{
@@ -218,6 +223,173 @@ test('one welcome unread is added alongside existing official and personal conve
  assert.equal(summary.body.unread,2);
  assert.equal(summary.body.notice_unread,0);
  assert.deepEqual(f.sql.prepare('SELECT * FROM direct_messages ORDER BY id').all().map(r=>({...r})),before);
+});
+
+test('welcome and premium receipts project as one channel with their saved content, timestamps and read state intact',async t=>{
+ const f=await fixture(t);
+ await activateWelcomeCampaign({DB:f.DB});
+ const welcomeCreated=receipt(f,'owner').created;
+ premiumNotice(f,{created:welcomeCreated+10,content:{...PREMIUM_OPEN_NOTICE,title:'🎁 저장된 오픈 선물 안내'}});
+ f.sql.prepare('UPDATE welcome_receipts SET read_at=? WHERE campaign_id=? AND user_id=?').run(welcomeCreated+1,WELCOME_CAMPAIGN_ID,'owner');
+ const campaigns=f.sql.prepare('SELECT * FROM welcome_campaigns ORDER BY id').all();
+ const receipts=f.sql.prepare('SELECT rowid sequence,* FROM welcome_receipts ORDER BY rowid').all();
+ const inbox=(await f.call('/api/dm')).body;
+ assert.equal(inbox.conversations.length,1);
+ assert.equal(inbox.notice_unread,1);
+ assert.deepEqual(inbox.conversations[0],{id:WELCOME_PEER_ID,name:'아이팩트 안내',chat_nickname:'아이팩트 안내',is_notice:true,notice_type:'welcome',read_only:true,last_message:'🎁 저장된 오픈 선물 안내',updated:welcomeCreated+10,unread:1});
+ const channel=await f.call('/api/notices/welcome');
+ assert.equal(channel.status,200);
+ assert.equal(channel.body.campaign_id,WELCOME_CAMPAIGN_ID,'legacy guide acknowledgement remains campaign-specific');
+ assert.equal(channel.body.created,welcomeCreated);
+ assert.equal(channel.body.read_at,welcomeCreated+1);
+ assert.deepEqual(channel.body.notices.map(n=>[n.campaign_id,n.path]),[[WELCOME_CAMPAIGN_ID,'/api/notices/welcome'],[PREMIUM_OPEN_NOTICE_ID,'/api/notices/premium-open-event']]);
+ assert.equal(channel.body.notices[1].read_at,0);
+ assert.deepEqual(channel.body.notices[1].notice,{...PREMIUM_OPEN_NOTICE,title:'🎁 저장된 오픈 선물 안내'});
+ assert.match(channel.body.guide.intro[0],/^🎁 저장된 오픈 선물 안내/,'guide-only apps also receive the event text');
+ assert.ok(channel.body.guide.intro[0].includes(PREMIUM_OPEN_NOTICE.body));
+ assert.equal(channel.body.notices[0].guide.intro.some(text=>text.includes('저장된 오픈 선물 안내')),false,'structured timeline does not duplicate the event');
+ assert.deepEqual(f.sql.prepare('SELECT * FROM welcome_campaigns ORDER BY id').all(),campaigns);
+ assert.deepEqual(f.sql.prepare('SELECT rowid sequence,* FROM welcome_receipts ORDER BY rowid').all(),receipts);
+ assert.equal(count(f,'direct_messages'),0);
+ assert.equal(count(f,'push_outbox'),0);
+});
+
+test('each campaign acknowledgement preserves the other unread receipt and never marks another member read',async t=>{
+ const f=await fixture(t);
+ await activateWelcomeCampaign({DB:f.DB});
+ premiumNotice(f);
+ assert.equal((await f.call('/api/dm')).body.conversations[0].unread,2);
+ assert.equal((await f.call('/api/notices/welcome','PATCH',{campaign_id:PREMIUM_OPEN_NOTICE_ID})).status,400);
+ assert.equal((await f.call('/api/notices/premium-open-event','PATCH',{campaign_id:WELCOME_CAMPAIGN_ID})).status,400);
+ assert.equal((await f.call('/api/notices/welcome','PATCH',{campaign_id:WELCOME_CAMPAIGN_ID})).status,200);
+ const welcomeRead=receipt(f,'owner').read_at;
+ assert.ok(welcomeRead>0);
+ const premium=(await f.call('/api/notices/premium-open-event')).body;
+ assert.equal(premium.peer.name,'아이팩트 안내');
+ assert.equal(premium.peer.id,PREMIUM_OPEN_NOTICE_ID,'old premium endpoint retains its published type contract');
+ assert.equal(premium.read_at,0);
+ assert.equal((await f.call('/api/dm')).body.conversations[0].unread,1);
+ assert.equal((await f.call('/api/notices/premium-open-event','PATCH',{campaign_id:PREMIUM_OPEN_NOTICE_ID})).status,200);
+ assert.equal((await f.call('/api/dm')).body.conversations[0].unread,0);
+ assert.equal((await f.call('/api/dm/summary')).body.notice_unread,0);
+ assert.equal(receipt(f,'owner').read_at,welcomeRead);
+ assert.equal((await f.call('/api/notices/welcome','GET',undefined,'other')).body.peer.unread,2);
+ assert.equal((await f.call('/api/notices/premium-open-event','GET',undefined,'other')).body.read_at,0);
+});
+
+test('the default app inbox merges the two virtual notices without hiding real operator or personal DMs',async t=>{
+ const f=await fixture(t,{ADMIN_USER_IDS:'other'});
+ f.sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('operator-profile','other','기존 운영자',0)");
+ await member(f,'friend',{profile:true,name:'친구'});
+ dm(f,'operator-history','other','owner','기존 운영자 대화');
+ dm(f,'friend-history','friend','owner','기존 개인 대화');
+ await activateWelcomeCampaign({DB:f.DB});
+ premiumNotice(f);
+ const existing=f.sql.prepare('SELECT * FROM direct_messages ORDER BY id').all();
+ const legacy=(await f.call('/api/dm')).body;
+ assert.deepEqual(legacy.conversations.map(p=>p.id).sort(),[WELCOME_PEER_ID,'operator-profile','profile-friend'].sort());
+ assert.equal(legacy.conversations.find(p=>p.id===WELCOME_PEER_ID).unread,2);
+ assert.equal(legacy.conversations.find(p=>p.id==='operator-profile').last_message,'기존 운영자 대화');
+ assert.equal(legacy.unread,4);
+ const unified=(await f.call('/api/dm?notices=unified')).body;
+ assert.deepEqual(unified.conversations.map(p=>p.id),['aifect-official-notice','profile-friend']);
+ assert.equal(unified.conversations[0].unread,3);
+ assert.deepEqual(f.sql.prepare('SELECT * FROM direct_messages ORDER BY id').all(),existing);
+});
+
+test('the official timeline includes only delivered receipts and works without a producer profile or a welcome receipt',async t=>{
+ const f=await fixture(t);
+ premiumNotice(f,{users:['other']});
+ assert.equal((await f.call('/api/dm')).body.conversations.length,0);
+ assert.equal((await f.call('/api/notices/welcome')).status,404);
+ const received=await f.call('/api/notices/welcome?user_id=owner','GET',undefined,'other');
+ assert.equal(received.status,200);
+ assert.equal(received.body.peer.id,WELCOME_PEER_ID);
+ assert.equal(received.body.peer.name,'아이팩트 안내');
+ assert.deepEqual(received.body.notices.map(n=>n.campaign_id),[PREMIUM_OPEN_NOTICE_ID]);
+ assert.equal(received.body.guide.intro[0],PREMIUM_OPEN_NOTICE.title+'\n\n'+PREMIUM_OPEN_NOTICE.body);
+ assert.equal((await f.call('/api/dm/aifect-guide','GET',undefined,'other')).status,200);
+ await activateWelcomeCampaign({DB:f.DB});
+ const welcomeOnly=(await f.call('/api/notices/welcome')).body;
+ assert.deepEqual(welcomeOnly.notices.map(n=>n.campaign_id),[WELCOME_CAMPAIGN_ID]);
+ assert.equal(welcomeOnly.peer.last_message,WELCOME_PREVIEW);
+ assert.equal((await f.call('/api/notices/premium-open-event')).status,404);
+});
+
+test('legacy official peer aliases return read-only history before profile lookup with stable receipt cursors',async t=>{
+ const f=await fixture(t);
+ await activateWelcomeCampaign({DB:f.DB});
+ premiumNotice(f,{created:receipt(f,'owner').created});
+ const expected=f.sql.prepare('SELECT rowid sequence,campaign_id FROM welcome_receipts WHERE user_id=? ORDER BY rowid').all('owner');
+ for(const alias of ['notice',WELCOME_PEER_ID,PREMIUM_OPEN_NOTICE_ID]){
+  const path='/api/dm/'+alias,result=await f.call(path);
+  assert.equal(result.status,200,path);
+  assert.equal(result.body.peer.id,WELCOME_PEER_ID);
+  assert.equal(result.body.peer.name,'아이팩트 안내');
+  assert.equal(result.body.peer.read_only,true);
+  assert.equal(result.body.peer.user_id,WELCOME_PEER_ID);
+  assert.equal(result.body.peer.image_version,'');
+  assert.equal(result.body.peer.premium_style_until,0);
+  assert.equal(result.body.peer.premium_default_frame,0);
+  assert.deepEqual(result.body.messages.map(m=>[m.sequence,m.campaign_id]),expected.map(r=>[r.sequence,r.campaign_id]));
+  assert.deepEqual(result.body.messages.map(m=>m.id),expected.map(r=>'notice:'+r.campaign_id));
+  assert.ok(result.body.messages[0].body.startsWith('QA님, 반갑습니다!'));
+  assert.equal(result.body.messages[1].body,PREMIUM_OPEN_NOTICE.title+'\n\n'+PREMIUM_OPEN_NOTICE.body);
+  assert.equal(result.body.messages[1].image_id,null,'public event art must not use private chat-image identifiers');
+  assert.equal(result.body.messages[1].image_url,PREMIUM_OPEN_NOTICE.banner);
+  assert.equal(result.body.has_more,false);
+  assert.equal(result.body.settings.read_only,true);
+  assert.deepEqual((await f.call(path+'/settings')).body,{muted:0,cleared_sequence:0,read_only:true});
+  assert.deepEqual((await f.call(path+'?after='+expected[0].sequence)).body.messages.map(m=>m.campaign_id),[PREMIUM_OPEN_NOTICE_ID]);
+  assert.deepEqual((await f.call(path+'?before='+expected[1].sequence)).body.messages.map(m=>m.campaign_id),[WELCOME_CAMPAIGN_ID]);
+  assert.equal((await f.call(path+'?before=1&after=2')).status,400);
+  assert.equal((await f.call(path+'?after=not-a-cursor')).status,400);
+  for(const method of ['POST','PUT','DELETE'])assert.equal((await f.call(path,method,{body:'새 공지'})).status,405);
+  assert.equal((await f.call(path+'/settings','PUT',{muted:true})).status,405);
+  assert.equal((await f.call(path+'/images','PUT',{})).status,405);
+  assert.equal((await f.call(path,'GET',undefined,null)).status,401);
+ }
+ assert.equal((await f.call('/api/dm/not-an-official-profile')).status,404);
+ assert.equal(count(f,'direct_messages'),0);
+ assert.equal(count(f,'dm_settings'),0);
+ assert.equal(count(f,'chat_images'),0);
+ assert.equal((await f.call('/api/dm/summary')).body.notice_unread,2,'history GET never marks a notice read');
+});
+
+test('legacy sequence acknowledgements preserve deliveries arriving after the returned history and are scoped to the member',async t=>{
+ const f=await fixture(t);
+ await activateWelcomeCampaign({DB:f.DB});
+ const initial=(await f.call('/api/dm/notice')).body.messages;
+ assert.equal(initial.length,1);
+ premiumNotice(f,{created:initial[0].created-1});
+ assert.equal((await f.call('/api/dm/notice','PATCH',{sequence:initial[0].sequence})).status,200);
+ assert.ok(receipt(f,'owner').read_at>0);
+ assert.equal((await f.call('/api/notices/premium-open-event')).body.read_at,0,'arrival order, not its declared date, bounds the read');
+ assert.equal((await f.call('/api/dm/summary')).body.notice_unread,1);
+ const latest=(await f.call('/api/dm/'+PREMIUM_OPEN_NOTICE_ID)).body.messages.at(-1);
+ assert.equal(latest.campaign_id,PREMIUM_OPEN_NOTICE_ID);
+ assert.equal((await f.call('/api/dm/aifect-guide','PATCH',{sequence:latest.sequence})).status,200);
+ const readAt=(await f.call('/api/notices/premium-open-event')).body.read_at;
+ assert.ok(readAt>0);
+ assert.equal((await f.call('/api/dm/notice','PATCH',{sequence:latest.sequence})).status,200);
+ assert.equal((await f.call('/api/notices/premium-open-event')).body.read_at,readAt);
+ assert.equal((await f.call('/api/dm/summary')).body.notice_unread,0);
+ assert.equal((await f.call('/api/dm/summary','GET',undefined,'other')).body.notice_unread,2);
+});
+
+test('legacy aliases reject unbounded, foreign and malformed read acknowledgements while accepting a delivered campaign',async t=>{
+ const f=await fixture(t);
+ await activateWelcomeCampaign({DB:f.DB});
+ premiumNotice(f);
+ const foreign=f.sql.prepare('SELECT rowid sequence FROM welcome_receipts WHERE user_id=? ORDER BY rowid DESC LIMIT 1').get('other').sequence;
+ for(const body of [{},{sequence:foreign},{sequence:0},{sequence:-1},{sequence:1.5},{sequence:999999},{sequence:'1'},{campaign_id:'missing'},{campaign_id:WELCOME_CAMPAIGN_ID,user_id:'other'},{campaign_id:WELCOME_CAMPAIGN_ID,sequence:1},[],null]){
+  assert.equal((await f.call('/api/dm/notice','PATCH',body)).status,400,JSON.stringify(body));
+ }
+ assert.equal((await f.call('/api/dm/summary')).body.notice_unread,2);
+ assert.equal((await f.call('/api/dm/notice','PATCH',{campaign_id:PREMIUM_OPEN_NOTICE_ID})).status,200);
+ assert.equal(receipt(f,'owner').read_at,0);
+ assert.ok((await f.call('/api/notices/premium-open-event')).body.read_at>0);
+ assert.equal((await f.call('/api/dm/summary')).body.notice_unread,1);
 });
 
 for(const [action,path,method] of [['read all','/api/dm/read-all','POST'],['clear all','/api/dm','DELETE']]){

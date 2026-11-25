@@ -1,6 +1,9 @@
 import * as AifectMessages from '../shared/system-messages.js';
 import {one,now,fail} from './db.js';
 import {cookies,hash,requireUser} from './auth.js';
+import {isOfficialNoticePeer} from './welcome-notices.js';
+import {WELCOME_CAMPAIGN_ID} from '../shared/welcome-guide.js';
+import {PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
 
 // Cross-instance, database-backed notifications: one indexed check/client/sec.
 // A bounded stream stays below the free D1 per-invocation query limit.
@@ -37,6 +40,15 @@ export async function chatStreamRoute(req,env,path,user){
  let readState;
  if(crew){
   readState=()=>one(env,'SELECT cm.role,cm.joined_sequence,COALESCE((SELECT rowid FROM crew_messages WHERE crew_id=cm.crew_id AND rowid>=cm.joined_sequence ORDER BY rowid DESC LIMIT 1),0) sequence FROM sessions s JOIN crew_members cm ON cm.user_id=s.user_id AND cm.crew_id=? WHERE '+session,crew,token,user.id,now());
+ }else if(isOfficialNoticePeer(peer)){
+  // Official channels have no member profile. Every legacy alias follows the
+  // same recipient-scoped receipts without creating a DM or acknowledging it.
+  readState=()=>one(env,`SELECT COALESCE(MAX(r.rowid),0) notice_received,
+   COUNT(CASE WHEN r.read_at=0 THEN 1 END) notice_unread
+   FROM sessions s JOIN users u ON u.id=s.user_id
+   LEFT JOIN welcome_receipts r ON r.user_id=s.user_id AND r.campaign_id IN (?,?)
+   WHERE ${session} AND u.account_type='human' AND u.provider!='deleted'
+   GROUP BY s.token,s.user_id`,WELCOME_CAMPAIGN_ID,PREMIUM_OPEN_NOTICE_ID,token,user.id,now());
  }else{
   const p=peer?await one(env,'SELECT user_id FROM producers WHERE id=?',peer):null;
   if(peer&&(!p||p.user_id===user.id))fail(404,'대화 상대를 찾을 수 없습니다.');

@@ -27,7 +27,7 @@ test('notice routing reads the official timeline even for a legacy peer link',as
  vm.runInContext(readFileSync(new URL('../dist/messages-ui.js',import.meta.url),'utf8'),c);
  const paths=[];const read=async path=>{paths.push(path);return path==='/api/dm?notices=unified'?{conversations:[{id:'fake',name:'AIFECT',updated:9}]}:{channel:{name:'아이팩트 안내'},items:[],before:null};};
  const view=await c.dmNoticeView('dm/notice?peer=fake',read);assert.deepEqual(paths,['/api/dm?notices=unified','/api/notices/official']);
- assert.equal(view.selectedConversation,'notice');assert.equal(view.noticeAnchor,'fake');assert.match(view.html,/아직 받은 공지/);assert.match(view.html,/<h1>공지<\/h1><small>아이팩트 안내<\/small>/);
+ assert.equal(view.selectedConversation,'notice');assert.equal(view.noticeAnchor,'fake');assert.match(view.html,/아직 받은 공지/);assert.match(view.html,/<h1>아이팩트 안내<\/h1>/);
  assert.doesNotMatch(view.html,/<select|composer/);assert.equal(view.chat,undefined);
 });
 

@@ -1,6 +1,6 @@
 export const PREMIUM_OPEN_NOTICE_ID = 'premium-open-event-20261231-v1';
 export const PREMIUM_OPEN_NOTICE_TYPE = 'premium-open-event';
-export const PREMIUM_OPEN_NOTICE_SENDER = 'AIFECT 운영팀';
+export const PREMIUM_OPEN_NOTICE_SENDER = '아이팩트 안내';
 
 export const PREMIUM_OPEN_NOTICE = {
  title: '🎁 아이팩트가 준비한 오픈 선물!',

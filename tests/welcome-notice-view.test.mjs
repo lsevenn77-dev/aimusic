@@ -74,8 +74,9 @@ test('the event and guide open in one chronological feed without a sender contro
  const calls=[],read=async path=>{calls.push(path);return path==='/api/notices/official'?data:{conversations:[]};};
  const opened=await c.dmNoticeView('dm/notice?peer='+PREMIUM_OPEN_NOTICE_ID,read);
  assert.deepEqual(calls,['/api/dm?notices=unified','/api/notices/official']);
- assert.equal(opened.noticeAnchor,PREMIUM_OPEN_NOTICE_ID);
- assert.match(opened.html,/<h1>공지<\/h1><small>아이팩트 안내<\/small>/);
+ assert.equal(opened.noticeAnchor,id);
+ assert.match(opened.html,/<h1>아이팩트 안내<\/h1>/);
+ assert.doesNotMatch(opened.html,/<small>아이팩트 안내<\/small>/);
  assert.match(opened.html,/<img class="official-notice-banner" [^>]+width="2172" height="724"/);
  assert.ok(opened.html.indexOf('data-welcome-section="play"')<opened.html.indexOf('<img'));
  assert.ok(opened.html.indexOf('<img')<opened.html.indexOf(PREMIUM_OPEN_NOTICE.title));
