@@ -1,8 +1,6 @@
 /* AuroraBackdrop: one CSS-only layer on the full page column, outside #main's
    1512px content frame. No viewport-width breakout, scroll listener or animation.
-   Keep the existing plain management pages and independent recording/room skins.
-   The original SVG's mint/purple/pink wash is expressed as transparent ellipses;
-   both masks reach zero before the layer meets a header, gutter or footer. */
+   Keep the existing plain management pages and independent recording/room skins. */
 #main[data-route]::before { content:none; display:none; }
 
 .page-wrap:has(> #main[data-route]):not(:where(:has(
@@ -17,11 +15,13 @@
     [data-route^="sing/"], [data-room-focus]),
   > #main :is(#sing.web-studio, [data-voice-room], .shop-page)
 ))) {
-  --aurora-height:clamp(128px, 19.12vw, 420px);
+  --aurora-default-height:clamp(128px, 19.12vw, 420px);
+  --aurora-height:var(--aurora-default-height);
   --aurora-paint:
     radial-gradient(ellipse 38% 105% at 24% 12%, rgb(142 221 210 / .24), transparent 100%),
     radial-gradient(ellipse 42% 115% at 56% 8%, rgb(151 117 232 / .22), transparent 100%),
     radial-gradient(ellipse 32% 100% at 84% 15%, rgb(242 125 181 / .15), transparent 100%);
+  --aurora-vertical-mask:linear-gradient(transparent, #000 14%, #000 42%, transparent 100%);
   position:relative;
   isolation:isolate;
   background-color:var(--af-bg, var(--ds-bg));
@@ -30,6 +30,7 @@
   &::before {
     content:"";
     position:absolute;
+    /* The measured header height is y=0 of the content below it. */
     inset:var(--topbar-height, 88px) 0 auto;
     width:auto;
     height:var(--aurora-height);
@@ -37,9 +38,23 @@
     z-index:0;
     pointer-events:none;
     background:var(--aurora-paint) 0 0 / 100% 100% no-repeat;
-    mask-image:linear-gradient(transparent, #000 14%, #000 42%, transparent 100%),
+    mask-image:var(--aurora-vertical-mask),
       linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
     mask-composite:intersect;
+  }
+
+  @media (min-width:801px) {
+    :root:not([data-aifect-native]) & {
+      --aurora-height:var(--aurora-default-height);
+      --aurora-paint:linear-gradient(90deg in srgb,
+        rgb(142 221 210) 24%,
+        color-mix(in srgb, rgb(142 221 210) 48%, rgb(151 117 232)) 42%,
+        rgb(151 117 232) 56%,
+        rgb(242 125 181) 84%);
+      --aurora-vertical-mask:linear-gradient(#000 0%, rgb(0 0 0 / .55) 32%, rgb(0 0 0 / .16) 68%, transparent 100%);
+
+      &::before { opacity:.18; }
+    }
   }
 
   /* Reuse #main's existing isolated context; the header keeps its higher z-index.
@@ -48,8 +63,7 @@
   & > .page-footer { position:relative; z-index:1; }
 }
 
-/* Play retains its quieter, taller five-color wash and responsive geometry.
-   Only its painting moves from the shell background to the shared fading layer. */
+/* Preserve the Play-specific wash on mobile and in the native app. */
 .page-wrap:has(> #main > .play-page) {
   --aurora-height:var(--play-wash-height);
   --aurora-paint:

@@ -10,6 +10,7 @@ const pendingLikes=new Map(),apiReads=new Map();let apiRevision=0;
 const audio=new Audio();audio.preload='metadata';audio.volume=.75;
 // True inside the AIFECT Android/iOS app (Capacitor shell around this site).
 const inApp=!!window.Capacitor?.isNativePlatform?.();
+if(inApp)document.documentElement?.setAttribute('data-aifect-native','');
 let queue=[],current=null,playSession=null,preview=false,heard=0,lastTick=0,repeatMode=0,shuffle=false,playSerial=0,pendingResume=null,reportBusy=false,restoredPosition=0;
 try{pendingResume=JSON.parse(sessionStorage.getItem('aifect-player-resume')||localStorage.getItem('aifect-player-resume')||'null');const modes=JSON.parse(localStorage.getItem('aifect-player-modes')||'{}');shuffle=modes.shuffle===true;repeatMode=[0,1,2].includes(modes.repeatMode)?modes.repeatMode:0;}catch{}
 function icons(){document.querySelectorAll('[data-icon]').forEach(el=>{el.innerHTML=icon(el.dataset.icon);el.removeAttribute('data-icon');});decorateNativeAudioPlay();}
