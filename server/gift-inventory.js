@@ -58,22 +58,29 @@ async function acquire(env,uid,b,operator=null){
 }
 export async function sendInventoryGift(env,user,itemId,b){
  const key=requestId(b),ids=selectedInventoryIds(itemId,b),selection=JSON.stringify(ids);
+ const replay=async()=>{
+  const sent=await rows(env,'SELECT id,currency,recipient_id,send_request_id FROM gift_inventory WHERE user_id=? AND (send_request_id=? OR send_request_id GLOB ?)',user.id,key,key+':*');
+  if(!sent.length)return false;
+  const saved=new Map(sent.map(r=>[r.send_request_id,r]));
+  if(sent.length!==ids.length||ids.some((id,index)=>{const r=saved.get(unitRequestKey(key,index));return r?.id!==id||r.recipient_id!==b.profile_id;}))fail(409,'이미 다른 선물에 사용한 요청입니다.');
+  const currency=saved.get(key).currency==='gold'?'gold':'silver',ledger=currency==='gold'?'gifts':'free_gifts';
+  const stored=await one(env,`SELECT g.track_id,s.source_type,s.source_id FROM ${ledger} g
+   LEFT JOIN gift_sources s ON s.currency=? AND s.gift_id=g.id WHERE g.id=? AND g.sender_id=?`,currency,itemId,user.id);
+  const contexts=[b.artist_id,b.track_id,b.dubbing_id].filter(id=>id!=null);
+  const type=b.artist_id!=null?'artist':contexts.length?'work':b.from_profile===true?'profile':b.from_message===true?'message':'inventory';
+  const target=contexts[0]??(type==='inventory'?itemId:b.profile_id);
+  // Receipts before gift_sources preserve the profile and song only.
+  if(!stored||contexts.length>1||stored.track_id!==(b.track_id??null)||
+    (stored.source_type?stored.source_type!==type||stored.source_id!==target:b.artist_id!=null||b.dubbing_id!=null))fail(409,'이미 다른 대상에게 사용한 요청입니다.');
+  return true;
+ };
+ if(await replay())return;
  const {profile,track,source:context}=await inventoryTarget(env,user,b);
  const units=await rows(env,`SELECT i.*,j.key position FROM json_each(?) j JOIN gift_inventory i ON i.id=j.value AND i.user_id=? ORDER BY j.key`,selection,user.id);
  if(units.length!==ids.length)fail(404,'보관 선물을 찾을 수 없습니다.');
  const first=units[0],source=context||{type:'inventory',id:first.id,title:first.gift_name};
  if(units.some(i=>i.gift_type!==first.gift_type||!['purchase','reward'].includes(i.source)))fail(409,'선물 가능한 동일 상품만 선택해 주세요.');
- const replay=async()=>{
-  const sent=await rows(env,'SELECT id,recipient_id,send_request_id FROM gift_inventory WHERE user_id=? AND (send_request_id=? OR send_request_id GLOB ?)',user.id,key,key+':*');
-  if(!sent.length)return false;
-  const saved=new Map(sent.map(r=>[r.send_request_id,r]));
-  if(sent.length!==ids.length||ids.some((id,index)=>{const r=saved.get(unitRequestKey(key,index));return r?.id!==id||r.recipient_id!==profile.id;}))fail(409,'이미 다른 선물에 사용한 요청입니다.');
-  const stored=await one(env,'SELECT source_type,source_id FROM gift_sources WHERE gift_id=? AND currency=?',first.id,first.currency==='gold'?'gold':'silver');
-  if(stored?.source_type!==source.type||stored?.source_id!==source.id)fail(409,'이미 다른 대상에게 사용한 요청입니다.');
-  return true;
- };
- if(await replay())return;
- if(units.some(i=>i.used_at))fail(409,'이미 다른 대상에게 사용한 선물입니다.');
+ if(units.some(i=>i.used_at)){if(await replay())return;fail(409,'이미 다른 대상에게 사용한 선물입니다.');}
  const consumedCount=`(SELECT count(*) FROM gift_inventory i JOIN json_each(?) j ON i.id=j.value WHERE i.user_id=? AND i.recipient_id=? AND i.used_at>0 AND i.send_request_id=CASE WHEN j.key=0 THEN ? ELSE ?||':'||j.key END)`;
  const at=now(),writes=[query(env,`UPDATE gift_inventory SET used_at=?,recipient_id=CASE WHEN ${recipientAllowedSQL} AND source IN ('purchase','reward') THEN ? END,
   send_request_id=CASE WHEN j.key=0 THEN ? ELSE ?||':'||j.key END FROM json_each(?) j

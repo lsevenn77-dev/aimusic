@@ -112,3 +112,13 @@ test('one held-stock request can send more than the instant-checkout quantity li
  const gift=await send(f,'gift',ids);assert.equal(gift.status,200,JSON.stringify(gift.body));assert.deepEqual(gift.body.items,[]);
  assert.equal(table(f,'free_gifts')[0].quantity,128);assert.equal(table(f,'activity_notifications')[0].quantity,128);
 });
+
+test('a committed inventory receipt remains replayable after its recipient becomes unavailable',async t=>{
+ const f=await decorationsFixture(t),ids=(await stockGift(f,1)).body.items.map(i=>i.id),req={request_id:key()};
+ assert.equal((await send(f,'gift',ids,req)).status,200);
+ f.sql.exec("UPDATE users SET provider='deleted' WHERE id='other'");
+ assert.equal((await send(f,'gift',ids,req)).status,200);
+ assert.equal((await send(f,'gift',ids,{...req,profile_id:'no-such-profile'})).status,409);
+ assert.equal((await send(f,'gift',ids,{...req,track_id:'no-such-track'})).status,409);
+ assert.equal(table(f,'gifts').length,1);
+});
