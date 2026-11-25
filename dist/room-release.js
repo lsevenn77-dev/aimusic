@@ -286,8 +286,8 @@ function bindRoomGiftWallet(form){
    if(kind==='silver'){
     const labels={checkin:'오늘 출석',cover:'커버곡 공개',listen:'노래 5곡 감상',comment1:'첫 번째 댓글',comment2:'두 번째 댓글',comment3:'세 번째 댓글'};
     const paint=free=>{
-     balance.textContent=number(free.balance)+' S';
-     area.innerHTML=free.rewards.map(r=>`<div class="room-wallet-mission"><div><strong>${esc(labels[r.kind]||r.kind)}</strong><small>${number(r.progress)} / ${number(r.target)} · ${number(r.amount)} S</small></div><button type="button" data-mission="${esc(r.kind)}" ${r.claimed||!r.eligible?'disabled':''}>${r.claimed?'수령 완료':r.eligible?'받기':number(r.progress)+' / '+number(r.target)}</button></div>`).join('');
+     balance.innerHTML=shopPrice(free.balance,'S',20);
+     area.innerHTML=free.rewards.map(r=>`<div class="room-wallet-mission"><div><strong>${esc(labels[r.kind]||r.kind)}</strong><small>${number(r.progress)} / ${number(r.target)} · ${shopPrice(r.amount,'S')}</small></div><button type="button" data-mission="${esc(r.kind)}" ${r.claimed||!r.eligible?'disabled':''}>${r.claimed?'수령 완료':r.eligible?'받기':number(r.progress)+' / '+number(r.target)}</button></div>`).join('');
     };
     paint(d.free);
     let claiming=false;
@@ -301,9 +301,9 @@ function bindRoomGiftWallet(form){
     return;
    }
    const packs=inApp?d.packs:d.web_packs,ready=!inApp&&(d.review_only||d.checkout_available);
-   balance.textContent=number(d.balance)+' G';
+   balance.innerHTML=shopPrice(d.balance,'G',20);
    let chosen=packs?.[0]?.gold;
-   area.innerHTML=(packs||[]).map(p=>`<button type="button" class="room-wallet-pack" data-room-pack="${Number(p.gold)}" aria-pressed="${chosen===p.gold}"><strong>${number(p.total_gold??p.gold)} G<small>${number(p.gold)} G${p.bonus_gold?' + '+number(p.bonus_gold)+' G':''}</small></strong><span>${number(p.price)}원</span></button>`).join('')+`<button class="room-wallet-confirm" type="button" ${!chosen||!ready?'disabled':''}>결제 내용 확인</button>`;
+   area.innerHTML=(packs||[]).map(p=>`<button type="button" class="room-wallet-pack" data-room-pack="${Number(p.gold)}" aria-pressed="${chosen===p.gold}"><strong>${shopPrice(p.total_gold??p.gold,'G',24)}<small>${number(p.gold)} g${p.bonus_gold?' + '+number(p.bonus_gold)+' g':''}</small></strong><span>${number(p.price)}원</span></button>`).join('')+`<button class="room-wallet-confirm" type="button" ${!chosen||!ready?'disabled':''}>결제 내용 확인</button>`;
    if(!ready)status.textContent='현재 골드 충전을 이용할 수 없습니다.';
    area.onclick=async e=>{
     const item=e.target.closest('[data-room-pack]');

@@ -79,7 +79,7 @@
 #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice:is(.selected,[aria-pressed=true]){background:var(--ds-soft);border-color:var(--ds-selected);box-shadow:none}
 #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice:disabled{background:var(--ds-panel);border-color:var(--ds-line);color:var(--ds-disabled);box-shadow:none;filter:none}
 #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice .shop-coin{width:14px;height:14px}
-#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice .shop-currency-amount{gap:3px}
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-choice .shop-currency-amount{gap:5px}
 #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-category-tabs [aria-pressed=true]{background:var(--ds-soft);color:var(--ds-selected);border-color:var(--ds-selected)}
 #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-balance-cell .shop-coin{width:20px;height:20px}
 #dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid :is(.gift-charge-button,.gift-silver-button){border-color:var(--shop-outline);background:var(--ds-panel);color:var(--ds-body)}
@@ -139,7 +139,7 @@
 /* Legacy period rules target every span; only the outer card may carry card sizing. */
 #dialog.shop-dialog .shop-checkout .shop-periods label>span span{width:auto;height:auto;min-height:0;margin:0;padding:0;font-size:inherit;line-height:inherit}
 #dialog.shop-dialog .shop-checkout .shop-periods small{font-size:var(--pc-font-caption,13px);line-height:1.3;color:inherit}
-#dialog.shop-dialog .shop-checkout .shop-periods .shop-currency-amount{display:inline-flex;align-items:center;gap:4px}
+#dialog.shop-dialog .shop-checkout .shop-periods .shop-currency-amount{display:inline-flex;align-items:center;gap:5px}
 #dialog.shop-dialog .shop-checkout .shop-periods .shop-currency-amount>span{display:inline}
 #dialog.shop-dialog .shop-checkout .shop-periods .shop-coin{width:17px;height:17px}
 /* Hidden radios stay hidden while the purchase request disables form controls. */

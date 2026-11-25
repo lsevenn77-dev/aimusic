@@ -1,4 +1,5 @@
 import {brandPublicMarkup} from '../shared/web-brand.js';
+import {currencyAmount} from '../shared/currency.js';
 import {WEB_GOLD_PACKS} from '../shared/gifts.js';
 import {businessDetailsHTML,businessFooterHTML,policyLinks} from '../shared/site-info.js';
 
@@ -13,7 +14,7 @@ function goldPaymentPage(){
  <title>골드 단건결제 테스트 | AIFECT</title>
  <link rel="stylesheet" href="/brand.css?v=20261007-reference"><link rel="stylesheet" href="/design-system.css?v=20261017-lavender-mint"><link rel="stylesheet" href="/policies.css"><link rel="stylesheet" href="/payment-checkout.css"><link rel="stylesheet" href="/gold-payment-checkout.css">
  <script type="module" src="/gold-payment-checkout.js"></script>
-</head><body class="checkout-site checkout-gold-site">
+<link rel="stylesheet" href="/currency.css"></head><body class="checkout-site checkout-gold-site">
  <header class="checkout-header"><a class="checkout-brand" href="/#home" aria-label="AIFECT 홈"><span class="aifect-lockup"><img class="aifect-wordmark-logo" src="/assets/brand/20261117/aifect-wordmark-horizontal.webp" width="1044" height="227" alt="AIFECT"></span></a><a href="/#home">음악으로 돌아가기</a></header>
  <main class="checkout-main">
   <header class="checkout-heading"><p class="checkout-kicker">TOSS PAYMENTS · TEST ONLY</p><h1>골드 단건결제 테스트</h1><p class="checkout-lead">골드 상품과 토스페이먼츠의 테스트 카드 결제 흐름을 확인하세요.</p></header>
@@ -21,13 +22,13 @@ function goldPaymentPage(){
   <p class="checkout-status" id="checkout-status" role="status" aria-live="polite">골드용 테스트 결제 가능 여부를 확인하고 있습니다.</p><p class="checkout-error" id="checkout-error" role="alert" hidden></p>
   <section id="checkout-order" aria-label="골드 테스트 주문 선택"><form id="checkout-form" aria-describedby="checkout-test-note"><div class="checkout-layout">
    <section class="checkout-product" aria-label="골드 충전 상품">
-    <div class="checkout-gold-intro"><img class="checkout-product-image" src="/assets/aifect-gold-product.svg" width="80" height="80" alt="AIFECT 골드 충전 상품"><div><h2>AIFECT 골드</h2><p>음악에 선물하고 AI 더빙 음향 제작에 사용합니다.</p></div></div>
+    <div class="checkout-gold-intro"><img class="checkout-product-image" src="/assets/currency/gold-coin.svg" width="32" height="32" alt="AIFECT 골드 충전 상품"><div><h2>AIFECT 골드</h2><p>음악에 선물하고 AI 더빙 음향 제작에 사용합니다.</p></div></div>
     <fieldset class="checkout-products"><legend>골드 상품 선택</legend><p class="checkout-field-help">1회 한도 100,000원(부가세 포함) · 기본 골드 5% 추가</p><div class="checkout-pack-list">
-     ${WEB_GOLD_PACKS.map((pack,index)=>`<label class="checkout-pack" for="checkout-gold-${pack.gold}"><input type="radio" name="gold" id="checkout-gold-${pack.gold}" value="${pack.gold}" data-price="${pack.price}" data-bonus-gold="${pack.bonus_gold}" data-total-gold="${pack.total_gold}"${index===0?' checked':''}><span class="checkout-pack-copy"><strong>${number(pack.total_gold)} <small>G</small></strong><span>기본 ${number(pack.gold)}G + 추가 ${number(pack.bonus_gold)}G</span></span><span class="checkout-pack-price">${number(pack.price)}원</span></label>`).join('')}
+     ${WEB_GOLD_PACKS.map((pack,index)=>`<label class="checkout-pack" for="checkout-gold-${pack.gold}"><input type="radio" name="gold" id="checkout-gold-${pack.gold}" value="${pack.gold}" data-price="${pack.price}" data-bonus-gold="${pack.bonus_gold}" data-total-gold="${pack.total_gold}"${index===0?' checked':''}><span class="checkout-pack-copy"><strong>${currencyAmount(pack.total_gold,'G',{size:24})}</strong><span>기본 ${number(pack.gold)} g + 추가 ${number(pack.bonus_gold)} g</span></span><span class="checkout-pack-price">${number(pack.price)}원</span></label>`).join('')}
     </div></fieldset>
    </section>
    <section class="checkout-summary" aria-labelledby="checkout-summary-title"><div class="checkout-summary-heading"><h2 id="checkout-summary-title">테스트 주문 확인</h2></div>
-    <dl class="checkout-totals" aria-live="polite" aria-atomic="true"><div class="checkout-total-gold"><dt>총 골드 수량</dt><dd id="checkout-total-gold">${number(initial.total_gold)} G</dd></div><div><dt>기본 골드</dt><dd id="checkout-base-gold">${number(initial.gold)} G</dd></div><div><dt>웹 추가 골드</dt><dd id="checkout-bonus-gold">${number(initial.bonus_gold)} G</dd></div><div class="checkout-total-amount"><dt>상품 결제금액<small>부가세 포함 · 테스트 표시 금액</small></dt><dd id="checkout-amount">${number(initial.price)}원</dd></div><div class="checkout-test-charge"><dt>이번 테스트 실제 청구</dt><dd>0원</dd></div></dl>
+    <dl class="checkout-totals" aria-live="polite" aria-atomic="true"><div class="checkout-total-gold"><dt>총 골드 수량</dt><dd id="checkout-total-gold">${number(initial.total_gold)} g</dd></div><div><dt>기본 골드</dt><dd id="checkout-base-gold">${number(initial.gold)} g</dd></div><div><dt>웹 추가 골드</dt><dd id="checkout-bonus-gold">${number(initial.bonus_gold)} g</dd></div><div class="checkout-total-amount"><dt>상품 결제금액<small>부가세 포함 · 테스트 표시 금액</small></dt><dd id="checkout-amount">${number(initial.price)}원</dd></div><div class="checkout-test-charge"><dt>이번 테스트 실제 청구</dt><dd>0원</dd></div></dl>
     <p class="checkout-field-help">신용카드 단건결제 테스트 · 자동갱신 없음<br>표시 수량은 상품 확인용이며 지급되지 않습니다.</p>
     <label class="checkout-consent" for="checkout-consent"><input id="checkout-consent" name="consent" type="checkbox" required><span>TEST 전용이며 실제 청구·골드 지급·자동충전·정기결제가 없음을 확인했습니다.</span></label>
     <button class="checkout-primary" id="checkout-submit" type="submit" disabled>토스 골드 테스트 결제창 열기</button><p class="checkout-fine">위 확인은 테스트 진행을 위한 것으로 실제 상품 구매 동의가 아닙니다.</p>

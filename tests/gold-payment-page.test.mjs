@@ -15,12 +15,12 @@ test('Gold SSR uses all eligible web packs and clearly distinguishes TEST amount
  assert.match(page,/원결제수단|결제에 사용한 카드로만/);
  for(const pack of WEB_GOLD_PACKS){
   assert.ok(page.includes(`value="${pack.gold}" data-price="${pack.price}" data-bonus-gold="${pack.bonus_gold}" data-total-gold="${pack.total_gold}"`));
-  assert.ok(page.includes(`${pack.total_gold.toLocaleString('ko-KR')} <small>G</small>`));
+  assert.ok(page.includes(`aria-label="골드 ${pack.total_gold.toLocaleString('ko-KR')}"`));
   assert.ok(page.includes(`${pack.price.toLocaleString('ko-KR')}원`));
  }
  assert.equal((page.match(/ checked/g)||[]).length,1);
  assert.match(page,/id="checkout-gold-500"[^>]* checked>/);
- for(const [id,text] of [['checkout-total-gold','525 G'],['checkout-base-gold','500 G'],['checkout-bonus-gold','25 G'],['checkout-amount','5,500원']])assert.ok(page.includes(`id="${id}">${text}<`));
+ for(const [id,text] of [['checkout-total-gold','525 g'],['checkout-base-gold','500 g'],['checkout-bonus-gold','25 g'],['checkout-amount','5,500원']])assert.ok(page.includes(`id="${id}">${text}<`));
  assert.match(page,/이번 테스트 실제 청구<\/dt><dd>0원</);
  assert.match(page,/id="checkout-submit"[^>]* disabled>/);
  assert.match(page,/실제 청구·골드 지급·선물 발송·창작자 정산은 발생하지 않습니다/);
@@ -55,8 +55,8 @@ test('Gold page reuses merchant, policy and exact brand assets and exposes acces
  for(const url of ['/refund#gold','/terms#gold'])assert.ok(page.includes(`href="${url}"`));
  assert.doesNotMatch(page,/href="\/checkout\/toss"|Premium 테스트/,'Gold review must not advertise recurring-card testing');
  assert.ok(page.includes('/assets/brand/20261117/aifect-wordmark-horizontal.webp'));
- assert.match(page,/src="\/assets\/aifect-gold-product\.svg"[^>]+alt="AIFECT 골드 충전 상품"/);
- const asset=readFileSync(new URL('../dist/assets/aifect-gold-product.svg',import.meta.url),'utf8');assert.match(asset,/<svg\b/);assert.match(asset,/AIFECT 골드 충전 상품/);
+ assert.match(page,/src="\/assets\/currency\/gold-coin\.svg"[^>]+alt="AIFECT 골드 충전 상품"/);
+ const asset=readFileSync(new URL('../dist/assets/currency/gold-coin.svg',import.meta.url),'utf8');assert.match(asset,/<svg\b/);assert.match(asset,/aria-label="gold"/);
  assert.match(page,/id="checkout-status" role="status"/);assert.match(page,/id="checkout-error" role="alert" hidden/);assert.match(page,/id="checkout-result"[^>]* hidden/);assert.match(page,/id="result-retry"[^>]* hidden/);
  assert.match(page,/AI 더빙 음향 제작/);assert.match(page,/제작 실패 시 차감한 골드는 자동 환급/);assert.match(page,/브라우저 sessionStorage의 서명된 요청 정보는 20분/);
 });

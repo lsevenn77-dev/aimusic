@@ -1,3 +1,4 @@
+import * as currency from '../shared/currency.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 import {DECORATIONS,PERIOD_LABELS} from '../shared/decorations.js';
 
 const source=readFileSync('dist/decorations.js','utf8');
-const context=vm.createContext({window:{addEventListener(){}},document:{addEventListener(){}},
+const context=vm.createContext({AifectGifts:currency,window:{addEventListener(){}},document:{addEventListener(){}},
  esc:s=>String(s).replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;'),
  number:n=>Number(n).toLocaleString('en-US'),icon:()=>''});
 vm.runInContext(source,context);
@@ -34,7 +35,7 @@ test('theme card uses the actual lowest price even when the shortest period cost
 test('ordinary gifts retain their IDs, prices and purchase controls, with no theme preview',()=>{
  const html=context.shopCards([{id:'heart',name:'하트',image:'/registered.png',gold:50}]);
  assert.ok(html.includes('data-gift-buy="heart"'));
- assert.ok(html.includes('50</span>')&&html.includes('coin-g.svg'));
+ assert.ok(html.includes('50</span>')&&html.includes('gold-coin.svg'));
  assert.ok(!html.includes('data-theme-preview'));
  assert.ok(!html.includes('data-shop-category="themes"'));
 });

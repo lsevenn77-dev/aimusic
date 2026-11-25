@@ -1,3 +1,4 @@
+import {currencyAmount} from '../../shared/currency.js';
 import {JUMP_OUTFITS,DEFAULT_OUTFIT} from './outfits.js';
 
 export function mountOutfitShop(dialog,{api,url,esc,onChange=()=>{}}){
@@ -9,17 +10,17 @@ export function mountOutfitShop(dialog,{api,url,esc,onChange=()=>{}}){
   const focused=dialog.ownerDocument?.activeElement?.dataset?.look;
   const look=JUMP_OUTFITS.find(item=>item.id===selected)||JUMP_OUTFITS[0];
   const owned=wardrobe?.owned.includes(look.id),equipped=wardrobe?.equipped===look.id,blocked=wardrobe?.blocked.includes(look.id);
-  $('[data-shop-balance]').textContent=wardrobe?'실버 '+format(wardrobe.balance.S)+' S · 골드 '+format(wardrobe.balance.G)+' G':'잔액을 확인하는 중…';
+  $('[data-shop-balance]').innerHTML=wardrobe?currencyAmount(wardrobe.balance.S,'S',{size:20})+' · '+currencyAmount(wardrobe.balance.G,'G',{size:20}):'잔액을 확인하는 중…';
   $('.arc-look-shelves').innerHTML=['S','G'].map(unit=>'<section class="arc-outfit-group"><h3>'+(unit==='S'?'실버 의상':'골드 의상')+'</h3><div>'+JUMP_OUTFITS.filter(item=>item.unit===unit).map(item=>{
-   const state=wardrobe?.equipped===item.id?'착용 중':wardrobe?.owned.includes(item.id)?'보유 중':wardrobe?.blocked.includes(item.id)?'사용 불가':format(item.price)+' '+item.unit;
+   const state=wardrobe?.equipped===item.id?'착용 중':wardrobe?.owned.includes(item.id)?'보유 중':wardrobe?.blocked.includes(item.id)?'사용 불가':currencyAmount(item.price,item.unit);
    return '<button type="button" class="arc-look" data-look="'+item.id+'" aria-pressed="'+(selected===item.id)+'" '+(busy?'disabled':'')+'><img src="'+item.image+'" width="160" height="205" alt=""><b>'+esc(item.name)+'</b><span>'+state+'</span></button>';
   }).join('')+'</div></section>').join('');
   const model=$('.arc-run-model');model.dataset.outfit=look.id;model.style.backgroundImage='url("'+(look.sprite||look.image)+'")';
   $('[data-look-name]').textContent=look.name;
-  $('[data-look-price]').textContent=look.id===DEFAULT_OUTFIT?'기본 제공':owned?'보유 중':format(look.price)+' '+look.unit;
+  $('[data-look-price]').textContent=look.id===DEFAULT_OUTFIT?'기본 제공':owned?'보유 중':format(look.price)+' '+look.unit.toLowerCase();
   const button=$('[data-look-action]'),enough=wardrobe&&wardrobe.balance[look.unit]>=look.price;
   button.disabled=busy||!wardrobe||equipped||blocked||(!owned&&!enough);
-  button.textContent=busy?'처리 중…':equipped?'착용 중':blocked?'사용할 수 없는 의상':owned?'착용하기':!enough?(look.unit==='S'?'실버':'골드')+' 부족':format(look.price)+' '+look.unit+' · 구매하고 착용';
+  button.textContent=busy?'처리 중…':equipped?'착용 중':blocked?'사용할 수 없는 의상':owned?'착용하기':!enough?(look.unit==='S'?'실버':'골드')+' 부족':format(look.price)+' '+look.unit.toLowerCase()+' · 구매하고 착용';
   $('[data-shop-retry]').hidden=!!wardrobe||busy;
   if(!busy&&JUMP_OUTFITS.some(item=>item.id===focused))$('[data-look="'+focused+'"]').focus();
  }

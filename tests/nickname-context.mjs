@@ -1,3 +1,4 @@
+import {currencyIcon,currencyAmount} from '../shared/currency.js';
 import * as AifectPlaylist from '../shared/playlist-policy.js';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
@@ -8,6 +9,9 @@ const roomTemplate=readFileSync(new URL('../dist/voice-room-template.js',import.
 const chatGlyph=roomTemplate.slice(roomTemplate.indexOf('function voiceGlyph('),roomTemplate.indexOf('function voiceRoomHTML('));
 // Renderer unit tests use the same shared component as the browser entry point.
 export function nicknameContext(sandbox,options){
+ sandbox.AifectGifts ??= {currencyIcon,currencyAmount};
+ sandbox.shopCoin ??= currencyIcon;
+ sandbox.shopPrice ??= (amount,code,size)=>currencyAmount(amount,code,{size});
  sandbox.AifectPlaylist=AifectPlaylist;const context=vm.createContext(sandbox,options);
  vm.runInContext(source,context);
  vm.runInContext(chatUI,context);

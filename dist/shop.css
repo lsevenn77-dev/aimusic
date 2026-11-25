@@ -99,7 +99,7 @@
 .shop-page .shop-empty{margin:24px 0;padding:20px;text-align:center;color:var(--ds-body);font-size:var(--pc-font-body,15px)}
 .shop-page .shop-empty[hidden]{display:none}
 .shop-page .shop-actions :is(svg,.shop-coin){width:20px;height:20px;flex:none;stroke-width:1.6}
-.shop-currency-amount{display:inline-flex;align-items:center;justify-content:center;gap:4px;white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:middle}
+.shop-currency-amount{display:inline-flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;font-variant-numeric:tabular-nums;vertical-align:middle}
 @media(min-width:1280px){.shop-page .shop-products{grid-template-columns:repeat(8,minmax(0,1fr))}}
 @media(min-width:801px){.shop-page .shop-tabs{--pc-font-control:18px;max-width:none}.shop-page .shop-tabs button{line-height:1.4;gap:10px}}
 @media(min-width:768px) and (max-width:1000px){.shop-page .shop-products{grid-template-columns:repeat(5,minmax(0,1fr))}}

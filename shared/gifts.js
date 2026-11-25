@@ -1,3 +1,4 @@
+export {currencyAmount, currencyIcon} from './currency.js';
 // Legacy gift display reference only; purchases and settlement use channel prices and paid lots.
 export const GOLD_KRW=10;
 // Updated 2026-10-19: replace the 200G rose with a 1G lollipop. Existing receipts keep their recorded amounts.

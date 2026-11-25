@@ -4,8 +4,8 @@ function myBalanceSummaryHTML(wallet){
  const valid=n=>typeof n==='number'&&Number.isFinite(n)&&n>=0;
  const gold=wallet?.balance,silver=wallet?.silver_balance,ready=valid(gold)&&valid(silver);
  return '<section class="my-balance-summary" aria-label="내 골드·실버와 도구함"><div class="my-balance-grid">'+
-  '<a class="my-balance-card my-balance-gold" href="#gold"><span class="my-balance-label"><span class="gold-coin" aria-hidden="true">G</span>보유 골드</span><strong>'+ (valid(gold)?number(gold):'—')+' <small>G</small></strong><span class="my-balance-link">충전 · 내역 보기 '+icon('chevron')+'</span></a>'+
-  '<a class="my-balance-card my-balance-silver" href="#rewards"><span class="my-balance-label"><img src="/assets/gifts/silver-coin-v1.webp" width="20" height="20" alt="">보유 실버</span><strong>'+ (valid(silver)?number(silver):'—')+' <small>S</small></strong><span class="my-balance-link">오늘의 실버 받기 '+icon('chevron')+'</span></a>'+
+  '<a class="my-balance-card my-balance-gold" href="#gold"><span class="my-balance-label">보유 골드</span><strong>'+ shopPrice(valid(gold)?gold:null,'G',20)+'</strong><span class="my-balance-link">충전 · 내역 보기 '+icon('chevron')+'</span></a>'+
+  '<a class="my-balance-card my-balance-silver" href="#rewards"><span class="my-balance-label">보유 실버</span><strong>'+ shopPrice(valid(silver)?silver:null,'S',20)+'</strong><span class="my-balance-link">오늘의 실버 받기 '+icon('chevron')+'</span></a>'+
   '<a class="my-balance-card my-toolbox-card" href="#inventory"><span class="my-balance-label">'+icon('gift')+'인벤토리</span><strong>액자 · 아이템</strong><span class="my-balance-link">보관함 열기 '+icon('chevron')+'</span></a></div>'+
   (ready?'':'<p class="my-balance-error" role="status">잔액을 모두 불러오지 못했습니다. <button type="button" class="text-link" data-my-wallet-retry>다시 불러오기</button></p>')+'</section>';
 }

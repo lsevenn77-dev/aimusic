@@ -65,7 +65,7 @@ test('unavailable, wrong-flow or invalid product configuration cannot open a Gol
 test('all available choices update totals from the server catalog and query values do not select a price',async()=>{
  const f=await fixture({path:'/checkout/toss/gold?gold=10000&amount=1'});
  assert.equal(f.radios.find(radio=>radio.checked).value,'500');
- for(const pack of WEB_GOLD_PACKS){await f.select(pack.gold);for(const [id,expected] of [['checkout-total-gold',pack.total_gold+'G'],['checkout-base-gold',pack.gold+'G'],['checkout-bonus-gold',pack.bonus_gold+'G'],['checkout-amount',pack.price+'원']])assert.equal(f.element(id).textContent.replaceAll(',','').replace(/\s/g,''),expected);}
+ for(const pack of WEB_GOLD_PACKS){await f.select(pack.gold);for(const [id,expected] of [['checkout-total-gold',pack.total_gold+'g'],['checkout-base-gold',pack.gold+'g'],['checkout-bonus-gold',pack.bonus_gold+'g'],['checkout-amount',pack.price+'원']])assert.equal(f.element(id).textContent.replaceAll(',','').replace(/\s/g,''),expected);}
  assert.equal(f.calls.length,1);assert.equal(f.sdkCalls.length,0);assert.equal(f.location.search,'');
 });
 

@@ -21,9 +21,9 @@ function validProducts(list){
 }
 function chosenPack(){const radio=radios.find(r=>r.checked);return radio&&/^[1-9]\d*$/.test(radio.value)?products.get(Number(radio.value)):null;}
 function renderPack(pack){
- byId('checkout-total-gold').textContent=number(pack.total_gold)+' G';
- byId('checkout-base-gold').textContent=number(pack.gold)+' G';
- byId('checkout-bonus-gold').textContent=number(pack.bonus_gold)+' G';
+ byId('checkout-total-gold').textContent=number(pack.total_gold)+' g';
+ byId('checkout-base-gold').textContent=number(pack.gold)+' g';
+ byId('checkout-bonus-gold').textContent=number(pack.bonus_gold)+' g';
  byId('checkout-amount').textContent=number(pack.price)+'원';
 }
 function message(text){error.textContent=text;error.hidden=!text;}

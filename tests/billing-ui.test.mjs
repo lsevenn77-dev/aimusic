@@ -1,3 +1,4 @@
+import {currencyAmount} from '../shared/currency.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -48,7 +49,7 @@ test('Gold review entry routes only to Toss, never creates a legacy order or loa
 test('ordinary and expired review users can discover the public TEST path without real checkout permissions',async()=>{
  const data={checkout_available:false,review_only:false,test_checkout_available:true,web_packs:[{gold:1000,price:11000,total_gold:1050,bonus_gold:50}],balance:0};
  const calls=[],navigations=[];
- const context=vm.createContext({document:{addEventListener(){}},me:{id:'ordinary'},inApp:false,renderId:1,heading:()=>'',number:String,esc:String,AifectGifts:{GIFT_SETTLEMENT_NOTICE:''},api:async path=>{calls.push(path);return data;},location:{assign:path=>navigations.push(path)}});
+ const context=vm.createContext({shopPrice:(n,c,size)=>currencyAmount(n,c,{size}),document:{addEventListener(){}},me:{id:'ordinary'},inApp:false,renderId:1,heading:()=>'',number:String,esc:String,AifectGifts:{GIFT_SETTLEMENT_NOTICE:''},api:async path=>{calls.push(path);return data;},location:{assign:path=>navigations.push(path)}});
  vm.runInContext(fs.readFileSync(new URL('../dist/gold-checkout.js',import.meta.url),'utf8'),context);
  const html=context.goldHTML(data);
  assert.match(html,/data-buy-gold="1000" >TEST 주문서/);

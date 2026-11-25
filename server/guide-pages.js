@@ -1,6 +1,6 @@
 import { aboutIcon as icon } from './about-icons.js';
 import { BUSINESS, PREMIUM, APP_PREMIUM, PREMIUM_BENEFITS, escapeHTML as esc } from '../shared/site-info.js';
-import { WEB_GOLD_PACKS, WEB_GOLD_BONUS_PERCENT } from '../shared/gifts.js';
+import { currencyAmount, WEB_GOLD_PACKS, WEB_GOLD_BONUS_PERCENT } from '../shared/gifts.js';
 import { uploadQuotaResult } from './upload-limits.js';
 
 const routes = new Set(['/pricing','/privacy','/contact','/terms','/refund']);
@@ -57,7 +57,7 @@ function pricing(body) {
   const aux = body.match(/<div class="support-actions">[\s\S]*?<\/div>$/)?.[0] || '';
   const block = (id,content) => `<section class="guide-block" id="${id}">${content}</section>`;
   const gold=byId.get('gold-products');
-  const packs=`<div class="guide-packs">${WEB_GOLD_PACKS.map(p=>`<a class="guide-card guide-pack" href="/#gold?pack=${p.gold}"><span>기본 ${money(p.gold)}G</span><strong>${money(p.total_gold)} <small>G</small></strong><p>웹 추가 +${money(p.bonus_gold)}G</p><b>${money(p.price)}원 ${arrow}</b></a>`).join('')}</div>`;
+  const packs=`<div class="guide-packs">${WEB_GOLD_PACKS.map(p=>`<a class="guide-card guide-pack" href="/#gold?pack=${p.gold}"><span>기본 ${money(p.gold)} g</span><strong>${currencyAmount(p.total_gold,'G',{size:24})}</strong><p>웹 추가 +${money(p.bonus_gold)} g</p><b>${money(p.price)}원 ${arrow}</b></a>`).join('')}</div>`;
   const creator=byId.get('creator-policy'), split=creator[3].indexOf('<h3>');
   const creatorCopy=split<0?creator[3]:creator[3].slice(0,split)+more('파트너 승급 · 다이아 전환 및 정산 조건',creator[3].slice(split));
   const renew=byId.get('subscription-revenue'),cancel=byId.get('cancel'),app=byId.get('app-pricing'),review=byId.get('toss-test');
@@ -110,7 +110,7 @@ export function guidePresentation(html,path) {
     .replace('<script defer src="/footer-layout.js"></script>','')
     .replace('<script defer src="/scroll-top.js"></script>','')
     .replace('family=Manrope:wght@200&family=Noto+Sans+KR:wght@400','family=DM+Sans:wght@400;500;600;700&amp;family=Noto+Sans+KR:wght@400;500;600;700')
-    .replace('</head>','<link rel="stylesheet" href="/ui-region-scale.css"><link rel="stylesheet" href="/guide-pages.css?v=2"><script defer src="/guide-pages.js?v=1"></script></head>')
+    .replace('</head>','<link rel="stylesheet" href="/ui-region-scale.css"><link rel="stylesheet" href="/currency.css"><link rel="stylesheet" href="/guide-pages.css?v=2"><script defer src="/guide-pages.js?v=1"></script></head>')
     .replace('<header class="guide-header">','<header id="guide-top" class="guide-header">')
     .replace('</main>','<a class="guide-up guide-btn" href="#guide-top">↑ 맨 위로</a></main>');
 }

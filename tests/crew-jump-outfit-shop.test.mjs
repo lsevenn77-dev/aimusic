@@ -23,12 +23,12 @@ test('shop loads balance and owned state, previews without charging, buys once a
   if(method==='POST'){await new Promise(resolve=>release=resolve);current={...current,owned:[...current.owned,body.outfit],equipped:body.outfit,balance:{G:300,S:1000}};}
   return current;
  });
- f.store.open();await flush();assert.match(f.node('[data-shop-balance]').textContent,/350 G/);
+ f.store.open();await flush();assert.match(f.node('[data-shop-balance]').innerHTML,/aria-label="골드 350"/);
  assert.equal(f.node('[data-look-action]').textContent,'착용 중');assert.equal(f.node('[data-look-action]').disabled,true);
  f.click('[data-look]','idol');assert.equal(f.calls.length,1);assert.match(f.node('.arc-run-model').style.backgroundImage,/idol-run.webp/);
- assert.equal(f.node('[data-look-action]').textContent,'50 G · 구매하고 착용');
+ assert.equal(f.node('[data-look-action]').textContent,'50 g · 구매하고 착용');
  f.click('[data-look-action]');f.click('[data-look-action]');assert.equal(f.calls.filter(c=>c.method==='POST').length,1);assert.equal(f.store.busy,true);
- release();await flush();assert.equal(f.node('[data-look-action]').textContent,'착용 중');assert.match(f.node('[data-shop-balance]').textContent,/300 G/);
+ release();await flush();assert.equal(f.node('[data-look-action]').textContent,'착용 중');assert.match(f.node('[data-shop-balance]').innerHTML,/aria-label="골드 300"/);
  assert.match(f.node('[data-shop-status]').textContent,/구매하고 착용/);
  f.store.destroy();
 });

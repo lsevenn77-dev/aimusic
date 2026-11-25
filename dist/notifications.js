@@ -11,7 +11,7 @@ function activityRowHTML(n){
  const rowTag=passive?'div':'a';
  const sourceLabel={artist:'아티스트 프로필',message:'메시지',profile:'프로필',talking_room:'토킹룸',karaoke:'노래방',work:'작품 상세',inventory:'인벤토리',shop:'선물 상점'}[n.source_type];
  const giftSource=sourceLabel?[sourceLabel,n.gift_source_title].filter(Boolean).join(' · '):'출처 확인 불가';
- const giftDetail=`<div class="activity-detail activity-gift-detail"><b class="activity-value ${esc(n.currency)}">${number(n.amount)} ${n.currency==='gold'?'G':'S'}</b><span class="activity-gift-separator" aria-hidden="true">·</span><span class="activity-gift-source" title="${esc(giftSource)}">${esc(giftSource)}</span></div>`;
+ const giftDetail=`<div class="activity-detail activity-gift-detail"><b class="activity-value ${esc(n.currency)}">${shopPrice(n.amount,n.currency==='gold'?'G':'S')}</b><span class="activity-gift-separator" aria-hidden="true">·</span><span class="activity-gift-source" title="${esc(giftSource)}">${esc(giftSource)}</span></div>`;
  const avatar=n.actor_profile_id&&n.actor_image_version?'/media/producer/'+encodeURIComponent(n.actor_profile_id)+'?v='+encodeURIComponent(n.actor_image_version||'default'):'/assets/default-avatar.png';
  const destination=href||'#notifications?unavailable='+encodeURIComponent(n.unavailable_reason||'1');
  const purpose=gift?'선물 받은 곳 보기':['comment','fan_comment','fan_post'].includes(n.kind)?'댓글·응원 보기':n.kind==='artist_follower'?'아티스트 보기':n.kind==='work_status'?'작품 관리':n.kind.startsWith('crew_')?'크루·요청 보기':'작품 보기';
@@ -20,7 +20,7 @@ function activityRowHTML(n){
  const time=created.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hourCycle:'h23',timeZone:'Asia/Seoul'});
  const unreadDot=n.read_at?'':'<i class="activity-dot" aria-label="읽지 않음"></i>';
  const textAction=gift?`${giftName||product?.name||'선물'} × ${number(n.quantity)}개를 보냈습니다.`:action;
- const rowTitle=[`${n.actor_name||''}${n.kind==='work_status'?' · ':'님이 '}${textAction}`,gift?`${number(n.amount)} ${n.currency==='gold'?'G':'S'} · ${giftSource}`:['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>n[k]).join(' · '),`${label} · ${time}`].filter(Boolean).join('\n');
+ const rowTitle=[`${n.actor_name||''}${n.kind==='work_status'?' · ':'님이 '}${textAction}`,gift?`${n.currency==='gold'?'골드':'실버'} ${number(n.amount)} · ${giftSource}`:['artist_name','source_title','detail'].filter(k=>n[k]).map(k=>n[k]).join(' · '),`${label} · ${time}`].filter(Boolean).join('\n');
  return `<${rowTag} data-list-row class="activity-row${n.read_at?'':' is-unread'}" data-activity-id="${esc(n.id)}" ${passive?'':`data-activity-open="${esc(n.id)}" href="${esc(destination)}"`} title="${esc(rowTitle)}" aria-label="${esc(rowTitle)}${passive?'':' · '+purpose}">
   <div class="activity-avatar">${unreadDot}<img src="${esc(avatar)}" alt="" loading="lazy"></div>
   <div class="activity-copy">

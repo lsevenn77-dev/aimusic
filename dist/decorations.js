@@ -111,15 +111,11 @@ function decorationProductImage(p){return p.kind==='PROFILE_FRAME'?p.assetPaths.
 function shopThemeProducts(products){return [...new Map(products.filter(p=>p.kind==='TALKING_ROOM_THEME').map(p=>[p.sku,p])).values()];}
 function shopProductPeriods(p,periods){return Object.entries(periods).filter(([key])=>Number.isFinite(p.periodPrices[key])&&p.periodPrices[key]>=0);}
 // Shared by the wallet and every product price; artwork never comes from a sample list.
-function shopCoin(currency){
- const code=currency==='S'?'S':'G';
- return '<img class="shop-coin" src="/assets/shop/coin-'+code.toLowerCase()+'.svg" alt="'+code+'" width="24" height="24">';
-}
-// A shared presentation component; amounts/currency remain supplied by the catalog or wallet.
-function shopPrice(amount,currency){return '<span class="shop-currency-amount">'+shopCoin(currency)+'<span>'+number(amount)+'</span></span>';}
+function shopCoin(currency,size=20){return AifectGifts.currencyIcon(currency,size);}
+function shopPrice(amount,currency,size=17){return AifectGifts.currencyAmount(amount,currency,{size});}
 function shopProductDisplayName(p){const name=String(p.name??'');return p.kind==='TALKING_ROOM_THEME'?name.replace(/\s*라운지\s*$/u,'')||name:name;}
 function shopPopupContext(){return /^#(?:gifts(?:[/?]|$)|inventory(?:[/?]|$)|gift-inventory(?:[/?]|$))/.test(globalThis.location?.hash||'');}
-function shopCurrencyText(text){return esc(text).replace(/(\d[\d,]*) ([GS])\b/g,(_,amount,code)=>shopPrice(Number(amount.replaceAll(',','')),code));}
+function shopCurrencyText(text){return esc(text).replace(/(\d[\d,]*) ([GS])\b/gi,(_,amount,code)=>shopPrice(Number(amount.replaceAll(',','')),code.toUpperCase()));}
 function prepareShopPopup(modal,content){
  const own=content.querySelector('.shop-checkout,.shop-theme-preview,.decoration-dialog,.compact-purchase,#mp-inventory-buy,#mp-inventory-recipient');
  const related=shopPopupContext()&&content.querySelector('.gift-dialog,.gift-success,.gift-recipient-dialog,#gift-dialog-retry');
@@ -135,7 +131,7 @@ function shopStartingPrice(p,periods){
  const days=code=>{const m=/^P(\d+)([DMY])$/.exec(code);return m?Number(m[1])*({D:1,M:30,Y:365})[m[2]]:Infinity;};
  const options=shopProductPeriods(p,periods).sort(([a],[b])=>p.periodPrices[a]-p.periodPrices[b]||days(a)-days(b));
  const first=options[0];if(!first)return '';
- return shopCoin(p.currency||'G')+'<span class="shop-price-value">'+number(p.periodPrices[first[0]])+'</span>';
+ return shopPrice(p.periodPrices[first[0]],p.currency||'G');
 }
 function shopNormalizeSearch(value){return String(value??'').normalize('NFKC').toLocaleLowerCase().replace(/\s+/gu,'');}
 function shopCards(items,periods={}){
@@ -143,7 +139,7 @@ function shopCards(items,periods={}){
   const theme=p.kind==='TALKING_ROOM_THEME',currency=p.free?'S':p.currency||'G';
   const category=p.sku?(theme?'themes':'frames'):'gifts';
   const action=p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"';
-  const price=p.sku?shopStartingPrice(p,periods):shopCoin(currency)+'<span class="shop-price-value">'+number(p.free?p.silver:p.gold)+'</span>';
+  const price=p.sku?shopStartingPrice(p,periods):shopPrice(p.free?p.silver:p.gold,currency);
   const name=esc(shopProductDisplayName(p));
   const preview=p.previewLayout==='landscape'?p.assetPaths.roomDesktop:p.assetPaths?.roomMobile;
   return '<article class="shop-card '+(currency==='S'?'is-silver':'is-gold')+'" data-shop-category="'+category+'" data-shop-name="'+esc(p.name)+'">'+
@@ -179,7 +175,7 @@ async function shopThemePreview(button){
  finally{button.disabled=false;button.removeAttribute('aria-busy');}
 }
 function shopBalancesHTML(wallet){
- return '<span class="shop-balance shop-balance-gold">'+shopCoin('G')+'<span>보유 골드</span><b data-shop-gold>'+number(wallet?.balance||0)+' G</b></span><span class="shop-balance shop-balance-silver">'+shopCoin('S')+'<span>보유 실버</span><b data-shop-silver>'+number(wallet?.free?.balance||0)+' S</b></span>';
+ return '<span class="shop-balance shop-balance-gold"><span>보유 골드</span><b data-shop-gold>'+shopPrice(wallet?.balance||0,'G',20)+'</b></span><span class="shop-balance shop-balance-silver"><span>보유 실버</span><b data-shop-silver>'+shopPrice(wallet?.free?.balance||0,'S',20)+'</b></span>';
 }
 // Category artwork comes from the same live catalog as the shelves below.
 function shopBannerSlides(products){
@@ -247,7 +243,7 @@ async function refreshShopBalances(){
  const root=$('.shop-page'),account=me?.id;if(!root||!account)return;
  try{const wallet=await api('/api/gold/balance','GET',undefined,{fresh:true});if(!root.isConnected||account!==me?.id)return;
   const gold=root.querySelector('[data-shop-gold]'),silver=root.querySelector('[data-shop-silver]');
-  gold.textContent=number(wallet.balance)+' G';silver.textContent=number(wallet.silver_balance)+' S';
+  gold.innerHTML=shopPrice(wallet.balance,'G',20);silver.innerHTML=shopPrice(wallet.silver_balance,'S',20);
  }catch{/* Keep the last confirmed balance; the next route load retries. */}
 }
 window.addEventListener('focus',()=>void refreshShopBalances());
@@ -298,7 +294,7 @@ async function shopPurchaseDialog(initial){
     actions='<button type="button" class="small-button" data-step="message" '+(state.uncertain?'disabled':'')+'>뒤로</button><button class="primary-button" type="submit" '+(!enough||!within?'disabled':'')+'>'+(state.uncertain?'전송 결과 다시 확인':'선물 보내기')+'</button>';
    }else{body=product()+'<p role="status">'+(state.sent?esc(state.recipient.name)+'님 (고유 ID '+esc(state.recipient.public_number)+')에게 선물을 보냈습니다.':'인벤토리에 상품을 보관했습니다.')+'</p>';actions='<button type="button" class="primary-button" data-close-dialog>확인</button>';}
    const top=step==='purchase'?'상품 구매하기':step==='review'?'선물 최종 확인':step==='done'?'완료':'선물하기';
-   dialog('<section class="shop-checkout '+(p.sku?'is-duration':'is-quantity')+'" data-shop-category="'+(p.sku?(p.kind==='TALKING_ROOM_THEME'?'themes':'frames'):'gifts')+'"><h2 tabindex="-1">'+top+'</h2><form id="shop-order">'+body+(step==='purchase'&&!within?'<p class="field-help">선물은 한 번에 최대 100,000 G까지 보낼 수 있습니다.</p>':'')+'<div class="shop-checkout-actions">'+actions+'</div><p class="form-error" role="alert"></p></form></section>');
+   dialog('<section class="shop-checkout '+(p.sku?'is-duration':'is-quantity')+'" data-shop-category="'+(p.sku?(p.kind==='TALKING_ROOM_THEME'?'themes':'frames'):'gifts')+'"><h2 tabindex="-1">'+top+'</h2><form id="shop-order">'+body+(step==='purchase'&&!within?'<p class="field-help">선물은 한 번에 최대 100,000 g까지 보낼 수 있습니다.</p>':'')+'<div class="shop-checkout-actions">'+actions+'</div><p class="form-error" role="alert"></p></form></section>');
    const form=$('#shop-order');
    if(step==='purchase'&&p.assetPaths?.effect)frameEffects.set(form.querySelector('.frame-detail-layers>img'),p.assetPaths.effect);
    for(const b of form.querySelectorAll('[data-step]'))b.onclick=()=>{if(state.busy)return;if(b.dataset.step==='recipient'&&!me){$('#dialog').close();return askLogin();}if(step==='purchase'&&b.dataset.step==='recipient'){if(!valid()){formError(form).textContent=p.sku?'이용 기간을 확인해 주세요.':'수량을 확인해 주세요.';return;}return chooseGiftRecipient(p.sku?{sku:p.sku,period:state.period}:{id:p.id,quantity:state.quantity});}state.step=b.dataset.step;paint();};
@@ -366,7 +362,7 @@ async function decorationShopView(category){
  const kind=category==='frames'?'PROFILE_FRAME':'TALKING_ROOM_THEME';
  return heading('상점','내 프로필과 토킹룸을 꾸며 보세요.')+decorationNav(category)+`<section class="decoration-grid">${d.products.filter(p=>p.kind===kind).map(p=>{
   const item=d.inventory.find(i=>i.item_key===p.sku&&i.available)||d.inventory.find(i=>i.item_key===p.sku),image=decorationProductImage(p);
-  return `<article class="decoration-card" data-decoration-card="${esc(p.sku)}"><img class="decoration-product-image ${kind==='PROFILE_FRAME'?'is-frame':''}" src="${esc(image)}" alt="${esc(p.name)}" loading="lazy"><h2>${esc(p.name)}</h2><p class="decoration-owned">${item?item.available?item.stored?'사용 전 보관 · '+d.periods[item.period_code]:decorationRemaining(item.expires_at,d.server_now):'기간 만료 · 다시 구매할 수 있습니다.':'미보유'}</p><label>이용 기간<select data-decoration-period aria-label="${esc(p.name)} 이용 기간">${Object.entries(d.periods).map(([key,label])=>`<option value="${key}">${label} · ${number(p.periodPrices[key])} G</option>`).join('')}</select></label><div class="decoration-actions"><button class="small-button" data-decoration="${esc(p.sku)}">자세히 보기</button><button class="primary-button" data-decoration="${esc(p.sku)}">구매</button></div></article>`;
+  return `<article class="decoration-card" data-decoration-card="${esc(p.sku)}"><img class="decoration-product-image ${kind==='PROFILE_FRAME'?'is-frame':''}" src="${esc(image)}" alt="${esc(p.name)}" loading="lazy"><h2>${esc(p.name)}</h2><p class="decoration-owned">${item?item.available?item.stored?'사용 전 보관 · '+d.periods[item.period_code]:decorationRemaining(item.expires_at,d.server_now):'기간 만료 · 다시 구매할 수 있습니다.':'미보유'}</p><label>이용 기간<select data-decoration-period aria-label="${esc(p.name)} 이용 기간">${Object.entries(d.periods).map(([key,label])=>`<option value="${key}">${label} · ${number(p.periodPrices[key])} g</option>`).join('')}</select></label><div class="decoration-actions"><button class="small-button" data-decoration="${esc(p.sku)}">자세히 보기</button><button class="primary-button" data-decoration="${esc(p.sku)}">구매</button></div></article>`;
  }).join('')}</section>`;
 }
 async function decorationDialog(sku,period='P7D'){return shopPurchaseDialog({sku,period});}

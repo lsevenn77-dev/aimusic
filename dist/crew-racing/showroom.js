@@ -1,3 +1,4 @@
+import {currencyAmount} from '../../shared/currency.js';
 import {rearPreview} from './arcade.js';
 
 const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text)el.textContent=text;return el;};
@@ -44,10 +45,10 @@ export function createShowroom(cars,changeCar,refresh){
     }
     const balance=state.balance;
     if(balance){
-      amounts.replaceChildren(make('span','wallet-s','실버 '+format(balance.S)+' S'),make('span','wallet-g','골드 '+format(balance.G)+' G'));
+      amounts.innerHTML=currencyAmount(balance.S,'S',{size:20})+' · '+currencyAmount(balance.G,'G',{size:20});
     }else amounts.textContent=state.walletPhase==='error'?'잔액 확인 실패':state.signedIn===false?'로그인 후 확인':'잔액 확인 중…';
     const missing=!owned&&balance?Math.max(0,c.price-balance[c.currency]):0;
-    action.textContent=on?'장착 중':owned?'장착하기':c.price.toLocaleString('ko-KR')+' '+c.currency+(missing?' · '+format(missing)+' '+c.currency+' 부족':' · 구매하기');
+    action.textContent=on?'장착 중':owned?'장착하기':c.price.toLocaleString('ko-KR')+ ' '+c.currency.toLowerCase()+(missing?' · '+format(missing)+ ' '+c.currency.toLowerCase()+' 부족':' · 구매하기');
     action.disabled=state.busy||on||!state.signedIn||(!owned&&(!balance||missing>0));
     action.onclick=()=>changeCar(owned?'equip':'buy',c,action);
   }
