@@ -14,7 +14,7 @@ struct PersonRow: View {
     let person: [String: Any]
     var body: some View {
         HStack { ProfilePhoto(person: person, kind: person.string("kind", fallback: "producer"), size: 48)
-            VStack(alignment: .leading) { Text(person.displayName()); if !person.string("bio").isEmpty { Text(person.string("bio")).font(.caption).foregroundStyle(.secondary).lineLimit(2) } }
+            VStack(alignment: .leading) { MemberName(person); if !person.string("bio").isEmpty { Text(person.string("bio")).font(.caption).foregroundStyle(.secondary).lineLimit(2) } }
         }
     }
 }
@@ -35,7 +35,7 @@ struct ProfilePage: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(person.displayName(fallback: "프로필")).font(.system(size: 25, weight: .bold))
+                    MemberName(person, person.displayName(fallback: "프로필")).font(.system(size: 25, weight: .bold))
                     if kind == "producer" { PartnerBadge(person: person) }
                     ResponsiveProfilePhoto(person: person, kind: kind)
                     if kind == "producer" { NavigationLink { ProfileGiftRankingView(profileID: id).streamingPage() } label: { Label("선물 랭킹 TOP 50", systemImage: "trophy.fill").font(.system(size: 13)).frame(maxWidth: .infinity, minHeight: 44) } }
@@ -186,7 +186,7 @@ struct MessagesView: View {
                                     NavigationLink { ProfilePage(id: person.string("id")).streamingPage() } label: { ProfilePhoto(person: person, size: 48, showsLevel: false) }.buttonStyle(.plain).accessibilityLabel("\(person.displayName()) 프로필")
                                     NavigationLink(value: MessageRoute(id: person.string("id"), title: person.displayName(), crew: false)) {
                                         HStack {
-                                            VStack(alignment: .leading, spacing: 7) { HStack(spacing: 5) { Text(person.displayName()).font(.system(size: 16, weight: .semibold)); OfficialAIBadge(person: person) }; Text(ChatSticker.preview(person.string("last_message"))).font(.system(size: 13)).foregroundStyle(AifectDesign.muted).lineLimit(1) }.frame(maxWidth: .infinity, alignment: .leading)
+                                            VStack(alignment: .leading, spacing: 7) { HStack(spacing: 5) { MemberName(person).font(.system(size: 16, weight: .semibold)); OfficialAIBadge(person: person) }; Text(ChatSticker.preview(person.string("last_message"))).font(.system(size: 13)).foregroundStyle(AifectDesign.muted).lineLimit(1) }.frame(maxWidth: .infinity, alignment: .leading)
                                             VStack(alignment: .trailing, spacing: 6) {
                                                 if person.flag("muted") { Image(systemName: "bell.slash").font(.caption) }
                                                 if person.number("updated") > 0 { Text(Date(timeIntervalSince1970: person.number("updated")), style: .relative).font(.caption2).foregroundStyle(AifectDesign.muted) }
@@ -255,7 +255,7 @@ struct NewConversationView: View {
                             HStack(spacing: 12) {
                                 ProfilePhoto(person: person, size: 46, showsLevel: false)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    HStack(spacing: 5) { Text(person.displayName()).font(.system(size: 15)); OfficialAIBadge(person: person) }
+                                    HStack(spacing: 5) { MemberName(person).font(.system(size: 15)); OfficialAIBadge(person: person) }
                                     if !person.string("public_id").isEmpty { Text("ID " + person.string("public_id")).font(.system(size: 11)).foregroundStyle(AifectDesign.muted) }
                                 }.frame(maxWidth: .infinity, alignment: .leading)
                                 Image(systemName: "bubble.left").foregroundStyle(Brand.pink)
@@ -508,7 +508,7 @@ struct CrewPage: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) { ForEach(Array(data.objects("members").prefix(8)), id: \.selfID) { person in
                     NavigationLink { ProfilePage(id: person.string("id")).streamingPage() } label: {
-                        VStack(spacing: 8) { ProfilePhoto(person: person, size: 56); Text(person.displayName()).font(.system(size: 13, weight: .semibold)).lineLimit(1); Text(roleTitle(person)).font(.system(size: 11)).foregroundStyle(Brand.aqua) }.frame(width: 94).padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
+                        VStack(spacing: 8) { ProfilePhoto(person: person, size: 56); MemberName(person).font(.system(size: 13, weight: .semibold)).lineLimit(1); Text(roleTitle(person)).font(.system(size: 11)).foregroundStyle(Brand.aqua) }.frame(width: 94).padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 16))
                     }.buttonStyle(.plain)
                 } }
             }
@@ -578,6 +578,101 @@ struct LoginPrompt: View {
         ContentUnavailableView { Label(title, systemImage: "person.crop.circle") } description: { Text("AIFECT 계정으로 이어서 이용하세요.") } actions: { Button("로그인") { model.showLogin = true }.buttonStyle(.borderedProminent) }
     }
 }
+
+private struct PremiumPresentation {
+    var until: TimeInterval = 0
+    var defaultFrame = false
+    init(_ row: [String: Any] = [:]) {
+        until = row.number("premium_style_until")
+        defaultFrame = row.int("premium_default_frame") == 1
+    }
+    var active: Bool { until > Date().timeIntervalSince1970 }
+}
+
+@MainActor
+private final class MemberStyles {
+    static let shared = MemberStyles()
+    private var pending: [String: [CheckedContinuation<PremiumPresentation, Never>]] = [:]
+    private var cache: [String: (Date, PremiumPresentation)] = [:]
+    private var scheduled = false
+    func style(_ key: String) async -> PremiumPresentation {
+        if let (expiry, value) = cache[key], expiry > Date() { return value }
+        return await withCheckedContinuation { waiter in
+            pending[key, default: []].append(waiter)
+            guard !scheduled else { return }
+            scheduled = true
+            Task {
+                try? await Task.sleep(for: .milliseconds(25))
+                let batch = pending
+                pending.removeAll(); scheduled = false
+                let ids = Array(batch.keys)
+                for start in stride(from: 0, to: ids.count, by: 60) {
+                    let group = ids[start..<min(start + 60, ids.count)]
+                    let query = Endpoint.query(group.joined(separator: ","))
+                    let response = try? await API.shared.call("/api/decorations/avatars?profiles=\(query)", fresh: true)
+                    var styles: [String: PremiumPresentation] = [:]
+                    for row in response?.objects("avatars") ?? [] {
+                        styles[row.string("lookup_key", fallback: row.string("profile_id"))] = PremiumPresentation(row)
+                    }
+                    if cache.count > 500 { cache.removeAll() }
+                    for id in group {
+                        let value = styles[id] ?? PremiumPresentation()
+                        cache[id] = (Date().addingTimeInterval(60), value)
+                        batch[id]?.forEach { $0.resume(returning: value) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct MemberPresentation<Content: View>: View {
+    let person: [String: Any]
+    @ViewBuilder let content: (PremiumPresentation) -> Content
+    @State private var fetched = PremiumPresentation()
+    @State private var loadedKey = ""
+    private var key: String {
+        guard person.string("profile_kind") != "artist" else { return "" }
+        for field in ["profile_id","user_id","id"] {
+            let id = person.string(field)
+            if id.count <= 100, SiteWorkspace.validKey(id) { return field == "user_id" ? "member:" + id : id }
+        }
+        return ""
+    }
+    var body: some View {
+        let supplied = person["premium_style_until"] is NSNumber
+        let identity = key + ":\(person.number("premium_style_until")):\(person.int("premium_default_frame"))"
+        let style = key.isEmpty ? PremiumPresentation() : supplied ? PremiumPresentation(person) : loadedKey == identity ? fetched : PremiumPresentation()
+        content(style.active ? style : PremiumPresentation()).task(id: identity) {
+            guard !key.isEmpty else { return }
+            let next = supplied ? PremiumPresentation(person) : await MemberStyles.shared.style(key)
+            guard !Task.isCancelled else { return }
+            fetched = next; loadedKey = identity
+            if next.active {
+                try? await Task.sleep(for: .seconds(max(0, min(86_401, next.until - Date().timeIntervalSince1970))))
+                if !Task.isCancelled { fetched = PremiumPresentation(); loadedKey = identity + "-expired" }
+            }
+        }
+    }
+}
+
+struct MemberName: View {
+    let person: [String: Any]
+    let text: String
+    init(_ person: [String: Any], _ text: String? = nil) { self.person = person; self.text = text ?? person.displayName() }
+    var body: some View {
+        MemberPresentation(person: person) { style in
+            if style.active {
+                HStack(alignment: .center, spacing: 3) {
+                    Text(text).foregroundStyle(Color(red: 245/255, green: 198/255, blue: 111/255))
+                    RemoteArtwork(url: CatalogArtwork.url("/assets/premium/gold-star.png"), catalog: true) { $0.resizable().scaledToFit() } placeholder: { Color.clear }
+                        .frame(width: 13, height: 13).accessibilityHidden(true)
+                }.accessibilityElement(children: .combine)
+            } else { Text(text) }
+        }
+    }
+}
+
 struct ProfilePhoto: View {
     let person: [String: Any]
     var kind = "producer"
@@ -605,6 +700,13 @@ struct ProfilePhoto: View {
                         }
                     } else if person.string("profile_frame") == "crew-outline" {
                         Image("ClanAetherFrame").resizable().scaledToFit()
+                    } else if person.string("profile_frame").isEmpty {
+                        MemberPresentation(person: person) { style in
+                            if style.defaultFrame {
+                                RemoteArtwork(url: CatalogArtwork.url("/assets/premium/moonlight-gold.png"), catalog: true) { $0.resizable().scaledToFit() } placeholder: { Color.clear }
+                                    .frame(width: size * 1.31, height: size * 1.31)
+                            }
+                        }
                     }
                 }
                 .frame(width: size * frame.scale, height: size * frame.scale)
@@ -721,7 +823,8 @@ struct MyMusicView: View {
                             libraryEntry("최근 감상", icon: "clock", selection: 2, count: "\(model.history.count)곡")
                             libraryEntry("플레이리스트", icon: "music.note.list", selection: 0, count: "\(model.playlists.count)개")
                         }.task(id: model.userID) { await model.loadLibrary() }
-                        Button("레벨 · 계정 관리") { account = true }.font(.caption).frame(maxWidth: .infinity, minHeight: 44)
+                        NavigationLink("알림 및 프로필 설정") { AccountSettingsView() }
+                        Button("내 계정") { account = true }.font(.caption).frame(maxWidth: .infinity, minHeight: 44)
                         if let error = model.libraryError { RetryCard(message: error) { Task { await model.loadLibrary() } } }
                     } else {
                         MyInventoryContent(profileID: profile.string("id")).id(model.userID)
@@ -756,7 +859,7 @@ struct MyMusicView: View {
                 .buttonStyle(.plain).disabled(pid.isEmpty).accessibilityLabel("프로필 사진 크게 보기")
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 0) {
-                    Text(profile.displayName(fallback: model.user?.displayName() ?? "내 프로필"))
+                    MemberName(profile, profile.displayName(fallback: model.user?.displayName() ?? "내 프로필"))
                         .font(.system(size: 21, weight: .bold)).lineLimit(1).accessibilityIdentifier("my-profile-name")
                     NavigationLink { ProfileEditorView().streamingPage() } label: {
                         Image(systemName: "pencil").font(.system(size: 17)).foregroundStyle(Brand.pink).frame(width: 44, height: 44)
@@ -827,7 +930,7 @@ struct ListenerProfileView: View {
     @State private var error: String?
     var body: some View {
         List {
-            Text(person.displayName(fallback: "프로필")).font(.title2.bold())
+            MemberName(person, person.displayName(fallback: "프로필")).font(.title2.bold())
             Text(person.string("bio"))
             if !person.string("id").isEmpty { NavigationLink("음악 프로필") { ProfilePage(id: person.string("id")) } }
             if let error { Text(error).foregroundStyle(.red) }

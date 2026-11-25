@@ -22,7 +22,7 @@ struct TrackCommentsView: View {
             if comments.isEmpty { Text("첫 번째 감상을 남겨보세요.").foregroundStyle(.secondary) }
             ForEach(orderedComments, id: \.selfID) { item in
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(item.displayName()).font(.caption.bold()).foregroundStyle(Brand.aqua)
+                    MemberName(item).font(.caption.bold()).foregroundStyle(Brand.aqua)
                     if item["timestamp"] is NSNumber {
                         Button(timeLabel(item.number("timestamp"))) {
                             if model.player.current?.id != song.id { model.player.play(song, queue: [song]) }

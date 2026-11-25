@@ -104,39 +104,76 @@ struct LoginView: View {
 struct AccountView: View {
     @EnvironmentObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
-    @State private var logoutConfirm = false
+    @ObservedObject private var store = StorePayments.shared
+    @State private var logout = false
+    @State private var destination: AccountDestination?
+    @State private var status: String?
+    @State private var error: String?
+    @State private var attempt = 0
+    @State private var revision = 0
+    @State private var progress = 0.0
+    @State private var talkLocation = TalkRoomLocation.outside
+
+    private enum AccountDestination: String, Identifiable {
+        case purchase, password, delete, studio
+        var id: String { rawValue }
+    }
     var body: some View {
         Group {
-            Form {
-                Section {
-                    Label(model.user?.displayName() ?? "음악과 만나는 순간", systemImage: "person.crop.circle.fill").font(.title3.bold())
-                    if let user = model.user { Text(accountIdentity(user)).foregroundStyle(.secondary) }
-                    else { Button("로그인 / 회원가입") { dismiss(); model.showLogin = true } }
-                }
-                Section {
-                    NavigationLink("Premium · 골드") { PaymentStoreView() }
-                    if model.user != nil {
-                        NavigationLink("골드 · 선물 내역") { GiftWalletView() }
-                        NavigationLink("다이아 · 내 정산") { DiamondWalletView() }
-                        NavigationLink("오늘의 보상") { RewardsView() }
-                        NavigationLink("내 프로필 편집") { ProfileEditorView() }
-                        NavigationLink("계정 설정") { AccountSettingsView() }
-                        NavigationLink("메시지") { MessagesView() }
-                        NavigationLink("크루") { CrewsView() }
+            if let owner = model.userID {
+                if let error {
+                    RetryCard(message: error) { self.error = nil; progress = 0; attempt += 1 }
+                } else {
+                    ZStack(alignment: .top) {
+                        WorkspaceBrowser(space: .account, error: $error, progress: $progress,
+                            talkLocation: $talkLocation, accountCanPurchase: store.canSubscribe, accountRevision: revision,
+                            accountAction: { action in handle(action, owner: owner) })
+                            .id("\(owner)-\(attempt)")
+                        if progress < 1 { ProgressView(value: progress).tint(Brand.aqua) }
                     }
                 }
-                Section("AIFECT") {
-                    if model.user != nil { NavigationLink("원곡 음원 업로드") { OriginalUploadView() } }
-                    Link("창작자 스튜디오 열기", destination: Endpoint.origin.appendingPathComponent("studio"))
-                    Link("AIFECT 웹사이트", destination: Endpoint.origin)
-                    Text("iPhone 네이티브 · \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "")").foregroundStyle(.secondary)
-                }
-                if model.user != nil { Section { Button("로그아웃", role: .destructive) { logoutConfirm = true } } }
-            }.navigationTitle("계정").navigationBarTitleDisplayMode(.inline)
-                .toolbar { Button("완료") { dismiss() } }
-                .confirmationDialog("이 기기에서 로그아웃할까요?", isPresented: $logoutConfirm, titleVisibility: .visible) {
-                    Button("로그아웃", role: .destructive) { Task { await model.logout(); dismiss() } }
-                } message: { Text("저장된 녹음은 기기에 남으며 같은 계정으로 다시 로그인하면 볼 수 있습니다.") }
+            } else {
+                Button("로그인 / 회원가입") { model.showLogin = true }
+            }
+        }.navigationTitle("내 계정").navigationBarTitleDisplayMode(.inline)
+        .task(id: model.userID) { if model.userID != nil { await store.load() } }
+        .sheet(item: $destination, onDismiss: { revision += 1 }) { page in
+            NavigationStack {
+                Group {
+                    switch page {
+                    case .purchase: PaymentStoreView()
+                    case .password: AccountSettingsView(passwordOnly: true)
+                    case .delete: DeleteAccountView()
+                    case .studio: CreatorWorkView()
+                    }
+                }.toolbar { ToolbarItem(placement: .cancellationAction) { Button("닫기") { destination = nil } } }
+            }
+        }
+        .confirmationDialog("이 기기에서 로그아웃할까요?", isPresented: $logout, titleVisibility: .visible) {
+            Button("로그아웃", role: .destructive) { Task { await model.logout(); dismiss() } }
+        }
+        .alert("구매 복원", isPresented: Binding(get: { status != nil }, set: { if !$0 { status = nil } })) {
+            Button("확인") { status = nil }
+        } message: { Text(status ?? "") }
+    }
+    private func handle(_ action: String, owner: String) {
+        guard model.userID == owner else { return }
+        switch action {
+        case "purchase": if store.canSubscribe { destination = .purchase }
+        case "restore":
+            if store.busy { status = "구매 내역을 확인하고 있습니다."; return }
+            Task {
+                await store.restore()
+                guard model.userID == owner else { return }
+                try? await model.loadMe()
+                revision += 1
+                status = store.message
+            }
+        case "password": if model.user?.string("provider") == "email" { destination = .password }
+        case "delete": destination = .delete
+        case "studio": destination = .studio
+        case "logout": logout = true
+        default: break
         }
     }
 }
@@ -427,6 +464,7 @@ private struct PlaylistDisplaySong: Identifiable {
 }
 
 struct AccountSettingsView: View {
+    var passwordOnly = false
     @ObservedObject private var ads = ListeningAds.shared
     @EnvironmentObject var model: AppModel
     @State private var currentPassword = ""
@@ -436,11 +474,13 @@ struct AccountSettingsView: View {
     @State private var error: String?
     var body: some View {
         Form {
+            if !passwordOnly {
             Section { NavigationLink("알림 설정") { PushSettingsView() }
                 NavigationLink("차단한 이용자") { BlockedUsersView() }
                 if ads.privacyRequired { Button("광고 개인정보 설정") { Task { await ads.privacyOptions() } } }
             }
             Section { Text(model.user.map(accountIdentity) ?? ""); NavigationLink("공개 닉네임 · 프로필 변경") { ProfileEditorView() } }
+            }
             if model.user?.string("provider") == "email" {
                 Section("비밀번호 변경") {
                     SecureField("현재 비밀번호", text: $currentPassword).textContentType(.password)
@@ -449,14 +489,14 @@ struct AccountSettingsView: View {
                     Button("비밀번호 변경") { Task { await changePassword() } }.disabled(busy || currentPassword.isEmpty || password.count < 12 || password != confirm)
                 }
             }
-            Section {
+            if !passwordOnly { Section {
                 Link("이용약관", destination: Endpoint.origin.appendingPathComponent("terms"))
                 Link("개인정보 처리방침", destination: Endpoint.origin.appendingPathComponent("privacy"))
                 Link("고객 지원", destination: Endpoint.origin.appendingPathComponent("contact"))
-            }
+            } }
             if let error { Text(error).foregroundStyle(.red) }
-            Section { NavigationLink("계정 삭제") { DeleteAccountView() }.foregroundStyle(.red) }
-        }.navigationTitle("계정 설정")
+            if !passwordOnly { Section { NavigationLink("계정 삭제") { DeleteAccountView() }.foregroundStyle(.red) } }
+        }.navigationTitle(passwordOnly ? "비밀번호 변경" : "계정 설정")
     }
     private func changePassword() async {
         busy = true; defer { busy = false }
@@ -564,7 +604,7 @@ struct BlockedUsersView: View {
         List {
             if blocks.isEmpty { Text("차단한 이용자가 없습니다.").foregroundStyle(.secondary) }
             ForEach(blocks, id: \.selfID) { person in
-                HStack { Text(person.displayName()); Spacer(); Button("차단 해제") { Task { await unblock(person.string("id")) } }.disabled(busy) }
+                HStack { MemberName(person); Spacer(); Button("차단 해제") { Task { await unblock(person.string("id")) } }.disabled(busy) }
             }
             if let error { Text(error).foregroundStyle(.red) }
         }.navigationTitle("차단한 이용자").task { await load() }.refreshable { await load() }

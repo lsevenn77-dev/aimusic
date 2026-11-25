@@ -64,7 +64,10 @@ struct SiteWorkspace: Identifiable, Hashable {
     let key: String
     let title: String
     var id: String { area + "/" + key }
+    private init() { area = "account"; key = ""; title = "내 계정" }
+    static let account = SiteWorkspace()
     var path: String {
+        if area == "account" { return "/#account" }
         if area == "crew-notices" { return "/#crew/" + key + "?tab=notice" }
         if area == "game/jump" { return "/#crew-jump/" + key }
         if area.hasPrefix("game/") { return "/crew-" + area.dropFirst(5) + "/?crew=" + key + "&from=crew" }
@@ -171,6 +174,9 @@ struct WorkspaceBrowser: UIViewRepresentable {
     @Binding var progress: Double
     @Binding var talkLocation: TalkRoomLocation
     var openRoomOverlay: (String) -> Void = { _ in }
+    var accountCanPurchase = false
+    var accountRevision = 0
+    var accountAction: ((String) -> Void)?
     private var target: URL {
         #if DEBUG
         // Real game source runs on a local fixture server in UI tests. Never enabled in Release.
@@ -182,7 +188,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
         #endif
         return URL(string: Endpoint.origin.absoluteString + space.path)!
     }
-    func makeCoordinator() -> Coordinator { Coordinator(error: $error, progress: $progress, origin: target, talkLocation: $talkLocation, openRoomOverlay: openRoomOverlay) }
+    func makeCoordinator() -> Coordinator { Coordinator(error: $error, progress: $progress, origin: target, talkLocation: $talkLocation, openRoomOverlay: openRoomOverlay, accountAction: accountAction) }
     // Room controls own navigation here; the site's logo/search header is redundant.
     // Scope to room routes so the normal header returns after leaving the room.
     static let roomChromeScript = """
@@ -329,8 +335,13 @@ struct WorkspaceBrowser: UIViewRepresentable {
             config.userContentController.add(context.coordinator, name: "talkRoomState")
             config.userContentController.addUserScript(WKUserScript(source: Self.talkRoomScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         }
-        config.userContentController.add(context.coordinator, name: "roomOverlay")
-        config.userContentController.addUserScript(WKUserScript(source: Self.roomOverlayScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        if space.area == "account" {
+            config.userContentController.add(context.coordinator, name: "accountAction")
+            config.userContentController.addUserScript(WKUserScript(source: Self.accountScript(canPurchase: accountCanPurchase), injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        } else {
+            config.userContentController.add(context.coordinator, name: "roomOverlay")
+            config.userContentController.addUserScript(WKUserScript(source: Self.roomOverlayScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+        }
         if space.area == "live" || space.area == "voice" {
             config.userContentController.addUserScript(WKUserScript(source: Self.roomChromeScript, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         }
@@ -384,11 +395,49 @@ struct WorkspaceBrowser: UIViewRepresentable {
         }
         return view
     }
-    func updateUIView(_ view: WKWebView, context: Context) {}
+    private static func accountScript(canPurchase: Bool) -> String {
+        let release = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+        let version = (try? JSONEncoder().encode(release)).flatMap { String(data: $0, encoding: .utf8) } ?? "\"\""
+        return """
+            (() => {
+                if (window.top !== window || location.origin !== 'https://aifect.co.kr' || location.pathname !== '/' || location.hash !== '#account') return;
+                const previous = window.AIFECTAccountApp;
+                if (!previous) {
+                    const style = () => {
+                        if (!document.head || document.getElementById('native-account-chrome')) return;
+                        const node = document.createElement('style'); node.id='native-account-chrome';
+                        node.textContent='.sidebar,.topbar,.page-footer,.mobile-navigation,#menu-backdrop,#player{display:none!important}.page-wrap,#main{margin:0!important;width:100%!important;min-height:0!important}body{padding-bottom:0!important}';
+                        document.head.append(node);
+                    };
+                    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',style,{once:true}); else style();
+                }
+                if(previous && previous.canPurchase === \(canPurchase)) return;
+                window.AIFECTAccountApp = Object.freeze({platform:'ios',version:\(version),canPurchase:\(canPurchase),
+                    perform(action){if(location.hash==='#account')window.webkit.messageHandlers.accountAction.postMessage(String(action));}});
+                window.dispatchEvent(new Event('aifect-account-capabilities'));
+            })();
+            """
+    }
+    func updateUIView(_ view: WKWebView, context: Context) {
+        guard space.area == "account" else { return }
+        let host = context.coordinator
+        host.accountAction = accountAction
+        host.canPurchase = accountCanPurchase
+        guard let url = view.url, host.isAccount(url) else { return }
+        if host.lastCanPurchase != accountCanPurchase {
+            host.lastCanPurchase = accountCanPurchase
+            view.evaluateJavaScript(Self.accountScript(canPurchase: accountCanPurchase), completionHandler: nil)
+        }
+        if host.revision != accountRevision {
+            host.revision = accountRevision
+            view.evaluateJavaScript("window.dispatchEvent(new Event('aifect-account-refresh'))", completionHandler: nil)
+        }
+    }
     static func dismantleUIView(_ view: WKWebView, coordinator: Coordinator) {
         coordinator.start?.cancel()
         coordinator.observation?.invalidate()
         coordinator.stopObservingRoomCalls()
+        view.configuration.userContentController.removeScriptMessageHandler(forName: "accountAction")
         view.configuration.userContentController.removeScriptMessageHandler(forName: "talkRoomState")
         view.configuration.userContentController.removeScriptMessageHandler(forName: "roomOverlay")
         view.navigationDelegate = nil; view.uiDelegate = nil
@@ -405,7 +454,11 @@ struct WorkspaceBrowser: UIViewRepresentable {
         private weak var roomWebView: WKWebView?
         private var callActive = false
         let openRoomOverlay: (String) -> Void
-        init(error: Binding<String?>, progress: Binding<Double>, origin: URL, talkLocation: Binding<TalkRoomLocation>, openRoomOverlay: @escaping (String) -> Void) { _error = error; _progress = progress; _talkLocation = talkLocation; self.origin = origin; self.openRoomOverlay = openRoomOverlay }
+        var accountAction: ((String) -> Void)?
+        var canPurchase = false
+        var lastCanPurchase: Bool?
+        var revision = 0
+        init(error: Binding<String?>, progress: Binding<Double>, origin: URL, talkLocation: Binding<TalkRoomLocation>, openRoomOverlay: @escaping (String) -> Void, accountAction: ((String) -> Void)? = nil) { self.accountAction = accountAction; _error = error; _progress = progress; _talkLocation = talkLocation; self.origin = origin; self.openRoomOverlay = openRoomOverlay }
         func observeRoomCalls(in view: WKWebView) {
             roomWebView = view
             let observer = CXCallObserver()
@@ -441,6 +494,7 @@ struct WorkspaceBrowser: UIViewRepresentable {
         }
         func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
             guard message.frameInfo.isMainFrame, let url = message.frameInfo.request.url, permits(url) else { return }
+            if message.name == "accountAction", let page = message.webView?.url, isAccount(page), let action = message.body as? String, ["purchase","restore","password","logout","delete","studio"].contains(action) { accountAction?(action); return }
             if message.name == "talkRoomState", let value = message.body as? String, let location = TalkRoomLocation(rawValue: value) {
                 talkLocation = location
                 return
@@ -452,10 +506,22 @@ struct WorkspaceBrowser: UIViewRepresentable {
         func permits(_ url: URL) -> Bool {
             url.scheme == origin.scheme && url.host == origin.host && (url.port ?? (url.scheme == "https" ? 443 : 80)) == (origin.port ?? (origin.scheme == "https" ? 443 : 80)) && url.user == nil && url.password == nil
         }
+        func isAccount(_ url: URL) -> Bool { permits(url) && url.path == "/" && url.fragment == "account" }
         func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             // Embedded game frames may use blob/about URLs; restrict top-level navigation, as Android does.
             if action.targetFrame?.isMainFrame == false { decisionHandler(.allow); return }
-            guard let url = action.request.url, permits(url) else { decisionHandler(.cancel); return }
+            guard let url = action.request.url else { decisionHandler(.cancel); return }
+            if accountAction != nil, action.sourceFrame.isMainFrame, let page = webView.url, isAccount(page),
+               url.scheme == "https", url.user == nil, url.password == nil, url.port == nil || url.port == 443 {
+                let policy = permits(url) && ["/terms","/privacy","/refund","/contact","/account/delete"].contains(url.path)
+                let store = (url.host == "play.google.com" && ["/store/account/subscriptions","/store/account/orderhistory"].contains(url.path))
+                    || (url.host == "apps.apple.com" && ["/account/subscriptions","/account/purchases"].contains(url.path))
+                    || (url.host == "reportaproblem.apple.com" && ["","/"].contains(url.path))
+                if policy || store {
+                    decisionHandler(.cancel); UIApplication.shared.open(url); return
+                }
+            }
+            guard permits(url) else { decisionHandler(.cancel); return }
             decisionHandler(.allow)
         }
         func webView(_ webView: WKWebView, decidePolicyFor response: WKNavigationResponse, decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void) {
@@ -465,7 +531,12 @@ struct WorkspaceBrowser: UIViewRepresentable {
             }
             decisionHandler(.allow)
         }
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { progress = 1; updateRoomCallState() }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            progress = 1; updateRoomCallState()
+            if accountAction != nil, let url = webView.url, isAccount(url) {
+                webView.evaluateJavaScript(WorkspaceBrowser.accountScript(canPurchase: canPurchase), completionHandler: nil)
+            }
+        }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError failure: Error) { failed(failure) }
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError failure: Error) { failed(failure) }
         private func failed(_ failure: Error) { if (failure as NSError).code != NSURLErrorCancelled { error = failure.localizedDescription } }

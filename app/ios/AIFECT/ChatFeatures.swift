@@ -426,7 +426,7 @@ private struct ChatRoomView: View {
                     } else { Color.clear.frame(width: 40, height: 1) }
                 }
                 VStack(alignment: mine ? .trailing : .leading, spacing: 3) {
-                    if !mine && room.crew && showName { Text(item.displayName(fallback: displayTitle)).font(.caption2).foregroundStyle(.secondary).padding(.top, 8) }
+                    if !mine && room.crew && showName { MemberName(item, item.displayName(fallback: displayTitle)).font(.caption2).foregroundStyle(.secondary).padding(.top, 8) }
                     Group {
                         if !item.string("image_id").isEmpty { PrivateChatPhoto(item: item, owner: room.owner, crew: room.crew) }
                         else { ChatStickerText(bodyText: item.string("body")) }

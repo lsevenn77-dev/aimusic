@@ -204,7 +204,7 @@ struct CreatorPreviewCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ProfilePhoto(person: person, size: 44)
-            Text(person.displayName()).font(.system(size: nameSize, weight: .bold)).lineLimit(2)
+            MemberName(person).font(.system(size: nameSize, weight: .bold)).lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading).frame(height: nameHeight, alignment: .topLeading)
             Text(person.string("bio").isEmpty ? "프로필에서 이 음악가의 곡을 만나보세요." : person.string("bio"))
                 .font(.system(size: bioSize)).lineSpacing(3).foregroundStyle(AifectDesign.muted).lineLimit(3)

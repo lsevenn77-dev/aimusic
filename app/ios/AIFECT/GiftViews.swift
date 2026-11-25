@@ -311,7 +311,7 @@ struct ProfileGiftRankingView: View {
         }.navigationTitle("선물 랭킹 TOP 50").task { await load() }.refreshable { await load() }
     }
     private func rankingRow(_ entry: [String: Any]) -> some View {
-        HStack { ProfilePhoto(person: entry, size: 44); VStack(alignment: .leading) { Text(entry.displayName()); Text("\(entry.int("gold")) G · \(entry.int("stars")) S").font(.caption).foregroundStyle(.secondary) }; Spacer(); Text("\(entry.int("score"))점").font(.caption.bold()).foregroundStyle(Brand.aqua) }
+        HStack { ProfilePhoto(person: entry, size: 44); VStack(alignment: .leading) { MemberName(entry); Text("\(entry.int("gold")) G · \(entry.int("stars")) S").font(.caption).foregroundStyle(.secondary) }; Spacer(); Text("\(entry.int("score"))점").font(.caption.bold()).foregroundStyle(Brand.aqua) }
     }
     private func load() async { do { let value = try await API.shared.call("/api/producers/\(Endpoint.pathID(profileID))/gifts"); guard !Task.isCancelled else { return }; ranking = Array(value.objects("ranking").prefix(50)); error = nil } catch { self.error = error.localizedDescription } }
 }
@@ -329,7 +329,7 @@ struct TrackGiftRankingView: View {
             }
             Section("응원한 사람 TOP 10") {
                 ForEach(data.objects("ranking"), id: \.rankingID) { entry in
-                    VStack(alignment: .leading, spacing: 5) { Text(entry.displayName()); Text("\(entry.int("gold")) G · \(entry.int("stars")) S").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading, spacing: 5) { MemberName(entry); Text("\(entry.int("gold")) G · \(entry.int("stars")) S").font(.caption).foregroundStyle(.secondary) }
                 }
                 if data.objects("ranking").isEmpty { Text("아직 받은 선물이 없어요").foregroundStyle(.secondary) }
             }

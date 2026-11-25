@@ -86,12 +86,14 @@ final class AIFECTUITests: XCTestCase {
     }
     @MainActor func testPaymentScreen() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
-        XCTAssertTrue(app.buttons["계정"].waitForExistence(timeout: 20))
-        app.buttons["계정"].tap()
-        XCTAssertTrue(app.buttons["Premium · 골드"].waitForExistence(timeout: 10))
-        app.buttons["Premium · 골드"].tap()
+        let menu = app.buttons["전체 메뉴"].firstMatch
+        XCTAssertTrue(menu.waitForExistence(timeout: 20))
+        menu.tap()
+        app.descendants(matching: .any)["all-destinations"].firstMatch.buttons["선물함"].firstMatch.tap()
+        XCTAssertTrue(app.buttons["충전"].waitForExistence(timeout: 10))
+        app.buttons["충전"].tap()
         XCTAssertTrue(app.staticTexts["골드 충전"].waitForExistence(timeout: 15))
         // Product propagation and App Store availability are external to this UI test.
         // Verify the recovery/restore screen; production metadata was inspected separately.

@@ -91,7 +91,7 @@ struct CoverRankingView: View {
                                 HStack(spacing: 12) {
                                     ProfilePhoto(person: person, size: 48)
                                     VStack(alignment: .leading, spacing: 6) {
-                                        Text(person.displayName()).font(.system(size: 16, weight: .semibold)).lineLimit(1)
+                                        MemberName(person).font(.system(size: 16, weight: .semibold)).lineLimit(1)
                                         Text("좋아요 \(person.int("rank_likes")) · 커버 \(person.int("ranked_covers"))곡").font(.system(size: 12)).foregroundStyle(Brand.aqua)
                                         Text("노래 들으러 가기 ›").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
                                     }.frame(maxWidth: .infinity, alignment: .leading)
@@ -164,17 +164,24 @@ struct FullLyricsView: View {
     @EnvironmentObject var model: AppModel
     let song: Song
     @State private var lyrics = ""
-    @State private var access = "line"
+    @State private var loading = true
     @State private var error: String?
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 Text(song.title).font(.title2.bold())
-                if access == "full" { Text(lyrics.isEmpty ? "등록된 가사가 없습니다." : lyrics).lineSpacing(10).textSelection(.enabled) }
-                else { Text("Premium에서 전체 가사를 볼 수 있습니다."); NavigationLink("Premium 살펴보기") { PaymentStoreView() } }
+                if loading { ProgressView() }
+                else if error == nil { Text(lyrics.isEmpty ? "등록된 가사가 없습니다." : lyrics).lineSpacing(10).textSelection(.enabled) }
                 if let error { Text(error).foregroundStyle(.red) }
             }.frame(maxWidth: .infinity, alignment: .leading).padding(24)
-        }.navigationTitle("가사").task { do { let track = try await API.shared.call("/api/tracks/\(Endpoint.pathID(song.id))").object("track"); access = track.string("lyrics_access"); lyrics = LyricsDisplay.plainText(track.string("lyrics")) } catch { self.error = error.localizedDescription } }
+        }.navigationTitle("가사").task(id: song.id) {
+            loading = true; error = nil; defer { loading = false }
+            do {
+                let result = try await API.shared.call("/api/tracks/\(Endpoint.pathID(song.id))/lyrics/text")
+                guard let lines = result["lines"] as? [String] else { throw URLError(.cannotParseResponse) }
+                lyrics = lines.joined(separator: "\n")
+            } catch { self.error = error.localizedDescription }
+        }
     }
 }
 

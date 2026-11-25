@@ -7,6 +7,7 @@ final class StorePayments: ObservableObject {
     static let premiumID = "kr.co.aifect.app.premium.monthly"
     static let goldIDs = [500, 1000, 5000, 10000].map { "kr.co.aifect.app.gold.\($0)" }
     @Published private(set) var products: [Product] = []
+    var canSubscribe: Bool { AppStore.canMakePayments && products.contains { $0.id == Self.premiumID } }
     @Published private(set) var busy = false
     @Published private(set) var loadingProducts = false
     @Published var message: String?
@@ -60,11 +61,19 @@ final class StorePayments: ObservableObject {
         busy = true; message = nil; defer { busy = false }
         do {
             try await AppStore.sync()
-            var found = false
-            for await result in StoreKit.Transaction.currentEntitlements { try await deliver(result); found = true }
-            for await result in StoreKit.Transaction.unfinished { try await deliver(result); found = true }
+            var seen = Set<UInt64>()
+            var restored = false
+            func restoreTransaction(_ result: VerificationResult<StoreKit.Transaction>) async throws {
+                guard case .verified(let transaction) = result else { throw PaymentError.unverified }
+                guard seen.insert(transaction.id).inserted else { return }
+                let eligible = try await deliver(result)
+                restored = restored || eligible
+            }
+            for await result in StoreKit.Transaction.currentEntitlements { try await restoreTransaction(result) }
+            for await result in StoreKit.Transaction.unfinished { try await restoreTransaction(result) }
             await refreshWallet()
-            if !found { message = "복원할 구독이 없습니다. 사용한 골드와 지급 완료된 골드는 AIFECT 계정에 저장됩니다." }
+            if restored { message = "구매 내역을 확인했습니다." }
+            else if !sandbox || seen.isEmpty { message = "복원할 구매가 없습니다. 이미 사용한 골드는 다시 지급되지 않습니다." }
         } catch { message = error.localizedDescription }
     }
     func retryUnfinished() async {
@@ -72,9 +81,10 @@ final class StorePayments: ObservableObject {
             do { try await deliver(result) } catch { message = error.localizedDescription }
         }
     }
-    private func deliver(_ result: VerificationResult<StoreKit.Transaction>) async throws {
+    @discardableResult
+    private func deliver(_ result: VerificationResult<StoreKit.Transaction>) async throws -> Bool {
         guard case .verified(let transaction) = result else { throw PaymentError.unverified }
-        guard ([Self.premiumID] + Self.goldIDs).contains(transaction.productID) else { return }
+        guard ([Self.premiumID] + Self.goldIDs).contains(transaction.productID) else { return false }
         // The server validates Apple's signature and account binding before fulfillment.
         // Leave the StoreKit transaction unfinished if the network/server rejects it.
         let response = try await api.call("/api/apple/transactions", method: "POST", body: ["signed_transaction": result.jwsRepresentation])
@@ -82,7 +92,11 @@ final class StorePayments: ObservableObject {
         sandbox = response["sandbox"] as? Bool ?? false
         await transaction.finish()
         await refreshWallet()
-        message = sandbox ? "테스트 구매가 검증되었습니다. 실제 골드·정산에는 반영되지 않습니다." : "구매가 계정에 반영되었습니다."
+        let current = transaction.revocationDate == nil && !transaction.isUpgraded && (transaction.expirationDate.map { $0 > Date() } ?? true)
+        let eligible = current && (response["entitlement_active"] as? Bool ?? true)
+        if sandbox { message = "테스트 구매가 검증되었습니다. 실제 골드·정산에는 반영되지 않습니다." }
+        else { message = eligible ? "구매 내역을 확인했습니다." : "만료 또는 환불된 거래입니다." }
+        return eligible && !sandbox
     }
 }
 
@@ -101,6 +115,8 @@ struct PaymentStoreView: View {
     @EnvironmentObject var model: AppModel
     @ObservedObject private var store = StorePayments.shared
     @State private var manage = false
+    @State private var canStart = false
+    @State private var appleSubscription = false
     var body: some View {
         List {
             Section("내 계정") {
@@ -108,11 +124,11 @@ struct PaymentStoreView: View {
                 LabeledContent("보유 골드", value: "\(store.balance)개")
             }
             Section("AIFECT Premium") {
-                Text("전체 가사 · 플레이리스트 10개 · 월 원곡 업로드 20곡")
-                if let product = store.products.first(where: { $0.id == StorePayments.premiumID }) {
+
+                if canStart, store.canSubscribe, let product = store.products.first(where: { $0.id == StorePayments.premiumID }) {
                     purchaseButton(product, title: "Premium 월간 구독", suffix: " / 월")
+                    Text("구독은 매월 자동 갱신됩니다. Apple 계정의 구독 관리에서 언제든 해지할 수 있습니다.").font(.caption).foregroundStyle(.secondary)
                 }
-                Text("구독은 매월 자동 갱신됩니다. Apple 계정의 구독 관리에서 언제든 해지할 수 있습니다.").font(.caption).foregroundStyle(.secondary)
             }
             Section("골드 충전") {
                 ForEach(store.products.filter { StorePayments.goldIDs.contains($0.id) }) { product in
@@ -124,22 +140,34 @@ struct PaymentStoreView: View {
             if store.products.isEmpty { Button("상품 다시 불러오기") { Task { await store.load() } }.disabled(store.loadingProducts) }
             if let message = store.message { Section { Text(message).font(.subheadline) } }
             Section {
-                Button("구매 복원") { Task { await store.restore(); model.walletRevision += 1; try? await model.loadMe() } }.disabled(store.busy || model.user == nil)
-                Button("Apple 구독 관리") { manage = true }
+                Button("구매 복원") { Task { await store.restore(); model.walletRevision += 1; try? await model.loadMe(); await loadSubscription() } }.disabled(store.busy || model.user == nil)
+                if appleSubscription { Button("Apple 구독 관리") { manage = true } }
                 Link("이용약관", destination: Endpoint.origin.appendingPathComponent("terms"))
                 Link("개인정보 처리방침", destination: Endpoint.origin.appendingPathComponent("privacy"))
             }
         }.accessibilityIdentifier("payment-list").navigationTitle("Premium · 골드")
             .manageSubscriptionsSheet(isPresented: $manage)
-            .task { await store.load(); if model.user != nil { await store.retryUnfinished(); try? await model.loadMe() } }
+            .task(id: model.userID) { canStart = false; appleSubscription = false; await store.load(); if model.userID != nil { await store.retryUnfinished(); try? await model.loadMe(); await loadSubscription() } }
             .overlay { if store.busy { ProgressView("Apple 구매 확인 중").padding(22).background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18)) } }
+    }
+    private func loadSubscription() async {
+        guard let owner = model.userID else { return }
+        do {
+            let summary = try await API.shared.call("/api/account/summary", fresh: true)
+            guard model.userID == owner, summary.object("account").string("id") == owner else { return }
+            canStart = summary["can_start_subscription"] as? Bool == true
+            appleSubscription = summary.objects("passes").contains { $0.string("source") == "app_store" && !["expired","refunded"].contains($0.string("state")) }
+        } catch { if model.userID == owner { canStart = false; appleSubscription = false; store.message = "이용권 정보를 확인할 수 없습니다. 잠시 후 다시 열어 주세요." } }
     }
     private func purchaseButton(_ product: Product, title: String, suffix: String) -> some View {
         Button {
             guard model.requireLogin() else { return }
-            Task { await store.purchase(product); model.walletRevision += 1; try? await model.loadMe() }
+            Task {
+                if product.id == StorePayments.premiumID { await loadSubscription(); guard canStart else { return } }
+                await store.purchase(product); model.walletRevision += 1; try? await model.loadMe(); await loadSubscription()
+            }
         } label: {
             HStack { Text(title); Spacer(); Text(product.displayPrice + suffix).bold() }
-        }.disabled(store.busy)
+        }.disabled(store.busy || !AppStore.canMakePayments)
     }
 }

@@ -118,7 +118,7 @@ struct CrewHome: View {
                             HStack(spacing: 12) {
                                 ProfilePhoto(person: person, size: 46)
                                 VStack(alignment: .leading, spacing: 4) {
-                                    Text(person.displayName()).font(.headline)
+                                    MemberName(person).font(.headline)
                                     let roles = ["owner":"크루장","deputy":"부크루장","operator":"운영자","manager":"매니저"]
                                     Text(data.object("roles").string(person.string("role"), fallback: roles[person.string("role")] ?? "크루원"))
                                         .font(.caption).foregroundStyle(AifectDesign.muted)
