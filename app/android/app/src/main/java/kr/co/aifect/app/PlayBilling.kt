@@ -72,6 +72,8 @@ class PlayBilling(private val activity:Activity,private val model:MusicModel):Pu
  }
  private fun goldOffer(product:ProductDetails)=product.oneTimePurchaseOfferDetailsList?.firstOrNull{it.purchaseOptionId=="buy"&&it.offerId==null}
  private fun offer(product:ProductDetails)=product.subscriptionOfferDetails?.firstOrNull{it.basePlanId=="monthly"&&it.offerId==null}
+ fun canSubscribe(user:String)=owner==user && available && products.any { it.productType==BillingClient.ProductType.SUBS && offer(it)!=null }
+
  fun price(product:ProductDetails):String=if(product.productType==BillingClient.ProductType.SUBS)offer(product)?.pricingPhases?.pricingPhaseList?.lastOrNull()?.formattedPrice?:"가격 확인 중" else goldOffer(product)?.formattedPrice?:"가격 확인 중"
  fun buy(product:ProductDetails){
   if(busy||!available||model.user?.optString("id")!=owner||!client.isReady)return
@@ -106,25 +108,62 @@ class PlayBilling(private val activity:Activity,private val model:MusicModel):Pu
   busy=false
   when(result.responseCode){BillingClient.BillingResponseCode.OK->purchases?.forEach(::verify);BillingClient.BillingResponseCode.USER_CANCELED->message="구매를 취소했어요.";BillingClient.BillingResponseCode.ITEM_ALREADY_OWNED->restore();else->message=failure(result)}
  }
- private fun verify(purchase:Purchase){
-  if(purchase.purchaseState==Purchase.PurchaseState.PENDING){message="결제 대기 중이에요. 결제 완료 후 반영됩니다.";return}
-  if(purchase.purchaseState!=Purchase.PurchaseState.PURCHASED)return
-  val user=model.user?.optString("id")?:return
-  if(user!=owner||purchase.accountIdentifiers?.obfuscatedAccountId!=account){message="구매한 AIFECT 계정으로 로그인한 뒤 복원해주세요.";return}
-  val product=purchase.products.singleOrNull()?.takeIf{pid->definitions.any{it.optString("id")==pid}}?:return
-  scope.launch{verification.withLock{busy=true;try{
-   if(model.user?.optString("id")!=user)return@withLock
-   model.api.call("/api/play/verify","POST",payload("purchase_token" to purchase.purchaseToken,"product_id" to product,"account_id" to user))
-   if(model.user?.optString("id")==user){model.loadMe(false);message="구매 내역을 반영했어요.";model.notice=message}
-  }catch(e:Exception){if(e is CancellationException)throw e;message="구매 확인이 지연되고 있어요. 다시 결제하지 말고 구매 복원을 눌러주세요."}finally{busy=false}}}
+ private suspend fun verifyPurchase(purchase:Purchase,user:String):String {
+  if(purchase.purchaseState==Purchase.PurchaseState.PENDING)return "결제 대기 중입니다. 결제가 완료되면 반영합니다."
+  if(purchase.purchaseState!=Purchase.PurchaseState.PURCHASED)return "복원할 완료 거래가 없습니다."
+  if(model.user?.optString("id")!=user || user!=owner || purchase.accountIdentifiers?.obfuscatedAccountId!=account)
+   return "구매한 AIFECT 계정으로 로그인한 뒤 복원해 주세요."
+  val product=purchase.products.singleOrNull()?.takeIf{pid->definitions.any{it.optString("id")==pid}}
+   ?:return "현재 지원하지 않는 상품입니다."
+  val result=model.api.call("/api/play/verify","POST",payload("purchase_token" to purchase.purchaseToken,"product_id" to product,"account_id" to user))
+  check(result.optBoolean("ok"))
+  if(model.user?.optString("id")==user)model.loadMe(false)
+  if(result.optString("kind")=="subs" && result.has("entitlement_active") && !result.optBoolean("entitlement_active"))return "만료 또는 취소된 거래입니다. 복원할 활성 구독이 없습니다."
+  return "구매 내역을 확인했습니다."
  }
- fun restore(){
-  if(!available||!client.isReady||model.user?.optString("id")!=owner){load();return}
-  listOf(BillingClient.ProductType.SUBS,BillingClient.ProductType.INAPP).forEach{type->client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(type).build()){result,purchases->
-   trace("restore type=$type count=${purchases.size}",result)
-   if(result.responseCode==BillingClient.BillingResponseCode.OK){purchases.forEach(::verify);if(purchases.isEmpty())message="현재 로그인한 Google Play 계정의 구매 내역을 확인했어요."}
-   else message="구매 복원을 다시 시도해주세요."
+ private fun verify(purchase:Purchase){
+  val user=model.user?.optString("id")?:return
+  scope.launch{verification.withLock{
+   busy=true
+   try{
+    val result=verifyPurchase(purchase,user)
+    if(model.user?.optString("id")==user){message=result;model.notice=result}
+   }catch(e:Exception){
+    if(e is CancellationException)throw e
+    message="구매 확인이 지연되고 있습니다. 구매 복원을 다시 시도해 주세요."
+   }finally{busy=false}
   }}
  }
+ private suspend fun owned(type:String):List<Purchase> = suspendCancellableCoroutine { waiter ->
+  client.queryPurchasesAsync(QueryPurchasesParams.newBuilder().setProductType(type).build()){result,purchases->
+   trace("restore type=$type count=${purchases.size}",result)
+   if(waiter.isActive){
+    if(result.responseCode==BillingClient.BillingResponseCode.OK)waiter.resumeWith(Result.success(purchases))
+    else waiter.resumeWith(Result.failure(IllegalStateException(failure(result))))
+   }
+  }
+ }
+ fun restoreAccount(done:(String)->Unit) {
+  val user=model.user?.optString("id")
+  if(user==null || user!=owner || !available || !client.isReady){
+   load()
+   done("Google Play 결제 연결을 확인한 후 다시 시도해 주세요.")
+   return
+  }
+  scope.launch{verification.withLock{
+   busy=true
+   try {
+    val purchases=owned(BillingClient.ProductType.SUBS)+owned(BillingClient.ProductType.INAPP)
+    val messages=purchases.distinctBy { it.purchaseToken }.map { verifyPurchase(it,user) }.distinct()
+    val result=messages.joinToString("\n").ifEmpty { "복원할 구매가 없습니다." }
+    if(model.user?.optString("id")==user){message=result;done(result)}
+   }catch(e:Exception){
+    if(e is CancellationException)throw e
+    val result="구매 복원을 완료하지 못했습니다. 잠시 후 다시 시도해 주세요."
+    if(model.user?.optString("id")==user){message=result;done(result)}
+   }finally{busy=false}
+  }}
+ }
+ fun restore(){restoreAccount{}}
  fun manage(){activity.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://play.google.com/store/account/subscriptions?package=kr.co.aifect.app&sku=aifect_premium_monthly")))}
 }

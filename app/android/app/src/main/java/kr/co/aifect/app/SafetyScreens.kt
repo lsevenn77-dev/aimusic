@@ -51,17 +51,19 @@ import org.json.JSONObject
  if(open)AlertDialog(onDismissRequest={if(!m.busy)open=false},title={Text("음원 문제 신고")},text={Column{Text(song.title+"의 음질이나 재생 문제를 알려주세요.");OutlinedTextField(detail,{detail=it.take(500)},label={Text("설명 (선택)")});if(error.isNotEmpty())Text(error)}},confirmButton={TextButton(enabled=!m.busy,onClick={m.action{try{m.api.call("/api/tracks/"+song.id+"/report","POST",payload("reason" to "low_quality","details" to detail));open=false;m.notice="음원 신고가 접수됐어요."}catch(e:Exception){if(e is CancellationException)throw e;error=e.message?:"신고하지 못했어요."}}}){Text("신고 접수")}},dismissButton={TextButton(enabled=!m.busy,onClick={open=false}){Text("취소")}})
 }
 
-@Composable internal fun SafetySettings(m:MusicModel,close:()->Unit,web:(String)->Unit){
+@Composable internal fun SafetySettings(m:MusicModel,close:()->Unit,web:(String)->Unit,deleteOnly:Boolean=false){
  val account=m.user?.optString("id")?:return
  var blocks by remember(account){mutableStateOf<List<JSONObject>?>(null)}
  var revision by remember{mutableIntStateOf(0)};var error by remember{mutableStateOf("")}
  var deleting by remember{mutableStateOf(false)};var confirmation by remember(deleting){mutableStateOf("")}
- LaunchedEffect(account,revision){error="";try{blocks=m.api.call("/api/blocks",fresh=true).optJSONArray("blocks").objects()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message?:"목록을 불러오지 못했어요."}}
- AppPage("차단 관리 · 계정 삭제",close){Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  Text("차단한 이용자",style=MaterialTheme.typography.titleLarge)
+ LaunchedEffect(account,revision){if(deleteOnly)return@LaunchedEffect;error="";try{blocks=m.api.call("/api/blocks",fresh=true).optJSONArray("blocks").objects()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message?:"목록을 불러오지 못했어요."}}
+ AppPage(if(deleteOnly)"회원 탈퇴" else "차단 관리 · 계정 삭제",close){Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  if(!deleteOnly){Text("차단한 이용자",style=MaterialTheme.typography.titleLarge)
   if(error.isNotBlank()){Text(error);TextButton(onClick={revision++}){Text("다시 시도")}}else if(blocks==null)CircularProgressIndicator()else if(blocks!!.isEmpty())Text("차단한 이용자가 없어요.")
   blocks.orEmpty().forEach{b->Row(Modifier.fillMaxWidth(),verticalAlignment=androidx.compose.ui.Alignment.CenterVertically){Text(b.optString("name"),Modifier.weight(1f));OutlinedButton(enabled=!m.busy,onClick={m.action{m.api.call("/api/blocks/"+b.getString("id"),"DELETE");m.api.invalidateReads();revision++}}){Text("차단 해제")}}}
-  HorizontalDivider();Text("계정 삭제",style=MaterialTheme.typography.titleLarge);Text("삭제한 계정과 작품은 복구할 수 없어요. 삭제 전에 보관되는 정보와 구독 안내를 확인해주세요.")
+  HorizontalDivider()}
+  Text("계정 삭제",style=MaterialTheme.typography.titleLarge);Text("삭제한 계정과 작품은 복구할 수 없어요. 삭제 전에 보관되는 정보와 구독 안내를 확인해주세요.")
+  Text("스토어 정기결제를 이용 중이라면 해당 스토어에서 구독을 별도로 해지해 주세요.")
   TextButton(onClick={web("/account/delete")}){Text("계정 삭제 안내 보기")}
   OutlinedButton(onClick={deleting=true},modifier=Modifier.testTag("request-account-delete")){Text("계정 영구 삭제")}
  }}

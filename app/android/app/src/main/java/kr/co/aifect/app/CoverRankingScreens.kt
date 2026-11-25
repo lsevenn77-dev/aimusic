@@ -157,7 +157,7 @@ private fun rankingCount(value:Int):String{
     Row(Modifier.fillMaxWidth().padding(vertical=16.dp),verticalAlignment=Alignment.CenterVertically){
      Text("${p.optInt("rank")}",fontSize=24.sp,color=Pink,fontWeight=FontWeight.Bold,modifier=Modifier.width(34.dp))
      Box(Modifier.clickable{m.openProfile(p.getString("id"),showCovers=true)}){Avatar(p.optString("name"),p,48)}
-     Column(Modifier.weight(1f).padding(horizontal=12.dp).clickable{m.openProfile(p.getString("id"),showCovers=true)}){Text(p.optString("name"),fontWeight=FontWeight.SemiBold,fontSize=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text("좋아요 ${p.optInt("rank_likes")} · 커버 ${p.optInt("ranked_covers")}곡",fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=6.dp));Text("노래 들으러 가기 ›",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}
+     Column(Modifier.weight(1f).padding(horizontal=12.dp).clickable{m.openProfile(p.getString("id"),showCovers=true)}){MemberName(p,p.optString("name"),fontWeight=FontWeight.SemiBold,fontSize=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text("좋아요 ${p.optInt("rank_likes")} · 커버 ${p.optInt("ranked_covers")}곡",fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=6.dp));Text("노래 들으러 가기 ›",fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}
      OutlinedButton(onClick={m.followPerson(p.getString("id"))},enabled=!m.busy,contentPadding=PaddingValues(horizontal=10.dp)){Text(if(m.follows.any{it.optString("target_id")==p.optString("id")&&it.optString("kind")=="producer"})"팔로잉" else "팔로우",fontSize=12.sp)}
     }
 }

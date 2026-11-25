@@ -1015,7 +1015,7 @@ class NativeAppTest {
   assertFalse(requests.any{it.startsWith("/media/artist/ai-fixture")||it.startsWith("/media/producer/fixture")||it.startsWith("/media/producer/person?v=album-photo")})
  }
  @Test fun accountSettingsKeepEmailReadOnlyAndChangeNicknamePassword(){
-  ui.onNodeWithTag("account-menu").performClick();waitText("계정 설정");ui.onNodeWithText("계정 설정").performClick();waitText("아이디 · 활동명")
+  screen.onActivity { activity -> androidx.lifecycle.ViewModelProvider(activity)[MusicModel::class.java].openAccountSettings() };waitText("아이디 · 활동명")
   ui.onNodeWithText("native@example.test").assertExists().assert(!hasSetTextAction())
   val nickname=ui.onNode(hasText("아이디 · 활동명") and hasSetTextAction());nickname.performTextClearance();nickname.performTextInput("중복아이디");ui.onNodeWithText("중복 확인").performClick();waitText("이미 사용 중인 아이디입니다.")
   nickname.performTextClearance();nickname.performTextInput("새로운아이디");ui.onNodeWithText("아이디 저장").performClick();waitText("아이디를 변경했습니다.");assertEquals("새로운아이디",user.optString("name"));assertEquals("native@example.test",user.optString("email"))

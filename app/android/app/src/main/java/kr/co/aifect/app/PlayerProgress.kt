@@ -42,8 +42,10 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  val scale=display?.optDouble("scale",1.26)?.toFloat()?.coerceIn(1f,1.6f)?:1.26f
  val frameModifier=Modifier.matchParentSize().graphicsLayer(scaleX=scale,scaleY=scale)
  val image=CatalogAssets.url(framePath)
+ val premium=memberStyle(p)
  if(image!=null)AsyncImage(image,contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
  else if(p.optString("profile_frame")=="crew-outline")Image(painterResource(R.drawable.player_frame_clan_aether),contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
+ else if(premium.defaultFrame && p.optString("profile_frame").let{it.isBlank()||it=="null"})AsyncImage(Endpoint.url("/assets/premium/moonlight-gold.png"),null,Modifier.matchParentSize().graphicsLayer(scaleX=1.31f,scaleY=1.31f),contentScale=ContentScale.Fit)
  val effect=CatalogAssets.url(display?.optString("effect").orEmpty())
  if(image!=null&&effect!=null)AsyncImage(effect,null,frameModifier,contentScale=ContentScale.Fit)
  if(size>=80&&(!p.isNull("player_xp")||p.has("player_level"))){
