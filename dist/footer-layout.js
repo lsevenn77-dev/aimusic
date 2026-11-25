@@ -2,9 +2,10 @@
 // content are counted once. Fullscreen rooms/recording keep their own policy.
 (() => {
   const main = document.querySelector('#main, .legal-content');
-  const footer = document.querySelector('.page-wrap > .page-footer, .legal-site > .page-footer');
+  const slot = document.getElementById('app-footer');
+  const footer = slot?.content.firstElementChild || document.querySelector('.legal-site > .page-footer');
   if (!main || !footer) return;
-  const footerSlot = document.createComment('page footer');
+  const parent = slot?.parentElement || footer.parentElement;
   const overlays = [...document.querySelectorAll('.player, .mobile-navigation, .social-mobile-navigation')];
   const header = document.querySelector('.topbar, .legal-header');
   const set = (element, name, value) => {
@@ -12,17 +13,11 @@
   };
   let frame;
   function align() {
+    if (!footer.isConnected) return;
     cancelAnimationFrame(frame);
     frame = requestAnimationFrame(() => {
-      // Hash routes share one shell. Detach the same footer even during room entry.
-      const route = main.dataset.route || location.hash.slice(1);
-      if (main.id === 'main' && /^(voice|live)\/[^/?#]+/.test(route)
-          && typeof roomUsesDesktopControls === 'function' && roomUsesDesktopControls()) {
-        if (footer.isConnected) footer.replaceWith(footerSlot);
-        return;
-      }
-      if (footerSlot.isConnected) footerSlot.replaceWith(footer);
-      const fullscreen = main.hasAttribute('data-room-focus') || footer.parentElement.hasAttribute('data-room-focus')
+      if (!footer.isConnected) return;
+      const fullscreen = main.hasAttribute('data-room-focus') || parent.hasAttribute('data-room-focus')
         || /^sing\//.test(main.dataset.route || '') || !!main.querySelector('#sing.web-studio, .dubbing-record-layout, .voice-room.talking-room');
       if (fullscreen) {
         footer.style.removeProperty('--footer-content-end');
@@ -33,9 +28,9 @@
       const style = getComputedStyle(main);
       const rect = main.getBoundingClientRect();
       if (main.id === 'main') {
-        const parent = footer.parentElement.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
         set(footer, '--footer-width', `${rect.width}px`);
-        set(footer, '--footer-offset', `${rect.left - parent.left}px`);
+        set(footer, '--footer-offset', `${rect.left - parentRect.left}px`);
         set(footer, '--footer-left', style.paddingLeft);
         set(footer, '--footer-right', style.paddingRight);
         set(main, '--footer-main-top', `${rect.top + window.scrollY}px`);
@@ -48,10 +43,24 @@
         return css.position === 'fixed' && box.height && css.display !== 'none' && css.visibility !== 'hidden'
           ? Math.max(0, window.innerHeight - box.top) : 0;
       }));
-      const reserved = (parseFloat(getComputedStyle(footer.parentElement).paddingBottom) || 0)
-        + (footer.parentElement === document.body ? 0 : parseFloat(getComputedStyle(document.body).paddingBottom) || 0);
+      const reserved = (parseFloat(getComputedStyle(parent).paddingBottom) || 0)
+        + (parent === document.body ? 0 : parseFloat(getComputedStyle(document.body).paddingBottom) || 0);
       set(footer, '--footer-clearance', `${Math.max(0, covered - reserved)}px`);
     });
+  }
+  if (slot) {
+    const native = window.Capacitor?.isNativePlatform?.() || /AIFECT-Mobile\//i.test(window.navigator?.userAgent || '');
+    if (native) slot.after(footer);
+    else window.AifectPageFooter = hash => {
+      // The root defaults to home, and the router canonicalizes the slash alias.
+      const route = hash.replace(/^#\/?/, '') || 'home';
+      if (route !== 'home') {
+        footer.remove();
+        return;
+      }
+      if (!footer.isConnected) slot.after(footer);
+      align();
+    };
   }
   const sizes = new ResizeObserver(align);
   sizes.observe(main);
@@ -60,7 +69,7 @@
   const visibility = new MutationObserver(align);
   overlays.forEach(element => visibility.observe(element, {attributes:true}));
   visibility.observe(document.body, {attributes:true, attributeFilter:['class','style']});
-  visibility.observe(footer.parentElement, {attributes:true, attributeFilter:['class','style','data-room-focus']});
+  visibility.observe(parent, {attributes:true, attributeFilter:['class','style','data-room-focus']});
   new MutationObserver(align).observe(main, {attributes:true, childList:true, subtree:true, attributeFilter:['class','data-route','data-room-focus']});
   window.addEventListener('resize', align, {passive:true});
   window.visualViewport?.addEventListener('resize', align, {passive:true});

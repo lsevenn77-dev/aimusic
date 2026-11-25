@@ -3,41 +3,73 @@ import {readFile} from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
 
-test('the shared footer detaches only on desktop room details and returns on navigation or resize',async()=>{
-  let desktop=true,align;
+const layout=await readFile(new URL('../dist/footer-layout.js',import.meta.url),'utf8');
+
+function fixture({shell=true,native=false,userAgent=''}={}){
+  let align;
   const main={id:'main',dataset:{},hasAttribute:()=>false,querySelector:()=>null,getClientRects:()=>[]};
   const parent={hasAttribute:()=>false};
-  let child;
-  function node(){
-    return {
-      get isConnected(){return child===this;},
-      get parentElement(){return this.isConnected?parent:null;},
-      replaceWith(next){assert.equal(child,this);child=next;},
-    };
-  }
-  const footer=child=node();
+  let child=null;
+  const footer={
+    get isConnected(){return child===this;},
+    parentElement:parent,
+    remove(){if(this.isConnected)child=null;},
+  };
+  const slot={content:{firstElementChild:footer},parentElement:parent,after(node){child=node;}};
+  if(!shell)child=footer;
   class Observer {observe(){}}
-  const context={
+  const window={
+    Capacitor:{isNativePlatform:()=>native},navigator:{userAgent},
+    addEventListener(type,fn){if(type==='resize')align=fn;},
+  };
+  vm.runInNewContext(layout,{
     document:{
-      querySelector:s=>s.includes('#main')?main:s.includes('.page-footer')?footer:null,
-      querySelectorAll:()=>[],createComment:node,body:{},
+      getElementById:id=>id==='app-footer'&&shell?slot:null,
+      querySelector:s=>s.includes('#main')?main:s.includes('.page-footer')&&!shell?footer:null,
+      querySelectorAll:()=>[],body:{},
     },
-    location:{hash:'#home'},roomUsesDesktopControls:()=>desktop,
-    window:{addEventListener(type,fn){if(type==='resize')align=fn;}},
+    window,
     ResizeObserver:Observer,MutationObserver:Observer,
     requestAnimationFrame:fn=>{fn();return 1;},cancelAnimationFrame(){},
-  };
-  vm.runInNewContext(await readFile(new URL('../dist/footer-layout.js',import.meta.url),'utf8'),context);
-  function navigate(route){
-    main.dataset.route=route;
+  });
+  return {window,footer,align};
+}
+
+test('the web shell mounts the existing footer only on the home route',()=>{
+  const {window,footer,align}=fixture();
+  assert.equal(footer.isConnected,false);
+  for(const hash of ['','#home','#/home']){
+    window.AifectPageFooter(hash);
+    assert.equal(footer.isConnected,true,hash);
+  }
+  for(const hash of ['#voice/123','#live/123?from=invite','#account','#community','#home/other','#unknown']){
+    window.AifectPageFooter(hash);
+    assert.equal(footer.isConnected,false,hash);
     align();
+    assert.equal(footer.isConnected,false,hash);
+    window.AifectPageFooter('#home');
+    assert.equal(footer.isConnected,true);
   }
-  for(const route of ['voice/123','live/123?from=invite']){
-    navigate(route);assert.notEqual(child,footer);
-    desktop=false;align();assert.equal(child,footer);
-    desktop=true;align();assert.notEqual(child,footer);
+});
+
+test('native shells and standalone documents keep their existing footer',()=>{
+  for(const options of [{native:true},{userAgent:'AIFECT-Mobile/1.0'},{shell:false}]){
+    const {window,footer,align}=fixture(options);
+    assert.equal(window.AifectPageFooter,undefined);
+    align();
+    assert.equal(footer.isConnected,true);
   }
-  for(const route of ['voice','live','home','account']){
-    navigate(route);assert.equal(child,footer);
-  }
+});
+
+test('the shared router updates the footer before navigation completes and after a guard restores the URL',async()=>{
+  const calls=[],location={hash:'#studio'};
+  let finish;
+  const context={window:{AifectPageFooter:hash=>calls.push(hash)},document:{addEventListener(){}},location,pending:new Promise(resolve=>{finish=resolve;})};
+  const source=await readFile(new URL('../dist/views.js',import.meta.url),'utf8');
+  vm.runInNewContext(source+`\nasync function renderNavigation(){await pending;location.hash='#home';}`,context);
+  const transition=context.render();
+  assert.deepEqual(calls,['#studio']);
+  finish();
+  await transition;
+  assert.deepEqual(calls,['#studio','#home']);
 });

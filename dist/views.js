@@ -84,7 +84,17 @@ function watchCachedNavigation(main){
  return {changed:()=>touched||(window.scrollY||0)!==initialScroll||!!(main.contains(document.activeElement)&&document.activeElement?.matches?.('input,textarea,select,[contenteditable="true"]')),cleanup};
 }
 let presentationSerial=0;
-async function render(event){
+function render(event){
+ const syncFooter=window.AifectPageFooter;
+ if(!syncFooter)return renderNavigation(event);
+ const requested=location.hash;
+ syncFooter(requested);
+ return renderNavigation(event).finally(()=>{
+  // A route guard can restore the previous URL with replaceState.
+  if(location.hash!==requested)syncFooter(location.hash);
+ });
+}
+async function renderNavigation(event){
  if(window.handleEmbeddedProfile&&await window.handleEmbeddedProfile())return;
  if(typeof handleProfileEditRoute==='function'&&await handleProfileEditRoute())return;
  if(typeof sing!=='undefined'&&sing&&await retainSingRoute(sing))return;
