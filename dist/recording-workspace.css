@@ -47,7 +47,7 @@ body:has(#sing.web-studio) #main{max-width:1800px;padding:22px 24px 38px;margin:
 #sing.web-studio .sing-mic-meter progress{accent-color:#a2c7dd;height:3px}
 #sing.web-studio .studio-position-help{font-size:.72rem;line-height:1.7;text-align:center;color:var(--ds-muted);margin:12px 0 0}
 #sing.web-studio .sing-status{grid-column:1;grid-row:3;display:block!important;color:var(--ds-body)!important;min-height:0!important;font-size:.78rem!important;margin:10px 12px!important;line-height:1.7}
-#sing.web-studio .sing-status:empty{display:none!important}
+#sing.web-studio .sing-status:is(:empty,:has(>[data-sing-status-text]:empty)){display:none!important}
 #sing.web-studio .sing-local-note{grid-column:1;margin:6px 0!important;color:var(--ds-muted)!important}
 #sing.web-studio #sing-panel{grid-column:1;grid-row:4}
 #sing.web-studio #sing-panel>.field-help{text-align:center;font-size:.72rem;color:var(--ds-muted);margin:0}
@@ -248,7 +248,7 @@ dialog.punch-complete-dialog::backdrop{background:#070c14b3;backdrop-filter:blur
 #main #sing.is-reviewing .sing-head{max-width:none;min-width:0;flex-wrap:nowrap;border-radius:16px 16px 0 0}
 #main #sing.is-reviewing .sing-header-mode,#main #sing.is-reviewing .record-credit,#main #sing.is-reviewing>.sing-duet-context,#main #sing.is-reviewing>.sing-local-note{display:none}
 #main #sing.is-reviewing .review-credit{display:block;max-width:none}
-#main #sing.is-reviewing>.sing-status:not(.show-notice){position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap}
+#main #sing.is-reviewing .sing-status:not(.show-notice){position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden;white-space:nowrap}
 #main #sing.is-reviewing .studio-edit-main{padding:0 clamp(12px,2vw,24px) 18px;min-width:0}
 #main #sing .take-wave-tools,#main #sing .take-tools,#main #sing .take-transport,#main #sing .take-navigation,#main #sing .take-view,#main #sing .take-view label,#main #sing .take-footer,#main #sing .take-footer>div{display:flex;align-items:center;gap:8px}
 #main #sing .take-wave-tools{justify-content:space-between;flex-wrap:wrap;padding:8px 0 12px}

@@ -321,6 +321,23 @@
   .take-tools { justify-content:flex-end; }
   .take-tools button { white-space:nowrap; }
   .take-wave-tools:empty { display:none; }
+  &:has(.take-editor > .sing-status.show-notice) .sing-head { padding-block-end:0!important; }
+  .take-editor > .sing-status.show-notice {
+    display:flex!important;
+    align-items:center;
+    gap:8px;
+    margin:0!important;
+    padding:12px 0;
+    font-size:var(--pc-font-meta,14px)!important;
+    line-height:1.45;
+    text-align:start!important;
+  }
+  .take-editor > .sing-status.show-notice .take-notice-icon { display:inline-flex;flex:none; }
+  .take-notice-icon > svg { width:16px;height:16px; }
+  .take-editor > .sing-status.show-notice + [data-edit-step="1"] .take-wave-tools {
+    padding-block-start:0;
+    .duet-color-key { padding-block-start:0; }
+  }
   .take-transport { grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); }
   .take-time { justify-self:start;font-size:var(--pc-font-meta,14px);letter-spacing:normal;font-variant-numeric:tabular-nums; }
   .take-elapsed { display:inline-grid; }
@@ -329,6 +346,11 @@
   .take-navigation { justify-self:center; }
   .take-navigation [data-skip] { display:none; }
   .take-navigation .take-play,.take-view [data-wave-zoom] { padding:0;box-shadow:none;filter:none; }
+  .take-navigation .take-play { width:44px;height:44px;border:0;background:var(--ds-lilac);color:var(--ds-ink); }
+  .take-navigation .take-play:hover:enabled { background:color-mix(in srgb,var(--ds-lilac) 92%,white); }
+  .take-navigation .take-play > svg { width:22px;height:22px; }
+  .take-navigation [data-sing-preview] > svg { fill:currentColor;stroke:none; }
+  .take-navigation [data-sing-pause] > svg { stroke-width:2.5; }
   .take-view { gap:8px;max-width:100%; }
   .take-view label { gap:11px;min-width:0; }
   .take-view [data-listen-volume] { width:155px;min-width:0;margin:0; }
@@ -401,7 +423,6 @@
   .studio-song-meta .studio-page-label { margin:0;line-height:1.3; }
   .studio-song-meta h1 { line-height:1.2; }
   .studio-song-meta .review-credit { margin-block:2px 0;line-height:1.45; }
-  > .sing-status.show-notice { margin-block:var(--take-fit-gap)!important; }
   .take-editor,[data-edit-step="1"] {
     display:flex;
     flex-direction:column;
@@ -489,7 +510,6 @@
     .take-steps b { width:22px;height:22px; }
     .studio-song-meta .studio-page-label { display:none; }
     .sing-artwork { flex-basis:48px;width:48px;height:48px; }
-    .take-navigation .take-play { width:40px;height:40px; }
     .take-view [data-wave-zoom] { height:40px; }
     #take-ab-range input { height:22px;min-height:22px; }
     .take-editor .studio-edit-detail { min-height:114px; }
