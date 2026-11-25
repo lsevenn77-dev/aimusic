@@ -84,7 +84,7 @@
   &[data-background="sunset"]:not([data-paid-theme]) { --room-wide-skin: radial-gradient(ellipse at 34% 58%, #503346, #181f30 75%); --room-small-skin: var(--room-wide-skin); }
   &[data-background="night"]:not([data-paid-theme]) { --room-wide-skin: radial-gradient(ellipse at 45% 64%, #29365c, #121926 74%); --room-small-skin: var(--room-wide-skin); }
   &:is([data-theme-sku="night"],[data-theme-sku="sunset"]) { --room-tall-skin: var(--room-small-skin); }
-  &::before {
+  &::before, & > .af-theme-underlay > .af-theme-room-backdrop {
     content: ""; display: block!important; position: absolute; inset: 0; width: auto; height: auto;
     z-index: -1; pointer-events: none; border: 0; border-radius: 0;
     background-color: var(--room-shade); background-image: var(--room-skin); background-blend-mode: multiply;
