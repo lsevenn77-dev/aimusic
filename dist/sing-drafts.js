@@ -55,7 +55,7 @@ function openSingDraftDelete(s=sing){
  cancel.focus();
 }
 document.addEventListener('click',async e=>{
- if(e.target.closest('[data-sing-draft]')&&singExitKind(sing)==='edit'&&!singBusy(sing)){const s=sing;try{await saveSingDraft(s);if(sing===s)setSingStatus('이 계정의 녹음을 현재 기기·브라우저에 초안을 저장했습니다.');}catch{setSingStatus('임시저장하지 못했습니다. 저장 공간을 확인해 주세요.');}}
+ if(e.target.closest('[data-sing-draft]')&&singExitKind(sing)==='edit'&&!singBusy(sing)){const s=sing;try{await saveSingDraft(s);if(sing===s)setSingStatus('이 계정의 녹음을 현재 기기·브라우저에 초안을 저장했습니다.');}catch{if(sing===s)setSingStatus('임시저장하지 못했습니다. 저장 공간을 확인해 주세요.',desktopTakeEditor());}}
  if(e.target.closest('[data-discard-draft]'))openSingDraftDelete(sing);
 });
 

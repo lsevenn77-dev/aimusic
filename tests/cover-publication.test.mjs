@@ -6,7 +6,7 @@ import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 const fd=(kind,consent=false)=>({get:()=>kind,has:key=>key==='duet_consent'&&consent});
 function browser(){const c=nicknameContext({window:{},document:{addEventListener(){}},JSON});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),c);return c;}
-test('publication requires an explicit choice, independent of the remembered recorder mode',()=>{
+test('mobile publication keeps its explicit choice, independent of the recorder mode',()=>{
  const c=browser();
  for(const mode of ['solo','duet']){
   const s={mode,duetGuide:{version:1,mode:'free',lines:[]}};
@@ -17,6 +17,19 @@ test('publication requires an explicit choice, independent of the remembered rec
   assert.match(c.coverPublicationHTML(s),/<option value="">공개할 종류/);
   assert.doesNotMatch(c.coverPublicationHTML(s),/selected/);
  }
+});
+test('desktop publication follows the recording and preserves the partner and consent values',()=>{
+ const c=browser();c.window.matchMedia=()=>({matches:true});
+ const solo=c.coverPublication({mode:'solo'},fd('duet_invitation',true));
+ assert.equal(solo.publish_as,'solo');assert.equal(solo.duet_consent,true);assert.equal(solo.duet_slot,'');
+ const first={mode:'duet',duetGuide:{version:1,mode:'lyrics',lines:[]}};
+ assert.throws(()=>c.coverPublication(first,fd('solo')),/동의/);
+ const invite=c.coverPublication(first,fd('solo',true));
+ assert.equal(invite.publish_as,'duet_invitation');assert.equal(invite.duet_guide,first.duetGuide);
+ const joined=c.coverPublication({mode:'duet',parent:'first-take'},fd('solo'));
+ assert.equal(joined.publish_as,'duet_complete');assert.equal(joined.duet_parent_id,'first-take');
+ c.window.Capacitor={isNativePlatform:()=>true};
+ assert.equal(c.coverPublication(first,fd('solo')).publish_as,'solo');
 });
 test('a joined performance cannot remove its partner or become a new invitation',()=>{
  const c=browser(),s={mode:'duet',parent:'first-recording'};

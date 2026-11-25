@@ -73,6 +73,21 @@ test('standalone songs expose both recording modes while an inherited duet canno
  f.c.data={mode:'duet',duet:{parent_id:'partner-take'}};
  assert.equal(f.run('singRecordingModeHTML(data)'),'');
 });
+test('editor rerecord cancels cleanly and starts only one fresh take in the same duet',async()=>{
+ const f=fixture(),s=f.take,voice={duration:8};
+ Object.assign(s,{parent:'first-take',mode:'duet',voice,state:'review',editingRecording:false,
+  description:'unsaved',coverFile:{},editMixBaseline:{...s.mix,noise:1},savedAt:20});
+ f.run('askSingExit=async()=>false');
+ await f.run('requestFreshRecording(sing)');
+ assert.equal(s.voice,voice);assert.equal(s.description,'unsaved');
+ const choice=deferred();let prompts=0;
+ f.c.decision=()=>{prompts++;return choice.promise;};f.run('askSingExit=decision');
+ const first=f.run('requestFreshRecording(sing)');await f.run('requestFreshRecording(sing)');
+ choice.resolve(true);await first;
+ assert.equal(prompts,1);assert.equal(s.voice,null);assert.equal(s.state,'idle');
+ assert.equal(s.description,'');assert.equal(s.coverFile,null);assert.equal(s.mix.noise,1);
+ assert.equal(f.location.hash,'#sing/one?duet=first-take');assert.equal(f.counts.deleted,0);
+});
 
 test('switching a fresh take preserves audio settings, MR and session while synchronizing the route in place',async()=>{
  const f=fixture(),settings=f.take.mix,context=f.take.ctx,backing=f.take.mr,guide=f.take.duetGuide;
