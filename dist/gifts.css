@@ -848,7 +848,13 @@ body.chat-active .player{display:none!important}
 .gift-transfer-confirm p { margin: 8px 0; font-size: 14px; overflow-wrap: anywhere; }
 .gift-transfer-confirm #gift-transfer-notice { color: var(--ds-muted); }
 .gift-confirm-actions { display: flex; gap: 8px; margin-top: 16px; }
-.gift-confirm-actions button { flex: 1; min-height: 44px; }
+.gift-transfer-confirm .gift-confirm-actions button {
+ flex: 1;
+ min-width: 0;
+ min-height: 44px;
+ margin: 0;
+ padding: 10px 12px;
+}
 .gift-confirm-cost { display: flex; align-items: center; justify-content: center; gap: 8px; }
 @media (max-height:420px) {
  #dialog.gift-sheet:has(.gift-dialog--compact) .gift-dialog-header { padding-top: 0; }

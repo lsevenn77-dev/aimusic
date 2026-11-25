@@ -33,7 +33,7 @@ test('gift sheet keeps all choices and detailed policy inside one scroll region,
  assert.match(options,/<details class="gift-policy-details">/);
  const checkout=html.slice(html.indexOf('class="gift-checkout gift-dialog-footer"'));
  assert.doesNotMatch(checkout,/gift-own(ed)?-cancel/);
- assert.match(checkout,/선물하기/);assert.equal(nodes['#gift-send'].attributes['aria-label'],'손편지 1개 선물하기');
+ assert.match(checkout,/선물하기/);assert.equal(nodes['#gift-send'].attributes['aria-label'],AifectGifts.GIFT_CATALOG[0].name+' 1개 선물하기');
  assert.match(checkout,/<select id="gift-quantity"/);assert.equal((checkout.match(/<option value=/g)||[]).length,100);
  const controls=['gift-balance-g','gift-charge-button','gift-quantity','gift-balance-s','gift-silver-button','gift-send-button'].map(name=>checkout.indexOf(name));
  assert.ok(controls.every((position,index)=>position>=0&&(!index||position>controls[index-1])));

@@ -115,7 +115,7 @@ async function giftDialog(tid, initial = null, personal = false) {
   const explicitChoice = choices.find(g => g.id === initialType);
   const recipientId = artistId ? track.profile.producer_id : personal ? track.profile.id || tid : t.producer_id;
   const profile = {kind:artistId?'artist':'producer',id:artistId||recipientId,name:t.producer,image_version:personal?track.profile.image_version:t.producer_image_version};
-  let chosen = explicitChoice || (roomGift ? gold[0] : silver[0] || gold[0]);
+  let chosen = explicitChoice || gold[0] || silver[0];
   let owned = groups.find(g => g.id === initial?.giftInventoryId) || null;
   if (!roomGift && !explicitChoice && !initial?.sku && !initial?.inventoryId && !initial?.giftInventoryId) owned = groups[0] || null;
   let category = owned || initial?.inventoryId || initial?.giftInventoryId ? 'inventory' : 'gifts', decoration = null;
