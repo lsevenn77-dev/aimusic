@@ -257,7 +257,11 @@ struct HomePromotion: Identifiable, Hashable {
     let id: String
     let title: String
     let headline: String
-    var url: URL? { CatalogArtwork.url("/assets/home-banners/\(id == "crew" ? "seamless-20261109" : "mobile-20261109")/\(id)-768.webp") }
+    var url: URL? {
+        if id == Self.event.id { return CatalogArtwork.url("/assets/home-banners/open-event-refined-20261125/aifect_open_event_refined_mobile_1170x672.webp") }
+        return CatalogArtwork.url("/assets/home-banners/\(id == "crew" ? "seamless-20261109" : "mobile-20261109")/\(id)-768.webp") }
+    static let eventEnd = Date(timeIntervalSince1970: 1798729200) // 2027-01-01 00:00 KST
+    static let event = HomePromotion(id: "open-event", title: "오픈 이벤트", headline: "기존·신규 회원 모두 2026년 12월 31일까지 별도 결제 없이 프리미엄 무료 체험.")
     static let all = [
         HomePromotion(id: "studio", title: "스튜디오", headline: "내 제작곡을 올려보세요"),
         HomePromotion(id: "play", title: "플레이", headline: "마음에 드는 노래를 불러보세요"),
@@ -268,18 +272,48 @@ struct HomePromotion: Identifiable, Hashable {
         HomePromotion(id: "crew", title: "크루", headline: "크루에 가입하고 함께 즐겨보세요")
     ]
 }
+private struct OpenEventArtwork: View {
+    private static let artwork = UIImage(named: "HomePromotion-open-event")?.cgImage
+    private static let edges: [CGImage?] = {
+        guard let image = artwork else { return [] }
+        let w = CGFloat(image.width), h = CGFloat(image.height)
+        return [CGRect(x: 0, y: 0, width: 1, height: h), CGRect(x: w-1, y: 0, width: 1, height: h),
+                CGRect(x: 0, y: 0, width: w, height: 1), CGRect(x: 0, y: h-1, width: w, height: 1)].map { image.cropping(to: $0) }
+    }()
+    var body: some View {
+        Canvas { context, size in
+            guard let art = Self.artwork else { return }
+            let w = CGFloat(art.width), h = CGFloat(art.height)
+            let scale = min(size.width/w, size.height/h)
+            let x = max(0, (size.width-w*scale)/2), y = max(0, (size.height-h*scale)/2)
+            let strips = [CGRect(x: 0, y: 0, width: x+1, height: size.height), CGRect(x: size.width-x-1, y: 0, width: x+1, height: size.height),
+                          CGRect(x: 0, y: 0, width: size.width, height: y+1), CGRect(x: 0, y: size.height-y-1, width: size.width, height: y+1)]
+            for (index, edge) in Self.edges.enumerated() where (index < 2 ? x > 0 : y > 0) {
+                if let edge { context.draw(Image(decorative: edge, scale: 1), in: strips[index]) }
+            }
+            context.draw(Image(decorative: art, scale: 1), in: CGRect(x: x, y: y, width: w*scale, height: h*scale))
+        }.accessibilityElement(children: .ignore).accessibilityLabel(HomePromotion.event.headline)
+    }
+}
 struct HomePromotionCarousel: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var phase
     @Binding var coverURL: URL?
     var open: (HomePromotion) -> Void
-    @State private var index = 0
+    @State private var showEvent = Date() < HomePromotion.eventEnd
+    @State private var selectedID = Date() < HomePromotion.eventEnd ? HomePromotion.event.id : HomePromotion.all[0].id
+    private var promotions: [HomePromotion] { showEvent ? [HomePromotion.event] + HomePromotion.all : HomePromotion.all }
+    private var index: Int { promotions.firstIndex { $0.id == selectedID } ?? 0 }
     @State private var width: CGFloat = 362
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             LazyHStack(spacing: 0) {
-            ForEach(Array(HomePromotion.all.enumerated()), id: \.element.id) { offset, item in
+            ForEach(promotions) { item in
+                Group {
+                if item.id == HomePromotion.event.id {
+                    OpenEventArtwork().clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
                 Button { open(item) } label: {
                     ZStack(alignment: .leading) {
                         GeometryReader { proxy in
@@ -292,16 +326,27 @@ struct HomePromotionCarousel: View {
                             Text(item.headline).font(.system(size: 18, weight: .bold)).lineSpacing(2).lineLimit(3)
                         }.padding(.leading, 16).padding(.trailing, 4).padding(.bottom, 6).frame(width: width * 0.63, alignment: .leading)
                     }.foregroundStyle(.white).clipShape(RoundedRectangle(cornerRadius: 6)).contentShape(Rectangle())
-                }.buttonStyle(.plain).frame(width: width, height: max(142, width / 2.45))
-                    .accessibilityIdentifier("home-promotion-" + item.id).id(offset)
+                }.buttonStyle(.plain)
+                }
+                }.frame(width: width, height: max(142, width / 2.45))
+                    .accessibilityIdentifier("home-promotion-" + item.id).id(item.id)
             }
             }.scrollTargetLayout()
         }.scrollTargetBehavior(.paging)
-            .scrollPosition(id: Binding<Int?>(get: { index }, set: { if let value = $0 { index = value } }))
+            .scrollPosition(id: Binding<String?>(get: { selectedID }, set: { if let value = $0 { selectedID = value } }))
             .frame(height: max(142, width / 2.45)).clipped().contentShape(Rectangle())
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
-            .onChange(of: index, initial: true) { _, value in coverURL = HomePromotion.all[value].url }
-            .overlay(alignment: .bottom) { HStack(spacing: 5) { ForEach(HomePromotion.all.indices, id: \.self) { n in Circle().fill(.white.opacity(index == n ? 1 : 0.45)).frame(width: 5, height: 5) } }.padding(.bottom, 9).allowsHitTesting(false) }
+            .onChange(of: selectedID, initial: true) { _, id in coverURL = promotions.first { $0.id == id }?.url }
+            .task(id: phase) {
+                guard phase == .active else { return }
+                let remaining = HomePromotion.eventEnd.timeIntervalSinceNow
+                if remaining > 0 {
+                    do { try await Task.sleep(for: .seconds(remaining)) } catch { return }
+                }
+                showEvent = false
+                if selectedID == HomePromotion.event.id { selectedID = HomePromotion.all[0].id }
+            }
+            .overlay(alignment: .bottom) { HStack(spacing: 5) { ForEach(promotions.indices, id: \.self) { n in Circle().fill(.white.opacity(index == n ? 1 : 0.45)).frame(width: 5, height: 5) } }.padding(.bottom, 9).allowsHitTesting(false) }
             .accessibilityIdentifier("home-carousel")
             .task(id: "\(phase)-\(model.selectedTab)-\(index)-\(reduceMotion)") {
                 guard phase == .active, model.selectedTab == 0, !reduceMotion else { return }
@@ -309,7 +354,7 @@ struct HomePromotionCarousel: View {
                 if FeedbackUIFixture.enabled { return }
                 #endif
                 do { try await Task.sleep(for: .milliseconds(4500)) } catch { return }
-                withAnimation { index = (index + 1) % HomePromotion.all.count }
+                withAnimation { selectedID = promotions[(index + 1) % promotions.count].id }
             }
     }
 }
