@@ -31,7 +31,7 @@ function accountPassHTML(p){
  const manage=paid&&!['refunded','expired'].includes(p.state);
  const rows=[
    accountPair(paid?'구독 경로':'이용권',p.test?'Google Play 테스트 이용권':accountSources[p.source]||'프리미엄 이용권'),
-   !event&&accountPair('이용 상태',accountStates[p.state]||accountStates.unknown),
+   !event&&accountPair('이용 상태',accountStates[p.state]||accountStates.unknown,p.state==='active'?'ac-pass-active':''),
    p.amount!=null&&accountPair(paid?'월 이용 금액':'이용 금액',billingPrice(p.amount),event&&p.amount===0?'ac-gift-price':''),
    p.next_billing_at&&accountPair('다음 결제일',accountDate(p.next_billing_at)),
    p.until&&!p.next_billing_at&&accountPair(event?'이용 기간':'이용 종료일',accountDate(event?p.until-1:p.until)+(event?'까지':'')),
