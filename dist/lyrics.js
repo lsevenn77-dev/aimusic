@@ -65,7 +65,14 @@ function refreshLyricsPanel(){const panel=$('#song-lyrics');if(panel&&current?.i
 function setCurrentLyrics(t){resetLyricLines();try{currentCues=hasFullLyrics(t)&&t.lyrics_mode==='synced'?AifectLyrics.parseLrc(t.lyrics):[];}catch{currentCues=[];}updateSyncedLyrics(true);}
 function bindLyricsPanel(){
  const expand=$('#lyrics-expand'),panel=$('#song-lyrics'),trackId=expand?.dataset.track||panel?.dataset.track;
- if(expand)expand.onclick=()=>openExpandedLyrics(trackMap.get(trackId));
+ const inline=$('.song-main-column > .song-detail-lyrics');
+ if(expand)expand.onclick=()=>{
+  if(inline&&(expandedLyrics?.button===expand||expandedLyricsLoad?.button===expand)){
+   closeExpandedLyrics();
+   return;
+  }
+  return openExpandedLyrics(trackMap.get(trackId));
+ };
  const track=trackMap.get(trackId);if(track&&current?.id===track.id){current=track;try{currentCues=hasFullLyrics(track)?AifectLyrics.parseLrc(track.lyrics):[];}catch{currentCues=[];}}
  if(expand&&track&&(pendingPlayerLyricsTrack===track.id||location.hash.endsWith('?lyrics=1'))){
   void openExpandedLyrics(track,$('#player-lyrics-toggle'));
@@ -76,7 +83,7 @@ function bindLyricsPanel(){
  if(follow&&scroller){const setFollow=value=>{setLyricsFollow(value);if(!value)scroller.scrollTo({top:scroller.scrollTop,behavior:'instant'});};follow.onclick=()=>{setFollow(!state.follow);updateSyncedLyrics(true);};setFollow(state.follow);for(const event of ['wheel','touchmove'])scroller.addEventListener(event,()=>setFollow(false),{passive:true});}
  updateSyncedLyrics(true);
 }
-let expandedLyrics=null,pendingPlayerLyricsTrack=null;
+let expandedLyrics=null,expandedLyricsLoad=null,pendingPlayerLyricsTrack=null;
 function openPlayerLyrics(){
  if(!current||current.kind==='dubbing')return;
  const route='#song/'+encodeURIComponent(current.id);
@@ -93,21 +100,37 @@ function setLyricsFollow(value){
  if(lyricPanelState)lyricPanelState.follow=value;
  $('#lyrics-follow')?.setAttribute('aria-pressed',String(value));
 }
-function expandedLyricsHTML(rows){
- return '<section class="expanded-song-lyrics" id="expanded-song-lyrics" role="dialog" popover="manual" aria-labelledby="expanded-lyrics-title"><header><h2 id="expanded-lyrics-title">전체 가사</h2><button type="button" class="icon-button expanded-lyrics-close" aria-label="전체 가사 닫기"><svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="expanded-lyrics-scroll" tabindex="0" role="region" aria-label="전체 가사">'+rows+'</div></section>';
+function songDetailLyricsHTML(){
+ // The native shells can also load this route through their in-app browsers.
+ if(inApp||/AIFECT-Mobile\//i.test(window.navigator?.userAgent||''))return '';
+ return expandedLyricsHTML('',true);
+}
+function expandedLyricsHTML(rows,inline=false){
+ const section=inline?'class="song-detail-lyrics" hidden':'class="expanded-song-lyrics" role="dialog" popover="manual"';
+ const header=inline?'<header class="section-heading">':'<header>';
+ const body=inline?'class="song-detail-lyrics-lines"':'class="expanded-lyrics-scroll" tabindex="0" role="region" aria-label="전체 가사"';
+ return '<section '+section+' id="expanded-song-lyrics" aria-labelledby="expanded-lyrics-title">'+header+'<h2 id="expanded-lyrics-title">전체 가사</h2><button type="button" class="icon-button expanded-lyrics-close" aria-label="전체 가사 닫기"><svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div '+body+'>'+rows+'</div></section>';
 }
 function closeExpandedLyrics(){
+ if(expandedLyricsLoad){
+  expandedLyricsLoad.button.removeAttribute('aria-busy');
+  expandedLyricsLoad=null;
+ }
  const state=expandedLyrics;
  if(!state)return;
  expandedLyrics=null;
  document.removeEventListener('keydown',state.onEscape);
- state.card.remove();
- $('#lyrics-expand')?.setAttribute('aria-expanded','false');
+ if(state.inline){
+  state.card.hidden=true;
+  state.card.querySelector('.song-detail-lyrics-lines').replaceChildren();
+ }else state.card.remove();
+ state.button.setAttribute('aria-expanded','false');
 }
 async function openExpandedLyrics(t,opener=$('#lyrics-expand')){
  const column=$('.song-main-column'),button=$('#lyrics-expand');
- if(!t||!column||button?.dataset.track!==t.id||button.getAttribute('aria-busy')==='true')return;
+ if(!t||!column||button?.dataset.track!==t.id||expandedLyricsLoad?.button===button)return;
  if(expandedLyrics?.card.isConnected&&expandedLyrics.track.id===t.id)return;
+ const inline=$('.song-main-column > .song-detail-lyrics');
  let cues=null,rows='',synced=false;
  if(hasFullLyrics(t)&&t.lyrics_mode==='synced'){
   try{cues=AifectLyrics.parseLrc(t.lyrics);}catch{/* Read the published plain text below. */}
@@ -116,24 +139,43 @@ async function openExpandedLyrics(t,opener=$('#lyrics-expand')){
   synced=true;
   rows=cues.map((c,i)=>'<button type="button" data-expanded-lyric="'+i+'" data-lyric-index="'+i+'" data-seek="'+c.time+'" data-track="'+esc(t.id)+'" aria-label="'+time(c.time)+' '+esc(c.text||'간주')+'">'+esc(c.text||'♪ 간주')+'</button>').join('');
  }else{
+  const load=expandedLyricsLoad={button},route=location.hash,account=me?.id;
+  const stillCurrent=()=>expandedLyricsLoad===load&&button===$('#lyrics-expand')&&column===$('.song-main-column')&&
+   (!inline||location.hash===route&&me?.id===account);
   button.setAttribute('aria-busy','true');
   try{
    const data=await api('/api/tracks/'+encodeURIComponent(t.id)+'/lyrics/text');
-   if(button!==$('#lyrics-expand')||column!==$('.song-main-column'))return;
+   if(!stillCurrent())return;
    synced=data.synced===true;
    rows=data.lines.map((line,i)=>'<p class="lyrics-reading-line"'+(synced?' data-expanded-lyric="'+i+'"':'')+'>'+esc(synced&&!line?'♪ 간주':line)+'</p>').join('');
-  }catch(error){if(button===$('#lyrics-expand'))toast(error.message);return;}
-  finally{button.removeAttribute('aria-busy');}
+  }catch(error){if(stillCurrent())toast(error.message);return;}
+  finally{
+   if(expandedLyricsLoad===load){
+    expandedLyricsLoad=null;
+    button.removeAttribute('aria-busy');
+   }
+  }
  }
  closeExpandedLyrics();
- column.insertAdjacentHTML('afterbegin',expandedLyricsHTML(rows||'<p class="lyrics-reading-line">아직 등록된 가사가 없습니다.</p>'));
- const card=$('#expanded-song-lyrics');if(!card)return;
- const close=()=>{closeExpandedLyrics();opener?.focus({preventScroll:true});};
+ const content=rows||'<p class="lyrics-reading-line">아직 등록된 가사가 없습니다.</p>';
+ if(inline){
+  inline.querySelector('.song-detail-lyrics-lines').innerHTML=content;
+  inline.hidden=false;
+ }else column.insertAdjacentHTML('afterbegin',expandedLyricsHTML(content));
+ const card=inline||$('#expanded-song-lyrics');if(!card)return;
+ const close=()=>{
+  const restoreFocus=!inline||card.contains(document.activeElement);
+  closeExpandedLyrics();
+  if(restoreFocus)opener?.focus({preventScroll:true});
+ };
  const onEscape=event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]'))close();};
- expandedLyrics={card,track:t,cues,synced,lines:card.querySelectorAll('[data-expanded-lyric]'),index:-1,onEscape};
- card.showPopover?.();
+ expandedLyrics={card,button,inline,track:t,cues,synced,lines:card.querySelectorAll('[data-expanded-lyric]'),index:-1,onEscape};
  const closeButton=card.querySelector('.expanded-lyrics-close');
- closeButton.onclick=close;closeButton.focus?.({preventScroll:true});
+ closeButton.onclick=close;
+ if(!inline){
+  card.showPopover?.();
+  closeButton.focus?.({preventScroll:true});
+ }
  document.addEventListener('keydown',onEscape);
  button.setAttribute('aria-expanded','true');
  updateExpandedLyrics();

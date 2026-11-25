@@ -4,31 +4,98 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import * as core from '../shared/lyrics.js';
 const source=readFileSync(new URL('../dist/lyrics.js',import.meta.url),'utf8');
-function fixture(){
+function fixture({inline=false,native=false,userAgent=''}={}){
  let inserted=0,card=null,paused=0,focused=0;
- const button={dataset:{track:'song'},getAttribute(k){return this[k];},removeAttribute(k){delete this[k];},setAttribute(k,v){this[k]=v;},focus(){focused++;}};
+ const button={dataset:{track:'song'},getAttribute(k){return this[k];},removeAttribute(k){delete this[k];},setAttribute(k,v){this[k]=v;},focus(options){focused++;this.focusOptions=options;}};
  const follow={setAttribute(k,v){this[k]=v;}},events={};
  const owner={scrollTop:0,clientHeight:900,scrollHeight:5000,scrollTo(o){this.scrollTop=Math.max(0,o.top);this.lastScroll=o;}};
  const doc={body:{},scrollingElement:owner,addEventListener(k,fn){events[k]=fn;},removeEventListener(k){delete events[k];},querySelectorAll:()=>[{getBoundingClientRect:()=>({top:780,bottom:900,height:120})}]};
  const makeLine=()=>({active:false,classList:{toggle(name,value){this.owner.active=value;}},setAttribute(){},removeAttribute(){}});
- const column={insertAdjacentHTML(position,html){
-  assert.equal(position,'afterbegin');inserted++;
+ function linesFromHTML(html){
   const lines=[...html.matchAll(/data-expanded-lyric="\d+"/g)].map((_,i)=>({...makeLine(),getBoundingClientRect:()=>({top:300+i*50-owner.scrollTop,height:44})}));
   lines.forEach(line=>line.classList.owner=line);
-  card={isConnected:true,html,lines,parentElement:doc.body,addEventListener(k,fn){this[k]=fn;},scrolls:0,scrollIntoView(){this.scrolls++;},remove(){this.isConnected=false;},querySelector:s=>s==='.expanded-lyrics-close'?card.close:s==='.expanded-lyrics-follow'?follow:s==='header'?{getBoundingClientRect:()=>({height:60})}:null,querySelectorAll:()=>lines,close:{}};
+  return lines;
+ }
+ function makeCard(html){
+  const section={isConnected:true,hidden:inline,html,lines:linesFromHTML(html),scrolls:0,scrollIntoView(){this.scrolls++;},remove(){this.isConnected=false;},close:{}};
+  const body={
+   set innerHTML(value){section.html=value;section.lines=linesFromHTML(value);},
+   replaceChildren(){this.innerHTML='';}
+  };
+  section.querySelector=s=>s==='.expanded-lyrics-close'?section.close:s==='.song-detail-lyrics-lines'?body:s==='.expanded-lyrics-follow'?follow:null;
+  section.querySelectorAll=()=>section.lines;
+  section.contains=target=>target===section.close;
+  return section;
+ }
+ if(inline)card=makeCard('');
+ const column={insertAdjacentHTML(position,html){
+  assert.equal(position,'afterbegin');inserted++;
+  card=makeCard(html);
  }};
  const audio={currentTime:0,paused:false,pause(){paused++;},addEventListener(){}};
  const track={id:'song',title:'One little touch',producer:'AIFECT',genre:'K-POP',lyrics_mode:'synced',lyrics:'[00:00]First\n[00:10]Second',lyrics_access:'full',lyrics_access_until:9999999999};
- const c=vm.createContext({document:doc,innerHeight:900,getComputedStyle:()=>({display:'block'}),matchMedia:()=>({matches:false}),me:{id:'premium'},current:track,audio,trackMap:new Map([[track.id,track]]),window:{},location:{hash:'#song/song'},AifectLyrics:core,esc:String,cover:()=>'<div class="album-art"></div>',icon:()=>'',time:()=>'',$:s=>s==='.song-main-column'?column:s==='#expanded-song-lyrics'&&card?.isConnected?card:s==='#lyrics-expand'?button:null});
+ const select=selector=>{
+  if(selector==='.song-main-column')return column;
+  if(selector==='.song-main-column > .song-detail-lyrics')return inline?card:null;
+  if(selector==='#expanded-song-lyrics')return card?.isConnected?card:null;
+  return selector==='#lyrics-expand'?button:null;
+ };
+ const c=vm.createContext({document:doc,me:{id:'premium'},current:track,audio,trackMap:new Map([[track.id,track]]),inApp:native,window:{navigator:{userAgent}},location:{hash:'#song/song'},AifectLyrics:core,esc:String,time:()=>'',$:select});
  vm.runInContext(source,c);
  return {c,track,audio,events,owner,follow,button,get card(){return card;},get inserted(){return inserted;},get paused(){return paused;},get focused(){return focused;}};
 }
-test('the header lyrics button opens one full transcript without a sidebar panel',()=>{
- const f=fixture();assert.equal(f.card,null);assert.equal(f.c.$('#song-lyrics'),null);
+test('the native header opens one existing popover without a sidebar panel',()=>{
+ const f=fixture({native:true});assert.equal(f.c.songDetailLyricsHTML(),'');assert.equal(f.card,null);assert.equal(f.c.$('#song-lyrics'),null);
  f.c.bindLyricsPanel();assert.equal(typeof f.button.onclick,'function');
  f.button.onclick();assert.equal(f.inserted,1);assert.equal(f.button['aria-expanded'],'true');
+ assert.match(f.card.html,/role="dialog" popover="manual"/);
  assert.match(f.card.html,/>First</);assert.doesNotMatch(f.card.html,/00:00|00:10|lyric-line-time/);
  f.button.onclick();assert.equal(f.inserted,1);assert.equal(f.card.scrolls,0);assert.doesNotMatch(f.card.html,/expanded-lyrics-track|expanded-lyrics-follow|album-art|K-POP|One little touch/);
+});
+test('the web transcript starts hidden and closes from the header and X without scrolling or pausing',()=>{
+ const f=fixture({inline:true}),markup=f.c.songDetailLyricsHTML();
+ assert.match(markup,/class="song-detail-lyrics" hidden/);
+ assert.doesNotMatch(markup,/popover=|role="dialog"|expanded-lyrics-scroll/);
+ assert.equal(f.card.hidden,true);
+ f.c.bindLyricsPanel();
+ f.audio.currentTime=12;
+ f.button.onclick();
+ assert.equal(f.card.hidden,false);assert.equal(f.button['aria-expanded'],'true');
+ assert.match(f.card.html,/>Second</);assert.equal(f.card.lines[1].active,true);
+ f.owner.scrollTop=230;
+ f.button.onclick();
+ assert.equal(f.card.hidden,true);assert.equal(f.button['aria-expanded'],'false');assert.equal(f.focused,0);
+ f.button.onclick();f.c.document.activeElement=f.card.close;f.card.close.onclick();
+ assert.equal(f.card.hidden,true);assert.equal(f.card.html,'');assert.equal(f.button.focusOptions.preventScroll,true);
+ assert.equal(f.inserted,0);assert.equal(f.owner.scrollTop,230);assert.equal(f.audio.currentTime,12);assert.equal(f.paused,0);
+ f.button.onclick();f.c.cleanupLyricsEditor();assert.equal(f.card.hidden,true);assert.deepEqual(Object.keys(f.events),[]);
+});
+test('Android and iOS in-app browser user agents skip the web transcript',()=>{
+ for(const userAgent of ['Android WebView AIFECT-Mobile/1.0','iPhone AIFECT-Mobile/1.0']){
+  assert.equal(fixture({userAgent}).c.songDetailLyricsHTML(),'');
+ }
+ assert.match(fixture({userAgent:'iPhone Mobile Safari'}).c.songDetailLyricsHTML(),/song-detail-lyrics/);
+});
+test('cancelled web lyric requests cannot reopen the reader or interfere with a newer request',async()=>{
+ const f=fixture({inline:true}),requests=[];
+ f.c.me=null;f.c.current=null;
+ f.c.api=path=>{
+  assert.equal(path,'/api/tracks/song/lyrics/text');
+  return new Promise(resolve=>requests.push(resolve));
+ };
+ f.c.bindLyricsPanel();
+ const cancelled=f.button.onclick();assert.equal(f.button['aria-busy'],'true');
+ f.button.onclick();assert.equal(f.button['aria-busy'],undefined);
+ const reopened=f.button.onclick();
+ requests[0]({lines:['Old request']});await cancelled;
+ assert.equal(f.card.hidden,true);assert.equal(f.button['aria-busy'],'true');
+ requests[1]({lines:['New request']});await reopened;
+ assert.equal(f.card.hidden,false);assert.match(f.card.html,/New request/);
+ f.button.onclick();
+ const navigated=f.button.onclick();
+ f.c.location.hash='#song/other';
+ requests[2]({lines:['Previous song']});await navigated;
+ assert.equal(f.card.hidden,true);assert.equal(f.button['aria-busy'],undefined);
 });
 test('closing restores header focus and route cleanup removes listeners without pausing playback',()=>{
  const f=fixture();f.audio.currentTime=12;f.c.bindLyricsPanel();f.button.onclick();
