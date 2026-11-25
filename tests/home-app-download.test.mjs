@@ -68,9 +68,8 @@ test('whole-banner destinations identify iOS, desktop-mode iPadOS and Android wi
 test('public home adds one app-download campaign and native app home preserves its existing campaigns',()=>{
  const web=context(),native=context(devices.iphone,true);
  const webIds=Array.from(vm.runInContext('homeBanners',web),b=>b.id),nativeIds=Array.from(vm.runInContext('homeBanners',native),b=>b.id);
- assert.equal(webIds[0],'app-download');assert.equal(webIds.filter(id=>id==='app-download').length,1);
- assert.deepEqual(webIds.slice(1),['studio','play','participate','artists','karaoke','talking','crew','premium']);
- assert.deepEqual(nativeIds,webIds.slice(1));
+ assert.deepEqual(webIds,['open-event','app-download','studio','play','participate','artists','karaoke','talking','crew','premium']);
+ assert.deepEqual(nativeIds,webIds.filter(id=>id!=='app-download'));
  assert.deepEqual(JSON.parse(JSON.stringify(vm.runInContext('homeAppStores',web))),stores);
  const b=campaign(web);
  assert.equal(b.title,'앱 다운로드');assert.equal(b.headline,'아이팩트 앱 지금 다운로드하세요');

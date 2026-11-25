@@ -111,6 +111,10 @@ function homeAppDownloadBannerHTML(b){
 }
 // The mobile picture keeps its approved 2:1 artwork; desktop selects its own portrait.
 const homeBanners=[
+ {id:'open-event',title:'오픈 이벤트',alt:'AIFECT 오픈 이벤트. 기존·신규 회원 모두 2026년 12월 31일까지 별도 결제 없이 프리미엄을 무료로 체험할 수 있습니다.',artwork:{
+  desktop:'/assets/home-banners/open-event-20261125/aifect_open_event_balanced_pc_2400x460.webp',
+  mobile:'/assets/home-banners/open-event-20261125/aifect_open_event_balanced_mobile_1170x672.webp'
+ }},
  {id:'app-download',title:'앱 다운로드',headline:'아이팩트 앱 지금 다운로드하세요',subtitle:'AI 음악 · 커버 · 더빙을 더 가까이.',cta:'앱 다운로드'},
  {id:'studio',title:'스튜디오',headline:'스튜디오에서 내 제작곡을 올려 보세요',subtitle:'완성한 음악을 직접 공개합니다.',cta:'제작곡 올리기',href:'#studio'},
  {id:'play',title:'플레이',headline:'플레이에서 마음에드는 노래를 불러 보세요',subtitle:'내 목소리로 커버곡을 남깁니다.',cta:'노래하러 가기',href:'#karaoke'},
@@ -172,7 +176,13 @@ function homeBannerHTML(b,next){
  const sources=id=>homeBannerImage(id,768)+' 768w, '+homeBannerImage(id,1536)+' 1536w';
  const sides=id=>homeWideBanner(id)||id==='crew'?[]:['left','right'];
  const scenery=id=>sides(id).map(side=>`<span class="home-promo-scenery home-promo-scenery-${side}" aria-hidden="true" style="--home-promo-scenery:url('${homeBannerBackgroundImage(id,side)}')"></span>`).join('');
- const preload=next?sides(next.id).map(side=>`<link rel="preload" as="image" href="${homeBannerBackgroundImage(next.id,side)}" media="(min-width: 801px)" fetchpriority="low">`).join('')+`<link rel="preload" as="image" imagesrcset="${homeBannerDesktopSources(next.id)}" ${homeWideBanner(next.id)?'imagesizes="'+homeBannerDesktopSizes+'"':''} media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`:'';
+ let preload='';
+ if(next?.artwork){
+  preload=`<link rel="preload" as="image" href="${next.artwork.desktop}" media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${next.artwork.mobile}" media="(max-width: 800px)" fetchpriority="low">`;
+ }else if(next){
+  preload=sides(next.id).map(side=>`<link rel="preload" as="image" href="${homeBannerBackgroundImage(next.id,side)}" media="(min-width: 801px)" fetchpriority="low">`).join('')+`<link rel="preload" as="image" imagesrcset="${homeBannerDesktopSources(next.id)}" ${homeWideBanner(next.id)?'imagesizes="'+homeBannerDesktopSizes+'"':''} media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`;
+ }
+ if(b.artwork)return `<div class="home-feature-slide home-event-banner" data-home-banner="${b.id}"><picture><source media="(min-width: 801px)" srcset="${b.artwork.desktop}" width="2400" height="460"><img src="${b.artwork.mobile}" width="1170" height="672" alt="${esc(b.alt)}" loading="eager" fetchpriority="high" draggable="false"></picture></div>`+preload;
  if(b.id==='app-download')return homeAppDownloadBannerHTML(b)+preload;
  const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
  return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" ${wide?'data-wide-banner':''} href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}" draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${wide?'sizes="'+homeBannerDesktopSizes+'"':''} width="${desktopWidth}" height="${desktopHeight}"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
@@ -181,6 +191,7 @@ function homeBannerHTML(b,next){
 function prepareHomeBanner(b){
  if(!homeWideBanner(b.id)||!window.matchMedia('(min-width: 801px)').matches)return;
  const image=new Image();
+ if(b.artwork){image.src=b.artwork.desktop;return image.decode();}
  image.sizes=homeBannerDesktopSizes;
  image.srcset=homeBannerDesktopSources(b.id);
  return image.decode();
