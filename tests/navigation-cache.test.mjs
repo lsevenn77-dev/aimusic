@@ -172,9 +172,11 @@ test('the open event renders before music reads and remains visible after a disc
   const banner=c.section('home-release'),html=banner.innerHTML;
   assert.match(html,/data-home-banner="open-event"/);
   assert.match(html,/<source media="\(min-width: 801px\)" srcset="[^"]+aifect_open_event_refined_pc_2400x460\.webp" width="2400" height="460"/);
-  assert.match(html,/<img src="[^"]+aifect_open_event_refined_mobile_1170x672\.webp" width="1170" height="672"[^>]+loading="eager" fetchpriority="high"/);
+  assert.match(html,/<img class="home-promo-original" src="[^"]+aifect_open_event_refined_mobile_1170x672\.webp" width="1170" height="672"[^>]+loading="eager" fetchpriority="high"/);
   const slide=html.match(/<div class="home-feature-slide home-event-banner"[\s\S]*?<\/picture><\/div>/)?.[0];
   assert.ok(slide);assert.doesNotMatch(slide,/<a\b|<button\b|onclick=|tabindex=/i);
+  assert.match(slide,/<picture class="home-promo-picture">/);
+  assert.doesNotMatch(slide,/--event-(?:mobile|desktop)-art|border-image|home-promo-scenery/);
   assert.doesNotMatch(html,/HOME_LOADING|음악을 불러오는 중/);
   discovery.resolve(response({error:'offline'},503));await opening;await new Promise(resolve=>setImmediate(resolve));
   assert.equal(c.section('home-release').innerHTML,html,'music network failures must not overwrite the event');

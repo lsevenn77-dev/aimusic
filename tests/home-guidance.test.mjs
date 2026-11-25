@@ -33,7 +33,8 @@ test('all eight service banners expose a whole-banner link and responsive WebP a
   assert.ok(html.includes(b.headline));assert.ok(html.includes(b.cta));
   assert.match(html,/<img\b[^>]*width="1536" height="768"/);
   assert.match(html,/768w, [^"]+1536w/);
-  assert.equal(html.includes(c.homeBannerBackgroundImage(b.id)),b.id==='premium');
+  assert.equal((html.match(/<picture class="home-promo-picture">/g)||[]).length,1);
+  assert.doesNotMatch(html,/home-promo-scenery/);
   assert.equal((html.match(/<a\b/g)||[]).length,1,'the artwork and live copy share one destination on desktop and mobile');
   for(const width of [768,1536]){
    const image=readFileSync(new URL('../dist'+c.homeBannerImage(b.id,width),import.meta.url));
@@ -114,13 +115,13 @@ test('released mobile apps and newer clients can both fetch the cropped native c
  assert.equal(createHash('sha256').update(bytes).digest('hex'),archived.sha256);
 });
 
-test('the native webview selects its dedicated crew composition and preserves other scenes and preloads',()=>{
+test('native WebViews use one responsive picture per slide and preload the next picture',()=>{
  const c=context(true),banners=serviceBanners(c);
  for(const [index,banner] of banners.entries()){
   const original=c.homeBannerImage(banner.id,1536);
   const html=c.homeBannerHTML(banner,banners[(index+1)%banners.length]);
   const picture=html.match(/<picture\b[^>]*>[\s\S]*?<\/picture>/)?.[0];
-  assert.ok(picture,banner.id+' needs the original photo as a separate layer');
+  assert.ok(picture,banner.id+' needs its responsive original photo');
   const base='/assets/home-banners/portraits-20261116/'+banner.id+'-';
   const desktop=banner.id==='crew'?'/assets/home-banners/rooms-20261117/crew-app-1672.webp':base+'896.webp 1x, '+base+'1536.webp 2x';
   for(const width of [320,390,768,800])assert.equal(pictureSourceAt(html,width),original);
@@ -132,25 +133,16 @@ test('the native webview selects its dedicated crew composition and preserves ot
    }
   }
   const next=banners[(index+1)%banners.length];
-  const preload=Array.from(html.matchAll(/<link\b[^>]*>/g),match=>attributes(match[0]))
-   .find(tag=>tag.media==='(min-width: 801px)'&&tag.imagesrcset);
-  assert.equal(preload?.imagesrcset,pictureSourceAt(c.homeBannerHTML(next),1440));
+  const preloads=Array.from(html.matchAll(/<link\b[^>]*>/g),match=>attributes(match[0]))
+   .filter(tag=>tag.media==='(min-width: 801px)');
+  assert.equal(preloads.length,1);
+  assert.equal(preloads[0].imagesrcset,pictureSourceAt(c.homeBannerHTML(next),1440));
   assert.equal(attributes(picture.match(/<img\b[^>]*>/)?.[0]||'').src,original);
-  const scenery=Array.from(html.matchAll(/<span\b[^>]*>/g),match=>attributes(match[0])).filter(tag=>tag.class?.split(/\s+/).includes('home-promo-scenery'));
+  assert.doesNotMatch(html,/home-promo-scenery|background-overlay/);
   if(banner.id==='crew'){
-   assert.equal(scenery.length,0);
    const final=readFileSync(new URL('../dist'+desktop,import.meta.url));
    assert.deepEqual(imageDimensions(final,'image/webp'),{width:1672,height:505});
    assert.equal(createHash('sha256').update(final).digest('hex'),'fe093920886eadd29cac7dc9c1d985c43eae619fbce672dae7f67ee375f951f0');
-   continue;
-  }
-  assert.equal(scenery.length,2,'both exposed sides need their own matching outpaint');
-  for(const side of ['left','right']){
-   const background=c.homeBannerBackgroundImage(banner.id,side);
-   assert.ok(!picture.includes(background),'generated scenery must never replace the original portrait');
-   const layer=scenery.find(tag=>tag.class.split(/\s+/).includes('home-promo-scenery-'+side));
-   assert.ok(layer?.style?.includes(background),banner.id+' needs its own '+side+' extension');
-   assert.equal(layer['aria-hidden'],'true','decorative scenery is not a second announced image');
   }
   assert.doesNotMatch(html,/\/assets\/home-banners\/(?:approved|desktop|desktop-close|seamless)-20261109\/[^"'\s<>]+-2172\.webp/,'old generated portraits must not return through a source or preload');
  }
@@ -193,7 +185,7 @@ test('public PC slides fill one wide frame and preload the same responsive WebP 
  }
 });
 
-test('desktop scenery matches reviewed WebP files and records the unchanged original photo provenance',()=>{
+test('archived desktop scenery retains its reviewed WebP files and original photo provenance',()=>{
  const c=context(),banners=serviceBanners(c);
  const base=new URL('../dist/assets/home-banners/repair-20261109/',import.meta.url);
  const manifestText=readFileSync(new URL('manifest.json',base),'utf8'),manifest=JSON.parse(manifestText);
@@ -216,7 +208,7 @@ test('desktop scenery matches reviewed WebP files and records the unchanged orig
    const output=asset.outputs.find(item=>item.side===side);
    assert.ok(output,'missing '+side+' desktop scenery for '+banner.id);
    assert.equal(output.filename,banner.id+'-'+side+'-'+width+'.webp');
-   assert.equal(c.homeBannerBackgroundImage(banner.id,side),output.url,'rendered scenery must match its reviewed manifest');
+   assert.equal(output.url.split('/').at(-1),output.filename);
    assert.equal(output.width,width);
    assert.equal(output.height,768);
    const bytes=readFileSync(new URL('../dist'+output.url,import.meta.url));
@@ -229,5 +221,5 @@ test('desktop scenery matches reviewed WebP files and records the unchanged orig
    hashes.add(hash);
   }
  }
- assert.equal(hashes.size,banners.length*2,'each banner needs its own left and right scene extension');
+ assert.equal(hashes.size,banners.length*2,'the archive retains distinct left and right scene files');
 });

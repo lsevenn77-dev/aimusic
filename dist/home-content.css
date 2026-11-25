@@ -1,55 +1,21 @@
 /* Home content only. Shared navigation, player and other routes retain their CSS. */
-/* Use Play's shared desktop frame height, including its controls. Mobile keeps
-   the approved 2:1 photo framing, with live copy inside and indicators below. */
-#home-release.home-promo-carousel .home-feature{height:var(--home-feature-height,272px);min-height:0;background:var(--ds-bg);overflow:hidden}
+/* One proportionally scaled picture per slide. Contain artwork outside its intended frame. */
+#home-release.home-promo-carousel .home-feature{
+ --home-promo-control-height:44px;
+ --home-promo-copy-inset:24px;
+ height:var(--home-feature-height,272px);min-height:0;background:var(--ds-bg);overflow:hidden
+}
 #home-release.home-promo-carousel .home-feature-stage{height:100%;min-width:0;overflow:hidden}
-#home-release.home-promo-carousel .home-promo-link{--ui-space-scale:1;--ui-type-scale:1;display:block;position:relative;padding:0;width:100%;height:100%;color:var(--ds-text);text-decoration:none;user-select:none;-webkit-user-select:none;background:var(--home-promo-bg,var(--ds-bg))}
-#home-release.home-promo-carousel .home-promo-picture{display:block;position:relative;z-index:0;width:100%;height:100%;overflow:hidden}
-/* Keep the full event artwork. Extend its outermost pixels into the unused
-   part of the standard slide without scaling the letters or gift separately. */
-#home-release .home-event-banner{display:block;padding:0;cursor:default;user-select:none}
-#home-release .home-event-banner picture,#home-release .home-event-banner img{display:block;width:100%;height:100%}
-#home-release .home-event-banner picture{border-image:var(--event-mobile-art) 0 1 fill / 0 50% stretch}
-#home-release .home-event-banner img{object-fit:contain;object-position:center}
-@media(min-width:801px){
- #home-release .home-event-banner:not([data-event-mobile]) picture{border-image:var(--event-desktop-art) 1 0 fill / 50% 0 stretch}
+#home-release.home-promo-carousel [data-home-banner]{
+ display:block;position:relative;width:100%;height:100%;padding:0;
+ color:var(--ds-text);user-select:none;-webkit-user-select:none;
+ background:var(--home-promo-bg,var(--ds-bg))
 }
-@media(max-width:800px){
- #home-release .home-event-banner,#home-release .home-event-banner picture{height:auto;aspect-ratio:2/1}
- #home-release .home-event-banner img{height:auto;aspect-ratio:2/1}
-}
-/* The picture element selects the portrait for the current viewport. */
-#home-release.home-promo-carousel .home-promo-original{display:block;width:100%;height:100%;object-fit:cover;object-position:var(--home-promo-focus,71% 20%);border:0;border-radius:0}
-#home-release.home-promo-carousel .home-promo-scenery{display:none}
-@media(min-width:801px){
- #home-release.home-promo-carousel .home-promo-link{--home-promo-photo-scale:1;--home-promo-photo-height:calc(var(--home-feature-height,272px) * var(--home-promo-photo-scale));--home-promo-shift:16cqi;--home-promo-inset-max:224px;--home-promo-closeup-offset:0px;--home-promo-inset:calc(clamp(48px,var(--home-promo-shift),var(--home-promo-inset-max)) - var(--home-promo-closeup-offset))}
- #home-release.home-promo-carousel .home-promo-scenery{display:block;position:absolute;height:var(--home-promo-photo-height);background-image:var(--home-promo-scenery);background-size:auto 100%;background-repeat:no-repeat;pointer-events:none}
- #home-release.home-promo-carousel .home-promo-scenery-left{inset:0 calc(var(--home-promo-photo-height) * var(--home-promo-left-edge,1.8) + var(--home-promo-inset)) auto 0;background-position:right center}
- #home-release.home-promo-carousel .home-promo-scenery-right{inset:0 0 auto auto;width:calc(var(--home-promo-inset) + 1px);background-position:left center;background-size:max(100%,var(--home-promo-photo-height)) 100%}
- /* Overlap real scene detail across the former hard join. Only the leftmost
-    8% of the source (empty scenery in all eight photos) blends; every person
-    remains fully opaque. All layers share the same scale and top alignment. */
- #home-release.home-promo-carousel .home-promo-picture{position:absolute;inset:0 var(--home-promo-inset) auto auto;width:auto;max-width:none;height:var(--home-promo-photo-height);aspect-ratio:2/1;mask-image:linear-gradient(90deg,transparent,#000 8%,#000);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000)}
- #home-release.home-promo-carousel .home-promo-original{max-width:none;object-fit:contain;object-position:center}
- /* Desktop object corrections extend into the empty left side of the original
-    photograph. Their transparent masks exclude every portrait; mobile keeps
-    its approved source without any overlay. */
- #home-release.home-promo-carousel :is([data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking]):not([data-wide-banner]) .home-promo-picture::after{content:"";position:absolute;inset:0;background-image:var(--home-promo-detail);background-size:100% 100%;background-repeat:no-repeat;pointer-events:none}
- #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/play-background-overlay-1536.webp')}
- #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-detail:url('/assets/home-banners/seam-20261110/karaoke-background-overlay-1536.webp')}
- /* Move the right inset by half the added photo width so the closer group
-    keeps its existing center. Scenery and object overlays share this geometry. */
- #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-detail:url('/assets/home-banners/pc-refresh-20261109/talking-background-overlay-1536.webp');--home-promo-photo-scale:1.1;--home-promo-closeup-offset:calc(var(--home-feature-height,272px) * .1)}
- #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-photo-scale:1.25;--home-promo-shift:20cqi;--home-promo-inset-max:256px}
- /* Revised scenery holds exactly 154 source pixels beyond its 2211px anchor.
-    Align that copied background with the unchanged original at every scale. */
- #home-release.home-promo-carousel :is([data-home-banner=studio],[data-home-banner=play],[data-home-banner=karaoke],[data-home-banner=talking]){--home-promo-left-edge:1.7994791667}
- @container(max-width:790px){
-  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:max(0px,calc(clamp(24px,8cqi,56px) - var(--home-promo-closeup-offset)))}
- }
- @container(min-width:541px) and (max-width:650px){
-  #home-release.home-promo-carousel .home-promo-link{--home-promo-inset:max(0px,calc(24px - var(--home-promo-closeup-offset)))}
- }
+#home-release.home-promo-carousel .home-promo-link{--ui-space-scale:1;--ui-type-scale:1;text-decoration:none}
+#home-release.home-promo-carousel .home-promo-picture{display:block;position:absolute;inset:0;z-index:0}
+#home-release.home-promo-carousel .home-promo-original{
+ display:block;width:100%;height:100%;border:0;border-radius:0;
+ object-fit:var(--home-promo-fit,contain);object-position:center var(--home-promo-photo-y,100%)
 }
 /* Gently shade and soften the scenery behind the words. Both effects diminish
    continuously from the left edge, leaving the faces and actions sharp. */
@@ -57,33 +23,35 @@
 #home-release.home-promo-carousel .home-promo-link:focus-visible{outline-offset:-4px}
 #home-release.home-promo-carousel .home-feature-arrow{display:grid;width:44px;height:44px;color:var(--ds-text)}
 #home-release.home-promo-carousel .home-feature-pagination{--feature-step:32px;min-width:0;justify-content:center;color:var(--ds-text)}
-#home-release.home-promo-carousel .home-feature-pagination button{height:44px;color:var(--ds-text)}
+#home-release.home-promo-carousel .home-feature-pagination button{height:var(--home-promo-control-height);color:var(--ds-text)}
 #home-release.home-promo-carousel .home-feature-autoplay{display:grid}
+#home-release.home-promo-carousel .home-feature-autoplay svg{filter:drop-shadow(0 1px 2px var(--ds-bg))}
+#home-release.home-promo-carousel .home-feature-dots button::after{opacity:.85;box-shadow:0 1px 2px var(--ds-bg)}
+#home-release.home-promo-carousel .home-feature-dots button[aria-pressed=true]::after{opacity:1}
 #home-release.home-promo-carousel .home-feature-dots button[aria-pressed=true]{color:var(--ds-selected)}
 #home-release.home-promo-carousel .home-promo-desktop{display:block;position:absolute;inset:0;z-index:2;height:100%;overflow:hidden}
 /* Full-frame photographs cover these scene-specific loading fallbacks. */
-#home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-bg:#261f42;--home-promo-accent:var(--ds-selected);--home-promo-focus:71% 25%}
+#home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-bg:#261f42;--home-promo-accent:var(--ds-selected)}
 #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-bg:#294a4d;--home-promo-accent:var(--ds-accent-mint)}
 #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-bg:#735352;--home-promo-accent:var(--ds-accent-pink);--home-promo-shade-end:60%}
 #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-bg:#2f1b36;--home-promo-accent:var(--ds-accent-pink)}
 #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-bg:#222655;--home-promo-accent:var(--ds-accent-mint)}
-#home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-bg:#0f2033;--home-promo-accent:var(--ds-accent-mint);--home-promo-shade-end:55%;--home-promo-focus:80% 20%}
-#home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-bg:var(--ds-panel);--home-promo-accent:#aa5af8;--home-promo-shade-end:55%;--home-promo-focus:center}
+#home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-bg:#0f2033;--home-promo-accent:var(--ds-accent-mint);--home-promo-shade-end:55%}
+#home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-bg:var(--ds-panel);--home-promo-accent:#aa5af8;--home-promo-shade-end:55%}
 #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-bg:#202545;--home-promo-accent:#edca7e}
 @media(min-width:801px){
+ #home-release.home-promo-carousel .home-feature{--home-promo-control-height:32px}
  #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-end:52%}
  /* Wide app WebViews share a stable frame across the carousel. */
  #home-release.home-promo-carousel:not(.home-promo-wide) .home-feature,
  #home-release.home-promo-carousel:not(.home-promo-wide) .release-placeholder{--home-feature-height:clamp(174px,30.20335cqi,360px);height:var(--home-feature-height)}
- #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-picture{inset:0;width:100%;height:100%;aspect-ratio:auto;mask-image:none;-webkit-mask-image:none}
- #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-original{object-fit:cover}
  @container (min-width:541px) and (max-width:650px){
   #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-copy{padding-left:66px;gap:5px}
   #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-headline{font-size:17px;line-height:1.25}
   #home-release.home-promo-carousel:not(.home-promo-wide) [data-home-banner=crew] .home-promo-cta{min-height:36px;padding:6px 14px;font-size:13px}
  }
 }
-#home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;box-sizing:border-box;height:100%;width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
+#home-release.home-promo-carousel .home-promo-copy{position:relative;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:10px;box-sizing:border-box;height:calc(100% - var(--home-promo-copy-inset));width:60%;padding-left:clamp(84px,11cqi,160px);padding-right:12px}
 #home-release.home-promo-carousel .home-promo-headline{font-size:clamp(22px,3.2cqi,36px);line-height:1.35;font-weight:750;font-style:italic;letter-spacing:-.04em;word-break:keep-all;overflow-wrap:anywhere;text-shadow:0 2px 5px color-mix(in srgb,var(--ds-bg) 50%,transparent),0 4px 16px color-mix(in srgb,var(--ds-bg) 38%,transparent)}
 #home-release.home-promo-carousel .home-promo-headline>span{display:block}
 #home-release.home-promo-carousel .home-promo-headline em{font-style:inherit;color:var(--home-promo-accent)}
@@ -99,64 +67,64 @@
  #home-release.home-promo-carousel .home-promo-cta{font-size:14px;padding-inline:18px}
 }
 @container(min-width:541px) and (max-width:650px){
- #home-release.home-promo-carousel .home-promo-copy{height:calc(100% - 34px);width:40%;padding-left:54px}
+ #home-release.home-promo-carousel .home-promo-copy{width:40%;padding-left:54px}
  #home-release.home-promo-carousel .home-promo-subtitle{font-size:12px}
  #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-end:48%}
  #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-shade-end:40%}
 }
 @container(max-width:540px){
- /* In the compact 174px PC frame, reserve the existing control strip so its
-    transparent hit targets cannot cover the CTA. Mobile overrides height below. */
- #home-release.home-promo-carousel .home-promo-copy{height:calc(100% - 34px);padding-left:48px;gap:8px}
+ /* In compact desktop frames, keep the copy clear of the overlay hit targets. */
+ #home-release.home-promo-carousel .home-promo-copy{padding-left:48px;gap:8px}
  #home-release.home-promo-carousel .home-promo-headline{font-size:17px;line-height:1.25}
  #home-release.home-promo-carousel .home-promo-subtitle{font-size:12px}
  #home-release.home-promo-carousel .home-promo-cta{font-size:13px;min-height:36px;padding:6px 14px}
 }
 @media(max-width:800px){
- #home-release.home-promo-carousel .home-feature{display:grid;grid-template-rows:auto 44px;height:auto;background:transparent}
- #home-release.home-promo-carousel .home-feature-stage{grid-row:1;height:auto}
- #home-release.home-promo-carousel .home-promo-link{height:auto;background:transparent;--home-promo-shade-end:58%}
- #home-release.home-promo-carousel .home-promo-picture{height:auto}
- #home-release.home-promo-carousel .home-promo-original{height:auto;aspect-ratio:2/1;object-fit:contain}
+ #home-release.home-promo-carousel .home-feature{
+  --home-promo-fit:cover;--home-promo-photo-y:50%;
+  height:auto;aspect-ratio:2/1
+ }
+ #home-release.home-promo-carousel .home-feature-stage{position:absolute;inset:0}
+ #home-release.home-promo-carousel .home-promo-link{--home-promo-shade-end:58%}
  #home-release.home-promo-carousel .home-promo-link::before{backdrop-filter:blur(1px);-webkit-backdrop-filter:blur(1px)}
  #home-release.home-promo-carousel .home-feature-arrow{display:none}
- #home-release.home-promo-carousel .home-promo-copy{position:absolute;top:var(--home-promo-mobile-head-top,21%);left:5%;display:flex;justify-content:flex-start;gap:clamp(5px,1.4cqi,11px);width:90%;height:auto;padding:0}
+ #home-release.home-promo-carousel .home-promo-desktop{display:flex;align-items:center;padding-bottom:var(--home-promo-control-height)}
+ #home-release.home-promo-carousel .home-promo-copy{gap:clamp(5px,1.4cqi,11px);width:90%;height:auto;margin-left:5%;padding:0}
  #home-release.home-promo-carousel .home-promo-headline{font-size:var(--home-promo-mobile-title-size,4.4cqi);line-height:1.32;letter-spacing:-.04em;white-space:nowrap;overflow-wrap:normal;word-break:normal}
  #home-release.home-promo-carousel .home-promo-headline>span+span{font-size:var(--home-promo-mobile-second-size,1em)}
  #home-release.home-promo-carousel .home-promo-subtitle{font-size:clamp(11px,2.7cqi,20px);line-height:1.35}
  #home-release.home-promo-carousel .home-promo-cta{min-height:clamp(28px,6.2cqi,47px);padding:5px clamp(10px,3cqi,23px);gap:clamp(7px,2cqi,15px);font-size:clamp(11px,3.1cqi,24px);line-height:1.35}
  #home-release.home-promo-carousel .home-promo-cta svg{width:clamp(14px,3.7cqi,28px);height:clamp(14px,3.7cqi,28px)}
- #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-mobile-head-top:16%}
- #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-mobile-head-top:23%;--home-promo-mobile-second-size:.86em}
- #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-mobile-head-top:25%;--home-promo-shade-end:49%}
- #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-mobile-head-top:24%;--home-promo-mobile-second-size:.94em}
- #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-mobile-head-top:23%;--home-promo-mobile-second-size:.9em;--home-promo-shade-end:51%}
- #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-mobile-head-top:17%;--home-promo-mobile-title-size:4.1cqi;--home-promo-mobile-second-size:.88em;--home-promo-shade-end:41%}
- #home-release.home-promo-carousel [data-home-banner=crew]{--home-promo-mobile-head-top:18%}
+ #home-release.home-promo-carousel [data-home-banner=play]{--home-promo-mobile-second-size:.86em}
+ #home-release.home-promo-carousel [data-home-banner=participate]{--home-promo-shade-end:49%}
+ #home-release.home-promo-carousel [data-home-banner=artists]{--home-promo-mobile-second-size:.94em}
+ #home-release.home-promo-carousel [data-home-banner=karaoke]{--home-promo-mobile-second-size:.9em;--home-promo-shade-end:51%}
+ #home-release.home-promo-carousel [data-home-banner=talking]{--home-promo-mobile-title-size:4.1cqi;--home-promo-mobile-second-size:.88em;--home-promo-shade-end:41%}
  #home-release.home-promo-carousel [data-home-banner=crew]::before{background:linear-gradient(90deg,#100e1bd9 0%,#100e1bc9 26%,#100e1b96 33%,transparent 44%);mask-image:none;-webkit-mask-image:none;backdrop-filter:none;-webkit-backdrop-filter:none}
- #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-copy{left:4%;width:36%}
+ #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-copy{margin-left:4%;width:36%}
  #home-release.home-promo-carousel [data-home-banner=crew] .home-promo-subtitle{white-space:normal;word-break:keep-all}
- #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-mobile-head-top:18%;--home-promo-shade-end:51%}
- #home-release.home-promo-carousel .home-feature-pagination{position:static;grid-row:2;transform:none;width:100%;min-width:0}
+ #home-release.home-promo-carousel [data-home-banner=premium]{--home-promo-shade-end:51%}
+ #home-release.home-promo-carousel .home-feature-pagination{width:min(88%,396px)}
  #home-release.home-promo-carousel .home-feature-autoplay{width:44px;flex:0 0 44px}
  #home-release.home-promo-carousel .home-feature-dots{display:flex;flex:0 1 352px;min-width:0}
  #home-release.home-promo-carousel .home-feature-dots button{width:44px;min-width:0;flex:1 1 44px}
 }
-/* Public desktop artwork already includes its scene extensions. Reserve the
-   same stage before the first image or the carousel controls are mounted. */
+/* Reserve the existing desktop frame before the carousel is mounted. */
 @media (min-width:801px){
  #home-release.home-promo-wide{position:relative;width:100%;min-height:120px;aspect-ratio:1420 / 300;container-type:inline-size}
  #home-release.home-promo-wide > .home-feature{position:absolute;inset:0;width:100%;height:100%;padding:0;margin:0;border:0;box-shadow:none}
- #home-release.home-promo-wide [data-wide-banner] .home-promo-picture{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;mask-image:none;-webkit-mask-image:none}
- #home-release.home-promo-wide [data-wide-banner] .home-promo-original{width:100%;height:100%;object-fit:cover;object-position:50% var(--banner-photo-y,50%)}
- #home-release.home-promo-wide [data-home-banner=play]{--banner-photo-y:4%}
- #home-release.home-promo-wide [data-home-banner=karaoke]{--banner-photo-y:10%}
- #home-release.home-promo-wide [data-home-banner=talking]{--banner-photo-y:23%}
+ /* The wide compositions have room at the edges. Keep the performers' faces in their approved framing. */
+ @container(min-width:500px){
+  #home-release.home-promo-wide [data-wide-banner]{--home-promo-fit:cover;--home-promo-photo-y:50%}
+  #home-release.home-promo-wide [data-home-banner=play]{--home-promo-photo-y:4%}
+  #home-release.home-promo-wide [data-home-banner=karaoke]{--home-promo-photo-y:10%}
+  #home-release.home-promo-wide [data-home-banner=talking]{--home-promo-photo-y:23%}
+ }
  #home-release.home-promo-wide [data-home-banner=crew] .home-promo-cta{background:linear-gradient(100deg,#9bf9e8,#b9c1fd,#cd98fc)}
  #home-release.home-promo-wide [data-wide-banner]:focus-visible{outline:none}
  /* All seven public slides use the same two-line title, subtitle and CTA. */
  #home-release.home-promo-wide [data-wide-banner] .home-promo-copy{
-  height:100%;width:62%;padding:0 12px 0 clamp(46px,8.5cqi,122px);
+  width:62%;padding:0 12px 0 clamp(46px,8.5cqi,122px);
   justify-content:center;align-items:flex-start;gap:clamp(3px,.55cqi,8px);text-align:left
  }
  #home-release.home-promo-wide [data-wide-banner] .home-promo-headline{font-size:clamp(16px,2.92cqi,36px);line-height:1.22;font-weight:750}
@@ -169,11 +137,13 @@
  }
  #home-release.home-promo-wide [data-wide-banner] .home-promo-cta svg{width:clamp(14px,1.7cqi,20px);height:auto;aspect-ratio:1}
  @container(max-width:840px){
-  #home-release.home-promo-wide [data-wide-banner] .home-promo-copy{height:calc(100% - 30px)}
-  #home-release.home-promo-wide .home-feature-pagination button{height:28px}
+  #home-release.home-promo-wide .home-feature{--home-promo-control-height:28px;--home-promo-copy-inset:28px}
   #home-release.home-promo-wide .home-feature-arrow{width:34px;height:44px;top:calc(50% - 22px);bottom:auto}
   #home-release.home-promo-wide .home-feature-prev{left:0}
   #home-release.home-promo-wide .home-feature-next{right:0}
+ }
+ @container(max-width:625px){
+  #home-release.home-promo-wide [data-home-banner=app-download] .home-app-eyebrow{display:none}
  }
 }
 @media(prefers-reduced-motion:reduce){
@@ -204,12 +174,11 @@
   #home-release [data-home-banner=app-download] .home-promo-copy{gap:3px}
   #home-release [data-home-banner=app-download] .home-app-store-link{min-height:32px;padding:3px 10px;gap:6px}
   #home-release [data-home-banner=app-download] .home-app-store-link>svg{width:18px;height:18px}
-  #home-release [data-home-banner=app-download] .home-app-store-link strong{font-size:12px}
-  #home-release [data-home-banner=app-download] .home-app-store-link small{font-size:10px}
+  #home-release [data-home-banner=app-download] .home-app-store-link small{display:none}
  }
 }
 @media(max-width:800px){
- #home-release [data-home-banner=app-download]{--home-promo-mobile-head-top:10%;--home-promo-mobile-title-size:4.4cqi;--home-promo-shade-end:64%}
+ #home-release [data-home-banner=app-download]{--home-promo-mobile-title-size:4.4cqi;--home-promo-shade-end:64%}
  #home-release [data-home-banner=app-download] .home-promo-copy{gap:clamp(3px,1cqi,8px)}
  #home-release [data-home-banner=app-download] .home-app-eyebrow{font-size:clamp(9px,2.4cqi,14px)}
  #home-release [data-home-banner=app-download] .home-promo-subtitle{font-size:clamp(10px,2.5cqi,18px)}
