@@ -6,6 +6,7 @@ import * as core from '../shared/lyrics.js';
 const source=readFileSync(new URL('../dist/lyrics.js',import.meta.url),'utf8');
 function fixture({inline=false,native=false,userAgent=''}={}){
  let inserted=0,card=null,paused=0,focused=0;
+ const copied=[],messages=[];
  const button={dataset:{track:'song'},getAttribute(k){return this[k];},removeAttribute(k){delete this[k];},setAttribute(k,v){this[k]=v;},focus(options){focused++;this.focusOptions=options;}};
  const follow={setAttribute(k,v){this[k]=v;}},events={};
  const owner={scrollTop:0,clientHeight:900,scrollHeight:5000,scrollTo(o){this.scrollTop=Math.max(0,o.top);this.lastScroll=o;}};
@@ -17,12 +18,12 @@ function fixture({inline=false,native=false,userAgent=''}={}){
   return lines;
  }
  function makeCard(html){
-  const section={isConnected:true,hidden:inline,html,lines:linesFromHTML(html),scrolls:0,scrollIntoView(){this.scrolls++;},remove(){this.isConnected=false;},close:{}};
+  const section={isConnected:true,hidden:inline,html,lines:linesFromHTML(html),scrolls:0,scrollIntoView(){this.scrolls++;},remove(){this.isConnected=false;},close:{},copy:{}};
   const body={
    set innerHTML(value){section.html=value;section.lines=linesFromHTML(value);},
    replaceChildren(){this.innerHTML='';}
   };
-  section.querySelector=s=>s==='.expanded-lyrics-close'?section.close:s==='.song-detail-lyrics-lines'?body:s==='.expanded-lyrics-follow'?follow:null;
+  section.querySelector=s=>s==='.expanded-lyrics-close'?section.close:s==='.song-detail-lyrics-copy'?section.copy:s==='.song-detail-lyrics-lines'?body:s==='.expanded-lyrics-follow'?follow:null;
   section.querySelectorAll=()=>section.lines;
   section.contains=target=>target===section.close;
   return section;
@@ -40,21 +41,24 @@ function fixture({inline=false,native=false,userAgent=''}={}){
   if(selector==='#expanded-song-lyrics')return card?.isConnected?card:null;
   return selector==='#lyrics-expand'?button:null;
  };
- const c=vm.createContext({document:doc,me:{id:'premium'},current:track,audio,trackMap:new Map([[track.id,track]]),inApp:native,window:{navigator:{userAgent}},location:{hash:'#song/song'},AifectLyrics:core,esc:String,time:()=>'',$:select});
+ const navigator={userAgent,clipboard:{async writeText(text){copied.push(text);}}};
+ const c=vm.createContext({document:doc,me:{id:'premium'},current:track,audio,trackMap:new Map([[track.id,track]]),inApp:native,navigator,window:{navigator},location:{hash:'#song/song'},AifectLyrics:core,esc:String,time:()=>'',icon:()=>'<svg></svg>',toast:message=>messages.push(message),$:select});
  vm.runInContext(source,c);
- return {c,track,audio,events,owner,follow,button,get card(){return card;},get inserted(){return inserted;},get paused(){return paused;},get focused(){return focused;}};
+ return {c,track,audio,events,owner,follow,button,copied,messages,get card(){return card;},get inserted(){return inserted;},get paused(){return paused;},get focused(){return focused;}};
 }
 test('the native header opens one existing popover without a sidebar panel',()=>{
  const f=fixture({native:true});assert.equal(f.c.songDetailLyricsHTML(),'');assert.equal(f.card,null);assert.equal(f.c.$('#song-lyrics'),null);
  f.c.bindLyricsPanel();assert.equal(typeof f.button.onclick,'function');
  f.button.onclick();assert.equal(f.inserted,1);assert.equal(f.button['aria-expanded'],'true');
  assert.match(f.card.html,/role="dialog" popover="manual"/);
+ assert.doesNotMatch(f.card.html,/song-detail-lyrics-copy/);
  assert.match(f.card.html,/>First</);assert.doesNotMatch(f.card.html,/00:00|00:10|lyric-line-time/);
  f.button.onclick();assert.equal(f.inserted,1);assert.equal(f.card.scrolls,0);assert.doesNotMatch(f.card.html,/expanded-lyrics-track|expanded-lyrics-follow|album-art|K-POP|One little touch/);
 });
 test('the web transcript starts hidden and closes from the header and X without scrolling or pausing',()=>{
  const f=fixture({inline:true}),markup=f.c.songDetailLyricsHTML();
  assert.match(markup,/class="song-detail-lyrics" hidden/);
+ assert.match(markup,/전체 가사<\/h2><button[^>]+class="song-detail-lyrics-copy"[^>]+aria-label="전체 가사 복사" title="전체 가사 복사"/);
  assert.doesNotMatch(markup,/popover=|role="dialog"|expanded-lyrics-scroll/);
  assert.equal(f.card.hidden,true);
  f.c.bindLyricsPanel();
@@ -69,6 +73,33 @@ test('the web transcript starts hidden and closes from the header and X without 
  assert.equal(f.card.hidden,true);assert.equal(f.card.html,'');assert.equal(f.button.focusOptions.preventScroll,true);
  assert.equal(f.inserted,0);assert.equal(f.owner.scrollTop,230);assert.equal(f.audio.currentTime,12);assert.equal(f.paused,0);
  f.button.onclick();f.c.cleanupLyricsEditor();assert.equal(f.card.hidden,true);assert.deepEqual(Object.keys(f.events),[]);
+});
+test('the web copy button preserves plain lyric lines and paragraphs',async()=>{
+ const f=fixture({inline:true});
+ f.c.me=null;f.c.current=null;
+ f.c.api=async path=>{
+  assert.equal(path,'/api/tracks/song/lyrics/text');
+  return {lines:['첫 줄','','둘째 줄\n이어지는 줄',' 마지막 줄 ']};
+ };
+ f.c.bindLyricsPanel();await f.button.onclick();
+ f.owner.scrollTop=200;f.audio.currentTime=12;
+ assert.equal(f.card.copy.disabled,false);
+ await f.card.copy.onclick();
+ assert.deepEqual(f.copied,['첫 줄\n\n둘째 줄\n이어지는 줄\n 마지막 줄 ']);
+ assert.deepEqual(f.messages,['가사가 복사되었습니다.']);
+ assert.equal(f.owner.scrollTop,200);assert.equal(f.audio.currentTime,12);assert.equal(f.paused,0);
+});
+test('the web copy button keeps synced cue line breaks and reports clipboard failures',async()=>{
+ const f=fixture({inline:true});
+ f.track.lyrics='[00:00]First\n[00:00]Second\n[00:03]\n[00:06]Last';
+ f.c.bindLyricsPanel();await f.button.onclick();
+ assert.match(f.card.html,/♪ 간주/);
+ await f.card.copy.onclick();
+ assert.deepEqual(f.copied,['First\nSecond\n\nLast']);
+ f.c.navigator.clipboard.writeText=async()=>{throw new Error('clipboard unavailable');};
+ await f.card.copy.onclick();
+ assert.deepEqual(f.messages,['가사가 복사되었습니다.','가사를 복사하지 못했습니다. 다시 시도해 주세요.']);
+ assert.equal(f.card.hidden,false);
 });
 test('Android and iOS in-app browser user agents skip the web transcript',()=>{
  for(const userAgent of ['Android WebView AIFECT-Mobile/1.0','iPhone AIFECT-Mobile/1.0']){
