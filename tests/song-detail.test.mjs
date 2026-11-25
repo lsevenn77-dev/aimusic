@@ -62,17 +62,21 @@ test('the song title heads the page and metrics follow the date before introduct
  assert.doesNotMatch(c.songDetailMetricsHTML({...track,ai_comments:12}),/공식|AI|응원/);
  for(const c of [header(null),header('other')]){const plain=c.songDetailHeaderHTML(track);assert.doesNotMatch(plain,/song-engagement|data-report-track/);assert.match(plain,/song-metrics/);}
 });
-test('song actions retain delegates and expose the compact labels, menu and lyrics immediately after like',()=>{
+test('song actions retain delegates and place the five web actions in order',()=>{
  const c=header('owner',true),html=c.songDetailActionsHTML(track);
- const order=['data-play="song"','href="#sing/song"','data-like="song"','id="lyrics-expand"','data-add="song"','data-gift="song"','data-track-menu="song"'];let previous=-1;
+ const order=['data-play="song"','href="#sing/song"','data-like="song"','id="lyrics-expand"','data-add="song"','data-gift="song"','data-song-share="song"'];let previous=-1;
  for(const key of order){const i=html.indexOf(key);assert.ok(i>previous,key);previous=i;}
  assert.match(html,/aria-pressed="true"/);assert.match(html,/data-like-count>12</);
- for(const key of ['play','sing','heart','plus','gift','menu'])assert.ok(html.includes('song-action-icon-'+key));
+ for(const key of ['play','sing','heart','plus','gift','share-2'])assert.ok(html.includes('song-action-icon-'+key));
+ assert.match(html,/<span>담기<\/span>/);assert.match(html,/<span>공유<\/span>/);
+ assert.doesNotMatch(html,/data-track-menu|song-action-more|저장/);
  assert.match(html,/aria-label="노래 듣기"/);assert.match(html,/<span>듣기<\/span>/);
  assert.match(html,/song-actions-primary[\s\S]*data-play="song"[\s\S]*href="#sing\/song"[\s\S]*<\/div><div class="inline-actions song-actions song-actions-secondary"/);
  assert.match(html,/aria-label="노래 부르기"/);assert.match(html,/<span>부르기<\/span>/);
  assert.match(html,/<span>선물<\/span>/);assert.doesNotMatch(html,/선물하기|audio-play-icon/);
  const page=c.songDetailHeaderHTML(track);
+ assert.match(page,/data-track-menu="song" aria-haspopup="dialog">곡 옵션<\/button>/);
+ assert.ok(html.includes(vm.runInContext("paths['file-text']",c)));
  const lyrics=page.match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
  assert.ok(lyrics);assert.match(lyrics,/data-track="song"/);assert.match(lyrics,/aria-controls="expanded-song-lyrics"/);assert.match(lyrics,/aria-expanded="false"/);assert.doesNotMatch(lyrics,/\bdisabled\b/);
  assert.match(page,/<span>가사<\/span>/);assert.equal((page.match(/id="lyrics-expand"/g)||[]).length,1);

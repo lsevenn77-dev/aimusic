@@ -87,7 +87,9 @@ function chatHTML(messages,peer=null,crew=null){
   const stamp=new Date(m.created*1000).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Seoul'});
   const invitation=!crew&&m.crew_invite_id?'<a class="small-button dm-crew-invite" href="#crew/'+esc(m.crew_invite_id)+'">'+icon('users')+' 초대받은 크루 보기 '+icon('chevron')+'</a>':'';
   const body=invitation?m.body.replace('\n크루 둘러보기: https://aifect.co.kr/#crew/'+m.crew_invite_id,''):m.body;
-  return separator+'<article class="dm-message '+(mine?'mine':'')+(grouped?' is-grouped':'')+(failed?' is-failed':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+(m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body))+'</span>'+invitation+'</div><div class="chat-message-meta">'+actions+'<time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
+  const songShare=!crew&&Object.hasOwn(m,'shared_track')&&(typeof inApp==='undefined'||!inApp);
+  const content=songShare?dmSongShareHTML(m.shared_track):m.image_id?chatImageHTML(m,!!crew):chatBodyHTML(body);
+  return separator+'<article class="dm-message '+(mine?'mine':'')+(grouped?' is-grouped':'')+(failed?' is-failed':'')+'" data-message="'+esc(m.id)+'">'+avatar+'<div class="dm-message-content">'+author+'<div class="dm-message-line"><div class="dm-bubble"><span class="chat-body">'+content+'</span>'+invitation+'</div><div class="chat-message-meta">'+actions+'<time>'+stamp+'</time>'+delivery+'</div></div></div></article>';
  }).join('')||'<div class="chat-empty"><span>'+icon('message')+'</span><strong>음악에서 시작되는 대화</strong><p>반가운 인사나 좋았던 음악을 나눠 보세요.</p></div>';
 }
 function chatPanelHTML(label,initial=null,peer=null,dm=!!peer){

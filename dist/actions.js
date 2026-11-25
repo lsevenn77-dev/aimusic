@@ -57,20 +57,99 @@ async function reloadComments(tid,refreshCount=false){
  const list=$('#comments');
  if(!list||list.dataset.track!==tid)return;
  const request=String(Number(list.dataset.request||0)+1);list.dataset.request=request;
+ const replyRevision=list.dataset.replyRevision;
  if(refreshCount)list.dataset.countPending='true';
  const [{comments},detail]=await Promise.all([
   api('/api/tracks/'+tid+'/comments?sort='+($('#comment-sort')?.value||'latest')),
   list.dataset.countPending?api('/api/tracks/'+tid):null
  ]);
  if(!list.isConnected||list.dataset.request!==request)return;
+ if(list.dataset.replyRevision!==replyRevision)return reloadComments(tid,refreshCount);
  const track=trackMap.get(tid);
+ const form=list.querySelector('.song-reply-form'),focus=form?.contains(document.activeElement)?document.activeElement:null;
  list.innerHTML=commentsHTML(comments,track);
+ if(form){
+  const card=list.querySelector('[data-comment-id="'+CSS.escape(form.dataset.replyTo)+'"]');
+  if(card){placeSongReply(form,card);focus?.focus({preventScroll:true});}
+ }
  if(detail){
   delete list.dataset.countPending;
-  track.comments=detail.track.comments;
-  const metric=document.querySelector('[data-song-comment-count]');
-  if(metric){metric.setAttribute('aria-label','댓글 '+number(track.comments)+'개');metric.innerHTML=icon('ui-comment')+number(track.comments);}
+  updateSongCommentCount(track,detail.track.comments);
  }
+}
+function updateSongCommentCount(track,count){
+ track.comments=count;
+ const metric=document.querySelector('[data-song-comment-count]');
+ if(metric){metric.setAttribute('aria-label','댓글 '+number(count)+'개');metric.innerHTML=icon('ui-comment')+number(count);}
+}
+const songReplyDrafts=new WeakMap();
+function placeSongReply(form,card){
+ card.after(form);
+ const trigger=card.querySelector('[data-reply]');
+ trigger.setAttribute('aria-expanded','true');trigger.setAttribute('aria-controls',form.id);
+}
+function closeSongReply(form,restoreFocus){
+ const trigger=form.previousElementSibling?.querySelector('[data-reply]');
+ form.remove();
+ trigger?.setAttribute('aria-expanded','false');trigger?.removeAttribute('aria-controls');
+ if(restoreFocus)trigger?.focus({preventScroll:true});
+}
+function insertSongReply(list,reply,track){
+ const thread=list.querySelector('[data-comment-thread="'+CSS.escape(reply.parent_id)+'"]');
+ const holder=thread?.querySelector('.song-comment-replies');
+ if(!holder||holder.querySelector('[data-comment-id="'+CSS.escape(reply.id)+'"]'))return;
+ const sort=$('#comment-sort').value;
+ const before=sort==='timeline'?null:[...holder.children].find(row=>{
+  if(!row.hasAttribute('data-comment-card'))return false;
+  const difference=sort==='popular'?reply.likes-Number(row.dataset.commentLikes):0;
+  return difference?difference>0:reply.created>=Number(row.dataset.commentCreated);
+ });
+ (before||holder).insertAdjacentHTML(before?'beforebegin':'beforeend',songCommentRowHTML(reply,track));
+}
+function toggleSongReply(button){
+ if(!me)return askLogin();
+ const list=button.closest('#comments'),card=button.closest('[data-comment-card]');
+ if(!list||!card)return;
+ const active=list.querySelector('.song-reply-form'),target=card.dataset.commentId;
+ if(active?._busy)return;
+ if(active){closeSongReply(active,active.dataset.replyTo===target);if(active.dataset.replyTo===target)return;}
+ if(!songReplyDrafts.has(list))songReplyDrafts.set(list,new Map());
+ const drafts=songReplyDrafts.get(list),draft=drafts.get(target)||{text:'',submitted:'',requestId:null};
+ const form=document.createElement('form');
+ form.className='song-reply-form song-comment-compose-row';form.id='song-reply-'+target;form.dataset.replyTo=target;
+ form.innerHTML='<textarea data-comment-input name="body" rows="1" maxlength="2000" required aria-describedby="'+esc(form.id)+'-error"></textarea><div class="song-reply-actions"><button type="button" class="small-button">취소</button><button type="submit" class="primary-button song-comment-submit">답글 등록</button></div><p id="'+esc(form.id)+'-error" class="form-error" role="alert"></p>';
+ const input=form.elements.body,cancel=form.querySelector('[type=button]'),submit=form.querySelector('[type=submit]');
+ const label=button.dataset.replyAuthor+'님에게 답글 남기기',tid=list.dataset.track,parent=button.dataset.reply,uid=me.id;
+ input.placeholder=label;input.setAttribute('aria-label',label);input.value=draft.text;
+ submit.disabled=!draft.text.trim();
+ input.oninput=()=>{draft.text=input.value;drafts.set(target,draft);submit.disabled=!draft.text.trim()||!!form._busy;};
+ cancel.onclick=()=>{drafts.delete(target);closeSongReply(form,true);};
+ const send=busyForm(form,async data=>{
+  const text=String(data.get('body')||'').trim();
+  if(!text||!list.isConnected||uid!==me?.id)return;
+  if(draft.submitted!==text){draft.submitted=text;draft.requestId=crypto.randomUUID();drafts.set(target,draft);}
+  const {reply,comment_count}=await api('/api/tracks/'+encodeURIComponent(tid)+'/comments','POST',{body:text,parent_id:parent,request_id:draft.requestId});
+  if(!list.isConnected||uid!==me?.id)return;
+  drafts.delete(target);
+  const scroll=window.scrollY;
+  const restoreFocus=form.contains(document.activeElement)||document.activeElement===document.body;
+  closeSongReply(form,restoreFocus);
+  list.dataset.replyRevision=String(Number(list.dataset.replyRevision||0)+1);
+  const track=trackMap.get(tid);
+  if(reply)insertSongReply(list,reply,track);
+  updateSongCommentCount(track,comment_count);
+  window.scrollTo({top:scroll,behavior:'instant'});
+  toast('답글을 등록했습니다.');
+ });
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  if(form._busy||!input.value.trim())return;
+  cancel.disabled=true;input.readOnly=true;
+  try{await send(event);}
+  finally{cancel.disabled=false;input.readOnly=false;submit.disabled=!input.value.trim();}
+ };
+ placeSongReply(form,card);
+ input.focus();
 }
 async function uploadRequest(path,method='GET',body){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),60000);
@@ -250,6 +329,7 @@ document.addEventListener('click',async ev=>{
   else if(el.hasAttribute('data-play-all')){if(el.closest('.charts-final')&&shuffle)$('#shuffle').click();if(routeTracks.length){await play(routeTracks[0].id,routeTracks);if(playedPlaylist&&me)void api('/api/playlists/'+playedPlaylist+'/played','POST').catch(()=>{});}else toast('먼저 곡을 추가해 주세요.');}
   else if(el.dataset.giftShop){await chooseGiftRecipient(el.dataset.giftShop);}
   else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
+  else if(el.dataset.songShare){shareSongByMessage(el.dataset.songShare);}
   else if(el.dataset.profileGift){await profileGiftDialog(el.dataset.profileGift);}
   else if(el.dataset.closePeriod){if(confirm(`${el.dataset.closePeriod} 정산을 마감할까요? 마감한 달은 되돌릴 수 없습니다.`)){const r=await api('/api/admin/payouts/close','POST',{period:el.dataset.closePeriod});toast(`선물 수익 ${r.credited}건을 다이아로 확정했습니다.`);location.hash='admin/'+r.period;await render();}}
   else if(el.dataset.revealPayout){const ticket=renderId,uid=me?.id,a=await api(`/api/admin/payouts/${el.dataset.revealPayout}/account`);if(ticket!==renderId||uid!==me?.id||!el.isConnected)return;dialog(`<h2>정산 계좌</h2><p>이 조회는 기록됩니다.</p><dl class="business-details"><div><dt>예금주</dt><dd>${esc(a.holder)}</dd></div><div><dt>은행</dt><dd>${esc(a.bank)}</dd></div><div><dt>계좌번호</dt><dd>${esc(a.account)}</dd></div><div><dt>주민등록번호</dt><dd>${esc(a.resident_number)}</dd></div></dl>`);}
@@ -266,6 +346,7 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.deletePlaylist){if(confirm('이 플레이리스트를 삭제할까요?')){await api('/api/playlists/'+el.dataset.deletePlaylist,'DELETE');if($('#dialog').open)$('#dialog').close();const target='#profile?view=library&section=playlists';if(location.hash===target)await render();else location.hash=target;}}
   else if(el.dataset.commentLike){if(!me)return askLogin();await api(`/api/comments/${el.dataset.commentLike}/like`,el.dataset.liked==='true'?'DELETE':'PUT');await reloadComments(location.hash.split('/')[1]?.split('?')[0]);}
   else if(el.dataset.deleteComment){if(confirm('댓글을 삭제할까요?')){await api('/api/comments/'+el.dataset.deleteComment,'DELETE');await reloadComments(el.closest('[data-track]')?.dataset.track,true);}}
+  else if(el.dataset.reply&&!inApp)toggleSongReply(el);
   else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea data-comment-input rows="1" name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');sizeCommentInput(form.elements.body);form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(edit?el.closest('#comments')?.dataset.track:el.dataset.track,!edit);});}
   else if(el.hasAttribute('data-seek')){if(window.AifectAudioAds?.active){toast('광고가 끝나면 곡의 재생 위치를 바꿀 수 있습니다.');return;}if(current?.id!==el.dataset.track)await play(el.dataset.track);if(el.hasAttribute('data-lyric-index')&&!hasFullLyrics(current)){refreshLyricsPanel();toast('전체 싱크 가사는 Premium에서 이용할 수 있습니다.');return;}const seconds=Number(el.dataset.seek);if(preview&&seconds>=60){askLogin();return;}audio.currentTime=seconds;await audio.play();}
   else if(el.matches('.detail-photo-change')){const input=el.nextElementSibling;if(!pendingCoverPhotos.has(input.dataset.coverPhoto))input.click();}

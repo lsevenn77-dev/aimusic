@@ -32,6 +32,34 @@ function present(c){
  return {...c,...storedCrewTags(c),...growth,xp:c.xp,badge_url:crewBadgeUrl(growth.level),name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)};
 }
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해 주세요.');return b.request_id;};
+const dmSongShareLabel='곡을 공유했습니다.';
+// Only this server creates DM IDs. The namespace keeps typed shares distinct
+// from user text while existing clients can still read the plain message body.
+const sharedSongId=message=>/^song-share:[a-f0-9-]{36}:([\w-]{1,128})$/.exec(message.id)?.[1]||null;
+async function resolveDmSongCards(env,messages){
+ const ids=[...new Set(messages.map(sharedSongId).filter(Boolean))];
+ if(!ids.length)return messages;
+ const tracks=await trackList(env,`${VISIBLE()} AND t.id IN (SELECT value FROM json_each(?))`,[JSON.stringify(ids)],'t.id',ids.length);
+ const cards=new Map(tracks.map(({id,title,artist,artwork_id,cover_version})=>[id,{id,title,artist,artwork_id,cover_version}]));
+ return messages.map(message=>{
+  const trackId=sharedSongId(message);
+  return trackId?{...message,shared_track:cards.get(trackId)||null}:message;
+ });
+}
+const dmRecipientSuggestionsSQL=`WITH recent AS (
+ SELECT CASE WHEN d.sender_id=?1 THEN d.recipient_id ELSE d.sender_id END peer_id,
+  max(d.rowid) recent_sequence
+ FROM direct_messages d
+ WHERE (d.sender_id=?1 OR d.recipient_id=?1) AND d.rowid>COALESCE(
+  (SELECT s.cleared_sequence FROM dm_settings s WHERE s.user_id=?1
+   AND s.peer_id=CASE WHEN d.sender_id=?1 THEN d.recipient_id ELSE d.sender_id END),0)
+ GROUP BY peer_id ORDER BY recent_sequence DESC LIMIT 24
+), follow_profiles AS (
+ SELECT f.target_id id FROM follows f WHERE f.user_id=?1 AND f.kind='producer'
+ UNION SELECT a.producer_id id FROM follows f JOIN artists a ON a.id=f.target_id WHERE f.user_id=?1 AND f.kind='artist'
+ UNION SELECT p.id FROM follows f JOIN producers p ON p.user_id=f.user_id
+  WHERE f.kind='producer' AND f.target_id=(SELECT id FROM producers WHERE user_id=?1)
+)`;
 async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT m.*,c.name crew_name,c.image_version crew_image_version FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.crew_id=? AND m.user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있습니다.');return m;}
 async function syncXp(env,crewId){await syncCrewGrowth(env,crewId);}
 function crewNotice(env,cid,userId,body){return query(env,"INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) VALUES(?,?,?,?,?,?,'system')",id(),cid,userId,body,'system:'+id(),now());}
@@ -233,15 +261,15 @@ export async function socialRoute(req,env,path,user){
  }
  if(path==='/api/dm/recipients/search'&&method==='GET'){
   requireUser(user);
-  const term=(url.searchParams.get('q')||'').trim().slice(0,100);
-  if(!term)return json({members:[]});
-  const members=await rows(env,`SELECT p.id,p.user_id,${producerNameSQL()} AS nickname,p.image_version,m.code AS public_id
+  const term=(url.searchParams.get('q')||'').trim().slice(0,100),suggested=url.searchParams.get('suggested')==='1';
+  if(!term&&!suggested)return json({members:[]});
+  const members=await rows(env,`${suggested?dmRecipientSuggestionsSQL:''} SELECT p.id,p.user_id,${producerNameSQL()} AS nickname,p.image_version,m.code AS public_id
    FROM producers p JOIN users u ON u.id=p.user_id JOIN public_profile_ids m ON m.user_id=u.id
-   WHERE u.id<>? AND u.provider<>'deleted' AND u.account_type='human'
-    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=u.id) OR (b.user_id=u.id AND b.blocked_id=?))
-    AND (instr(lower(${producerNameSQL()}),lower(?))>0 OR instr(lower(m.code),lower(?))>0)
-   ORDER BY m.code=? COLLATE NOCASE DESC,nickname=? COLLATE NOCASE DESC,nickname COLLATE NOCASE,p.id LIMIT 40`,
-   user.id,user.id,user.id,term,term,term,term);
+   ${suggested?'LEFT JOIN recent r ON r.peer_id=u.id LEFT JOIN follow_profiles f ON f.id=p.id':''}
+   WHERE u.id<>?1 AND u.provider<>'deleted' AND u.account_type='human'
+    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=?1 AND b.blocked_id=u.id) OR (b.user_id=u.id AND b.blocked_id=?1))
+    AND (${suggested?"(?2='' AND (r.peer_id IS NOT NULL OR f.id IS NOT NULL)) OR ":''}instr(lower(${producerNameSQL()}),lower(NULLIF(?2,'')))>0 OR instr(lower(m.code),lower(NULLIF(?2,'')))>0)
+   ORDER BY ${suggested?'r.recent_sequence DESC,(f.id IS NOT NULL) DESC,':''} m.code=?2 COLLATE NOCASE DESC,nickname=?2 COLLATE NOCASE DESC,nickname COLLATE NOCASE,p.id LIMIT 40`,user.id,term);
   return json({members});
  }
  if(path==='/api/dm'&&method==='GET'){
@@ -263,7 +291,7 @@ export async function socialRoute(req,env,path,user){
    const [history,receipt]=await env.DB.batch([historyQuery,query(env,'SELECT rowid sequence,read_at FROM direct_messages WHERE sender_id=? AND recipient_id=? AND read_at>0 ORDER BY rowid DESC LIMIT 1',user.id,p.user_id)]);
    const messages=history.results,read_receipt=receipt.results[0]||{sequence:0,read_at:0};
    const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
-   return json({peer:{id:p.id,user_id:p.user_id,name:p.name,chat_nickname:p.chat_nickname,image_version:p.image_version,premium_style_until:p.premium_style_until,premium_default_frame:p.premium_default_frame},settings,messages,has_more,read_receipt});
+   return json({peer:{id:p.id,user_id:p.user_id,name:p.name,chat_nickname:p.chat_nickname,image_version:p.image_version,premium_style_until:p.premium_style_until,premium_default_frame:p.premium_default_frame},settings,messages:await resolveDmSongCards(env,messages),has_more,read_receipt});
   }
   if(method==='PATCH'){
    // Bound acknowledgements to history the client actually received. A message
@@ -273,17 +301,36 @@ export async function socialRoute(req,env,path,user){
    await run(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0'+(sequence===undefined?'':' AND rowid<=?'),now(),p.user_id,user.id,...(sequence===undefined?[]:[sequence]));return json({ok:true});
   }
   if(method==='POST'){
-   const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,body=imageId?'사진':str(b.body,DM_BODY_LIMIT);
+   const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,trackId=b.track_id??null;
+   if(trackId!==null&&(imageId||typeof trackId!=='string'||!/^[\w-]{1,128}$/.test(trackId)))fail(400,'공유할 곡을 확인해 주세요.');
+   const body=trackId?dmSongShareLabel:imageId?'사진':str(b.body,DM_BODY_LIMIT);
    if(imageId&&(typeof imageId!=='string'||!/^[-\w]{1,80}$/.test(imageId)))fail(400,'이미지 정보를 확인해 주세요.');
    if(imageId&&!await one(env,'SELECT id FROM chat_images WHERE id=? AND sender_id=? AND recipient_id=? AND expires>? AND deleted=0',imageId,user.id,p.user_id,now()))fail(400,'다시 이미지를 선택해 주세요.');
-   const [profile,limit,prior]=await env.DB.batch([query(env,'SELECT id FROM producers WHERE user_id=?',user.id),rateQuery(env,'dm:'+user.id,60),query(env,'SELECT recipient_id,body,image_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
+   const [profile,limit,prior]=await env.DB.batch([query(env,'SELECT id FROM producers WHERE user_id=?',user.id),rateQuery(env,'dm:'+user.id,60),query(env,'SELECT id,recipient_id,body,image_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
    if(!profile.results.length)fail(409,'보관함에서 닉네임을 먼저 저장해 주세요.');if(limit.results[0].count>30)fail(429,'요청이 많습니다. 잠시 후 다시 시도해 주세요.');
    const previous=prior.results[0];
-   if(previous&&(previous.recipient_id!==p.user_id||previous.body!==body||previous.image_id!==imageId))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
-   if(!previous)assertDmBody(body);
-   const result=await env.DB.batch([query(env,'INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?))',id(),user.id,p.user_id,body,rid,now(),imageId,user.id,p.user_id,p.user_id,user.id),query(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
-   if(!result[1].results.length)fail(403,'차단된 이용자와는 소통할 수 없습니다.');
-   return json({ok:true,message:result[1].results[0]},201);
+   const matches=message=>message.recipient_id===p.user_id&&message.body===body&&message.image_id===imageId&&sharedSongId(message)===trackId;
+   if(previous&&!matches(previous))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+   if(!previous&&!trackId)assertDmBody(body);
+   let shareGuard='',shareArgs=[];
+   if(trackId){
+    const recipient="SELECT 1 FROM users WHERE id=? AND provider<>'deleted' AND account_type='human'";
+    if(!await one(env,recipient,p.user_id))fail(403,'메시지를 받을 수 없는 이용자입니다.');
+    const eligible=trackListQuery(env,`t.id=? AND ${VISIBLE()}`,[trackId],'t.id',1);
+    if(!previous&&!(await eligible.first()))fail(404,'공개된 곡을 찾을 수 없습니다.');
+    shareGuard=` AND EXISTS(${recipient}) AND EXISTS(SELECT 1 FROM tracks t WHERE t.id=? AND ${VISIBLE()})`;
+    shareArgs=[p.user_id,trackId];
+   }
+   const messageId=trackId?'song-share:'+id()+':'+trackId:id();
+   const result=await env.DB.batch([
+    query(env,`INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id)
+     SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?))${shareGuard}`,messageId,user.id,p.user_id,body,rid,now(),imageId,user.id,p.user_id,p.user_id,user.id,...shareArgs),
+    query(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)
+   ]);
+   const message=result[1].results[0];
+   if(!message)fail(403,trackId?'곡 또는 메시지 수신 상태가 변경되었습니다.':'차단된 이용자와는 소통할 수 없습니다.');
+   if(!matches(message))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+   return json({ok:true,message:(await resolveDmSongCards(env,[message]))[0]},201);
   }
  }
  fail(404,'대화를 찾을 수 없습니다.');

@@ -1,11 +1,14 @@
 /* Home TOP 7 and full charts only. Explicit component sizes preserve the shell's
    region scale. Both renderers retain their data, links and event attributes. */
+#main :is(.song-table.song-table-chart.chart-ui,.song-story-cover-actions){
+ --chart-stat-size:var(--song-cover-stat-size,14px);--chart-muted:var(--ds-muted);
+ --music-stat-icon:17px;--music-stat-plays:17px;--music-stat-number:var(--chart-stat-size);
+}
 #main .song-table.song-table-chart.chart-ui{
  --chart-row-height:68px;--chart-art-size:48px;--chart-title-size:17px;
- --chart-rank-size:20px;--chart-stat-size:14px;--chart-copy-gap:12px;
- --chart-cell-gap:8px;--chart-inset:12px;--chart-muted:var(--ds-muted);
+ --chart-rank-size:20px;--chart-copy-gap:12px;
+ --chart-cell-gap:8px;--chart-inset:12px;
  --chart-grid:32px var(--chart-art-size) minmax(0,1fr) 56px 44px 76px 68px 60px 44px 44px;
- --music-stat-icon:17px;--music-stat-plays:17px;--music-stat-number:var(--chart-stat-size);
  display:block;container-type:inline-size;min-width:0;overflow:hidden;
  border:1px solid rgba(160,185,210,.08);border-radius:14px;
  background:var(--ds-panel);box-shadow:none;margin-block:var(--chart-copy-gap);
@@ -44,7 +47,7 @@
 }
 #main .song-table.song-table-chart.chart-ui .song-table-row:last-child{border-bottom:0}
 #main .song-table.song-table-chart.chart-ui .song-table-row:hover{background:rgba(142,221,210,.045);box-shadow:none;border-radius:0}
-#main .song-table.song-table-chart.chart-ui .song-table-row.is-chart-playing{background:rgba(142,221,210,.065);box-shadow:none}
+#main .song-table.song-table-chart.chart-ui .song-table-row.is-chart-playing,#main .song-story-cover-row.is-chart-playing{background:rgba(142,221,210,.065);box-shadow:none}
 #main .song-table.song-table-chart.chart-ui .song-table-row>*{grid-column:auto;grid-row:1;margin:0;min-width:0}
 #main .song-table.song-table-chart.chart-ui .song-table-position{grid-column:1;width:auto;text-align:center;font-size:var(--chart-rank-size);font-weight:700;font-variant-numeric:tabular-nums}
 #main .song-table.song-table-chart.chart-ui .song-table-info{display:contents}
@@ -61,17 +64,18 @@
 #main .song-table.song-table-chart.chart-ui .chart-movement.up{color:#8EDDD2}
 #main .song-table.song-table-chart.chart-ui .chart-movement.down{color:var(--ds-social,#F4A8CE)}
 #main .song-table.song-table-chart.chart-ui .chart-movement:is(.same,.unavailable){color:var(--chart-muted)}
-#main .song-table.song-table-chart.chart-ui .song-table-stat{display:inline-flex;align-items:center;justify-content:center;gap:calc(5px);width:100%;min-width:0;padding:0;font-size:var(--chart-stat-size)!important;font-weight:500;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--chart-muted)}
+#main :is(.song-table.song-table-chart.chart-ui,.song-story-cover-actions) .song-table-stat{display:inline-flex;align-items:center;justify-content:var(--chart-stat-align,center);gap:var(--music-stat-gap);width:100%;min-width:0;padding:0;font-size:var(--chart-stat-size)!important;font-weight:400;line-height:1.4;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--chart-muted)}
 #main .song-table.song-table-chart.chart-ui .song-table-plays{grid-column:6}
-#main .song-table.song-table-chart.chart-ui .song-table-like{grid-column:7;color:var(--ds-social,#F4A8CE)}
-#main .song-table.song-table-chart.chart-ui .song-table-like span{display:inline}
+#main :is(.song-table.song-table-chart.chart-ui,.song-story-cover-actions) .song-table-like{color:var(--ds-social,#F4A8CE)}
+#main .song-table.song-table-chart.chart-ui .song-table-like{grid-column:7}
+#main :is(.song-table.song-table-chart.chart-ui,.song-story-cover-actions) .song-table-like span{display:inline}
 #main .song-table.song-table-chart.chart-ui .song-table-comments{grid-column:8}
 #main .song-table.song-table-chart.chart-ui .song-table-play{display:inline-flex;grid-column:9;justify-self:center}
 #main .song-table.song-table-chart.chart-ui .song-table-tools{display:flex;grid-column:10;justify-content:center;justify-self:center;gap:0}
-#main .song-table.song-table-chart.chart-ui :is(.song-table-play,.song-table-tools .icon-button){box-sizing:border-box;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
-#main .song-table.song-table-chart.chart-ui .song-table-play>svg{width:30px!important;height:30px!important;flex-basis:30px!important;padding:calc(6px)!important;border:1px solid currentColor!important;border-radius:50%!important;background:none!important;color:var(--chart-muted)}
-#main .song-table.song-table-chart.chart-ui [data-track-menu]>svg{width:18px!important;height:18px!important;flex-basis:18px!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;color:var(--chart-muted)}
-#main .song-table.song-table-chart.chart-ui :is(.song-table-play,[data-track-menu]):hover>svg{color:#8EDDD2}
+#main :is(.song-table.song-table-chart.chart-ui,.song-story-cover-actions) :is(.song-table-play,.song-table-tools .icon-button,.song-cover-more){box-sizing:border-box;width:44px;min-width:44px;height:44px;min-height:44px;padding:0;border:0;border-radius:0;background:none;box-shadow:none}
+#main :is(.song-table.song-table-chart.chart-ui,.song-story-cover-actions) .song-table-play>svg{width:30px!important;height:30px!important;flex-basis:30px!important;padding:calc(6px)!important;border:1px solid currentColor!important;border-radius:50%!important;background:none!important;color:var(--chart-muted)}
+#main :is(.song-table.song-table-chart.chart-ui,.song-story-cover-actions) [data-track-menu]>svg{width:18px!important;height:18px!important;flex-basis:18px!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;color:var(--chart-muted)}
+#main :is(.song-table.song-table-chart.chart-ui,.song-story-cover-actions) :is(.song-table-play,[data-track-menu]):hover>svg{color:#8EDDD2}
 #main .song-table.song-table-chart.chart-ui :is(.chart-cover-play,.chart-mobile-covers){display:none!important}
 #main .song-table.song-table-chart.chart-ui--compact .chart-movement{grid-column:4}
 #main .song-table.song-table-chart.chart-ui--compact .song-table-plays{grid-column:5}
@@ -172,6 +176,9 @@
     --chart-rank-size: var(--chart-position-size);
     --chart-stat-size: var(--chart-meta-size);
     --music-stat-number: var(--chart-meta-size);
+  }
+  #main .song-story-cover-actions {
+    --song-cover-stat-size:var(--pc-font-caption,13px);
   }
   #main > .charts-final .song-table.song-table-chart.chart-ui .chart-song-credit {
     font-size: var(--chart-body-size);

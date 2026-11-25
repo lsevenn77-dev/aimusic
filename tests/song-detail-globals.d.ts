@@ -5,6 +5,7 @@ interface SongDetailTrack {
  lyrics_mode?:string;
 }
 declare const me:{id:string}|null;
+declare const inApp:boolean;
 declare function esc(value:unknown):string;
 declare function icon(name:string,size?:number):string;
 declare function number(value:number):string;

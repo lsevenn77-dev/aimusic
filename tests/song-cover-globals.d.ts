@@ -9,6 +9,7 @@ interface SongCoverPage {
 }
 declare const current:SongCover|null;
 declare const audio:HTMLAudioElement;
+declare const inApp:boolean;
 interface Window { AifectAudioAds?:{active:boolean}; }
 declare function esc(value:unknown):string;
 declare function number(value:number):string;
@@ -21,6 +22,9 @@ declare function remember(tracks:SongCover[]):void;
 declare function paintInteractions():void;
 declare function toast(message:string):void;
 declare function refreshComposerPickPanel(panel:HTMLElement):Promise<void>;
+declare function musicRowActionsHTML(track:SongCover,plays:number,playsIcon:string,story:boolean):string;
+declare function bindChartPlayback():void;
+declare function syncChartPlayback():void;
 
 declare function userNickname(name:unknown,identity?:{profileId?:string;userId?:string;artistId?:string;entityType?:string},options?:object):string;
 declare function trackNickname(track:unknown,role?:string):string;

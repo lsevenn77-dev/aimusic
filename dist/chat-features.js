@@ -36,6 +36,69 @@ function chatAttachmentTools(p,inlineComposer=''){
  return '<div class="chat-attachment-tools">'+photo+inlineComposer+gift+'</div><p id="chat-upload-status" class="field-help" role="status"></p>';
 }
 function chatImageHTML(m,crew=false){const media=crew?'/media/crew-chat/':'/media/dm/';return m.image_expires&&m.image_expires*1000<=Date.now()?'<span class="expired-chat-image">보관 기간이 지난 사진</span>':'<a class="chat-image" href="'+media+esc(m.image_id)+'" target="_blank" rel="noopener"><img src="'+media+esc(m.image_id)+'" alt="받은 사진" loading="lazy"></a>';}
+function songShareTrackHTML(track){
+ return `<span class="song-share-track"><img src="${esc(trackArtworkPath(track))}" alt="" width="48" height="48" loading="lazy"><span class="song-share-track-copy"><strong>${esc(track.title)}</strong><small>${esc(track.artist||track.producer||'')}</small></span></span>`;
+}
+function dmSongShareHTML(track){
+ const label='<span class="dm-song-share-label">곡을 공유했습니다.</span>';
+ if(!track)return '<span class="dm-song-share">'+label+'<span class="dm-song-share-detail">공유한 곡을 볼 수 없습니다.</span></span>';
+ return `<a class="dm-song-share" href="#song/${encodeURIComponent(track.id)}">${label}${songShareTrackHTML(track)}<span class="dm-song-share-detail">곡 이야기 바로가기 ${icon('chevron')}</span></a>`;
+}
+function shareSongByMessage(trackId){
+ if(!me)return askLogin();
+ const track=trackMap.get(trackId);
+ if(!track)return toast('공유할 곡을 찾을 수 없습니다.');
+ dialog(`<section class="profile-share-panel song-share-panel"><h2>곡 공유</h2>${songShareTrackHTML(track)}
+  <form id="song-share-form"><label class="brand-search profile-share-search">${icon('search')}<input type="search" name="q" aria-label="닉네임 검색" placeholder="닉네임 검색" maxlength="100" autocomplete="off" enterkeyhint="search"></label>
+  <fieldset class="profile-share-people"><legend class="sr-only">받는 사람</legend><div data-song-share-people></div></fieldset>
+  <p class="profile-share-result" role="status"></p><p class="form-error" role="alert"></p>
+  <div class="profile-share-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="button" class="primary-button" data-send-song disabled>보내기</button></div></form></section>`);
+ const modal=$('#dialog'),form=$('#song-share-form'),input=form.elements.q,people=form.querySelector('fieldset'),list=form.querySelector('[data-song-share-people]'),button=form.querySelector('[data-send-song]'),status=form.querySelector('[role=status]'),error=form.querySelector('.form-error'),uid=me.id;
+ const requests=new Map();
+ let timer,controller,sending=false;
+ const active=()=>modal.open&&form.isConnected&&uid===me?.id;
+ const update=()=>button.disabled=sending||!list.querySelector(':checked');
+ function stopSearch(){
+  clearTimeout(timer);controller?.abort();
+ }
+ async function search(){
+  const query=input.value.trim(),request=controller=new AbortController();
+  status.textContent=query?'검색 중…':'받는 사람을 불러오는 중…';
+  try{
+   const {members}=await api('/api/dm/recipients/search?'+new URLSearchParams({suggested:1,q:query}),'GET',undefined,{signal:request.signal,fresh:true});
+   if(!active()||request.signal.aborted)return;
+   list.innerHTML=members.map(person=>`<label class="profile-share-person"><input type="radio" name="recipient" value="${esc(person.id)}">${avatarImage({...person,name:person.nickname},'producer',false,false)}<span${premiumNameAttribute(person.id,person.user_id)}>${esc(person.nickname)}<small>${esc(person.public_id)}</small></span></label>`).join('');
+   status.textContent=members.length?'':query?AifectMessages.searchEmpty:'닉네임을 검색해 받는 사람을 찾을 수 있습니다.';
+  }catch(err){if(active()&&!request.signal.aborted)status.textContent='받는 사람을 불러오지 못했습니다. 다시 검색해 주세요.';}
+  finally{if(active()&&!request.signal.aborted)update();}
+ }
+ function schedule(delay){
+  stopSearch();list.replaceChildren();error.textContent='';update();
+  timer=setTimeout(search,delay);
+ }
+ input.oninput=event=>{if(!event.isComposing)schedule(220);};
+ input.oncompositionend=()=>schedule(220);
+ list.onchange=update;
+ form.onsubmit=event=>{event.preventDefault();if(!sending)schedule(0);};
+ button.onclick=async()=>{
+  const recipient=list.querySelector(':checked')?.value;
+  if(!active()||sending||!recipient)return;
+  if(!requests.has(recipient))requests.set(recipient,crypto.randomUUID());
+  sending=true;input.disabled=true;people.disabled=true;button.setAttribute('aria-busy','true');error.textContent='';update();
+  try{
+   await api('/api/dm/'+encodeURIComponent(recipient),'POST',{track_id:trackId,request_id:requests.get(recipient)});
+   if(active())modal.close();
+   if(uid===me?.id){toast('곡을 보냈습니다.');window.dispatchEvent(new Event('aifect:inbox-refresh'));}
+  }catch(err){if(active())error.textContent=err.message;}
+  finally{sending=false;input.disabled=false;people.disabled=false;button.removeAttribute('aria-busy');update();}
+ };
+ const dispose=registerRouteCleanup(()=>{
+  stopSearch();modal.removeEventListener('close',dispose);
+  if(modal.open&&form.isConnected)modal.close();
+ });
+ modal.addEventListener('close',dispose,{once:true});
+ void search();
+}
 async function uploadChatImage(path,file){const image=await optimizeUploadImage(file),r=await fetch(path,{method:'PUT',headers:{'content-type':'image/webp'},body:image});const d=await r.json();if(!r.ok)throw new Error(d.error||'이미지를 올리지 못했습니다.');return d;}
 function bindChatImageUpload(peer,path,send,blocked){
  const input=$('#chat-image-file');if(!input)return;input.parentElement.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}};

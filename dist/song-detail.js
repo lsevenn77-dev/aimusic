@@ -1,5 +1,6 @@
 // Song-header presentation only. Playback, recording and social actions keep
 // their existing delegated data attributes and server permission checks.
+const songDetailIsNative=typeof inApp!=='undefined'&&inApp;
 function songCreatorDescription(t){
  if(typeof t.description!=='string')return '';
  // The saved field is authoritative. Content cannot establish authorship.
@@ -61,7 +62,7 @@ function songDetailMetricsHTML(t){
 function songActionIcon(name){
  // Header actions share one button surface. Reuse the shared glyphs without
  // the separate circular-action or metric wrappers used by music lists.
- const key=name==='sing'?'mic':name==='lyrics'?'list':name;
+ const key=name==='sing'?'mic':name==='lyrics'?(songDetailIsNative?'list':'file-text'):name;
  const svg=icon(key),classes='song-action-icon song-action-icon-'+name;
  return svg.includes('class="')?svg.replace('class="','class="'+classes+' '):svg.replace('<svg ','<svg class="'+classes+'" ');
 }
@@ -76,10 +77,11 @@ function songLyricsButtonHTML(t){
 }
 function songDetailActionsHTML(t){
  const id=esc(t.id),mine=!!me&&t.user_id===me.id;
+ const saveLabel=songDetailIsNative?'저장':'담기';
  const listen='<button type="button" class="primary-button song-action-listen" data-play="'+id+'" data-community-toggle aria-label="노래 듣기" aria-pressed="false">'+songActionIcon('play')+'<span>듣기</span></button>';
  const like='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+'<span>좋아요</span><span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>';
  const lyrics=songLyricsButtonHTML(t);
- const save=AifectPlaylist.isPlaylistEligibleTrack(t)?'<button type="button" class="small-button song-action-save" data-add="'+id+'" aria-label="저장">'+songActionIcon('plus')+'<span>저장</span></button>':'';
+ const save=AifectPlaylist.isPlaylistEligibleTrack(t)?'<button type="button" class="small-button song-action-save" data-add="'+id+'">'+songActionIcon('plus')+'<span>'+saveLabel+'</span></button>':'';
  if(t.kind==='cover'){
   const remove=mine?'<button type="button" class="small-button danger-button" data-delete-track="'+id+'" data-track-title="'+esc(t.title)+'" data-track-kind="cover">커버 삭제</button>':'';
   const join=t.cover_mode==='duet'&&t.duet_open&&!mine?'<a class="text-link detail-duet-entry" href="#sing/'+esc(t.original_id)+'?duet='+id+'">'+songActionIcon('sing')+'듀엣 참여</a>':'';
@@ -88,11 +90,12 @@ function songDetailActionsHTML(t){
  const sing=t.karaoke_ready?'<a class="primary-button song-action-sing" href="#sing/'+id+'" aria-label="노래 부르기">'+songActionIcon('sing')+'<span>부르기</span></a>':'';
 
  const gift=mine?'':'<button type="button" class="small-button gift-entry song-action-gift" data-gift="'+id+'" aria-label="선물">'+songActionIcon('gift')+'<span>선물</span></button>';
- const more='<button type="button" class="small-button song-action-more" data-track-menu="'+id+'" aria-label="더보기" aria-haspopup="dialog">'+songActionIcon('menu')+'</button>';
- return '<div class="song-action-groups" role="group" aria-label="곡 기능"><div class="inline-actions song-actions song-actions-primary">'+listen+sing+'</div><div class="inline-actions song-actions song-actions-secondary">'+like+lyrics+save+gift+more+'</div></div>';
+ const trailing=songDetailIsNative?'<button type="button" class="small-button song-action-more" data-track-menu="'+id+'" aria-label="더보기" aria-haspopup="dialog">'+songActionIcon('menu')+'</button>':'<button type="button" class="small-button song-action-share" data-song-share="'+id+'" aria-haspopup="dialog">'+songActionIcon('share-2')+'<span>공유</span></button>';
+ return '<div class="song-action-groups" role="group" aria-label="곡 기능"><div class="inline-actions song-actions song-actions-primary">'+listen+sing+'</div><div class="inline-actions song-actions song-actions-secondary">'+like+lyrics+save+gift+trailing+'</div></div>';
 }
 function songDetailHeaderHTML(t){
  const isCover=t.kind==='cover',genres=isCover?'':(t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '),moderation=trackModerationToolsHTML(t);
+ const options=isCover||songDetailIsNative?'':'<button type="button" class="text-link song-track-options" data-track-menu="'+esc(t.id)+'" aria-haspopup="dialog">곡 옵션</button>';
  let art=cover(t).replace('loading="lazy"','loading="eager" fetchpriority="high"');
  if(isCover){
   const change=me&&t.user_id===me.id?'<button type="button" class="small-button detail-photo-change">사진 변경</button><input type="file" hidden data-cover-photo="'+esc(t.id)+'" accept="image/jpeg,image/png,image/webp" aria-label="작품 커버사진 선택">':'';
@@ -102,6 +105,6 @@ function songDetailHeaderHTML(t){
  (genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'')+
  art+'<div class="song-detail-copy"><h1 class="song-title">'+esc(t.title)+'</h1>'+
  songDetailCreditsHTML(t)+songReleaseDateHTML(t)+'<div class="song-meta-row">'+songDetailMetricsHTML(t)+
- (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+'</div>'+(isCover?'':'<div class="song-header-divider" aria-hidden="true"></div>')+
+ (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+options+'</div>'+(isCover?'':'<div class="song-header-divider" aria-hidden="true"></div>')+
  songDescriptionHTML(t)+songDetailActionsHTML(t)+'</div></section>';
 }

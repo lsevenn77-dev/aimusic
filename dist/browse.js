@@ -3,10 +3,14 @@ function genreCardHTML(g){return `<a class="genre-photo-card" href="#discover/ge
 let chartPlaybackBound=false;
 function syncChartPlayback(){
  const active=typeof current!=='undefined'&&current&&!audio.paused&&!audio.ended&&!audio.error&&!window.AifectAudioAds?.active;
- document.querySelectorAll('.song-table-chart .song-table-row').forEach(row=>{
+ document.querySelectorAll('.song-table-chart .song-table-row,.song-story-cover-row').forEach(row=>{
   const button=row.querySelector('.song-table-play[data-play]');
   const playing=!!(active&&button?.dataset.play===current.id);
   row.classList.toggle('is-chart-playing',playing);
+  if(button?.dataset.rowPlayback===undefined||button.getAttribute('aria-pressed')===String(playing))return;
+  button.setAttribute('aria-pressed',String(playing));
+  button.setAttribute('aria-label',button.dataset.title+(playing?' 일시정지':' 재생'));
+  button.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');
  });
 }
 function bindChartPlayback(){
@@ -43,12 +47,22 @@ function chartLayoutHTML(content,tracks,kind=''){
 function karaokeRows(tracks,ranked=false){return tracks.length?`<div class="karaoke-browse-list">${tracks.map((t,i)=>`<article data-list-row class="karaoke-browse-row">${ranked?`<span class="browse-rank">${t.browseRank||i+1}</span>`:''}<a href="#song/${esc(t.id)}" aria-label="${esc(t.title)} 곡 정보">${cover(t,'mini-cover')}</a><div class="karaoke-browse-info"><a href="#song/${esc(t.id)}"><strong>${esc(t.title)}</strong></a><span>${credits(t)}</span><small>MR 제공</small>${trackStats(t)}${karaokeParticipationHTML(t)}</div><div class="karaoke-browse-actions"><button class="list-action small-button" data-play="${esc(t.id)}" aria-label="${esc(t.title)} 원곡 듣기">${icon('ui-play-action')} 원곡 듣기</button><a class="text-link" href="#community/rankings?period=all&amp;original_id=${esc(t.id)}">커버 랭킹</a><a class="list-action small-button" href="#sing/${esc(t.id)}">${icon('mic')} 부르기</a><a class="text-link" href="#cover/${esc(t.id)}">녹음 파일 올리기</a></div><div class="karaoke-cover-results" id="covers-${esc(t.id)}" hidden></div></article>`).join('')}</div>`:empty('아직 부를 수 있는 곡이 없습니다.','MR이 준비되고 원곡자가 커버를 허락한 곡이 여기에 표시됩니다.','#community/covers','다른 사람의 커버 둘러보기');}
 function communityPeopleStrip(tracks){const seen=new Set(),people=[];for(const t of tracks){const id=t.producer_id,name=t.producer;if(!id||!name||seen.has(id))continue;seen.add(id);people.push({id,name,image_version:t.producer_image_version,kind:t.kind,cover_mode:t.cover_mode});if(people.length>=10)break;}return people.length?`<section class="community-people"><div class="community-people-heading"><div><h2>새로운 목소리</h2><p>최근 커버나 신곡을 올린 사람들의 프로필을 만나보세요.</p></div><a href="#following">팔로잉 보기</a></div><div class="community-people-row">${people.map(p=>`<a href="#producer/${esc(p.id)}"><span class="community-person-avatar profile-avatar">${avatarImage(p)}</span><strong>${userNickname(p.name,{profileId:p.id})}</strong><small>${p.kind==='cover'?(p.cover_mode==='duet'?'듀엣 공개':'커버 공개'):'신곡 공개'}</small></a>`).join('')}</div></section>`:'';}
 function communityFeed(tracks){return tracks.length?'<div class="music-feed">'+tracks.map(t=>musicTrackCard(t)).join('')+'</div>':empty('아직 공개된 음악이 없습니다.','다른 음악을 둘러보거나 첫 곡을 들려 주세요.','#karaoke','부를 곡 찾기');}
+function musicRowActionsHTML(t,plays=t.plays,playsIcon='ui-plays',story=false){
+ const id=esc(t.id),title=esc(t.title),isLiked=liked(t.id),playCount=number(plays||0),comments=number(t.comments||0);
+ const toggle=typeof inApp==='undefined'||!inApp?' data-community-toggle data-row-playback data-title="'+title+'" aria-pressed="false"':'';
+ const menu=`<button type="button" class="list-action icon-button${story?' song-cover-more':''}" data-track-menu="${id}" aria-label="${title} 더보기">${icon('ui-menu-action')}</button>`;
+ return `<span class="metric-inline song-table-stat song-table-plays" aria-label="재생 ${playCount}회">${icon(playsIcon)}<span>${playCount}</span></span>
+ <button type="button" class="list-action metric-inline song-table-stat song-table-like ${isLiked?'is-active':''}" data-like="${id}" aria-pressed="${isLiked}" aria-label="${title} 좋아요">${icon('ui-heart')}<span data-like-count>${number(t.likes||0)}</span></button>
+ <a class="list-action metric-inline song-table-stat song-table-comments" href="#song/${id}?comments=1" aria-label="댓글 ${comments}개">${icon('ui-comment')}<span>${comments}</span></a>
+ <button type="button" class="list-action song-table-play${story?' song-cover-play':' chart-mobile-play'}" data-play="${id}"${toggle} aria-label="${title} 재생">${icon('ui-play-action')}</button>
+ ${story?menu:'<div class="song-table-tools">'+menu+'</div>'}`;
+}
 function chartPageTable(tracks,kind){
  const fresh=kind==='releases',coverChart=kind==='covers';
  remember(tracks);
  return '<div class="song-table song-table-chart chart-ui '+(fresh?'chart-releases':'chart-standard')+'"><div class="song-table-head" aria-hidden="true"><span>순위</span><span></span><span>곡명 · 아티스트</span><span>변동</span><span>'+(coverChart?'커버 수':'감상 수')+'</span><span>좋아요</span><span>댓글</span><span>재생</span><span></span></div>'+tracks.map(t=>{
-  const id=esc(t.id),title=esc(t.title),isLiked=liked(t.id);
-  return `<article data-list-row data-chart-row="${id}" class="song-table-row" tabindex="0" aria-label="${t.chart_rank}위 ${title} 곡 정보"><span class="song-table-position">${t.chart_rank}</span><div class="chart-art-wrap"><a class="song-table-cover" href="#song/${id}" aria-label="${title} 곡 정보">${cover(t,'mini-cover')}</a><button class="list-action chart-cover-play" data-play="${id}" aria-label="${title} 재생">${icon('ui-play-action')}</button></div><div class="chart-song-copy"><a class="chart-song-title" href="#song/${id}" title="${title}"><strong>${title}</strong></a><div class="chart-song-credit" title="${esc(t.artist||t.producer)}">${credits(t)}</div></div>${chartMovementHTML(t)}<span class="metric-inline song-table-stat song-table-plays">${icon(coverChart?'mic':'ui-plays')}<span>${number(coverChart?t.chart_covers:t.chart_plays)}</span></span><button class="list-action metric-inline song-table-stat song-table-like ${isLiked?'is-active':''}" data-like="${id}" aria-pressed="${isLiked}" aria-label="${title} 좋아요">${icon('ui-heart')}<span data-like-count>${number(t.likes)}</span></button><a class="list-action metric-inline song-table-stat song-table-comments" href="#song/${id}?comments=1" aria-label="댓글 ${number(t.comments)}개">${icon('ui-comment')}<span>${number(t.comments)}</span></a><button class="list-action song-table-play chart-mobile-play" data-play="${id}" aria-label="${title} 재생">${icon('ui-play-action')}</button><div class="song-table-tools"><button class="list-action icon-button" data-track-menu="${id}" aria-label="${title} 더보기">${icon('ui-menu-action')}</button></div></article>`;
+  const id=esc(t.id),title=esc(t.title);
+  return `<article data-list-row data-chart-row="${id}" class="song-table-row" tabindex="0" aria-label="${t.chart_rank}위 ${title} 곡 정보"><span class="song-table-position">${t.chart_rank}</span><div class="chart-art-wrap"><a class="song-table-cover" href="#song/${id}" aria-label="${title} 곡 정보">${cover(t,'mini-cover')}</a><button class="list-action chart-cover-play" data-play="${id}" aria-label="${title} 재생">${icon('ui-play-action')}</button></div><div class="chart-song-copy"><a class="chart-song-title" href="#song/${id}" title="${title}"><strong>${title}</strong></a><div class="chart-song-credit" title="${esc(t.artist||t.producer)}">${credits(t)}</div></div>${chartMovementHTML(t)}${musicRowActionsHTML(t,coverChart?t.chart_covers:t.chart_plays,coverChart?'mic':'ui-plays')}</article>`;
  }).join('')+'</div>';
 }
 const chartPeriodLabels={week:'주간',month:'월간',all:'전체'};
@@ -219,7 +233,7 @@ async function refreshChartRoute(raw,ticket,readApi=api,showCurrentTab,force=fal
  let timedOut=false,timer;
  const current=()=>mounted()&&!timedOut&&revision===chartRevision()&&!readApi.signal?.aborted&&(!readApi.current||readApi.current());
  if(!force&&state.key===selection.key&&!state.pending&&!state.error&&state.revision===revision&&state.until>Date.now()){
-  bindChartToolbar(state.view);showCurrentTab?.();return true;
+  bindChartToolbar(state.view);bindChartPlayback();showCurrentTab?.();return true;
  }
  const paint=entry=>{
   const view=chartViewFromData(selection,entry,raw);

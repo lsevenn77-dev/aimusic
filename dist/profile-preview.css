@@ -138,3 +138,15 @@ html.profile-embed,html.profile-embed body {background:transparent;min-width:0}
 }
 .dm-profile-share{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;padding:10px 12px;border-radius:var(--ds-radius-sm);background:color-mix(in srgb,var(--ds-panel) 75%,transparent);color:var(--ds-text);text-decoration:none;white-space:normal;min-height:44px}
 .dm-profile-share:after{content:'›';font-size:20px;line-height:1}
+#dialog .song-share-panel>.song-share-track{margin-block:12px 16px}
+#dialog .song-share-panel fieldset{min-inline-size:0;padding:0;border:0}
+#dialog .song-share-panel .profile-share-result:empty,#dialog .song-share-panel .form-error:empty{display:none}
+#dialog .song-share-panel .profile-share-actions{justify-content:flex-end}
+.song-share-track{display:flex;align-items:center;gap:12px;min-width:0;color:var(--ds-text)}
+.song-share-track>img{width:48px;height:48px;flex:none;object-fit:cover;border-radius:var(--ds-radius-sm)}
+.song-share-track-copy{min-width:0;display:grid;gap:2px;overflow-wrap:anywhere;line-height:1.4}
+.song-share-track-copy small,.dm-song-share-detail{color:var(--ds-muted);font-size:.86em}
+.dm-message .dm-song-share{display:grid;gap:8px;color:var(--ds-text);text-decoration:none;white-space:normal}
+.dm-song-share-detail{display:flex;align-items:center;gap:4px}
+.dm-song-share-detail>svg{width:14px;height:14px}
+a.dm-song-share:hover .dm-song-share-detail{color:var(--ds-text)}

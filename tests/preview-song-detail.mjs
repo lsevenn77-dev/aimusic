@@ -16,6 +16,20 @@ for(const [i,tid] of ['one','two','three'].entries()){
 f.sql.exec("INSERT INTO tracks(id,user_id,producer_id,artist_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration,cover_mode,duet_open,description) VALUES('invitation','other','friend','friend-artist','함께 부르는 듀엣','Indie Pop','',1,'wav',128,100,'published','cover','one',45,'duet',1,''),('own-cover','owner','producer','artist','내 목소리로 완성한 곡','Indie Pop','',1,'wav',128,200,'published','cover','one',45,'solo',0,''),('not-ready','other','friend','friend-artist','부르기 준비 전인 곡','Indie Pop','QA',1,'wav',128,100,'published','original',NULL,45,'solo',0,'')");
 f.sql.exec("INSERT INTO playlists(id,user_id,name,is_public,created) VALUES('qa-playlist','owner','로컬 저장 검증 목록',1,0); INSERT INTO playlist_tracks(playlist_id,track_id,position,created) VALUES('qa-playlist','two',0,0); INSERT INTO comments(id,track_id,user_id,body,created) VALUES('qa-comment','one','other','기존 댓글 기능 검증용입니다.',0)");
 f.sql.exec("UPDATE producers SET name='코코(별)',nickname_confirmed=1 WHERE id='friend'; UPDATE producers SET name='Veil',nickname_confirmed=1 WHERE id='producer'; INSERT INTO crews(id,owner_id,name,created) VALUES('qa-crew','other','로컬크루',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('qa-crew','other','owner',0),('qa-crew','owner','member',0); INSERT INTO free_gifts(id,sender_id,track_id,request_id,created,silver) VALUES('qa-support','owner','one','qa-support',0,3)");
+if(process.argv.includes('--song-story')){
+ f.sql.exec(`INSERT INTO users(id,email,name,created) VALUES('followed','followed@example.test','팔로우 친구',0),('searchable','searchable@example.test','검색할 친구',0);
+  INSERT INTO producers(id,user_id,name,created,nickname_confirmed) VALUES('followed-profile','followed','팔로우 친구',0,1),('searchable-profile','searchable','검색할 친구',0,1);
+  INSERT INTO follows(user_id,kind,target_id,created) VALUES('owner','producer','friend',1),('owner','producer','followed-profile',2);
+  INSERT INTO direct_messages(id,sender_id,recipient_id,body,request_id,created) VALUES('qa-recent','other','owner','로컬 대화입니다.','qa-recent',1);
+  INSERT INTO tracks(id,user_id,producer_id,artist_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,duration,cover_mode,duet_open,duet_parent_id,has_cover,cover_version,cover_type)
+   VALUES ('joined-cover','followed','followed-profile','friend-artist','완성한 듀엣','Pop','',1,'wav',128,300,'published','cover','one',45,'duet',0,'invitation',1,'qa','image/png'),
+    ('second-solo','searchable','searchable-profile','friend-artist','두 번째 솔로','Pop','',1,'wav',128,400,'published','cover','one',45,'solo',0,NULL,1,'qa','image/png');
+  UPDATE tracks SET has_cover=1,cover_version='qa',cover_type='image/png' WHERE id='own-cover';
+  INSERT INTO comments(id,track_id,user_id,body,created) VALUES('qa-second-comment','one','owner','두 번째 기존 댓글입니다.',2),('qa-cover-comment','own-cover','other','커버곡에 남긴 감상입니다.',1);
+  INSERT INTO comments(id,track_id,user_id,parent_id,body,created) VALUES('qa-old-reply','one','other','qa-comment','기존 대댓글입니다.',3),('qa-cover-reply','own-cover','owner','qa-cover-comment','커버곡 대댓글입니다.',2);
+  INSERT INTO likes(user_id,track_id,created) VALUES('owner','joined-cover',1),('other','joined-cover',1)`);
+ for(let i=0;i<54;i++)f.sql.prepare("INSERT INTO listens(id,track_id,listener,day,started,qualified) VALUES(?,'second-solo',?,'2026-11-26',0,1)").run('qa-play-'+i,'listener-'+i);
+}
 const wav=Buffer.alloc(44+44100*2*45),v=new DataView(wav.buffer,wav.byteOffset,wav.length);
 wav.write('RIFF');v.setUint32(4,wav.length-8,true);wav.write('WAVEfmt ',8);v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,1,true);v.setUint32(24,44100,true);v.setUint32(28,88200,true);v.setUint16(32,2,true);v.setUint16(34,16,true);wav.write('data',36);v.setUint32(40,wav.length-44,true);
 for(let i=0;i<44100*45;i++)v.setInt16(44+i*2,Math.sin(i*2*Math.PI*220/44100)*400,true);

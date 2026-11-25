@@ -26,6 +26,19 @@ test('cover list preserves playback, like, menu, participation and child expansi
  assert.match(invitation,/data-cover-children="work"/);assert.match(invitation,/#sing\/original\?duet=work/);
  for(const html of [normal,invitation])assert.doesNotMatch(html,/3:07|Rock/);
 });
+test('song story cover rows use chart metrics and actions in the same slots for all cover views',()=>{
+ const c=context(),browse=read('dist/browse.js');
+ vm.runInContext(browse.slice(browse.indexOf('function musicRowActionsHTML('),browse.indexOf('function chartPageTable(')),c);
+ vm.runInContext(read('dist/song-covers.js'),c);
+ for(const view of ['all','recent','duet','children']){
+  const html=c.songCoverItemHTML({...item,plays:2310,comments:17},view);
+  const order=['data-icon="ui-plays"','data-like="work"','href="#song/work?comments=1"','data-row-playback','data-track-menu="work"'].map(part=>html.indexOf(part));
+  assert.ok(order.every((position,index)=>position>=0&&(!index||position>order[index-1])));
+  assert.match(html,/data-icon="ui-comment"[^>]*><\/svg><span>17<\/span>/);
+  assert.doesNotMatch(html,/chart-movement/);
+ }
+ assert.doesNotMatch(c.songCoverItemHTML(item,'all',1,true),/song-story-cover-actions/);
+});
 test('functional draft dates and durations remain available',()=>{
  const c=context();vm.runInContext(read('dist/sing-drafts.js'),c);vm.runInContext(read('dist/play-page.js'),c);
  const html=c.playDraftRows([{draftKey:'owner:work',id:'work',title:'Draft',mode:'solo',duration:187,updated:1700000000000}]);

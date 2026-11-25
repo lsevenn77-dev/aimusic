@@ -23,7 +23,17 @@
     surface = null;
   }
   function reveal() {
-    if (!editable(active) || !active.isConnected || !surface) return;
+    if (!editable(active) || !active.isConnected) return;
+    const reply = active.closest('.song-reply-form');
+    if (reply) {
+      const geometry = measure();
+      if (!geometry.keyboard) return;
+      const field = active.getBoundingClientRect();
+      const delta = Math.min(reply.getBoundingClientRect().bottom - geometry.bottom + 12, field.top - geometry.top - 12);
+      if (delta > 1) window.scrollBy({top: delta, behavior: 'instant'});
+      return;
+    }
+    if (!surface) return;
     // Native page scrolling owns ordinary fields. Only correct an obscured field
     // inside a constrained popup, once after keyboard geometry has settled.
     const owner = active.closest('.crew-action-body') || active.closest('#dialog-content') || surface;

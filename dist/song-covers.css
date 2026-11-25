@@ -84,5 +84,21 @@
 }
 @container song-covers (max-width:360px){
  /* The same permission-gated join link is offered in this row's track menu. */
- #main .song-covers-panel .list-actions>.song-cover-join{display:none}
+ #main .song-covers-panel :is(.list-actions,.song-story-cover-row)>.song-cover-join{display:none}
+}
+
+#main .song-covers-panel .song-story-cover-row>.song-story-cover-actions{
+ --chart-stat-align:flex-start;
+ --song-cover-count-width:min(64px,calc((100cqi - 124px) / 3));
+ display:grid;grid-template-columns:repeat(3,var(--song-cover-count-width)) repeat(2,44px);
+ gap:calc(4px);flex:none;min-width:0;
+}
+.song-story-cover-actions .song-table-stat>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@container song-covers (max-width:600px){
+ #main[data-route^="song/"] .song-covers-panel .song-story-cover-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;row-gap:0;
+ }
+ #main .song-covers-panel .song-story-cover-row>.song-cover-detail{grid-column:1}
+ #main .song-covers-panel .song-story-cover-row .song-cover-detail .song-cover-copy>.song-cover-meta{display:block}
+ #main .song-covers-panel .song-story-cover-row>.song-story-cover-actions{grid-column:1/-1;justify-self:end}
 }

@@ -50,12 +50,13 @@ export const artistCardCountsSQL = () => `
  ) followers`;
 // A song can be sung once its MR and word timings are built and its creator still offers it for karaoke.
 export const SINGABLE=(t='t')=>`(${t}.kind='original' AND ${t}.karaoke_at>0 AND EXISTS(SELECT 1 FROM karaoke_jobs k WHERE k.track_id=${t}.id AND k.state='ready' AND k.mr_ready=1 AND k.words_state IN ('ready','attention')))`;
+const trackCommentCountSQL="(SELECT count(*) FROM comments c JOIN users cu ON cu.id=c.user_id WHERE c.track_id=t.id AND c.deleted_at=0 AND cu.account_type='human')";
 // Covers keep the original's AI artist in artist_id; their performer is the uploader's profile.
 const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classification_source,t.classification_updated,t.tags,t.description,CASE WHEN t.kind='cover' THEN o.lyrics_mode ELSE t.lyrics_mode END lyrics_mode,t.ai_tool,t.participation,t.duration,t.created,t.release_date,${trackArtworkSQL()},CASE WHEN ${namedArtistSQL()} THEN t.artist_id ELSE NULL END artist_id,(t.kind='original' AND ${namedArtistSQL()}) has_ai_artist,t.producer_id,p.image_version producer_image_version,${playerColumnsSQL('p.user_id')},(SELECT state FROM lyric_jobs WHERE track_id=t.id AND state!='cancelled') alignment_state,
  CASE WHEN t.cover_mode='duet' AND t.duet_parent_id IS NOT NULL THEN (${producerNameSQL('fp')})||' & '||(${producerNameSQL()})||' · 듀엣' WHEN t.kind='cover' THEN (${producerNameSQL()})||CASE WHEN t.cover_mode='duet' THEN ' · 듀엣' ELSE ' · 커버' END WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL()} END artist,${producerNameSQL()} producer,t.user_id,t.kind,t.original_id,CASE WHEN t.kind='cover' THEN o.performance_mode ELSE t.performance_mode END performance_mode,t.cover_mode,t.duet_parent_id,t.duet_part,t.duet_open,dt.producer_id duet_partner_id,${producerNameSQL("fp")} duet_partner,(t.kind='original' AND t.karaoke_at>0) accepts_covers,
  o.title original_title,o.has_cover original_has_cover,o.cover_version original_cover_version,CASE WHEN ${namedArtistSQL()} THEN a.name ELSE ${producerNameSQL('op')} END original_artist,o.producer_id original_producer_id,${producerNameSQL('op')} original_producer,
  (SELECT count(*) FROM likes l WHERE l.track_id=t.id) likes,
- (SELECT count(*) FROM comments c JOIN users cu ON cu.id=c.user_id WHERE c.track_id=t.id AND c.deleted_at=0 AND cu.account_type='human') comments,
+ ${trackCommentCountSQL} comments,
  (SELECT count(*) FROM tracks cv WHERE cv.original_id=t.id AND ${VISIBLE('cv')}) covers,
  (SELECT count(DISTINCT listener||day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) plays,
  (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
@@ -76,6 +77,11 @@ export async function rankedSongCovers(env,where,args,sort,offset,limit,pickId){
  return result.map(trackClassification);
 }
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');if(!env.AIFECT_PUBLIC_CONTENT)assertUnblocked(env,t.user_id);return t;}
+async function trackComments(env,track,user,order='c.created DESC',commentId=null){
+ const uid=user?.id||'',tid=track.id;
+ const list=await rows(env,`SELECT u.account_type,c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ${commentId?'AND c.id=?':''} ORDER BY ${order} LIMIT 500`,uid,uid,tid,uid,uid,...(commentId?[commentId]:[]));
+ return list.map(c=>({...c,can_delete:!!user&&(c.user_id===uid||track.user_id===uid),can_report:!!user&&c.user_id!==uid&&!c.reported}));
+}
 export const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};
 export async function catalogRoute(req,env,path,user){
  const pickMatch=path.match(/^\/api\/tracks\/([\w-]+)\/cover-pick$/);
@@ -178,17 +184,31 @@ export async function catalogRoute(req,env,path,user){
   if(m[2]==='comments'){
    if(method==='GET'){
     const sort=url.searchParams.get('sort'),order=sort==='popular'?'likes DESC,c.created DESC':sort==='timeline'?'c.timestamp IS NULL,c.timestamp ASC':'c.created DESC';
-    const uid=user?.id||'';
-    const list=await rows(env,`SELECT u.account_type,c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ORDER BY ${order} LIMIT 500`,uid,uid,tid,uid,uid);
-    return json({comments:list.map(c=>({...c,can_delete:!!user&&!c.deleted_at&&(c.user_id===uid||detail.user_id===uid),can_report:!!user&&!c.deleted_at&&c.user_id!==uid&&!c.reported}))});
+    return json({comments:await trackComments(env,detail,user,order)});
    }
    if(method==='POST'){
-    requireUser(user);await rate(env,'comment:'+user.id,20,3600);const b=await req.json(),text=str(b.body,2000);
-    const t=await published(env,tid),timestamp=b.timestamp==null?null:Number(b.timestamp);
-    if(timestamp!==null&&(!Number.isFinite(timestamp)||timestamp<0||timestamp>t.duration))fail(400,'곡 안의 시간을 지정해 주세요.');
-    if(b.parent_id){const parent=await one(env,'SELECT user_id FROM comments WHERE id=?',b.parent_id);if(parent)assertUnblocked(env,parent.user_id);}
-   if(b.parent_id&&!await one(env,'SELECT id FROM comments WHERE id=? AND track_id=? AND parent_id IS NULL AND deleted_at=0',b.parent_id,tid))fail(400,'답글 대상을 찾을 수 없습니다.');
-    const cid=id();await run(env,'INSERT INTO comments(id,track_id,user_id,parent_id,body,timestamp,created) VALUES(?,?,?,?,?,?,?)',cid,tid,user.id,b.parent_id||null,text,timestamp,now());return json({id:cid},201);
+    requireUser(user);
+    const b=await req.json(),text=str(b.body,2000),parentId=b.parent_id||null,requestId=b.request_id;
+    const timestamp=b.timestamp==null?null:Number(b.timestamp);
+    if(timestamp!==null&&(!Number.isFinite(timestamp)||timestamp<0||timestamp>detail.duration))fail(400,'곡 안의 시간을 지정해 주세요.');
+    if(requestId!=null&&(!parentId||typeof requestId!=='string'||!/^[\w-]{16,64}$/.test(requestId)))fail(400,'답글 등록 요청을 다시 시작해 주세요.');
+    const cid=requestId?'reply-'+await hash(JSON.stringify([user.id,tid,parentId,requestId])):id();
+    const saved=requestId&&await one(env,'SELECT id FROM comments WHERE id=?',cid);
+    if(!saved){
+     await rate(env,'comment:'+user.id,20,3600);
+     if(parentId){
+      const parent=await one(env,'SELECT user_id FROM comments WHERE id=? AND track_id=? AND parent_id IS NULL AND deleted_at=0',parentId,tid);
+      if(!parent)fail(400,'답글 대상을 찾을 수 없습니다.');
+      assertUnblocked(env,parent.user_id);
+     }
+     const inserted=await one(env,`INSERT INTO comments(id,track_id,user_id,parent_id,body,timestamp,created)
+      SELECT ?,?,?,?,?,?,? WHERE ? IS NULL OR EXISTS(SELECT 1 FROM comments WHERE id=? AND track_id=? AND parent_id IS NULL AND deleted_at=0)
+      ON CONFLICT(id) DO NOTHING RETURNING id`,cid,tid,user.id,parentId,text,timestamp,now(),parentId,parentId,tid);
+     if(!inserted&&!(requestId&&await one(env,'SELECT id FROM comments WHERE id=?',cid)))fail(400,'답글 대상을 찾을 수 없습니다.');
+    }
+    if(!requestId)return json({id:cid},201);
+    const [[reply],count]=await Promise.all([trackComments(env,detail,user,undefined,cid),one(env,`SELECT ${trackCommentCountSQL} n FROM tracks t WHERE t.id=?`,tid)]);
+    return json({id:cid,reply:reply||null,comment_count:count.n},201);
    }
   }
  }

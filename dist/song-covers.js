@@ -13,8 +13,9 @@ function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=f
  const mode=duet?'듀엣':t.cover_mode==='solo'?'솔로':'';
  const metadata=songPage?mode:[performer,mode].filter(Boolean).join(' · ');
  const picked=songPage&&!!t.is_composer_pick,ordinal=picked?0:ranked?t.rank:position;
- const expandable=(t.completions||0)>0;
- return `<article data-list-row class="song-cover-row${child?' song-cover-child':''}${playChild?' play-duet-child':''}${picked?' is-composer-pick':''}${entry?' song-entry-cover':''}" data-song-cover="${id}">
+ const expandable=(t.completions||0)>0,story=songPage&&!entry&&(typeof inApp==='undefined'||!inApp);
+ const join=invitation&&t.can_join?`<a class="list-action primary-button song-cover-join${profile||entry?'':' song-cover-join-icon'}" href="#sing/${esc(t.original_id)}?duet=${id}${entry?'&part='+esc(t.remaining_part):''}" title="${title} 참여하기" aria-label="${title} 참여하기">${icon('ui-plus-action')}${entry?'<span>참여하기</span>':''}</a>`:'';
+ return `<article data-list-row class="song-cover-row${child?' song-cover-child':''}${playChild?' play-duet-child':''}${picked?' is-composer-pick':''}${entry?' song-entry-cover':''}${story?' song-story-cover-row':''}" data-song-cover="${id}">
   <a class="song-cover-detail${ordinal?' is-ranked':''}" href="#song/${id}" aria-label="${songPage?primary:title} 상세 보기">
    ${ordinal?`<span class="song-cover-rank" aria-label="${ordinal}${ranked?'위':'번'}">${ordinal}</span>`:''}
    <span class="song-cover-art">${cover(t,'mini-cover')}</span>
@@ -24,13 +25,13 @@ function songCoverRowHTML(t,{ranked=false,child=false,invitation=false,profile=f
   </a>
   ${invitation?`<button type="button" class="list-action count-dropdown song-cover-expand" ${expandable?`data-cover-children="${id}" aria-controls="cover-children-${id}"`:'disabled'} aria-expanded="false" title="참여자 ${number(t.participants||0)}명 · 완성작 ${number(t.completions||0)}개"><span>${number(t.participants||0)}</span><span class="sr-only">명 참여</span><span data-cover-arrow aria-hidden="true">${icon('ui-chevron')}</span></button>`:''}
   ${profile&&!invitation&&!child?'<span class="mp-work-participants">0<span class="sr-only">명 참여</span></span>':''}
+  ${story?join+`<div class="list-actions song-story-cover-actions">${musicRowActionsHTML(t,t.plays,'ui-plays',true)}</div>`:`
   ${songPage||(!profile&&!invitation&&!child)?`<button class="list-action song-cover-like" data-like="${id}" title="${primary} 좋아요" aria-label="${primary} 좋아요" aria-pressed="${liked(t.id)}">${icon('ui-heart')}<span data-like-count>${number(t.likes||0)}</span></button>`:''}
   ${!profile&&!invitation&&!child?`<span class="song-cover-plays" aria-label="재생 ${number(t.plays||0)}회">${icon('ui-plays')}${number(t.plays||0)}</span>`:''}
   ${entry&&!invitation?`<a class="list-action song-cover-comments" href="#song/${id}?comments=1" aria-label="댓글 ${number(t.comments||0)}개">${icon('ui-comment')}<span>${number(t.comments||0)}</span></a>`:''}
-  <div class="list-actions">
-  ${invitation&&t.can_join?`<a class="list-action primary-button song-cover-join${profile||entry?'':' song-cover-join-icon'}" href="#sing/${esc(t.original_id)}?duet=${id}${entry?'&part='+esc(t.remaining_part):''}" title="${title} 참여하기" aria-label="${title} 참여하기">${icon('ui-plus-action')}${entry?'<span>참여하기</span>':''}</a>`:''}
+  <div class="list-actions">${join}
   ${songCoverPlayButton(t.id,entry&&invitation?'상대가 녹음한 파트 듣기':t.title,playChild)}
-  <button type="button" class="list-action song-cover-more" data-track-menu="${id}" title="${title} 더보기" aria-label="${title} 더보기">${icon('ui-menu-action')}</button></div>
+  <button type="button" class="list-action song-cover-more" data-track-menu="${id}" title="${title} 더보기" aria-label="${title} 더보기">${icon('ui-menu-action')}</button></div>`}
  </article>`;
 }
 /** @param {SongCover} t */
@@ -72,7 +73,8 @@ function bindSongCoverPlayback(){
 }
 function bindSongCoverList(){
  const panel=/** @type {HTMLElement} */(document.querySelector('.song-covers-panel'));if(!panel)return;
- bindSongCoverPlayback();
+ if(panel.querySelector('.song-story-cover-row'))bindChartPlayback();
+ else bindSongCoverPlayback();
  if(panel.dataset.coverBound)return;panel.dataset.coverBound='true';
  panel.addEventListener('click',async event=>{
   if(!(event.target instanceof Element))return;
@@ -91,7 +93,7 @@ function bindSongCoverList(){
    const html=d.covers.map((t,i)=>songCoverItemHTML(t,view,offset+i+1,panel.dataset.songEntry==='true')).join('')+songCoversMoreHTML(d,parent);
    if(button.dataset.coverChildren){target.innerHTML=html||'<p class="empty-note">아직 완성된 참여작 없음</p>';target.dataset.loaded='true';setSongCoverExpanded(button,target,true);}
    else {button.insertAdjacentHTML('beforebegin',html);button.remove();}
-   paintInteractions();syncSongCoverPlayback();
+   paintInteractions();syncSongCoverPlayback();syncChartPlayback();
   }catch(error){if(error.status===409&&typeof refreshComposerPickPanel==='function')await refreshComposerPickPanel(panel);toast(error.message);}
   finally{button.disabled=false;button.removeAttribute('aria-busy');}
  });
