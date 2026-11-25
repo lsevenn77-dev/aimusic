@@ -107,9 +107,21 @@ function songDetailLyricsHTML(){
 }
 function expandedLyricsHTML(rows,inline=false){
  const section=inline?'class="song-detail-lyrics" hidden':'class="expanded-song-lyrics" role="dialog" popover="manual"';
- const header=inline?'<header class="section-heading">':'<header>';
+ const title='<h2 id="expanded-lyrics-title">전체 가사</h2>';
+ const header=inline?'<header class="section-heading"><div class="song-detail-lyrics-heading">'+title+
+  '<button type="button" class="song-detail-lyrics-copy" aria-label="전체 가사 복사" title="전체 가사 복사" disabled>'+icon('copy')+'</button></div>':'<header>'+title;
  const body=inline?'class="song-detail-lyrics-lines"':'class="expanded-lyrics-scroll" tabindex="0" role="region" aria-label="전체 가사"';
- return '<section '+section+' id="expanded-song-lyrics" aria-labelledby="expanded-lyrics-title">'+header+'<h2 id="expanded-lyrics-title">전체 가사</h2><button type="button" class="icon-button expanded-lyrics-close" aria-label="전체 가사 닫기"><svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div '+body+'>'+rows+'</div></section>';
+ return '<section '+section+' id="expanded-song-lyrics" aria-labelledby="expanded-lyrics-title">'+header+'<button type="button" class="icon-button expanded-lyrics-close" aria-label="전체 가사 닫기"><svg aria-hidden="true" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div '+body+'>'+rows+'</div></section>';
+}
+async function copySongDetailLyrics(){
+ const text=expandedLyrics?.copyText;
+ if(!text)return;
+ try{
+  await navigator.clipboard.writeText(text);
+  toast('가사가 복사되었습니다.');
+ }catch{
+  toast('가사를 복사하지 못했습니다. 다시 시도해 주세요.');
+ }
 }
 function closeExpandedLyrics(){
  if(expandedLyricsLoad){
@@ -131,7 +143,7 @@ async function openExpandedLyrics(t,opener=$('#lyrics-expand')){
  if(!t||!column||button?.dataset.track!==t.id||expandedLyricsLoad?.button===button)return;
  if(expandedLyrics?.card.isConnected&&expandedLyrics.track.id===t.id)return;
  const inline=$('.song-main-column > .song-detail-lyrics');
- let cues=null,rows='',synced=false;
+ let cues=null,textLines=[],rows='',synced=false;
  if(hasFullLyrics(t)&&t.lyrics_mode==='synced'){
   try{cues=AifectLyrics.parseLrc(t.lyrics);}catch{/* Read the published plain text below. */}
  }
@@ -147,7 +159,8 @@ async function openExpandedLyrics(t,opener=$('#lyrics-expand')){
    const data=await api('/api/tracks/'+encodeURIComponent(t.id)+'/lyrics/text');
    if(!stillCurrent())return;
    synced=data.synced===true;
-   rows=data.lines.map((line,i)=>'<p class="lyrics-reading-line"'+(synced?' data-expanded-lyric="'+i+'"':'')+'>'+esc(synced&&!line?'♪ 간주':line)+'</p>').join('');
+   textLines=data.lines;
+   rows=textLines.map((line,i)=>'<p class="lyrics-reading-line"'+(synced?' data-expanded-lyric="'+i+'"':'')+'>'+esc(synced&&!line?'♪ 간주':line)+'</p>').join('');
   }catch(error){if(stillCurrent())toast(error.message);return;}
   finally{
    if(expandedLyricsLoad===load){
@@ -169,10 +182,15 @@ async function openExpandedLyrics(t,opener=$('#lyrics-expand')){
   if(restoreFocus)opener?.focus({preventScroll:true});
  };
  const onEscape=event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]'))close();};
- expandedLyrics={card,button,inline,track:t,cues,synced,lines:card.querySelectorAll('[data-expanded-lyric]'),index:-1,onEscape};
+ const copyText=inline?(cues?cues.map(c=>c.text):textLines).join('\n'):'';
+ expandedLyrics={card,button,inline,track:t,cues,synced,lines:card.querySelectorAll('[data-expanded-lyric]'),copyText,index:-1,onEscape};
  const closeButton=card.querySelector('.expanded-lyrics-close');
  closeButton.onclick=close;
- if(!inline){
+ if(inline){
+  const copy=card.querySelector('.song-detail-lyrics-copy');
+  copy.disabled=!copyText.trim();
+  copy.onclick=copySongDetailLyrics;
+ }else{
   card.showPopover?.();
   closeButton.focus?.({preventScroll:true});
  }

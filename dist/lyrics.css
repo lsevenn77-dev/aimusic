@@ -32,5 +32,16 @@
  display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;margin:0 0 8px;
 }
 .song-detail-lyrics > .section-heading h2{margin:0;color:var(--ds-text)}
+.song-detail-lyrics-heading{display:flex;align-items:center;min-width:0}
+.song-detail-lyrics-heading h2{flex:none}
+.song-detail-lyrics-copy{
+ display:grid;place-items:center start;flex:none;width:44px;height:44px;padding:0;padding-inline-start:8px;
+ color:var(--ds-muted);background:transparent;border:0;box-shadow:none;
+}
+.song-detail-lyrics .song-detail-lyrics-copy svg{width:14px;height:14px}
+.song-detail-lyrics-lines{font-size:1rem;line-height:1.8em}
+.song-detail-lyrics-lines > :is(.lyrics-reading-line,[data-expanded-lyric]){
+ font-size:calc(1em + 1px);line-height:inherit;
+}
 .song-detail-lyrics .expanded-lyrics-close{border:0;box-shadow:none}
 @media(max-width:600px){.song-detail-lyrics > .section-heading h2{font-size:18px}}
