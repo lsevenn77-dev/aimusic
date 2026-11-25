@@ -1,6 +1,19 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 package kr.co.aifect.app
 
+import android.graphics.BitmapFactory
+import android.graphics.BitmapShader
+import android.graphics.Matrix
+import android.graphics.Paint
+import android.graphics.Shader
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.delay
+
 import androidx.compose.foundation.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.*
@@ -400,7 +413,9 @@ private fun homeCount(value:Int):String {
  return String.format(java.util.Locale.ROOT,"%.1f",value.toDouble()/scale.first).removeSuffix(".0")+scale.second
 }
 private data class HomePromotion(val id:String,val title:String,val headline:String,val fallback:Int)
-private val promotions=listOf(
+private const val openEventEndMillis = 1798729200000L // 2027-01-01 00:00 KST
+private val openEvent = HomePromotion("open-event", "오픈 이벤트", "기존·신규 회원 모두 2026년 12월 31일까지 별도 결제 없이 프리미엄 무료 체험.", R.drawable.aifect_open_event_refined_mobile_1170x672)
+private val regularPromotions=listOf(
  HomePromotion("studio","스튜디오","내 제작곡을 올려보세요",R.drawable.home_promo_studio),
  HomePromotion("play","플레이","마음에 드는 노래를 불러보세요",R.drawable.home_promo_play),
  HomePromotion("participate","듀엣·더빙","함께 작품을 완성해보세요",R.drawable.home_promo_participate),
@@ -410,31 +425,59 @@ private val promotions=listOf(
  HomePromotion("crew","크루","크루에 가입하고 함께 즐겨보세요",R.drawable.home_promo_crew)
 )
 private fun HomePromotion.imageUrl():String {
+ if(id=="open-event")return "https://aifect.co.kr/assets/home-banners/open-event-refined-20261125/aifect_open_event_refined_mobile_1170x672.webp"
  val directory=if(id=="crew") "seamless-20261109" else "mobile-20261109"
  return "https://aifect.co.kr/assets/home-banners/$directory/$id-768.webp"
 }
+// Uniformly scale the whole image and extend its outermost pixels to the frame.
+@Composable private fun OpenEventArtwork(modifier:Modifier) {
+ val resources=LocalContext.current.resources
+ val bitmap=remember(resources){BitmapFactory.decodeResource(resources,openEvent.fallback)}
+ val shader=remember(bitmap){BitmapShader(bitmap,Shader.TileMode.CLAMP,Shader.TileMode.CLAMP)}
+ val paint=remember(shader){Paint(Paint.FILTER_BITMAP_FLAG).apply{this.shader=shader}}
+ val transform=remember{Matrix()}
+ Canvas(modifier.semantics{contentDescription=openEvent.headline}){
+  val scale=minOf(size.width/bitmap.width,size.height/bitmap.height)
+  transform.setScale(scale,scale)
+  transform.postTranslate((size.width-bitmap.width*scale)/2,(size.height-bitmap.height*scale)/2)
+  shader.setLocalMatrix(transform)
+  drawIntoCanvas{it.nativeCanvas.drawRect(0f,0f,size.width,size.height,paint)}
+ }
+}
 @Composable private fun HomePromotionCarousel(m:MusicModel,onBackdrop:(String?)->Unit) {
+ val lifecycle=LocalLifecycleOwner.current.lifecycle
+ var showEvent by remember{mutableStateOf(System.currentTimeMillis()<openEventEndMillis)}
+ LaunchedEffect(lifecycle){
+  lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED){
+   val remaining=openEventEndMillis-System.currentTimeMillis()
+   showEvent=remaining>0
+   if(remaining>0){delay(remaining);showEvent=false}
+  }
+ }
+ val promotions=remember(showEvent){if(showEvent) listOf(openEvent)+regularPromotions else regularPromotions}
  val pager=rememberAutoCarousel(promotions.size,intervalMillis=4500)
  val current=pager.currentPage % promotions.size
- LaunchedEffect(current){onBackdrop(promotions[current].imageUrl())}
+ LaunchedEffect(promotions[current].id){onBackdrop(promotions[current].imageUrl())}
  HorizontalPager(state=pager,pageSpacing=12.dp,modifier=Modifier.fillMaxWidth().padding(bottom=5.dp)
   .testTag("home-carousel").semantics{stateDescription="${current+1} / ${promotions.size}"}) { page ->
   val promotion=promotions[page % promotions.size]
   Box(Modifier.fillMaxWidth().heightIn(min=142.dp).aspectRatio(2.45f).clip(RoundedCornerShape(6.dp)).background(Panel)
-   .clickable {
+   .then(if(promotion==openEvent) Modifier else Modifier.clickable {
     when(promotion.id) {
      "studio" -> m.openStudio()
      "play","participate" -> {m.playMode="song";m.playSection=if(promotion.id=="play")"recommended" else "duets";m.selectTab(2)}
      "artists" -> {m.directoryKind="artists";m.selectTab(8)}
      else -> {m.communityMode=if(promotion.id=="crew")"crews" else "voice";m.selectTab(3)}
     }
-   }) {
+   })) {
+   if(promotion==openEvent){OpenEventArtwork(Modifier.matchParentSize())}else{
    val fallback=painterResource(promotion.fallback)
    AsyncImage(promotion.imageUrl(),null,Modifier.matchParentSize(),placeholder=fallback,error=fallback,contentScale=ContentScale.Crop)
    Box(Modifier.matchParentSize().background(Brush.horizontalGradient(listOf(Color.Black.copy(alpha=.57f),Color.Transparent))))
    Column(Modifier.align(Alignment.CenterStart).fillMaxWidth(.63f).padding(start=16.dp,end=4.dp,bottom=6.dp)) {
     Text(promotion.title,color=Color.White,fontSize=13.sp,fontWeight=FontWeight.SemiBold)
     Text(promotion.headline,color=Color.White,fontSize=18.sp,lineHeight=23.sp,fontWeight=FontWeight.Bold,maxLines=3,overflow=TextOverflow.Ellipsis)
+   }
    }
    Row(Modifier.align(Alignment.BottomCenter).padding(bottom=9.dp),horizontalArrangement=Arrangement.spacedBy(5.dp)){
     promotions.indices.forEach { i->Box(Modifier.size(5.dp).clip(CircleShape).background(Color.White.copy(alpha=if(current==i)1f else .45f))) }
