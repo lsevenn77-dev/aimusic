@@ -200,11 +200,11 @@ function homeRailHTML(id,label,content,kind){return `<div class="home-rail-shell
 function homePlaylistCard(p,tracks=null,{compact=false,footer=''}={}){
  if(!compact)return recommendedPlaylistCard(p);
  let art=playlistArt(p);for(const t of p.covers||[])art=homeReplaceArtwork(art,[t],'collection-tile');
- if(compact)return `<article class="home-playlist-card home-playlist-compact ${p.locked?'collection-locked':''}">
+ if(compact)return `<article class="home-playlist-card home-playlist-compact">
   <div class="home-playlist-art"><a href="#playlist/${esc(p.id)}" aria-label="${esc(p.name)} 상세">${art}</a></div>
   <a class="home-playlist-info" href="#playlist/${esc(p.id)}">
    <h3 class="home-playlist-name" title="${esc(p.name)}">${esc(p.name)}</h3>
-   <div class="home-playlist-count">${playlistOwnerNickname(p)} <span>${number(Number(p.tracks)||0)}곡${p.locked?' · 보관 중':''}</span></div>
+   <div class="home-playlist-count">${playlistOwnerNickname(p)} <span>${number(Number(p.tracks)||0)}곡</span></div>
   </a>${footer}</article>`;
 }
 
@@ -384,7 +384,7 @@ function homeCapacity(selector){
 }
 function homeUnique(items){return [...new Map(items.filter(t=>t?.id).map(t=>[t.id,t])).values()];}
 function homePlaylistShelf(playlists,limit){
- const items=homeUnique(playlists.filter(p=>p.tracks>0&&p.is_public&&!p.locked)).slice(0,limit);
+ const items=homeUnique(playlists.filter(p=>p.tracks>0&&p.is_public)).slice(0,limit);
  return '<div class="public-playlist-grid">'+items.map(p=>homePlaylistCard(p)).join('')+'</div>'+
   (!items.length?'<p class="home-empty-inline" role="status">아직 추천 플레이리스트가 없습니다.</p>':'');
 }

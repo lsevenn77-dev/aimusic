@@ -229,7 +229,7 @@ export async function catalogRoute(req,env,path,user){
     kind==='producer'?producerFollowsViewer(env,entity.user_id,user?.id):false
    ]);
    if(dashboardRequested)await profileCoverParticipation(env,covers,user);
-   const profileIdentity=identity&&!own?{profile_frame:identity.profile_frame,profile_frame_artwork:identity.profile_frame_artwork}:identity;
+   const profileIdentity=identity&&!own?{premium_style_until:identity.premium_style_until,premium_default_frame:identity.premium_default_frame,profile_frame:identity.profile_frame,profile_frame_artwork:identity.profile_frame_artwork}:identity;
    // Profile visitors receive public works, never their owner's private XP totals.
    if(!own)for(const track of [...tracks,...(covers||[])])delete track.player_xp;
    return json({profile:kind==='producer'?{...entity,partner_badge:partnerBadge,...profileIdentity,public_number:dashboard.public_number,public_id:dashboard.public_id}:entity,tracks,followers:count.followers,human_followers:Math.max(0,count.followers-ai),ai_followers:ai,follows_viewer:followsViewer,gallery,...(kind==='producer'?{...dashboard,following_count:count.following,covers,gifts,invite_crew:inviteCrew,gallery_limit:PROFILE_GALLERY_LIMIT}:{can_manage:await canManageArtist(env,entity.id,user),can_edit_portrait:user?.id===owner?.user_id,gallery_limit:GALLERY_LIMIT,fanpage:await fanpageData(env,entity.id)})});

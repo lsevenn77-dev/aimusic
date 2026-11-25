@@ -47,23 +47,27 @@ export async function fulfillApple(env,t,requestUser=null,{refundReversed=false}
  const existing=await one(env,'SELECT user_id,product_id FROM apple_transactions WHERE id=?',key);
  if(existing&&(existing.user_id!==uid||existing.product_id!==t.productId))fail(409,'기존 구매 정보와 일치하지 않습니다.');
  const statements=[];
- if(revoked&&!sandbox&&product.kind==='gold')statements.push(query(env,`UPDATE apple_transactions SET refund_review=CASE WHEN COALESCE((SELECT used FROM gold_purchases WHERE id=?),0)>0 THEN 1 ELSE 0 END,refunded_used=COALESCE((SELECT used FROM gold_purchases WHERE id=?),0) WHERE id=? AND revoked=0 AND signed_date<=?`,key,key,key,t.signedDate));
- if(refundReversed&&!revoked&&!sandbox&&product.kind==='gold')statements.push(query(env,`UPDATE gold_purchases SET used=(SELECT refunded_used FROM apple_transactions WHERE id=?) WHERE id=? AND EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND revoked>0 AND signed_date<?)`,key,key,key,t.signedDate));
+ if(revoked&&!sandbox&&product.kind==='gold')statements.push(query(env,`UPDATE apple_transactions SET refund_review=CASE WHEN COALESCE((SELECT used FROM gold_purchases WHERE id=?),0)>0 THEN 1 ELSE 0 END,refunded_used=COALESCE((SELECT used FROM gold_purchases WHERE id=?),0) WHERE id=? AND user_id=? AND product_id=? AND revoked=0 AND signed_date<=?`,key,key,key,uid,t.productId,t.signedDate));
+ if(refundReversed&&!revoked&&!sandbox&&product.kind==='gold')statements.push(query(env,`UPDATE gold_purchases SET used=(SELECT refunded_used FROM apple_transactions WHERE id=?) WHERE id=? AND user_id=? AND EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND user_id=? AND product_id=? AND revoked>0 AND signed_date<?)`,key,key,uid,key,uid,t.productId,t.signedDate));
  statements.push(query(env,`INSERT INTO apple_transactions(id,environment,transaction_id,original_id,user_id,product_id,purchased,expires,revoked,signed_date,created)
- VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET expires=excluded.expires,revoked=CASE WHEN ?=1 THEN excluded.revoked ELSE MAX(apple_transactions.revoked,excluded.revoked) END,refund_review=CASE WHEN ?=1 THEN 0 ELSE apple_transactions.refund_review END,signed_date=excluded.signed_date WHERE excluded.signed_date>=apple_transactions.signed_date`,key,t.environment,t.transactionId,t.originalTransactionId,uid,t.productId,Math.floor(t.purchaseDate/1000),expires,revoked,t.signedDate,time,refundReversed?1:0,refundReversed?1:0));
+ SELECT ?,?,?,?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM apple_transactions WHERE environment=? AND original_id=? AND user_id!=?)
+ ON CONFLICT(id) DO UPDATE SET expires=excluded.expires,revoked=CASE WHEN ?=1 THEN excluded.revoked ELSE MAX(apple_transactions.revoked,excluded.revoked) END,refund_review=CASE WHEN ?=1 THEN 0 ELSE apple_transactions.refund_review END,signed_date=excluded.signed_date
+ WHERE excluded.signed_date>=apple_transactions.signed_date AND excluded.user_id=apple_transactions.user_id AND excluded.product_id=apple_transactions.product_id AND excluded.original_id=apple_transactions.original_id`,key,t.environment,t.transactionId,t.originalTransactionId,uid,t.productId,Math.floor(t.purchaseDate/1000),expires,revoked,t.signedDate,time,t.environment,t.originalTransactionId,uid,refundReversed?1:0,refundReversed?1:0));
  if(!sandbox&&product.kind==='gold'){
   // StoreKit supplies milliunits of currency. Korea is the enabled storefront.
   if(t.currency!=='KRW'||!Number.isSafeInteger(t.price)||t.price<=0)fail(409,'결제 통화 및 금액을 확인하지 못했습니다. 고객 지원에 문의해 주세요.');
   const amount=Math.round(t.price/1000);
   statements.push(query(env,`INSERT INTO gold_purchases(id,user_id,channel,gold,used,price_krw,fee_krw,tax_krw,status,provider_ref,created,paid_at)
- SELECT ?,?,'apple',?,0,?,?,?,'paid',?,?,? WHERE EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND revoked=0)
- ON CONFLICT(channel,provider_ref) DO NOTHING`,key,uid,product.gold,amount,Math.round((amount-includedKoreanVat(amount))*APP_STORE_FEE_BP/10000),includedKoreanVat(amount),t.transactionId,time,Math.floor(t.purchaseDate/1000),key));
+ SELECT ?,?,'apple',?,0,?,?,?,'paid',?,?,? WHERE EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND user_id=? AND product_id=? AND original_id=? AND revoked=0)
+ ON CONFLICT(channel,provider_ref) DO NOTHING`,key,uid,product.gold,amount,Math.round((amount-includedKoreanVat(amount))*APP_STORE_FEE_BP/10000),includedKoreanVat(amount),t.transactionId,time,Math.floor(t.purchaseDate/1000),key,uid,t.productId,t.originalTransactionId));
   // Preserve the paid lot and its spent allocations for audit; make the remainder unavailable.
-  statements.push(query(env,`UPDATE gold_purchases SET used=gold WHERE id=? AND EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND revoked>0)`,key,key));
+  statements.push(query(env,`UPDATE gold_purchases SET used=gold WHERE id=? AND user_id=? AND EXISTS(SELECT 1 FROM apple_transactions WHERE id=? AND user_id=? AND revoked>0)`,key,uid,key,uid));
  }
  if(!sandbox&&product.kind==='subscription')statements.push(query(env,`UPDATE users SET apple_premium_until=COALESCE((SELECT MAX(expires) FROM apple_transactions WHERE user_id=? AND environment='Production' AND product_id='kr.co.aifect.app.premium.monthly' AND revoked=0),0) WHERE id=?`,uid,uid));
- await env.DB.batch(statements);
- return {ok:true,sandbox,product_id:t.productId,transaction_id:t.transactionId};
+ statements.push(query(env,'SELECT expires,revoked FROM apple_transactions WHERE id=? AND user_id=? AND product_id=? AND original_id=?',key,uid,t.productId,t.originalTransactionId));
+ const results=await env.DB.batch(statements),applied=results.at(-1).results[0];
+ if(!applied)fail(409,'기존 구매 정보와 일치하지 않습니다.');
+ return {ok:true,sandbox,product_id:t.productId,transaction_id:t.transactionId,...(product.kind==='subscription'?{entitlement_active:!sandbox&&!applied.revoked&&applied.expires>time}:{})};
 }
 export async function appleNotification(req,env){
  if(req.method!=='POST')fail(405,'POST 요청이 필요합니다.');

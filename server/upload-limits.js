@@ -1,3 +1,4 @@
+import {MONTHLY_ORIGINAL_LIMITS} from '../shared/site-info.js';
 import {effectiveUntilSQL} from './premium-event.js';
 import {now,query,fail} from './db.js';
 export function uploadMonth(at=now()){
@@ -15,7 +16,7 @@ export function uploadQuotaQuery(env,user,at=now()){
  return query(env,`SELECT (${countSQL}) used`,user.id,month.start,month.end);
 }
 export function uploadQuotaResult(user,used,at=now()){
- const month=uploadMonth(at),limit=Math.max(Number(user?.premium_until)||0,Number(user?.apple_premium_until)||0)>at?10:3;
+ const month=uploadMonth(at),limit=Math.max(Number(user?.premium_until)||0,Number(user?.apple_premium_until)||0)>at?MONTHLY_ORIGINAL_LIMITS.premium:MONTHLY_ORIGINAL_LIMITS.free;
  used=Number(used)||0;
  return {limit,used,remaining:Math.max(0,limit-used),month:month.label,resets_at:month.end,covers_unlimited:true};
 }
@@ -26,6 +27,6 @@ export async function requireUploadQuota(env,user){
 export async function completeUpload(env,track,user){
  const at=now(),month=uploadMonth(at);
  // Claim the last available slot and submit the track in one atomic statement.
- const updated=await query(env,`UPDATE tracks SET status='queued',uploaded_at=? WHERE id=? AND user_id=? AND status='uploading' AND (kind='cover' OR (${countSQL}) < (SELECT CASE WHEN ${effectiveUntilSQL}>? THEN 10 ELSE 3 END FROM users u WHERE id=?)) RETURNING id`,at,track.id,user.id,user.id,month.start,month.end,at,user.id).first();
+ const updated=await query(env,`UPDATE tracks SET status='queued',uploaded_at=? WHERE id=? AND user_id=? AND status='uploading' AND (kind='cover' OR (${countSQL}) < (SELECT CASE WHEN ${effectiveUntilSQL}>? THEN ${MONTHLY_ORIGINAL_LIMITS.premium} ELSE ${MONTHLY_ORIGINAL_LIMITS.free} END FROM users u WHERE id=?)) RETURNING id`,at,track.id,user.id,user.id,month.start,month.end,at,user.id).first();
  if(!updated){await requireUploadQuota(env,user);fail(409,'이미 제출한 업로드입니다.');}
 }

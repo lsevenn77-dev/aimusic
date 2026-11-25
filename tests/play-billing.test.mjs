@@ -44,12 +44,49 @@ test('gold replay credits once, consumes after commit, and freezes refunded rema
  assert.equal(await goldBalance(env,'owner'),500);assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM gold_purchases').get().n,1);
  assert.equal(f.sql.prepare('SELECT price_krw FROM gold_purchases').get().price_krw,5000);
  f.sql.exec("UPDATE play_purchases SET state='refunded'");assert.equal(await goldBalance(env,'owner'),0);
+ const history=(await f.call('/api/account/payments?kind=gold')).body;
+ assert.equal(history.payments[0].amount,5000);
+ assert.equal(history.payments[0].state,'refunded');
+ assert.deepEqual(history.store_history,['google_play']);
  await assert.rejects(()=>verifyPlay(env,{id:'owner'},'purchase-token-test',gold));
 });
 test('unconfigured checkout and notifications fail closed',async t=>{
  const f=await fixture(t);assert.equal((await f.call('/api/play/catalog')).body.available,false);
  assert.equal((await f.call('/api/play/verify','POST',{account_id:'owner',product_id:gold.id,purchase_token:'purchase-token-test'})).status,503);
  assert.equal((await f.call('/api/play/notifications','POST',{})).status,503);
+});
+
+test('concurrent Play deliveries and replay of a spent lot preserve the original credit and verified amount',async t=>{
+ const f=await fixture(t),{privateKey}=await generateKeyPair('RS256',{extractable:true});
+ const env={DB:f.DB,PLAY_SERVICE_ACCOUNT:JSON.stringify({client_email:'repeat@example.test',private_key:await exportPKCS8(privateKey)})};
+ const account=await playAccountId('owner'),token='same-verified-order';
+ let consumed=false;
+ t.mock.method(globalThis,'fetch',async url=>{
+  if(url.includes('oauth2'))return Response.json({access_token:'test',expires_in:3600});
+  if(url.includes('/orders/'))return Response.json(order(token,'GPA.test',4321));
+  if(url.endsWith(':consume')){
+   if(consumed)return new Response(null,{status:400});
+   consumed=true;return new Response(null,{status:204});
+  }
+  const data=receipt(account);
+  if(consumed)data.productLineItem[0].productOfferDetails.consumptionState='CONSUMPTION_STATE_CONSUMED';
+  return Response.json(data);
+ });
+ await Promise.all([verifyPlay(env,{id:'owner'},token,gold),verifyPlay(env,{id:'owner'},token,gold)]);
+ assert.equal((await f.call('/api/account/payments')).body.payments[0].amount,4321);
+ f.sql.exec('UPDATE gold_purchases SET used=gold');
+ await verifyPlay(env,{id:'owner'},token,gold);
+ assert.equal(await goldBalance(env,'owner'),0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM gold_purchases').get().n,1);
+ f.sql.exec("UPDATE play_purchases SET kind='inapp'");
+ let history=(await f.call('/api/account/payments')).body;
+ assert.equal(history.payments.length,0);
+ assert.deepEqual(history.store_history,['google_play']);
+ await verifyPlay(env,{id:'owner'},token,gold);
+ history=(await f.call('/api/account/payments')).body;
+ assert.equal(history.payments[0].amount,null);
+ assert.equal(await goldBalance(env,'owner'),0);
+ await assert.rejects(()=>verifyPlay(env,{id:'other'},token,gold),e=>e.status===403);
 });
 
 test('Google test payments credit once with zero settlement value and repair an unused legacy test lot',async t=>{
@@ -81,4 +118,23 @@ test('Google test payments credit once with zero settlement value and repair an 
  const real=f.sql.prepare('SELECT * FROM gold_purchases WHERE price_krw>0').get();
  assert.equal(real.price_krw,6500);assert.equal(real.fee_krw,975);assert.equal(real.tax_krw,591);
  assert.equal(allocateLots([real],500)[0].net_mw,4934000);
+});
+
+test('Google test subscriptions preserve verified test entitlement without creating a paid transaction',async t=>{
+ const f=await fixture(t),{privateKey}=await generateKeyPair('RS256',{extractable:true});
+ const env={DB:f.DB,PLAY_SERVICE_ACCOUNT:JSON.stringify({client_email:'test-sub@example.test',private_key:await exportPKCS8(privateKey)})};
+ const account=await playAccountId('owner'),until=Math.floor(Date.now()/1000)+3600;
+ t.mock.method(globalThis,'fetch',async url=>{
+  if(url.includes('oauth2'))return Response.json({access_token:'test',expires_in:3600});
+  return Response.json({externalAccountIdentifiers:{obfuscatedExternalAccountId:account},testPurchase:{},
+   subscriptionState:'SUBSCRIPTION_STATE_ACTIVE',acknowledgementState:'ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED',
+   lineItems:[{productId:sub.id,offerDetails:{basePlanId:'monthly'},expiryTime:new Date(until*1000).toISOString()}]});
+ });
+ assert.equal((await verifyPlay(env,{id:'owner'},'test-subscription',sub)).entitlement_active,true);
+ const membership=(await f.call('/api/account/summary')).body;
+ assert.equal(membership.can_start_subscription,false);
+ assert.equal(membership.passes[0].test,true);
+ const history=(await f.call('/api/account/payments?kind=premium')).body;
+ assert.deepEqual(history.payments,[]);
+ assert.deepEqual(history.store_history,[]);
 });

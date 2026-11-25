@@ -98,6 +98,20 @@ export async function authRoute(req,env,path,user){
   const token=cookies(req).aifect_session;if(token)await run(env,'DELETE FROM sessions WHERE token=?',await hash(token));
   return json({ok:true},200,{'set-cookie':cookie('aifect_session','',0,secure)});
  }
+ if(path==='/api/account/logout-others'&&req.method==='POST'){
+  requireUser(user);
+  const current=await hash(cookies(req).aifect_session);
+  // The caller must still own a live session when the transaction starts.
+  const live='EXISTS(SELECT 1 FROM sessions WHERE user_id=? AND token=? AND expires>?)';
+  const args=[user.id,current,user.id,current,now()];
+  const result=await env.DB.batch([
+   query(env,'SELECT 1 AS live FROM sessions WHERE user_id=? AND token=? AND expires>?',user.id,current,now()),
+   query(env,'DELETE FROM push_devices WHERE user_id=? AND session_token<>? AND '+live,...args),
+   query(env,'DELETE FROM sessions WHERE user_id=? AND token<>? AND '+live,...args)
+  ]);
+  if(!result[0].results.length)fail(401,AifectMessages.signIn);
+  return json({ok:true});
+ }
  if(path==='/api/account/password'&&req.method==='PUT'){
   requireUser(user);if(user.provider!=='email')fail(400,'소셜 로그인 비밀번호는 해당 서비스에서 변경해 주세요.');
   await rate(env,'password-change:'+user.id,8,900);const b=await req.json(),current=str(b.current_password,128),next=str(b.new_password,128);

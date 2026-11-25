@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import * as sitePolicy from '../shared/site-info.js';
 import {fixture} from './fixture.mjs';
 
 const script=readFileSync(new URL('../dist/studio-manager.js',import.meta.url),'utf8');
@@ -12,7 +13,7 @@ function sampleTracks(n=3){
 }
 function sandbox(tracks){
  const section=s=>`<div class="section-heading">${s}</div>`;
- const ctx={
+ const ctx={AifectSite:sitePolicy,
   studioData:{tracks:[...tracks],track_total:tracks.length,artists:[],producer:null,upload_quota:{used:1,limit:3,remaining:2}},
   member:{plan:'free'},
   studioHTML:()=>`<div class="legacy">legacy</div>${section('내 프로필')}<form id="producer-form">프로필</form>${section('AI 가수 · 아티스트 프로필')}<div class="artist-editors">아티스트</div>`,

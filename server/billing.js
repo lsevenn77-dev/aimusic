@@ -32,11 +32,14 @@ async function readBody(req){
  try{return JSON.parse(text);}catch{fail(400,'요청 내용을 확인해 주세요.');}
 }
 async function workerReady(env){return Number((await one(env,"SELECT last_seen FROM billing_worker WHERE id='runner'"))?.last_seen)>now()-180;}
+export async function webCheckoutAvailable(env,user){
+ return !reviewAccount(env,user)&&checkoutEnabled(env)&&await workerReady(env);
+}
 export async function billingStatus(env,user){
  const s=user?await subscription(env,user):null;
  const starts=now(),day=new Date((starts+9*3600)*1000).getUTCDate();
  const payments=s?await rows(env,'SELECT id,amount,status,period_start,period_end,created,refunded FROM billing_payments WHERE subscription_id=? ORDER BY cycle DESC LIMIT 24',s.id):[];
- return {review_only:reviewAvailable(env,user),review_expires:reviewAvailable(env,user)?Number(env.BILLING_REVIEW_UNTIL):null,checkout_available:!reviewAccount(env,user)&&checkoutEnabled(env)&&await workerReady(env),price:PREMIUM.price,revenue_policy:SUBSCRIPTION_REVENUE_POLICY,currency:'KRW',interval:'month',starts_at:starts,first_renewal_at:nextBillingMonth(starts,day),billing_day:day,subscription:s?{price:s.price,state:s.state,renewing:s.state==='active'&&!s.cancel_requested,period_end:s.period_end||null,card_name:s.card_name,payment_pending:payments.some(p=>['processing','review'].includes(p.status))}:null,payments};
+ return {review_only:reviewAvailable(env,user),review_expires:reviewAvailable(env,user)?Number(env.BILLING_REVIEW_UNTIL):null,checkout_available:await webCheckoutAvailable(env,user),price:PREMIUM.price,revenue_policy:SUBSCRIPTION_REVENUE_POLICY,currency:'KRW',interval:'month',starts_at:starts,first_renewal_at:nextBillingMonth(starts,day),billing_day:day,subscription:s?{price:s.price,state:s.state,renewing:s.state==='active'&&!s.cancel_requested,period_end:s.period_end||null,card_name:s.card_name,payment_pending:payments.some(p=>['processing','review'].includes(p.status))}:null,payments};
 }
 export async function billingTerms(env){
  const terms=[];

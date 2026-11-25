@@ -1,5 +1,5 @@
 import {brandPublicMarkup} from '../shared/web-brand.js';
-import {PREMIUM, businessDetailsHTML, businessFooterHTML, policyLinks, escapeHTML as esc} from '../shared/site-info.js';
+import {PREMIUM, premiumBenefitItemsHTML, businessDetailsHTML, businessFooterHTML, policyLinks, escapeHTML as esc} from '../shared/site-info.js';
 
 const routes=new Set(['/checkout/toss','/checkout/toss/success','/checkout/toss/fail']);
 const number=value=>value.toLocaleString('ko-KR');
@@ -47,7 +47,7 @@ function paymentPage(){
       <h2 id="premium-title">${esc(PREMIUM.name)}</h2>
       <p class="checkout-product-price">월 ${number(PREMIUM.price)}원 <small>부가세 포함</small></p>
       <p class="checkout-product-copy">음악을 더 편하게 듣고, 더 많이 모아 보세요.</p>
-      <ul class="checkout-benefits"><li>전체곡 AAC 256kbps 고음질 감상</li><li>싱크 가사 · 현재 줄 강조 · 자동 스크롤</li><li>가사를 누르면 해당 구간으로 이동</li><li>플레이리스트 무제한</li><li>제작곡 업로드 매월 10곡</li><li>커버 업로드 무제한 · 광고 없음</li></ul>
+      <ul class="checkout-benefits">${premiumBenefitItemsHTML()}</ul>
       <p class="checkout-field-help">고음질 준비 중인 곡은 AAC 128kbps로 제공됩니다. 플레이리스트 생성과 공개 플레이리스트 저장에는 개수 제한이 없습니다.</p>
       <div class="checkout-billing-info"><h3>실제 구독의 결제 주기</h3><p>월 단위 자동갱신 상품으로 매월 ${number(PREMIUM.price)}원(부가세 포함)이 정기결제됩니다. 가입일부터 1개월마다 갱신되며, 해당 월에 같은 날짜가 없으면 그 달의 마지막 날을 기준으로 합니다.</p><p id="premium-next-billing-copy">실제 가입 시 이용 시작일과 다음 결제일을 결제 전에 안내합니다. 이 테스트는 구독을 시작하거나 자동결제를 예약하지 않습니다.</p><p>다음 결제 전 언제든 해지를 요청할 수 있습니다. 해지·청약철회·이용 중 환불 기준은 <a href="/refund">환불 · 해지 정책</a>에서 확인하세요.</p></div>
      </section>

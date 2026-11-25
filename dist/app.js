@@ -158,8 +158,11 @@ async function toggleFollow(button){
 const DEFAULT_AVATAR='/assets/default-avatar.svg';
 function avatarImage(p={},kind='producer',allowPreview=true,decorate=true){
  const id=p.profile_id||p.id,src=id&&p.image_version?'/media/'+kind+'/'+encodeURIComponent(id)+'?v='+encodeURIComponent(p.image_version):DEFAULT_AVATAR;
+ const self=typeof me!=='undefined'&&p===me;
+ const memberId=p.user_id||(self?p.id:null);
+ const decorationKey=decorate&&kind==='producer'?(p.profile_id||(!self&&p.id)||(memberId?'member:'+memberId:'')):'';
  const preview=allowPreview&&id&&['producer','artist'].includes(kind)?' data-profile-preview="'+esc(kind==='artist'?'artist:'+id:p.profile_id||(p===me?me.profile_id:p.id)||'self')+'" tabindex="0" role="button" aria-haspopup="dialog"':'';
- return '<img class="profile-avatar-image"'+(decorate&&kind==='producer'&&id?' data-avatar-profile="'+esc(p.profile_id||(p===me?me.profile_id:p.id))+'"':'')+preview+' src="'+esc(src)+'" alt="'+esc(p.name||'사용자')+' 프로필 사진" loading="lazy" decoding="async">';
+ return '<img class="profile-avatar-image"'+(decorationKey?' data-avatar-profile="'+esc(decorationKey)+'"':'')+preview+' src="'+esc(src)+'" alt="'+esc(p.name||'사용자')+' 프로필 사진" loading="lazy" decoding="async">';
 }
 // Keep every photo surface usable when an old or unavailable upload fails to load.
 document.addEventListener('error',event=>{

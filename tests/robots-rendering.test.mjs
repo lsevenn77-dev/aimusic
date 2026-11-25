@@ -66,7 +66,11 @@ test('crawlable public APIs still hide unpublished songs and private playlists f
  assert.equal((await f.call('/api/playlists/public-list','PATCH',{name:'Unauthorized'},null)).status,401);
  assert.equal(f.sql.prepare("SELECT name FROM playlists WHERE id='public-list'").get().name,'Public');
  const avatar=await f.call('/api/decorations/avatars?profiles=producer','GET',undefined,null);
- assert.equal(avatar.status,200);assert.deepEqual(Object.keys(avatar.body.avatars[0]).sort(),['artwork','expires_at','item_key','profile_id']);
+ assert.equal(avatar.status,200);
+ const appearance=avatar.body.avatars[0];
+ assert.deepEqual(Object.keys(appearance).sort(),['artwork','expires_at','item_key','lookup_key','premium_default_frame','premium_style_until','profile_id']);
+ assert.equal(appearance.profile_id,'producer');
+ assert.equal(appearance.lookup_key,'producer');
  assert.equal((await f.call('/api/decorations/recipients?q=owner','GET',undefined,null)).status,401);
  f.sql.exec("UPDATE users SET provider='deleted' WHERE id='owner'");
  assert.deepEqual((await f.call('/api/decorations/avatars?profiles=producer','GET',undefined,null)).body.avatars,[]);

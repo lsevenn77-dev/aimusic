@@ -88,6 +88,7 @@ import {goldPaymentPageRoute} from './gold-payment-page.js';
 import {publicMusicRoute} from './public-music.js';
 import {goldCallback,goldOrderRoute} from './gold-checkout.js';
 import {billingRoute,billingWebhook,billingTick} from './billing.js';
+import {accountOverviewRoute} from './account-overview.js';
 import {observeReadRequest} from './request-timing.js';
 async function fetchRequest(req,env,ctx){
  const url=new URL(req.url),path=url.pathname;
@@ -183,6 +184,7 @@ async function fetchRequest(req,env,ctx){
   if(path==='/api/visits')return await recordVisit(req,env);
   const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
+  if(path==='/api/account/summary'||path==='/api/account/payments')return await accountOverviewRoute(req,env,path,user);
   const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;
   const welcome=await welcomeNoticeRoute(req,env,path,user);if(welcome)return welcome;
   if(path==='/api/admin/mcp/identity'){

@@ -39,10 +39,10 @@ test('search sizing reads the dropdown border box without enlarging it and clean
  form.isConnected=false;measure();assert.equal(disconnected,1);assert.equal(trigger.style,undefined);
 });
 test('playlist detail retains owner editors and visitor playback without save or pin actions',async()=>{
- const {c}=client();Object.assign(c,{URLSearchParams,time:()=>'',list:()=>'<div>tracks</div>',lockedPlaylistHTML:()=>'<div>locked</div>'});
+ const {c}=client();Object.assign(c,{URLSearchParams,time:()=>'',list:()=>'<div>tracks</div>'});
  vm.runInContext(source.slice(source.indexOf('async function explorerView'),source.indexOf('function filteredCollections')),c);
  for(const owned of [true,false]){
-  const p={...playlist,user_id:owned?'listener':'creator',is_public:1};
+  const p={...playlist,user_id:owned?'listener':'creator',is_public:1,locked:true};
   const result=await c.explorerView('playlist',p.id,'playlist/'+p.id,false,async()=>({playlist:p,tracks:[{id:'song'}]}));
   assert.match(result.html,/data-play-all/);assert.doesNotMatch(result.html,/data-save|data-pin|명 저장|고정/);
   for(const action of ['data-pick-playlist','data-order-playlist','data-edit-playlist'])assert.equal(result.html.includes(action),owned);

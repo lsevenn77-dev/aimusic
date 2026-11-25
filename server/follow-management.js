@@ -1,3 +1,4 @@
+import {appearanceColumnsSQL} from './premium-appearance.js';
 import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,json,fail,now} from './db.js';
 import {requireUser} from './auth.js';
@@ -81,7 +82,7 @@ async function list(env,s,q){
  const filtered=cte+', matched AS (SELECT * FROM people WHERE lower(name) GLOB ?)';
  const count=query(env,cte+' SELECT count(*) total,count(CASE WHEN lower(name) GLOB ? THEN 1 END) matched FROM people',...args,pattern);
  const after=q.get('after')||'';
- const page=query(env,filtered+(byName?sortKeys:'')+' SELECT '+(keys?'m.key,m.name':`m.*,COALESCE((SELECT sum(x.amount) FROM player_xp x WHERE x.user_id=m.uid),0) player_xp,
+ const page=query(env,filtered+(byName?sortKeys:'')+' SELECT '+(keys?'m.key,m.name':`m.*,${appearanceColumnsSQL('CASE WHEN m.artist_id IS NULL THEN m.uid END')},COALESCE((SELECT sum(x.amount) FROM player_xp x WHERE x.user_id=m.uid),0) player_xp,
   (EXISTS(SELECT 1 FROM follows f WHERE f.user_id=${actor} AND ((m.artist_id IS NOT NULL AND f.kind='artist' AND f.target_id=m.artist_id) OR (m.artist_id IS NULL AND ((f.kind='producer' AND f.target_id=m.profile_id) OR (f.kind='member' AND f.target_id=m.uid))))) OR (m.artist_id IS NULL AND EXISTS(SELECT 1 FROM ai_support_follows bot WHERE bot.bot_id=${actor} AND bot.owner_id=m.uid))) following,
   (m.artist_id IS NULL AND ${actor}!='' AND (EXISTS(SELECT 1 FROM follows reverse WHERE reverse.user_id=m.uid AND
     ((reverse.kind='member' AND reverse.target_id=${actor}) OR (reverse.kind='producer' AND reverse.target_id=(SELECT id FROM producers WHERE user_id=${actor}))))

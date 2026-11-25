@@ -41,7 +41,7 @@ function voiceChatMessageHTML(m,liveMode=false){
   }
   return `<article class="voice-chat-gift"><header><b>${icon('gift')} 선물 알림</b>${time}</header><div class="voice-chat-gift-body">${gift?giftArt(gift):''}<p>${esc(m.body)}</p></div></article>`;
  }
- return `<article class="voice-chat-message"><span class="voice-chat-avatar">${avatarImage({name:m.name,profile_id:m.profile_id,image_version:m.image_version})}</span><div><header><b>${memberNickname(m)}</b>${time}</header><p>${m.body?.includes('[aifect:')?AifectStickers.render(m.body,esc):esc(m.body)}</p></div></article>`;
+ return `<article class="voice-chat-message"><span class="voice-chat-avatar">${avatarImage({name:m.name,profile_id:m.profile_id,user_id:m.user_id,image_version:m.image_version})}</span><div><header><b>${memberNickname(m)}</b>${time}</header><p>${m.body?.includes('[aifect:')?AifectStickers.render(m.body,esc):esc(m.body)}</p></div></article>`;
 }
 async function voiceRequest(path,body,method=body===undefined?'GET':'POST',signal) {
  const r=await fetch('/api/voice/'+path,{method,signal,credentials:'same-origin',headers:body===undefined?{}:{'content-type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
@@ -181,7 +181,7 @@ class VoiceRoomClient {
    const muted=member.id===s.self?!micOn:!!member.muted;
    setRoomAvatarMuted(seats.children[index].querySelector('.room-member-photo'),muted);
   });
-  const listenerHTML=[...s.members].sort((a,b)=>(b.role==='host')-(a.role==='host')).map(p=>'<button class="voice-person" data-voice="participants" aria-label="'+esc(p.name)+' 참여자 목록">'+avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})+'</button>').join('')+'<button class="voice-avatar-plus" data-voice="participants" aria-label="참여자 목록 열기">'+voiceGlyph('plus')+'</button>';
+  const listenerHTML=[...s.members].sort((a,b)=>(b.role==='host')-(a.role==='host')).map(p=>'<button class="voice-person" data-voice="participants" aria-label="'+esc(p.name)+' 참여자 목록">'+avatarImage({name:p.name,profile_id:p.profile_id,user_id:p.id,image_version:p.image_version})+'</button>').join('')+'<button class="voice-avatar-plus" data-voice="participants" aria-label="참여자 목록 열기">'+voiceGlyph('plus')+'</button>';
   if(this.listenerHTML!==listenerHTML){$('#voice-listeners').innerHTML=listenerHTML;this.listenerHTML=listenerHTML;}
 
   this.paintFinalControls();

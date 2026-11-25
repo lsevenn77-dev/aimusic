@@ -253,7 +253,7 @@ export async function socialRoute(req,env,path,user){
    const [history,receipt]=await env.DB.batch([historyQuery,query(env,'SELECT rowid sequence,read_at FROM direct_messages WHERE sender_id=? AND recipient_id=? AND read_at>0 ORDER BY rowid DESC LIMIT 1',user.id,p.user_id)]);
    const messages=history.results,read_receipt=receipt.results[0]||{sequence:0,read_at:0};
    const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
-   return json({peer:{id:p.id,user_id:p.user_id,name:p.name,chat_nickname:p.chat_nickname,image_version:p.image_version},settings,messages,has_more,read_receipt});
+   return json({peer:{id:p.id,user_id:p.user_id,name:p.name,chat_nickname:p.chat_nickname,image_version:p.image_version,premium_style_until:p.premium_style_until,premium_default_frame:p.premium_default_frame},settings,messages,has_more,read_receipt});
   }
   if(method==='PATCH'){
    // Bound acknowledgements to history the client actually received. A message

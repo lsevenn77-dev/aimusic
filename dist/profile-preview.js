@@ -134,7 +134,7 @@ function profilePreviewHTML(d){
  return `<section class="profile-preview-card" data-profile-kind="${artist?'artist':'user'}">
  <div class="profile-preview-image-slot"><button type="button" class="profile-preview-photo${playerAvatarClass(p)}" aria-label="프로필 사진 크게 보기">${avatarImage(p,kind,false)}${playerBadgeHTML(p)}</button></div>
  <div class="profile-preview-info"><header class="profile-preview-header">
- <h2 id="profile-preview-title" title="${esc(p.name)}">${esc(p.name)}</h2>
+ <h2 id="profile-preview-title"${artist?'':premiumNameAttribute(p.id,p.user_id)} title="${esc(p.name)}">${esc(p.name)}</h2>
  <div class="profile-preview-tools">${tools}<button type="button" class="profile-preview-close" data-preview-close aria-label="프로필 미리보기 닫기">${profilePreviewIcons.close}</button></div></header>
  ${artist?'':`<p class="mp-public-id">ID · ${esc(p.public_id||'발급 확인 중')}</p>`}
  <p class="profile-preview-bio" title="${esc(p.bio||'')}">${esc(p.bio||'')}</p>

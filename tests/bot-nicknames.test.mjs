@@ -57,6 +57,7 @@ test('rename migration audits original names and handles while preserving humans
 });
 test('AI badge is limited to full profile; signup and profile editors enforce eight characters',()=>{
  assert.match(read('dist/mypage.js'),/ai-account-badge/);
+ assert.doesNotMatch(read('dist/account-settings.js'),/id="account-nickname-form"/);
  for(const file of ['profile-preview','music-ui','dubbing-community','dubbing-casting','views','admin-ai-bots'])assert.doesNotMatch(read('dist/'+file+'.js'),/ai-account-badge/,file);
- for(const file of ['views','profile-editor','account-settings','admin-ai-bots'])assert.match(read('dist/'+file+'.js'),/maxlength="8"/,file);
+ for(const file of ['views','profile-editor','admin-ai-bots'])assert.match(read('dist/'+file+'.js'),/maxlength="8"/,file);
 });

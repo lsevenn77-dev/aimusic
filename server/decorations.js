@@ -1,3 +1,4 @@
+import {appearanceDeadlineSQL,defaultFrameSQL} from './premium-appearance.js';
 import {artistGiftSource,checkArtistGiftReplay,giftSourceEntry} from './gift-source.js';
 import {one,rows,query,now,id,fail,json,rate,str} from './db.js';
 import {requireUser,viewerBlockedIds} from './auth.js';
@@ -96,8 +97,21 @@ export async function decorationRoute(req,env,path,user){
  if(!path.startsWith('/api/decorations'))return null;
  if(path==='/api/decorations'&&req.method==='GET')return json({products:Object.values(DECORATIONS),periods:PERIOD_LABELS,inventory:user?await decorationInventory(env,user.id):[],server_now:now()});
  if(path==='/api/decorations/avatars'&&req.method==='GET'){
-  const ids=[...new Set((new URL(req.url).searchParams.get('profiles')||'').split(','))];if(ids.length>80||ids.some(x=>!/^[-\w]{1,100}$/.test(x)))fail(400,'프로필을 확인해 주세요.');
-  const avatars=await rows(env,`SELECT p.id profile_id,pi.item_key,pi.expires_at FROM producers p JOIN users u ON u.id=p.user_id LEFT JOIN player_equipment pe ON pe.user_id=p.user_id LEFT JOIN player_inventory pi ON pi.id=pe.frame_inventory_id AND pi.user_id=p.user_id AND ${activeDecorationSQL('pi')} WHERE p.id IN (${ids.map(()=>'?').join(',')}) AND u.provider!='deleted'`,...ids);
+  const ids=[...new Set((new URL(req.url).searchParams.get('profiles')||'').split(','))];
+  if(ids.length>80||ids.some(key=>!/^(?:member:)?[-\w]{1,100}$/.test(key)))fail(400,'프로필을 확인해 주세요.');
+  // Reuse the bounded decoration lookup for both producer IDs and members without a producer profile.
+  const avatars=await rows(env,`WITH requested AS (SELECT value key FROM json_each(?)),
+   resolved AS (
+    SELECT r.key,p.id profile_id,p.user_id uid FROM requested r JOIN producers p ON p.id=r.key
+    UNION ALL
+    SELECT r.key,p.id,u.id FROM requested r JOIN users u ON u.id=substr(r.key,8)
+     LEFT JOIN producers p ON p.user_id=u.id WHERE substr(r.key,1,7)='member:'
+   )
+   SELECT r.key lookup_key,r.profile_id,pi.item_key,pi.expires_at,
+    ${appearanceDeadlineSQL('u')} premium_style_until,${defaultFrameSQL('u.id')} premium_default_frame
+   FROM resolved r JOIN users u ON u.id=r.uid AND u.provider!='deleted'
+   LEFT JOIN player_equipment pe ON pe.user_id=u.id
+   LEFT JOIN player_inventory pi ON pi.id=pe.frame_inventory_id AND pi.user_id=u.id AND ${activeDecorationSQL('pi')}`,JSON.stringify(ids));
   return json({avatars:avatars.map(p=>{
    const product=DECORATIONS[p.item_key],assets=product?.kind==='PROFILE_FRAME'?product.assetPaths:null;
    return {...p,item_key:assets?p.item_key:null,expires_at:assets?p.expires_at:null,artwork:assets?.overlay||null,...(assets?.effect?{effect:assets.effect}:{})};

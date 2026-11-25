@@ -49,8 +49,8 @@ export async function decorateRoomResult(env,data){
   // XP history is sent to a room, and nulls explicitly clear stale decoration.
   const identities=await rows(env,`SELECT u.id,EXISTS(SELECT 1 FROM follows f JOIN producers peer ON peer.id=f.target_id WHERE f.kind='producer' AND peer.user_id=u.id AND f.user_id=?) following,
    EXISTS(SELECT 1 FROM follows f JOIN producers viewer ON viewer.id=f.target_id WHERE f.kind='producer' AND viewer.user_id=? AND f.user_id=u.id) follows_viewer,${playerColumnsSQL('u.id')} FROM users u WHERE u.id IN (${ids.map(()=>'?').join(',')}) AND u.provider!='deleted'`,data.self||'',data.self||'',...ids);
-  const frames=new Map(identities.map(p=>[p.id,{following:!!p.following,follows_viewer:!!p.follows_viewer,profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork,profile_frame_display:p.profile_frame_display}]));
-  data={...data,members:data.members.map(member=>({...member,...(frames.get(member.id)||{profile_frame:null,profile_frame_artwork:null,profile_frame_display:null})}))};
+  const frames=new Map(identities.map(p=>[p.id,{following:!!p.following,follows_viewer:!!p.follows_viewer,premium_style_until:p.premium_style_until,premium_default_frame:p.premium_default_frame,profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork,profile_frame_display:p.profile_frame_display}]));
+  data={...data,members:data.members.map(member=>({...member,...(frames.get(member.id)||{premium_style_until:0,premium_default_frame:0,profile_frame:null,profile_frame_artwork:null,profile_frame_display:null})}))};
  }
  return data;
 }

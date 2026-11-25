@@ -429,7 +429,7 @@ function rankingCoverActions(r){
  if(r.kind!=='cover')return '';
  const name=esc(r.producer),title=esc(r.name),id=esc(r.id);
  return `<div class="ranking-cover-actions">
-  <a class="ranking-performer song-cover-performer" href="#producer/${esc(encodeURIComponent(r.producer_id))}" aria-label="${name} 프로필 보기">${name}</a>
+  <a class="ranking-performer song-cover-performer"${premiumNameAttribute(r.producer_id,r.user_id)} href="#producer/${esc(encodeURIComponent(r.producer_id))}" aria-label="${name} 프로필 보기">${name}</a>
   <div class="ranking-buttons">${songCoverPlayButton(r.id,r.name)}<button type="button" class="list-action song-cover-like" data-like="${id}" aria-pressed="${liked(r.id)}" aria-label="${title} 좋아요">${icon('ui-heart')}</button></div>
  </div>`;
 }

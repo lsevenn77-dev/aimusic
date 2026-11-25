@@ -55,7 +55,15 @@ function profileFrameCanvasArtwork(path){
   for(const [key,value] of Object.entries({x:img.offsetLeft+width/2,y:img.offsetTop+height/2,width:width*scale,height:height*scale}))host.style.setProperty('--avatar-frame-'+key,value+'px');
   if(sizeObserver&&!observed.has(img)){sizeObserver.observe(img);observed.add(img);}
  }
+ const nameSelector='[data-user-nickname],[data-premium-identity]';
+ const nameKey=node=>node.dataset.premiumIdentity||node.dataset.profilePreview;
+ const validKey=key=>typeof key==='string'&&/^(?:member:)?[-\w]{1,100}$/.test(key)&&key!=='self';
+ const activeStyle=(entry,at)=>entry?.premium_style_until>at&&Date.now()-entry.checkedAt<45000;
  function paintFrames(){
+  for(const label of document.querySelectorAll(nameSelector)){
+   const entry=frames.get(nameKey(label));
+   label.toggleAttribute('data-premium-style',activeStyle(entry,Date.now()/1000+(entry?.offset||0)));
+  }
   for(const img of observed)if(!img.isConnected){sizeObserver?.unobserve(img);observed.delete(img);}
   for(const img of document.querySelectorAll('img[data-avatar-profile]')){
    if(img.closest('.player-item-preview'))continue;
@@ -66,9 +74,14 @@ function profileFrameCanvasArtwork(path){
    }
    if(host.querySelector(':scope > img.player-frame-artwork'))alignFrame(img,host);
    let overlay=host.querySelector(':scope > .decoration-avatar-overlay');
-   if(!entry?.artwork||expired(entry,at)||!validAsset(entry.artwork)){frameEffects.set(overlay,null);overlay?.remove();continue;}
+   // The member's original equipment and inventory are never rewritten. An explicit
+   // no-frame selection also takes priority over the Premium default.
+   const premiumFrame=entry?.premium_default_frame===1&&activeStyle(entry,at);
+   const source=premiumFrame?AifectPlayer.PREMIUM_APPEARANCE.frameArtwork:entry?.artwork;
+   if(!source||!premiumFrame&&expired(entry,at)||!validAsset(source)){frameEffects.set(overlay,null);overlay?.remove();continue;}
    if(!overlay){overlay=document.createElement('img');overlay.className='decoration-avatar-overlay';overlay.alt='';overlay.setAttribute('aria-hidden','true');host.append(overlay);host.classList.add('decoration-avatar-host');}
-   const artwork=canvasSource(entry.artwork);
+   overlay.className='decoration-avatar-overlay'+(premiumFrame?' premium-default-overlay':'');
+   const artwork=canvasSource(source);
    if(overlay.getAttribute('src')!==artwork)overlay.src=artwork;
    const room=host.closest?.('[data-voice-room]');
    const animated=!room||(room.classList.contains('live-karaoke-room')
@@ -119,9 +132,21 @@ function profileFrameCanvasArtwork(path){
  async function refresh(force=false){
   if(busy){queued=true;return;}busy=true;
   try{
-   const images=[...document.querySelectorAll('img[data-avatar-profile]')].filter(i=>!i.closest('.player-item-preview')),profiles=[...new Set(images.map(i=>i.dataset.avatarProfile).filter(Boolean))];
+   const images=[...document.querySelectorAll('img[data-avatar-profile]')].filter(i=>!i.closest('.player-item-preview'));
+   // Long charts and comment threads need only the names in or near the viewport.
+   const labels=[...document.querySelectorAll(nameSelector)].filter(n=>{
+    const bounds=n.getBoundingClientRect();return bounds.height>0&&bounds.bottom>=-innerHeight&&bounds.top<innerHeight*2;
+   });
+   const profiles=[...new Set([...images.map(i=>i.dataset.avatarProfile),...labels.map(nameKey)].filter(validKey))];
    const fresh=force||Date.now()-lastRead>=15000,missing=profiles.filter(p=>fresh||!frames.has(p));
-   for(let i=0;i<missing.length;i+=80){const d=await api('/api/decorations/avatars?profiles='+encodeURIComponent(missing.slice(i,i+80).join(',')),'GET',undefined,{fresh:true});for(const p of d.avatars)frames.set(p.profile_id,{...p,offset:d.server_now-Date.now()/1000});}
+   for(let i=0;i<missing.length;i+=80){
+    const keys=missing.slice(i,i+80);
+    const d=await api('/api/decorations/avatars?profiles='+encodeURIComponent(keys.join(',')),'GET',undefined,{fresh:true});
+    const checkedAt=Date.now(),offset=d.server_now-checkedAt/1000;
+    // Remember missing/deleted profiles until the next refresh as well.
+    for(const key of keys)frames.set(key,null);
+    for(const p of d.avatars)frames.set(p.lookup_key||p.profile_id,{...p,checkedAt,offset});
+   }
    const cards=document.querySelectorAll('[data-decoration-room]');
    if(cards.length&&(fresh||[...cards].some(c=>!themes.has(c.dataset.decorationRoom)))){
     const version=roomThemeVersion,d=await voiceRequest('public-rooms');if(version===roomThemeVersion)for(const r of d.rooms)remember(r.id,r.theme);
@@ -187,7 +212,7 @@ function layoutProfileFrames(){
  for(const host of document.querySelectorAll('.fan-identity .artist-portrait,.mp-profile .mp-avatar,#public-profile-form .artist-portrait,.profile-preview-photo')){
   const photo=host.querySelector('.profile-avatar-image');if(!photo)continue;
   const rect=photo.getBoundingClientRect(),out={left:0,right:0,top:0,bottom:0};
-  for(const art of host.querySelectorAll(':scope > .player-frame-artwork,:scope > .decoration-avatar-overlay')){
+  for(const art of host.querySelectorAll(':scope > .player-frame-artwork,:scope > .decoration-avatar-overlay:not(.premium-default-overlay)')){
    if(getComputedStyle(art).visibility==='hidden')continue;
    const a=art.getBoundingClientRect(),[l,t,r,b]=frameArtworkBounds(art);
    out.left=Math.max(out.left,rect.left-a.left-a.width*l);out.right=Math.max(out.right,a.left+a.width*r-rect.right);

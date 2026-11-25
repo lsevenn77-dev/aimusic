@@ -53,6 +53,23 @@ test('new renewal survives older revocation and sandbox premium never unlocks pr
  await f.fulfill({...tx,revocationDate:Date.now(),signedDate:Date.now()});
  assert.equal((await f.call('/api/membership')).body.membership.plan,'premium');
 });
+
+test('StoreKit restore reports this transaction entitlement and preserves spent consumables',async t=>{
+ const f=await setup(t),time=Date.now();
+ const tx={...f.transaction,productId:premium,type:'Auto-Renewable Subscription',expiresDate:time-200};
+ assert.equal((await f.fulfill(tx)).entitlement_active,false);
+ const active={...tx,transactionId:'20',expiresDate:time+86400000};
+ assert.equal((await f.fulfill(active)).entitlement_active,true);
+ assert.equal((await f.fulfill({...tx,transactionId:'21',revocationDate:time,signedDate:time})).entitlement_active,false);
+ const purchase={...f.transaction,transactionId:'30',originalTransactionId:'30'};
+ await f.fulfill(purchase);
+ f.sql.exec('UPDATE gold_purchases SET used=gold');
+ await Promise.all([f.fulfill(purchase),f.fulfill(purchase)]);
+ assert.equal((await f.call('/api/gold')).body.balance,0);
+ const history=(await f.call('/api/account/payments?kind=gold')).body;
+ assert.equal(history.payments[0].amount,5000);
+ assert.deepEqual(history.store_history,['app_store']);
+});
 test('verified refund reversal restores only unspent gold; duplicate and older refunds are harmless',async t=>{
  const f=await setup(t),base=Date.now()-10000,tx={...f.transaction,purchaseDate:base-1000,signedDate:base};
  await f.fulfill(tx);f.sql.exec('UPDATE gold_purchases SET used=20');

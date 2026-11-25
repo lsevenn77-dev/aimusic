@@ -194,7 +194,7 @@ function bindCrewMemberList(ui,detail) {
   body.innerHTML=visible.map(m=>{
    const name=esc(m.profile_name||m.name),value=m.role==='operator'?'manager':m.role;
    const options=Object.entries(crewRoleLabels).filter(([k])=>k!=='owner').map(([k,v])=>`<option value="${k}" ${k===value?'selected':''}>${v}</option>`).join('');
-   return `<div class="crew-manage-row" data-member="${esc(m.id)}"><a href="#producer/${esc(m.id)}">${name}</a><div class="crew-row-actions">
+   return `<div class="crew-manage-row" data-member="${esc(m.id)}"><a${premiumNameAttribute(m.id,m.user_id)} href="#producer/${esc(m.id)}">${name}</a><div class="crew-row-actions">
     ${role==='owner'?`<select aria-label="${name} 직책">${options}</select>`:`<span>${esc(crewRoleLabels[value])}</span>`}
     ${role==='owner'||(role==='deputy'&&m.role!=='deputy')?`<button type="button" class="small-button" data-kick aria-label="${name} 강퇴">강퇴</button>`:''}</div></div>`;
   }).join('')||`<p>${members.length?AifectMessages.searchEmpty:'관리할 멤버가 없습니다.'}</p>`;

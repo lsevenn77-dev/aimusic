@@ -26,7 +26,6 @@ function bindUploadForm(form,work){
  form.addEventListener('invalid',e=>{if(form._invalidCycle)return;form._invalidCycle=true;setTimeout(()=>form._invalidCycle=false,0);const field=e.target,label=field.getAttribute('aria-label')||field.labels?.[0]?.textContent.trim().split('\n')[0]||'필수 항목';const error=formError(form);if(error)error.textContent=`${label.slice(0,70)}: ${field.validationMessage}`;uploadStage(form,'아직 업로드가 시작되지 않았습니다. 필수 항목을 확인해 주세요.',null,'error');},true);
 }
 function bindForms(base,param){
- bindAccountSettings();
  bindSearchForms();
  if($('#auth-form')){
   const form=$('#auth-form');$('#auth-switch').onclick=()=>{const signup=form.dataset.mode!=='register';form.dataset.mode=signup?'register':'login';$('#signup-name').hidden=!signup;form.elements.name.required=signup;form.elements.name.disabled=!signup;form.elements.name.setCustomValidity('');$('#auth-submit').disabled=false;form.elements.password.autocomplete=signup?'new-password':'current-password';$('#auth-title').textContent=signup?'무료 회원가입':'이메일로 로그인';$('#auth-submit').textContent=signup?'가입하고 음악 듣기':'로그인';$('#auth-switch').textContent=signup?'이미 회원이신가요? 로그인':'처음 오셨나요? 무료 회원가입';};
@@ -157,7 +156,7 @@ async function uploadFile(url,file,onprogress=()=>{},imageOptions){if(!imageOpti
  heartbeat();xhr.send(file);
 });}finally{invalidateReads();}}
 async function playlistDialog(existing=null,initialTrack=null){
- const ticket=renderId;if(!me)return askLogin();await refreshLibrary();if(ticket!==renderId)return;if(!existing&&!canCreatePlaylist())return;if(globalThis.AifectUnifiedPlaylists)return unifiedPlaylistEditor({id:existing?.id,initial:initialTrack});if(existing?.locked)return selectActivePlaylists();
+ const ticket=renderId;if(!me)return askLogin();await refreshLibrary();if(ticket!==renderId)return;if(!existing&&!canCreatePlaylist())return;if(globalThis.AifectUnifiedPlaylists)return unifiedPlaylistEditor({id:existing?.id,initial:initialTrack});
  const detail=existing?await api('/api/playlists/'+existing.id,'GET',undefined,{fresh:true}):null;
  if(detail)existing=detail.playlist;
  const initial=initialTrack?(trackMap.get(initialTrack)||(await api('/api/tracks/'+initialTrack)).track):null;

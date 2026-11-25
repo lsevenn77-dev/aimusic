@@ -64,7 +64,7 @@ function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status)
  const q=value.upload_quota,premium=value.plan==='premium',progress=Math.min(100,q.used/q.limit*100),remaining=Math.max(0,q.limit-q.used);
  const usage=`${number(q.used)} / ${number(q.limit)}`;
  const showPremium=premium||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false;
- const benefits=`<ul class="studio-quota-benefits"><li>${icon('check')}<span>제작곡 월 ${premium?number(q.limit):'10'}곡까지 업로드</span></li><li>${icon('check')}<span>전체곡 AAC 256kbps 고음질 감상</span></li><li>${icon('check')}<span>커버 업로드 무제한 · 광고 없음</span></li></ul>`;
+ const benefits=`<ul class="studio-quota-benefits"><li>${icon('check')}<span>제작곡 월 ${number(premium?q.limit:AifectSite.MONTHLY_ORIGINAL_LIMITS.premium)}곡까지 업로드</span></li><li>${icon('check')}<span>최대 AAC 256kbps 고음질 감상</span></li><li>${icon('check')}<span>광고 없는 이용</span></li></ul>`;
  return `<section class="studio-quota-card${showPremium?'':' studio-quota-manage-only'}" data-quota-state="${value.plan}" aria-label="이번 달 제작곡 한도">
   <div class="studio-quota-upload-card">
    <div class="studio-quota-meter" style="--studio-quota-progress:${progress}%" role="progressbar" aria-label="이번 달 제작곡 업로드" aria-valuemin="0" aria-valuemax="${q.limit}" aria-valuenow="${Math.min(q.used,q.limit)}" aria-valuetext="${q.used} / ${q.limit}곡 업로드"><div class="studio-quota-summary"><span>이번 달 제작곡</span><strong>${usage}곡</strong></div></div>

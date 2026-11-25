@@ -184,10 +184,11 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
  const relationKey=r=>(r.artist_id?'artist/':r.profile_id?'producer/':'member/')+(r.artist_id||r.profile_id||r.uid);
  function rowHTML(r){
   const key=relationKey(r),profile=r.artist_id?'artist/'+encodeURIComponent(r.artist_id):r.profile_id?'producer/'+encodeURIComponent(r.profile_id):r.public_id?'member/'+encodeURIComponent(r.public_id):'follower/'+encodeURIComponent(r.uid);
-  const pic=avatarImage({id:r.artist_id||r.profile_id,name:r.name,image_version:r.image_version},r.artist_id?'artist':'producer',false);
+  const nameMark=r.artist_id?'':premiumNameAttribute(r.profile_id,r.uid);
+  const pic=avatarImage({id:r.artist_id||r.profile_id,user_id:r.uid,name:r.name,image_version:r.image_version},r.artist_id?'artist':'producer',false);
   if(simple){
    const actions=d.manage&&allowed(r)?tab==='blocks'?btn('unblock','차단 해제'):profileFollowButton(key,!!r.following,!!r.follows_viewer,r.following?'unfollow':'follow')+btn('block','차단'):'';
-   return '<a class="fm-photo" href="#'+esc(profile)+'" aria-label="'+esc(r.name)+' 프로필">'+pic+'</a><div class="fm-name"><strong><a href="#'+esc(profile)+'" title="'+esc(r.name)+'">'+esc(r.name)+'</a></strong></div><div class="fm-actions">'+actions+'</div>';
+   return '<a class="fm-photo" href="#'+esc(profile)+'" aria-label="'+esc(r.name)+' 프로필">'+pic+'</a><div class="fm-name"><strong><a href="#'+esc(profile)+'" title="'+esc(r.name)+'"'+nameMark+'>'+esc(r.name)+'</a></strong></div><div class="fm-actions">'+actions+'</div>';
   }
   const photo=mode?'<span class="fm-photo">'+pic+'</span>':'<button type="button" data-fm="photo" class="fm-photo" aria-haspopup="dialog" aria-label="'+esc(r.name)+' 프로필 미리보기">'+pic+'</button>';
   const check=mode?'<input class="fm-check" aria-label="'+esc(r.name)+' 선택" type="checkbox" '+(chosen.has(r.key)?'checked':'')+' '+(busy?'disabled':'')+'>':'';
@@ -200,7 +201,7 @@ function bindFollowList(root,{params,d,tab,simple=false,saved,onData,onFilters})
   }
   const scope=r.scope_name?r.scope_name+'에서 차단':r.artist_id&&tab==='blocks'?'내가 차단한 아티스트':tab==='blocks'?'개인 계정':'';
   const badge=r.artist_id?'<span class="ai-mini">AI</span>':r.player_xp!=null?'<small class="fm-level" aria-label="레벨 '+playerLevel(r)+'">Lv. '+playerLevel(r)+'</small>':'';
-  const name=mode?'<span class="fm-nickname" title="'+esc(r.name)+'">'+esc(r.name)+'</span>':'<a href="#'+esc(profile)+'" title="'+esc(r.name)+'">'+esc(r.name)+'</a>';
+  const name=mode?'<span class="fm-nickname" title="'+esc(r.name)+'"'+nameMark+'>'+esc(r.name)+'</span>':'<a href="#'+esc(profile)+'" title="'+esc(r.name)+'"'+nameMark+'>'+esc(r.name)+'</a>';
   return check+photo+'<div class="fm-name"><strong>'+name+badge+'</strong>'+(scope?'<small>'+esc(scope)+'</small>':'')+(r.bio?'<p>'+esc(r.bio)+'</p>':'')+'</div><div class="fm-actions">'+acts+'</div>';
  }
  function paint(){

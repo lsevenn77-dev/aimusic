@@ -1,3 +1,4 @@
+import {appearanceColumnsSQL} from './premium-appearance.js';
 import * as AifectMessages from '../shared/system-messages.js';
 import {decorationInventory,decorationFundingSQL} from './decorations.js';
 import {one,rows,run,query,fail,json,now} from './db.js';
@@ -36,7 +37,7 @@ export const playerColumnsSQL=uid=>{
  const equipped=select=>`(SELECT ${select} FROM player_equipment pe JOIN player_inventory pi ON pi.id=pe.frame_inventory_id AND pi.user_id=pe.user_id WHERE pe.user_id=${uid} AND pi.revoked=0 AND (pi.expires_at=0 OR pi.expires_at>unixepoch()) AND ${usableSQL('pi','pe.user_id')})`;
  const display=`CASE pi.item_key ${Object.entries(PLAYER_ITEMS).map(([key,item])=>`WHEN ${sqlString(key)} THEN ${sqlString(JSON.stringify(item.display))}`).join(' ')} END`;
  const artwork=`CASE pi.item_key ${Object.entries(PLAYER_ITEMS).map(([key,item])=>`WHEN ${sqlString(key)} THEN ${sqlString(item.artwork)}`).join(' ')} END`;
- return `COALESCE((SELECT sum(px.amount) FROM player_xp px WHERE px.user_id=${uid}),0) player_xp,${equipped('pi.item_key')} profile_frame,${equipped(artwork)} profile_frame_artwork,${equipped(display)} profile_frame_display`;
+ return `${appearanceColumnsSQL(uid)},COALESCE((SELECT sum(px.amount) FROM player_xp px WHERE px.user_id=${uid}),0) player_xp,${equipped('pi.item_key')} profile_frame,${equipped(artwork)} profile_frame_artwork,${equipped(display)} profile_frame_display`;
 };
 export async function playerIdentity(env,uid){
  const p=await one(env,`SELECT ${playerColumnsSQL('u.id')} FROM users u WHERE u.id=?`,uid);

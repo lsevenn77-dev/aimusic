@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {paymentPageRoute} from '../server/payment-page.js';
 import {publicPage} from '../server/public-pages.js';
-import {PREMIUM,businessDetailsHTML,businessFooterHTML,policyLinks} from '../shared/site-info.js';
+import {PREMIUM,PREMIUM_BENEFITS,businessDetailsHTML,businessFooterHTML,policyLinks} from '../shared/site-info.js';
 
 const request=(path='/checkout/toss',method='GET')=>new Request('https://aifect.test'+path,{method});
 const html=()=>paymentPageRoute(request('/checkout/toss/success'),'/checkout/toss/success').text();
@@ -57,7 +57,9 @@ test('standalone checkout renders the authoritative monthly Premium product and 
  assert.match(page,/id="checkout-submit"[^>]+ disabled>토스 테스트 카드 등록창 열기</);
  assert.match(page,/id="checkout-consent"[^>]+type="checkbox" required>/);
  assert.doesNotMatch(page,/id="checkout-consent"[^>]+checked/);
- assert.doesNotMatch(page,/name="gold"|골드|WEB_GOLD_PACKS|id="checkout-amount"/);
+ const benefits=page.match(/<ul class="checkout-benefits">([\s\S]*?)<\/ul>/)?.[1]||'';
+ assert.deepEqual([...benefits.matchAll(/<li>([^<]+)<\/li>/g)].map(match=>match[1]),PREMIUM_BENEFITS.map(({label})=>label));
+ assert.doesNotMatch(page,/name="gold"|골드 충전|WEB_GOLD_PACKS|id="checkout-(?:gold-\d+|total-gold|amount)"/);
 });
 
 test('checkout and both callbacks use identical safe HTML and ignore all request data',async()=>{

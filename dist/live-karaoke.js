@@ -427,7 +427,7 @@ function paintLiveKaraoke(c){
   const q=visible[i];
   if(!q)return `<li><span class="room-empty-order">${i+1}</span><strong>순서</strong></li>`;
   const person=s.members.find(p=>p.id===q.user_id),name=person?.name||q.name;
-  return `<li class="${q.now?'is-current':''}" ${q.now?'aria-current="true"':''} title="${esc(name)} · ${esc(q.track.title)}"><button type="button" class="live-queue-avatar" data-voice="talk-profile" data-target="${esc(q.user_id)}" aria-label="${esc(name)} 프로필">${roomMemberAvatar({...person,name})}</button><strong>${person?.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${esc(name)}</span></strong></li>`;
+  return `<li class="${q.now?'is-current':''}" ${q.now?'aria-current="true"':''} title="${esc(name)} · ${esc(q.track.title)}"><button type="button" class="live-queue-avatar" data-voice="talk-profile" data-target="${esc(q.user_id)}" aria-label="${esc(name)} 프로필">${roomMemberAvatar({...person,name})}</button><strong>${person?.role==='host'?'<span class="room-host-crown" aria-label="방장">'+voiceGlyph('crown')+'</span>':''}<span>${userNickname(name,{profileId:person?.profile_id,userId:q.user_id})}</span></strong></li>`;
  }).join('');
  const queue=c.host.querySelector('#live-queue');if(c.liveQueueHTML!==queueHTML){queue.innerHTML=queueHTML;c.liveQueueHTML=queueHTML;}
  if(active)livePrepareTrack(c,active);else {if(c.liveAudio||c.liveTrack||c.liveAbort)liveStopAudio(c);c.liveError='';}

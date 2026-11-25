@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {runInNewContext} from 'node:vm';
+import * as sitePolicy from '../shared/site-info.js';
 import {fixture} from './fixture.mjs';
 
 const script=readFileSync(new URL('../dist/studio-manager.js',import.meta.url),'utf8');
@@ -11,7 +12,7 @@ function harness(){
  const events=()=>({addEventListener(name,fn){listeners.set(this.key+name,fn);},removeEventListener(name,fn){if(listeners.get(this.key+name)===fn)listeners.delete(this.key+name);}});
  const card={set outerHTML(value){html=value;}};
  const root={...events(),key:'root:',isConnected:true,parentNode:{},querySelector:()=>card};
- const ctx={bindStudioForms(){},studioHTML(){},icon:name=>`<svg data-icon="${name}"></svg>`,number:String,
+ const ctx={AifectSite:{...sitePolicy,PREMIUM:{...sitePolicy.PREMIUM,catalogVisible:true}},bindStudioForms(){},studioHTML(){},icon:name=>`<svg data-icon="${name}"></svg>`,number:String,
   document:{...events(),key:'document:',hidden:false},window:{...events(),key:'window:'},me:{id:'owner'},location:{hash:'#studio'},
   api:async()=>({user:{id:'owner'},membership:membership('free',0,3)}),AbortController,
   setTimeout(fn,delay){const id=++sequence;timers.set(id,{fn,delay});return id;},clearTimeout(id){timers.delete(id);},
@@ -36,8 +37,9 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
   assert.equal((html.match(/매월 1일 초기화\(한국시간\) · 커버곡 무제한/g)||[]).length,1);
   assert.equal((html.match(/href="#upload"/g)||[]).length,1);
   assert.match(html,/studio-quota-benefits/);
-  assert.equal((html.match(/전체곡 AAC 256kbps 고음질 감상/g)||[]).length,1);
-  assert.equal((html.match(/커버 업로드 무제한 · 광고 없음/g)||[]).length,1);
+  assert.equal((html.match(/최대 AAC 256kbps 고음질 감상/g)||[]).length,1);
+  assert.match(html,/광고 없는 이용/);
+  assert.doesNotMatch(html,/커버 업로드 무제한 · 광고 없음/);
   if(plan==='premium'){
    assert.match(html,/<span class="studio-premium-state">/);assert.match(html,/PREMIUM 이용 중/);
    assert.match(html,/제작곡 월 10곡까지 업로드/);

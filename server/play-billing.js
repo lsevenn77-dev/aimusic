@@ -34,7 +34,7 @@ export function verifiedSubscription(data,product,accountId){
  const expires=Math.floor(Date.parse(item.expiryTime)/1000);
  if(!Number.isSafeInteger(expires))fail(400,'구독 기간을 확인해 주세요.');
  const entitled=['SUBSCRIPTION_STATE_ACTIVE','SUBSCRIPTION_STATE_IN_GRACE_PERIOD','SUBSCRIPTION_STATE_CANCELED'].includes(data.subscriptionState)&&expires>now();
- return {expiry:entitled?expires:0,state:data.subscriptionState,order:item.latestSuccessfulOrderId||data.latestOrderId||'',ack:data.acknowledgementState==='ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED'};
+ return {expiry:entitled?expires:0,state:data.subscriptionState,test:data.testPurchase!=null,order:item.latestSuccessfulOrderId||data.latestOrderId||'',ack:data.acknowledgementState==='ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED'};
 }
 export function verifiedGold(data,product,accountId){
  if(data.obfuscatedExternalAccountId!==accountId)fail(403,'이 구매는 다른 AIFECT 계정에 연결되어 있습니다.');
@@ -55,43 +55,64 @@ export function verifiedOrderPrice(order,orderId,token,product){
 async function applySubscription(env,user,token,product,data){
  const verified=verifiedSubscription(data,product,await playAccountId(user.id));
  const tokenHash=await hash(token),at=now();
- const existing=await one(env,'SELECT * FROM play_purchases WHERE token_hash=?',tokenHash);
+ const existing=await one(env,'SELECT user_id,product_id,kind,state FROM play_purchases WHERE token_hash=?',tokenHash);
  if(existing&&existing.user_id!==user.id)fail(403,'다른 계정에서 처리한 구매입니다.');
+ if(existing&&(existing.kind!=='subs'||existing.product_id!==product.id))fail(409,'기존 구매 정보와 일치하지 않습니다.');
  if(existing?.state==='refunded')fail(409,'환불된 구매입니다.');
  const latest=await one(env,'SELECT MAX(last_granted) amount,MAX(baseline_until) baseline FROM play_purchases WHERE user_id=? AND kind=?',user.id,'subs');
  const fresh=await one(env,'SELECT premium_until FROM users WHERE id=?',user.id);
  const baseline=Math.max(Number(latest?.baseline||0),Number(fresh.premium_until)!==Number(latest?.amount||0)?Number(fresh.premium_until||0):0);
  await env.DB.batch([
   query(env,`INSERT INTO play_purchases(token_hash,purchase_token,user_id,product_id,kind,state,expiry,baseline_until,created,updated) VALUES(?,?,?,?,?,?,?,?,?,?)
-   ON CONFLICT(token_hash) DO UPDATE SET state=excluded.state,expiry=excluded.expiry,baseline_until=MAX(play_purchases.baseline_until,excluded.baseline_until),updated=excluded.updated WHERE play_purchases.state!='refunded'`,tokenHash,token,user.id,product.id,'subs',verified.state,verified.expiry,baseline,at,at),
+   ON CONFLICT(token_hash) DO UPDATE SET state=excluded.state,expiry=excluded.expiry,baseline_until=MAX(play_purchases.baseline_until,excluded.baseline_until),updated=excluded.updated WHERE play_purchases.state!='refunded' AND play_purchases.user_id=excluded.user_id AND play_purchases.product_id=excluded.product_id AND play_purchases.kind='subs'`,tokenHash,token,user.id,product.id,'subs',verified.test?'test:'+verified.state:verified.state,verified.expiry,baseline,at,at),
   query(env,`UPDATE users SET premium_until=MAX(?,COALESCE((SELECT MAX(expiry) FROM play_purchases WHERE user_id=? AND kind='subs'),0),COALESCE((SELECT MAX(p.entitlement_end) FROM billing_payments p JOIN billing_subscriptions s ON s.id=p.subscription_id WHERE s.user_id=?),0)) WHERE id=?`,baseline,user.id,user.id,user.id),
   query(env,"UPDATE play_purchases SET last_granted=(SELECT premium_until FROM users WHERE id=?) WHERE user_id=? AND kind='subs'",user.id,user.id),
  ]);
- if(!verified.ack&&verified.expiry)await google(env,`purchases/subscriptions/${encodeURIComponent(product.id)}/tokens/${encodeURIComponent(token)}:acknowledge`,'POST',{});
- return {ok:true,kind:'subs',premium_until:(await one(env,'SELECT premium_until FROM users WHERE id=?',user.id)).premium_until};
+ const applied=await one(env,"SELECT p.state,p.expiry,u.premium_until FROM play_purchases p JOIN users u ON p.user_id=u.id WHERE p.token_hash=? AND p.user_id=? AND p.product_id=? AND p.kind='subs'",tokenHash,user.id,product.id);
+ if(!applied||applied.state==='refunded')fail(409,'복원할 수 있는 구독이 없습니다.');
+ const entitlementActive=applied.expiry>now();
+ if(!verified.ack&&entitlementActive)await google(env,`purchases/subscriptions/${encodeURIComponent(product.id)}/tokens/${encodeURIComponent(token)}:acknowledge`,'POST',{});
+ return {ok:true,kind:'subs',premium_until:applied.premium_until,entitlement_active:entitlementActive};
 }
 async function applyGold(env,user,token,product,data){
  const v=verifiedGold(data,product,await playAccountId(user.id)),tokenHash=await hash(token),at=now();
- const existing=await one(env,'SELECT * FROM play_purchases WHERE token_hash=?',tokenHash);
+ const existing=await one(env,'SELECT state,user_id,kind,product_id FROM play_purchases WHERE token_hash=?',tokenHash);
  if(existing&&existing.user_id!==user.id)fail(403,'다른 계정에서 처리한 구매입니다.');
+ if(existing&&(!['inapp','inapp_verified','inapp_unpriced','inapp_test'].includes(existing.kind)||existing.product_id!==product.id))fail(409,'기존 구매 정보와 일치하지 않습니다.');
  if(existing?.state==='refunded')fail(409,'환불된 구매입니다.');
- if(v.consumed&&!existing)fail(409,'이미 사용 처리된 구매입니다. 고객센터로 문의해 주세요.');
  const purchaseId='play_'+tokenHash;
  // Only Google's verified receipt can identify a test payment. Test gold stays
  // usable, but has no paid value to distribute to creators or the platform.
  // Catalog changes must never revalue a pending purchase or a previously paid lot.
- const savedLot=existing?await one(env,'SELECT price_krw FROM gold_purchases WHERE id=?',purchaseId):null;
+ const savedLot=existing?await one(env,'SELECT price_krw,used,provider_ref FROM gold_purchases WHERE id=? AND user_id=?',purchaseId,user.id):null;
+ if(v.consumed&&!savedLot)fail(409,'이미 사용 처리된 구매입니다. 고객센터로 문의해 주세요.');
+ if(savedLot&&savedLot.provider_ref!==v.order)fail(409,'기존 구매 정보와 일치하지 않습니다.');
  const price=v.test?0:savedLot?.price_krw??verifiedOrderPrice(await google(env,`orders/${encodeURIComponent(v.order)}`),v.order,token,product),fee=Math.ceil(price*APP_STORE_FEE_BP/10000);
- if(v.test&&existing){
-  const lot=await one(env,'SELECT used,price_krw FROM gold_purchases WHERE id=?',purchaseId);
-  if(lot?.used>0&&lot.price_krw>0)fail(409,'이미 사용한 테스트 결제의 정산을 운영자가 확인해야 합니다.');
- }
+ if(v.test&&savedLot?.used>0&&savedLot.price_krw>0)fail(409,'이미 사용한 테스트 결제의 정산을 운영자가 확인해야 합니다.');
+ // Old lots sometimes have a catalog-based settlement value. Mark the source
+ // of the customer-facing amount only when the Orders API actually supplied it.
+ // Keep price provenance when a voided purchase changes state to "refunded".
+ const purchaseKind=v.test?'inapp_test':!savedLot||existing?.kind==='inapp_verified'?'inapp_verified':'inapp_unpriced';
  await env.DB.batch([
-  query(env,"INSERT OR IGNORE INTO play_purchases(token_hash,purchase_token,user_id,product_id,kind,state,created,updated) VALUES(?,?,?,?,?,'paid',?,?)",tokenHash,token,user.id,product.id,'inapp',at,at),
-  query(env,"INSERT OR IGNORE INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,created,paid_at,provider_ref) VALUES(?,?,'google_play',?,?,?,?,'paid',?,?,?)",purchaseId,user.id,product.gold,price,fee,includedKoreanVat(price),at,at,v.order),
+  query(env,`INSERT INTO play_purchases(token_hash,purchase_token,user_id,product_id,kind,state,created,updated) VALUES(?,?,?,?,?,'paid',?,?)
+   ON CONFLICT(token_hash) DO UPDATE SET kind=excluded.kind,updated=excluded.updated
+   WHERE play_purchases.state!='refunded' AND play_purchases.user_id=excluded.user_id AND play_purchases.kind IN ('inapp','inapp_verified','inapp_unpriced','inapp_test') AND play_purchases.product_id=excluded.product_id`,tokenHash,token,user.id,product.id,purchaseKind,at,at),
+  query(env,`INSERT OR IGNORE INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,created,paid_at,provider_ref)
+   SELECT ?,?,'google_play',?,?,?,?,'paid',?,?,? WHERE EXISTS(SELECT 1 FROM play_purchases WHERE token_hash=? AND user_id=? AND kind=? AND product_id=? AND state!='refunded')`,purchaseId,user.id,product.gold,price,fee,includedKoreanVat(price),at,at,v.order,tokenHash,user.id,purchaseKind,product.id),
   ...(v.test?[query(env,"UPDATE gold_purchases SET price_krw=0,fee_krw=0,tax_krw=0 WHERE id=? AND used=0",purchaseId)]:[]),
  ]);
- if(!v.consumed)await google(env,`purchases/products/${encodeURIComponent(product.id)}/tokens/${encodeURIComponent(token)}:consume`,'POST');
+ const applied=await one(env,`SELECT 1 FROM play_purchases p JOIN gold_purchases g ON g.id=? AND g.user_id=p.user_id
+  WHERE p.token_hash=? AND p.user_id=? AND p.kind=? AND p.product_id=? AND p.state!='refunded' AND g.provider_ref=? AND g.status='paid'`,purchaseId,tokenHash,user.id,purchaseKind,product.id,v.order);
+ if(!applied)fail(409,'복원할 수 있는 골드 구매가 없습니다.');
+ if(!v.consumed){
+  try{await google(env,`purchases/products/${encodeURIComponent(product.id)}/tokens/${encodeURIComponent(token)}:consume`,'POST');}
+  catch(error){
+   // Another delivery may already have consumed the same committed lot.
+   const refreshed=await google(env,`purchases/productsv2/tokens/${encodeURIComponent(token)}`);
+   const committed=verifiedGold(refreshed,product,await playAccountId(user.id));
+   if(!committed.consumed||committed.order!==v.order)throw error;
+  }
+ }
  return {ok:true,kind:'inapp',gold:product.gold};
 }
 export async function verifyPlay(env,user,token,product){

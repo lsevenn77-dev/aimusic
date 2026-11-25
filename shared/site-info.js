@@ -8,6 +8,21 @@ export const BUSINESS = Object.freeze({
 });
 export const PREMIUM = Object.freeze({name: 'AIFECT Premium', price: 4900, currency: 'KRW', interval: 'month', taxIncluded: true, checkoutAvailable: false, catalogVisible: false});
 export const APP_PREMIUM = Object.freeze({...PREMIUM, price: 5900});
+export const MONTHLY_ORIGINAL_LIMITS = Object.freeze({free: 3, premium: 10});
+export const PREMIUM_BENEFITS = Object.freeze([
+  {id: 'ad_free', label: '광고 없는 이용'},
+  {id: 'high_quality', label: '고음질 스트리밍'},
+  {id: 'original_uploads', label: `제작곡 월 ${MONTHLY_ORIGINAL_LIMITS.premium}곡`},
+  {id: 'vocal_tone', label: '음색 보정'},
+  {id: 'punch_in', label: '구간 재녹음'},
+  {id: 'premium_badge', label: '프리미엄 배지'},
+  {id: 'gold_nickname', label: '골드 닉네임'},
+  {id: 'premium_frame', label: '전용 프로필 테두리'},
+  {id: 'synced_lyrics_seek', label: '싱크 가사 구간 이동'}
+].map(Object.freeze));
+export function premiumBenefitItemsHTML() {
+  return PREMIUM_BENEFITS.map(({label}) => `<li>${escapeHTML(label)}</li>`).join('');
+}
 export const POLICY_VERSION = '2026-10-11';
 // Karaoke MR / cover license accepted per track. Bump when the clause text changes; older consents keep their version.
 export const KARAOKE_TERMS_VERSION = '2026-09-24';

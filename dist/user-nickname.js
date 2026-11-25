@@ -5,6 +5,10 @@ function nicknameProfileKey({profileId,userId,artistId,entityType='user',account
  if(entityType==='artist'||entityType==='ai_artist'||accountType==='ai_artist')return valid(artistId)?'artist:'+artistId:'';
  return valid(profileId)?profileId:valid(userId)?'member:'+userId:'';
 }
+function premiumNameAttribute(profileId,userId){
+ const key=nicknameProfileKey({profileId,userId});
+ return key?' data-premium-identity="'+nicknameEscape(key)+'"':'';
+}
 function userNickname(nickname,identity={},options={}){
  const name=nicknameEscape(nickname||''),key=nicknameProfileKey(identity);
  const cls=options.className?' '+nicknameEscape(options.className):'';

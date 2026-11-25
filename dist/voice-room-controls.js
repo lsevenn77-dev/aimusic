@@ -87,7 +87,7 @@ Object.assign(VoiceRoomClient.prototype,{
  openSeatPicker(seat){
   if(this.state.members.find(p=>p.id===this.state.self)?.role!=='host')return;
   this.invitingSeat=seat;this.showSheet('voice-seat-picker');
-  $('#voice-seat-candidates').innerHTML=this.state.members.filter(p=>p.seat===null).map(p=>`<button type="button" class="voice-member-row" data-voice="invite-seat-user" data-target="${esc(p.id)}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></button>`).join('')||'<p class="quiet">현재 청취 중인 참여자가 없습니다.</p>';
+  $('#voice-seat-candidates').innerHTML=this.state.members.filter(p=>p.seat===null).map(p=>`<button type="button" class="voice-member-row" data-voice="invite-seat-user" data-target="${esc(p.id)}">${avatarImage({name:p.name,profile_id:p.profile_id,user_id:p.id,image_version:p.image_version})}<span>${userNickname(p.name,{profileId:p.profile_id,userId:p.id})}</span></button>`).join('')||'<p class="quiet">현재 청취 중인 참여자가 없습니다.</p>';
  },
  canDock(){return !this.liveMode&&window.innerWidth>800&&window.innerHeight>=600&&this.host.clientWidth>=680;},
  paintTalkPanel(self,micOn){
@@ -326,7 +326,7 @@ Object.assign(VoiceRoomClient.prototype,{
 function roomMemberAvatar(p,ignoreMute=false,seat=false,persistent=false){
  const muted=!ignoreMute&&!seat&&p.muted;
  const mark=seat||muted||persistent?'<span class="room-muted-mark" aria-label="음소거"'+(!muted?' hidden':'')+'>'+voiceGlyph('talkMicOff')+'</span>':'';
- return `<span class="room-member-photo${muted?' is-muted':''}">${avatarImage({name:p.name,profile_id:p.profile_id,image_version:p.image_version})}${mark}</span>`;
+ return `<span class="room-member-photo${muted?' is-muted':''}">${avatarImage({name:p.name,profile_id:p.profile_id,user_id:p.id,image_version:p.image_version})}${mark}</span>`;
 }
 function roomMicIsOn(client,member){
  const track=client.micSender?.track;

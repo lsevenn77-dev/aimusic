@@ -1,5 +1,5 @@
 import { aboutIcon as icon } from './about-icons.js';
-import { BUSINESS, PREMIUM, APP_PREMIUM, escapeHTML as esc } from '../shared/site-info.js';
+import { BUSINESS, PREMIUM, APP_PREMIUM, PREMIUM_BENEFITS, escapeHTML as esc } from '../shared/site-info.js';
 import { WEB_GOLD_PACKS, WEB_GOLD_BONUS_PERCENT } from '../shared/gifts.js';
 import { uploadQuotaResult } from './upload-limits.js';
 
@@ -41,7 +41,7 @@ function plan(paid) {
     ['가사',paid?'전체 가사 · 싱크 가사 따라가기':'곡 상세에서 전체 가사'],
     ['플레이리스트','무제한'],['제작곡 업로드',`월 ${uploads}곡`],
     ['커버곡 업로드','횟수 제한 없음'],['광고',paid?'없음':'감상·업로드 시 표시될 수 있음'],
-    ['Premium 전용',paid?'가사 구간 이동 · 음색 보정 · 구간 재녹음':'제공하지 않음']
+    ['Premium 전용',paid?PREMIUM_BENEFITS.filter(item=>['vocal_tone','punch_in','synced_lyrics_seek'].includes(item.id)).map(item=>item.label).join(' · '):'제공하지 않음']
   ];
   const name=paid?'Premium':'FREE';
   return `<article id="plan-${paid?'premium':'free'}" class="guide-plan guide-card${paid?' is-premium':''}"><div class="guide-plan-name">${icon(paid?'disc-3':'headphones')}<h2>${name}</h2>${tag(paid?'월간 이용권':'무료 이용권')}</div><p class="guide-price">${paid?`<small>웹 월</small> ${money(PREMIUM.price)}`:'0'}<small>원</small></p><p class="guide-meta">${paid?'부가세 포함 · 매월 자동갱신':'기본 이용권 · 정기결제 없음'}</p>

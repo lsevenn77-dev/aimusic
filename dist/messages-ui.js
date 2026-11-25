@@ -90,7 +90,7 @@ function bindDmFriendFinder(panel,addTarget){
     if(!current())return;
     results.innerHTML=members.map(person=>{
      const route='dm/'+encodeURIComponent(person.id);addTarget(route);
-     return '<li><a class="dm-finder-person" href="#'+esc(route)+'"><span class="artist-portrait profile-avatar">'+avatarImage({...person,name:person.nickname},'producer',false)+'</span><span class="dm-finder-identity"><strong>'+esc(person.nickname)+'</strong><small>'+esc(person.public_id)+'</small></span></a></li>';
+     return '<li><a class="dm-finder-person" href="#'+esc(route)+'"><span class="artist-portrait profile-avatar">'+avatarImage({...person,name:person.nickname},'producer',false)+'</span><span class="dm-finder-identity"><strong'+premiumNameAttribute(person.profile_id||person.id,person.user_id)+'>'+esc(person.nickname)+'</strong><small>'+esc(person.public_id)+'</small></span></a></li>';
     }).join('');
     status.textContent=members.length?'검색 결과 '+members.length+'명':AifectMessages.searchEmpty;
    }catch(error){

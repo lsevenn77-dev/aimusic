@@ -99,7 +99,7 @@ async function verify(device,width,height,port) {
       await settings.click();assert.deepEqual(await menu.locator('a,button').allTextContents(),menuItems);
       if(!index)await shot('settings');
       await menu.getByRole('link',{name:menuItems[index]}).click();await ready(hash);
-      await page.locator(['.membership-subscription','.payout-overview','#account-nickname-form','.fm-page'][index]).waitFor();
+      await page.locator(['.membership-subscription','.payout-overview','.ac-dashboard','.fm-page'][index]).waitFor();
       if(index===3){
         await page.locator('.fm-rows li').filter({hasText:'가을'}).getByRole('button',{name:'차단 해제'}).click();
         await page.locator('[data-fm=confirm]').click();await page.locator('.fm-count').getByText('0명',{exact:true}).waitFor();

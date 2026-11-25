@@ -23,7 +23,7 @@ function crewMemberProfile(p){
  const name=p.profile_name||p.name,role=crewRoleLabels[p.role==='operator'?'manager':p.role];
  return `<a class="crew-member-profile" href="#producer/${esc(p.id)}" title="${esc(name)}">
    <span class="crew-member-face player-avatar avatar-frame-host">${avatarImage(p,'producer',false)}${playerBadgeHTML(p)}</span>
-   <strong>${esc(name)}</strong>${p.role!=='member'&&role?`<small>${esc(role)}</small>`:''}
+   <strong${premiumNameAttribute(p.id,p.user_id)}>${esc(name)}</strong>${p.role!=='member'&&role?`<small>${esc(role)}</small>`:''}
  </a>`;
 }
 function crewMusicRows(tracks){return tracks.length?songTable(tracks):'<p class="social-empty">조건에 맞는 음악이 없습니다. 검색어나 필터를 바꿔 보세요.</p>';}

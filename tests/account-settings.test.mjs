@@ -33,3 +33,28 @@ test('password change verifies existing credentials, rotates sessions, preserves
  assert.equal((await f.send('/api/auth/login',{email:user.email,password:next},'', 'POST')).status,200);
  f.sql.prepare("UPDATE users SET provider='google' WHERE id=?").run(user.id);assert.equal((await f.send('/api/account/password',{current_password:next,new_password:old},rotated)).status,400);
 });
+test('다른 기기 로그아웃은 현재 세션과 다른 회원을 보존하고 폐기 대상의 푸시만 해제한다',async t=>{
+ const f=await setup(t);
+ const {hash}=await import('../server/auth.js');
+ const self=await hash('owner'),other=await hash('other'),second=await hash('second-device');
+ f.sql.prepare("INSERT INTO sessions(token,user_id,expires) VALUES(?,'owner',unixepoch()+3600)").run(second);
+ for(const [name,uid,token] of [['current','owner',self],['old','owner',second],['parallel','other',other]]){
+  f.sql.prepare("INSERT INTO push_devices(token,user_id,session_token,updated) VALUES(?,?,?,unixepoch())").run(name,uid,token);
+ }
+ assert.equal((await f.call('/api/account/logout-others','POST',{},null)).status,401);
+ const stream=await f.send('/api/chat/events',null,'aifect_session=second-device','GET');
+ assert.equal(stream.status,200);
+ const reader=stream.body.getReader(),decoder=new TextDecoder();
+ assert.match(decoder.decode((await reader.read()).value),/event: change/);
+ const current='aifect_session=owner';
+ assert.equal((await f.send('/api/account/logout-others',{},current,'POST','https://elsewhere.test')).status,403);
+ assert.equal((await f.send('/api/account/logout-others',{user_id:'other'},current,'POST')).status,200);
+ assert.equal((await f.call('/api/me','GET',undefined,'owner')).body.user.id,'owner');
+ assert.equal((await f.call('/api/me','GET',undefined,'second-device')).body.user,null);
+ assert.equal((await f.call('/api/me','GET',undefined,'other')).body.user.id,'other');
+ assert.match(decoder.decode((await reader.read()).value),/event: revoked/);
+ assert.equal((await reader.read()).done,true);
+ assert.deepEqual(f.sql.prepare('SELECT token FROM push_devices ORDER BY token').all().map(r=>r.token),['current','parallel']);
+ assert.equal((await f.call('/api/account/logout-others','POST',{},'second-device')).status,401);
+ assert.equal((await f.call('/api/account/logout-others','POST',{},'owner')).status,200);
+});
