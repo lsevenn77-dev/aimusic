@@ -12,7 +12,7 @@ function context(inApp=false){
 }
 // These image manifests intentionally lock the pre-existing service campaigns.
 // The app-download campaign has its own responsive artwork and two store links.
-function serviceBanners(c){return vm.runInContext("homeBanners.filter(b=>b.id!=='app-download')",c);}
+function serviceBanners(c){return vm.runInContext("homeBanners.filter(b=>b.href)",c);}
 function attributes(tag){return Object.fromEntries(Array.from(tag.matchAll(/([\w-]+)="([^"]*)"/g),match=>[match[1],match[2]]));}
 function pictureSourceAt(html,width){
  const picture=html.match(/<picture\b[^>]*>([\s\S]*?)<\/picture>/)?.[1];
@@ -115,7 +115,7 @@ test('released mobile apps and newer clients can both fetch the cropped native c
 });
 
 test('the native webview selects its dedicated crew composition and preserves other scenes and preloads',()=>{
- const c=context(true),banners=vm.runInContext('homeBanners',c);
+ const c=context(true),banners=serviceBanners(c);
  for(const [index,banner] of banners.entries()){
   const original=c.homeBannerImage(banner.id,1536);
   const html=c.homeBannerHTML(banner,banners[(index+1)%banners.length]);

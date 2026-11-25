@@ -164,18 +164,20 @@ test('leaving home cancels its requests and late completions cannot change the n
  assert.doesNotMatch(c.section('home-recommended').innerHTML,/STALE HOME/);
 });
 
-test('home app downloads render before music reads and keep both store links after a discovery failure',{timeout:3000},async()=>{
+test('the open event renders before music reads and remains visible after a discovery failure',{timeout:3000},async()=>{
  const discovery=deferred(),calls=[];
  const c=homeRenderer(async path=>{calls.push(path);return path===homeDiscoveryPath?discovery.promise:response({tracks:[],playlists:[]});});
  const opening=c.navigate('home');
  try{
   const banner=c.section('home-release'),html=banner.innerHTML;
-  assert.match(html,/data-home-banner="app-download"/,'the app-download campaign must render before music requests finish');
-  assert.match(html,/<a\b[^>]*data-home-store="android"[^>]*href="https:\/\/play\.google\.com\/store\/apps\/details\?id=kr\.co\.aifect\.app"/,'Android downloads must have their real store destination immediately');
-  assert.match(html,/<a\b[^>]*data-home-store="ios"[^>]*href="https:\/\/apps\.apple\.com\/kr\/app\/id6819654764"/,'iOS downloads must have their real store destination immediately');
+  assert.match(html,/data-home-banner="open-event"/);
+  assert.match(html,/<source media="\(min-width: 801px\)" srcset="[^"]+pc_2400x460\.webp"/);
+  assert.match(html,/<img src="[^"]+mobile_1170x672\.webp"[^>]+loading="eager" fetchpriority="high"/);
+  const slide=html.match(/<div class="home-feature-slide home-event-banner"[\s\S]*?<\/picture><\/div>/)?.[0];
+  assert.ok(slide);assert.doesNotMatch(slide,/<a\b|<button\b|onclick=|tabindex=/i);
   assert.doesNotMatch(html,/HOME_LOADING|음악을 불러오는 중/);
   discovery.resolve(response({error:'offline'},503));await opening;await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(c.section('home-release').innerHTML,html,'music network failures must not overwrite the download campaign or its store links');
+  assert.equal(c.section('home-release').innerHTML,html,'music network failures must not overwrite the event');
   assert.match(c.section('home-recommended').innerHTML,/다시 시도/);
   assert.ok(!calls.includes('/api/catalog?section=tracks&limit=12'),'the replaced featured-song banner must not start an unused catalog read');
  }finally{discovery.resolve(response({tracks:[]}));await opening;}
