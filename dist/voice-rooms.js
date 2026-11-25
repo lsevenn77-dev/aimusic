@@ -279,7 +279,7 @@ class VoiceRoomClient {
   return false;
  }
  bindAudioSettings(){
-  for(const [id,key] of [['voice-music-volume','music'],['voice-listen-volume','voice'],['voice-input-gain','input']]){const el=$('#'+id);el.value=this.preferences[key]*100;el.setAttribute('aria-valuetext',Math.round(el.value)+'%');el.oninput=()=>{el.setAttribute('aria-valuetext',Math.round(el.value)+'%');this.preferences[key]=Number(el.value)/100;if(key==='music')this.syncPersonalVolume?.();this.processing?.setLevel(this.preferences.input);this.applyListenVolumes();this.syncMusic();};}
+  for(const [id,key] of [['voice-music-volume','music'],['voice-listen-volume','voice'],['voice-input-gain','input']]){const el=$('#'+id);el.value=this.preferences[key]*100;el.setAttribute('aria-valuetext',Math.round(el.value)+'%');el.oninput=()=>{el.setAttribute('aria-valuetext',Math.round(el.value)+'%');const value=Number(el.value)/100;if(key==='music'&&this.setPersonalVolume){this.setPersonalVolume(value);return;}this.preferences[key]=value;this.processing?.setLevel(this.preferences.input);this.applyListenVolumes();this.syncMusic();};}
   this.bindRoomEcho();
   for(const [id,operation] of [['voice-room-volume','volume'],['voice-balance','balance']]){const el=$('#'+id);el.oninput=()=>{clearTimeout(this.volumeTimer);el.setAttribute('aria-valuetext',Math.round(el.value)+'%');const value=Number(el.value)/100;this.volumeTimer=setTimeout(()=>this.safe(()=>this.musicCommand(operation,{value})),160);};}
   $('#voice-noise').checked=this.preferences.noise;$('#voice-noise').onchange=()=>{this.preferences.noise=$('#voice-noise').checked;this.safe(async()=>{const track=this.stream?.getAudioTracks()[0];if(track?.applyConstraints)await track.applyConstraints({noiseSuppression:this.preferences.noise});});};
@@ -408,6 +408,7 @@ class VoiceRoomClient {
   };
   return a;
  }
+ get personalMusicVolume(){return this.playerMusicMuted?0:this.preferences.music;}
  syncMusic(){
   const m=this.state?.music;
   if(!m||this.closed||this.liveMode)return;
@@ -435,7 +436,7 @@ class VoiceRoomClient {
   }
   this.musicTimeline={key,starts:m.starts,revision:m.revision,position:m.position,updated:m.updated,playing:m.playing};
   if(this.roomAudio?.blocked){if(m.playing)this.musicTarget='room';this.roomAudio.quietElement(a);this.musicAudible=false;this.musicNotice('기기 오디오 일시 중단');return;}
-  this.playbackGain(a,Math.max(0,Math.min(1,m.volume*this.preferences.music)));
+  this.playbackGain(a,Math.max(0,Math.min(1,m.volume*this.personalMusicVolume)));
   this.updateMusicIndicator?.();
   const expected=Math.min(track.duration,m.position+(m.playing?Math.max(0,Date.now()+(this.musicClock||0)-m.updated)/1000:0));
   if(!m.playing){
@@ -491,7 +492,7 @@ class VoiceRoomClient {
  }
  updateMusicIndicator(){
   const a=this.musicAudio;
-  const playing=!!(this.musicAudible&&this.state?.music?.playing&&this.state.music.volume>0&&this.preferences.music>0&&a&&!a.paused&&!a.ended&&!a.seeking&&!a.error&&!a.muted&&a.volume>0&&!this.roomAudio?.blocked);
+  const playing=!!(this.musicAudible&&this.state?.music?.playing&&this.state.music.volume>0&&this.personalMusicVolume>0&&a&&!a.paused&&!a.ended&&!a.seeking&&!a.error&&!a.muted&&a.volume>0&&!this.roomAudio?.blocked);
   const mini=this.host?.querySelector?.('#voice-music-player');
   if(mini&&mini.hasAttribute?.('data-playing')!==playing)mini.toggleAttribute?.('data-playing',playing);
  }

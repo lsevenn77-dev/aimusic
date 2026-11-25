@@ -52,7 +52,11 @@ function bindRoomViewport(client){
   write(main,'--voice-top',start+'px');
   write(room,'--voice-viewport',Math.max(0,end-start)+'px');
   const pc=roomUsesDesktopControls();
-  room.toggleAttribute?.('data-room-pc-controls',pc);
+  if(room.hasAttribute?.('data-room-pc-controls')!==pc){
+   room.toggleAttribute?.('data-room-pc-controls',pc);
+   client.paintPersonalMusicControls?.();
+  }
+  if(!client.liveMode)client.stickers?.setFlatGroups?.(pc);
   if(pc){
    write(room,'--room-width',box.width+'px');
    const content=room.querySelector('#voice-content');
@@ -68,7 +72,8 @@ function bindRoomViewport(client){
   write(document.documentElement,'--room-toast-bottom',Math.max(0,innerHeight-composerTop+10)+'px');
   write(room,'--room-visual-top',top+'px');write(room,'--room-visual-height',(bottom-top)+'px');
   if(stickers&&composer){
-   const rect=composer.getBoundingClientRect(),height=Math.max(0,Math.min(256,(bottom-top)*.4,rect.top-popupStart-16));
+   const rect=composer.getBoundingClientRect(),heightLimit=pc&&!client.liveMode?292:256;
+   const height=Math.max(0,Math.min(heightLimit,(bottom-top)*.4,rect.top-popupStart-16));
    write(room,'--room-emoji-left',rect.left+'px');write(room,'--room-emoji-width',rect.width+'px');
    write(room,'--room-emoji-top',Math.max(popupStart+8,rect.top-height-8)+'px');write(room,'--room-emoji-height',height+'px');
   }
