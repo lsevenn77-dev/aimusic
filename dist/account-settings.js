@@ -22,7 +22,7 @@ function accountApp(){
  const app=window.AIFECTAccountApp;
  return app && ['android','ios'].includes(app.platform) && typeof app.perform==='function' ? app : null;
 }
-function accountPair(label,value){return `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;}
+function accountPair(label,value,rowClass=''){return `<div${rowClass?' class="'+rowClass+'"':''}><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`;}
 function accountLink(href,label,external=false){
  return `<a href="${esc(href)}"${external?' target="_blank" rel="noopener noreferrer"':''}>${esc(label)}${icon(external?'external':'chevron')}</a>`;
 }
@@ -32,21 +32,22 @@ function accountPassHTML(p){
  const rows=[
    accountPair(paid?'구독 경로':'이용권',p.test?'Google Play 테스트 이용권':accountSources[p.source]||'프리미엄 이용권'),
    !event&&accountPair('이용 상태',accountStates[p.state]||accountStates.unknown),
-   p.amount!=null&&accountPair(paid?'월 이용 금액':'이용 금액',billingPrice(p.amount)),
+   p.amount!=null&&accountPair(paid?'월 이용 금액':'이용 금액',billingPrice(p.amount),event&&p.amount===0?'ac-gift-price':''),
    p.next_billing_at&&accountPair('다음 결제일',accountDate(p.next_billing_at)),
    p.until&&!p.next_billing_at&&accountPair(event?'이용 기간':'이용 종료일',accountDate(event?p.until-1:p.until)+(event?'까지':'')),
    p.renewing===false&&p.state==='expiring'&&accountPair('자동결제','해지됨')
  ].filter(Boolean).join('');
  const note=event?'오픈 기념으로 프리미엄 혜택을 무료로 제공해 드려요. 이벤트 종료 후 자동결제되지 않아요.':p.state==='expiring'?'이용 종료일까지 모든 프리미엄 혜택을 사용할 수 있어요.':'';
- return `<div class="ac-pass"><dl class="ac-values">${rows}</dl>${note?`<p class="ac-note">${note}</p>`:''}${manage?`<div class="ac-manage">${accountLink(store?store.manage:'#membership','구독 관리',!!store)}</div>`:''}</div>`;
+ return `<div class="ac-pass${event?' ac-pass-event':''}"><dl class="ac-values">${rows}</dl>${note?`<p class="ac-note ac-pass-note">${icon('info')}<span>${note}</span></p>`:''}${manage?`<div class="ac-manage">${accountLink(store?store.manage:'#membership','구독 관리',!!store)}</div>`:''}</div>`;
 }
 function accountMembershipHTML(data){
  const premium=data.plan==='premium',passes=data.passes,app=accountApp();
  const special=premium&&passes.some(p=>p.source==='event')&&!passes.some(p=>p.source!=='event'&&['active','expiring','grace','pending'].includes(p.state));
+ const inUse=premium&&passes.some(p=>p.state==='active');
  const canOffer=data.can_start_subscription===true;
  return `<section class="surface ac-card ac-membership ${premium?'ac-premium':''}" aria-labelledby="ac-plan">
- <div class="ac-heading"><h2 id="ac-plan">회원 등급 및 이용권</h2><span class="ac-plan-label">${premium?'PREMIUM':'FREE'}</span></div>
- <h3>${special?'오픈 기념 무료 프리미엄':premium?'프리미엄 회원':'일반 회원'}</h3>
+ <div class="ac-heading"><h2 id="ac-plan">${premium?'<span class="ac-plan-icon">'+icon('sparkles')+'</span>':''}회원 등급 및 이용권</h2><span class="ac-plan-label">${premium?'PREMIUM':'FREE'}</span></div>
+ <div class="ac-plan-summary"><h3>${special?'오픈 기념 무료 프리미엄':premium?'프리미엄 회원':'일반 회원'}</h3>${inUse?'<span class="ac-plan-state">이용 중</span>':''}</div>
  ${!premium?'<span class="ac-note">무료 이용 중</span><p class="ac-note">프리미엄으로 더 자유로운 음악과 창작 활동을 즐겨보세요.</p>':''}
  ${passes.map(accountPassHTML).join('')}
  ${canOffer&&app?`<button type="button" class="primary-button ac-primary" data-app-action="purchase"${app.canPurchase===true?'':' hidden'}>프리미엄 시작하기</button>`:canOffer&&data.web_checkout_available&&!inApp?'<button class="primary-button ac-primary" data-billing-subscribe>프리미엄 시작하기</button>':''}
@@ -74,12 +75,15 @@ function accountSettingsHTML(data){
  const external=data.passes.some(p=>accountStores[p.source]&&!['expired','refunded','failed'].includes(p.state));
  return `<div class="ac-dashboard" data-platform="${esc(app?.platform||'web')}" data-version="${esc(app?.version||'')}"><h1>내 계정</h1><div class="ac-grid">
  ${accountMembershipHTML(data)}${accountUsageHTML(data.upload_quota)}
- <section class="surface ac-card ac-benefits"><h2>${data.plan==='premium'?'이용 중인 프리미엄 혜택':'프리미엄 전용 혜택'}</h2><ul>${benefits.map(b=>`<li>${icon(icons[b.id]||'check')}<span>${esc(b.label)}</span></li>`).join('')}</ul></section>
- <section class="surface ac-card"><h2>계정 정보</h2><dl class="ac-values"><div><dt>닉네임</dt><dd><span${premiumNameAttribute(me.profile_id,account.id)}>${esc(account.nickname)}</span></dd></div>${accountPair('가입 이메일',account.email&&!account.email.endsWith('.invalid')?account.email:'제공되지 않음')}${accountPair('로그인 방식',labels[account.provider]||'확인되지 않음')}${accountPair('가입일',accountDate(account.created))}</dl></section>
+ <section class="surface ac-card ac-benefits${data.plan==='premium'?' ac-premium':''}"><h2>${data.plan==='premium'?'이용 중인 프리미엄 혜택':'프리미엄 전용 혜택'}</h2><ul>${benefits.map(b=>`<li data-benefit="${esc(b.id)}">${icon(icons[b.id]||'check')}<span>${esc(b.label)}</span></li>`).join('')}</ul></section>
+ <div class="ac-management"><section class="surface ac-card"><h2>계정 정보</h2><dl class="ac-values"><div><dt>닉네임</dt><dd><span class="ac-nickname"${premiumNameAttribute(me.profile_id,account.id)}><span>${esc(account.nickname)}</span></span></dd></div>${accountPair('가입 이메일',account.email&&!account.email.endsWith('.invalid')?account.email:'제공되지 않음')}${accountPair('로그인 방식',labels[account.provider]||'확인되지 않음')}${accountPair('가입일',accountDate(account.created))}</dl></section>
+ <section class="surface ac-card"><h2>로그인 및 보안</h2><div class="ac-links">${account.provider==='email'?accountPasswordHTML():''}<button data-ac-sessions>다른 기기 로그아웃${icon('chevron')}</button>
+ ${app?'<button type="button" data-app-action="logout">로그아웃'+icon('chevron')+'</button>':'<button type="button" id="logout">로그아웃'+icon('chevron')+'</button>'}
+ ${app?`<button type="button" class="ac-withdraw" data-app-action="delete"${external?' aria-describedby="ac-withdraw-note"':''}>회원 탈퇴${icon('chevron')}</button>`:`<a class="ac-withdraw" href="/account/delete" target="_blank" rel="noopener"${external?' aria-describedby="ac-withdraw-note"':''}>회원 탈퇴${icon('external')}</a>`}
+ ${authConfig?.admin?accountLink('#admin','정산 관리'):''}${authConfig?.track_moderator?accountLink('#admin/track-review','음원 검토 목록'):''}</div>${external?'<p class="ac-note" id="ac-withdraw-note">회원 탈퇴 후에도 스토어 정기결제가 계속될 수 있습니다. 해당 스토어에서 구독을 확인해 주세요.</p>':''}</section>
  <section class="surface ac-card ac-payments" data-account-id="${esc(account.id)}"><h2>결제 관리</h2><h3>결제 내역</h3><div class="ac-filters" role="group" aria-label="결제 내역 필터">${[['all','전체'],['premium','프리미엄'],['gold','골드']].map(([kind,label])=>`<button data-ac-filter="${kind}" aria-pressed="${kind==='all'}">${label}</button>`).join('')}</div><div class="ac-ledger" aria-live="polite">내역을 불러오는 중…</div>${app?'<button class="text-link ac-restore" data-app-action="restore">구매 복원</button>':''}</section>
- <section class="surface ac-card"><h2>로그인 및 보안</h2><div class="ac-links">${account.provider==='email'?accountPasswordHTML():''}<button data-ac-sessions>다른 기기 로그아웃${icon('chevron')}</button>${authConfig?.admin?accountLink('#admin','정산 관리'):''}${authConfig?.track_moderator?accountLink('#admin/track-review','음원 검토 목록'):''}</div></section>
  <section class="surface ac-card"><h2>고객지원 및 정책</h2><div class="ac-links">${[['/contact','고객센터'],['/terms','이용약관'],['/privacy','개인정보처리방침'],['/refund','환불 및 해지 정책']].map(([path,label])=>accountLink(path,label,true)).join('')}</div>${app?.version?`<dl class="ac-values">${accountPair('앱 버전',app.version)}</dl>`:''}</section>
- </div><div class="ac-exit">${external?'<p class="ac-note">회원 탈퇴 후에도 스토어 정기결제가 계속될 수 있습니다. 해당 스토어에서 구독을 확인해 주세요.</p>':''}<div>${app?'<button data-app-action="logout">로그아웃</button>':'<button id="logout">로그아웃</button>'}<span aria-hidden="true">|</span>${app?'<button class="ac-withdraw" data-app-action="delete">회원 탈퇴</button>':'<a class="ac-withdraw" href="/account/delete" target="_blank" rel="noopener">회원 탈퇴</a>'}</div></div></div>`;
+ </div></div></div>`;
 }
 function accountPaymentsList(entries){
  return entries.map(p=>`<li><div><strong>${esc(p.product)}</strong><span>${accountDate(p.date)} · ${esc(accountSources[p.source])}</span></div><div><strong>${p.amount==null?'금액 미확인':esc(billingPrice(p.amount))}</strong><span>${esc(accountPaymentStates[p.state]||accountPaymentStates.unknown)}${p.refunded>0?' · '+esc(billingPrice(p.refunded)):''}</span></div></li>`).join('');

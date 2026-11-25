@@ -75,11 +75,11 @@
 /* Account content uses the shared shell, fonts and surface tokens. */
 .ac-dashboard {
  --ac-mint:#8eddd2;
- --ac-gold:var(--gold,#eacb86);
  color:var(--ds-text);font-size:var(--pc-font-body,15px);line-height:1.5;
 }
 .ac-dashboard h1 {margin:0 0 18px;font-size:var(--pc-font-page,25px);line-height:1.35}
 .ac-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:start}
+.ac-management {grid-column:1/-1;display:grid;grid-template-columns:inherit;gap:inherit;align-items:stretch;min-width:0}
 .ac-dashboard .ac-card {min-width:0;margin:0;padding:18px 22px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel);box-shadow:none}
 .ac-card h2 {margin:0 0 10px;font-size:var(--pc-font-section,20px);line-height:1.4;letter-spacing:-.025em}
 .ac-card h3 {margin:8px 0 2px;font-size:var(--pc-font-title,16px);line-height:1.45}
@@ -87,7 +87,20 @@
 .ac-heading h2 {margin:0}
 .ac-heading>svg {width:19px;color:var(--ds-muted)}
 .ac-membership {--ac-accent:var(--ac-mint)}
-.ac-membership.ac-premium {--ac-accent:var(--ac-gold)}
+#main .ac-dashboard .ac-card.ac-premium {
+ --ac-gold:#E6C27A;--ac-deep-gold:#C89B46;--ac-light-gold:#F1D79A;
+ --ac-gold-wash:rgba(230,194,122,.08);--ac-gold-line:rgba(230,194,122,.28);
+ --ac-accent:var(--ac-gold);
+ border-color:var(--ac-gold-line);
+}
+.ac-membership.ac-premium h2 {display:flex;align-items:center;gap:7px}
+.ac-plan-icon {display:inline-grid;place-items:center;flex:none;width:24px;height:24px;border-radius:6px;background:var(--ac-gold-wash);color:var(--ac-gold);box-shadow:inset 0 0 0 1px var(--ac-gold-line)}
+.ac-plan-icon svg {width:16px;height:16px}
+.ac-plan-summary {display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.ac-plan-state {flex:none;color:var(--ac-light-gold);font-size:var(--pc-font-meta,14px)}
+.ac-nickname {display:inline-flex;align-items:center;max-width:100%;vertical-align:baseline}
+.ac-nickname>span {min-width:0;overflow-wrap:anywhere}
+.ac-nickname[data-premium-style]::after {flex:none;width:.8em;height:.8em;margin-inline-start:.1em}
 .ac-membership .ac-plan-label {display:inline-flex;align-items:center;padding:3px 9px;color:var(--ac-accent);background:color-mix(in srgb,var(--ac-accent) 9%,transparent);border-radius:5px;font-size:12px;font-weight:700;letter-spacing:.07em}
 .ac-membership h3 {margin:12px 0 4px;color:var(--ac-accent)}
 .ac-dashboard .ac-note,.ac-ledger {color:var(--ds-muted);font-size:var(--pc-font-meta,14px);line-height:1.6;overflow-wrap:anywhere}
@@ -101,6 +114,17 @@
 .ac-dashboard [hidden] {display:none!important}
 .ac-manage {display:flex;flex-wrap:wrap;gap:0 16px}
 .ac-manage :is(a,button),.ac-restore {display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:0;font-size:var(--pc-font-control,14px);color:var(--ac-mint);background:none;border:none;text-decoration:none}
+.ac-premium .ac-plan-label {color:var(--ac-gold);background:var(--ac-gold-wash)}
+.ac-premium .ac-pass {border-color:var(--ac-gold-line)}
+.ac-premium .ac-values dt {color:#c7c2b8}
+.ac-premium .ac-pass-event .ac-values dd {color:var(--ac-light-gold)}
+.ac-premium .ac-pass-event .ac-gift-price dd {color:var(--ac-gold);font-weight:700}
+.ac-dashboard .ac-premium .ac-pass-note {display:flex;align-items:baseline;gap:7px;padding:4px 8px;border:1px solid var(--ac-gold-line);border-radius:5px;background:var(--ac-gold-wash);color:var(--ds-body)}
+.ac-pass-note svg {width:14px;height:14px;flex:none;color:var(--ac-gold);align-self:flex-start;margin-top:.28em}
+.ac-premium .ac-manage a {color:var(--ac-gold)}
+.ac-premium .ac-manage a:hover {color:var(--ac-light-gold);text-decoration:underline}
+.ac-premium .ac-manage a:active {color:var(--ac-deep-gold)}
+.ac-dashboard .ac-premium :is(a,button):focus-visible {outline-color:var(--ac-gold)}
 .ac-manage svg,.ac-links svg {width:14px;height:14px;flex:none}
 .ac-usage h3,.ac-payments h3 {margin:12px 0 4px;color:var(--ds-body)}
 .ac-meter {display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:8px 0}
@@ -117,6 +141,11 @@
 .ac-dashboard ul {margin:0;padding:0;list-style:none}
 .ac-benefits li {display:flex;align-items:center;gap:9px;min-height:30px}
 .ac-benefits svg {width:17px;height:17px;color:var(--ds-muted);flex:none}
+#main .ac-dashboard .ac-benefits.ac-premium h2 {color:var(--ac-light-gold)}
+.ac-benefits.ac-premium li {color:#e6e2d9}
+.ac-benefits.ac-premium li svg {color:var(--ac-deep-gold)}
+.ac-benefits.ac-premium li:is([data-benefit="premium_badge"],[data-benefit="gold_nickname"],[data-benefit="premium_frame"]) {color:var(--ac-light-gold)}
+.ac-benefits.ac-premium li:is([data-benefit="premium_badge"],[data-benefit="gold_nickname"],[data-benefit="premium_frame"]) svg {color:var(--ac-gold)}
 .ac-links>a,.ac-links>button,.ac-password summary {display:flex;width:100%;padding:5px 0;min-height:44px;align-items:center;justify-content:space-between;border:0;border-bottom:1px solid var(--ds-line);background:none;color:var(--ds-text);font:inherit;text-decoration:none;cursor:pointer}
 .ac-links>:last-child {border-bottom:0}
 .ac-links svg {color:var(--ds-muted)}
@@ -126,19 +155,16 @@
 .ac-password form {display:grid;gap:8px;padding:10px 0}
 .ac-password form .small-button {justify-self:start}
 .ac-filters {display:flex;gap:4px;flex-wrap:wrap;margin:5px 0}
-.ac-filters button,.ac-exit :is(a,button) {min-height:44px;padding:0 9px;color:var(--ds-muted);background:none;border:0;font:inherit;font-size:var(--pc-font-control,14px);text-decoration:none;cursor:pointer}
+.ac-filters button {min-height:44px;padding:0 9px;color:var(--ds-muted);background:none;border:0;font:inherit;font-size:var(--pc-font-control,14px);text-decoration:none;cursor:pointer}
 .ac-filters button {border-bottom:2px solid transparent}
 .ac-filters button[aria-pressed=true] {color:var(--ac-mint);border-bottom-color:var(--ac-mint);font-weight:700}
 .ac-ledger li {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--ds-line)}
 .ac-ledger li>div {min-width:0;display:grid}
 .ac-ledger li>div:last-child {text-align:right}
 .ac-ledger li strong {color:var(--ds-text);font-size:var(--pc-font-body,15px)}
-.ac-exit {margin-top:12px}
-.ac-exit>div {display:flex;align-items:center;gap:4px}
-.ac-exit span {color:var(--ds-muted);opacity:.6}
-.ac-exit a {display:inline-flex;align-items:center}
-.ac-exit .ac-withdraw {color:#e29b9e}
+.ac-links .ac-withdraw {color:#D7A0A4}
 .ac-dashboard :is(a,button,summary):focus-visible {outline:2px solid var(--ac-mint);outline-offset:2px}
 @media(max-width:800px){.ac-grid{grid-template-columns:minmax(0,1fr);gap:10px}.ac-dashboard .ac-card{padding:16px}.ac-dashboard h1{margin-bottom:12px}.ac-benefits ul{gap:4px 8px}.ac-values{gap:6px}.ac-password input{font-size:16px}}
 
+#main:has(> .ac-dashboard) {padding-block-end:14px}
 #main:has(.ac-dashboard) ~ .page-footer :is(.footer-logo,.footer-copyright) {display:none}

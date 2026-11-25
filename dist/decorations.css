@@ -82,14 +82,11 @@
 /* Premium artwork layers use the existing photo center without adding layout space. */
 [data-premium-style] {color:#F5C66F!important}
 [data-premium-style]::after {content:"";display:inline-block;width:.92em;height:.92em;margin-inline-start:.18em;vertical-align:-.07em;background:url("/assets/premium/gold-star.png") center/contain no-repeat;pointer-events:none}
-/* Keep centered seat names and right-aligned account values on their original text coordinates. */
+/* Keep centered seat names on their original text coordinates. */
 #voice-seats .voice-person strong:has([data-premium-style]),
 :is(#live-current,#live-queue) strong:has([data-premium-style]) {position:relative;overflow:visible!important}
 #voice-seats .voice-person strong [data-premium-style]::after,
-:is(#live-current,#live-queue) strong [data-premium-style]::after,
-.ac-values dd [data-premium-style]::after {position:absolute;inset-block-start:50%;transform:translateY(-50%)}
-.ac-values dd [data-premium-style] {position:relative}
-.ac-values dd [data-premium-style]::after {inset-inline-start:100%;width:.8em;height:.8em;margin-inline-start:.1em}
+:is(#live-current,#live-queue) strong [data-premium-style]::after {position:absolute;inset-block-start:50%;transform:translateY(-50%)}
 :is(.player-avatar,.avatar-frame-host,.profile-frame-canvas)>img.premium-default-overlay {
  width:calc(var(--avatar-frame-width,150%) * .87333)!important;
  height:calc(var(--avatar-frame-height,150%) * .87333)!important;
