@@ -360,35 +360,30 @@ async function confirmRoomTheme(form){
 document.addEventListener('click',e=>{const b=e.target.closest('[data-decoration]');if(!b)return;e.preventDefault();void decorationDialog(b.dataset.decoration,b.closest('[data-decoration-card]')?.querySelector('[data-decoration-period]')?.value||'P7D');});
 
 async function storedDecorationDialog(itemId,mode){
- if(!me)return askLogin();if(!['use','send'].includes(mode))return;
- const account=me.id,serial=++giftDialogSerial;
- const d=await api('/api/decorations','GET',undefined,{fresh:true});if(serial!==giftDialogSerial||account!==me?.id)return;
- const item=d.inventory.find(i=>i.id===itemId&&i.stored&&i.available);if(!item)return toast('사용 가능한 보관 상품을 다시 확인해 주세요.');
+ if(!me)return askLogin();
+ if(!['use','send'].includes(mode))return;
+ const account=me.id, serial=++giftDialogSerial;
+ const data=await api('/api/decorations','GET',undefined,{fresh:true});
+ if(serial!==giftDialogSerial || me?.id!==account)return;
+ const item=data.inventory.find(i=>i.id===itemId && i.stored && i.available);
+ if(!item)return toast('사용 가능한 보관 상품을 다시 확인해 주세요.');
  if(mode==='send')return chooseGiftRecipient({inventoryId:item.id});
  if(item.product.kind==='TALKING_ROOM_THEME'){location.hash='community?inventory_id='+encodeURIComponent(item.id);$('#dialog')?.close();return;}
- const sending=mode==='send';let recipient=null,search=0,key=crypto.randomUUID();
- dialog(`<section class="gift-dialog decoration-dialog"><header><h2>${esc(item.product.name)} ${sending?'선물하기':'사용 시작'}</h2><p>${esc(d.periods[item.period_code])} · 추가 골드 차감 없음</p></header><form id="stored-decoration-form"><div class="shop-product-summary"><img src="${esc(decorationProductImage(item.product))}" alt="${esc(item.product.name)}"></div><div class="gift-options">${sending?'<label class="form-field">회원 이름<input name="member_name" type="search" maxlength="60" autocomplete="off" placeholder="닉네임으로 검색"></label><button class="small-button" type="button" id="stored-find">회원 검색</button><p class="field-help">팔로우하거나 대화한 회원을 선택하거나, 닉네임으로 검색하세요.</p><div class="gift-target-list decoration-recipient-list" id="stored-members" aria-label="선물 받을 회원"></div><p id="stored-recipient" role="status">선물 받을 회원을 선택해 주세요.</p>':'<p>지금부터 이용 기간이 시작됩니다. 이미 사용 중인 같은 상품은 남은 기간에 연장됩니다.</p><p>사용을 시작한 상품은 선물할 수 없습니다.</p>'}</div><div class="gift-checkout"><button type="submit" class="primary-button">${sending?'선택한 회원에게 선물하기':'확인하고 사용 시작'}</button><p class="form-error" role="alert"></p></div></form></section>`);
- const form=$('#stored-decoration-form'),button=form.querySelector('button[type="submit"]');button.disabled=sending;
- if(sending){
-  const input=form.elements.member_name,list=$('#stored-members'),status=$('#stored-recipient');
-  const clear=()=>{recipient=null;key=crypto.randomUUID();button.disabled=true;status.textContent='선물 받을 회원을 선택해 주세요.';};
-  const find=async()=>{
-   if(form._busy)return;const seq=++search;clear();list.textContent='회원을 불러오는 중…';formError(form).textContent='';
-   try{const r=await api('/api/decorations/recipients?q='+encodeURIComponent(input.value.trim()),'GET',undefined,{fresh:true});if(seq!==search||!form.isConnected||serial!==giftDialogSerial||account!==me?.id)return;
-    list.innerHTML=r.profiles.length?r.profiles.map(p=>`<button type="button" class="gift-target" data-decoration-recipient="${esc(p.id)}" aria-pressed="false"><img data-avatar-profile="${esc(p.id)}" src="${esc(p.image_version?'/media/producer/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.image_version):DEFAULT_AVATAR)}" alt=""><span><strong>${userNickname(p.name,{profileId:p.id})}</strong><small>이 회원 선택</small></span></button>`).join(''):'<p class="field-help">선택할 회원이 없습니다. 닉네임으로 검색해 주세요.</p>';
-    list.querySelectorAll('[data-decoration-recipient]').forEach(b=>b.onclick=()=>{if(form._busy)return;recipient=r.profiles.find(p=>p.id===b.dataset.decorationRecipient);key=crypto.randomUUID();for(const choice of list.querySelectorAll('[data-decoration-recipient]'))choice.setAttribute('aria-pressed',String(choice===b));status.textContent=recipient.name+'님에게 선물합니다.';button.disabled=false;});
-   }catch(e){if(seq===search&&form.isConnected){list.textContent='회원을 불러오지 못했습니다.';formError(form).textContent=e.message;}}
-  };
-  input.oninput=()=>{search++;clear();list.innerHTML='';};input.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();void find();}};
-  $('#stored-find').onclick=()=>void find();void find();
- }
- const submit=busyForm(form,async()=>{
-  if(account!==me?.id)throw Error('로그인 계정이 변경되었습니다.');if(sending&&!recipient)throw Error('받는 회원을 선택해 주세요.');
-  const receiver=recipient;for(const el of form.elements)el.disabled=true;
-  await api('/api/decorations/inventory/'+encodeURIComponent(itemId)+'/'+mode,'POST',{request_id:key,...(sending?{profile_id:receiver.id}:{})});
-  if(serial!==giftDialogSerial||!form.isConnected||account!==me?.id)return;
-  $('#dialog').close();toast(sending?receiver.name+'님에게 상품을 선물했습니다.':'이용 기간이 시작되었습니다.');window.dispatchEvent(new Event('aifect:equipment'));await render();
+ const key=crypto.randomUUID();
+ dialog(`<section class="decoration-dialog"><h2>테두리를 사용하시겠습니까?</h2>
+  <div class="stock-selection"><img src="${esc(decorationProductImage(item.product))}" alt=""><div><strong>${esc(item.product.name)}</strong><small>${esc(data.periods[item.period_code])}</small></div></div>
+  <p>지금부터 이용 기간이 시작됩니다. 착용을 해제해도 기간은 계속 경과하며, 사용을 시작한 테두리는 선물할 수 없습니다.</p>
+  <form id="stored-decoration-form"><div class="rental-confirm-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button">사용하기</button></div><p class="form-error" role="alert"></p></form></section>`);
+ const form=$('#stored-decoration-form');
+ form.onsubmit=busyForm(form,async()=>{
+  if(account!==me?.id)throw Error('로그인 계정이 변경되었습니다.');
+  await api('/api/decorations/inventory/'+encodeURIComponent(itemId)+'/use','POST',{request_id:key,equip:true});
+  if(serial!==giftDialogSerial||account!==me?.id||!form.isConnected)return;
+  $('#dialog').close();toast('테두리를 착용했습니다.');
+  window.dispatchEvent(new Event('aifect:equipment'));
+  if($('#unified-inventory'))window.dispatchEvent(new Event('aifect:inventory-changed'));
+  else await render();
  });
- form.onsubmit=async e=>{if(form._busy){e.preventDefault();return;}await submit(e);if(form.isConnected){for(const el of form.elements)el.disabled=false;button.disabled=sending&&!recipient;}};
 }
+
 document.addEventListener('click',e=>{const b=e.target.closest('[data-stored-decoration]');if(!b||b.disabled)return;e.preventDefault();void storedDecorationDialog(b.dataset.storedDecoration,b.dataset.mode).catch(e=>toast(e.message));});

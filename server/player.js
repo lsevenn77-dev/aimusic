@@ -58,7 +58,7 @@ export async function playerSummary(env,uid){
   id:premiumFrameId(uid),item_key:PREMIUM_APPEARANCE.frameKey,name:PREMIUM_APPEARANCE.frameName,type:'frame',
   artwork:PREMIUM_APPEARANCE.frameArtwork,display:{overlay:PREMIUM_APPEARANCE.frameArtwork,scale:1.31},
   description:'프리미엄 회원 전용 프로필 테두리',usage:'프리미엄 이용 기간 동안 사용 가능',
-  source:'premium',owned:true,available:true,paid:false,equipped:wearingPremium,applied:wearingPremium,
+  source:'premium',acquisition:'premium',giftable:false,owned:true,available:true,paid:false,equipped:wearingPremium,applied:wearingPremium,
   status:'ACTIVE',expires_at:rights.expires,granted_at:null
  }]:[];
  return {server_now:at,player:playerProgress(identity.player_xp),profile:identity,crew:currentCrew,rules:PLAYER_RULES,recent,decorations:decorations.filter(i=>i.source==='decoration'&&i.product.kind==='TALKING_ROOM_THEME'),stored_decorations:decorations.filter(i=>i.source==='decoration_stock'),
@@ -66,7 +66,7 @@ export async function playerSummary(env,uid){
   inventory:inventory.filter(i=>i.source!=='decoration_stock'&&PLAYER_ITEMS[i.item_key]&&!i.revoked&&(!i.expires_at||i.expires_at>now())).map(i=>{
    const item=PLAYER_ITEMS[i.item_key],reason=item.paid&&!decorations.find(d=>d.id===i.id)?.available?'사용 기간이나 결제 상태를 확인해 주세요.':i.revoked?'사용이 종료된 아이템입니다.':i.expires_at&&i.expires_at<=now()?'사용 기간이 끝났습니다.':item.membership&&!crew?'크루에 가입하면 사용할 수 있습니다.':item.min_crew_level&&currentCrew.level<item.min_crew_level?`크루 레벨 ${item.min_crew_level} 이상에서 사용할 수 있습니다.`:'';
    const rental=decorations.find(d=>d.id===i.id);
-   return {id:i.id,item_key:i.item_key,...item,owned:true,status:'ACTIVE',activated_at:rental?.activated_at??null,period_code:rental?.period_code??null,applied:!reason&&!wearingPremium&&!!i.equipped,source:i.source,granted_at:i.granted_at,expires_at:i.expires_at,available:!reason,reason,equipped:!reason&&!wearingPremium&&!!i.equipped};
+   return {id:i.id,item_key:i.item_key,...item,owned:true,status:'ACTIVE',activated_at:rental?.activated_at??null,period_code:rental?.period_code??null,applied:!reason&&!wearingPremium&&!!i.equipped,source:i.source,acquisition:rental?.acquisition??i.source,giftable:false,granted_at:i.granted_at,expires_at:i.expires_at,available:!reason,reason,equipped:!reason&&!wearingPremium&&!!i.equipped};
   }).concat(premiumItem)};
 }
 export async function playerRoute(req,env,path,user){

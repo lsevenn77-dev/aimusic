@@ -47,6 +47,19 @@ test('all dashboard operations require authentication and successful moderation 
  assert.equal((await f.request(path,{method:'POST',body:{action:'restore'},cookie})).status,200);
 });
 
+test('console gift grants use the existing operator identity and preserve the unit grant policy',async t=>{
+ const f=await setup(t),cookie=await f.login();
+ const path='/api/admin/gift-inventory/grant',body={user_id:'other',gift_type:'silver-letter',quantity:2,giftable:true,reason:'격리 테스트',request_id:crypto.randomUUID()};
+ assert.equal((await f.request(path,{method:'POST',body})).status,401);
+ const result=await f.request(path,{method:'POST',body,cookie});
+ assert.equal(result.status,200,JSON.stringify(result.body));
+ assert.equal((await f.request(path,{method:'POST',body,cookie})).status,200);
+ const audit=f.sql.prepare("SELECT admin_id,target FROM admin_audit WHERE action='gift_inventory_grant'").all();
+ assert.equal(audit.length,1);assert.equal(audit[0].admin_id,'admin-console');
+ assert.deepEqual(JSON.parse(audit[0].target),{user_id:'other',gift_type:'silver-letter',quantity:2,source:'reward',giftable:true,request_id:body.request_id,reason:body.reason});
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM gift_inventory WHERE user_id='other' AND source='reward' AND value=0").get().n,2);
+});
+
 test('old, forged and rotated sessions fail; login is rate limited and rejects cross-site requests',async t=>{
  const f=await setup(t),cookie=await f.login();
  assert.equal((await f.request('/api/admin/login',{method:'POST',body:{password:PASSWORD},origin:'https://attacker.test'})).status,403);

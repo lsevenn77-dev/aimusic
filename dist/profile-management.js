@@ -11,8 +11,7 @@ async function myRelationsView(readApi=api){
 async function myGiftInventoryView(readApi=api){return unifiedInventoryView(location.hash.slice(1),readApi);}
 function bindProfileManagement(view){
  if(view?.unifiedInventory)bindUnifiedInventory(view.unifiedInventory);
- if(!view?.giftInventory)return;const form=$('#mp-gift-grant');if(!form)return;const key=crypto.randomUUID();
- form.onsubmit=busyForm(form,async fd=>{await api('/api/admin/gift-inventory/grant','POST',{public_id:String(fd.get('public_id')||'').trim().toUpperCase(),gift_type:fd.get('gift_type'),quantity:Number(fd.get('quantity')),reason:fd.get('reason'),request_id:key});toast('보관 선물을 지급했습니다.');await render();});
+
 }
 document.addEventListener('click',async e=>{
  const privacy=e.target.closest('[data-photo-privacy]');if(privacy){e.preventDefault();privacy.disabled=true;try{await api('/api/producers/'+encodeURIComponent(privacy.dataset.photoProfile)+'/gallery/'+encodeURIComponent(privacy.dataset.photoPrivacy),'PATCH',{is_public:privacy.dataset.photoPublic==='true'});await render();}catch(err){toast(err.message);}finally{privacy.disabled=false;}return;}

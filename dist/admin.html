@@ -132,6 +132,18 @@
 
           <section class="view-page hidden" data-page="people">
             <div class="section-heading"><div><p class="eyebrow">AUDIENCE</p><h1>사용자 · 창작자</h1></div></div>
+            <details class="admin-card wide-card" id="gift-grant-panel">
+              <summary>인벤토리에 선물용 상품 지급</summary>
+              <form id="admin-gift-grant" class="inline-controls">
+                <label>회원 공개 ID <input name="public_id" pattern="[A-Za-z]{3}[0-9]{4}" maxlength="7" autocomplete="off" placeholder="예: QXF7082" required></label>
+                <label>상품 <select name="gift_type" required></select></label>
+                <label>수량 <input name="quantity" type="number" min="1" max="100" value="1" required></label>
+                <label>지급 사유 <input name="reason" maxlength="300" required></label>
+                <label><input name="giftable" type="checkbox" checked> 타인에게 선물 가능</label>
+                <button type="submit" class="small-button" disabled>지급하기</button>
+                <p class="field-help" role="status"></p>
+              </form>
+            </details>
             <article class="admin-card wide-card" id="member-directory">
               <div class="card-head"><h2>가입 회원</h2><span class="soft-badge">한국 시간 기준</span></div>
               <div class="member-filters" role="group" aria-label="회원 목록 필터">

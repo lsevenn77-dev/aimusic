@@ -24,10 +24,15 @@ test('stored gift public code lookup preserves the selected inventory ID when op
  await h.forms['#mp-confirm-send'].onclick();
  assert.equal(h.calls.length,1);assert.equal(h.opened.length,1);assert.equal(h.opened[0].id,'recipient');assert.equal(h.opened[0].initial.giftInventoryId,'stock-1');assert.equal(h.closed,false);
 });
-test('admin stored gift grant sends the canonical public code without numeric coercion',async()=>{
- const h=context();
- const html=h.c.inventoryPurchaseHTML({gifts:[],silver_gifts:[]});assert.match(html,/name="public_id"/);assert.match(html,/maxlength="7"/);assert.doesNotMatch(html,/public_number|inputmode="numeric"/);
- h.c.bindProfileManagement({giftInventory:true});
- await h.forms['#mp-gift-grant'].onsubmit(new Map([['public_id',' qxf7082 '],['gift_type','silver-letter'],['quantity','2'],['reason','운영 테스트']]));
- assert.equal(h.calls.length,1);assert.equal(h.calls[0].path,'/api/admin/gift-inventory/grant');assert.equal(h.calls[0].body.public_id,'QXF7082');assert.equal(h.calls[0].body.quantity,2);assert.equal('public_number' in h.calls[0].body,false);
+test('admin console grants use the public code, selected transfer policy and a stable retry key',async()=>{
+ const events={},button={disabled:false},status={},fields={public_id:{value:' qxf7082 '},gift_type:{value:'silver-letter'},quantity:{value:'2'},reason:{value:'운영 테스트'},giftable:{checked:false}};
+ const form={elements:fields,reportValidity:()=>true,reset(){},querySelector:key=>key==='[type=submit]'?button:status,addEventListener:(name,fn)=>{events[name]=fn;}};
+ const calls=[];
+ const ctx=vm.createContext({crypto:webcrypto,$:id=>id==='#admin-gift-grant'?form:{addEventListener(){}},api:async(path,opts)=>{calls.push({path,body:JSON.parse(opts.body)});if(calls.length===1)throw Error('일시 오류');}});
+ const js=source('admin.js'); vm.runInContext(js.slice(js.indexOf('  function bindAdminGiftGrant()'),js.indexOf('  async function init()')),ctx);
+ assert.match(source('admin.html'),/name="public_id" pattern="\[A-Za-z\]\{3\}\[0-9\]\{4\}"/);
+ for(let i=0;i<2;i++)await events.submit({preventDefault(){}});
+ assert.equal(calls.length,2);assert.equal(calls[0].path,'/api/admin/gift-inventory/grant');
+ assert.equal(calls[0].body.public_id,'QXF7082');assert.equal(calls[0].body.quantity,2);assert.equal(calls[0].body.giftable,false);
+ assert.deepEqual(calls[0],calls[1]);assert.match(status.textContent,/2개를 지급/);
 });

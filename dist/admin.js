@@ -483,6 +483,43 @@
     }catch(error){toast(error.message);}
   }
 
+  function bindAdminGiftGrant(){
+    const grantForm = $('#admin-gift-grant');
+    const grantStatus = grantForm.querySelector('[role=status]');
+    const grantButton = grantForm.querySelector('[type=submit]');
+    let grantAttempt = null, loadingGrants = false;
+    $('#gift-grant-panel').addEventListener('toggle', async event => {
+      if (!event.target.open || grantForm.elements.gift_type.options.length || loadingGrants) return;
+      loadingGrants = true;
+      try {
+        const catalog = await api('/api/gifts/catalog');
+        for (const gift of [...catalog.gifts,...catalog.silver_gifts]) {
+          grantForm.elements.gift_type.add(new Option(gift.name,gift.id));
+        }
+        grantButton.disabled = !grantForm.elements.gift_type.options.length;
+        grantStatus.textContent = '';
+      } catch(error) {grantStatus.textContent=error.message;}
+      finally {loadingGrants=false;}
+    });
+    grantForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (grantButton.disabled || !grantForm.reportValidity()) return;
+      const fields = grantForm.elements;
+      const payload = {public_id:fields.public_id.value.trim().toUpperCase(),gift_type:fields.gift_type.value,
+        quantity:Number(fields.quantity.value),reason:fields.reason.value.trim(),giftable:fields.giftable.checked};
+      const fingerprint = JSON.stringify(payload);
+      if (grantAttempt?.fingerprint !== fingerprint) grantAttempt={fingerprint,key:crypto.randomUUID()};
+      grantButton.disabled=true;grantStatus.textContent='';
+      try {
+        await api('/api/admin/gift-inventory/grant',{method:'POST',body:JSON.stringify({...payload,request_id:grantAttempt.key})});
+        grantStatus.textContent=payload.public_id+' 회원에게 '+payload.quantity+'개를 지급했습니다.';
+        grantAttempt=null;grantForm.reset();
+      } catch(error) {grantStatus.textContent=error.message;}
+      finally {grantButton.disabled=false;}
+    });
+  }
+  bindAdminGiftGrant();
+
   async function init(){
     try{
       const session=await api('/api/admin/session');

@@ -17,25 +17,25 @@ test('unified inventory preserves every stock ID and expiry, filters real equipm
  const f=await fixture(t);f.sql.exec("INSERT INTO crews(id,owner_id,name,created) VALUES('crew','owner','QA',0); INSERT INTO crew_members(crew_id,user_id,joined) VALUES('crew','owner',0); INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,expires_at) VALUES('temporary','owner','crew-outline','reward','temporary',100,unixepoch()+86400),('expired','owner','crew-outline','reward','expired',100,10); INSERT INTO gift_inventory(id,user_id,gift_type,gift_name,currency,value,source,request_id,unit,created) VALUES('stock1','owner','silver-letter','손편지','reward',0,'reward','grant',0,100),('stock2','owner','silver-letter','손편지','reward',0,'reward','grant',1,100)");
  const calls=[],c=ui({api:async(path,method='GET',body)=>{calls.push({path,method});const r=await f.call(path,method,body);assert.equal(r.status,200,path);return r.body;}});
  let v=await c.unifiedInventoryView('inventory');const before=f.sql.prepare('SELECT * FROM player_inventory ORDER BY id').all(),stockBefore=f.sql.prepare('SELECT * FROM gift_inventory ORDER BY id').all();
- assert.match(v.html,/보유 상품/);assert.match(v.html,/사용 중/);assert.match(v.html,/data-inventory-item="temporary"/);assert.doesNotMatch(v.html,/data-inventory-item="expired"/);assert.match(v.html,/(일|시간) 남음/);assert.match(v.html,/× 2/);assert.doesNotMatch(v.html,/내 도구함|다이아/);assert.ok(calls.every(x=>x.method==='GET'));
+ assert.match(v.html,/<h1>인벤토리/);assert.doesNotMatch(v.html,/inventory-summary|data-inventory-filter|data-inventory-category|data-inventory-sort/);assert.match(v.html,/data-inventory-item="temporary"/);assert.doesNotMatch(v.html,/data-inventory-item="expired"/);assert.match(v.html,/(일|시간) 남음/);assert.match(v.html,/×2/);assert.doesNotMatch(v.html,/내 도구함|다이아/);assert.ok(calls.every(x=>x.method==='GET'));
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:'temporary'})).status,200);
  v=await c.unifiedInventoryView('inventory?section=active');const active=c.inventoryPanel(v.unifiedInventory);assert.match(active,/inventory-product-art/);assert.doesNotMatch(active,/player-frame-artwork|data-avatar-profile/);
- assert.equal((active.match(/data-inventory-item=/g)||[]).length,1);assert.match(active,/data-inventory-item="temporary"/);assert.match(active,/data-player-equip=""/);assert.match(active,/적용 중/);assert.doesNotMatch(active,/data-inventory-send|data-inventory-item="expired"/);
+ assert.ok(active.includes('data-stock-section="gifts"'));assert.match(active,/data-inventory-item="temporary"/);assert.match(active,/data-player-equip=""/);assert.match(active,/착용 중/);assert.doesNotMatch(active,/data-inventory-send|data-inventory-item="expired"/);
  const publicProfile=(await f.call('/api/producers/producer')).body;assert.equal(publicProfile.profile.profile_frame,'crew-outline');
  vm.runInContext(source('player-progress.js'),c);c.avatarImage=()=>'<img alt="프로필">';assert.match(c.myProfileHeader(publicProfile),/player-frame-artwork/);
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:'temporary'},'other')).status,409);
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:'expired'})).status,409);
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:null})).status,200);
  assert.equal((await f.call('/api/producers/producer')).body.profile.profile_frame,null);
- v=await c.unifiedInventoryView('inventory?section=active');assert.match(c.inventoryPanel(v.unifiedInventory),/사용 기간 중/);assert.doesNotMatch(c.inventoryPanel(v.unifiedInventory),/적용 중/,'unequipping does not stop an existing rental');
+ v=await c.unifiedInventoryView('inventory?section=active');assert.match(c.inventoryPanel(v.unifiedInventory),/(일|시간) 남음/);assert.doesNotMatch(c.inventoryPanel(v.unifiedInventory),/착용 중/,'unequipping does not stop an existing rental');
  assert.deepEqual(f.sql.prepare('SELECT * FROM player_inventory ORDER BY id').all(),before);assert.deepEqual(f.sql.prepare('SELECT * FROM gift_inventory ORDER BY id').all(),stockBefore);
 });
-test('inventory groups preserve source, availability and all instance IDs without merging frames',()=>{
- const c=ui(),items=[{id:'a',gift_type:'letter',source:'purchase',currency:'gold',available:true},{id:'b',gift_type:'letter',source:'purchase',currency:'gold',available:true},{id:'c',gift_type:'letter',source:'reward',currency:'reward',available:true},{id:'d',gift_type:'letter',source:'purchase',currency:'gold',available:false}];
- const groups=c.inventoryGiftGroups(items);assert.equal(groups.length,3);assert.equal(groups[0].quantity,2);assert.equal(JSON.stringify(groups.flatMap(x=>x.ids)),JSON.stringify(['a','b','c','d']));assert.equal(items.length,4);
+test('gift stock groups available purchases and grants by product while retaining all authorized unit IDs',()=>{
+ const c=ui(),items=[{id:'a',giftable:true,gift_type:'letter',source:'purchase',currency:'gold',available:true},{id:'b',giftable:true,gift_type:'letter',source:'purchase',currency:'gold',available:true},{id:'c',giftable:true,gift_type:'letter',source:'reward',currency:'reward',available:true},{id:'d',gift_type:'letter',source:'purchase',currency:'gold',available:false}];
+ const groups=c.inventoryGiftGroups(items);assert.equal(groups.length,2);assert.equal(groups[0].quantity,3);assert.equal(JSON.stringify(groups.flatMap(x=>x.ids)),JSON.stringify(['a','b','c','d']));assert.equal(items.length,4);
 });
 test('read errors remain visible, unknown counts are not presented as zero, and guests do not read private stock',async()=>{
- const calls=[],c=ui({api:async path=>{calls.push(path);throw Error('읽기 실패');}});let v=await c.unifiedInventoryView('inventory');assert.match(v.html,/다시 시도/);assert.match(c.inventorySummary(v.unifiedInventory),/—/);assert.doesNotMatch(v.html,/보유한 상품이 없습니다/);
+ const calls=[],c=ui({api:async path=>{calls.push(path);throw Error('읽기 실패');}});let v=await c.unifiedInventoryView('inventory');assert.match(v.html,/다시 시도/);assert.doesNotMatch(v.html,/inventory-empty/);assert.doesNotMatch(v.html,/보유한 상품이 없습니다/);
  c.me=null;calls.length=0;v=await c.unifiedInventoryView('inventory');assert.match(v.html,/LOGIN/);assert.equal(calls.length,0);
 });
 test('activity retains actual gold/silver and restored links while hiding deferred widgets; library includes My Box and preserves likes/history',async()=>{
@@ -58,9 +58,9 @@ test('unified inventory retains deployed decoration stock, active paid frames an
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:paid.id})).status,200);
  const before=f.sql.prepare('SELECT * FROM player_inventory ORDER BY id').all(),calls=[];
  const c=ui({api:async(path,method='GET')=>{calls.push(method);const r=await f.call(path,method);assert.equal(r.status,200);return r.body;}});
- const owned=await c.unifiedInventoryView('inventory');assert.match(owned.html,/data-stored-decoration=/);assert.match(owned.html,/사용 시작/);assert.match(owned.html,/선물하기/);assert.match(owned.html,/data-status="ACTIVE"/);assert.match(owned.html,/방에서 사용/);
+ const owned=await c.unifiedInventoryView('inventory');assert.match(owned.html,/data-stored-decoration=/);assert.match(owned.html,/사용하기/);assert.match(owned.html,/선물하기/);assert.match(owned.html,/착용 중/);assert.match(owned.html,/#community\?inventory_id=/);
  assert.equal((owned.html.match(new RegExp('data-inventory-item="'+paid.id+'"','g'))||[]).length,1);
  const active=await c.unifiedInventoryView('inventory?section=active'),panel=c.inventoryPanel(active.unifiedInventory);
- assert.match(panel,/data-player-equip=""/);assert.doesNotMatch(panel,/data-stored-decoration=/);assert.match(panel,/방에서 사용/);
+ assert.match(panel,/data-player-equip=""/);assert.match(panel,/data-stored-decoration=/);assert.match(panel,/#community\?inventory_id=/);
  assert.ok(calls.every(m=>m==='GET'));assert.deepEqual(f.sql.prepare('SELECT * FROM player_inventory ORDER BY id').all(),before);
 });

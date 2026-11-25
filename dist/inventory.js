@@ -1,79 +1,181 @@
-// Presentation over real ownership records. Filters never request or activate products.
-let unifiedInventoryState=null;
-const inventorySection=raw=>new URLSearchParams(raw.split('?')[1]||'').get('section')==='active'?'active':'owned';
-const inventoryHref=section=>'#inventory?section='+section;
-function inventoryGiftGroups(items){const groups=new Map();for(const i of items){const key=JSON.stringify([i.gift_type,i.currency,i.source,i.available]);const g=groups.get(key);if(g){g.quantity++;g.ids.push(i.id);}else groups.set(key,{...i,quantity:1,ids:[i.id]});}return [...groups.values()];}
-function inventorySource(source){return ({premium:'프리미엄 이용권',purchase:'구매',decoration:'구매 · 선물 상품',decoration_stock:'구매 · 선물 상품',reward:'이벤트 · 보상',admin:'이벤트 · 보상',admin_grant:'이벤트 · 보상',level:'레벨 보상',crew:'크루 보상',gift:'선물',event:'이벤트',crew_level:'크루 레벨 보상','crew-level':'크루 레벨 보상'})[source]||'보유 상품';}
-function inventoryError(d,label){return d?.error?`<p class="mp-empty" role="alert">${label}을 불러오지 못했습니다. ${esc(d.error)} <button class="text-link" data-inventory-retry>다시 시도</button></p>`:'';}
-const inventoryClock=()=>globalThis.performance?.now?.()??Date.now();
-function inventoryNow(s){return s.serverNow+(inventoryClock()-s.receivedAt)/1000;}
-function inventoryItems(s){
- const frames=(s.player.inventory||[]).map(i=>({...i,name:i.name,image:i.artwork,category:'frames',status:i.paid||i.expires_at||i.equipped?'ACTIVE':'UNUSED'}));
- const rentals=[...(s.player.stored_decorations||[]),...(s.player.decorations||[])].map(i=>({...i,name:i.product.name,image:decorationProductImage(i.product),category:i.product.kind==='TALKING_ROOM_THEME'?'themes':'frames',status:i.stored?'UNUSED':'ACTIVE'}));
- const gifts=inventoryGiftGroups(s.gifts.items||[]).map(i=>({...i,name:i.gift_name,category:'gifts',status:'UNUSED',granted_at:i.created}));
- return [...frames,...rentals,...gifts].filter(i=>!i.expires_at||i.expires_at>inventoryNow(s));
+let unifiedInventoryState = null;
+const inventoryClock = () => globalThis.performance?.now?.() ?? Date.now();
+const inventoryNow = state => state.serverNow + (inventoryClock() - state.receivedAt) / 1000;
+const inventorySections = [['gifts', '선물'], ['frames', '테두리'], ['themes', '테마']];
+
+// Keep the actual row IDs. A displayed quantity never authorizes a transfer.
+function groupInventoryUnits(items, keyFor) {
+ const groups = new Map();
+ for (const item of items) {
+  const key = keyFor(item);
+  if (!groups.has(key)) groups.set(key, {...item, quantity:0, ids:[]});
+  const group = groups.get(key);
+  group.ids.push(item.id);
+  group.quantity++;
+ }
+ return [...groups.values()];
 }
-function inventoryActions(i){
- if(!i.available)return '<button class="small-button" disabled>사용 제한</button>';
- if(i.category==='gifts')return `<button class="small-button" data-inventory-send="${esc(i.id)}" data-gift-name="${esc(i.name)}">선물 사용</button>`;
- if(i.category==='themes')return `<a class="small-button" href="#community?inventory_id=${encodeURIComponent(i.id)}">방에서 사용</a>`+(i.stored?`<button class="text-link" data-stored-decoration="${esc(i.id)}" data-mode="send">선물하기</button>`:'');
- if(i.stored)return `<button class="small-button" data-stored-decoration="${esc(i.id)}" data-mode="use">사용 시작</button><button class="text-link" data-stored-decoration="${esc(i.id)}" data-mode="send">선물하기</button>`;
- return `<button class="small-button" data-player-equip="${esc(i.equipped?'':i.id)}"${i.equipped&&i.source==='premium'?' data-remove-premium-frame="'+esc(i.id)+'"':''}>${i.equipped?'해제하기':'장착하기'}</button>`;
+function inventoryGiftGroups(items) {
+ return groupInventoryUnits(items, i => JSON.stringify([i.gift_type, !!i.giftable, !!i.available]));
 }
-function inventoryCard(i,s){
- return `<article class="inventory-product" data-inventory-item="${esc(i.id)}"><button class="inventory-product-detail" data-inventory-detail="${esc(i.id)}" aria-label="${esc(i.name)} 상세 정보"><span class="inventory-product-art"><img src="${esc(i.image)}" alt="" loading="lazy" decoding="async"></span><strong title="${esc(i.name)}">${esc(i.name)}${i.quantity>1?' × '+i.quantity:''}</strong></button><div class="inventory-product-copy">${rentalStatusHTML(i,inventoryNow(s))}<p class="inventory-remaining">${i.source==='premium'?'프리미엄 전용 · ':''}${esc(rentalPeriodText(i,inventoryNow(s)))}</p></div><div class="inventory-product-actions">${inventoryActions(i)}</div></article>`;
+function inventoryItems(state) {
+ const frames = (state.player.inventory || []).map(i => ({...i, image:i.artwork, category:'frames'}));
+ const rentals = [...(state.player.stored_decorations || []), ...(state.player.decorations || [])].map(i => ({
+  ...i, name:i.product.name, image:i.product.assetPaths.thumbnail || decorationProductImage(i.product),
+  category:i.product.kind === 'TALKING_ROOM_THEME' ? 'themes' : 'frames',
+  status:i.stored ? 'UNUSED' : 'ACTIVE'
+ }));
+ const decorations = groupInventoryUnits([...frames, ...rentals].filter(i => !i.expires_at || i.expires_at > inventoryNow(state)),
+  i => i.stored ? JSON.stringify([i.item_key, i.period_code, i.acquisition, i.giftable, i.available]) : i.id);
+ const gifts = inventoryGiftGroups(state.gifts.items || []).map(i => ({...i, name:i.gift_name, category:'gifts'}));
+ return [...gifts, ...decorations].sort((a,b) => Number(!!b.equipped) - Number(!!a.equipped));
 }
-function inventorySummary(s){
- const items=inventoryItems(s),count=list=>list.reduce((n,i)=>n+(i.quantity||1),0),known=!s.player.error&&!s.gifts.error;
- return [['전체 보유',count(items)],['사용 중',count(items.filter(i=>i.status==='ACTIVE'))],['미사용',count(items.filter(i=>i.status==='UNUSED'))]].map(([label,n])=>`<div><span>${label}</span><strong>${known?number(n):'—'}</strong></div>`).join('');
+function inventoryActions(item) {
+ const id = esc(item.id);
+ const send = item.giftable && item.available ? '<button type="button" class="stock-gift" data-stock-send="'+id+'">선물하기</button>' : '';
+ if (item.category === 'gifts') return send || '<button disabled>선물 제한</button>';
+ if (!item.available) return '<button disabled>사용 제한</button>';
+ if (item.category === 'themes') return '<a href="#community?inventory_id='+encodeURIComponent(item.id)+'">사용하기</a>'+send;
+ if (item.stored) return '<button type="button" data-stored-decoration="'+id+'" data-mode="use">사용하기</button>'+send;
+ const premiumGuard = item.equipped && item.source === 'premium' ? ' data-remove-premium-frame="'+id+'"' : '';
+ return '<button type="button" data-player-equip="'+(item.equipped ? '' : id)+'"'+premiumGuard+'>'+(item.equipped ? '해제하기' : '사용하기')+'</button>'+send;
 }
-function inventoryTabs(s){
- const categories=[['all','전체'],['themes','테마'],['frames','프로필 꾸미기'],['gifts','선물']];
- return categories.map(([key,label])=>`<button type="button" role="tab" id="inventory-tab-${key}" aria-controls="inventory-products" aria-selected="${s.category===key}" tabindex="${s.category===key?0:-1}" data-inventory-category="${key}">${label}</button>`).join('');
+function inventoryCard(item,state) {
+ const labels = [];
+ if (item.equipped) labels.push('<span class="stock-equipped">'+(item.category==='frames'?'착용 중':'사용 중')+'</span>');
+ if (item.expires_at || item.period_code) labels.push(esc(rentalPeriodText(item,inventoryNow(state))));
+ if (item.acquisition === 'received') labels.push('받은 선물');
+ if (item.acquisition === 'mixed') labels.push('받은 선물 포함');
+ const quantity = item.category === 'gifts' || item.quantity > 1 ? '<span class="stock-quantity" aria-label="보유 '+item.quantity+'개">×'+number(item.quantity)+'</span>' : '';
+ return `<article class="inventory-product${item.equipped && item.category==='frames'?' is-equipped':''}" data-inventory-item="${esc(item.id)}">
+  <div class="inventory-product-art"><img src="${esc(item.image)}" alt="" loading="lazy" decoding="async"></div>
+  <strong class="stock-title" title="${esc(item.name)}">${esc(item.name)}</strong>${quantity}
+  ${labels.length?'<p class="stock-meta">'+labels.join(' · ')+'</p>':''}
+  <div class="stock-actions">${inventoryActions(item)}</div></article>`;
 }
-function inventoryFiltered(s){
- const at=inventoryNow(s),items=inventoryItems(s).filter(i=>(s.category==='all'||s.category===i.category)&&(s.filter==='all'||s.filter==='unused'&&i.status==='UNUSED'||s.filter==='active'&&i.status==='ACTIVE'||s.filter==='expiring'&&i.expires_at>at&&i.expires_at-at<=3*86400));
- return items.sort((a,b)=>s.sort==='name'?a.name.localeCompare(b.name,'ko'):s.sort==='expiry'?(a.expires_at||Infinity)-(b.expires_at||Infinity)||(b.granted_at||0)-(a.granted_at||0):(b.granted_at||0)-(a.granted_at||0)||a.id.localeCompare(b.id));
+function inventoryPanel(state) {
+ const failures = [[state.player,'테두리·테마'],[state.gifts,'선물']].filter(([data]) => data.error)
+  .map(([data,label]) => '<p class="mp-empty" role="alert">'+label+' 목록을 불러오지 못했습니다. '+esc(data.error)+' <button class="text-link" data-inventory-retry>다시 시도</button></p>').join('');
+ const items = inventoryItems(state);
+ const sections = inventorySections.map(([key,title]) => {
+  const cards = items.filter(i => i.category === key);
+  return cards.length ? '<section data-stock-section="'+key+'"><h2>'+title+'</h2><div class="inventory-product-grid">'+cards.map(i => inventoryCard(i,state)).join('')+'</div></section>' : '';
+ }).join('');
+ return failures + sections || '<div class="inventory-empty"><p>보유한 아이템이 없습니다.</p><a class="small-button" href="#gifts">상점으로</a></div>';
 }
-function inventoryPanel(s){const items=inventoryFiltered(s);return inventoryError(s.player,'꾸미기 상품')+inventoryError(s.gifts,'보관 선물')+(items.length?`<div class="inventory-product-grid">${items.map(i=>inventoryCard(i,s)).join('')}</div>`:'<p class="inventory-empty" role="status">표시할 보유 상품이 없습니다.</p>');}
-async function unifiedInventoryView(raw,readApi=api){
- if(!me){returnRoute=location.hash;return {html:gate()};}
- const paths={player:'/api/me/player',profile:'/api/me/profile',gifts:'/api/me/gift-inventory',catalog:'/api/gifts/catalog'};
- const data=Object.fromEntries(await Promise.all(Object.entries(paths).map(async([key,path])=>{try{return [key,await readApi(path,'GET',undefined,{fresh:true})];}catch(e){return [key,{error:e.message}];}})));
- const s={...data,section:inventorySection(raw),category:'all',filter:inventorySection(raw)==='active'?'active':'all',sort:'recent',account:me.id,revision:apiRevision,serverNow:data.player.server_now||Date.now()/1000,receivedAt:inventoryClock()};
- return {unifiedInventory:s,giftInventory:true,html:`<div class="mp-manage-page unified-inventory" id="unified-inventory"><header class="inventory-heading">${heading('내 인벤토리','보유 상품을 확인하고 원하는 곳에 사용해 보세요.')}<a class="small-button" href="#gifts">상점으로</a></header><div class="inventory-summary" aria-label="보유 상품 요약">${inventorySummary(s)}</div><div class="ml-tabs inventory-categories" role="tablist" aria-label="상품 분류">${inventoryTabs(s)}</div><div class="inventory-tools"><label>상태<select data-inventory-filter aria-label="상품 상태"><option value="all">전체 상태</option><option value="unused">미사용</option><option value="active" ${s.filter==='active'?'selected':''}>사용 기간 중</option><option value="expiring">만료 임박</option></select></label><label>정렬<select data-inventory-sort aria-label="상품 정렬"><option value="recent">최근 획득순</option><option value="expiry">만료 임박순</option><option value="name">상품명순</option></select></label></div><div id="inventory-products" role="tabpanel" aria-labelledby="inventory-tab-all">${inventoryPanel(s)}</div><details class="mp-card inventory-purchase"><summary>선물 보관 구매</summary><p class="mp-form-note">보관 구매 시 골드·실버가 차감되고, 보낼 때 추가 차감되지 않습니다.</p>${inventoryError(s.catalog,'선물 목록')||inventoryPurchaseHTML(s.catalog)}</details>${s.player.player?`<details class="mp-card inventory-level"><summary>내 레벨과 활동 안내</summary>${playerProgressHTML(s.player.player,false)}<ul>${(s.player.rules||[]).map(r=>`<li>${esc(r.label)} · +${r.xp} XP · ${esc(r.limit)}</li>`).join('')}</ul>${(s.player.recent||[]).slice(0,10).map(r=>`<p>${myDate(r.created)} · +${number(r.amount)} XP</p>`).join('')}${(s.player.rewards||[]).map(i=>`<p>${esc(i.name)} · ${esc(i.description)}</p>`).join('')}</details>`:''}</div>`};
+async function readOwnedInventory(readApi) {
+ const read = path => readApi(path,'GET',undefined,{fresh:true}).catch(e => ({error:e.message}));
+ const [player,gifts] = await Promise.all([read('/api/me/player'),read('/api/me/gift-inventory')]);
+ return {player,gifts,serverNow:player.server_now || Date.now()/1000,receivedAt:inventoryClock()};
 }
-function paintInventory(s){
- const root=$('#unified-inventory');if(!root||s!==unifiedInventoryState)return;
- const summary=root.querySelector('.inventory-summary'),summaryHTML=inventorySummary(s);if(summary.innerHTML!==summaryHTML)summary.innerHTML=summaryHTML;
- const tabs=root.querySelector('.inventory-categories'),tabsHTML=inventoryTabs(s);if(tabs.innerHTML!==tabsHTML)tabs.innerHTML=tabsHTML;
- const panel=root.querySelector('#inventory-products'),html=inventoryPanel(s);if(panel.innerHTML!==html)panel.innerHTML=html;
- panel.setAttribute('aria-labelledby','inventory-tab-'+s.category);
- const openDetail=document.querySelector('#dialog[open] .inventory-detail[data-inventory-detail-id]');
- if(openDetail&&!inventoryItems(s).some(item=>item.id===openDetail.dataset.inventoryDetailId))openDetail.closest('dialog').close();
+async function unifiedInventoryView(raw,readApi=api) {
+ if (!me) {returnRoute=location.hash; return {html:gate()};}
+ const account = me.id;
+ const state = {...await readOwnedInventory(readApi),account,revision:apiRevision};
+ return {unifiedInventory:state, html:`<div class="mp-manage-page unified-inventory" id="unified-inventory">
+  <header class="inventory-heading"><h1>인벤토리</h1><a class="small-button" href="#gifts">상점으로</a></header>
+  <div id="inventory-products">${inventoryPanel(state)}</div></div>`};
 }
-function inventoryDetail(s,id){
- const i=inventoryItems(s).find(i=>i.id===id);if(!i)return;
- dialog(`<section class="inventory-detail" data-inventory-detail-id="${esc(i.id)}"><h2>${esc(i.name)}</h2><img src="${esc(i.image)}" alt="${esc(i.name)}">${rentalStatusHTML(i,inventoryNow(s))}<p>${esc(rentalPeriodText(i,inventoryNow(s)))}</p>${i.description?'<p>'+esc(i.description)+'</p>':''}<dl><dt>획득 경로</dt><dd>${esc(inventorySource(i.source))}</dd>${i.granted_at?'<dt>획득일</dt><dd>'+myDate(i.granted_at)+'</dd>':''}${i.activated_at?'<dt>사용 시작</dt><dd>'+myDate(i.activated_at)+'</dd>':''}${i.expires_at?'<dt>만료일</dt><dd>'+myDate(i.expires_at)+'</dd>':''}</dl>${i.stored?'<p>최초 사용 전에는 이용 기간이 줄어들지 않습니다.</p>':''}${i.reason?'<p>'+esc(i.reason)+'</p>':''}<div class="inventory-product-actions">${inventoryActions(i)}</div>${i.product||i.paid?'<button class="text-link" data-decoration="'+esc(i.item_key)+'">상품 정보 · 추가 구매</button>':''}</section>`);
- $('#dialog').classList.add('inventory-dialog');$('#dialog').addEventListener('close',()=>$('#dialog').classList.remove('inventory-dialog'),{once:true});
+function paintInventory(state) {
+ const panel = $('#unified-inventory #inventory-products');
+ if (!panel || state !== unifiedInventoryState) return;
+ const html = inventoryPanel(state);
+ if (state.painted !== html) {panel.innerHTML=html; state.painted=html;}
 }
-function bindUnifiedInventory(s){
- const root=$('#unified-inventory');if(!root||me?.id!==s.account)return;unifiedInventoryState=s;
- root.onclick=e=>{const category=e.target.closest('[data-inventory-category]');if(category){s.category=category.dataset.inventoryCategory;paintInventory(s);root.querySelector('[aria-selected="true"]')?.focus({preventScroll:true});}const detail=e.target.closest('[data-inventory-detail]');if(detail)inventoryDetail(s,detail.dataset.inventoryDetail);if(e.target.closest('[data-inventory-retry]'))void render();};
- root.onchange=e=>{if(e.target.matches('[data-inventory-filter]'))s.filter=e.target.value;else if(e.target.matches('[data-inventory-sort]'))s.sort=e.target.value;else return;paintInventory(s);};
- root.querySelector('.inventory-categories').onkeydown=e=>{if(!['ArrowLeft','ArrowRight','Home','End'].includes(e.key))return;const tabs=[...root.querySelectorAll('[data-inventory-category]')],at=tabs.findIndex(t=>t.dataset.inventoryCategory===s.category);e.preventDefault();tabs[e.key==='Home'?0:e.key==='End'?tabs.length-1:(at+(e.key==='ArrowLeft'?-1:1)+tabs.length)%tabs.length].click();};
- let lastRead=inventoryClock(),busy=false;
- const refresh=async force=>{if(!root.isConnected||me?.id!==s.account||document.hidden||busy)return;paintInventory(s);if(!force&&inventoryClock()-lastRead<30000)return;busy=true;lastRead=inventoryClock();const revision=apiRevision;try{const [player,gifts]=await Promise.all([api('/api/me/player','GET',undefined,{fresh:true}),api('/api/me/gift-inventory','GET',undefined,{fresh:true})]);if(root.isConnected&&me?.id===s.account&&revision===apiRevision){s.player=player;s.gifts=gifts;s.serverNow=player.server_now;s.receivedAt=inventoryClock();s.revision=apiRevision;paintInventory(s);}}catch{/* Existing verified expirations still hide on the shared display clock. */}finally{busy=false;}};
- const tick=()=>void refresh(false),visible=()=>{if(!document.hidden)void refresh(true);};
- window.addEventListener('aifect:inventory-tick',tick);document.addEventListener('visibilitychange',visible);
- registerRouteCleanup(()=>{window.removeEventListener('aifect:inventory-tick',tick);document.removeEventListener('visibilitychange',visible);});
+function bindUnifiedInventory(state) {
+ const root = $('#unified-inventory');
+ if (!root || me?.id !== state.account) return;
+ unifiedInventoryState = state;
+ let lastRead = inventoryClock(), sequence = 0;
+ const refresh = async force => {
+  if (!root.isConnected || me?.id !== state.account || document.hidden) return;
+  paintInventory(state);
+  if (!force && inventoryClock()-lastRead < 30000) return;
+  const revision = apiRevision, ticket = ++sequence;
+  lastRead = inventoryClock();
+  const data = await readOwnedInventory(api);
+  if (root.isConnected && state === unifiedInventoryState && state.account === me?.id && ticket === sequence && revision === apiRevision) {
+   Object.assign(state,data,{revision}); paintInventory(state);
+  }
+ };
+ root.onclick = e => {
+  if (e.target.closest('[data-inventory-retry]')) return void refresh(true);
+  const button = e.target.closest('[data-stock-send]');
+  const item = button && inventoryItems(state).find(i => i.id === button.dataset.stockSend);
+  if (item?.giftable && item.available) inventoryRecipientDialog(item,state);
+ };
+ const tick = () => void refresh(false), changed = () => void refresh(true);
+ window.addEventListener('aifect:inventory-tick',tick);
+ window.addEventListener('aifect:inventory-changed',changed);
+ document.addEventListener('visibilitychange',changed);
+ registerRouteCleanup(() => {
+  window.removeEventListener('aifect:inventory-tick',tick);
+  window.removeEventListener('aifect:inventory-changed',changed);
+  document.removeEventListener('visibilitychange',changed);
+  if (unifiedInventoryState === state) unifiedInventoryState=null;
+ });
 }
-function refreshInventoryRoute(raw){
- const s=unifiedInventoryState;if(!s||!$('#unified-inventory')||s.account!==me?.id||s.revision!==apiRevision||!/^inventory(?:\?|$)/.test(raw))return false;
- s.section=inventorySection(raw);s.filter=s.section==='active'?'active':'all';$('#main').dataset.route=raw;$('#unified-inventory [data-inventory-filter]').value=s.filter;paintInventory(s);return true;
+function refreshInventoryRoute(raw) {
+ const s = unifiedInventoryState;
+ if (!s || !$('#unified-inventory') || s.account !== me?.id || s.revision !== apiRevision || !/^inventory(?:\?|$)/.test(raw)) return false;
+ $('#main').dataset.route=raw; paintInventory(s); return true;
 }
 
-function inventoryPurchaseHTML(c){
- const catalog=[...(c.silver_gifts||[]),...(c.gifts||[])];
- return `${mySection('선물 보관 구매',`<div class="mp-stock-grid">${catalog.map(i=>`<article class="mp-stock-item"><img src="${esc(i.image)}" alt="${esc(i.name)}"><h3>${esc(i.name)}</h3><p>${number(i.gold||i.silver)} ${i.gold?'G':'S'}</p><button class="small-button" data-inventory-buy="${esc(i.id)}" data-gift-name="${esc(i.name)}" data-gift-price="${i.gold||i.silver}" data-gift-currency="${i.gold?'G':'S'}">보관 구매</button></article>`).join('')}</div>`)}${authConfig?.admin?`<details class="mp-card"><summary>관리자 · 이벤트 선물 지급</summary><form id="mp-gift-grant" class="upload-form"><label class="form-field">회원 공개 ID<input name="public_id" type="text" inputmode="text" pattern="[A-Za-z]{3}[0-9]{4}" minlength="7" maxlength="7" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="예: QXF7082" required></label><label class="form-field">선물<select name="gift_type">${catalog.map(i=>`<option value="${esc(i.id)}">${esc(i.name)}</option>`).join('')}</select></label><label class="form-field">수량<input name="quantity" type="number" min="1" max="100" value="1" required></label><label class="form-field">지급 사유<input name="reason" maxlength="300" required></label><button class="primary-button">무료 보관 선물 지급</button><p class="form-error" role="alert"></p></form></details>`:''}`;
+function inventoryRecipientDialog(item,state) {
+ const serial = ++giftDialogSerial, account = state.account;
+ dialog(`<section class="stock-recipient"><h2>선물하기</h2>
+  <div class="stock-selection"><img src="${esc(item.image)}" alt=""><div><strong>${esc(item.name)}</strong><small>보유 ×${number(item.quantity)}</small></div></div>
+  <form id="stock-recipient-form"><label class="stock-field">수량<input type="number" name="quantity" value="1" min="1" max="${item.ids.length}" step="1" inputmode="numeric" required></label>
+  <label class="stock-field">받는 사람 닉네임<input type="search" name="query" maxlength="60" autocomplete="off" placeholder="닉네임 검색"></label>
+  <div class="stock-people" role="group" aria-label="회원 검색 결과"></div>
+  <p class="form-error" role="alert"></p><button type="submit" class="primary-button" disabled>선물하기</button></form></section>`);
+ const modal=$('#dialog'), form=$('#stock-recipient-form'), results=form.querySelector('.stock-people');
+ const submit=form.querySelector('[type=submit]'), qty=form.elements.quantity, search=form.elements.query;
+ const active=()=>form.isConnected && modal.open && giftDialogSerial===serial && me?.id===account;
+ let profiles=[], recipient=null, searching=0, timer=0, busy=false, attempt=null;
+ const valid=()=>Number.isInteger(qty.valueAsNumber) && qty.valueAsNumber>=1 && qty.valueAsNumber<=item.ids.length;
+ const sync=()=>{submit.disabled=busy || !recipient || !valid();};
+ const find = async ticket => {
+  try {
+   const response=await api('/api/decorations/recipients?q='+encodeURIComponent(search.value.trim()),'GET',undefined,{fresh:true});
+   if (!active() || ticket!==searching) return;
+   profiles=response.profiles.filter(p=>p.id!==me.profile_id && p.user_id!==account);
+   results.innerHTML=profiles.length ? profiles.map(p=>`<button type="button" class="stock-person" data-profile-choice="${esc(p.id)}" aria-pressed="false"><span class="stock-avatar">${avatarImage(p,'producer',false)}</span><span><strong${premiumNameAttribute(p.id,p.user_id)}>${esc(p.name)}</strong><small>${esc(p.public_id || p.public_number || '')}</small></span></button>`).join('') : '<p class="field-help">'+(search.value.trim()?AifectMessages.searchEmpty:'닉네임으로 회원을 검색해 주세요.')+'</p>';
+  } catch(e) {
+   if (active() && ticket===searching) {results.innerHTML='<button type="button" class="text-link" data-search-retry>검색 다시 시도</button>'; formError(form).textContent=e.message;}
+  }
+ };
+ const lookup=delay=>{
+  clearTimeout(timer);recipient=null;profiles=[];sync();formError(form).textContent='';results.textContent='불러오는 중…';
+  const ticket=++searching; timer=setTimeout(()=>void find(ticket),delay);
+ };
+ search.oninput=()=>lookup(180);
+ search.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();lookup(0);}};
+ results.onclick=e=>{
+  if (busy) return;
+  if (e.target.closest('[data-search-retry]')) return lookup(0);
+  const button=e.target.closest('[data-profile-choice]');
+  if (!button) return;
+  recipient=profiles.find(p=>p.id===button.dataset.profileChoice);
+  for(const row of results.querySelectorAll('[data-profile-choice]')) row.setAttribute('aria-pressed',String(row===button));
+  formError(form).textContent='';sync();
+ };
+ qty.oninput=sync;
+ const setBusy=value=>{busy=value;qty.disabled=value;search.disabled=value;results.inert=value;sync();};
+ form.onsubmit=async e=>{
+  e.preventDefault();if (!active() || busy || !recipient || !valid()) return;
+  const quantity=qty.valueAsNumber, ids=item.ids.slice(0,quantity), target=recipient;
+  const fingerprint=JSON.stringify([ids,target.id]);
+  if (attempt?.fingerprint!==fingerprint) attempt={fingerprint,key:crypto.randomUUID()};
+  setBusy(true);formError(form).textContent='';
+  try {
+   if (!await confirmGiftTransfer({name:item.name,image:item.image,quantity,recipient:target.name}) || !active()) return;
+   const url=item.category==='gifts'?'/api/me/gift-inventory/':'/api/decorations/inventory/';
+   await api(url+encodeURIComponent(ids[0])+'/send','POST',{inventory_ids:ids,profile_id:target.id,request_id:attempt.key});
+   if (active()) finishGiftTransfer();
+  } catch(error) {if(active()) formError(form).textContent=error.message;}
+  finally {if(active())setBusy(false);}
+ };
+ modal.addEventListener('close',()=>clearTimeout(timer),{once:true});
+ lookup(0);
 }
