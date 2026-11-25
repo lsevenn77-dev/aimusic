@@ -5,18 +5,17 @@
 #home-release.home-promo-carousel .home-feature-stage{height:100%;min-width:0;overflow:hidden}
 #home-release.home-promo-carousel .home-promo-link{--ui-space-scale:1;--ui-type-scale:1;display:block;position:relative;padding:0;width:100%;height:100%;color:var(--ds-text);text-decoration:none;user-select:none;-webkit-user-select:none;background:var(--home-promo-bg,var(--ds-bg))}
 #home-release.home-promo-carousel .home-promo-picture{display:block;position:relative;z-index:0;width:100%;height:100%;overflow:hidden}
-/* Event artwork includes its copy. Fit it inside the existing slide frame. */
-#home-release .home-event-banner{display:block;padding:0;background:var(--ds-bg);cursor:default;user-select:none}
+/* Keep the full event artwork. Extend its outermost pixels into the unused
+   part of the standard slide without scaling the letters or gift separately. */
+#home-release .home-event-banner{display:block;padding:0;cursor:default;user-select:none}
 #home-release .home-event-banner picture,#home-release .home-event-banner img{display:block;width:100%;height:100%}
-#home-release .home-event-banner img{object-fit:cover;object-position:center}
-/* A desktop webview can have a taller stage. Extend only the artwork's edge
-   pixels above and below the full composition in this alternate layout. */
+#home-release .home-event-banner picture{border-image:var(--event-mobile-art) 0 1 fill / 0 50% stretch}
+#home-release .home-event-banner img{object-fit:contain;object-position:center}
 @media(min-width:801px){
- #home-release:not(.home-promo-wide) .home-event-banner picture{border-image:var(--event-desktop-art) 1 0 fill / 50% 0 stretch}
- #home-release:not(.home-promo-wide) .home-event-banner img{object-fit:contain}
+ #home-release .home-event-banner:not([data-event-mobile]) picture{border-image:var(--event-desktop-art) 1 0 fill / 50% 0 stretch}
 }
 @media(max-width:800px){
- #home-release .home-event-banner,#home-release .home-event-banner picture{height:auto}
+ #home-release .home-event-banner,#home-release .home-event-banner picture{height:auto;aspect-ratio:2/1}
  #home-release .home-event-banner img{height:auto;aspect-ratio:2/1}
 }
 /* The picture element selects the portrait for the current viewport. */

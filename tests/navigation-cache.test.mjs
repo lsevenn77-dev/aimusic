@@ -171,8 +171,8 @@ test('the open event renders before music reads and remains visible after a disc
  try{
   const banner=c.section('home-release'),html=banner.innerHTML;
   assert.match(html,/data-home-banner="open-event"/);
-  assert.match(html,/<source media="\(min-width: 801px\)" srcset="[^"]+pc-2400x460-57d7e5c626\.webp" width="2400" height="460"/);
-  assert.match(html,/<img src="[^"]+mobile-1656x828\.webp" width="1656" height="828"[^>]+loading="eager" fetchpriority="high"/);
+  assert.match(html,/<source media="\(min-width: 801px\)" srcset="[^"]+aifect_open_event_refined_pc_2400x460\.webp" width="2400" height="460"/);
+  assert.match(html,/<img src="[^"]+aifect_open_event_refined_mobile_1170x672\.webp" width="1170" height="672"[^>]+loading="eager" fetchpriority="high"/);
   const slide=html.match(/<div class="home-feature-slide home-event-banner"[\s\S]*?<\/picture><\/div>/)?.[0];
   assert.ok(slide);assert.doesNotMatch(slide,/<a\b|<button\b|onclick=|tabindex=/i);
   assert.doesNotMatch(html,/HOME_LOADING|음악을 불러오는 중/);
@@ -181,6 +181,15 @@ test('the open event renders before music reads and remains visible after a disc
   assert.match(c.section('home-recommended').innerHTML,/다시 시도/);
   assert.ok(!calls.includes('/api/catalog?section=tracks&limit=12'),'the replaced featured-song banner must not start an unused catalog read');
  }finally{discovery.resolve(response({tracks:[]}));await opening;}
+});
+
+test('the first home paint at midnight KST omits the open event and its preloads',async()=>{
+ const c=homeRenderer(async()=>response({tracks:[],playlists:[]}));
+ c.advance(Date.parse('2027-01-01T00:00:00+09:00')-c.run('Date.now()'));
+ await c.navigate('home');
+ const html=c.section('home-release').innerHTML;
+ assert.match(html,/data-home-banner="app-download"/);
+ assert.doesNotMatch(html,/open-event|오픈 이벤트/);
 });
 
 test('aborting a home read does not cancel an independent reader of the same resource',async()=>{
