@@ -4,9 +4,9 @@
 
 .sing-presets{grid-template-columns:repeat(5,minmax(0,1fr))}@media(max-width:520px){.sing-presets{grid-template-columns:repeat(2,minmax(0,1fr))}.sing-presets [data-vocal-preset=custom]{grid-column:1/-1}}
 
-/* The reader belongs to the song route. Its text scrolls independently of playback. */
 .lyrics-panel-actions{display:flex;flex-wrap:wrap;gap:8px}.lyrics-panel-actions .small-button{font-size:.75rem;padding:8px 12px}
-.song-main-column #expanded-song-lyrics{
+/* The app still uses the popover reader. */
+.song-main-column #expanded-song-lyrics.expanded-song-lyrics{
  position:fixed;inset:12px 0 calc(var(--player-space,96px) + 52px);z-index:65;margin:auto!important;
  width:min(720px,calc(100% - 32px));height:fit-content;max-height:calc(100% - var(--player-space,96px) - 72px);
  padding:12px 20px 16px;box-sizing:border-box;overflow:hidden;border:1px solid var(--ds-border);
@@ -17,12 +17,20 @@
 .expanded-song-lyrics h2{margin:0;color:var(--ds-text);font-size:1.15rem}
 #expanded-song-lyrics .expanded-lyrics-close{display:grid;place-items:center;flex:0 0 44px;width:44px;height:44px;padding:0;color:var(--ds-selected);font-size:26px;background:transparent}
 .expanded-lyrics-scroll{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;overflow-anchor:none}
-.expanded-song-lyrics :is(.lyrics-reading-line,[data-expanded-lyric]){
+:is(.expanded-song-lyrics,.song-detail-lyrics) :is(.lyrics-reading-line,[data-expanded-lyric]){
  display:block;width:100%;margin:0;padding:5px 0;min-height:1lh;text-align:left;
  font:inherit;font-size:1rem;line-height:1.8;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;
  background:transparent!important;border:0;box-shadow:none;color:var(--ds-body);
 }
-.expanded-song-lyrics button[data-expanded-lyric]{min-height:44px}
+:is(.expanded-song-lyrics,.song-detail-lyrics) button[data-expanded-lyric]{min-height:44px}
 #expanded-song-lyrics [data-expanded-lyric].is-current{color:var(--ds-selected)}
 #expanded-song-lyrics :focus-visible{outline:2px solid var(--ds-selected);outline-offset:-2px}
-@media(max-width:767px){.song-main-column #expanded-song-lyrics{width:calc(100% - 24px);padding:8px 14px 12px}}
+@media(max-width:767px){.song-main-column #expanded-song-lyrics.expanded-song-lyrics{width:calc(100% - 24px);padding:8px 14px 12px}}
+
+.song-detail-lyrics{min-width:0}
+.song-detail-lyrics > .section-heading{
+ display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;margin:0 0 8px;
+}
+.song-detail-lyrics > .section-heading h2{margin:0;color:var(--ds-text)}
+.song-detail-lyrics .expanded-lyrics-close{border:0;box-shadow:none}
+@media(max-width:600px){.song-detail-lyrics > .section-heading h2{font-size:18px}}

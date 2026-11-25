@@ -68,7 +68,7 @@ test('song core is playable while comments, covers and gifts are still pending',
   started.resolve();await held.promise;
   return response(path.endsWith('/comments')?{comments:[]}:{});
  });
- Object.assign(c.context,{songDetailHeaderHTML:t=>'<article>'+t.title+'</article>',coversPanelHTML:()=>'',commentsHTML:()=>'',lyricsPanel:()=>'',giftsPanelHTML:()=>'',songCreditCardHTML:()=>'',bindSongCoverList(){}});
+ Object.assign(c.context,{songDetailHeaderHTML:t=>'<article>'+t.title+'</article>',coversPanelHTML:()=>'',commentsHTML:()=>'',songDetailLyricsHTML:()=>'',giftsPanelHTML:()=>'',songCreditCardHTML:()=>'',bindSongCoverList(){}});
  const opening=c.navigate('song/song');await started.promise;await new Promise(resolve=>setImmediate(resolve));
  assert.match(c.main.innerHTML,/CORE SONG/);assert.match(c.main.innerHTML,/이야기와 참여 작품을 불러오는 중/);
  assert.doesNotMatch(c.main.innerHTML,/<h1\b[^>]*>\s*곡 이야기\s*<\/h1>/);
