@@ -4,6 +4,8 @@ import worker from '../server/index.js';
 import {fixture} from './fixture.mjs';
 import {executeAdminTool} from '../server/admin-mcp-operations.js';
 import {BUSINESS} from '../shared/site-info.js';
+import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
+import {activateWelcomeCampaign,queuePremiumOpenNotice} from '../server/welcome-notices.js';
 import {finalizeGiftDiamonds} from '../server/diamonds.js';
 import {sampleScript,options,memoryBucket} from './dubbing-fixtures.mjs';
 
@@ -58,6 +60,65 @@ test('MCP protocols, catalog, schema enforcement, notifications and bounded body
  assert.equal((await f.rpc('tools/call',{name:'aifect_grant_test_gold',arguments:grant()}, {envelope:{id:undefined}})).status,400);
  for(const args of [grant({gold:0}),grant({gold:-1}),grant({gold:1.5}),grant({gold:10001}),grant({user_id:''}),grant({request_id:'x'}),{...grant(),admin:true},{...grant(),__proto__:null,sql:'select'}])assert.equal((await f.tool('aifect_grant_test_gold',args)).body.error.code,-32602);
  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM gold_purchases').get().n,0);
+});
+
+test('the approved premium release checks event rights and the banner before one fixed production broadcast',async t=>{
+ let clock=Date.parse('2026-11-25T12:00:00+09:00');
+ t.mock.method(Date,'now',()=>clock);
+ const f=await setup(t);
+ const path='/api/notices/premium-open-event';
+ let bannerAvailable=false;
+ const env={DB:f.DB,ASSETS:{fetch(request){
+  assert.equal(new URL(request.url).pathname,PREMIUM_OPEN_NOTICE.banner);
+  assert.equal(request.method,'HEAD');
+  return bannerAvailable?new Response(null,{headers:{'content-type':'image/webp'}}):new Response(null,{status:404});
+ }}};
+ const launch=async(url='https://aifect.co.kr/',method='GET')=>{
+  let task;
+  queuePremiumOpenNotice(new Request(url,{method}),env,{waitUntil(p){task=p;}});
+  await task;
+  return !!task;
+ };
+ const counts=async()=>output(await f.tool('aifect_admin_stats')).premium_open_notice;
+ const receipts=()=>f.sql.prepare('SELECT user_id,read_at FROM welcome_receipts WHERE campaign_id=? ORDER BY user_id').all(PREMIUM_OPEN_NOTICE_ID);
+ f.sql.exec("UPDATE users SET created=0 WHERE id='owner'; INSERT INTO users(id,email,name,created,provider) VALUES('retired','retired@example.test','retired',0,'deleted'); INSERT INTO users(id,email,name,created,provider,account_type) VALUES('ai_000001','bot@example.test','bot',0,'ai_service','ai_bot')");
+ await activateWelcomeCampaign({DB:f.DB});
+ assert.equal((await counts()).active_event_members,1);
+ assert.equal(await launch('https://aifect.test/'),false);
+ assert.equal(await launch('https://aifect.co.kr/api/dm'),false);
+ assert.equal(await launch('https://aifect.co.kr/','POST'),false);
+ assert.equal(await launch(),true);
+ assert.deepEqual(receipts(),[]);
+ f.sql.exec("UPDATE users SET created=0 WHERE id='other'");
+ assert.deepEqual(await counts(),{campaign_id:PREMIUM_OPEN_NOTICE_ID,active:false,target_members:2,active_event_members:2});
+ clock+=61000;
+ assert.equal(await launch(),true);
+ assert.deepEqual(receipts(),[]);
+ assert.equal((await f.call(path)).status,404);
+ bannerAvailable=true;
+ clock+=61000;
+ assert.deepEqual(await Promise.all([launch(),launch()]),[true,false]);
+ const report=await counts();
+ assert.deepEqual(report,{campaign_id:PREMIUM_OPEN_NOTICE_ID,active:true,activated_at:clock/1000,target_members:2,active_event_members:2,delivered:2,failed:0,channel:'notice'});
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='notice:premium_open_broadcast'").get().n,1);
+ assert.deepEqual(receipts().map(r=>[r.user_id,r.read_at]),[['other',0],['owner',0]]);
+ assert.equal((await f.call(path,'GET',null,null)).status,401);
+ const firstDevice=await f.call(path);
+ assert.equal(firstDevice.body.peer.name,'AIFECT 운영팀');
+ assert.equal(firstDevice.body.peer.read_only,true);
+ assert.deepEqual(firstDevice.body.notice,PREMIUM_OPEN_NOTICE);
+ assert.equal((await f.call('/api/dm')).body.notice_unread,2);
+ assert.equal((await f.call(path,'PATCH',{campaign_id:PREMIUM_OPEN_NOTICE_ID})).status,200);
+ assert.ok((await f.call(path)).body.read_at>0);
+ const secondDevice=(await f.call('/api/dm')).body;
+ assert.equal(secondDevice.notice_unread,1);
+ assert.equal(secondDevice.conversations.find(p=>p.notice_type==='welcome').unread,1);
+ assert.equal(secondDevice.conversations.find(p=>p.id===PREMIUM_OPEN_NOTICE_ID).unread,0);
+ assert.equal((await f.call(path,'GET',null,'other')).body.read_at,0);
+ assert.equal(await launch(),false);
+ assert.deepEqual(await counts(),report);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM direct_messages').get().n,0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM activity_notifications').get().n,0);
 });
 
 test('nickname search is public identity, escaped, bounded and excludes deleted accounts',async t=>{

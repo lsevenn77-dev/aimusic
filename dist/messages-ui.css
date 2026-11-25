@@ -102,6 +102,7 @@
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-scroll{flex:1;min-width:0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;padding:16px 20px 24px;outline-offset:-3px}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-time{display:block;margin:0 0 12px;text-align:center;color:var(--ds-muted);font-size:var(--dm-time)}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide{min-width:0;max-width:100%;padding:20px;border-radius:16px;background:color-mix(in srgb,var(--ds-accent-lavender) 6%,var(--ds-panel));color:var(--ds-body);font-size:var(--dm-body);line-height:1.75;overflow-wrap:anywhere}
+#main :is(.message-workspace,.room-welcome-guide) .official-notice-banner{display:block;width:100%;height:auto;margin:0 0 16px;object-fit:contain}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide p{margin:0 0 12px;font-size:inherit;line-height:inherit;color:var(--ds-body);word-break:keep-all;overflow-wrap:anywhere}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-greeting{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide h2{flex:1;min-width:0;margin:0;color:var(--ds-text);font-size:var(--dm-thread-title);font-weight:650;line-height:1.6;word-break:keep-all;overflow-wrap:anywhere}

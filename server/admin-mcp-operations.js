@@ -1,7 +1,7 @@
 import {effectiveUntilSQL,eventUntilSQL} from './premium-event.js';
 import {libraryMigrationStatus} from './library-migration.js';
 import {playlistCleanupStatus} from './playlist-cleanup.js';
-import {welcomeNoticeStatus} from './welcome-notices.js';
+import {premiumOpenNoticeStatus,welcomeNoticeStatus} from './welcome-notices.js';
 import {one,rows,query,now,fail} from './db.js';
 import {hash} from './auth.js';
 import {publicCrewNameSQL} from './identity.js';
@@ -84,7 +84,7 @@ async function stats(env,a) {
  (SELECT COUNT(*) FROM track_reports WHERE status IN ('pending','appealed')) pending_content_reports,
  (SELECT COUNT(*) FROM admin_email_bugs) registered_email_bugs,
  (SELECT COALESCE(SUM(gold),0) FROM admin_test_gold_grants WHERE created>=?) test_gold_granted`,cutoff,now(),cutoff,cutoff);
- return {days,from:cutoff,as_of:now(),...counts,welcome_notice:await welcomeNoticeStatus(env),playlist_cleanup:await playlistCleanupStatus(env),library_v2:await libraryMigrationStatus(env),ranking_audit:await rankingAudit(env),lyric_analysis:await lyricAnalysisStatus(env),bot_comment_refresh:await commentRefreshStatus(env),bot_nicknames:await botNicknameStatus(env)};
+ return {days,from:cutoff,as_of:now(),...counts,welcome_notice:await welcomeNoticeStatus(env),premium_open_notice:await premiumOpenNoticeStatus(env),playlist_cleanup:await playlistCleanupStatus(env),library_v2:await libraryMigrationStatus(env),ranking_audit:await rankingAudit(env),lyric_analysis:await lyricAnalysisStatus(env),bot_comment_refresh:await commentRefreshStatus(env),bot_nicknames:await botNicknameStatus(env)};
 }
 async function reports(env,a) {
  const status=a.status??'pending',filter=status==='all'?'1=1':'r.status=?',args=status==='all'?[]:[status];

@@ -305,13 +305,17 @@ function bindSocialChat(view){
  };
  const localInbox=e=>{if(current()&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{inboxVersion++;void loadInbox();};
  window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);
-  const noticeRead=()=>{
+  const noticeRead=peerId=>{
    if(!current())return;inboxVersion++;
    if(inboxData){
-    const isWelcome=p=>p.is_notice===true&&p.notice_type==='welcome'&&p.read_only===true;
+    const isOfficial=p=>p.is_notice===true&&p.read_only===true;
+    const isOpened=p=>isOfficial(p)&&(peerId?p.id===peerId:p.notice_type==='welcome');
+    const unreadInRows=peers=>peers.reduce((sum,p)=>sum+Number(p.unread||0),0);
     // The summary and conversation rows may have been read on either side of the receipt update.
-    const count=Number(inboxData.notice_unread??inboxData.conversations.filter(isWelcome).reduce((sum,p)=>sum+Number(p.unread||0),0));
-    inboxData={...inboxData,notice_unread:0,conversations:inboxData.conversations.map(p=>isWelcome(p)?{...p,unread:0}:p)};
+    const official=inboxData.conversations.filter(isOfficial);
+    const total=Number(inboxData.notice_unread??unreadInRows(official));
+    const count=Math.min(1,Math.max(0,total-unreadInRows(official.filter(p=>!isOpened(p)))));
+    inboxData={...inboxData,notice_unread:total-count,conversations:inboxData.conversations.map(p=>isOpened(p)?{...p,unread:0}:p)};
     for(const key of ['unread','direct_unread'])if(Number.isFinite(inboxData[key]))inboxData[key]=Math.max(0,inboxData[key]-count);
     rememberDmInbox(inboxData);paintInbox(inboxData);
     if(Number.isFinite(inboxData.unread))paintMessageBadge(inboxData.unread);
@@ -337,7 +341,7 @@ function bindSocialChat(view){
    const route=session.route;
    threadBinding=bindChatThread(panelView,{receipts,read:()=>inboxData,refreshInbox,current:()=>location.hash.slice(1)===route});
   }
-  if(panelView.welcomeNotice)stopNotice=bindWelcomeNotice(panelView,noticeRead);
+  if(panelView.welcomeNotice)stopNotice=bindWelcomeNotice(panelView,()=>noticeRead(panelView.welcomeNotice.peerId));
  }
  let controller=null;
  const route=typeof location==='undefined'?'dm':location.hash.slice(1);

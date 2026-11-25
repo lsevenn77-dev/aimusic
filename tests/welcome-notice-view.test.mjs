@@ -4,6 +4,7 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 import {nicknameContext} from './nickname-context.mjs';
 import {render as renderStickers} from '../shared/chat-stickers.js';
+import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
 
 const social=readFileSync(new URL('../dist/social-chat.js',import.meta.url),'utf8');
 const notices=readFileSync(new URL('../dist/messages-ui.js',import.meta.url),'utf8');
@@ -78,6 +79,21 @@ test('verified welcome channel uses its own endpoint while existing official DMs
  const old=await c.dmNoticeView('dm/notice?peer=operator',read);
  assert.deepEqual(calls,['/api/dm','/api/dm/operator']);assert.equal(old.chat.path,'/api/dm/operator');
  assert.match(old.html,/id="chat-compose"/);assert.match(old.html,/data-dm-mute="operator"/);
+});
+
+test('the event banner precedes the original text in its read-only official channel',async()=>{
+ const c=context(),path='/api/notices/premium-open-event';
+ const peer={id:PREMIUM_OPEN_NOTICE_ID,name:'AIFECT 운영팀',is_notice:true,notice_type:'premium-open-event',read_only:true,unread:1};
+ const opened=await c.dmNoticeView('dm/notice',async requested=>{
+  assert.equal(requested,path);
+  return {campaign_id:PREMIUM_OPEN_NOTICE_ID,notice:PREMIUM_OPEN_NOTICE,read_at:0};
+ },{conversations:[peer]});
+ assert.match(opened.html,/AIFECT 운영팀/);
+ assert.match(opened.html,/<img class="official-notice-banner" [^>]+width="2172" height="724"/);
+ assert.ok(opened.html.indexOf('<img')<opened.html.indexOf(PREMIUM_OPEN_NOTICE.title));
+ assert.match(opened.html,/12월 31일까지<br>👑 기존·신규 회원 모두 프리미엄 무료<br>✅ 별도 신청 및 결제 없이 자동 적용/);
+ assert.equal(opened.welcomeNotice.path,path);
+ assert.doesNotMatch(opened.html,/<form|<textarea|contenteditable/);
 });
 
 function acknowledgeHarness({hidden=false,renderState='ready',readAt=0}={}){

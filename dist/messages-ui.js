@@ -1,6 +1,24 @@
 // Notice entries are server-verified administrator conversations or service guides.
+function readOnlyDmNoticePath(peer){
+ if(peer.is_notice!==true||peer.read_only!==true)return null;
+ if(peer.notice_type==='welcome')return '/api/notices/welcome';
+ if(peer.notice_type==='premium-open-event')return '/api/notices/premium-open-event';
+ return null;
+}
+
 const welcomeGuideHrefs=new Set(['#karaoke','#live?mode=karaoke','#voice?mode=talk','#community/crews','#karaoke/duets','#karaoke/dubbing?tab=join','#artists','#upload','#membership']);
+function noticeArticle(d,label,content){
+ const created=Number(d.created),sent=created>0&&Number.isFinite(created)?'<time class="welcome-guide-time" datetime="'+new Date(created*1000).toISOString()+'">'+new Date(created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})+'</time>':'';
+ return '<section id="welcome-guide-scroll" class="welcome-guide-scroll" tabindex="0" aria-label="'+esc(label)+'">'+sent+'<article class="welcome-guide" aria-labelledby="welcome-guide-title">'+content+'</article></section><div id="welcome-guide-status" class="welcome-guide-status" role="status" hidden><span></span><button type="button" class="text-link" data-welcome-read-retry>다시 시도</button></div>';
+}
+
 function welcomeGuideHTML(d){
+ if(d.notice){
+  const {banner,title,body}=d.notice;
+  if(typeof title!=='string'||typeof body!=='string'||typeof banner!=='string'||!/^\/assets\/[\w-]+\.webp$/.test(banner))throw new Error('공지 내용을 불러오지 못했습니다. 다시 열어 주세요.');
+  const paragraphs=body.split('\n\n').map(text=>'<p>'+esc(text).replaceAll('\n','<br>')+'</p>').join('');
+  return noticeArticle(d,'프리미엄 오픈 이벤트','<img class="official-notice-banner" src="'+esc(banner)+'" width="2172" height="724" alt="AIFECT 오픈 이벤트. 2026년 12월 31일까지 프리미엄 무료"><div class="welcome-guide-greeting"><h2 id="welcome-guide-title">'+esc(title)+'</h2></div>'+paragraphs);
+ }
  const g=d.guide;
  if(!g||typeof g.greeting!=='string'||!Array.isArray(g.sections)||!g.sections.length)throw new Error('이용 안내를 불러오지 못했습니다. 다시 열어 주세요.');
  const paragraphs=items=>(Array.isArray(items)?items:[]).filter(text=>typeof text==='string').map(text=>'<p>'+esc(text)+'</p>').join('');
@@ -8,8 +26,7 @@ function welcomeGuideHTML(d){
   const action=welcomeGuideHrefs.has(s.href)?'<a class="text-link welcome-guide-link" href="'+esc(s.href)+'">'+esc(s.label)+' <span aria-hidden="true">→</span></a>':'';
   return '<section class="welcome-guide-section" data-welcome-section="'+esc(s.id)+'"><h3>'+esc(s.title)+'</h3><p>'+esc(s.body)+'</p>'+action+'</section>';
  }).join('');
- const created=Number(d.created),sent=created>0&&Number.isFinite(created)?'<time class="welcome-guide-time" datetime="'+new Date(created*1000).toISOString()+'">'+new Date(created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'})+'</time>':'';
- return '<section id="welcome-guide-scroll" class="welcome-guide-scroll" tabindex="0" aria-label="아이팩트 이용 안내">'+sent+'<article class="welcome-guide" aria-labelledby="welcome-guide-title"><div class="welcome-guide-intro"><div class="welcome-guide-greeting"><h2 id="welcome-guide-title">'+esc(g.greeting).replace(/\r?\n/g,'<br>')+'</h2></div>'+paragraphs(g.intro)+'</div>'+sections+'<footer class="welcome-guide-outro">'+paragraphs(g.closing)+'</footer></article></section><div id="welcome-guide-status" class="welcome-guide-status" role="status" hidden><span></span><button type="button" class="text-link" data-welcome-read-retry>다시 시도</button></div>';
+ return noticeArticle(d,'아이팩트 이용 안내','<div class="welcome-guide-intro"><div class="welcome-guide-greeting"><h2 id="welcome-guide-title">'+esc(g.greeting).replace(/\r?\n/g,'<br>')+'</h2></div>'+paragraphs(g.intro)+'</div>'+sections+'<footer class="welcome-guide-outro">'+paragraphs(g.closing)+'</footer>');
 }
 // Acknowledgement follows visible paint and stays tied to this account and route.
 function bindWelcomeNotice(view,acknowledged=()=>{}){
@@ -29,7 +46,7 @@ function bindWelcomeNotice(view,acknowledged=()=>{}){
   const controller=new AbortController();let timedOut=false;
   const deadline=setTimeout(()=>{timedOut=true;controller.abort();},10000);
   try{
-   await api('/api/notices/welcome','PATCH',{campaign_id:notice.campaign_id},{signal:controller.signal});
+   await api(notice.path??'/api/notices/welcome','PATCH',{campaign_id:notice.campaign_id},{signal:controller.signal});
    done=true;synchronize();
   }catch(error){
    if(!current())return;
@@ -55,10 +72,11 @@ async function dmNoticeView(raw,readApi=api,knownInbox=null,layout=dmInboxHTML){
  if(!notices.length)return {html:layout(inbox,'<header class="dm-thread-header">'+back+'<h1>공지</h1></header><div class="dm-empty"><p>아직 받은 공지가 없습니다.</p></div>','notice'),inbox:true,refreshInbox:true,selectedConversation:'notice'};
  const requested=new URLSearchParams(raw.split('?')[1]||'').get('peer'),peer=notices.find(p=>p.id===requested)||notices[0];
  const channels=notices.length>1?'<label class="dm-notice-channel"><span class="sr-only">공지 선택</span><select data-notice-channel>'+notices.map(p=>'<option value="'+esc(p.id)+'"'+(p.id===peer.id?' selected':'')+'>'+esc(chatNickname(p))+'</option>').join('')+'</select></label>':'';
- if(peer.notice_type==='welcome'&&peer.read_only===true){
-  const d=await readApi('/api/notices/welcome');
+ const path=readOnlyDmNoticePath(peer);
+ if(path){
+  const d=await readApi(path);
   const header='<header class="dm-thread-header">'+back+'<div class="dm-thread-person"><div><h1>공지</h1><small>'+esc(chatNickname(peer))+'</small></div></div></header>';
-  return {html:layout(inbox,header+channels+welcomeGuideHTML(d),'notice'),inbox:true,selectedConversation:'notice',welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at}};
+  return {html:layout(inbox,header+channels+welcomeGuideHTML(d),'notice'),inbox:true,selectedConversation:'notice',welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at,path,peerId:peer.id}};
  }
  const d=await readApi('/api/dm/'+encodeURIComponent(peer.id));
  return {html:layout(inbox,'<header class="dm-thread-header">'+back+dmProfileLink(d.peer,'<div><h1>공지</h1><small>'+esc(chatNickname(d.peer))+'</small></div>','dm-thread-person')+dmThreadActions(d.peer,d.settings)+'</header>'+channels+chatPanelHTML('공지',d,d.peer),'notice'),inbox:true,refreshInbox:true,selectedConversation:'notice',chat:{path:'/api/dm/'+peer.id,peer:d.peer,initial:d}};

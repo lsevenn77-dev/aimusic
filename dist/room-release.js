@@ -175,33 +175,33 @@ function roomMessages(client,sheet){
   const t=reset();peer=null;
   sheet.innerHTML='<header class="room-popup-heading"><h2 id="room-inbox-title">메시지</h2></header><label class="room-dm-query">팔로우 검색<input type="search" aria-label="메시지를 보낼 팔로우 검색" placeholder="닉네임 검색"></label><div class="room-dm-list"></div><small data-room-dm-status role="status"></small>';
   client.ensureRoomPopupClose?.(sheet);
-  const input=sheet.querySelector('input'),list=sheet.querySelector('.room-dm-list'),noticeIds=new Set();let search=0;
+  const input=sheet.querySelector('input'),list=sheet.querySelector('.room-dm-list'),notices=new Map();let search=0;
   const load=async()=>{
    const q=input.value.trim(),seq=++search;
    const d=await api(q?'/api/follow-management?tab=following&kind=producers&sort=name&q='+encodeURIComponent(q):'/api/dm','GET',undefined,{fresh:true});
    if(!current(t)||seq!==search||q!==input.value.trim())return;
-   const people=q?d.items:d.conversations;noticeIds.clear();
+   const people=q?d.items:d.conversations;notices.clear();
    list.innerHTML=people.map(p=>{
     const id=q?p.profile_id:p.id;if(!id)return '';
-    const notice=!q&&p.is_notice===true&&p.notice_type==='welcome'&&p.read_only===true;
-    if(notice)noticeIds.add(id);
+    const notice=!q&&readOnlyDmNoticePath(p);
+    if(notice)notices.set(id,{path:notice,person:p});
     const art=notice?'<span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span>':avatarImage({...p,profile_id:id});
     const name=notice?esc(chatNickname(p)):userNickname(chatNickname(p),{profileId:id,userId:p.user_id});
     return `<button type="button" data-room-peer="${esc(id)}">${art}<span><strong>${name}</strong><small>${esc(AifectStickers.preview(p.last_message||''))}</small></span>${p.unread?`<b>${Number(p.unread)}</b>`:''}<time>${p.updated?esc(inboxTime(p.updated)):''}</time></button>`;
    }).join('')||'<p>표시할 대화가 없습니다.</p>';
   };
-  list.onclick=e=>{const id=e.target.closest('[data-room-peer]')?.dataset.roomPeer;if(id)(noticeIds.has(id)?welcome():thread(id)).catch(report);};
+  list.onclick=e=>{const id=e.target.closest('[data-room-peer]')?.dataset.roomPeer;if(id)(notices.has(id)?officialNotice(notices.get(id)):thread(id)).catch(report);};
   input.oninput=()=>{clearTimeout(timer);timer=setTimeout(()=>load().catch(report),150);};
   await load();if(current(t))client.roomInboxChanged=()=>load().catch(report);
  }
- async function welcome(){
+ async function officialNotice({path,person}){
   const t=reset(),uid=me?.id;
-  const d=await api('/api/notices/welcome','GET',undefined,{fresh:true});if(!current(t)||uid!==me?.id)return;
+  const d=await api(path,'GET',undefined,{fresh:true});if(!current(t)||uid!==me?.id)return;
   peer=null;
-  sheet.innerHTML='<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button><span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span><strong>공지 · 아이팩트 안내</strong></header><div class="room-welcome-guide">'+welcomeGuideHTML(d)+'</div>';
+  sheet.innerHTML='<header class="room-dm-header"><button type="button" data-room-back aria-label="메시지 목록">‹</button><span class="avatar-fallback room-welcome-art" aria-hidden="true">'+voiceGlyph('megaphone')+'</span><strong>공지 · '+esc(chatNickname(person))+'</strong></header><div class="room-welcome-guide">'+welcomeGuideHTML(d)+'</div>';
   client.ensureRoomPopupClose?.(sheet);
   sheet.querySelector('[data-room-back]').onclick=()=>inbox().catch(report);
-  noticeCleanup=bindWelcomeNotice({welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at}},()=>{
+  noticeCleanup=bindWelcomeNotice({welcomeNotice:{campaign_id:d.campaign_id,read_at:d.read_at,path}},()=>{
    if(!current(t)||uid!==me?.id)return;
    window.dispatchEvent(new Event('aifect:dm-read'));
    window.dispatchEvent(new Event('aifect:inbox-refresh'));

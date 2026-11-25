@@ -3,7 +3,7 @@ import {withSourceCookie} from './signup-source.js';
 import {boxCutoverRoute,queueConfiguredBoxRetirement} from './library-unification.js';
 import {playlistsRoute} from './playlists.js';
 import {myBoxesRoute} from './my-boxes.js';
-import {queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
+import {queuePremiumOpenNotice,queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
 import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
 import {recordVisit,pruneVisits} from './visitors.js';
@@ -95,6 +95,7 @@ async function fetchRequest(req,env,ctx){
  const fishingClock=path.startsWith('/api/crew-fishing/')?{receivedTime:Date.now(),started:performance.now()}:undefined;
  try{
   queueWelcomeCampaign(req,env,ctx);
+  queuePremiumOpenNotice(req,env,ctx);
   if(url.hostname==='www.aifect.co.kr'){
    url.protocol='https:';url.host='aifect.co.kr';
    return Response.redirect(url.href,['GET','HEAD'].includes(req.method)?301:308);
