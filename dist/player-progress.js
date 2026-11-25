@@ -21,8 +21,15 @@ document.addEventListener('click',async event=>{
  const button=event.target.closest('[data-player-equip]');if(!button||button.disabled)return;
  const account=me?.id;button.disabled=true;
  try{
-  const d=await api('/api/me/player/equipment','PUT',{frame_inventory_id:button.dataset.playerEquip||null});
+  const d=await api('/api/me/player/equipment','PUT',{frame_inventory_id:button.dataset.playerEquip||null,...(button.dataset.removePremiumFrame?{expected_frame_inventory_id:button.dataset.removePremiumFrame}:{})});
   if(me?.id!==account)return;Object.assign(me,d.profile);updateAccount();window.dispatchEvent(new Event('aifect:equipment'));toast(button.dataset.playerEquip?'액자를 장착했습니다.':'액자를 해제했습니다.');
-  if(location.hash.split('?')[0]==='#inventory')await render();
+  if(button.closest('.inventory-detail'))$('#dialog')?.close();
+  if(location.hash.split('?')[0]==='#inventory'){
+   const s=unifiedInventoryState;
+   if(s?.account===account&&$('#unified-inventory')){
+    Object.assign(s,{player:d,serverNow:d.server_now,receivedAt:inventoryClock(),revision:apiRevision});
+    paintInventory(s);
+   }else await render();
+  }
  }catch(e){toast(e.message);}finally{button.disabled=false;}
 });

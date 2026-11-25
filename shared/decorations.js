@@ -7,7 +7,7 @@ export const DECORATION_PRICES_GOLD=Object.freeze({
 const theme=(sku,name,uiMode='dark')=>Object.freeze({sku,name,uiMode,kind:'TALKING_ROOM_THEME',currency:'G',motion:'STATIC',periodPrices:DECORATION_PRICES_GOLD.TALKING_ROOM_THEME,assetPaths:Object.freeze({roomDesktop:`/assets/themes/v20261027/${sku}/background-pc.webp`,roomMobile:`/assets/themes/${sku==='theme_aurora_night'?'v20261028':'v20261027'}/${sku}/background-mobile.webp`,roomCard:`/assets/themes/v20261027/${sku}/cover.webp`})});
 // Display assets supplied for Premium membership, independent of shop inventory and equipment.
 export const PREMIUM_APPEARANCE = Object.freeze({
- frameName:'문라이트 골드',frameArtwork:'/assets/premium/moonlight-gold.png',
+ frameKey:'premium-moonlight-gold',frameName:'문라이트 골드',frameArtwork:'/assets/premium/moonlight-gold.png',
  badgeName:'골드 스타',badgeArtwork:'/assets/premium/gold-star.png'
 });
 const frameDir='/assets/products/bunnies-v1/';

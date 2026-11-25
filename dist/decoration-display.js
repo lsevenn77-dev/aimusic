@@ -68,15 +68,14 @@ function profileFrameCanvasArtwork(path){
   for(const img of document.querySelectorAll('img[data-avatar-profile]')){
    if(img.closest('.player-item-preview'))continue;
    const host=img.parentElement,entry=frames.get(img.dataset.avatarProfile),at=Date.now()/1000+(entry?.offset||0);
+   const premiumFrame=entry?.premium_default_frame===1&&activeStyle(entry,at);
    for(const artwork of host.querySelectorAll(':scope > img.player-frame-artwork')){
     const src=artwork.getAttribute('src');
-    if(paidFrameSources.has(src))artwork.style.visibility=entry&&(canvasSource(entry.artwork)!==canvasSource(src)||expired(entry,at))?'hidden':'';
+    const stalePaid=paidFrameSources.has(src)&&entry&&(canvasSource(entry.artwork)!==canvasSource(src)||expired(entry,at));
+    artwork.style.visibility=premiumFrame||stalePaid?'hidden':'';
    }
    if(host.querySelector(':scope > img.player-frame-artwork'))alignFrame(img,host);
    let overlay=host.querySelector(':scope > .decoration-avatar-overlay');
-   // The member's original equipment and inventory are never rewritten. An explicit
-   // no-frame selection also takes priority over the Premium default.
-   const premiumFrame=entry?.premium_default_frame===1&&activeStyle(entry,at);
    const source=premiumFrame?AifectPlayer.PREMIUM_APPEARANCE.frameArtwork:entry?.artwork;
    if(!source||!premiumFrame&&expired(entry,at)||!validAsset(source)){frameEffects.set(overlay,null);overlay?.remove();continue;}
    if(!overlay){overlay=document.createElement('img');overlay.className='decoration-avatar-overlay';overlay.alt='';overlay.setAttribute('aria-hidden','true');host.append(overlay);host.classList.add('decoration-avatar-host');}

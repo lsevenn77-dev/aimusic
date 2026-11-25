@@ -1,4 +1,4 @@
-import {appearanceDeadlineSQL,defaultFrameSQL} from './premium-appearance.js';
+import {appearanceDeadlineSQL,defaultFrameSQL,premiumFrameOverrideSQL} from './premium-appearance.js';
 import {artistGiftSource,checkArtistGiftReplay,giftSourceEntry} from './gift-source.js';
 import {one,rows,query,now,id,fail,json,rate,str} from './db.js';
 import {requireUser,viewerBlockedIds} from './auth.js';
@@ -21,7 +21,7 @@ export async function decorationInventory(env,uid){
  const inventory=await rows(env,`SELECT pi.*,COALESCE(co.period_code,(SELECT o.period_code FROM decoration_redemptions r JOIN decoration_orders o ON o.inventory_id=r.inventory_id WHERE r.active_inventory_id=pi.id ORDER BY r.created LIMIT 1)) period_code,
  (SELECT min(created) FROM decoration_redemptions r WHERE r.active_inventory_id=pi.id) activated_at,
  ((pi.source='decoration_stock' AND pi.revoked=0 AND ${decorationFundingSQL('pi')}) OR (${activeDecorationSQL('pi')})) available,
- (pe.frame_inventory_id=pi.id OR EXISTS(SELECT 1 FROM room_decorations rd WHERE rd.host_id=pi.user_id AND rd.inventory_id=pi.id)) selected
+ ((pe.frame_inventory_id=pi.id AND NOT ${premiumFrameOverrideSQL('pi.user_id')}) OR EXISTS(SELECT 1 FROM room_decorations rd WHERE rd.host_id=pi.user_id AND rd.inventory_id=pi.id)) selected
  FROM player_inventory pi LEFT JOIN decoration_orders co ON co.inventory_id=pi.id LEFT JOIN player_equipment pe ON pe.user_id=pi.user_id
  WHERE pi.user_id=? AND ((pi.source='decoration' AND pi.revoked=0 AND (pi.expires_at=0 OR pi.expires_at>unixepoch())) OR (pi.source='decoration_stock' AND pi.revoked=0)) ORDER BY activated_at DESC,(SELECT max(rowid) FROM decoration_redemptions r WHERE r.active_inventory_id=pi.id) DESC,pi.granted_at DESC,pi.id`,uid);
  return inventory.filter(i=>Object.hasOwn(DECORATIONS,i.item_key)).map(i=>({...i,product:DECORATIONS[i.item_key],status:i.source==='decoration_stock'?'UNUSED':'ACTIVE',applied:!!i.available&&!!i.selected,available:!!i.available,equipped:!!i.available&&!!i.selected,stored:i.source==='decoration_stock'}));
@@ -113,7 +113,7 @@ export async function decorationRoute(req,env,path,user){
    LEFT JOIN player_equipment pe ON pe.user_id=u.id
    LEFT JOIN player_inventory pi ON pi.id=pe.frame_inventory_id AND pi.user_id=u.id AND ${activeDecorationSQL('pi')}`,JSON.stringify(ids));
   return json({avatars:avatars.map(p=>{
-   const product=DECORATIONS[p.item_key],assets=product?.kind==='PROFILE_FRAME'?product.assetPaths:null;
+   const product=p.premium_default_frame&&p.premium_style_until>now()?null:DECORATIONS[p.item_key],assets=product?.kind==='PROFILE_FRAME'?product.assetPaths:null;
    return {...p,item_key:assets?p.item_key:null,expires_at:assets?p.expires_at:null,artwork:assets?.overlay||null,...(assets?.effect?{effect:assets.effect}:{})};
   }),server_now:now()});
  }
