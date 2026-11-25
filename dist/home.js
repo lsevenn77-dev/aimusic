@@ -112,7 +112,7 @@ function homeAppDownloadBannerHTML(b){
 // The mobile picture keeps its approved 2:1 artwork; desktop selects its own portrait.
 const homeBanners=[
  {id:'open-event',title:'오픈 이벤트',alt:'AIFECT 오픈 이벤트. 기존·신규 회원 모두 2026년 12월 31일까지 별도 결제 없이 프리미엄을 무료로 체험할 수 있습니다.',artwork:{
-  desktop:'/assets/home-banners/open-event-20261125-v2/pc-2556x540.webp',
+  desktop:'/assets/home-banners/open-event-20261125-v2/pc-2400x460-57d7e5c626.webp',
   mobile:'/assets/home-banners/open-event-20261125-v2/mobile-1656x828.webp'
  }},
  {id:'app-download',title:'앱 다운로드',headline:'아이팩트 앱 지금 다운로드하세요',subtitle:'AI 음악 · 커버 · 더빙을 더 가까이.',cta:'앱 다운로드'},
@@ -182,7 +182,7 @@ function homeBannerHTML(b,next){
  }else if(next){
   preload=sides(next.id).map(side=>`<link rel="preload" as="image" href="${homeBannerBackgroundImage(next.id,side)}" media="(min-width: 801px)" fetchpriority="low">`).join('')+`<link rel="preload" as="image" imagesrcset="${homeBannerDesktopSources(next.id)}" ${homeWideBanner(next.id)?'imagesizes="'+homeBannerDesktopSizes+'"':''} media="(min-width: 801px)" fetchpriority="low"><link rel="preload" as="image" href="${homeBannerImage(next.id,1536)}" imagesrcset="${sources(next.id)}" imagesizes="${sizes}" media="(max-width: 800px)" fetchpriority="low">`;
  }
- if(b.artwork)return `<div class="home-feature-slide home-event-banner" data-home-banner="${b.id}"><picture style="--event-desktop-art:url('${b.artwork.desktop}')"><source media="(min-width: 801px)" srcset="${b.artwork.desktop}" width="2556" height="540"><img src="${b.artwork.mobile}" width="1656" height="828" alt="${esc(b.alt)}" loading="eager" fetchpriority="high" draggable="false"></picture></div>`+preload;
+ if(b.artwork)return `<div class="home-feature-slide home-event-banner" data-home-banner="${b.id}"><picture style="--event-desktop-art:url('${b.artwork.desktop}')"><source media="(min-width: 801px)" srcset="${b.artwork.desktop}" width="2400" height="460"><img src="${b.artwork.mobile}" width="1656" height="828" alt="${esc(b.alt)}" loading="eager" fetchpriority="high" draggable="false"></picture></div>`+preload;
  if(b.id==='app-download')return homeAppDownloadBannerHTML(b)+preload;
  const copy=homeBannerDesktopCopy[b.id],headline=copy.lines.map(line=>'<span>'+line.split(copy.highlight).map(homeBannerText).join('<em>'+homeBannerText(copy.highlight)+'</em>')+'</span>').join('');
  return `<a class="home-feature-slide home-promo-link" data-home-banner="${b.id}" ${wide?'data-wide-banner':''} href="${b.href}" aria-label="${esc(b.headline)}. ${esc(b.subtitle)} ${esc(b.cta)}" draggable="false">${scenery(b.id)}<picture class="home-promo-picture"><source media="(min-width: 801px)" srcset="${homeBannerDesktopSources(b.id)}" ${wide?'sizes="'+homeBannerDesktopSizes+'"':''} width="${desktopWidth}" height="${desktopHeight}"><img class="home-promo-original" src="${homeBannerImage(b.id,1536)}" srcset="${sources(b.id)}" sizes="${sizes}" width="1536" height="768" alt="" loading="eager" decoding="async" ${b.id==='studio'?'fetchpriority="high"':''} draggable="false"></picture><span class="home-promo-desktop" aria-hidden="true"><span class="home-feature-copy home-promo-copy"><span class="home-promo-headline">${headline}</span><span class="home-promo-subtitle">${esc(b.subtitle)}</span><span class="home-promo-cta">${esc(b.cta)} ${icon('chevron')}</span></span></span></a>${preload}`;
