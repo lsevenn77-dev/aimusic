@@ -60,6 +60,7 @@ function bindRenderedRoute(base,param,explorer,ticket){
   const title=document.createElement('h1');title.className='sr-only';title.textContent=label;region.prepend(title);
  }
  if(explorer?.accountSummary)bindAccountSettings(explorer.accountSummary);
+ if(explorer?.accountPaymentHistory)bindAccountPayments(region.querySelector('.ac-payment-history'));
  if(explorer?.followPage)bindFollowManagement(explorer.followPage);
  if(base==='artist'&&typeof bindArtistFanpage==='function')bindArtistFanpage();
  if(typeof bindShopShelves==='function')bindShopShelves();
@@ -283,6 +284,9 @@ async function renderRoute(showCachedRoute){
   else if(base==='playlist'){
    const d=await readApi('/api/playlists/'+param);nextTracks=remember(d.tracks);const owned=me?.id===d.playlist.user_id;
    html=heading(esc(d.playlist.name),`${d.tracks.length}곡 · ${d.playlist.is_public?'추천 플레이리스트':'나만 보는 플레이리스트'}`)+`<div class="inline-actions playlist-actions"><button class="primary-button" data-play-all>전체 재생 ${icon('audio-play')}</button>${owned?`<button class="small-button" data-pick-playlist="${param}">좋아요한 곡 담기</button><button class="small-button" data-order-playlist="${param}">곡 순서 편집</button><button class="small-button" data-edit-playlist="${param}">이름 · 공개 설정</button><button class="small-button" data-delete-playlist="${param}">삭제</button>`:''}${d.playlist.is_public?`<button class="small-button" data-share>링크 복사</button>`:''}</div>`+list(d.tracks,owned?param:null);
+  }else if(base==='account'&&param==='payments'){
+   if(me){html=accountPaymentHistoryHTML(me.id);explorer={accountPaymentHistory:true};}
+   else{ returnRoute=location.hash;html=accountHTML(null); }
   }else if(base==='account'){
    const summary=me?await readApi('/api/account/summary','GET',undefined,{fresh:true}):null;
    if(me&&summary?.account.id!==me.id)throw new Error('로그인 계정이 변경됐습니다. 다시 로그인해 주세요.');

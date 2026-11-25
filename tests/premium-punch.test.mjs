@@ -33,16 +33,28 @@ test('completed punch keeps original audio and draft untouched until acceptance,
  }
 });
 test('premium authorization is server enforced for opening and recording, while normal singing stays free',async t=>{
- const f=await fixture(t),path='/api/karaoke/one/rerecord';
+ const f=await fixture(t),path='/api/karaoke/one/rerecord',crop='/api/karaoke/one/crop';
+ const selection={duration:20,start:1,end:6};
  f.sql.exec("UPDATE tracks SET karaoke_at=1,duration=20 WHERE id='one'");
  f.sql.prepare("INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,words,created,updated) VALUES('one','job','ready',1,'ready',?,0,0)").run(JSON.stringify(words));
  assert.equal((await f.call(path,'GET',null,null)).status,401);
+ assert.equal((await f.call(crop,'POST',selection,null)).status,401);
  assert.equal((await f.call(path)).status,403);
  assert.equal((await f.call(path,'POST',{duration:20,first:0})).status,403);
+ assert.equal((await f.call(crop,'POST',selection)).status,403);
+ assert.equal((await f.call('/api/account/summary')).body.plan,'free');
  assert.equal((await f.call('/api/karaoke/one')).status,200);
  f.sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");
+ const account=(await f.call('/api/account/summary')).body;
+ assert.equal(account.plan,'premium');
+ assert.deepEqual(account.benefits.map(({label})=>label),['광고 없는 이용','고음질 스트리밍','제작곡 월 10곡','음색 보정','구간 재녹음','구간 크롭','프리미엄 배지','골드 닉네임','전용 프로필 테두리']);
  assert.equal((await f.call(path)).status,200);
  const ok=await f.call(path,'POST',{duration:20,first:0,last:1});assert.equal(ok.status,200);assert.deepEqual(ok.body.range,{start:0,end:8});assert.equal(ok.body.countdown,3);
+ const cropped=await f.call(crop,'POST',selection);
+ assert.equal(cropped.status,200);
+ assert.deepEqual(cropped.body.range,{start:1,end:6});
+ for(const body of [{...selection,start:-1},{...selection,end:1.01},{...selection,end:21},{...selection,duration:21},{...selection,start:'1'}])assert.equal((await f.call(crop,'POST',body)).status,400);
  for(const body of [{duration:20,first:7,last:7},{duration:999,first:0,last:0},{duration:20,first:0,last:0,manual:true,start:-1,end:2}])assert.equal((await f.call(path,'POST',body)).status,400);
  f.sql.exec("UPDATE users SET premium_until=1 WHERE id='owner'");assert.equal((await f.call(path,'POST',{duration:20,first:0,last:0})).status,403);
+ assert.equal((await f.call(crop,'POST',selection)).status,403);
 });

@@ -121,7 +121,11 @@
 .ac-pass-note svg {width:14px;height:14px;flex:none;align-self:flex-start;margin-top:.28em}
 .ac-membership.ac-premium .ac-manage a:hover {text-decoration:underline}
 .ac-manage svg,.ac-links svg {width:14px;height:14px;flex:none}
-.ac-usage h3,.ac-payments h3 {margin:12px 0 4px;color:var(--ds-body)}
+.ac-usage h3 {margin:12px 0 4px;color:var(--ds-body)}
+.ac-payments .ac-heading,.ac-history-heading {margin-bottom:10px}
+.ac-dashboard .ac-history-heading h1 {margin:0}
+.ac-payments .ac-manage a,.ac-history-heading a {white-space:nowrap}
+.ac-payments .ac-manage a {margin-block:-8px}
 .ac-meter {display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:8px 0}
 .ac-meter strong {font-size:var(--pc-font-section,20px);color:var(--ac-mint)}
 .ac-meter strong span {font-size:var(--pc-font-body,15px);margin-left:2px}
@@ -135,6 +139,7 @@
 .ac-benefits ul {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px}
 .ac-dashboard ul {margin:0;padding:0;list-style:none}
 .ac-benefits li {display:flex;align-items:center;gap:9px;min-height:30px}
+.ac-benefits li span {word-break:keep-all}
 .ac-benefits svg {width:17px;height:17px;color:var(--ds-muted);flex:none}
 .ac-benefits.ac-premium li svg {color:#CBB17D}
 .ac-links>a,.ac-links>button,.ac-password summary {display:flex;width:100%;padding:5px 0;min-height:44px;align-items:center;justify-content:space-between;border:0;border-bottom:1px solid var(--ds-line);background:none;color:var(--ds-text);font:inherit;text-decoration:none;cursor:pointer}

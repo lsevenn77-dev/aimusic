@@ -10,7 +10,7 @@ function recordingEditorHTML(s,m){
  const duration=reviewDuration(s),paid=canEditPaid(),locked=paid?'':' disabled',lock=paid?'':editorLock(),r=reviewRange(s);
  const totalTime=time(duration);
  return `<div class="sing-review studio-post studio-editor-clean"><div class="studio-edit-main take-editor">
- <div data-edit-step="1"><div class="take-wave-tools">${s.mode==='duet'?duetLegendHTML():''}<div class="take-tools"><button type="button" class="small-button" data-ab aria-pressed="${!!s.abEnabled}" aria-controls="take-ab-range">${icon('repeat')} 구간 반복 (A-B)</button><button type="button" class="small-button take-paid" data-open-punch ${locked}>${lock||icon('mic')} 일부 구간 재녹음</button></div></div>
+ <div data-edit-step="1"><div class="take-wave-tools">${s.mode==='duet'?duetLegendHTML():''}<div class="take-tools"><button type="button" class="small-button" data-ab aria-pressed="${!!s.abEnabled}" aria-controls="take-ab-range">${icon('repeat')} 구간 반복 (A-B)</button><button type="button" class="small-button take-paid" data-open-punch ${locked}>${lock||icon('mic')} 일부 구간 재녹음</button><button type="button" class="small-button take-paid" data-open-crop ${locked}>${lock||icon('scissors')} 구간 크롭</button></div></div>
  <div class="studio-wave-editor"><div class="studio-time-ruler">${Array.from({length:7},(_,i)=>`<span>${time(duration*i/6)}</span>`).join('')}</div><div class="studio-wave-surface"><canvas id="take-waveform" height="140" aria-label="녹음 파형"></canvas></div>
  <div id="take-ab-range" ${s.abEnabled?'':'hidden'}>${['start','end'].map((k,i)=>`<label>${i?'B · 끝':'A · 시작'} <output data-range-${k}></output><input type="range" data-range="${k}" min="0" max="${duration}" value="${r[k]}" step=".05"></label>`).join('')}</div></div>
  <div class="take-transport studio-audio"><span class="take-time"><span class="take-elapsed" data-time-width="${totalTime}"><b data-review-now>${time(s.cursor)}</b></span> / ${totalTime}</span><div class="take-navigation"><button type="button" data-skip="-1" aria-label="이전 소절">${icon('previous')}</button><button type="button" class="take-play" data-sing-preview aria-label="재생"></button><button type="button" class="take-play" data-sing-pause aria-label="일시정지" hidden>${studioIcon('pause')}</button><button type="button" data-skip="1" aria-label="다음 소절">${icon('next')}</button></div><div class="take-view"><label>${icon('volume')}<input type="range" data-listen-volume aria-label="재생 볼륨" min="0" max="1" step=".01" value="${s.listenVolume??1}"></label><button type="button" data-wave-zoom aria-label="파형 확대" aria-pressed="false">${icon('external')}</button></div></div>
@@ -19,6 +19,52 @@ function recordingEditorHTML(s,m){
  <form id="sing-upload-form" class="upload-form studio-publish-panel" data-edit-step="2" hidden><section class="studio-publication"><h2 tabindex="-1">게시 설정</h2><div class="take-mobile-publication">${coverPublicationHTML(s)}</div><div class="take-publish-grid"><div class="take-publish-fields">${workPhotoField(trackArtworkPath(s.data.track))}<label class="form-field">커버 소개 (선택)<textarea name="description" maxlength="1000" rows="2" placeholder="이 커버에 대한 소개를 입력해 주세요."></textarea></label></div><div class="studio-rights"><h3 class="take-desktop">게시 전 동의</h3><label class="take-desktop take-all checkbox-line"><input data-consent-all type="checkbox"><span>전체 동의</span></label><label class="checkbox-line rights-check"><input name="own_voice" type="checkbox" required><span>제가 직접 부른 녹음이며 AI 음성 복제가 아닙니다.</span></label><label class="checkbox-line rights-check"${s.parent?' data-joined-consent':''}><input name="duet_consent" type="checkbox"><span>듀엣 참여 모집 시 다른 사람이 이 녹음에 이어 부르는 것에 동의합니다.</span></label><label class="checkbox-line rights-check"><input name="rights" type="checkbox" required><span>원곡자의 허용 범위 안에서 공개할 권리가 있습니다.</span></label></div></div></section>
  <details class="studio-advanced take-mobile-management"><summary>녹음 관리</summary><div class="inline-actions"><button type="button" class="small-button" data-sing-redo>다시 부르기</button><button type="button" class="small-button" data-sing-save>파일로 저장</button><button type="button" class="small-button" data-discard-draft>초안 삭제</button></div></details>
  <footer class="take-footer"><button type="button" class="small-button" data-step-back><span data-edit-step-name>음원 편집</span></button><span data-save-status role="status"></span><div><button type="button" class="small-button" data-sing-draft>초안 저장</button><button type="submit" class="primary-button">저장 후 게시</button></div></footer><div class="upload-progress" hidden><progress max="100" value="0"></progress><p role="status"></p></div><p class="form-error" role="alert"></p></form></div></div>`;
+}
+
+function openTakeCrop(s){
+ if(!canEditPaid()){toast('구간 크롭은 프리미엄 회원 전용 기능입니다.');return;}
+ const voice=s.voice,duration=voice?.duration||0,modal=$('#dialog');
+ if(sing!==s||singBusy(s)||singLive(s)||modal.open)return;
+ if(duration<.1){toast('크롭할 녹음 구간이 너무 짧습니다.');return;}
+ stopPreview();updateTransport();drawLyrics(s.cursor);
+ const initial=K().normalizeTakeRange(s.selection?.start,s.selection?.end,duration);
+ dialog(`<h2>구간 크롭</h2><p>반주에 맞춰 선택한 구간의 내 목소리만 남깁니다.</p><form id="take-crop-form">
+ ${[['start','시작'],['end','끝']].map(([key,label])=>`<label class="studio-range"><span>${label} <output></output></span><input name="${key}" type="range" aria-label="크롭 ${label} 시간" min="0" max="${duration}" step=".01" value="${initial[key]}"></label>`).join('')}
+ <div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button">구간 크롭 적용</button></div><p class="form-error" role="alert"></p></form>`);
+ const form=$('#take-crop-form'),{start,end}=form.elements;
+ const active=()=>sing===s&&me?.id===s.owner&&s.voice===voice&&!singBusy(s)&&!singLive(s)&&!s.punchPage&&s.editorStep!==2&&modal.open&&form.isConnected;
+ const updateRange=(changingStart=false)=>{
+  const left=Number(start.value),right=Number(end.value);
+  const range=K().normalizeTakeRange(changingStart?Math.min(left,right-.1):left,right,duration);
+  start.value=range.start;end.value=range.end;
+  for(const input of [start,end]){
+   const label=range[input.name].toFixed(2)+'초';
+   input.closest('label').querySelector('output').textContent=label;
+   input.setAttribute('aria-valuetext',label);
+  }
+  return range;
+ };
+ start.oninput=()=>updateRange(true);end.oninput=()=>updateRange();updateRange();
+ form.onsubmit=busyForm(form,async()=>{
+  if(!active())return;
+  const range=updateRange();
+  const result=await api('/api/karaoke/'+encodeURIComponent(s.id)+'/crop','POST',{duration,...range});
+  if(!active())return;
+  if(!canEditPaid())throw new Error('구간 크롭은 프리미엄 회원 전용 기능입니다.');
+  const cropped=s.ctx.createBuffer(1,voice.length,voice.sampleRate);
+  const first=Math.round(result.range.start*voice.sampleRate),last=Math.round(result.range.end*voice.sampleRate);
+  cropped.copyToChannel(voice.getChannelData(0).subarray(first,last),0,first);
+  const samples=cropped.getChannelData(0),fade=Math.min(Math.floor((last-first)/2),Math.round(.005*voice.sampleRate));
+  // A short fade removes discontinuities where the kept audio meets silence.
+  for(let i=0;i<fade;i++){
+   if(first>0)samples[first+i]*=i/fade;
+   if(last<voice.length)samples[last-i-1]*=i/fade;
+  }
+  s.beforePunch??=voice;
+  s.voice=cropped;s.processed=null;s.cursor=result.range.start;
+  queueSingDraft(s);refreshVocalGuide(s);renderDuetGuide();modal.close();renderSingPanel();drawLyrics(s.cursor);
+  setSingStatus('선택한 구간의 목소리를 남겼습니다.');$('[data-open-crop]')?.focus({preventScroll:true});
+ });
 }
 
 function cleanupPunch(s){if(!s)return;s.punchRequest=(s.punchRequest||0)+1;s.punchPreparing=false;s.pendingPunch=null;s.punchAuthorized=false;}

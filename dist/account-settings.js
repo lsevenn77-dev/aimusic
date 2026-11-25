@@ -70,7 +70,7 @@ function accountPasswordHTML(){
 }
 function accountSettingsHTML(data){
  const {account,benefits}=data,app=accountApp();
- const icons={ad_free:'bellOff',high_quality:'headphones',original_uploads:'upload',vocal_tone:'sliders',punch_in:'mic',synced_lyrics_seek:'music',premium_badge:'star',gold_nickname:'user',premium_frame:'image'};
+ const icons={ad_free:'bellOff',high_quality:'headphones',original_uploads:'upload',vocal_tone:'sliders',punch_in:'mic',segment_crop:'scissors',premium_badge:'star',gold_nickname:'user',premium_frame:'image'};
  const labels={google:'Google',apple:'Apple',kakao:'카카오',email:'이메일'};
  const external=data.passes.some(p=>accountStores[p.source]&&!['expired','refunded','failed'].includes(p.state));
  return `<div class="ac-dashboard" data-platform="${esc(app?.platform||'web')}" data-version="${esc(app?.version||'')}"><h1>내 계정</h1><div class="ac-grid">
@@ -81,15 +81,27 @@ function accountSettingsHTML(data){
  ${app?'<button type="button" data-app-action="logout">로그아웃'+icon('chevron')+'</button>':'<button type="button" id="logout">로그아웃'+icon('chevron')+'</button>'}
  ${app?`<button type="button" class="ac-withdraw" data-app-action="delete"${external?' aria-describedby="ac-withdraw-note"':''}>회원 탈퇴${icon('chevron')}</button>`:`<a class="ac-withdraw" href="/account/delete" target="_blank" rel="noopener"${external?' aria-describedby="ac-withdraw-note"':''}>회원 탈퇴${icon('external')}</a>`}
  ${authConfig?.admin?accountLink('#admin','정산 관리'):''}${authConfig?.track_moderator?accountLink('#admin/track-review','음원 검토 목록'):''}</div>${external?'<p class="ac-note" id="ac-withdraw-note">회원 탈퇴 후에도 스토어 정기결제가 계속될 수 있습니다. 해당 스토어에서 구독을 확인해 주세요.</p>':''}</section>
- <section class="surface ac-card ac-payments" data-account-id="${esc(account.id)}"><h2>결제 관리</h2><h3>결제 내역</h3><div class="ac-filters" role="group" aria-label="결제 내역 필터">${[['all','전체'],['premium','프리미엄'],['gold','골드']].map(([kind,label])=>`<button data-ac-filter="${kind}" aria-pressed="${kind==='all'}">${label}</button>`).join('')}</div><div class="ac-ledger" aria-live="polite">내역을 불러오는 중…</div>${app?'<button class="text-link ac-restore" data-app-action="restore">구매 복원</button>':''}</section>
+ <section class="surface ac-card ac-payments" aria-labelledby="ac-payments-title" data-account-id="${esc(account.id)}">
+ <header class="ac-heading"><h2 id="ac-payments-title">결제 내역</h2><div class="ac-manage">${accountLink('#account/payments','전체 보기')}</div></header>
+ <div class="ac-ledger" aria-live="polite">내역을 불러오는 중…</div></section>
  <section class="surface ac-card"><h2>고객지원 및 정책</h2><div class="ac-links">${[['/contact','고객센터'],['/terms','이용약관'],['/privacy','개인정보처리방침'],['/refund','환불 및 해지 정책']].map(([path,label])=>accountLink(path,label,true)).join('')}</div>${app?.version?`<dl class="ac-values">${accountPair('앱 버전',app.version)}</dl>`:''}</section>
  </div></div></div>`;
+}
+function accountPaymentHistoryHTML(account){
+ const filters=[['all','전체'],['premium','프리미엄'],['gold','골드']];
+ return `<div class="ac-dashboard"><header class="ac-heading ac-history-heading"><h1 id="ac-history-title">결제 내역</h1>
+ <div class="ac-manage"><a href="#account">${icon('back')}내 계정으로 돌아가기</a></div></header>
+ <section class="surface ac-card ac-payment-history" aria-labelledby="ac-history-title" data-account-id="${esc(account)}">
+ <div class="ac-filters" role="group" aria-label="결제 내역 필터">${filters.map(([kind,label])=>`<button type="button" data-ac-filter="${kind}" aria-pressed="${kind==='all'}">${label}</button>`).join('')}</div>
+ <div class="ac-ledger" aria-live="polite">내역을 불러오는 중…</div>
+ <button type="button" class="text-link ac-restore"${accountApp()?'':' hidden'}>구매 복원</button></section></div>`;
 }
 function accountPaymentsList(entries){
  return entries.map(p=>`<li><div><strong>${esc(p.product)}</strong><span>${accountDate(p.date)} · ${esc(accountSources[p.source])}</span></div><div><strong>${p.amount==null?'금액 미확인':esc(billingPrice(p.amount))}</strong><span>${esc(accountPaymentStates[p.state]||accountPaymentStates.unknown)}${p.refunded>0?' · '+esc(billingPrice(p.refunded)):''}</span></div></li>`).join('');
 }
-function bindAccountPayments(panel){
+function bindAccountPayments(panel,recent=false){
  const output=panel.querySelector('.ac-ledger'),account=panel.dataset.accountId;
+ const current=()=>panel.isConnected&&me?.id===account;
  let kind='all',entries=[],sequence=0,offset=0;
  async function loadPage(start){
   const ticket=++sequence;
@@ -97,13 +109,18 @@ function bindAccountPayments(panel){
   if(!start)output.textContent='내역을 불러오는 중…';
   try{
    const result=await api('/api/account/payments?kind='+kind+'&offset='+start,'GET',undefined,{fresh:true});
-   if(!panel.isConnected||ticket!==sequence||me?.id!==account)return;
+   if(!current()||ticket!==sequence)return;
    if(result.account_id!==account)throw new Error('로그인 계정이 변경됐습니다. 내 계정을 다시 열어 주세요.');
+   if(recent){
+    const payments=result.payments.slice(0,3);
+    output.innerHTML=payments.length?`<ul>${accountPaymentsList(payments)}</ul>`:'<p class="ac-note">아직 결제 내역이 없어요.</p>';
+    return;
+   }
    entries=start?entries.concat(result.payments):result.payments;offset=result.next_offset;
    const links=result.store_history.filter(s=>accountStores[s]).map(s=>accountLink(accountStores[s].history,accountSources[s]+' 구매 내역',true)).join('');
    output.innerHTML=(entries.length?`<ul>${accountPaymentsList(entries)}</ul>`:'<p class="ac-note">표시할 결제 내역이 없습니다.</p>')+(offset!=null?'<button class="text-link" data-ac-more>더 보기</button>':'')+(links?`<div class="ac-manage">${links}</div>`:'');
   }catch(e){
-   if(!panel.isConnected||ticket!==sequence)return;
+   if(!current()||ticket!==sequence)return;
    output.innerHTML=(start?`<ul>${accountPaymentsList(entries)}</ul>`:'')+`<p role="alert">${esc(e.message)}</p><button class="text-link" data-ac-retry>다시 시도</button>`;offset=start;
   }finally{if(ticket===sequence)output.removeAttribute('aria-busy');}
  }
@@ -112,6 +129,18 @@ function bindAccountPayments(panel){
   if(filter){kind=filter.dataset.acFilter;panel.querySelectorAll('[data-ac-filter]').forEach(b=>b.setAttribute('aria-pressed',String(b===filter)));entries=[];void loadPage(0);}
   if(e.target.closest('[data-ac-more],[data-ac-retry]')&&!output.hasAttribute('aria-busy'))void loadPage(offset);
  });
+ const restore=panel.querySelector('.ac-restore');
+ if(restore){
+  const refreshCapabilities=()=>{restore.hidden=!accountApp();};
+  const refreshAfterPurchase=()=>{if(current())void loadPage(0);};
+  restore.onclick=()=>accountApp()?.perform('restore');
+  window.addEventListener('aifect-account-capabilities',refreshCapabilities);
+  window.addEventListener('aifect-account-refresh',refreshAfterPurchase);
+  registerRouteCleanup(()=>{
+   window.removeEventListener('aifect-account-capabilities',refreshCapabilities);
+   window.removeEventListener('aifect-account-refresh',refreshAfterPurchase);
+  });
+ }
  void loadPage(0);
 }
 function bindAccountSettings(data){
@@ -140,7 +169,7 @@ function bindAccountSettings(data){
   window.removeEventListener('aifect-account-capabilities',refreshCapabilities);
  });
  if(refreshCapabilities())return;
- bindAccountPayments(root.querySelector('.ac-payments'));
+ bindAccountPayments(root.querySelector('.ac-payments'),true);
  const passwordForm=root.querySelector('#account-password-form');
  if(passwordForm)passwordForm.onsubmit=busyForm(passwordForm,async fd=>{
   if(fd.get('new_password')!==fd.get('confirm_password'))throw new Error('새 비밀번호 확인이 일치하지 않습니다.');

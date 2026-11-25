@@ -28,13 +28,19 @@ export async function karaokeQueue(env,track,{mr='keep',ext='',bytes=0}={}){
 
 // Singing: the list of singable songs is public; the words and the MR need a signed-in singer.
 async function singRoute(req,env,path,user){
- const punch=path.match(/^\/api\/karaoke\/([\w-]+)\/rerecord$/);
- if(punch&&['GET','POST'].includes(req.method)){
-  requireUser(user);if(!isPremium(user))fail(403,'일부 구간 재녹음은 프리미엄 회원 전용 기능입니다.');
-  const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[punch[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없습니다.');
+ const edit=path.match(/^\/api\/karaoke\/([\w-]+)\/(rerecord|crop)$/);
+ if(edit&&['GET','POST'].includes(req.method)){
+  const crop=edit[2]==='crop';
+  requireUser(user);if(!isPremium(user))fail(403,`${crop?'구간 크롭':'일부 구간 재녹음'}은 프리미엄 회원 전용 기능입니다.`);
+  const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[edit[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없습니다.');
   if(req.method==='GET')return json({allowed:true});
-  const b=await req.json(),duration=b.duration;
+  const b=await req.json(),duration=b?.duration;
   if(!Number.isFinite(duration)||duration<=0||duration>track.duration+.5)fail(400,'녹음 길이를 확인해 주세요.');
+  if(crop){
+   const {start,end}=b;
+   if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>duration||end-start<.1-1e-9)fail(400,'크롭 시작·끝 시간을 확인해 주세요.');
+   return json({allowed:true,range:{start,end}});
+  }
   const words=JSON.parse((await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',track.id)).words);
   let range;
   try{range=punchLyricRange(words,Math.min(duration,track.duration),b.first,b.last);}catch(e){fail(400,e.message);}

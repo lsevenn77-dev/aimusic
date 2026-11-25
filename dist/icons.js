@@ -30,6 +30,7 @@ paths.more=paths.menu;
 paths.image='M4 3h16v18H4zM4 16l5-6 4 4 3-3 4 5M15 7h.01';
 paths.dmPin='M14.3 3.3a2 2 0 0 1 2.8 0l3.6 3.6a2 2 0 0 1-2.8 2.8l-.7-.7-3.7 4.9a4.4 4.4 0 0 1-.7 5.3l-8-8a4.4 4.4 0 0 1 5.3-.7L15 6.8l-.7-.7a2 2 0 0 1 0-2.8ZM8.8 15.2 3 21';
 paths.bellOff='m3 3 18 18M7 7c-1 3 0 7-3 10h13M10 4a6 6 0 0 1 8 5v3M10 21h4';
+paths.scissors='M9 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm0 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM8.1 8.1 21 21M8.1 15.9 21 3';
 paths.trash='M4 7h16M9 3h6l1 4M6 7l1 14h10l1-14M10 11v6m4-6v6';
 paths.info='M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM12 11v6m0-10v.01';
 paths.waveform='M2 10v4m4-8v12m4-16v20m4-15v10m4-13v16m4-10v4';
