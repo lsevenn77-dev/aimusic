@@ -171,8 +171,8 @@ test('the open event renders before music reads and remains visible after a disc
  try{
   const banner=c.section('home-release'),html=banner.innerHTML;
   assert.match(html,/data-home-banner="open-event"/);
-  assert.match(html,/<source media="\(min-width: 801px\)" srcset="[^"]+pc_2400x460\.webp"/);
-  assert.match(html,/<img src="[^"]+mobile_1170x672\.webp"[^>]+loading="eager" fetchpriority="high"/);
+  assert.match(html,/<source media="\(min-width: 801px\)" srcset="[^"]+pc-2556x540\.webp" width="2556" height="540"/);
+  assert.match(html,/<img src="[^"]+mobile-1656x828\.webp" width="1656" height="828"[^>]+loading="eager" fetchpriority="high"/);
   const slide=html.match(/<div class="home-feature-slide home-event-banner"[\s\S]*?<\/picture><\/div>/)?.[0];
   assert.ok(slide);assert.doesNotMatch(slide,/<a\b|<button\b|onclick=|tabindex=/i);
   assert.doesNotMatch(html,/HOME_LOADING|음악을 불러오는 중/);
