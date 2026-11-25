@@ -8,6 +8,7 @@ import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {membership} from './membership.js';
 import {reviewAccount} from './billing-review.js';
+import {eventUntilSQL,resolvePremiumUntil} from './premium-event.js';
 import {applyPremiumGrant} from './premium-grant.js';
 import {mobileAuthRoute,finishMobile} from './mobile-auth.js';
 import {nativeAuthRoute} from './native-auth.js';
@@ -28,12 +29,12 @@ export const viewerBlockedIds=user=>viewerBlocks.get(user);
 export async function viewer(req,env){
  const token=cookies(req).aifect_session;if(!token)return null;
  // Resolve the session and public nickname together on every request; no auth cache.
- const record=await one(env,`SELECT u.id,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids,(SELECT json_group_array(ab.artist_id) FROM artist_follow_blocks ab WHERE ab.user_id=u.id AND ab.direction='artist') blocked_artists FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted' AND u.account_type='human'`,await hash(token),now());
+ const record=await one(env,`SELECT u.id,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,u.email,u.provider,u.premium_until,u.apple_premium_until,${eventUntilSQL} event_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids,(SELECT json_group_array(ab.artist_id) FROM artist_follow_blocks ab WHERE ab.user_id=u.id AND ab.direction='artist') blocked_artists FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted' AND u.account_type='human'`,await hash(token),now());
  if(!record)return null;
  const {blocked_ids,blocked_artists,...user}=record;
  if(reviewAccount(env,user))user.billing_review_retired=!!await one(env,'SELECT 1 FROM admin_audit WHERE id=?','billing-review-retired:'+user.id);
  const granted=await applyPremiumGrant(env,user);
- const resolved={...granted,base_premium_until:granted.premium_until,premium_until:Math.max(granted.premium_until,granted.apple_premium_until||0)};
+ const resolved={...granted,base_premium_until:granted.premium_until,premium_until:resolvePremiumUntil(granted,now())};
  viewerBlocks.set(resolved,JSON.parse(blocked_ids||'[]'));
  viewerArtistBlocks.set(resolved,JSON.parse(blocked_artists||'[]'));
  return resolved;
@@ -84,7 +85,7 @@ export async function authRoute(req,env,path,user){
   let payload;try{({payload}=await jwtVerify(str(b.credential,10000),jwks,{issuer:['https://accounts.google.com','accounts.google.com'],audience:env.GOOGLE_CLIENT_ID}));}catch{fail(401,'Google 인증을 확인할 수 없습니다.');}
   if(payload.nonce!==st.nonce||payload.email_verified!==true||!payload.email||!payload.sub)fail(401,'Google 인증 정보가 일치하지 않습니다.');
   let u=await one(env,"SELECT id,name,email,provider FROM users WHERE provider='google' AND subject=?",payload.sub);
-  if(!u){u={id:id(),name:String(payload.name||'AIFECT 리스너').slice(0,40),email:payload.email,provider:'google'};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,?,?)',u.id,u.email,u.name,'google',payload.sub,now(),sourceFromRequest(req));}
+  if(!u){u={id:id(),name:String(payload.name||'AIFECT 리스너').slice(0,40),email:payload.email,provider:'google'};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',u.id,u.email,u.name,'google',payload.sub,sourceFromRequest(req));}
   const appResult=await finishMobile(req,env,u,null,!isRedirect);if(appResult)return appResult;
   const headers=new Headers({'cache-control':'no-store'});
   headers.append('set-cookie',await session(env,u,secure));
@@ -120,7 +121,7 @@ export async function authRoute(req,env,path,user){
   if(path.endsWith('/register')){
    if(u)fail(409,'이미 가입된 이메일입니다. 로그인해 주세요.');
    const salt=id(),name=nickname(body.name).name,uid=id();
-   await nicknameBatch(env,uid,name,[query(env,'INSERT INTO users(id,email,name,password,provider,subject,created,signup_source) VALUES(?,?,?,?,?,?,?,?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,now(),sourceFromRequest(req))]);
+   await nicknameBatch(env,uid,name,[query(env,'INSERT INTO users(id,email,name,password,provider,subject,created,signup_source) VALUES(?,?,?,?,?,?,unixepoch(),?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,sourceFromRequest(req))]);
    u={id:uid,email,name,provider:'email'};
   }else{
    const [salt,saved]=(u?.password||'invalid:invalid').split(':');
@@ -166,7 +167,7 @@ export async function authRoute(req,env,path,user){
   identity={sub:payload.sub,name:name||'AIFECT 리스너',email:[true,'true'].includes(payload.email_verified)?payload.email:null};
  }
  let u=await one(env,'SELECT id FROM users WHERE provider=? AND subject=?',p,identity.sub);
- if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,?,?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,now(),sourceFromRequest(req));}
+ if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,sourceFromRequest(req));}
  if(p==='apple')await rememberAppleToken(env,u.id,token.refresh_token);
  const appResult=await finishMobile(req,env,u,null);if(appResult)return appResult;
  return new Response(null,{status:303,headers:{location:'/#account?welcome=1','set-cookie':await session(env,u,secure),'cache-control':'no-store'}});

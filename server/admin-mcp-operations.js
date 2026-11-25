@@ -1,3 +1,4 @@
+import {effectiveUntilSQL,eventUntilSQL} from './premium-event.js';
 import {libraryMigrationStatus} from './library-migration.js';
 import {playlistCleanupStatus} from './playlist-cleanup.js';
 import {welcomeNoticeStatus} from './welcome-notices.js';
@@ -73,7 +74,7 @@ async function stats(env,a) {
  const counts=await one(env,`SELECT
  (SELECT COUNT(*) FROM users WHERE provider!='deleted' AND account_type='human') users,
  (SELECT COUNT(*) FROM users WHERE provider!='deleted' AND account_type='human' AND created>=?) new_users,
- (SELECT COUNT(*) FROM users WHERE provider!='deleted' AND account_type='human' AND premium_until>?) active_premium,
+ (SELECT COUNT(*) FROM users u WHERE provider!='deleted' AND account_type='human' AND ${effectiveUntilSQL}>?) active_premium,
  (SELECT COUNT(*) FROM tracks WHERE status='published') published_tracks,
  (SELECT COUNT(*) FROM tracks WHERE status='published' AND kind='cover') published_covers,
  (SELECT COUNT(*) FROM dubbing_projects WHERE deleted_at=0) dubbing_projects,
@@ -150,7 +151,7 @@ async function moderate(env,actor,a) {
 export async function executeAdminTool(env,actor,name,a) {
  if(!isMcpAdmin(actor))fail(403,'운영자 인증이 필요합니다.');
  switch(name) {
-  case 'aifect_search_users':return {users:await rows(env,`SELECT u.id user_id,${nick} nickname,(SELECT id FROM producers WHERE user_id=u.id) profile_id FROM users u WHERE u.provider!='deleted' AND account_type='human' AND ${nick} LIKE ? ESCAPE '\\' ORDER BY nickname,u.id LIMIT ? OFFSET ?`,'%'+a.nickname.replace(/[\\%_]/g,'\\$&')+'%',...paging(a))};
+  case 'aifect_search_users':return {users:await rows(env,`SELECT u.id user_id,${nick} nickname,${eventUntilSQL} event_premium_until,${eventUntilSQL}>? event_premium_active,(SELECT id FROM producers WHERE user_id=u.id) profile_id FROM users u WHERE u.provider!='deleted' AND account_type='human' AND ${nick} LIKE ? ESCAPE '\\' ORDER BY nickname,u.id LIMIT ? OFFSET ?`,now(),'%'+a.nickname.replace(/[\\%_]/g,'\\$&')+'%',...paging(a))};
   case 'aifect_gold_balance':return balance(env,a.user_id);
   case 'aifect_grant_test_gold':return grant(env,actor,a);
   case 'aifect_gold_history':return history(env,a);

@@ -13,6 +13,7 @@ test('dashboard and private search require a full admin, not only a track modera
 });
 
 test('member directory filters Korean signup dates and current Premium and pages equal timestamps',async t=>{
+ t.mock.method(Date,'now',()=>Date.parse('2027-04-01T12:00:00+09:00'));
  const f=await fixture(t,{ADMIN_USER_IDS:'owner'}),at=Math.floor(Date.now()/1000);
  const midnight=Math.floor((at+32400)/86400)*86400-32400;
  const day=new Date((midnight+32400)*1000).toISOString().slice(0,10);
@@ -40,6 +41,7 @@ test('member directory filters Korean signup dates and current Premium and pages
 });
 
 test('dashboard reads real tables and separates paid purchases from diamond exchanges, free and refunded gold',async t=>{
+ t.mock.method(Date,'now',()=>Date.parse('2027-04-01T12:00:00+09:00'));
  const f=await fixture(t,{ADMIN_USER_IDS:'owner'}),at=Math.floor(Date.now()/1000);
  const lot=(id,channel,price,status='paid')=>f.sql.prepare('INSERT INTO gold_purchases(id,user_id,channel,gold,price_krw,fee_krw,tax_krw,status,created,paid_at) VALUES(?,\'owner\',?,500,?,100,50,?,?,?)').run(id,channel,price,status,at,at);
  lot('web','web',5500);lot('app','google_play',6500);lot('ios','apple',6500);

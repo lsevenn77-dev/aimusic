@@ -6,7 +6,19 @@ function setMembership(value){
  window.AifectAudioAds?.setMembership(member,me?.id);
  window.AifectUploadAds?.setMembership(member,me?.id);
  if(member.plan!=='premium'&&typeof clearFullLyrics==='function')clearFullLyrics();
- if(member.premium_until){const delay=member.premium_until*1000-Date.now();if(delay>0)membershipTimer=setTimeout(async()=>{try{await refreshLibrary(true);updateAccount();if(/^(#membership|#library|#playlist|#account)/.test(location.hash))await render();}catch{member={...member,plan:'free',full_lyrics:true,playlist_limit:null,playlists_unlimited:true};clearFullLyrics();if(typeof refreshTakeEntitlement==='function')refreshTakeEntitlement();}},Math.min(delay+100,2147483647));}
+ const currentTime=Date.now();
+ const boundaries=[member.premium_until,member.event_premium_until].filter(until=>until*1000>currentTime);
+ if(!boundaries.length)return;
+ const delay=Math.min(...boundaries)*1000-currentTime;
+ membershipTimer=setTimeout(async()=>{
+  try{
+   await refreshLibrary(true);updateAccount();
+   if(/^(#membership|#library|#playlist|#account)/.test(location.hash))await render();
+  }catch{
+   if(member.premium_until*1000>Date.now())setMembership(member);
+   else setMembership({...member,plan:'free',premium_until:null,event_premium_until:null});
+  }
+ },Math.min(delay+100,2147483647));
 }
 function membershipHTML(billing){
  const premium=inApp?AifectSite.APP_PREMIUM:AifectSite.PREMIUM;

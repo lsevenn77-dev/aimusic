@@ -45,7 +45,7 @@ assert.match(calls[0][0], /signup_source IS NULL/);
 console.log('ok — signup-source 테스트 통과');
 
 test('signup stores the first source and login leaves it unchanged in the admin report',async t=>{
- const f=await fixture(t,{ADMIN_USER_IDS:'owner'});
+ const f=await fixture(t,{ADMIN_USER_IDS:'owner'},0);
  const credentials={name:'경로확인',email:'source@example.test',password:'demo-test-password'};
  const auth=(path,source)=>worker.fetch(new Request('https://aifect.test/api/auth/'+path,{method:'POST',
   headers:{origin:'https://aifect.test','content-type':'application/json',cookie:'aifect_src='+source},

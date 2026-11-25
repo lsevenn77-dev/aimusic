@@ -10,7 +10,7 @@ test('Korean midnight advances the visit day',()=>{
 });
 
 test('anonymous visits are idempotent, source-first, and visible only in admin totals',async t=>{
- const f=await fixture(t,{ADMIN_USER_IDS:'owner'}),day=visitDay(),token=crypto.randomUUID();
+ const f=await fixture(t,{ADMIN_USER_IDS:'owner'},0),day=visitDay(),token=crypto.randomUUID();
  const send=(ua,source,body={day,token},origin='https://aifect.test')=>worker.fetch(new Request('https://aifect.test/api/visits',{
   method:'POST',headers:{origin,'content-type':'application/json','user-agent':ua,cookie:'aifect_src='+source},body:JSON.stringify(body)
  }),{DB:f.DB});

@@ -1,5 +1,5 @@
 import {sourceFromRequest} from './signup-source.js';
-import {one,run,id,now,fail,json} from './db.js';
+import {one,run,id,fail,json} from './db.js';
 import {session} from './auth.js';
 
 // SDK access tokens are bearer credentials: only accept the configured Kakao app,
@@ -25,7 +25,7 @@ export async function nativeAuthRoute(req,env,path){
  let user=await one(env,"SELECT id,name,email,provider FROM users WHERE provider='kakao' AND subject=?",identity.sub);
  if(!user){
   user={id:id(),name:identity.name,email:identity.email||`kakao-${identity.sub}@identity.aifect.invalid`,provider:'kakao'};
-  await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,?,?)',user.id,user.email,user.name,'kakao',identity.sub,now(),sourceFromRequest(req)||'app');
+  await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',user.id,user.email,user.name,'kakao',identity.sub,sourceFromRequest(req)||'app');
  }
  return json({user},200,{'set-cookie':await session(env,user,new URL(req.url).protocol==='https:'),'cache-control':'no-store'});
 }

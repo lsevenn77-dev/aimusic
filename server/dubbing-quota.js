@@ -1,3 +1,4 @@
+import {effectiveUntilSQL} from './premium-event.js';
 import {one,query,now,fail} from './db.js';
 import {DUBBING_DAILY_AD_LIMIT} from '../shared/dubbing.js';
 
@@ -9,7 +10,7 @@ const counted="input_hash NOT LIKE 'sound-plan:%' AND state IN ('running','ready
 // Lifetime grants are separate from daily free/ad turns. Count reservations, not
 // completed requests, so concurrent generation cannot spend the same credit twice.
 const allowanceSQL=`WITH clock AS (SELECT ? user_id,? at,? start,? end,? day)
- SELECT CASE WHEN MAX(u.premium_until,u.apple_premium_until)>c.at THEN 3 ELSE 1 END freeDaily,
+ SELECT CASE WHEN ${effectiveUntilSQL}>c.at THEN 3 ELSE 1 END freeDaily,
  MIN(${DUBBING_DAILY_AD_LIMIT},(SELECT COUNT(*) FROM dubbing_script_rewards WHERE user_id=u.id AND day=c.day)) adsEarned,
  (SELECT COUNT(*) FROM dubbing_generations WHERE user_id=u.id AND created>=c.start AND created<c.end AND quota_source='daily' AND ${counted}) dailyUsed,
  (SELECT COUNT(*) FROM dubbing_generations WHERE user_id=u.id AND created>=c.start AND created<c.end AND ${counted}) used,

@@ -11,7 +11,7 @@ export async function membership(env,user){
   query(env,`SELECT count(*) n FROM playlists WHERE user_id=?`,user.id),
   uploadQuotaQuery(env,user,at)
  ]),owned=playlists.results;
- return {upload_quota:uploadQuotaResult(user,quota.results[0].used,at),plan:isPremium(user)?'premium':'free',playlist_limit:playlistLimit(user),playlists_unlimited:true,owned_count:owned[0].n,active_ids:[],locked_count:0,full_lyrics:true,premium_until:isPremium(user)?user.premium_until:null,checkout_available:false};
+ return {upload_quota:uploadQuotaResult(user,quota.results[0].used,at),plan:user.premium_until>at?'premium':'free',playlist_limit:playlistLimit(user),playlists_unlimited:true,owned_count:owned[0].n,active_ids:[],locked_count:0,full_lyrics:true,event_premium_until:user.event_premium_until>at?user.event_premium_until:null,premium_until:user.premium_until>at?user.premium_until:null,checkout_available:false};
 }
 export async function requireActivePlaylist(env,p){
  if(!await one(env,`SELECT p.id FROM playlists p WHERE p.id=? AND ${activePlaylistSQL()}`,p.id))fail(403,'보관 중인 플레이리스트입니다. 내 보관함에서 사용할 목록을 선택해 주세요.');

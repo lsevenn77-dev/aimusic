@@ -1,9 +1,10 @@
+import {effectiveUntilSQL} from './premium-event.js';
 import {one} from './db.js';
 
 // Resolve current entitlement on the server, including upgrades during the day.
 export async function gameLimits(env,uid,ms,baseDailyLimit=3){
-  const user=uid?await one(env,'SELECT premium_until,apple_premium_until FROM users WHERE id=?',uid):null;
-  const premiumBonus=Number(Math.max(user?.premium_until||0,user?.apple_premium_until||0)>ms/1000);
+  const user=uid?await one(env,`SELECT ${effectiveUntilSQL} premium_until FROM users u WHERE id=?`,uid):null;
+  const premiumBonus=Number((user?.premium_until||0)>ms/1000);
   return {baseDailyLimit,premiumBonus,dailyLimit:baseDailyLimit+premiumBonus};
 }
 

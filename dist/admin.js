@@ -23,6 +23,7 @@
   }[value]||value||'-');
   const state={days:7,data:null,me:null,view:'dashboard',payoutPeriod:null};
   const directory={group:'all',cursor:null,lastDay:'',count:0,request:0};
+  const eventTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
   const memberTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 
   function toast(message){
@@ -279,9 +280,11 @@
           html+='<h3 class="member-day">'+joinedDay+'</h3>';
           directory.lastDay=joinedDay;
         }
+        const until=member.event_premium_until;
+        const eventLabel=until?'<small>'+ (until>page.as_of?'이벤트 적용 중':'이벤트 만료')+' · '+eventTime.format((until-1)*1000)+' KST까지</small>':'';
         html+='<div class="member-row"><div><strong>'+esc(member.name)+'</strong> <code>'+esc(member.public_id?'#'+member.public_id:member.id)+'</code>'+
-          (member.login_email?'<small>'+esc(member.login_email)+'</small>':'')+'</div><span>'+esc(providers[member.provider]||member.provider)+'<small class="member-source">'+esc(sourceLabel(member.signup_source))+'</small></span>'+
-          '<span>'+(member.premium?'Premium':'무료')+'</span><time datetime="'+date.toISOString()+'">'+memberTime.format(date)+'</time></div>';
+          (member.login_email?'<small>'+esc(member.login_email)+'</small>':'')+eventLabel+'</div><span>'+esc(providers[member.provider]||member.provider)+'<small class="member-source">'+esc(sourceLabel(member.signup_source))+'</small></span>'+
+          '<span>'+(member.other_premium?'Premium':member.premium?'이벤트 Premium':'무료')+'</span><time datetime="'+date.toISOString()+'">'+memberTime.format(date)+'</time></div>';
       }
       list.insertAdjacentHTML('beforeend',html);
       directory.count+=page.members.length;directory.cursor=page.next_cursor;

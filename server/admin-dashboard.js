@@ -1,4 +1,5 @@
 import * as AifectMessages from '../shared/system-messages.js';
+import {eventUntilSQL,otherUntilSQL,effectiveUntilSQL} from './premium-event.js';
 import {visitDay} from './visitors.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {one,rows,now,fail,json,str} from './db.js';
@@ -9,12 +10,12 @@ const ALLOWED_DAYS=new Set([7,30,90]);
 const toNumber=value=>Number(value||0);
 const mwToWon=value=>Math.round(toNumber(value)/1000);
 const currentMember="u.provider!='deleted' AND u.account_type='human'";
-const premiumMember='MAX(u.premium_until,u.apple_premium_until)>?';
+const premiumMember=`${effectiveUntilSQL}>?`;
 const kstStart=at=>Math.floor((at+9*3600)/86400)*86400-9*3600;
 
 async function memberDirectory(env,params,at){
  const group=params.get('group')||'all',day=params.get('day'),cursor=params.get('cursor');
- if(!['all','today','premium'].includes(group))fail(400,'회원 구분을 확인해 주세요.');
+ if(!['all','today','premium','event'].includes(group))fail(400,'회원 구분을 확인해 주세요.');
  const conditions=[currentMember],args=[];
  if(group==='today'||day!==null){
   const start=day===null?kstStart(at):Date.parse(day+'T00:00:00+09:00')/1000;
@@ -23,6 +24,7 @@ async function memberDirectory(env,params,at){
   conditions.push('u.created>=? AND u.created<?');args.push(start,start+86400);
  }
  if(group==='premium'){conditions.push(premiumMember);args.push(at);}
+ if(group==='event')conditions.push(`(${eventUntilSQL})>0`);
  if(cursor!==null){
   const match=/^(\d{1,12}):([^:\s]{1,128})$/.exec(cursor);
   if(!match)fail(400,'목록 위치를 확인해 주세요.');
@@ -31,11 +33,12 @@ async function memberDirectory(env,params,at){
  const pageSize=50;
  const list=await rows(env,`SELECT u.id,pp.code public_id,${publicNameSQL()} name,
   CASE WHEN u.provider='email' THEN u.email END login_email,
-  u.created,u.provider,u.signup_source,${premiumMember} premium FROM users u
+  u.created,u.provider,u.signup_source,${premiumMember} premium,
+  ${eventUntilSQL} event_premium_until,${otherUntilSQL}>? other_premium FROM users u
   LEFT JOIN public_profile_ids pp ON pp.user_id=u.id WHERE ${conditions.join(' AND ')}
-  ORDER BY u.created DESC,u.id DESC LIMIT ?`,at,...args,pageSize+1);
+  ORDER BY u.created DESC,u.id DESC LIMIT ?`,at,at,...args,pageSize+1);
  const members=list.slice(0,pageSize),last=members.at(-1);
- return json({members,next_cursor:list.length>pageSize?last.created+':'+last.id:null});
+ return json({members,as_of:at,next_cursor:list.length>pageSize?last.created+':'+last.id:null});
 }
 
 async function searchDashboard(env,q){
@@ -50,9 +53,9 @@ async function searchDashboard(env,q){
    (SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers
    FROM producers p WHERE EXISTS(SELECT 1 FROM users u WHERE u.id=p.user_id AND u.account_type='human') AND p.name LIKE ? ORDER BY p.created DESC LIMIT 12`,like),
   rows(env,`SELECT id,name,email,provider,created,
-   CASE WHEN premium_until>? OR apple_premium_until>? THEN 1 ELSE 0 END premium
-   FROM users WHERE provider!='deleted' AND account_type='human' AND (name LIKE ? OR email LIKE ?)
-   ORDER BY created DESC LIMIT 12`,now(),now(),like,like)
+   ${premiumMember} premium
+   FROM users u WHERE provider!='deleted' AND account_type='human' AND (name LIKE ? OR email LIKE ?)
+   ORDER BY created DESC LIMIT 12`,now(),like,like)
  ]);
  return {query:q,tracks,creators,users};
 }
@@ -112,8 +115,8 @@ export async function adminDashboardRoute(req,env,path,user){
    FROM tracks t JOIN producers p ON p.id=t.producer_id LEFT JOIN artists a ON a.id=t.artist_id LEFT JOIN tracks o ON o.id=t.original_id
    WHERE t.status='published' ORDER BY t.created DESC LIMIT 6`),
   rows(env,`SELECT id,name,email,provider,created,
-   CASE WHEN premium_until>? OR apple_premium_until>? THEN 1 ELSE 0 END premium
-   FROM users WHERE provider!='deleted' AND account_type='human' ORDER BY created DESC LIMIT 6`,at,at),
+   ${premiumMember} premium
+   FROM users u WHERE provider!='deleted' AND account_type='human' ORDER BY created DESC LIMIT 6`,at),
   rows(env,`SELECT p.id,p.name,p.created,
    (SELECT count(*) FROM tracks t WHERE t.producer_id=p.id AND t.status!='deleted') tracks,
    (SELECT count(*) FROM follows f WHERE f.kind='producer' AND f.target_id=p.id) followers
