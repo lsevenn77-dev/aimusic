@@ -18,7 +18,7 @@ import {nicknameBatch} from './nicknames.js';
 import {trackList,trackListQuery,VISIBLE} from './catalog.js';
 import {trackClassification} from '../shared/genres.js';
 import {DM_BODY_LIMIT} from '../shared/chat-sticker-body.js';
-import {CREW_LEVELS,CREW_REWARDS,CREW_ROLES,crewLevel} from '../shared/crews.js';
+import {CREW_LEVELS,CREW_REWARDS,CREW_ROLES,crewBadgeUrl,crewLevel} from '../shared/crews.js';
 import {chatSummary} from './chat-features.js';
 import {assertDmBody} from './dm-body.js';
 import {giftDay} from '../shared/gifts.js';
@@ -27,7 +27,10 @@ const xpSQL="COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id)
 const crewSelect=`SELECT c.*,${xpSQL} xp,(SELECT count(*) FROM crew_members m WHERE m.crew_id=c.id) members FROM crews c`;
 const CREW_RENAME_INTERVAL=30*86400;
 const nameChangeAvailableAt=c=>c.name_changed_at?c.name_changed_at+CREW_RENAME_INTERVAL:0;
-const present=c=>({...c,...storedCrewTags(c),...crewLevel(c.xp,c.highest_level,c.growth_started),xp:c.xp,name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)});
+function present(c){
+ const growth=crewLevel(c.xp,c.highest_level,c.growth_started);
+ return {...c,...storedCrewTags(c),...growth,xp:c.xp,badge_url:crewBadgeUrl(growth.level),name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)};
+}
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해 주세요.');return b.request_id;};
 async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT m.*,c.name crew_name,c.image_version crew_image_version FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.crew_id=? AND m.user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있습니다.');return m;}
 async function syncXp(env,crewId){await syncCrewGrowth(env,crewId);}

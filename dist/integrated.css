@@ -54,6 +54,9 @@
 .crew-page :is(.crew-frame-3,.crew-frame-4) .crew-detail-picture {outline:3px solid var(--ds-lilac)}
 .crew-page .crew-identity-copy {min-width:0;color:var(--ds-body);font-size:14px}
 .crew-page .crew-identity-copy h1 {margin:0 0 4px;color:var(--ds-text);font-size:clamp(21px,2.3vw,30px);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crew-badged-name {--ui-space-scale:1;display:inline-flex;align-items:center;gap:6px;max-width:100%;min-width:0}
+.crew-badged-name > .crew-name-badge {display:block;flex:none;height:1em;width:auto;max-width:2em;object-fit:contain;border-radius:0}
+.crew-badged-name > .crew-name-color {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .crew-page .crew-settings-trigger {display:grid;place-items:center;align-self:start;width:44px;height:44px;padding:0;background:transparent;border:0;border-radius:var(--ds-radius-input);color:var(--ds-body)}
 .crew-page .crew-settings-trigger:hover {color:var(--ds-text);background:var(--ds-panel)}
 .crew-page .crew-detail-xp {margin-top:12px;font-size:13px;color:var(--ds-body)}

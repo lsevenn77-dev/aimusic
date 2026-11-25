@@ -2,6 +2,13 @@
 function publicMusicDate(created){return created?new Date(Number(created)*1000).toLocaleDateString('ko-KR',{month:'long',day:'numeric',timeZone:'Asia/Seoul'}):'';}
 function crewPicture(c,cls='crew-hero-picture'){return '<span class="'+cls+'">'+(c.image_version?'<img src="/media/crew/'+esc(c.id)+'?v='+esc(c.image_version)+'" alt="'+esc(c.name)+'">':icon('users'))+'</span>';}
 function crewNameHTML(c){return '<span class="crew-name-color">'+esc(c.name)+'</span>';}
+function usesCrewNameBadges(){
+ return !((typeof inApp!=='undefined'&&inApp)||/AIFECT-Mobile\//i.test(window.navigator?.userAgent||''));
+}
+function crewNameBadgeSrc(c){return c.badge_url||'/assets/crew-badges/lv1.webp';}
+function crewNameWithBadgeHTML(c){
+ return `<span class="crew-badged-name" title="${esc(c.name)}"><img class="crew-name-badge" src="${esc(crewNameBadgeSrc(c))}" alt="">${crewNameHTML(c)}</span>`;
+}
 function canManageCrew(membership){
  return ['owner','deputy','manager','operator'].includes(membership?.role);
 }
@@ -11,9 +18,10 @@ function crewHeroHTML(c,m){
  const settings=canManageCrew(m)?`<div class="crew-settings-anchor"><button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="menu" aria-expanded="false" aria-controls="crew-settings-menu" title="크루 설정">${icon('settings',22)}</button><div id="crew-settings-menu" class="fan-settings-menu" role="menu" aria-label="크루 관리" hidden></div></div>`:'';
  const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}" data-banner-ends="${Number(m.game_catalog?.banner_ends_at)||0}" data-week-ends="${Number(m.game_catalog?.ends_at)||0}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
  const next=c.next_xp==null?'최고 레벨':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
+ const name=usesCrewNameBadges()?crewNameWithBadgeHTML(c):crewNameHTML(c);
  return `<header class="crew-detail-header crew-frame-${frame}">
    <div class="crew-detail-top">
-    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${crewNameHTML(c)}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${settings}</div>
+    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${name}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${settings}</div>
     ${game}
    </div>
    <div class="crew-detail-xp"><div><span><strong>Lv.${number(c.level)}</strong> ${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div><progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>

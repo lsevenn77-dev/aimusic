@@ -1,5 +1,5 @@
 import * as AifectMessages from '../shared/system-messages.js';
-import {crewLevel} from '../shared/crews.js';
+import {crewBadgeUrl,crewLevel} from '../shared/crews.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {followCounts,assertArtistInteraction,producerFollowsViewer} from './follow-management.js';
 import {publicNumberSQL,profileActivity} from './profile-dashboard.js';
@@ -33,8 +33,7 @@ async function previewCrew(env,userId){
   FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? ORDER BY cm.joined,c.id LIMIT 1`,userId);
  if(!c)return null;
  const {level}=crewLevel(c.xp,c.highest_level,c.growth_started);
- const badgeLevel=[10,9,8,6,4,2,1].find(min=>level>=min);
- return {id:c.id,name:c.name,image_version:c.image_version,level,badge_url:'/assets/crew-badges/lv'+badgeLevel+'.webp'};
+ return {id:c.id,name:c.name,image_version:c.image_version,level,badge_url:crewBadgeUrl(level)};
 }
 
 export async function profileRoute(req,env,path,user){

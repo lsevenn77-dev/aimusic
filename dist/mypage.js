@@ -72,6 +72,8 @@ function myProfileStats(d,own){
 
 function myProfileHeader(d){
  const p=d.profile,own=isMyProfile(p),c=d.crew,bio=p.bio?.trim();
+ const crewName=c?(own&&usesCrewNameBadges()?crewNameWithBadgeHTML(c):
+  (c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users'))+esc(c.name)):'';
  const frame={profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork};
  const photo=p.id&&p.image_version?'/media/producer/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.image_version):'';
  const banner=p.id&&p.banner_version?'/media/banner/'+encodeURIComponent(p.id)+'?v='+encodeURIComponent(p.banner_version):'';
@@ -98,7 +100,7 @@ function myProfileHeader(d){
   <div class="mp-identity"><div class="mp-byline">${tools}<h2><span${premiumNameAttribute(p.id,p.user_id)} data-profile-preview="${esc(p.id||(own?'self':'member:'+p.user_id))}" role="button" tabindex="0" aria-haspopup="dialog">${esc(p.name)}</span>${p.account_type==='ai_bot'?'<span class="ai-account-badge" title="공식 AI 응원 계정">AI</span>':''}</h2>
    ${p.account_type==='ai_bot'?'<p class="field-help">공식 AI 응원 계정</p>':''}
    ${p.public_id?`<p class="mp-public-id">ID · ${esc(p.public_id)} <button type="button" class="text-link" data-copy-public-id="${esc(p.public_id)}" aria-label="고유 ID 복사"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg></button></p>`:''}
-   ${c?`<div class="mp-crew-line"><a href="#crew/${esc(c.id)}">${c.image_version?`<img src="/media/crew/${esc(c.id)}?v=${esc(c.image_version)}" alt="">`:icon('users')}${esc(c.name)}</a></div>`:''}
+   ${c?`<div class="mp-crew-line"><a href="#crew/${esc(c.id)}">${crewName}</a></div>`:''}
    </div>${settings}${bio&&bio!=='-'?`<p class="mp-profile-bio">${esc(bio)}</p>`:''}${myProfileStats(d,own)}
   </div>${actions}</header>
   <div id="mp-profile-share" popover="auto" role="dialog" aria-label="프로필 공유"></div></div>`;
@@ -420,6 +422,10 @@ async function mySelectTab(tab,updateURL=true,readApi=api,force=false){
  const finish=()=>{s.pending=false;content.removeAttribute('aria-busy');aside.removeAttribute('aria-busy');holdMyPageViewport(content);holdMyPageViewport(aside);};
  const paint=result=>{
   if(tab==='works'){
+   if(result.crew&&s.d.crew?.id===result.crew.id&&s.d.crew.badge_url!==result.crew.badge_url){
+    const badge=page?.querySelector('.mp-crew-line .crew-name-badge');
+    if(badge)badge.src=crewNameBadgeSrc(result.crew);
+   }
    s.d=result;content.innerHTML=myWorksHTML(result,'main');aside.innerHTML=myWorksHTML(result,'aside');routeTracks=remember([...(result.tracks||[]),...(result.covers||[])]);
    bindProfileWorkJoins(page,result);syncSongCoverPlayback();
   }else if(tab==='library'){

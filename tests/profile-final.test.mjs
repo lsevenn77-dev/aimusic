@@ -22,7 +22,8 @@ test('unified inventory preserves every stock ID and expiry, filters real equipm
  v=await c.unifiedInventoryView('inventory?section=active');const active=c.inventoryPanel(v.unifiedInventory);assert.match(active,/inventory-product-art/);assert.doesNotMatch(active,/player-frame-artwork|data-avatar-profile/);
  assert.ok(active.includes('data-stock-section="gifts"'));assert.match(active,/data-inventory-item="temporary"/);assert.match(active,/data-player-equip=""/);assert.match(active,/착용 중/);assert.doesNotMatch(active,/data-inventory-send|data-inventory-item="expired"/);
  const publicProfile=(await f.call('/api/producers/producer')).body;assert.equal(publicProfile.profile.profile_frame,'crew-outline');
- vm.runInContext(source('player-progress.js'),c);c.avatarImage=()=>'<img alt="프로필">';assert.match(c.myProfileHeader(publicProfile),/player-frame-artwork/);
+ for(const name of ['player-progress.js','social-layouts.js'])vm.runInContext(source(name),c);
+ c.avatarImage=()=>'<img alt="프로필">';assert.match(c.myProfileHeader(publicProfile),/player-frame-artwork/);
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:'temporary'},'other')).status,409);
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:'expired'})).status,409);
  assert.equal((await f.call('/api/me/player/equipment','PUT',{frame_inventory_id:null})).status,200);

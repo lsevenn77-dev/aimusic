@@ -35,7 +35,10 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
    (SELECT count(*) FROM follows WHERE user_id=u.id AND kind='producer') profile_following_count,
    (SELECT count(*) FROM tracks t WHERE t.user_id=u.id AND t.kind='original' AND ${own?"t.status!='deleted'":VISIBLE()}) produced_track_count,
    (SELECT count(*) FROM tracks t LEFT JOIN tracks dt ON dt.id=t.duet_parent_id WHERE (t.user_id=u.id OR dt.user_id=u.id) AND ${VISIBLE()}) public_track_count FROM users u WHERE u.id=?`,uid),
-  query(env,'SELECT c.id,c.name,c.description,c.image_version,(SELECT count(*) FROM crew_members WHERE crew_id=c.id) members FROM crews c JOIN crew_members cm ON cm.crew_id=c.id WHERE cm.user_id=?',uid),
+  query(env,`SELECT c.id,c.name,c.description,c.image_version,c.highest_level,c.growth_started,
+   (SELECT count(*) FROM crew_members WHERE crew_id=c.id) members,
+   COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id),0) xp
+   FROM crews c JOIN crew_members cm ON cm.crew_id=c.id WHERE cm.user_id=? ORDER BY cm.joined,c.id LIMIT 1`,uid),
   query(env,`SELECT a.id,a.name,a.image_version,${artistCardCountsSQL()}
    FROM artists a JOIN producers p ON p.id=a.producer_id
    WHERE a.producer_id=?2 AND ${namedArtistSQL()} ORDER BY a.created DESC,a.id`,user?.id||'',profile.id),
@@ -53,7 +56,14 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
  ]),
   own?[]:relationList(env,uid,user?.id||'')
  ]);
- const identity=identityResult.results[0],crew=crewResult.results[0]||null,artists=artistsResult.results,dubbings=dubbingsResult.results;
+ const identity=identityResult.results[0],crewRow=crewResult.results[0],artists=artistsResult.results,dubbings=dubbingsResult.results;
+ let crew=null;
+ if(crewRow){
+  // The public HTML renderer also imports publicNumberSQL from this module.
+  const {crewBadgeUrl,crewLevel}=await import('../shared/crews.js');
+  const {xp,highest_level,growth_started,...summary}=crewRow;
+  crew={...summary,badge_url:crewBadgeUrl(crewLevel(xp,highest_level,growth_started).level)};
+ }
  await profileDubbingParticipation(env,dubbings,user);
  let canParticipate=!!user;
  if(profileWorks&&user&&dubbings.length){

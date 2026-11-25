@@ -48,13 +48,17 @@ test('artist gifts credit one creator, bind their source and replay a concurrent
  f.sql.exec("INSERT INTO artist_follow_blocks VALUES('artist','other','fan',1)");
  assert.equal((await send({...gift,request_id:crypto.randomUUID()})).status,403);
 });
-test('crew badges advance at the supplied levels; members without a crew have no badge',async t=>{
- const f=await fixture(t),path='/api/producers/producer/preview';
+test('profile and crew pages use the same current badge at every crew level',async t=>{
+ const f=await fixture(t),path='/api/producers/producer/preview',dashboard='/api/producers/producer?dashboard=1&work_list=1';
  assert.equal((await f.call(path)).body.crew,null);
+ assert.equal((await f.call(dashboard)).body.crew,null);
  const {body:{crew}}=await f.call('/api/crews','POST',{name:'배지 확인'});
  for(const [index,tier] of [1,2,2,4,4,6,6,8,9,10].entries()){
   f.sql.prepare('UPDATE crews SET highest_level=? WHERE id=?').run(index+1,crew.id);
+  const expected=`/assets/crew-badges/lv${tier}.webp`;
   const c=(await f.call(path)).body.crew;
-  assert.equal(c.level,index+1);assert.equal(c.badge_url,'/assets/crew-badges/lv'+tier+'.webp');
+  assert.equal(c.level,index+1);assert.equal(c.badge_url,expected);
+  assert.equal((await f.call(dashboard)).body.crew.badge_url,expected);
+  assert.equal((await f.call('/api/crews/'+crew.id)).body.crew.badge_url,expected);
  }
 });
