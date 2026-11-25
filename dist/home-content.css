@@ -8,7 +8,13 @@
 /* Event artwork includes its copy. Fit it inside the existing slide frame. */
 #home-release .home-event-banner{display:block;padding:0;background:var(--ds-bg);cursor:default;user-select:none}
 #home-release .home-event-banner picture,#home-release .home-event-banner img{display:block;width:100%;height:100%}
-#home-release .home-event-banner img{object-fit:contain}
+#home-release .home-event-banner img{object-fit:cover;object-position:center}
+/* A desktop webview can have a taller stage. Extend only the artwork's edge
+   pixels above and below the full composition in this alternate layout. */
+@media(min-width:801px){
+ #home-release:not(.home-promo-wide) .home-event-banner picture{border-image:var(--event-desktop-art) 1 0 fill / 50% 0 stretch}
+ #home-release:not(.home-promo-wide) .home-event-banner img{object-fit:contain}
+}
 @media(max-width:800px){
  #home-release .home-event-banner,#home-release .home-event-banner picture{height:auto}
  #home-release .home-event-banner img{height:auto;aspect-ratio:2/1}
