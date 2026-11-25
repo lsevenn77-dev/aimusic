@@ -28,6 +28,61 @@
 #home-release.home-promo-carousel .home-feature-dots button::after{opacity:.85;box-shadow:0 1px 2px var(--ds-bg)}
 #home-release.home-promo-carousel .home-feature-dots button[aria-pressed=true]::after{opacity:1}
 #home-release.home-promo-carousel .home-feature-dots button[aria-pressed=true]{color:var(--ds-selected)}
+#home-release .home-promo-controls{
+ --home-promo-controls-width:104px;
+ --home-promo-controls-height:24px;
+ --home-promo-controls-inset:12px;
+ --home-promo-controls-radius:12px;
+ --home-promo-controls-padding:4px;
+ --home-promo-number-size:11px;
+ --home-promo-icon-size:12px;
+ --ds-focus-color:rgba(255,255,255,.9);
+ --ds-focus-offset:-2px;
+ position:absolute;right:var(--home-promo-controls-inset);bottom:var(--home-promo-controls-inset);z-index:3;
+ display:flex;align-items:center;box-sizing:border-box;
+ width:max-content;min-width:var(--home-promo-controls-width);height:var(--home-promo-controls-height);
+ padding-inline:var(--home-promo-controls-padding);border-radius:var(--home-promo-controls-radius);
+ background:rgba(0,0,0,.48);color:#fff;-webkit-tap-highlight-color:transparent;
+}
+#home-release .home-promo-controls button{
+ position:relative;display:grid;place-items:center;align-self:stretch;flex:0 0 22px;
+ min-width:0;margin:0;padding:0;border:0;border-radius:var(--home-promo-controls-radius);
+ background:none;box-shadow:none;color:#fff;outline:none;cursor:pointer;
+}
+#home-release .home-promo-controls button:focus-visible{
+ outline:1px solid var(--ds-focus-system-color,var(--ds-focus-color));outline-offset:var(--ds-focus-offset)
+}
+#home-release .home-promo-controls svg{
+ display:block;width:var(--home-promo-icon-size);height:var(--home-promo-icon-size);pointer-events:none
+}
+#home-release .home-promo-controls [data-home-prev] svg{transform:rotate(180deg)}
+#home-release .home-promo-controls [data-home-autoplay] svg{fill:currentColor}
+#home-release .home-promo-count{
+ flex:1;font-size:var(--home-promo-number-size);font-weight:600;line-height:1;
+ font-variant-numeric:tabular-nums;text-align:center;white-space:nowrap
+}
+#home-release .home-promo-current{display:inline-block;min-width:calc(var(--home-promo-count-digits) * 1ch);text-align:right}
+#home-release .home-promo-total{color:rgba(255,255,255,.55)}
+#home-release .home-promo-separator{flex:0 0 1px;height:50%;background:rgba(255,255,255,.20)}
+@media(hover:hover){
+ #home-release .home-promo-controls button:hover svg{opacity:.85}
+}
+@media(max-width:800px){
+ #home-release .home-promo-controls{
+  --home-promo-controls-width:94px;
+  --home-promo-controls-height:22px;
+  --home-promo-controls-inset:8px;
+  --home-promo-controls-radius:11px;
+  --home-promo-controls-padding:2px;
+  --home-promo-number-size:10px;
+  --home-promo-icon-size:11px;
+ }
+ /* Keep the 44px-tall targets inside the banner with clear space between them. */
+ #home-release .home-promo-controls button::before{content:"";position:absolute;inset:-14px 0 -8px}
+ #home-release .home-promo-controls [data-home-prev]::before{inset-inline:-8px -11px}
+ #home-release .home-promo-controls [data-home-next]::before{inset-inline-start:-11px}
+ #home-release .home-promo-controls [data-home-autoplay]::before{inset-inline-end:-8px}
+}
 #home-release.home-promo-carousel .home-promo-desktop{display:block;position:absolute;inset:0;z-index:2;height:100%;overflow:hidden}
 /* Full-frame photographs cover these scene-specific loading fallbacks. */
 #home-release.home-promo-carousel [data-home-banner=studio]{--home-promo-bg:#261f42;--home-promo-accent:var(--ds-selected)}
@@ -145,6 +200,7 @@
 }
 @media(prefers-reduced-motion:reduce){
  #home-release.home-promo-carousel .home-feature-autoplay{display:none}
+ #home-release .home-promo-controls :is(.home-promo-separator,[data-home-autoplay]){display:none}
  #home-release.home-promo-carousel .home-feature-stage>*{animation:none!important}
  #home-release.home-promo-carousel .home-promo-cta{transition:none}
 }

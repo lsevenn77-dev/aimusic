@@ -8,10 +8,12 @@ function setup(reduced=false){
  const events=new Map(),globalEvents=new Map(),timers=new Map(),fades=new Map();let serial=0;
  const dots=Array.from({length:3},()=>({setAttribute(k,v){this[k]=v;}}));
  const playButton={setAttribute(k,v){this[k]=v;}};
+ const currentPage={},pageCount={setAttribute(k,v){this[k]=v;}};
+ const controls={contains:target=>target?.carouselControl===true,querySelector:s=>s==='.home-promo-current'?currentPage:pageCount};
  const outgoing=[];
  const stageAttributes=new Map();
  const stage={innerHTML:'one',querySelectorAll:()=>outgoing,querySelector:s=>s==='.home-feature-background'?{outerHTML:'<div class="home-feature-background">old-art</div>'}:playButton,append(el){outgoing.push(el);},contains:el=>outgoing.includes(el),setAttribute:(k,v)=>stageAttributes.set(k,v),getAttribute:k=>stageAttributes.get(k),removeAttribute:k=>stageAttributes.delete(k)};
- const feature={querySelectorAll:()=>dots,contains:target=>target===feature,addEventListener:(n,f)=>events.set(n,f),removeEventListener:n=>events.delete(n)};
+ const feature={querySelector:s=>s==='.home-promo-controls'?controls:null,querySelectorAll:()=>dots,contains:target=>target===feature,addEventListener:(n,f)=>events.set(n,f),removeEventListener:n=>events.delete(n)};
  const root={isConnected:true,innerHTML:'',addEventListener(){},querySelector:s=>s==='.home-feature'?feature:stage};
  const motion={matches:reduced,addEventListener:(n,f)=>globalEvents.set('motion',f),removeEventListener:()=>globalEvents.delete('motion')};
  const document={hidden:false,addEventListener:(n,f)=>globalEvents.set(n,f),removeEventListener:n=>globalEvents.delete(n),createElement:()=>({setAttribute(){},addEventListener(name,fn){this[name]=fn;},remove(){const i=outgoing.indexOf(this);if(i>=0)outgoing.splice(i,1);}})};
@@ -22,7 +24,7 @@ function setup(reduced=false){
  const mount=list=>c.mountFeatureCarousel(root,list||tracks,{coverflow:true});
  const fire=(name,e={})=>events.get(name)?.(e);
  const advance=()=>{const f=[...timers.values()][0];timers.clear();f?.();};
- return {c,root,stage,feature,dots,motion,document,events,globalEvents,timers,fades,outgoing,mount,fire,advance,audio,audioEvents,playButton};
+ return {c,root,stage,feature,dots,motion,document,events,globalEvents,timers,fades,outgoing,mount,fire,advance,audio,audioEvents,playButton,currentPage,pageCount};
 }
 function buttonTarget(button){
  return {closest:selector=>selector==='button'||(selector==='[data-home-app-choose]'&&button.hasAttribute?.('data-home-app-choose'))?button:null};
@@ -64,6 +66,43 @@ test('editorial carousel reuses controls and timing without subscribing to or ch
  const dot={matches:()=>false,hasAttribute:n=>n==='data-home-slide',dataset:{homeSlide:'0'}};
  f.fire('click',{target:buttonTarget(dot)});assert.equal(f.stage.innerHTML,'tab:song');
  cleanup();assert.equal(f.timers.size,0);assert.equal(f.audioEvents.size,0);assert.equal(f.audio.paused,false);
+});
+
+test('numeric banner controls follow the active list and isolate clicks from banner links',()=>{
+ const f=setup(),slides=Array.from({length:12},(_,i)=>({id:`slide-${i+1}`,title:`Slide ${i+1}`}));
+ const cleanup=f.c.mountFeatureCarousel(f.root,slides,{numericControls:true});
+ assert.match(f.root.innerHTML,/home-promo-count-digits:2"><span class="home-promo-current">1<\/span> <span class="home-promo-total">\/ 12<\/span>/);
+ assert.doesNotMatch(f.root.innerHTML,/home-feature-arrow|home-feature-dots/);
+ const previous={matches:()=>false,hasAttribute:name=>name==='data-home-prev'};
+ const next={matches:s=>s==='.home-feature-next,[data-home-next]',hasAttribute:()=>false};
+ const select=button=>{
+  let prevented=false,stopped=false;
+  f.fire('click',{target:{...buttonTarget(button),carouselControl:true},preventDefault(){prevented=true;},stopPropagation(){stopped=true;}});
+  assert.equal(prevented,true);assert.equal(stopped,true);
+ };
+ select(previous);assert.equal(f.stage.innerHTML,'slide-12');assert.equal(f.currentPage.textContent,'12');
+ select(next);assert.equal(f.stage.innerHTML,'slide-1');assert.equal(f.currentPage.textContent,'1');
+ f.fire('focusin');assert.equal(f.pageCount['aria-live'],'polite');
+ f.fire('keydown',{key:'ArrowRight',preventDefault(){}});assert.equal(f.currentPage.textContent,'2');
+ cleanup();
+ f.c.mountFeatureCarousel(f.root,slides.slice(0,1),{numericControls:true});
+ assert.doesNotMatch(f.root.innerHTML,/home-promo-controls|home-feature-pagination/);
+ assert.equal(f.timers.size,0);
+});
+
+test('pausing numeric banner controls cancels an automatic transition waiting for artwork',async()=>{
+ const f=setup();let artworkReady;
+ const prepareSlide=()=>new Promise(resolve=>{artworkReady=resolve;});
+ f.c.mountFeatureCarousel(f.root,[{id:'one',title:'One'},{id:'two',title:'Two'}],{numericControls:true,prepareSlide});
+ const toggle={matches:()=>false,hasAttribute:name=>name==='data-home-autoplay',setAttribute(k,v){this[k]=v;}};
+ const toggleAutoplay=()=>f.fire('click',{target:{...buttonTarget(toggle),carouselControl:true},preventDefault(){},stopPropagation(){}});
+ f.advance();
+ toggleAutoplay();assert.equal(toggle.innerHTML,'play');assert.equal(f.pageCount['aria-live'],'polite');
+ artworkReady();await new Promise(setImmediate);
+ assert.equal(f.stage.innerHTML,'one');assert.equal(f.timers.size,0);
+ toggleAutoplay();assert.equal(toggle.innerHTML,'pause');assert.equal(f.timers.size,1);
+ f.advance();artworkReady();await new Promise(setImmediate);
+ assert.equal(f.stage.innerHTML,'two');assert.equal(f.currentPage.textContent,'2');assert.equal(f.pageCount['aria-live'],'off');
 });
 
 test('explicit resume starts the timer with pointer and focus still on the rolling control',()=>{

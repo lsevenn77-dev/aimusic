@@ -263,28 +263,49 @@ function homeFloatPose(slot,g){
  return `translate3d(${sign*g.positions[d]*g.size*(1000-z)/1000}px,${d*d*1.5}px,${z}px) rotateY(${-sign*g.angles[d]}deg) scale(${g.scales[d]})`;
 }
 // Each consumer owns its cleanup; editorial slides never subscribe to audio.
-function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,prepareSlide,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false,initialId,initialPaused=false,intervalMs=5500,showCount=false,pauseForDialogs=false,retainOnRoute=null}={}){
+function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,prepareSlide,label='추천 음악',previousLabel='이전 추천곡',nextLabel='다음 추천곡',dotsLabel='추천곡 선택',syncAudio=true,coverflow=false,initialId,initialPaused=false,intervalMs=5500,showCount=false,pauseForDialogs=false,retainOnRoute=null,numericControls=false}={}){
  if(!tracks.length)return;
  const multi=tracks.length>1;
  const initialIndex=Math.max(0,tracks.findIndex(t=>t.id===initialId));
- root.innerHTML=`<div class="home-feature" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}">${multi?`<button class="home-feature-arrow home-feature-prev" aria-label="${esc(previousLabel)}">${icon('chevron')}</button>`:''}<div class="home-feature-stage">${renderSlide(tracks[initialIndex],multi?tracks[(initialIndex+1)%tracks.length]:null,tracks,initialIndex)}</div>${multi?`<button class="home-feature-arrow home-feature-next" aria-label="${esc(nextLabel)}">${icon('chevron')}</button><div class="home-feature-pagination"><button class="home-feature-autoplay" aria-label="${initialPaused?'자동 롤링 재개':'자동 롤링 일시정지'}">${icon(initialPaused?'play':'pause')}</button>${showCount?`<span class="home-feature-count" aria-label="${initialIndex+1} / ${tracks.length}">${initialIndex+1} / ${tracks.length}</span>`:''}<div class="home-feature-dots" aria-label="${esc(dotsLabel)}">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===initialIndex}"></button>`).join('')}</div></div>`:''}</div>`;
+ const previous=multi&&!numericControls?`<button class="home-feature-arrow home-feature-prev" aria-label="${esc(previousLabel)}">${icon('chevron')}</button>`:'';
+ let navigation='';
+ if(multi){
+  const autoplay=`<button ${numericControls?'type="button" data-home-autoplay':'class="home-feature-autoplay"'} aria-label="${initialPaused?'자동 롤링 재개':'자동 롤링 일시정지'}">${icon(initialPaused?'play':'pause')}</button>`;
+  if(numericControls){
+   navigation=`<div class="home-promo-controls" role="group" aria-label="안내 배너 조작">
+    <button type="button" data-home-prev aria-label="${esc(previousLabel)}">${icon('chevron')}</button>
+    <span class="home-promo-count" aria-live="off" aria-atomic="true" style="--home-promo-count-digits:${String(tracks.length).length}"><span class="home-promo-current">${initialIndex+1}</span> <span class="home-promo-total">/ ${tracks.length}</span></span>
+    <button type="button" data-home-next aria-label="${esc(nextLabel)}">${icon('chevron')}</button>
+    <span class="home-promo-separator" aria-hidden="true"></span>${autoplay}
+   </div>`;
+  }else{
+   navigation=`<button class="home-feature-arrow home-feature-next" aria-label="${esc(nextLabel)}">${icon('chevron')}</button><div class="home-feature-pagination">${autoplay}${showCount?`<span class="home-feature-count" aria-label="${initialIndex+1} / ${tracks.length}">${initialIndex+1} / ${tracks.length}</span>`:''}<div class="home-feature-dots" aria-label="${esc(dotsLabel)}">${tracks.map((t,i)=>`<button data-home-slide="${i}" aria-label="${i+1}. ${esc(t.title)}" aria-pressed="${i===initialIndex}"></button>`).join('')}</div></div>`;
+  }
+ }
+ root.innerHTML=`<div class="home-feature" role="region" aria-roledescription="캐러셀" aria-label="${esc(label)}">${previous}<div class="home-feature-stage">${renderSlide(tracks[initialIndex],multi?tracks[(initialIndex+1)%tracks.length]:null,tracks,initialIndex)}</div>${navigation}</div>`;
  // Minimal DOM renderers used by navigation tests do not implement browser events.
  if(!root.addEventListener)return;
  const feature=root.querySelector('.home-feature'),stage=root.querySelector('.home-feature-stage'),motion=window.matchMedia('(prefers-reduced-motion: reduce)');
- let pendingIndex=null,requestNumber=0;
+ const controls=multi&&numericControls?feature.querySelector('.home-promo-controls'):null;
+ const pageCount=controls?.querySelector('.home-promo-count'),currentPage=controls?.querySelector('.home-promo-current');
+ let pendingIndex=null,pendingAutoplay=false,requestNumber=0;
  let index=initialIndex,timer=null,transitionTimer=null,manualPause=initialPaused,hover=false,focus=false,start=null,suppressClick=false,disposed=false;
  const syncPlayback=()=>{if(!syncAudio)return;const b=stage.querySelector?.('.home-feature-slide .home-feature-play');if(!b||typeof audio==='undefined')return;const playing=current?.id===tracks[index].id&&!audio.paused&&!audio.ended&&!window.AifectAudioAds?.active;b.innerHTML=icon(playing?'ui-pause-action':'ui-play-action');b.setAttribute('aria-pressed',String(playing));b.setAttribute('aria-label',tracks[index].title+(playing?' 일시정지':' 재생'));};
  const clear=()=>{clearTimeout(timer);timer=null;};
  const clearTransition=()=>{clearTimeout(transitionTimer);transitionTimer=null;stage.querySelectorAll('.home-feature-outgoing').forEach(el=>el.remove());stage.removeAttribute('data-home-direction');};
- const schedule=()=>{clear();if(multi&&pendingIndex===null&&!start&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden&&!(pauseForDialogs&&document.querySelector?.('dialog[open]')))timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1);},intervalMs);};
- const go=async value=>{
+ const schedule=()=>{
+  clear();
+  pageCount?.setAttribute('aria-live',manualPause||focus||motion.matches?'polite':'off');
+  if(multi&&pendingIndex===null&&!start&&!manualPause&&!hover&&!focus&&!motion.matches&&!document.hidden&&!(pauseForDialogs&&document.querySelector?.('dialog[open]')))timer=setTimeout(()=>{if(!root.isConnected)return cleanup();go(index+1,true);},intervalMs);
+ };
+ const go=async (value,autoplay=false)=>{
   const target=(value+tracks.length)%tracks.length,request=++requestNumber;
   const direction=value>(pendingIndex??index)?'next':'previous';
   pendingIndex=null;
   if(target===index){schedule();return;}
   const ready=prepareSlide?.(tracks[target]);
   if(ready){
-   clear();pendingIndex=target;
+   clear();pendingIndex=target;pendingAutoplay=autoplay;
    try{await ready;}
    catch{
     if(!disposed&&request===requestNumber){pendingIndex=null;schedule();}
@@ -302,30 +323,37 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,prepareSlide,
   old.addEventListener('animationend',finish);
   if(motion.matches)finish();else transitionTimer=setTimeout(finish,coverflow?850:500);
   if(focus)focus=feature.contains(document.activeElement);
-  feature.querySelectorAll('.home-feature-dots [data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));
-  const count=feature.querySelector?.('.home-feature-count');if(count){count.textContent=(index+1)+' / '+tracks.length;count.setAttribute('aria-label',(index+1)+' / '+tracks.length);}schedule();
+  if(currentPage)currentPage.textContent=String(index+1);
+  else{
+   feature.querySelectorAll('.home-feature-dots [data-home-slide]').forEach((b,i)=>b.setAttribute('aria-pressed',String(i===index)));
+   const count=feature.querySelector?.('.home-feature-count');if(count){count.textContent=(index+1)+' / '+tracks.length;count.setAttribute('aria-label',(index+1)+' / '+tracks.length);}
+  }
+  schedule();
  };
  const click=e=>{
   if(suppressClick){suppressClick=false;if(e.detail!==0){e.preventDefault();e.stopPropagation();return;}}
+  if(controls?.contains(e.target)){e.preventDefault();e.stopPropagation();}
   if(e.target.closest?.('[data-home-app-choose]')){e.preventDefault();dialog(homeAppDownloadDialogHTML());schedule();return;}
   const b=e.target.closest('button');if(!b)return;
-  if(b.matches('.home-feature-prev'))go((pendingIndex??index)-1);
+  if(b.matches('.home-feature-prev')||b.hasAttribute('data-home-prev'))go((pendingIndex??index)-1);
   else if(b.matches('.home-feature-next,[data-home-next]'))go((pendingIndex??index)+1);
   else if(b.hasAttribute('data-home-slide'))go(Number(b.dataset.homeSlide));
-  else if(b.matches('.home-feature-autoplay')){
+  else if(b.matches('.home-feature-autoplay')||b.hasAttribute('data-home-autoplay')){
    manualPause=!manualPause;
+   // Stop an automatic slide that is still decoding its artwork.
+   if(controls&&manualPause&&pendingIndex!==null&&pendingAutoplay){pendingIndex=null;requestNumber++;}
    // Explicit resume takes effect while the pointer or focus is still on the toggle.
    if(!manualPause){hover=false;focus=false;}
    b.setAttribute('aria-label',manualPause?'자동 롤링 재개':'자동 롤링 일시정지');
    b.innerHTML=icon(manualPause?'play':'pause');schedule();
   }else schedule();
  };
- const enter=e=>{if(e.pointerType==='touch')return;hover=true;clear();},leave=e=>{hover=false;if(e.pointerType!=='touch')start=null;schedule();},focusIn=()=>{focus=true;clear();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
+ const enter=e=>{if(e.pointerType==='touch')return;hover=true;clear();},leave=e=>{hover=false;if(e.pointerType!=='touch')start=null;schedule();},focusIn=()=>{focus=true;schedule();},focusOut=e=>{focus=feature.contains(e.relatedTarget);schedule();};
  const key=e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();go((pendingIndex??index)+(e.key==='ArrowLeft'?-1:1));}};
  const down=e=>{
   if(e.isPrimary===false){if(start)start.cancelled=true;return;}
   if(e.button!=null&&e.button!==0)return;
-  suppressClick=false;if(!multi)return;
+  suppressClick=false;if(!multi||controls?.contains(e.target))return;
   start={x:e.clientX,y:e.clientY,id:e.pointerId,axis:null,cancelled:false};clear();
  };
  const move=e=>{
@@ -364,7 +392,7 @@ function mountFeatureCarousel(root,tracks,{renderSlide=releaseHTML,prepareSlide,
  schedule();return cleanup;
 }
 function mountHomeGuidance(root){
- const options={renderSlide:homeBannerHTML,prepareSlide:prepareHomeBanner,label:'AIFECT 이용 안내',previousLabel:'이전 안내 배너',nextLabel:'다음 안내 배너',dotsLabel:'안내 배너 선택',syncAudio:false,pauseForDialogs:true};
+ const options={renderSlide:homeBannerHTML,prepareSlide:prepareHomeBanner,label:'AIFECT 이용 안내',previousLabel:'이전 안내 배너',nextLabel:'다음 안내 배너',dotsLabel:'안내 배너 선택',syncAudio:false,pauseForDialogs:true,numericControls:!homeEventMobileApp()};
  const regular=homeBanners.filter(b=>b.id!=='open-event');
  if(Date.now()>=homeEventEnd)return mountFeatureCarousel(root,regular,options);
  let carousel=mountFeatureCarousel(root,homeBanners,options);
