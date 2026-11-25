@@ -33,6 +33,7 @@ function voiceGlyph(name){
  talkMore:'M5 12h.1M12 12h.1M19 12h.1',
  talkVolume:'M11 4 5.5 8.5H2.5v7h3L11 20ZM15 8a6 6 0 0 1 0 8m3-11a10 10 0 0 1 0 14',
  talkVolumeOff:'M11 4 5.5 8.5H2.5v7h3L11 20ZM16 9l6 6m0-6-6 6',
+ talkVolumeSlash:'M6.4 7.7l-.9.8h-3v7h3L11 20v-7.4m0-5.1V4L8.4 6.1M3 3l18 18',
  network:'M8 11l8-5M8 13l8 5M8 12a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM21 5a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0ZM21 19a2.5 2.5 0 1 1-5 0 2.5 2.5 0 0 1 5 0Z',present:'M3 8h18v4H3zM5 12v9h14v-9M12 8v13M12 8C4 9 5 1 9 3c2 1 3 5 3 5Zm0 0s1-4 3-5c4-2 5 6-3 5Z',send:'M21 3 3 10l7 3 3 7 8-17ZM10 13 21 3',people:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M16 3a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.87',share:'M12 16V3m-5 5 5-5 5 5M5 12H3v9h18v-9h-2',megaphone:'M3 10h5l10-5v14L8 14H3zM6 14l2 7h3l-2-7M21 9v6',globe:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM3 12h18M12 3c5 5 5 13 0 18-5-5-5-13 0-18',lock:'M6 10V7a6 6 0 0 1 12 0v3M4 10h16v12H4zM12 14v4',person:'M20 21v-2a6 6 0 0 0-6-6h-4a6 6 0 0 0-6 6v2M16 6a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z',wave:'M3 10v4M7 6v12M12 2v20M17 7v10M21 10v4',trash:'M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7',ban:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM6 6l12 12',repeat:'M3 8h15l-4-4M21 16H6l4 4M18 8a5 5 0 0 1 3 5M6 16a5 5 0 0 1-3-5',smile:'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM8 14s1 3 4 3 4-3 4-3M8 8h.01M16 8h.01',playlist:'M3 5h13M3 10h13M3 15h8M19 10v9m0-9 3-1M19 19a2 2 0 1 1-4 0 2 2 0 0 1 4 0',home:'M3 10 12 3l9 7v11h-6v-7H9v7H3z',crown:'M3 7l4 4 5-8 5 8 4-4-2 13H5z',settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8M12 2v3m0 14v3M2 12h3m14 0h3M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2',leave:'M9 3H3v18h6m5-14 5 5-5 5M7 12h12',plus:'M12 5v14M5 12h14',close:'m6 6 12 12M18 6 6 18',muted:'m3 3 18 18M9 9v3a3 3 0 0 0 5 2M15 9V5a3 3 0 0 0-6 0M5 11v1a7 7 0 0 0 12 5M19 11v1M12 19v3m-4 0h8'};return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${name==='people'?'<circle cx="9" cy="7" r="4"/>':''}<path d="${paths[name]||paths.plus}"/></svg>`;}
 function talkingPlaylistHTML(){
  return '<section class="talk-playlist" aria-label="방 플레이리스트" hidden><div class="talk-playlist-body"><ol class="talk-playlist-rows" aria-label="방 플레이리스트 곡 목록" tabindex="0"></ol></div></section>';
@@ -49,7 +50,15 @@ function voiceRoomHTML(id,talk=true){
   `<button type="button" class="voice-icon-button" data-voice="${action}" aria-label="${label}" title="${label}">${voiceGlyph(glyph)}</button>`
  ).join('');
  const more = '<details class="room-more" hidden><summary aria-label="방 메뉴 더보기"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="4" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="20" cy="12" r="1.6"/></svg></summary><div class="room-more-actions"></div></details>';
- const talkHeader = `<header class="room-header"><div class="room-heading"><h1 id="voice-title">${talk?'토킹룸':'라이브 노래방'}</h1>${meta}</div><nav aria-label="방 메뉴">${tools}${more}</nav></header>`;
+ // Remove the baked dark matte at display time, retaining the original sticker artwork.
+ const propFilter=talk?`<svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+  <filter id="talk-prop-matte" color-interpolation-filters="sRGB">
+   <feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .38 .18 .44 0 0"/>
+   <feComponentTransfer><feFuncA type="linear" slope="6.2" intercept="-2.3"/></feComponentTransfer>
+   <feComposite in="SourceGraphic" operator="in"/>
+  </filter>
+ </svg>`:'';
+ const talkHeader = `${propFilter}<header class="room-header"><div class="room-heading"><h1 id="voice-title">${talk?'토킹룸':'라이브 노래방'}</h1>${meta}</div><nav aria-label="방 메뉴">${tools}${more}</nav></header>`;
  const player='<div id="voice-music-player" class="voice-music-mini" aria-label="공동 음악"></div>';
  const talkListenRecovery='<button type="button" class="small-button voice-unlock-audio" data-voice="resume-audio" title="마이크를 켜거나 좌석에 올라가지 않아도 대화를 들을 수 있습니다." hidden>대화 듣기</button>';
  const controls=`<div class="talk-seat-controls"><div class="talk-feedback"><span class="room-event-notice" role="status" aria-atomic="true"></span><div id="talk-request" role="status"></div></div><div class="talk-seat-actions"><button type="button" data-voice="sound" aria-label="소리 설정" title="소리 설정" hidden>${voiceGlyph('talkSliders')}</button><button type="button" data-voice="toggle-mic" aria-label="마이크 켜기" title="마이크 켜기" aria-pressed="false" hidden>${voiceGlyph('talkMic')}</button><button type="button" data-voice="release-mic" aria-label="좌석에서 내려오기" title="좌석에서 내려오기" hidden>${voiceGlyph('seatDown')}</button></div></div>`;

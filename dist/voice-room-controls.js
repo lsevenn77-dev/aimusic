@@ -9,7 +9,7 @@ Object.assign(VoiceRoomClient.prototype,{
   this.chatEditor=AifectStickers.editor(input,toast);
   if(picker?.classList?.contains('cat-picker'))this.stickers=AifectStickers.bind({
    picker,form,input,toggle:this.host.querySelector('[data-voice="emoji"]'),glyph:voiceGlyph,
-   inline:this.chatEditor,
+   inline:this.chatEditor,closeButton:!this.liveMode,
    close:()=>this.toggleEmojiPicker(false,true)
   });
   this.bindChatInteraction(form,input,picker,options);
@@ -19,10 +19,10 @@ Object.assign(VoiceRoomClient.prototype,{
   const supported=navigator.mediaDevices?.getSupportedConstraints?.()||{};
   for(const [id,key] of [['voice-echo','echoCancellation'],['voice-noise','noiseSuppression']])if(supported[key]===false){$('#'+id).disabled=true;$('#'+id).title='이 브라우저에서 지원하지 않는 설정입니다.';}
   $('#voice-echo').checked=this.preferences.echo;$('#voice-echo').onchange=()=>this.safe(async()=>{this.preferences.echo=$('#voice-echo').checked;await this.stream?.getAudioTracks()[0]?.applyConstraints({echoCancellation:this.preferences.echo});});
-  $('#voice-playlist-volume').oninput=()=>{this.preferences.music=Number($('#voice-playlist-volume').value)/100;this.syncPersonalVolume();this.syncMusic();};
+  $('#voice-playlist-volume').oninput=e=>this.setPersonalVolume(Number(e.target.value)/100);
   this.host.addEventListener('close',e=>{if(e.target.id==='voice-sound')this.stopMicTest();},{...options,capture:true});
   this.host.addEventListener('cancel',e=>{if(e.target.id==='voice-sound')this.stopMicTest();},{...options,capture:true});
-  this.host.addEventListener('input',e=>{if(e.target.id==='voice-mini-volume'||e.target.id==='voice-personal-volume'){this.preferences.music=Number(e.target.value)/100;this.syncPersonalVolume();this.syncMusic();}},options);
+  this.host.addEventListener('input',e=>{if(e.target.id==='voice-mini-volume'||e.target.id==='voice-personal-volume')this.setPersonalVolume(Number(e.target.value)/100);},options);
   // No room track list is queried until the host submits a search.
   $('#voice-music-results').innerHTML='';
   this.host.addEventListener('input',e=>this.updateDesignField(e.target),options);
@@ -216,7 +216,7 @@ Object.assign(VoiceRoomClient.prototype,{
  async finalAction(action,target){
   if(await this.roomReleaseAction?.(action,target))return true;
   if(action==='view-queue'){this.showSheet('voice-music-sheet');return true;}
-  if(action==='personal-mute'){const current=this.preferences.music;if(current)this.lastPersonalVolume=current;this.preferences.music=current?0:(this.lastPersonalVolume||1);this.syncPersonalVolume();this.syncMusic();return true;}
+  if(action==='personal-mute'){this.setPersonalVolume(this.personalMusicVolume>0?0:(this.lastPersonalVolume||this.preferences.music||1));return true;}
   if(action==='member-listen'){
    if(target!==this.state.self&&this.state.members.some(p=>p.id===target)){
     const panel=this.actionTrigger?.closest('#talk-dock')||$('#voice-members');
@@ -226,7 +226,15 @@ Object.assign(VoiceRoomClient.prototype,{
    }
    return true;
   }
-  if(action==='personal-volume'){this.syncPersonalVolume();this.showSheet('talk-volume');return true;}
+  if(action==='personal-volume'){
+   if(this.host.hasAttribute('data-room-pc-controls')){
+    // The player mutes the song locally while retaining the listening level for voices.
+    this.playerMusicMuted=this.personalMusicVolume>0;
+    if(!this.playerMusicMuted&&!this.preferences.music)this.preferences.music=this.lastPersonalVolume||1;
+    this.paintPersonalMusicControls();this.syncMusic();
+   }else{this.syncPersonalVolume();this.showSheet('talk-volume');}
+   return true;
+  }
   if(action==='panel-chat'){for(const sheet of this.host.querySelectorAll('.voice-panel-docked[open]'))sheet.close();return true;}
   if(action==='talk-profile'){
    const member=this.state.members.find(p=>p.id===target);
@@ -254,10 +262,34 @@ Object.assign(VoiceRoomClient.prototype,{
   if(action==='mic-test'){if(this.testGraph)this.stopMicTest();else await this.startMicTest();return true;}
   return false;
  },
- syncPersonalVolume(){this.preferences.voice=this.preferences.music;this.applyListenVolumes();if(this.liveMode){this.liveVolume=this.preferences.music;liveSetVolume(this,this.liveVolume);}if(!this.liveMode){
-  const volumeButton=this.host?.querySelector?.('#voice-music-player [data-voice=personal-volume]');
-  if(volumeButton)volumeButton.innerHTML=voiceGlyph(this.preferences.music===0?'talkVolumeOff':'talkVolume');
-  for(const b of this.host?.querySelectorAll?.('[data-voice=personal-mute]')||[])b.setAttribute('aria-pressed',String(this.preferences.music===0));try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}}for(const id of ['voice-music-volume','voice-listen-volume','live-mr-volume','voice-playlist-volume','voice-mini-volume','voice-personal-volume']){const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}}},
+ setPersonalVolume(value){
+  if(value>0||this.preferences.music>0)this.lastPersonalVolume=value||this.preferences.music;
+  this.preferences.music=value;this.playerMusicMuted=false;
+  this.syncPersonalVolume();this.syncMusic();
+ },
+ syncPersonalVolume(){
+  this.preferences.voice=this.preferences.music;this.applyListenVolumes();
+  if(this.liveMode){this.liveVolume=this.preferences.music;liveSetVolume(this,this.liveVolume);}
+  else try{localStorage.setItem('aifect.talkingRoom.listenVolume',String(this.preferences.music));}catch{}
+  for(const id of ['voice-music-volume','voice-listen-volume','live-mr-volume']){
+   const el=$('#'+id);if(el){el.value=this.preferences.music*100;this.updateDesignField(el);}
+  }
+  this.paintPersonalMusicControls();
+ },
+ paintPersonalMusicControls(){
+  const volume=this.personalMusicVolume,muted=volume===0,button=this.host.querySelector('#voice-music-player [data-voice=personal-volume]');
+  if(button){
+   const pc=this.host.hasAttribute('data-room-pc-controls');
+   const glyph=muted?(pc?'talkVolumeSlash':'talkVolumeOff'):'talkVolume';
+   if(button.dataset.speakerIcon!==glyph){button.innerHTML=voiceGlyph(glyph);button.dataset.speakerIcon=glyph;}
+   button.setAttribute('aria-label',pc?'음악 음소거':'개인 듣기 볼륨');
+   if(pc)button.setAttribute('aria-pressed',String(muted));else button.removeAttribute('aria-pressed');
+  }
+  for(const b of this.host.querySelectorAll('[data-voice=personal-mute]'))b.setAttribute('aria-pressed',String(muted));
+  for(const id of ['voice-playlist-volume','voice-mini-volume','voice-personal-volume']){
+   const el=$('#'+id);if(el){el.value=volume*100;this.updateDesignField(el);}
+  }
+ },
  paintFinalMusic(){
   this.paintTalkingPlaylist?.();
   const m=this.state.music;if(!m)return;const host=this.state.members.find(p=>p.id===this.state.self)?.role==='host',track=m.queue[m.index],hasQueue=!!m.queue.length;
@@ -289,8 +321,8 @@ Object.assign(VoiceRoomClient.prototype,{
     for(const b of mini.querySelectorAll('[data-voice^="music-"]:not([data-voice="music-picker"])')){
      b.disabled=!hasQueue;b.hidden=b.dataset.voice===(playRequested?'music-play':'music-pause');
     }
-    mini.querySelector('#voice-mini-volume').value=this.preferences.music*100;
    }else $('#voice-music-player').innerHTML=(track?`<img src="${esc(track.cover)}" alt=""><span><strong>${esc(track.title)}</strong><small>${trackNickname(track)}</small></span>`:'<span><strong>함께 들을 음악을 선택해 보세요</strong></span>')+`<div>${host?button('previous','이전 곡',voiceGlyph('previous'),!hasQueue)+button(m.playing?'pause':'play',m.playing?'일시정지':'재생',(m.playing?icon('pause'):icon('audio-play')),!hasQueue)+button('next','다음 곡',voiceGlyph('next'),!hasQueue)+button('repeat','반복',voiceGlyph('repeat'),!hasQueue):''}<label class="voice-mini-volume">${icon('volume')}<input id="voice-mini-volume" type="range" min="0" max="100" value="${this.preferences.music*100}" aria-label="개인 음악 볼륨"></label>${button('picker','플레이리스트',voiceGlyph('playlist'))}</div>`;
+   this.paintPersonalMusicControls();
    $('#voice-popup-current').innerHTML=track?`<img src="${esc(track.cover)}" alt=""><div><strong>${esc(track.title)}</strong><small>${trackNickname(track)}</small></div>`:'';
    $('#voice-music-queue').innerHTML=m.queue.map((t,i)=>`<article class="voice-queue-row ${i===m.index?'is-current':''}" ${i===m.index?'aria-current="true"':''}><span class="voice-queue-number">${i===m.index&&m.playing?voiceGlyph('wave'):i+1}</span><img src="${esc(t.cover)}" alt=""><span class="voice-queue-info"><strong>${esc(t.title)}</strong><small>${trackNickname(t)}</small></span><time>${time(t.duration)}</time>${host?`<button type="button" data-voice="music-up" data-target="${i}" aria-label="${esc(t.title)} 위로 이동" ${i===0?'disabled':''}>↑</button><button type="button" data-voice="music-down" data-target="${i}" aria-label="${esc(t.title)} 아래로 이동" ${i===m.queue.length-1?'disabled':''}>↓</button><button type="button" data-voice="music-remove" data-target="${i}" aria-label="${esc(t.title)} 삭제">${voiceGlyph('trash')}</button>`:''}</article>`).join('');
   }
