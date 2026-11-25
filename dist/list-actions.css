@@ -18,7 +18,6 @@
 :is(#main,#dialog) .list-action svg.audio-play-icon,:is(#main,#dialog) .list-action:has(>.audio-play-icon)>.audio-play-icon{padding:0!important;border:0!important}
 :is(#main,#dialog) .list-action[aria-pressed=true],:is(#main,#dialog) .list-action.is-active{color:var(--ds-social)}
 :is(#main,#dialog) .list-action[aria-pressed=true] svg:not(.audio-play-icon){border-color:currentColor!important}
-:is(#main,#dialog) .list-action:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 :is(#main,#dialog) .list-action:disabled{cursor:default;opacity:.5}
 #main .song-cover-play-art{width:var(--list-icon-size,28px);height:var(--list-icon-size,28px)}
 #main .song-cover-pause{inset:0;border-radius:50%}
@@ -129,7 +128,6 @@
 #dialog .queue-play-hint{width:var(--list-icon-size);height:var(--list-icon-size);background:transparent;right:0;bottom:0}
 #dialog .queue-row-tools button{position:relative;border:0;background:transparent;font-size:16px}
 #dialog .queue-row-tools button:before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--list-icon-size);height:var(--list-icon-size);box-sizing:border-box;border:2px solid var(--ds-muted);border-radius:50%;pointer-events:none}
-#main [data-list-row] .list-action:focus-visible,#dialog [data-list-row] button:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 @media(max-width:600px){
  :where([data-list-row],.layout-list .cover-collection-item){--list-row-inset:10px;--list-thumb-size:44px;--list-text-gap:10px;--list-action-gap:6px;--list-icon-size:24px;--list-icon-padding:2px}
  #main .play-song-uploader{display:block;font-size:11px}

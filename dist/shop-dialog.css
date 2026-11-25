@@ -6,7 +6,6 @@
 #dialog.shop-dialog #dialog-close{top:8px;right:8px;width:44px;height:44px;min-height:44px;padding:0;font-size:0!important;line-height:1;box-shadow:none}
 #dialog.shop-dialog :is(h2,h3){color:var(--ds-text)}
 #dialog.shop-dialog h2{font-size:20px;line-height:28px;margin:0 36px 18px 0}
-#dialog.shop-dialog h2:focus{outline:none}
 #dialog.shop-dialog p{font-size:14px;line-height:1.6;color:var(--ds-body);overflow-wrap:anywhere}
 #dialog.shop-dialog :is(button,a.small-button,a.primary-button){box-sizing:border-box;line-height:1.3;gap:6px;align-items:center;justify-content:center;text-align:center}
 #dialog.shop-dialog :is(.primary-button,.gift-send-button){display:inline-flex;min-height:44px;margin-top:0;padding:10px 16px;border:1px solid var(--ds-selected);border-radius:12px;background:var(--shop-purple);box-shadow:none;color:var(--ds-ink);font-size:14px;font-weight:700;cursor:pointer}
@@ -23,7 +22,6 @@
 #dialog.shop-dialog :is(.form-error,.field-help){font-size:13px;line-height:1.5;margin:10px 0 0}
 #dialog.shop-dialog .form-error:empty{display:none}
 #dialog.shop-dialog .form-error{color:var(--ds-error)}
-#dialog.shop-dialog :focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
 #dialog.shop-dialog .shop-coin{width:20px;height:20px;max-width:none;max-height:none;margin:0;aspect-ratio:1;object-fit:contain}
 .shop-checkout{width:100%;min-width:0}
 #dialog.shop-dialog .shop-product-summary{display:flex;align-items:center;gap:16px;margin:0 0 16px;min-width:0}
@@ -39,7 +37,6 @@
 .shop-periods label>span{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:9px 3px;min-height:66px;border:1px solid var(--shop-outline);border-radius:10px;background:var(--ds-panel);font-size:14px;line-height:1.3;text-align:center}
 .shop-periods small{font-size:13px;color:var(--ds-text)}
 .shop-periods :checked+span{border-color:var(--ds-selected);background:var(--ds-soft)}
-.shop-periods :focus-visible+span{outline:2px solid var(--ds-selected);outline-offset:2px}
 .shop-quantity{display:flex;gap:8px;margin:0}
 #dialog.shop-dialog .shop-quantity button{flex:none;width:44px;height:44px;border:1px solid var(--shop-outline);background:var(--ds-panel);border-radius:10px;color:var(--ds-text);font-size:22px}
 #dialog.shop-dialog .shop-quantity button:disabled{color:var(--ds-disabled)}
@@ -144,7 +141,6 @@
 #dialog.shop-dialog .shop-checkout .shop-periods .shop-coin{width:17px;height:17px}
 /* Hidden radios stay hidden while the purchase request disables form controls. */
 #dialog.shop-dialog .shop-checkout .shop-periods input[type=radio]{position:absolute;width:1px;height:1px;min-height:0;margin:0;padding:0;border:0;opacity:0;overflow:hidden;clip-path:inset(50%)}
-#dialog.shop-dialog .shop-checkout .shop-periods input:focus-visible+span{outline:2px solid var(--ds-selected);outline-offset:2px}
 #dialog.shop-dialog .shop-checkout .shop-checkout-actions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:10px;margin-top:16px}
 #dialog.shop-dialog .shop-checkout .shop-checkout-actions>*{height:auto;min-height:44px;margin:0;padding:10px 12px;border-radius:var(--ds-radius-input);font-size:var(--pc-font-control,14px);font-weight:600;line-height:1.4;white-space:normal}
 #dialog.shop-dialog .shop-checkout .shop-checkout-actions>:only-child{grid-column:1/-1}

@@ -137,7 +137,6 @@ body:has(#sing.web-studio) #main{max-width:1800px;padding:22px 24px 38px;margin:
 #sing.web-studio .studio-publish-panel>summary{cursor:pointer;font-size:.85rem;font-weight:600;padding:7px 0}
 #sing.web-studio .studio-publish-panel>summary span{font-weight:400;font-size:.7rem;color:var(--ds-muted);margin-left:10px}
 #sing.web-studio .studio-save-actions{grid-template-columns:1fr 1fr 1.2fr!important;margin:15px 0!important}
-#sing.web-studio button:focus-visible,#sing.web-studio input:focus-visible,#sing.web-studio summary:focus-visible{outline:2px solid #b8d8ec;outline-offset:3px}
 #sing.web-studio button:disabled{cursor:default;opacity:.45}
 @media(min-width:1400px){#sing.web-studio{grid-template-columns:minmax(0,1fr) 365px}#sing.web-studio .studio-range{display:grid;grid-template-columns:95px minmax(0,1fr);gap:10px;align-items:center}#sing.web-studio .studio-range>span{display:contents}#sing.web-studio .studio-range output{grid-column:2;text-align:right;grid-row:2}#sing.web-studio .studio-range input{grid-column:2;grid-row:1}#sing.web-studio .studio-range .studio-control-name{grid-row:1;grid-column:1}}
 @media(max-width:1190px){#sing.web-studio{grid-template-columns:minmax(0,1fr) 285px;gap:14px}#sing.web-studio .studio-setting-card{padding:17px 14px}#sing.web-studio .sing-head{padding:22px 20px 16px!important}#sing.web-studio .sing-recording{padding:0 20px 18px}#sing.web-studio .studio-edit-tools small{display:none}#sing.web-studio .studio-edit-tools button{flex-direction:column;gap:7px}#sing.web-studio .studio-time-ruler span:nth-child(even){visibility:hidden}}
@@ -228,7 +227,6 @@ dialog.punch-complete-dialog::backdrop{background:#070c14b3;backdrop-filter:blur
 #sing.web-studio .sing-countdown strong{font-size:96px;color:var(--ds-body);font-variant-numeric:tabular-nums}
 #sing.web-studio .sing-recording{position:relative}
 #sing.web-studio [hidden]{display:none!important}
-#sing.web-studio .studio-punch-page button:focus-visible{outline:2px solid var(--ds-mint);outline-offset:3px}
 @media(max-width:768px){#sing.web-studio .studio-editor-clean .studio-preview-row{flex-wrap:wrap}#sing.web-studio .studio-rerecord-entry{width:100%;text-align:left}#sing.web-studio .studio-rerecord-entry button{width:100%;min-height:48px}#sing.web-studio .studio-editor-clean .studio-save-actions>div{width:100%}#sing.web-studio .studio-editor-clean .studio-save-actions button{flex:1}#sing.web-studio .studio-punch-page h2{font-size:20px}#sing.web-studio .studio-punch-lyrics button{grid-template-columns:1fr 34px;gap:8px;padding:14px}#sing.web-studio .studio-punch-lyrics strong{grid-column:1/-1;font-size:15px}#sing.web-studio .studio-punch-summary{align-items:flex-start;flex-direction:column}#sing.web-studio .studio-punch-actions button{flex:1}#sing.web-studio .studio-punch-preview{flex-wrap:wrap}#sing.web-studio .studio-punch-preview output{width:100%;text-align:right}#sing.web-studio .studio-editor-clean .studio-edit-tools button{padding:10px 4px;font-size:12px;gap:6px}#sing.web-studio .studio-editor-clean .studio-tone-levels{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
 
@@ -259,7 +257,6 @@ dialog.punch-complete-dialog::backdrop{background:#070c14b3;backdrop-filter:blur
 #main #sing .take-tools [aria-pressed=true]{border-color:var(--ds-mint);color:var(--ds-mint)}
 #main #sing .take-editor .take-paid{border:1px solid var(--ds-lilac)!important}
 #main #sing .take-editor .take-paid:disabled{background:var(--ds-bg)!important;color:var(--ds-muted)!important;border-color:color-mix(in srgb,var(--ds-lilac) 43%,var(--ds-bg))!important;cursor:not-allowed;opacity:.72}
-#main #sing .take-editor button:focus-visible,#main #sing .take-editor input:focus-visible,#main #sing canvas:focus-visible{outline:2px solid var(--ds-mint);outline-offset:2px}
 #main #sing .take-editor .studio-wave-surface,#main #sing .take-editor .studio-wave-surface canvas{height:108px;cursor:crosshair}
 #main #sing .take-editor .take-enlarged .studio-wave-surface,#main #sing .take-editor .take-enlarged canvas{height:clamp(200px,32vh,340px)}
 #main #sing .take-transport{display:grid!important;grid-template-columns:1fr auto 1fr;justify-content:space-between;background:none;border:0;padding:8px 0 12px;margin:0}

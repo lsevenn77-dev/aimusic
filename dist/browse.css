@@ -23,7 +23,7 @@
 .community-entry footer{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid #303838;margin-top:22px;padding-top:16px}.community-entry footer .public-track-stats{margin:0}.community-entry footer .small-button{font-size:0.8958125rem}.community-entry .inline-actions{gap:4px}
 .own-music-list{display:grid;gap:10px}.own-music-row{display:flex;align-items:center;gap:16px;padding:16px;background:#1a2020;border-radius:10px}.own-music-row>div:not(.mini-cover){flex:1;min-width:0}.own-music-row small{display:block;color:var(--ds-muted);margin-top:7px;font-size:0.8333125rem}.own-music-row .mini-cover{width:60px;height:60px;flex:0 0 60px}
 .home-browse-section{margin-top:36px}.home-browse-section .section-heading{margin-bottom:18px}.browse-rail{display:grid;grid-auto-flow:column;grid-auto-columns:190px;gap:18px;overflow-x:auto;overscroll-behavior-x:contain;padding-bottom:14px;scroll-snap-type:x proximity}.browse-rail>*{scroll-snap-align:start;min-width:0}.browse-rail .album-art{width:100%;aspect-ratio:1;object-fit:cover}.browse-rail .album-card{width:100%}
-.listen-tabs{margin-bottom:20px}.home-browse-section .home-load-message{min-height:60px}.browse-shortcuts a:focus-visible,.browse-genres a:focus-visible,.mobile-navigation a:focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+.listen-tabs{margin-bottom:20px}.home-browse-section .home-load-message{min-height:60px}
 @media(max-width:520px){.topbar .top-actions{display:none}.topbar .search-box{min-width:0;flex:1;width:auto}.topbar .search-box span:not(.search-key){overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
 @media(max-width:1200px){.community-feed{grid-template-columns:1fr}.browse-shortcuts{grid-template-columns:repeat(2,minmax(0,1fr))}.karaoke-browse-actions{flex-direction:column;align-items:flex-end;gap:12px}}
 @media(max-width:800px){
@@ -42,7 +42,7 @@
 .song-table-head{height:40px;color:var(--ds-muted);font-size:11px;background:#17233366;border-bottom:1px solid #ffffff0a}
 .song-table-head>span:not(:nth-child(2)){text-align:center}
 .song-table-row{position:relative;min-height:70px;border-bottom:1px solid #29374788;transition:background .15s,box-shadow .15s}
-.song-table-row:last-child{border-bottom:0}.song-table-row:hover,.song-table-row:focus-within{background:linear-gradient(100deg,#d35f9f25,#8965c61b);box-shadow:inset 0 0 0 1px #e796c044;border-radius:7px}
+.song-table-row:last-child{border-bottom:0}.song-table-row:hover{background:linear-gradient(100deg,#d35f9f25,#8965c61b);box-shadow:inset 0 0 0 1px #e796c044;border-radius:7px}
 .song-table-position{font-size:17px;font-weight:650;text-align:center;font-variant-numeric:tabular-nums;color:var(--ds-text)}
 .song-table-info{display:flex;align-items:center;gap:14px;min-width:0}.song-table-cover{flex:0 0 48px}.song-table .mini-cover{width:48px;height:48px;border-radius:6px;overflow:hidden}.song-table .mini-cover img{width:100%;height:100%;object-fit:cover}
 .song-table-info>div{min-width:0}.song-table-info strong{display:block;font-size:13px;line-height:1.5;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.song-table-info>div>span{display:block;font-size:11px;line-height:1.6;color:var(--ds-muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.song-table-info .credit-links{display:inline}

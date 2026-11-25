@@ -15,7 +15,6 @@
 .voice-room svg{width:22px;height:22px;flex-shrink:0}
 .voice-room button{font:inherit;cursor:pointer;touch-action:manipulation}
 .voice-room button:disabled{opacity:.4;cursor:default}
-.voice-room button:focus-visible,.voice-room a:focus-visible,.voice-room input:focus-visible,.voice-room select:focus-visible,.voice-room textarea:focus-visible{outline:2px solid #91e9e4;outline-offset:3px}
 .voice-heading{position:relative;flex:0 0 156px;margin:0;padding:0;background:transparent;border:0}
 .voice-heading>a{display:inline-flex;align-items:center;height:30px;color:var(--ds-text);font-size:16px;text-decoration:none}
 .voice-heading h1{font-size:clamp(28px,2.7vw,42px);letter-spacing:-1px;line-height:1.25;margin:24px 0 10px;max-width:75%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -105,8 +104,6 @@
 .voice-emoji-picker [data-voice=emoji-close] svg{width:20px;height:20px}
 .voice-room .voice-emoji-picker .voice-emojis{display:grid;grid-template-columns:repeat(auto-fit,minmax(44px,1fr));gap:4px;margin:0 0 8px;max-height:144px;overflow-y:auto}
 .voice-room .voice-emoji-picker .voice-emojis button{min-width:44px;min-height:44px;padding:4px;border-radius:10px;font-size:26px;line-height:1}
-
-.voice-room .voice-emoji-picker button:focus-visible{outline:2px solid var(--ds-mint);outline-offset:-2px}
 .voice-room .voice-emoji-picker [data-voice=send-chat]{min-height:44px;font-size:13px}
 .voice-chat-panel #voice-message{display:block;flex:1;min-width:0;width:0;height:64px;min-height:64px;max-height:96px;resize:none;padding:20px 49px 18px 18px;border:1px solid #315075;border-radius:20px;background:#091626;color:var(--ds-text);font:inherit;font-size:15px;line-height:1.5}
 .voice-chat-panel #voice-message::placeholder{color:var(--ds-body)}
@@ -204,7 +201,6 @@
 .voice-switch span:after{content:'';position:absolute;left:4px;top:4px;width:22px;height:22px;border-radius:50%;background:#f0e6ff;transition:translate .15s}
 .voice-switch input:checked+span{background:#9c74ef;border-color:#b691fa;box-shadow:0 0 13px #9865ef33}
 .voice-switch input:checked+span:after{translate:22px 0}
-.voice-switch input:focus-visible+span{outline:2px solid #91e9e4;outline-offset:3px}
 .voice-effect-card{display:grid;grid-template-columns:1fr minmax(155px,.7fr);align-items:center;gap:12px}
 .voice-room .voice-sheet .voice-reverb-row{grid-column:1/-1;display:flex;align-items:center;font-size:12px;color:var(--ds-body);margin:0 0 0 38px}
 .voice-reverb-row input{flex:1;width:0}
@@ -634,7 +630,6 @@
  .talking-room #talk-dock #dock-voice-settings-form .voice-visibility label {display:grid;place-content:center;min-width:0;min-height:44px;grid-template-columns:1fr;padding:0;text-align:center}
  .talking-room #talk-dock #dock-voice-settings-form .voice-visibility :is(svg,small) {display:none}
  .talking-room #talk-dock #dock-voice-settings-form .voice-visibility input {opacity:0;position:absolute}
- .talking-room #talk-dock #dock-voice-settings-form .voice-visibility label:focus-within {outline:2px solid var(--talk-mint)}
  .talking-room #talk-dock #dock-voice-settings-form .voice-visibility strong {font-size:13px;word-break:keep-all}
  .talking-room #talk-dock #dock-voice-settings-form input,.talking-room #talk-dock #dock-voice-settings-form select {font-size:14px}
  .talking-room #talk-dock #dock-voice-settings-form textarea {min-height:48px;height:48px}
@@ -716,7 +711,6 @@
 .talking-room .voice-music-mini>div>button svg {width:20px;height:20px}
 .talking-room button:enabled:hover {background-color:rgb(255 255 255 / 9%)}
 .talking-room button:enabled:active {background-color:rgb(255 255 255 / 16%)}
-.talking-room button:focus-visible,.talking-room input:focus-visible {outline:2px solid currentColor;outline-offset:-2px}
 .talking-room button:disabled {opacity:.55;cursor:default}
 .talking-room button[aria-busy=true] {cursor:progress}
 .talking-room .voice-seat-empty svg,.talking-room .voice-seat-mic.is-on,.talking-room .talk-central>.voice-unlock-audio {color:var(--ds-body)}
@@ -803,7 +797,6 @@
 .talking-room #voice-room-settings .voice-visibility label:has(:checked) {border-color:#b7accd;background:rgb(163 145 210 / 16%);box-shadow:none}
 .talking-room #voice-room-settings .voice-visibility :is(svg,small) {display:none}
 .talking-room #voice-room-settings .voice-visibility input {opacity:0}
-.talking-room #voice-room-settings .voice-visibility label:focus-within {outline:2px solid currentColor}
 .talking-room #voice-room-settings .voice-visibility strong {font-size:13px}
 .talking-room #voice-content .voice-sheet .voice-settings-save {background:var(--ds-body);color:var(--ds-ink,#101722)}
 .talking-room #voice-content #voice-personal-volume {
@@ -881,7 +874,6 @@
 .talking-room #voice-music-player button:enabled:hover,
 .talking-room :is(#talk-dock,#voice-members-list,#voice-chat-form) button:enabled:hover {filter:brightness(1.16)}
 .talking-room :is(.talk-header,#voice-music-player,#talk-dock,#voice-members-list,#voice-chat-form) button:enabled:active {transform:translateY(1px);filter:brightness(.93)}
-.talking-room :is(button,input,textarea,select):focus-visible {outline:2px solid var(--talk-mint);outline-offset:-2px}
 @media(prefers-reduced-motion:reduce){
  .talking-room :is(.talk-header,#voice-music-player,#talk-dock,#voice-members-list,#voice-chat-form) button {transition:none;transform:none}
 }
@@ -1127,7 +1119,6 @@
 .talking-room #voice-music-player>div>:is([data-voice=music-play],[data-voice=music-pause]):enabled:hover {border-color:var(--talk-mint)}
 .talking-room .talk-header nav button[aria-expanded=true]:enabled:hover {border-color:var(--talk-mint)}
 .talking-room :is(.talk-header,.voice-stage,.voice-chat-panel) button {transition:filter .15s ease}
-.talking-room :is(button,input,textarea,select):focus-visible {outline:2px solid var(--talk-mint);outline-offset:-2px}
 @media(max-width:800px){
  #main[data-room-focus] .voice-room.talking-room,.voice-room.talking-room {--voice-avatar:clamp(55px,16.25vw,70px)}
  .talking-room .talk-header {display:flex;flex-wrap:wrap;align-items:center;gap:4px}

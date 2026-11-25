@@ -9,7 +9,6 @@
  position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap;
 }
 .public-discovery .skip-content:focus {position:absolute; z-index:3; background:var(--ds-panel); padding:12px;}
-.public-discovery :is(a,button,input,select,summary):focus-visible {outline:2px solid var(--about-mint);outline-offset:3px;}
 .public-discovery :is(button,input,select,summary){font:inherit;}
 .public-discovery :is(button,select,summary){cursor:pointer;}
 .public-discovery .discover-header {display:flex;align-items:center;min-height:72px;gap:clamp(14px,3vw,42px);}
@@ -30,10 +29,8 @@
 .public-discovery .discover-intro p {margin-top:6px;color:var(--ds-body);}
 .public-discovery #catalog-form {display:grid;gap:18px;}
 .public-discovery .discover-search {display:flex;align-items:center;gap:12px;padding:4px 6px 4px 15px;border:var(--af-rule);border-radius:var(--ds-radius-input);background:var(--ds-surface);}
-.public-discovery .discover-search:focus-within {border-color:var(--about-mint);}
 .public-discovery .discover-search label {display:flex;color:var(--about-mint);}
 .public-discovery .discover-search input {min-width:0;flex:1;height:44px;border:0;background:transparent;color:var(--ds-text);font-size:16px;}
-.public-discovery .discover-search input:focus-visible {outline-offset:0;}
 .public-discovery .discover-search input::placeholder {color:var(--ds-muted);}
 .public-discovery .discover-search button,.public-discovery .guide-action {background:var(--ds-gradient);color:var(--ds-ink);border:0;font-size:14px;font-weight:700;border-radius:var(--ds-radius-input);padding:8px 19px;min-height:44px;}
 .public-discovery .discover-tools,.public-discovery .discover-selects {display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
@@ -47,7 +44,6 @@
 }
 .public-discovery .discover-kinds span {padding:7px 18px;}
 .public-discovery .discover-kinds :checked+span {background:color-mix(in srgb,var(--about-mint) 12%,var(--ds-bg));border-color:color-mix(in srgb,var(--about-mint) 50%,transparent);color:var(--about-mint);}
-.public-discovery .discover-kinds :focus-visible+span {outline:2px solid var(--about-mint);outline-offset:3px;}
 .public-discovery select {padding:8px 12px;max-width:100%;font-family:inherit;}
 .public-discovery .discover-selects label:first-child select {width:140px;}
 .public-discovery .discover-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:26px 20px;}

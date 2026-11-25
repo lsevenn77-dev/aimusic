@@ -21,7 +21,6 @@
   min-width:0;max-width:100%;
 }
 #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form {
-  --input-focus-border:var(--ds-selected);
   margin:0;padding:calc(28px);color:var(--ds-body);
   font-size:var(--pc-font-body,14px);line-height:1.7;
 }
@@ -153,9 +152,6 @@
 }
 #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options input:checked + span {
   background:var(--ds-soft);border-color:transparent;color:var(--ds-selected);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options input:focus-visible + span {
-  outline:2px solid var(--ds-selected);outline-offset:3px;
 }
 #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyrics-editor {
   margin:calc(28px) 0;

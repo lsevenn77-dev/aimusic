@@ -8,10 +8,9 @@
 .production-ai-field .classification-options input{position:static;opacity:1;width:16px;height:16px;margin:0;accent-color:var(--ds-selected);flex:0 0 auto}
 .production-ai-field .classification-options label>span,
 #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .production-ai-field .classification-options label>span{display:inline;min-height:0;padding:0;border:0;border-radius:0;background:transparent;color:inherit;font:inherit;line-height:inherit;outline:0}
-.production-ai-field .classification-options input:is(:checked,:focus-visible)+span,
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .production-ai-field .classification-options input:is(:checked,:focus-visible)+span{background:transparent;color:inherit;outline:0}
+.production-ai-field .classification-options input:checked+span,
+#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .production-ai-field .classification-options input:checked+span{background:transparent;color:inherit}
 .production-ai-field .classification-options label:has(input:checked){color:var(--ds-text);border-color:var(--ds-selected);background:color-mix(in srgb,var(--ds-selected) 10%,var(--ds-bg))}
-.production-ai-field .classification-options label:focus-within{outline:2px solid var(--ds-selected);outline-offset:3px}
 .production-ai-special{padding-top:4px}
 .production-ai-field .production-ai-other{margin:0;max-width:100%}
 .production-ai-field .production-ai-other[hidden]{display:none}

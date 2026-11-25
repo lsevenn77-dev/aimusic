@@ -1,15 +1,13 @@
 /* The approved discovery search skin; only the surrounding size varies. */
-.brand-search,#global-search.brand-search,.discover-photo-layout .discover-search.brand-search{display:flex;align-items:center;gap:10px;min-width:0;border:2px solid transparent;border-radius:40px;background:linear-gradient(110deg,var(--ds-panel),var(--ds-bg)) padding-box,linear-gradient(105deg,#8EDDD2,var(--ds-lavender),var(--ds-accent-pink)) border-box;box-shadow:none;outline:0;color:var(--ds-text)}
+.brand-search,#global-search.brand-search,.discover-photo-layout .discover-search.brand-search{--brand-search-fill:linear-gradient(110deg,var(--ds-panel),var(--ds-bg));display:flex;align-items:center;gap:10px;min-width:0;border:2px solid transparent;border-radius:40px;background:var(--brand-search-fill) padding-box,var(--brand-search-edge,linear-gradient(105deg,#8EDDD2,var(--ds-lavender),var(--ds-accent-pink))) border-box;box-shadow:none;outline:0;color:var(--ds-text)}
 .brand-search{padding:0 14px;min-height:44px;flex:1}
 :root{--compact-search-height:42px}
 #global-search.brand-search{height:var(--compact-search-height);min-height:0}
 .brand-search>svg{width:20px;height:20px;flex:none;color:var(--ds-mint)}
-.brand-search input,.discover-photo-layout .discover-search.brand-search input,#global-search.brand-search input,.brand-search input:is(:focus,:focus-visible){flex:1;min-width:0;width:100%;height:100%;padding:0;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;background:transparent!important;color:var(--ds-text);font:inherit}
+.brand-search input,.discover-photo-layout .discover-search.brand-search input,#global-search.brand-search input{flex:1;min-width:0;width:100%;height:100%;padding:0;border:0!important;outline:0!important;box-shadow:none!important;border-radius:0;background:transparent!important;color:var(--ds-text);font:inherit}
 .brand-search input::placeholder{color:var(--ds-body);opacity:1}
 .brand-search>button,.brand-search>.search-sparkle{display:grid;place-items:center;flex:none;width:36px;min-width:0;height:36px;min-height:0;padding:6px;border:0;background:none;box-shadow:none;color:var(--ds-accent-pink)}
 .brand-search>button svg,.brand-search>.search-sparkle svg{width:20px;height:20px}
-.brand-search:focus-within,#global-search.brand-search:focus-within,.discover-photo-layout .discover-search.brand-search:focus-within{outline:0;box-shadow:none;filter:brightness(1.2)}
-.brand-search>button:focus-visible{outline:2px solid var(--ds-mint);outline-offset:-2px;color:var(--ds-selected)}
 /* Outrank the topbar's legacy button surface in every interactive state. */
 #global-search.brand-search>button{background:transparent;border:0;box-shadow:none}
 .discover-photo-layout .discover-search.brand-search{gap:18px;height:66px;padding:0 22px}

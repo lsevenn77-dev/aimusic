@@ -26,8 +26,6 @@
  background:transparent!important;border:0!important;box-shadow:none!important;
  color:var(--ds-body,#BEC1C9);
 }
-:is(#main,#dialog) :is(button,a):has(>svg.outline-gradient-action):focus-visible,
-#main .count-dropdown:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 :is(#main,#dialog) :is(button,a):has(>svg.outline-gradient-action):hover>svg{color:var(--ds-text)}
 :is(#main,#dialog) :is(button,a):disabled:has(>svg.outline-gradient-action){opacity:.5;cursor:default}
 #main :is(.card-more,.mp-more):has(>svg.outline-gradient-action){width:44px;height:44px;overflow:visible}
@@ -205,7 +203,6 @@
 #main .charts-final .chart-playback button>svg{width:15px!important;height:15px!important;flex:0 0 15px!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;fill:none!important}
 #main .charts-final .chart-playback button:hover{background:color-mix(in srgb,var(--ds-body) 8%,transparent)}
 #main .charts-final button:disabled{opacity:.45;cursor:default}
-#main .charts-final :is(button,a,[tabindex]):focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 #main .charts-final .song-table-chart{display:grid;grid-template-columns:40px 48px minmax(0,1fr) 58px 46px minmax(58px,max-content) minmax(58px,max-content) minmax(58px,max-content) 52px;gap:0 10px;margin:16px 0}
 #main .charts-final .song-table-chart :is(.song-table-head,.song-table-row){display:grid;grid-template-columns:subgrid;grid-column:1/-1;gap:0 10px;padding:0 12px;align-items:center}
 #main .charts-final .song-table-chart .song-table-head{height:38px}
@@ -305,7 +302,7 @@
 #chart-track-menu .track-option{box-sizing:border-box;display:grid;grid-template-columns:18px minmax(0,1fr) 14px;align-items:center;gap:8px;width:100%;min-height:40px;padding:4px;margin:0;border:0;border-radius:4px;background:transparent;color:var(--ds-body);font-family:inherit;font-size:12px;line-height:1.4;text-align:left;text-decoration:none;white-space:normal}
 #chart-track-menu .track-option>svg{width:18px;height:18px;fill:none;stroke:currentColor}
 #chart-track-menu .track-option>svg:last-child{width:14px;height:14px;color:var(--ds-muted)}
-#chart-track-menu .track-option:is(:hover,:focus-visible){background:var(--ds-soft);outline:1px solid var(--ds-line);outline-offset:-1px}
+#chart-track-menu .track-option:is(:hover,:focus-visible){background:var(--ds-soft)}
 #chart-track-menu .track-option-delete{color:var(--ds-social)}
 @media(max-width:600px){#chart-track-menu .track-option{min-height:44px}}
 
@@ -353,7 +350,7 @@
   padding:10px;border:1px solid var(--ds-line);border-radius:11px;
   background:var(--ds-panel);box-shadow:none;white-space:nowrap;
  }
- #main .song-table.song-table-chart .song-table-row:is(:hover,:focus-within){background:var(--ds-panel);box-shadow:none}
+ #main .song-table.song-table-chart .song-table-row:hover{background:var(--ds-panel);box-shadow:none}
  #main .song-table.song-table-chart .song-table-row.is-chart-playing{
   border-color:transparent;
   background:linear-gradient(110deg,color-mix(in srgb,var(--ds-mint) 7%,var(--ds-panel)),color-mix(in srgb,var(--ds-lavender) 7%,var(--ds-panel))) padding-box,linear-gradient(110deg,color-mix(in srgb,var(--ds-mint) 40%,var(--ds-panel)),color-mix(in srgb,var(--ds-lavender) 40%,var(--ds-panel))) border-box;

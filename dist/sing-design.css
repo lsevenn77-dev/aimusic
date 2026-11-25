@@ -127,9 +127,6 @@
 #main #sing.web-studio .sing-progress input[type=range] {
   background-image:var(--ds-gradient),linear-gradient(var(--ds-border),var(--ds-border))!important;
 }
-#main #sing.web-studio :is(button,a,input,select,textarea,summary):focus-visible {
-  outline:2px solid var(--ds-selected);outline-offset:3px;
-}
 
 /* Recorded takes and publication use the same surfaces while keeping their
    existing tools, selection coordinates, steps and hidden-state behavior. */

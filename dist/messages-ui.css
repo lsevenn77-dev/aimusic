@@ -11,12 +11,10 @@
 #main .message-workspace .dm-friends-trigger{display:inline-grid;place-items:center;flex:0 0 36px;box-sizing:border-box;width:36px;min-width:36px;height:36px;min-height:36px;margin:0;padding:0;border:0;border-radius:10px;background:transparent;box-shadow:none;color:var(--ds-body);cursor:pointer}
 #main .message-workspace .dm-friends-trigger svg{display:block;width:20px;height:20px}
 #main .message-workspace .dm-friends-trigger:hover{color:var(--ds-selected);background:var(--ds-panel-raised,var(--ds-bg))}
-#main .message-workspace .dm-friends-trigger:focus-visible,#main .dm-friend-finder a:focus-visible{outline:2px solid var(--ds-selected);outline-offset:-2px}
 #main .message-workspace .dm-mobile-exit{display:none}
 #main .message-workspace .dm-search{display:flex;align-items:center;flex:none;gap:10px;margin:0 8px 14px;padding:0 12px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-bg);color:var(--ds-muted)}
 .dm-search svg{width:18px;height:18px;flex:none}
 #main .dm-search input{width:100%;min-width:0;height:44px;padding:0;border:0;background:none;box-shadow:none;color:var(--ds-text);font:inherit;font-size:16px!important;outline:0}
-#main .dm-search:focus-within{border-color:#8eddd2}
 #main .message-workspace #dm-conversations{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin}
 #main #dm-conversations .conversation-list{display:flex;flex-direction:column;gap:0}
 #main #dm-conversations .conversation-row{position:relative;display:flex;align-items:center;gap:16px;flex:none;min-width:0;min-height:84px;margin:0;padding:16px;border:0;border-radius:0;background:transparent;box-shadow:none}
@@ -116,7 +114,6 @@
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-section{margin-top:20px;padding-top:20px;border-top:1px solid var(--ds-line)}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-link{display:inline-flex;align-items:center;gap:8px;min-height:44px;max-width:100%;padding:4px 0;color:var(--ds-selected);font-size:var(--dm-body);font-weight:600;line-height:1.6;text-align:left;white-space:normal;text-decoration:none}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-link:hover{text-decoration:underline;text-underline-offset:4px}
-#main :is(.message-workspace,.room-welcome-guide) .welcome-guide-link:focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px;border-radius:4px}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-link>span{flex:none}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-outro{margin-top:20px;padding-top:20px;border-top:1px solid var(--ds-line)}
 #main :is(.message-workspace,.room-welcome-guide) .welcome-guide-outro p{margin-bottom:4px}

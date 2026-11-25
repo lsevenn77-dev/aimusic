@@ -30,9 +30,6 @@
   height:auto;margin:0;padding:0;background:transparent;border:1px solid transparent;
   box-shadow:none;border-radius:10px;cursor:pointer;
 }
-#main .cat-picker button:focus-visible,#main .cat-picker-scroll:focus-visible {
-  outline:2px solid var(--ds-lilac);outline-offset:-3px;
-}
 #main .cat-picker .cat-close {display:grid;width:44px;place-items:center}
 #main .cat-close svg {width:18px;height:18px}
 #main .cat-picker .cat-tabs {

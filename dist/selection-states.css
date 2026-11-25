@@ -1,15 +1,4 @@
-/* Selection is expressed by the existing fill and text. Keyboard focus remains
-   visible in the site's lavender; mint is reserved for content and progress. */
-:is(button,a,input,textarea,select,summary,[tabindex],[contenteditable=true]):focus-visible {
- outline-color:var(--ds-selected,#D3BAFF)!important;
-}
-:is(.brand-search,.search-box,.mp-work-search,.directory-search,.dm-search):focus-within,
-.talking-room #talk-dock .voice-visibility label:focus-within {
- outline-color:var(--ds-selected,#D3BAFF)!important;
-}
-/* The message search has a border-owning wrapper and a borderless input. */
-#main .dm-search:focus-within {border-color:var(--ds-line)}
-#main .dm-search:has(input:focus-visible) {border-color:var(--ds-selected,#D3BAFF)}
+/* Selection uses the component fill and text styles. */
 #main #sing .take-tools [aria-pressed=true],
 #sing.web-studio .studio-punch-lyrics button[aria-pressed=true],
 #main #sing .take-editor .studio-sync-steps button:active,
@@ -29,22 +18,6 @@
 .talking-room .talk-header nav button[aria-expanded=true],
 .talking-room .talk-header nav button[aria-expanded=true]:enabled:hover,
 .talking-room #voice-content .voice-sheet .voice-music-transport :is([data-voice=music-play],[data-voice=music-pause]),
-#recording-mode-dialog [data-sing-mode]:is(:hover,:focus-visible,:active) {
+#recording-mode-dialog [data-sing-mode]:is(:hover,:active) {
  border-color:var(--ds-line);
-}
-.dubbing-chips input:focus-visible+span,
-.compact-periods :focus-visible+span,
-.live-directory .live-mode label:has(:focus-visible) {
- outline-color:var(--ds-selected,#D3BAFF)!important;
-}
-@media(forced-colors:active) {
- :is(button,a,input,textarea,select,summary,[tabindex],[contenteditable=true]):focus-visible,
- :is(.brand-search,.search-box,.mp-work-search,.directory-search,.dm-search):focus-within,
- .talking-room #talk-dock .voice-visibility label:focus-within,
- .dubbing-chips input:focus-visible+span,
- .compact-periods :focus-visible+span,
- .live-directory .live-mode label:has(:focus-visible) {
-  outline-color:Highlight!important;
- }
- #main .dm-search:has(input:focus-visible) {border-color:Highlight}
 }

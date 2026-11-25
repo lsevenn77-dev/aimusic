@@ -6,7 +6,6 @@
 .checkout-site :where(*, *::before, *::after) {box-sizing:border-box}
 .checkout-site [hidden] {display:none!important}
 .checkout-site a {color:var(--ds-body);text-underline-offset:4px}
-.checkout-site :is(a,button,input,summary):focus-visible {outline:2px solid var(--ds-selected);outline-offset:4px}
 .checkout-site :is(button,input) {font:inherit}
 .checkout-site .checkout-header {
  display:flex;align-items:center;justify-content:space-between;gap:20px;

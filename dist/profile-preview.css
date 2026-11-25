@@ -52,7 +52,6 @@ dialog.profile-preview .profile-preview-card {
 [data-profile-preview] {cursor:pointer}
 .user-nickname {font:inherit;color:inherit;letter-spacing:inherit}
 .user-nickname[data-profile-preview]:hover {text-decoration:underline;text-underline-offset:3px}
-.user-nickname[data-profile-preview]:focus-visible {outline:1px solid currentColor;outline-offset:3px;border-radius:2px}
 @media (max-width:800px) {
  dialog.profile-preview {
   --preview-photo:76px; --preview-action-size:13px;
@@ -137,6 +136,5 @@ html.profile-embed,html.profile-embed body {background:transparent;min-width:0}
   padding:20px 20px calc(16px + env(safe-area-inset-bottom));border-radius:var(--ds-radius-feature) var(--ds-radius-feature) 0 0}
  #mp-profile-share .profile-share-people{max-height:min(42dvh,calc(85dvh - 250px));min-height:44px}
 }
-.profile-share-panel :is(button,input):focus-visible{outline:2px solid var(--ds-accent-lavender);outline-offset:2px}
 .dm-profile-share{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;padding:10px 12px;border-radius:var(--ds-radius-sm);background:color-mix(in srgb,var(--ds-panel) 75%,transparent);color:var(--ds-text);text-decoration:none;white-space:normal;min-height:44px}
 .dm-profile-share:after{content:'›';font-size:20px;line-height:1}

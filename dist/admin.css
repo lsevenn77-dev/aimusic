@@ -97,7 +97,7 @@ body{background:
 .kpi-card,.admin-card{border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(180deg,rgba(24,29,41,.96),rgba(17,20,29,.96));box-shadow:var(--shadow)}
 .kpi-card{padding:15px;min-width:0;position:relative;overflow:hidden}
 button.kpi-card{text-align:start;color:var(--text);font:inherit}
-button.kpi-card:hover,button.kpi-card:focus-visible{border-color:var(--purple)}
+button.kpi-card:hover{border-color:var(--purple)}
 .member-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-block:12px 20px}
 .member-filters button,.member-filters input{min-height:44px;padding:7px 12px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--text);font:inherit}
 .member-filters button[aria-pressed=true]{border-color:var(--purple);background:var(--panel-2);font-weight:700}

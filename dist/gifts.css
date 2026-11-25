@@ -12,7 +12,6 @@ body.chat-active .player{display:none!important}
 .my-balance-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
 .my-balance-card{display:flex;flex-direction:column;gap:10px;min-width:0;padding:18px 22px;background:var(--surface-wash,#1b202b);border:1px solid #ffffff0b;border-radius:16px;text-decoration:none}
 .my-balance-card:hover{border-color:#8ddbd544}
-.my-balance-card:focus-visible{outline:2px solid #8ddbd5;outline-offset:3px}
 .my-balance-label{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600}
 .my-balance-gold .my-balance-label{color:#f3d378}
 .my-balance-silver .my-balance-label{color:var(--ds-text)}
@@ -135,16 +134,6 @@ body.chat-active .player{display:none!important}
 #dialog .gift-dialog.gift-dialog--compact :is(button, a, select) {
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
-}
-
-#dialog .gift-dialog.gift-dialog--compact :is(button, a, select):focus-visible {
-  outline: 2px solid #8EDDD2;
-  outline-offset: 2px;
-}
-
-/* Touch/click and dialog autofocus do not need a second selection outline. */
-:root[data-aifect-input="pointer"] #dialog .gift-dialog.gift-dialog--compact :is(button, a):focus {
-  outline: none;
 }
 
 #dialog .gift-dialog.gift-dialog--compact .gift-dialog-header {
@@ -414,10 +403,6 @@ body.chat-active .player{display:none!important}
   border-color: var(--ds-social);
   background: color-mix(in srgb, var(--ds-social) 12%, var(--ds-panel));
   box-shadow: inset 0 0 0 1px var(--ds-social);
-}
-
-#dialog .gift-dialog.gift-dialog--compact .gift-choice:focus-visible {
-  outline-offset: -3px;
 }
 
 #dialog .gift-dialog.gift-dialog--compact .gift-choice:disabled {

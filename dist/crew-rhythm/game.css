@@ -23,7 +23,6 @@ body {
 }
 body.playing { overflow: hidden; }
 button { font-family: inherit; color: inherit; }
-button:focus-visible { outline: 3px solid var(--cyan); outline-offset: 2px; }
 
 /* 유리 패널: 위쪽 반사광 + 아래쪽 두께 */
 .glass {

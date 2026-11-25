@@ -15,7 +15,6 @@
 .fan-identity .primary-button{min-height:40px;padding:8px 18px;width:auto}
 .fan-icon{background:none;border:0;color:var(--ds-muted);display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;cursor:pointer}
 .artist-fanpage :is(.fan-icon,.fan-text-button,.fan-carousel-controls button):hover{color:var(--fan-mint)}
-.artist-fanpage :is(button,a,select):focus-visible{outline:2px solid var(--fan-mint);outline-offset:3px}
 .artist-fanpage .fan-tabs{gap:24px!important;overflow-x:auto;scrollbar-width:thin}
 .fan-section{margin:0 0 28px}
 .fan-section .section-heading{margin-bottom:12px}
@@ -312,7 +311,6 @@
 .artist-fanpage .fan-bio-toggle{display:inline-flex;align-items:center;min-height:44px;padding:0;border:0;background:none;color:var(--ds-muted);font:inherit;font-size:var(--pc-font-meta,13px);line-height:1.4;cursor:pointer;text-align:left}
 .artist-fanpage .fan-bio-toggle[hidden]{display:none}
 .artist-fanpage .fan-bio-toggle:hover{color:var(--ds-text)}
-.artist-fanpage .fan-bio-toggle:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px;border-radius:4px}
 .artist-fanpage .fan-carousel:not([data-card-count="1"]) .fan-card-stage,
 .artist-fanpage .fan-carousel:not([data-card-count="1"]) .fan-photocard{cursor:grab;user-select:none;-webkit-user-select:none}
 .artist-fanpage .fan-carousel.is-dragging .fan-card-stage,
@@ -351,7 +349,6 @@
 #main .artist-fanpage .fan-follow-button{min-height:44px;font-size:var(--pc-font-control,14px);font-weight:600}
 #main .artist-fanpage .fan-settings-menu{padding:calc(8px);border-radius:var(--ds-radius-input)}
 #main .artist-fanpage .fan-settings-menu :is(button,a){min-height:44px;padding:calc(10px) calc(12px);border-radius:var(--ds-radius-sm)}
-#main .artist-fanpage [data-profile-preview]:focus-visible{outline:2px solid var(--ds-selected);outline-offset:4px;border-radius:var(--ds-radius-sm)}
 
 /* The shared main-tab component owns type, tone, height and selection lines. */
 #main .artist-fanpage .fan-tabs.aifect-main-tabs{margin:calc(16px) 0 calc(24px)}

@@ -31,7 +31,6 @@
     border: 0; border-radius: 0; background: none; box-shadow: none; outline-offset: 1px;
   }
   & #voice-music-player button:disabled svg { opacity: .53; }
-  & #voice-music-player button:focus-visible, & #voice-mini-volume:focus-visible, & .room-more summary:focus-visible { outline: 2px solid var(--room-text); }
   & #voice-music-player #voice-mini-volume {
     appearance: none; box-sizing: border-box; width: clamp(58px, 7.8vw, 126px); max-width: none; min-width: 0;
     height: 36px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;

@@ -43,7 +43,6 @@
     :is(.recording-setting-tabs,.studio-tabs,.duet-methods) button:enabled:not([aria-selected=true]):hover {
       background:var(--ds-soft);color:var(--ds-text);
     }
-    :is(.recording-setting-tabs,.studio-tabs,.duet-methods) button:focus-visible { outline-offset:-2px; }
     .studio-tabs svg { width:18px;height:18px;flex:none; }
     :is(.recording-settings-body,.studio-settings-body,.duet-editor-lines) {
       flex:1 1 auto;min-height:0;max-height:none;min-width:0;margin:0;padding:0 4px 2px 0;
@@ -194,7 +193,6 @@
       border-color:var(--ds-line)!important;background:var(--ds-secondary)!important;
       color:var(--ds-disabled)!important;opacity:.6;cursor:not-allowed;filter:none;
     }
-    :is(button,input,select,summary):focus-visible { outline:2px solid var(--ds-selected);outline-offset:-2px; }
     [hidden] { display:none!important; }
   }
   #dialog-close { top:calc(var(--sing-popup-pad) - 8px);right:var(--sing-popup-pad);color:var(--ds-body); }
@@ -256,8 +254,6 @@
 #dialog.compact-popup.sing-draft-delete-popup .inline-actions button:disabled {
   border-color:var(--ds-line);background:var(--ds-secondary);color:var(--ds-disabled);opacity:.6;cursor:not-allowed;filter:none;
 }
-#sing-exit-dialog.compact-popup button:focus-visible,
-#dialog.compact-popup.sing-draft-delete-popup button:focus-visible { outline:2px solid var(--ds-selected);outline-offset:2px; }
 
 /* The entry chooser is also used from the play hub, which scales its children. */
 #recording-mode-dialog {
@@ -273,10 +269,9 @@
   min-height:48px;padding:12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
   background:var(--ds-bg);color:var(--ds-body);font-size:14px;font-weight:500;line-height:1.5;
 }
-#recording-mode-dialog .recording-mode-choices [data-sing-mode]:is(:hover,:active,:focus-visible) {
+#recording-mode-dialog .recording-mode-choices [data-sing-mode]:is(:hover,:active) {
   border-color:var(--ds-selected);background:var(--ds-soft);color:var(--ds-selected);box-shadow:none;
 }
-#recording-mode-dialog .recording-mode-choices [data-sing-mode]:focus-visible { outline:2px solid var(--ds-selected);outline-offset:2px; }
 
 @media(max-width:800px) {
   #dialog.compact-popup:is(.recording-settings-dialog,.record-settings-dialog,.duet-editor-dialog) {

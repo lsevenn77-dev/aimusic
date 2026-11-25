@@ -9,7 +9,6 @@
 html {scroll-padding-top:72px}
 body {background:#10151f;color:var(--ds-text);letter-spacing:-.018em;-webkit-font-smoothing:antialiased}
 button,input,select,textarea {font-family:inherit}
-button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible {outline:2px solid #ed85b3;outline-offset:3px}
 ::selection {background:#df80b183;color:var(--ds-text)}
 .sidebar {background:#111824;border-right:1px solid var(--ui-border)}
 .sidebar .nav-link {border-radius:10px;transition:background .18s ease,color .18s ease}

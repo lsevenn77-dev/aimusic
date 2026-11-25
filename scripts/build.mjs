@@ -114,6 +114,12 @@ for(const name of await readdir('dist/client')){
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }
+// The public pages load the design system; standalone games and admin load focus on its own.
+const focusStyles = await readFile('dist/focus.css', 'utf8');
+await writeFile('dist/client/focus.css', focusStyles);
+await cp('dist/focus.js', 'dist/client/focus.js');
+const designSystemPath = 'dist/client/design-system.css';
+await writeFile(designSystemPath, focusStyles + '\n' + await readFile(designSystemPath, 'utf8'));
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
 await build({entryPoints:['shared/playlist-policy.js'],outfile:'dist/client/playlist-policy.js',bundle:true,format:'iife',globalName:'AifectPlaylist',target:'es2022',minify:true});
 await build({entryPoints:['shared/player.js'],outfile:'dist/client/player-core.js',bundle:true,format:'iife',globalName:'AifectPlayer',target:'es2022',minify:true});

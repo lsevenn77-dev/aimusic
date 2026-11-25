@@ -83,9 +83,6 @@
   border-color:var(--ds-selected);
   background:radial-gradient(circle,var(--ds-selected) 0 4px,transparent 4.5px);
 }
-.live-directory #v3-room-create.compact-popup :is(.voice-visibility,.voice-backgrounds) label:has(:focus-visible) {
-  outline:2px solid var(--ds-selected);outline-offset:-2px;
-}
 .live-directory #v3-room-create.compact-popup .live-capacity-controls {
   grid-template-columns:minmax(0,3fr) minmax(84px,1fr);gap:10px;align-items:stretch;
 }

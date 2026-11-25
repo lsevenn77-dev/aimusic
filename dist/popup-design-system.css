@@ -290,12 +290,6 @@ dialog .primary-button[aria-disabled="true"] {
 
 /* A visible keyboard ring is shared; this does not manufacture selected states
    from aria-pressed on transport, gift cards or other specialised controls. */
-:where(dialog,.directory-discard[role="alertdialog"],.aifect-dropdown-menu,
-  .chart-track-popover,.cat-picker,.fan-settings-menu) :is(button,a,input,select,textarea,summary,
-  [tabindex]):focus-visible {
-  outline:2px solid var(--popup-selected);
-  outline-offset:2px;
-}
 :is(#dialog,dialog).compact-popup :is(.checkbox-line,.genre-field) input:where(
   [type="checkbox"],[type="radio"]
 ) {
@@ -441,10 +435,6 @@ dialog .primary-button[aria-disabled="true"] {
   .aifect-dropdown-menu,#chart-track-menu,
   #main :is(#dm-emoji-picker,#voice-emoji-picker,.room-dm-emoji).cat-picker {
     border-color:CanvasText;
-  }
-  :where(dialog,.directory-discard[role="alertdialog"],.aifect-dropdown-menu,
-    .chart-track-popover,.cat-picker,.fan-settings-menu) :focus-visible {
-    outline-color:Highlight!important;
   }
   .aifect-dropdown-menu [aria-selected="true"] {
     color:HighlightText;

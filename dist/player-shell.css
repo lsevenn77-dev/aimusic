@@ -72,7 +72,6 @@
 .player #seek::-moz-range-track{height:3px;background:var(--player-track)}
 .player #seek::-moz-range-progress{height:3px;background:linear-gradient(90deg,var(--ds-social),var(--ds-selected),var(--ds-progress))}
 .player #seek::-moz-range-thumb{width:6px;height:6px;border:0;border-radius:50%;background:var(--ds-text)}
-.player :is(button,a,input):focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 .player .player-utility-buttons :is(#shuffle,#repeat,#queue-toggle){display:grid;place-items:center;position:relative;width:44px;height:44px;flex:none;padding:0;border:0;background:transparent}
 .player #queue-toggle>span{display:none}.player .player-utility-buttons svg{width:19px;height:19px}
 @keyframes player-expand{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}

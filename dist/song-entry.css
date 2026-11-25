@@ -18,7 +18,6 @@
 #main .song-entry-actions>.primary-button{color:var(--ds-ink)}
 #main .song-entry-actions>.small-button{color:var(--ds-text)}
 #main .song-entry-actions>:is(a,button)>span{word-break:keep-all}
-#main .song-entry :is(button,a):focus-visible{outline:2px solid var(--ds-accent-mint);outline-offset:3px}
 #main .song-entry-actions>button:disabled{color:var(--ds-body);background:var(--ds-panel);opacity:1}
 #main .song-entry .song-entry-tabs{display:flex;gap:0;margin:0 0 12px;border-bottom:1px solid var(--ds-line)}
 #main .song-entry-tabs>.tab{flex:1;justify-content:center;gap:6px;min-width:0;min-height:48px;margin:0;padding:12px 4px;background:transparent;color:var(--ds-muted);border:0;border-radius:0;font-size:var(--pc-font-control,15px);white-space:normal;text-align:center}

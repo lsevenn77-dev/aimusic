@@ -59,7 +59,6 @@ html:has(#aifect-mobile-experience) .jump-heading [data-rules] {background:#1917
 .jump-board .arc-rank-title small {margin:0;font-size:.75rem;color:#d3ceff;white-space:nowrap}
 .jump-club .jump-leaders>p {font-size:.8rem;line-height:1.4;margin:4px 0 8px;color:#cac9db}
 .arc-scroll {min-height:48px;max-height:206px;overflow:auto;overscroll-behavior:contain;border-block:1px solid #514e72;scrollbar-width:thin;scrollbar-color:#80759f transparent}
-.arc-scroll:focus-visible,.arc-start:focus-visible {outline:3px solid var(--ds-mint,#aeebdf);outline-offset:-3px}
 .jump-club .arc-scroll ol {margin:0;padding:0}
 .jump-club .arc-scroll li {display:grid;grid-template-columns:auto 24px minmax(0,1fr) auto;align-items:center;gap:5px;min-height:44px;padding:4px 0;border:0;border-bottom:1px solid #454665}
 .arc-scroll li>b {color:#d4bafa;font-variant-numeric:tabular-nums}

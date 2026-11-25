@@ -21,7 +21,6 @@
  .directory-activity-filter label span,.crew-tag-group label span {display:block;border:1px solid var(--ds-line);border-radius:999px;padding:6px 11px;font-size:var(--pc-font-control);color:var(--ds-body);background:var(--ds-bg);}
  .directory-activity-filter :checked+span,.crew-tag-group :checked+span {color:var(--crew-mint);border-color:var(--crew-mint);background:color-mix(in srgb,var(--crew-mint) 10%,var(--ds-bg));}
  .crew-tag-group :disabled+span {color:var(--ds-disabled);cursor:default;}
- .directory-activity-filter :focus-visible+span,.crew-tag-group :focus-visible+span {outline:2px solid var(--ds-accent-lavender);outline-offset:2px;}
  .directory-secondary {flex-wrap:wrap;gap:8px 16px;border-top:1px solid var(--ds-line);padding-top:12px;}
  .directory-select {gap:6px;font-size:var(--pc-font-control);color:var(--ds-body);}
  .crew-directory select {width:auto;min-height:36px;background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-sm);padding:4px 8px;color:var(--ds-text);}

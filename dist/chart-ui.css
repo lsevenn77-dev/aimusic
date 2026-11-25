@@ -43,7 +43,7 @@
  background:transparent;box-shadow:none;transition:background-color 160ms ease;
 }
 #main .song-table.song-table-chart.chart-ui .song-table-row:last-child{border-bottom:0}
-#main .song-table.song-table-chart.chart-ui .song-table-row:is(:hover,:focus-within){background:rgba(142,221,210,.045);box-shadow:none;border-radius:0}
+#main .song-table.song-table-chart.chart-ui .song-table-row:hover{background:rgba(142,221,210,.045);box-shadow:none;border-radius:0}
 #main .song-table.song-table-chart.chart-ui .song-table-row.is-chart-playing{background:rgba(142,221,210,.065);box-shadow:none}
 #main .song-table.song-table-chart.chart-ui .song-table-row>*{grid-column:auto;grid-row:1;margin:0;min-width:0}
 #main .song-table.song-table-chart.chart-ui .song-table-position{grid-column:1;width:auto;text-align:center;font-size:var(--chart-rank-size);font-weight:700;font-variant-numeric:tabular-nums}
@@ -72,7 +72,6 @@
 #main .song-table.song-table-chart.chart-ui .song-table-play>svg{width:30px!important;height:30px!important;flex-basis:30px!important;padding:calc(6px)!important;border:1px solid currentColor!important;border-radius:50%!important;background:none!important;color:var(--chart-muted)}
 #main .song-table.song-table-chart.chart-ui [data-track-menu]>svg{width:18px!important;height:18px!important;flex-basis:18px!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;color:var(--chart-muted)}
 #main .song-table.song-table-chart.chart-ui :is(.song-table-play,[data-track-menu]):hover>svg{color:#8EDDD2}
-#main .song-table.song-table-chart.chart-ui :is(button,a):focus-visible{outline:2px solid var(--ds-selected);outline-offset:-2px}
 #main .song-table.song-table-chart.chart-ui :is(.chart-cover-play,.chart-mobile-covers){display:none!important}
 #main .song-table.song-table-chart.chart-ui--compact .chart-movement{grid-column:4}
 #main .song-table.song-table-chart.chart-ui--compact .song-table-plays{grid-column:5}

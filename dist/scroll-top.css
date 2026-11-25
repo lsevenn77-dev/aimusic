@@ -12,5 +12,4 @@
 .page-scroll-top[hidden] {display:none}
 .page-scroll-top[data-scroll-pane="messages"] {z-index:91}
 .page-scroll-top:hover {background:var(--ds-soft);color:var(--ds-selected)}
-.page-scroll-top:focus-visible {outline:2px solid var(--ds-selected);outline-offset:3px}
 @media(prefers-reduced-motion:reduce) {.page-scroll-top {transition:none}}

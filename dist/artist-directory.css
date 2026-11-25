@@ -36,9 +36,6 @@
  background:color-mix(in srgb,var(--ds-panel) 78%,transparent);
  color:var(--ds-text); text-align:center;
 }
-.artist-directory .directory-artist:is(:focus-visible,:has(:focus-visible)) {
- border-color:var(--artist-active-border);
-}
 @media (min-width:801px) and (hover:hover) and (pointer:fine) {
  .artist-directory .directory-artist:hover {
   border-color:var(--artist-active-border);
@@ -121,7 +118,6 @@
 .artist-directory .directory-add-symbol svg {width:36px; height:36px}
 .artist-directory .directory-add-content strong {font-size:var(--pc-font-card,16px); font-weight:600}
 .artist-directory .directory-add-content>span:last-child {font-size:var(--pc-font-meta,13px); line-height:1.5; color:var(--ds-body)}
-.artist-directory :is(a,button,select):focus-visible {outline:2px solid var(--ds-mint); outline-offset:2px}
 .artist-directory .directory-empty {padding:32px 16px; text-align:center; color:var(--ds-body); font-size:14px}
 .artist-directory .directory-pagination {display:flex; justify-content:center; gap:12px; margin-top:24px}
 @container artist-directory (max-width:1039px) {

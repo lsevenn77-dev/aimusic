@@ -112,7 +112,6 @@ html:has(#aifect-mobile-experience) .phone-race .cgl-nav { display: none; } /* B
 #garageDialog .garage-views { display:flex; flex:none; gap:4px; align-self:start; padding:3px; border:1px solid #766487; background:#211d31; border-radius:14px; }
 #garageDialog .garage-views button { min-height:44px; padding:6px 14px; font:inherit; font-size:14px; font-weight:700; border:0; border-radius:11px; color:#c4bcd5; background:transparent; }
 #garageDialog .garage-views [aria-pressed=true] { color:#302b43; background:linear-gradient(135deg,#ead1f7,#c3e7e2); }
-#garageDialog .garage-views button:focus-visible, #garageDialog .act:focus-visible { outline:3px solid #ffdcc7; outline-offset:2px; }
 #garageDialog .carcard { background:#27263d; border-radius:15px; gap:7px; padding:7px; }
 #garageDialog .carcard.on { border-color:#acdece; box-shadow:inset 0 0 0 1px #acdece; }
 #garageDialog .thumb { --glow:#795269; aspect-ratio:1.68; background:radial-gradient(ellipse at 50% 87%,var(--glow),#383246 65%,#282536); display:flex; align-items:center; justify-content:center; }

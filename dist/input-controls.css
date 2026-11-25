@@ -1,70 +1,30 @@
-/* One focus border per text entry. Sliders, toggles and checkboxes retain their
-   existing keyboard indicators. This file loads after component styles. */
-:is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=image]):not([type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]) {
- outline:none!important;box-shadow:none!important;
+/* Shared input geometry and validation. Focus is drawn by focus.css. */
+:is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],
+  [type=reset],[type=image],[type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]) {
+ box-shadow:none!important;
 }
-:is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=image]):not([type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):is(:focus,:focus-visible) {
- border-color:var(--input-focus-border,var(--ds-line))!important;
-}
-/* Labels provide layout; their actual control owns the border. */
 .form-field:has(> :is(input,textarea,select)) {border:0!important;outline:0!important;box-shadow:none!important}
-/* Search composites own one border around the icon, input and action. */
+
+/* The shell holds the border for composite inputs. */
 :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input) {
- outline:0!important;box-shadow:none!important;filter:none!important;
+ box-shadow:none!important;filter:none!important;
 }
-:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:focus-visible,input:focus) {
- border-color:var(--ds-line)!important;
-}
-:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search) input {
- border:0!important;outline:0!important;box-shadow:none!important;
-}
-/* A custom textbox/combobox can itself wrap a native control. The outer
-   component owns the border in that case, just like a search composite. */
-:is([role=textbox],[role=combobox],[data-input-shell]):has(:is(input,textarea,select,[contenteditable=true])) {
- outline:0!important;box-shadow:none!important;
-}
-:is([role=textbox],[role=combobox],[data-input-shell]):has(:focus) {border-color:var(--ds-line)!important}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search) input,
 :is([role=textbox],[role=combobox],[data-input-shell]) :is(input,textarea,select,[contenteditable=true]) {
- border:0!important;outline:0!important;box-shadow:none!important;
+ border:0!important;box-shadow:none!important;
 }
-/* Borderless standalone editors still need a visible keyboard focus. Reserve
-   their single border before focus so the content does not move. */
+:is([role=textbox],[role=combobox],[data-input-shell]):has(:is(input,textarea,select,[contenteditable=true])) {
+ box-shadow:none!important;
+}
 :where([contenteditable=true],[role=textbox],[role=combobox],[data-input-shell]):not(input,textarea,select) {
  border:1px solid transparent;
 }
-/* Chat editors use a filled surface without a visible idle border. Reserve the
-   border inside their existing padding to retain dimensions and focus access. */
 :is(.dm-chat-panel,.crew-chat-panel) #chat-compose textarea {
  border:1px solid transparent;padding:11px 13px;
 }
-/* Preserve error priority even while focused, with no second outline. */
-:is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):is([aria-invalid=true],:user-invalid) {--input-focus-border:var(--ds-error,#f87171);border-color:var(--ds-error,#f87171)!important}
-:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input:is([aria-invalid=true],:user-invalid)) {border-color:var(--ds-error,#f87171)!important}
-:is([role=textbox],[role=combobox],[data-input-shell]):has(:is([aria-invalid=true],:user-invalid)) {border-color:var(--ds-error,#f87171)!important}
-@media(forced-colors:active){
- :is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):focus{border-color:Highlight!important}
- :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search,[role=textbox],[role=combobox],[data-input-shell]):has(:focus){border-color:Highlight!important}
-}
-/* Borderless editors and standalone inputs need a visible focus edge even
-   when their component resets border-style. An inset edge preserves sizing. */
-:is(input:not([type]),input:is([type=text],[type=search],[type=email],[type=password],[type=url],[type=number],[type=tel],[type=date]),textarea,select,[contenteditable=true]):focus-visible{
- border-style:solid;border-width:1px;box-sizing:border-box
-}
-.aifect-dropdown:has(>.aifect-dropdown-trigger){border:0;outline:0;box-shadow:none}
-.aifect-dropdown>.aifect-dropdown-trigger:focus-visible{border:1px solid var(--ds-selected,#D3BAFF)!important;outline:0;box-shadow:none}
 
-/* A focused editor has a neutral edge on touch, and a visible lavender edge
-   when reached with a keyboard. Validation colors keep their priority. */
-:is(input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=button]):not([type=submit]):not([type=reset]):not([type=image]):not([type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):focus-visible {
- border-color:var(--input-focus-border,var(--ds-selected,#D3BAFF))!important;
-}
-:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search,[role=textbox],[role=combobox],[data-input-shell]):has(:focus-visible) {
- border-color:var(--ds-selected,#D3BAFF)!important;
-}
+:is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):is([aria-invalid=true],:user-invalid),
 :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search,[role=textbox],[role=combobox],[data-input-shell]):has(:is([aria-invalid=true],:user-invalid)) {
  border-color:var(--ds-error,#f87171)!important;
 }
-@media(forced-colors:active) {
- :is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):focus-visible,
- :is(.brand-search,.search-box,[role=textbox],[role=combobox],[data-input-shell]):has(:focus-visible) {border-color:Highlight!important}
-}
+.aifect-dropdown:has(>.aifect-dropdown-trigger) {border:0;outline:0;box-shadow:none}

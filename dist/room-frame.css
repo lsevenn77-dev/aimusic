@@ -140,13 +140,12 @@
     & #voice-emoji-picker :is(.cat-tabs,.cat-picker-scroll) button {
       background: transparent; border-color: transparent;
     }
-    & #voice-emoji-picker :is(.cat-tabs,.cat-picker-scroll) button:is(:hover,:focus-visible):not([aria-pressed="true"]) {
+    & #voice-emoji-picker :is(.cat-tabs,.cat-picker-scroll) button:hover:not([aria-pressed="true"]) {
       background: var(--room-popup-control-fill); border-color: var(--room-popup-control-edge);
     }
 
     & #voice-content .voice-chat-panel #voice-invite-sheet[open] {
       --ds-selected: var(--room-popup-control-active-edge);
-      --input-focus-border: var(--room-popup-control-active-edge);
     }
     & #voice-invite-sheet #voice-invite-form { align-items: stretch; }
     & #voice-invite-sheet #voice-invite-form > label { align-items: stretch; text-align: start; }
@@ -158,8 +157,7 @@
     }
     & #voice-content .voice-chat-panel #voice-invite-sheet .room-popup-close { font-size: 22px; line-height: 1; }
     & #voice-invite-sheet #voice-invite-form .brand-search :is(svg,.search-sparkle) { color: var(--room-muted); }
-    & #voice-invite-sheet #voice-invite-form .brand-search:focus-within { filter: none; border-color: var(--room-popup-control-active-edge); }
-    & #voice-invite-sheet #voice-invite-form :is(.room-share-person:has(:checked),.room-share-person:hover,.room-share-message input:focus-visible),
+    & #voice-invite-sheet #voice-invite-form :is(.room-share-person:has(:checked),.room-share-person:hover),
     & #voice-content .voice-chat-panel #voice-invite-sheet.room-popup :is(.room-popup-close:hover,button[type="submit"]:enabled) {
       background: var(--room-popup-control-active); border-color: var(--room-popup-control-active-edge);
     }

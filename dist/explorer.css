@@ -27,7 +27,6 @@
 .public-playlist-owner>svg{width:16px;height:16px;flex:none}
 .public-playlist-owner>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .public-playlist-stats{display:flex;align-items:center;gap:8px;flex:none;max-width:calc(100% - 24px);min-width:0;white-space:nowrap}
-.public-playlist-card :is(a,button):focus-visible{outline:2px solid var(--ds-selected);outline-offset:3px}
 /* Match the existing md dropdown's border-box height; do not enlarge its trigger.
    bindExplorer measures that trigger, with 38px as the pre-mount CSS fallback. */
 #main #collection-search{--collection-control-height:38px;--ui-control-height:var(--collection-control-height);display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:12px;margin:0 0 20px;min-width:0}
@@ -57,7 +56,6 @@
 .discover-photo-layout .discover-search input::placeholder{color:var(--ds-body);opacity:1}
 .discover-photo-layout .discover-search button{display:grid;place-items:center;flex:none;width:44px;height:44px;padding:8px;border:0;border-radius:0;background:none;color:var(--ds-accent-pink)}
 .discover-photo-layout .discover-search button svg{width:26px;height:26px}
-.discover-photo-layout .discover-search:focus-within{outline:0;filter:brightness(1.15)}
 .discover-photo-layout .discover-shortcuts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px;margin-bottom:26px}
 .discover-photo-layout .discover-shortcuts a{display:flex;align-items:center;gap:16px;min-width:0;min-height:86px;padding:16px 20px;border:1px solid var(--ds-line);border-radius:12px;background:linear-gradient(115deg,var(--ds-panel),var(--ds-bg));color:var(--ds-text)}
 .discover-photo-layout .discover-shortcuts a>svg:first-child{flex:none;width:30px;height:30px;color:var(--ds-lavender)}
@@ -104,7 +102,6 @@
 .discover-photo-layout .discover-genre-card strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px;line-height:1.35;font-weight:700}
 .discover-photo-layout .discover-genre-card>svg{flex:none;width:17px;height:17px}
 .discover-photo-layout a:hover,.discover-photo-layout a[aria-current=page]{border-color:var(--ds-lilac)}
-.discover-photo-layout a:focus-visible,.discover-photo-layout button:focus-visible,.discover-photo-layout .discover-mood-track:focus-visible{outline:2px solid var(--ds-lilac);outline-offset:2px}
 .discover-results{margin-top:32px}
 .discover-results .discover-result-filters{display:flex;gap:18px;flex-wrap:wrap}
 @media(min-width:701px) and (max-width:1100px){.discover-photo-layout .discover-genre-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.discover-photo-layout .discover-shortcuts a{gap:10px;padding:12px}.discover-photo-layout .discover-shortcuts strong{font-size:14px}.discover-photo-layout .discover-shortcuts small{font-size:12px}}

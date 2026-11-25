@@ -8,7 +8,6 @@
 .crew-game-board .cgl-title small{color:#d3ceff;font-size:12px;font-weight:750;letter-spacing:.08em;white-space:nowrap}
 .crew-game-board .cgl-description{margin:6px 0 10px;color:#c7c8df;font-size:14px;line-height:1.5}
 .crew-game-board .cgl-scroll{min-height:160px;height:190px;position:relative;overflow-y:auto;overscroll-behavior:contain;border-block:1px solid #514e72;scrollbar-color:#746f9d transparent;scrollbar-width:thin}
-.crew-game-board .cgl-scroll:focus-visible{outline:3px solid var(--ds-mint,#aeebdf);outline-offset:-3px}
 .crew-game-board .cgl-scroll ol{padding:0;margin:0;list-style:none}
 .crew-game-board .cgl-row{box-sizing:border-box;display:grid;grid-template-columns:2ch 32px minmax(0,1fr) auto;align-items:center;gap:9px;min-height:48px;padding:7px 0;margin:0;border:0;border-bottom:1px solid #454665;font-size:16px;line-height:1.35}
 .crew-game-board .cgl-row>b{color:#c6b6fa;text-align:center;font-variant-numeric:tabular-nums}
@@ -53,7 +52,6 @@
 .arcade-lobby .cgl-start{width:100%;margin-top:10px;min-height:48px;font-size:18px}
 .arcade-lobby :is(.iconbtn,.diff,.cgl-collection button:not(.cgl-pill)){height:auto;border:1px solid #75669d;border-radius:99px;padding:8px 14px;background:#29274f;color:#f6f4ff;box-shadow:none;text-decoration:none}
 .arcade-lobby .diff[aria-pressed=true]{background:linear-gradient(#eee6ff,#bfacf6);color:#362762;border-color:#e7dbff}
-.arcade-lobby :is(button,a):focus-visible,.cgl-store-dialog button:focus-visible{outline:3px solid #aeebdf;outline-offset:3px}
 .arcade-lobby button:disabled,.cgl-store-dialog button:disabled{opacity:.55;cursor:default}
 .arcade-lobby .cgl-records dl{margin:0;display:grid;gap:6px}
 .arcade-lobby .cgl-records dl>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:8px;background:#29274fae}

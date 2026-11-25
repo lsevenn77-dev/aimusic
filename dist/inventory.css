@@ -1,5 +1,5 @@
 /* Existing product cards, frame artwork and brand tokens in the unified inventory. */
-.unified-inventory{min-width:0;max-width:100%}.unified-inventory .ml-tabs{margin-top:20px}.unified-inventory :focus-visible{outline:2px solid var(--ds-mint);outline-offset:2px}
+.unified-inventory{min-width:0;max-width:100%}.unified-inventory .ml-tabs{margin-top:20px}
 .inventory-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin:12px 0 24px}
 .inventory-grid .player-item{display:flex;flex-direction:column;align-items:stretch;margin:0;min-width:0;padding:18px;border:1px solid var(--ds-line);border-radius:16px;background:var(--ds-panel)}
 .inventory-grid .player-item.is-equipped{border-color:var(--ds-mint)}.inventory-grid .player-item-preview{align-self:center}.inventory-grid .player-item-copy{min-width:0;width:100%}.inventory-grid .player-item-copy h2{overflow-wrap:anywhere;font-size:16px}.inventory-grid .player-item-copy small{display:block;line-height:1.8}.inventory-item-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:12px}.inventory-item-actions>*{min-height:44px;max-width:100%;white-space:normal}.inventory-item-actions .text-link{font-size:12px;text-align:left}

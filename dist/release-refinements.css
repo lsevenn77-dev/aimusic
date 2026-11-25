@@ -218,9 +218,8 @@ main .crew-people .artist-portrait>span{font-size:23px;line-height:1;white-space
 #global-search{gap:10px;max-width:520px;width:clamp(240px,30vw,520px);border-radius:12px;background:linear-gradient(130deg,#1c2533,#1b202c);border:1px solid #ffffff1a}
 #global-search input{flex:1;min-width:0;width:100%;color:var(--ds-text);background:transparent;border:0;padding:0;outline:0;box-shadow:none;font-size:13px}
 #global-search .search-submit{flex:none;color:var(--ds-body);background:#ee85b222;border-radius:7px;padding:5px 10px;font-size:12px}
-#global-search:focus-within,main .aifect-search:focus-within{outline:0;border-color:#e892b9;box-shadow:0 0 0 3px #e892b914}
 main .aifect-search{display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:14px;background:linear-gradient(120deg,#1e2836,#1c212d);border:1px solid #ffffff20}
-main .aifect-search input,main .aifect-search input:focus,main .aifect-search input:focus-visible{flex:1;min-width:0;background:transparent;border:0;outline:0;box-shadow:none;color:var(--ds-text);padding:5px 0}
+main .aifect-search input{flex:1;min-width:0;background:transparent;border:0;outline:0;box-shadow:none;color:var(--ds-text);padding:5px 0}
 main .aifect-search .primary-button{flex:none;border-radius:10px;padding:10px 18px;min-height:40px}
 @media(max-width:700px){.topbar #global-search{min-width:0;width:auto;flex:1}.topbar #global-search input{font-size:12px}.topbar #global-search .search-submit{padding:4px 7px}.aifect-search>svg{width:18px;flex:none}}
 

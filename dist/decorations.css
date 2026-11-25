@@ -50,7 +50,7 @@
 .compact-periods legend{font-size:13px;margin-bottom:8px}.compact-periods label{position:relative;display:block;min-width:0;cursor:pointer}
 .compact-periods input{position:absolute;opacity:0;width:1px;min-height:0!important;height:1px}
 .compact-periods span{display:grid;gap:6px;text-align:center;padding:10px 4px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-sm);background:var(--ds-panel);font-size:12px}
-.compact-periods strong{font-size:12px}.compact-periods :checked+span{border-color:var(--ds-lavender);background:var(--ds-soft)}.compact-periods :focus-visible+span{outline:2px solid var(--ds-mint);outline-offset:2px}
+.compact-periods strong{font-size:12px}.compact-periods :checked+span{border-color:var(--ds-lavender);background:var(--ds-soft)}
 .compact-actions{display:flex;gap:8px;margin-top:12px}.compact-actions>.primary-button{flex:1}.compact-actions>*{min-height:44px}
 .compact-purchase input{min-height:44px;width:100%;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);padding:10px}
 .gift-category-tabs{display:flex;gap:6px;margin:12px 0}.gift-category-tabs button{flex:1;padding:8px;min-width:0;min-height:44px}.gift-category-tabs [aria-pressed=true]{background:var(--ds-soft);border-color:var(--ds-lavender)}

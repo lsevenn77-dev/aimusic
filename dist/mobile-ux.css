@@ -31,7 +31,6 @@
 .player.is-collapsed .play-button {width:44px;height:44px}
 .player.is-collapsed .player-collapse {right:8px;top:4px}
 .player.is-collapsed .player-collapse svg {transform:rotate(180deg)}
-.player-collapse:focus-visible {outline:2px solid var(--aqua);outline-offset:2px}
 @media(max-width:800px) {
   .player:not(.is-collapsed) {padding-right:56px}
   .player:not(.is-collapsed) .player-close {top:58px;right:8px;width:44px;height:44px}

@@ -13,7 +13,6 @@ body:has(.fishing-lobby)>header button{border:0;background:none}
 .fishing-lobby p,.fishing-lobby dt{color:var(--fl-muted);line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
 .fishing-lobby p{font-size:13px;margin:4px 0}
 .fishing-lobby :is(button,a){touch-action:manipulation}
-.fishing-lobby :is(button,a):focus-visible{outline:3px solid var(--fl-mint);outline-offset:2px}
 .fishing-lobby .fl-hero{min-height:clamp(192px,50vw,270px);display:flex;flex-direction:column;justify-content:space-between;gap:16px;isolation:isolate;overflow:hidden;background:#182044 url('./art/lobby-sea-v1.webp') 66% center/cover no-repeat;border-color:#726eb6;padding:clamp(14px,3.5vw,25px) clamp(18px,4.5vw,32px) 8px}
 .fl-hero::before{content:"";position:absolute;z-index:-1;inset:0;background:linear-gradient(0deg,#0d1029d9,transparent 40%),linear-gradient(90deg,#11153388,transparent 63%);pointer-events:none}
 .fl-intro{width:65%;text-shadow:0 2px 6px #0b112d}

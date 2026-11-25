@@ -95,10 +95,6 @@
   border-radius:var(--ds-radius-input);
   cursor:pointer;
 }
-#main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"],[data-route="inventory"],[data-route^="inventory?"],[data-route="upload"],[data-route^="upload?"]) :is(button,a,input,select,textarea,summary):focus-visible {
-  outline:2px solid var(--ds-selected);
-  outline-offset:3px;
-}
 #main:is([data-route^="account"],[data-route^="membership"],[data-route^="studio/payouts"],[data-route="payouts"],[data-route="gold"],[data-route^="gold?"],[data-route="gifts/rewards"],[data-route^="gifts/rewards?"],[data-route="rewards"],[data-route^="rewards?"],[data-route="inventory"],[data-route^="inventory?"],[data-route="upload"],[data-route^="upload?"]) .form-field {
   min-width:0;
   margin:0 0 calc(16px);

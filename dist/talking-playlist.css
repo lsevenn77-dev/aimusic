@@ -72,7 +72,6 @@
   & .talk-playlist-row [data-like] { --ds-social: white; }
   & .talk-playlist-row [data-like][aria-pressed="true"] path { fill: currentColor; }
   & .talk-playlist-row button:enabled:hover { background-color: rgb(255 255 255 / .36); }
-  & .talk-playlist :is(button,.talk-playlist-rows):focus-visible { outline: 2px solid var(--room-text); outline-offset: -2px; }
   & .talk-playlist[hidden] { display: none; }
   @media (max-height: 820px) {
    --talk-seat-pad: 10px;

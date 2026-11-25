@@ -10,8 +10,6 @@
 .aifect-dropdown .aifect-dropdown-chevron{display:block;flex-shrink:0;width:13px;height:13px;transition:transform .15s ease}
 .aifect-dropdown .aifect-dropdown-trigger[aria-expanded=true] .aifect-dropdown-chevron{transform:rotate(180deg)}
 .aifect-dropdown .aifect-dropdown-trigger:hover:not(:disabled){background:color-mix(in srgb,var(--ds-panel) 94%,var(--ds-lavender))}
-:is(body,#main) .aifect-dropdown .aifect-dropdown-trigger:focus{border-color:var(--dropdown-border)!important}
-:is(body,#main) .aifect-dropdown .aifect-dropdown-trigger:focus-visible{outline:2px solid var(--ds-lavender)!important;outline-offset:2px;border-color:var(--ds-lavender)!important}
 .aifect-dropdown .aifect-dropdown-trigger:disabled{opacity:.45;cursor:default}
 .aifect-dropdown-menu{position:fixed;inset:auto;margin:0;padding:calc(4px);border:1px solid var(--dropdown-border);border-radius:6px;background:var(--dropdown-surface);box-shadow:0 4px 14px #0003;overflow:auto;overscroll-behavior:contain;z-index:2147483000;font-size:calc(13px);line-height:1.4}
 .aifect-dropdown-menu[hidden]{display:none}

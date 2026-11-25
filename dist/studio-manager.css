@@ -159,7 +159,6 @@
 .studio-manager .is-danger { color: var(--studio-pink); }
 .studio-manager .studio-bulk-button:disabled { opacity: .49; cursor: default; }
 .studio-manager :is(.studio-filter-button,.studio-action,.studio-bulk-button):hover:not(:disabled) { border-color: var(--studio-muted); }
-.studio-manager :is(a,button,select,input):focus-visible { outline: 2px solid var(--studio-accent); outline-offset: 1px; }
 .studio-manager .studio-work-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 14px; border-bottom: 1px solid #c0c7e513; }
 .studio-manager .studio-work-row.is-selected { background: #ac9ff716; }
 .studio-manager .studio-work-info { display: flex; align-items: center; gap: 12px; min-width: 0; }

@@ -25,7 +25,6 @@
 body,.page-wrap {background:var(--ds-bg);color:var(--ds-body)}
 :where(h1,h2,h3,h4,h5,h6) {color:var(--ds-text)}
 ::selection {background:#b7b6ff55;color:var(--ds-text)}
-:is(button,a,input,select,textarea,summary):focus-visible {outline:2px solid var(--ds-mint);outline-offset:3px}
 button svg,a svg,summary svg {stroke-width:1.6}
 /* Keep menu strokes consistent, including the player's legacy overflow override. */
 button svg.menu-icon,.player #player-more svg.menu-icon {stroke-width:1.8}
@@ -229,7 +228,6 @@ input.design-range[type=range]:disabled {opacity:.45}
 #dialog .track-option>svg:last-child {width:18px;height:18px;color:var(--ds-muted)}
 #dialog .track-option-now {background:color-mix(in srgb,var(--ds-muted) 9%,transparent);border-radius:var(--ds-radius-sm)}
 #dialog .track-option-delete {color:var(--ds-accent-pink)!important}
-#dialog .track-option:focus-visible {outline:1px solid var(--ds-muted);outline-offset:-2px}
 #dialog .track-option:hover {text-decoration:underline;text-underline-offset:3px}
 #dialog:has(.track-options) #dialog-close {
   position:absolute;top:8px;right:8px;display:grid;place-items:center;

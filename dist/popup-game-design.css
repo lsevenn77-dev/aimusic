@@ -95,13 +95,6 @@ dialog#rules.compact-popup .primary:not(:disabled) {
   color:var(--popup-text);
   box-shadow:none;
 }
-:is(#race,#play) :is(#pauseOv,#resultOv) button:focus-visible,
-dialog#rules.compact-popup button:focus-visible,
-#garageDialog button:focus-visible,
-dialog.jump-dialog button:focus-visible {
-  outline:2px solid var(--popup-selected);
-  outline-offset:2px;
-}
 :is(#race,#play) :is(#pauseOv,#resultOv) .btnrow > button:disabled,
 dialog#rules.compact-popup .primary:disabled,
 #garageDialog .garage-action:disabled,

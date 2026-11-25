@@ -154,7 +154,6 @@
 .ac-ledger li>div:last-child {text-align:right}
 .ac-ledger li strong {color:var(--ds-text);font-size:var(--pc-font-body,15px)}
 .ac-links .ac-withdraw {color:#D7A0A4}
-.ac-dashboard :is(a,button,summary):focus-visible {outline:2px solid var(--ac-mint);outline-offset:2px}
 @media(max-width:800px){.ac-grid{grid-template-columns:minmax(0,1fr);gap:10px}.ac-dashboard .ac-card{padding:16px}.ac-dashboard h1{margin-bottom:12px}.ac-benefits ul{gap:4px 8px}.ac-values{gap:6px}.ac-password input{font-size:16px}}
 
 #main:has(> .ac-dashboard) {padding-block-end:14px}

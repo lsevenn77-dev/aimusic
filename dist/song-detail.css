@@ -30,7 +30,6 @@
 #main .song-detail-refined .song-description-toggle{display:inline-block;position:relative;min-width:44px;min-height:0;height:auto;width:auto;margin:0 0 0 6px;padding:0;vertical-align:baseline;white-space:nowrap;background:none;border:0;border-radius:var(--ds-radius-sm);box-shadow:none;color:var(--ds-muted);font-size:12px;font-weight:500;line-height:inherit}
 #main .song-detail-refined .song-description-toggle::after{content:'';position:absolute;inset-inline:0;top:50%;height:44px;transform:translateY(-50%)}
 #main .song-detail-refined .song-description-toggle:hover{color:var(--ds-selected)}
-#main .song-detail-refined .song-description-toggle:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 .song-detail-refined .song-detail-copy>.song-actions{grid-column:1;display:flex;flex-wrap:wrap;align-items:center;gap:4px;width:max-content;min-width:0;max-width:100%;margin:12px 0 0;padding:4px 0}
 #main .song-detail-refined .song-actions>:is(button,a){
  display:inline-flex;align-items:center;justify-content:center;gap:4px;
@@ -46,7 +45,6 @@
 #main .song-detail-refined .song-actions>:is(.song-action-listen,.song-action-sing){padding-inline:10px}
 #main .song-detail-refined .song-actions>.song-action-more{width:44px;padding:0}
 #main .song-detail-refined .song-actions>.primary-button:not(:disabled):hover{color:var(--ds-ink);border-color:transparent!important}
-#main .song-detail-refined .song-actions>:is(button,a):focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 #main .song-detail-refined .song-actions>button:disabled{color:var(--ds-disabled);opacity:.5;cursor:default}
 .song-detail-refined .song-actions .song-action-icon{width:18px;height:18px;flex:0 0 18px;fill:none;stroke:currentColor;stroke-width:1.8;color:inherit}
 #main .song-detail-refined .song-actions .song-action-like:is(.is-active,[aria-pressed=true]){color:var(--ds-social)}
@@ -156,7 +154,6 @@
 .song-main-column .comments-panel .song-comment-actions{gap:2px 8px;align-items:center;margin:0}
 .song-main-column .comments-panel .song-comment-actions>.text-link{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:32px;min-height:32px;margin:0;padding:0 3px;border:0;border-radius:var(--ds-radius-sm);background:transparent;box-shadow:none;color:var(--ds-muted);line-height:1.5;text-decoration:none;cursor:pointer}
 .song-main-column .comments-panel .song-comment-actions>.text-link:hover{background:transparent;color:var(--ds-text)}
-.song-main-column .comments-panel .song-comment-actions>.text-link:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 .song-main-column .comments-panel [data-comment-like] svg{color:inherit;fill:none;stroke:currentColor}
 .song-main-column .comments-panel [data-comment-like].is-active{color:var(--ds-selected)!important}
 .song-main-column .comments-panel [data-comment-like][aria-pressed=true] svg{fill:currentColor}
@@ -177,8 +174,6 @@
  border:1px solid var(--ds-border);padding:9px 12px;font-size:16px;line-height:24px;
  resize:none;overflow-y:hidden;scroll-margin-block:12px;caret-color:#be9bf4;
 }
-:is(#main,#dialog) textarea[data-comment-input]:is(:hover,:focus,:focus-visible){border-color:#be9bf4!important}
-:is(#main,#dialog) textarea[data-comment-input]:focus{outline:0!important;box-shadow:0 0 0 2px rgb(190 155 244 / 22%)!important}
 :is(#reply-form,#dubbing-comment-form,.fan-reply-form):has(textarea[data-comment-input]){
  display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:6px 8px;
 }

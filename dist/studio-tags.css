@@ -16,7 +16,6 @@
 .song-tag-field .song-tag-chip.is-added{border-color:var(--ds-border);cursor:default}
 .song-tag-field .song-tag-chip>.song-tag-remove,
 #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .song-tag-field .song-tag-chip>.song-tag-remove{flex-shrink:0;color:var(--ds-muted);font-size:17px;line-height:1}
-.song-tag-field .song-tag-chip:focus-visible,.song-tag-field .song-tag-refresh:focus-visible{outline:2px solid var(--ds-mint);outline-offset:3px}
 .song-tag-field .field-help{margin:7px 0 0;font-size:var(--pc-font-caption,13px);line-height:1.65}
 .song-tag-field .song-tag-status:empty{display:none}
 .song-tag-field .song-tag-status.is-error{color:var(--ds-accent-pink)}

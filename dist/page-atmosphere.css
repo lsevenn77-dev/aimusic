@@ -6,7 +6,7 @@
 .community-crew-ranking{list-style:none;margin:0;padding:0}
 .community-crew-ranking li+li{border-top:1px solid #d1dcf00b}
 .community-crew-ranking a{display:grid;grid-template-columns:18px 38px minmax(0,1fr) auto;align-items:center;gap:9px;min-height:70px;padding:9px 0;border-radius:8px}
-.community-crew-ranking a:hover{background:#ffffff06}.community-crew-ranking a:focus-visible{outline:2px solid #ed91bc;outline-offset:2px}
+.community-crew-ranking a:hover{background:#ffffff06}
 .crew-rank-position{font-size:.96rem;font-weight:700;color:var(--ds-body)}.community-crew-ranking li:nth-child(-n+3) .crew-rank-position{color:var(--ds-body)}
 .crew-rank-picture{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;overflow:hidden;background:#293445;border:1px solid #b4d1ed29}
 .crew-rank-picture img{width:100%;height:100%;object-fit:cover}.crew-rank-picture svg{width:19px;height:19px;color:var(--ds-body)}
@@ -68,7 +68,6 @@ main[data-route^="sing/"]>.page-heading .free-badge{display:none}
 #sing .sing-console .studio-record svg{width:76px;height:76px;padding:22px;box-sizing:border-box;border-radius:50%;color:var(--ds-text);background:linear-gradient(135deg,#fc73ae,#d8367f);box-shadow:0 0 0 5px #e65a9633,0 4px 24px #e8559955}
 #sing .sing-console .studio-record span{font-size:.75rem;font-weight:600}
 #sing .sing-console .studio-record:disabled{opacity:.65;cursor:default}
-#sing .sing-console .studio-record:focus-visible,#sing .sing-size-menu summary:focus-visible{outline:2px solid #9bdde4;outline-offset:4px;border-radius:12px}
 #sing .sing-size-menu{position:relative;align-self:center;min-width:0;grid-column:4/6;justify-self:center;width:min(100%,140px)}
 #sing .sing-size-menu summary{list-style:none;display:flex;flex-direction:column;gap:7px;align-items:center;justify-content:center;min-height:76px;cursor:pointer}
 #sing .sing-size-menu summary::-webkit-details-marker{display:none}

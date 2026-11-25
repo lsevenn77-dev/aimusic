@@ -25,7 +25,6 @@ body {
 }
 body.racing { overflow: hidden; }
 button { font-family: inherit; color: inherit; }
-button:focus-visible { outline: 3px solid var(--mint); outline-offset: 2px; }
 .glass {
   position: relative; background: linear-gradient(180deg, rgba(44,46,104,.78), var(--glass)); border: 1px solid var(--edge); border-radius: 18px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.35), 0 6px 0 rgba(6,7,22,.6), 0 18px 40px rgba(0,0,0,.35); backdrop-filter: blur(14px);

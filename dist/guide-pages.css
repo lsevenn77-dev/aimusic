@@ -9,7 +9,6 @@
 .guide-page .page-footer :is(a,.business-details,.footer-copyright){font-size:14px}
 .guide-page .page-footer a{min-height:44px;align-content:center}
 .guide-page a{color:var(--guide-mint);text-underline-offset:4px}
-.guide-page :is(a,button,summary,[tabindex="0"]):focus-visible{outline:2px solid var(--guide-mint);outline-offset:-2px}
 .guide-page :is(a,button,summary):hover{color:var(--ds-text)}
 .guide-header,.guide-nav-shell{border-bottom:1px solid var(--ds-line)}
 .guide-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:76px}

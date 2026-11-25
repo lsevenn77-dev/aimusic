@@ -15,7 +15,6 @@
   background:transparent;color:var(--ds-text);backdrop-filter:none;box-shadow:none;cursor:pointer;
 }
 .album-card .album-title-row .card-more svg {width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
-.album-card .card-play:focus-visible,.album-card .card-more:focus-visible {outline:2px solid #c3b5ef;outline-offset:3px}
 
 /* Preserve each control's existing svg box; never recolor the external asset. */
 svg.audio-play-icon {aspect-ratio:1;flex-shrink:0;filter:none!important}

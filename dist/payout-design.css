@@ -183,7 +183,6 @@
 
 /* Tables scroll within their own panel, retaining every monetary column. */
 #main .payout-management .table-scroll {width:100%;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;border-radius:var(--ds-radius-sm,8px)}
-#main .payout-management .table-scroll:focus-visible {outline:2px solid var(--ds-selected);outline-offset:3px}
 #main .payout-management .earnings-table {width:100%;min-width:600px;border-collapse:collapse;font-size:var(--pc-font-meta,14px);text-align:left;font-variant-numeric:tabular-nums}
 #main .payout-management .earnings-table :is(th,td) {padding:calc(14px) calc(16px);border-bottom:1px solid var(--ds-line);line-height:1.6;white-space:nowrap;vertical-align:top}
 #main .payout-management .earnings-table th {background:var(--ds-bg);color:var(--ds-muted);font-weight:500}

@@ -195,7 +195,6 @@
     margin: 0; padding: 0; border: 0; border-radius: 50%; color: var(--room-text); background: var(--room-action-fill); box-shadow: none;
   }
   & .talk-seat-controls .talk-seat-actions > button svg { width: 21px; height: 21px; }
-  & :is(.room-header nav, .talk-seat-actions, #live-actions, .live-request-area) button:focus-visible { outline: 2px solid currentColor; outline-offset: 1px; }
   & :is(.room-header nav, .talk-seat-actions, #live-actions, .live-request-area) button:disabled { opacity: .45; }
   & :is(.room-header nav, .talk-seat-actions, #live-actions) button:is([aria-expanded="true"],[aria-pressed="true"]) { background: rgb(255 255 255 / .30); }
   @media (hover:hover) {
@@ -312,7 +311,6 @@
     & #voice-content dialog[open] :is(.small-button,button[type="button"],.gift-choice,.gift-tier-tab):not(.primary-button):not([data-voice="karaoke-request"]) { color: var(--room-text); }
   }
   & #voice-content dialog .aifect-dropdown-menu { background: var(--room-popup-fill); color: var(--room-text); border-color: var(--room-stroke); }
-  & .room-popup :focus-visible { outline: 2px solid #d7bdf4; outline-offset: -2px; }
 }
 body:has(#main[data-room-entered] > .voice-room[data-ui-mode="light"]) > #toast { --ds-text: #171a2c; --ds-body: #303344; --ds-progress: #326858; color: var(--ds-text)!important; background: rgb(250 249 253 / .96)!important; border-color: rgb(99 101 128 / .29); }
 @media(min-width:801px) {

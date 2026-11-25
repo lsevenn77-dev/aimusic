@@ -23,7 +23,6 @@
 .photo-crop-preview{position:relative;overflow:hidden;border-radius:12px;background:var(--ds-bg)}.photo-crop-circle{position:absolute;inset:0;pointer-events:none;border:2px solid var(--ds-lilac);border-radius:50%;box-shadow:0 0 0 240px #0009}.photo-crop-tools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px}.photo-crop-tools .small-button{min-height:44px}
 .artist-image-editor{display:flex;flex-direction:column;align-items:center;gap:12px;flex-shrink:0}
 .artist-image-editor .artist-image-change{display:inline-flex;align-items:center;justify-content:center;min-height:44px;cursor:pointer;touch-action:manipulation}
-.artist-image-change:focus-visible{outline:2px solid var(--ds-lilac);outline-offset:3px}
 
 .ai-account-badge{display:inline-flex;align-items:center;font-size:10px;line-height:1.5;border:1px solid var(--ds-line);border-radius:6px;color:var(--ds-body);padding:1px 5px;margin-left:6px;vertical-align:middle}.official-ai-support{border-top:1px solid var(--ds-line);padding:12px 0;margin:12px 0}.official-ai-support p{font-size:12px;color:var(--ds-muted)}.official-ai-support a{display:block;font-size:13px;margin-top:8px}
 
@@ -69,7 +68,6 @@
 .crew-page .crew-member-face>.profile-avatar-image {display:block;width:100%;height:100%;object-fit:cover;border-radius:50%;background:var(--ds-panel)}
 .crew-page .crew-member-profile strong {max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:14px;line-height:1.4}
 .crew-page .crew-member-profile:hover strong {text-decoration:underline}
-.crew-page :is(.crew-member-profile,.crew-settings-trigger):focus-visible {outline:2px solid var(--ds-mint);outline-offset:2px}
 @media(max-width:1100px){
  .crew-page .crew-member-grid {grid-template-columns:repeat(auto-fill,minmax(min(86px,100%),1fr))}
  .crew-page .crew-member-profile {--face:60px}
@@ -87,7 +85,7 @@
 .crew-page .crew-settings-anchor .fan-settings-menu {width:240px;max-width:calc(100vw - 32px);padding:4px}
 .crew-settings-anchor .fan-settings-menu button[role=menuitem] {min-height:44px;padding:6px 10px;gap:10px;line-height:1.4}
 .crew-settings-anchor .fan-settings-menu svg {width:18px;height:18px;flex:none}
-.crew-settings-anchor [role=menuitem]:focus-visible {outline:2px solid var(--ds-mint);outline-offset:-2px;background:var(--ds-line)}
+.crew-settings-anchor [role=menuitem]:focus-visible {background:var(--ds-line)}
 html:has(.crew-action-dialog[open]),body:has(.crew-action-dialog[open]) {overflow:hidden}
 dialog.crew-action-dialog {
  box-sizing:border-box;width:min(560px,calc(100% - 24px));max-width:none;
@@ -130,7 +128,6 @@ dialog.crew-action-dialog[open] {display:flex;flex-direction:column}
 .crew-audit-event p {grid-column:1/-1;margin:0;font-size:14px;color:var(--ds-body)}
 .crew-activity-tabs button {flex:1;padding:4px 8px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--ds-body)}
 .crew-activity-tabs button[aria-selected=true] {color:var(--ds-text);border-color:var(--ds-selected)}
-.crew-action-dialog :is(input,select,button,a,textarea):focus-visible {outline:2px solid var(--ds-mint);outline-offset:-2px}
 @media(max-width:600px){
  .crew-action-dialog>header,.crew-action-dialog>footer,.crew-action-tools {padding:8px 14px}
  .crew-action-dialog .crew-action-body {padding:12px 14px}
@@ -283,7 +280,6 @@ dialog.crew-action-dialog,
 .crew-weekly-games:empty {display:none}
 .crew-weekly-games .crew-game-entry {display:block; width:100%; border-radius:10px}
 .crew-weekly-games .crew-game-entry svg {display:block; width:100%; height:auto}
-.crew-weekly-games .crew-game-entry:focus-visible {outline:2px solid var(--ds-mint); outline-offset:3px}
 @media(max-width:700px){
  .crew-detail-top {display:grid; grid-template-columns:minmax(0,1fr); row-gap:8px}
  .crew-weekly-games {width:min(90%,310px); justify-self:end}

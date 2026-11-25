@@ -141,7 +141,7 @@ body:has(.chat-panel) .page-wrap {padding-bottom:0}
 .cover.cover-performer{border-radius:50%!important;overflow:hidden;background:#252e3a}
 .cover.cover-performer>img{width:100%;height:100%;object-fit:cover;border-radius:50%}
 
-.dm-inbox-tabs{display:flex;gap:7px;padding:2px 6px 12px}.dm-inbox-tabs button{flex:1;min-height:36px;padding:6px 8px;white-space:nowrap;border:1px solid #6c728a80;border-radius:18px;background:transparent;color:var(--ds-body);font:inherit;font-size:.82rem}.dm-inbox-tabs button[aria-pressed=true]{background:linear-gradient(120deg,#a98de9,#67cce0);border-color:#9cdded;color:var(--ds-text);font-weight:700}.dm-inbox-tabs button:focus-visible{outline:2px solid #8eddd2;outline-offset:2px}
+.dm-inbox-tabs{display:flex;gap:7px;padding:2px 6px 12px}.dm-inbox-tabs button{flex:1;min-height:36px;padding:6px 8px;white-space:nowrap;border:1px solid #6c728a80;border-radius:18px;background:transparent;color:var(--ds-body);font:inherit;font-size:.82rem}.dm-inbox-tabs button[aria-pressed=true]{background:linear-gradient(120deg,#a98de9,#67cce0);border-color:#9cdded;color:var(--ds-text);font-weight:700}
 .dm-message.mine .dm-message-content{display:flex}.dm-message.mine .dm-message-line{display:flex;flex-direction:row-reverse;align-items:flex-end;gap:8px}.dm-message.mine .chat-message-meta{flex-shrink:0}.dm-message.mine .dm-message-line .dm-bubble{background:#39394f;color:var(--ds-text);border-radius:17px 3px 17px 17px}
 
 /* Comment controls shared by tracks, fan threads and dubbing. */
@@ -154,7 +154,6 @@ body:has(.chat-panel) .page-wrap {padding-bottom:0}
 .comment-context-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
 .comment-context-options button{padding:8px 12px;background:var(--ds-soft);border-radius:var(--ds-radius-sm);color:var(--ds-selected)}
 .comment-context-options [data-menu-action=delete]{color:var(--ds-accent-pink)}
-[data-comment-card]:focus-visible,.comment-context-sheet button:focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 [data-comment-card] [data-comment-action=reply]>svg{display:none}
 [data-comment-card] .comment-actions-row>[data-comment-action]{display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:32px;margin:0;padding:0 4px;border:0;background:transparent;box-shadow:none;line-height:1.3}
 [data-comment-card] .comment-actions-row>[data-comment-action=like][aria-pressed=true]{color:var(--ds-selected)!important}

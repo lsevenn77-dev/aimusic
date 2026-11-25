@@ -79,7 +79,6 @@
 #main .music-community-tabs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(max-content,1fr);width:100%;min-width:0;min-height:0;gap:0;margin:0 0 20px;padding:0;border:0;border-bottom:1px solid var(--ds-line);border-radius:0;background:none;overflow-x:auto;white-space:nowrap;scrollbar-width:none}
 #main .music-community-tabs .tab{min-width:0;min-height:48px;display:flex;align-items:center;justify-content:center;padding:14px 8px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:var(--ds-muted);font-size:1.0833125rem;font-weight:650;text-decoration:none}
 #main .music-community-tabs .tab.active{color:#FF75B4;border-image:none;border-bottom-color:#FF75B4}
-#main .music-community-tabs .tab:focus-visible{outline:1px solid var(--ds-muted);outline-offset:-2px}
 @media(max-width:600px){#main .music-community-tabs{margin:0 0 12px}#main .music-community-tabs .tab{font-size:16px}}
 .community-v3{color:var(--ds-text)}
 .v3-toolbar{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:28px 0 20px}
@@ -217,7 +216,6 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
  display:block;min-width:0;overflow:hidden;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
  background:var(--ds-panel);color:var(--ds-text);text-decoration:none;
 }
-.talk-directory .v3-room-card:focus-visible {outline:2px solid var(--ds-mint);outline-offset:2px}
 .talk-directory .v3-room-art {width:100%;aspect-ratio:1;border-radius:0}
 .talk-directory .talk-cover {display:block;width:100%;height:100%;object-fit:cover}
 .talk-directory .v3-room-count,.talk-directory .talk-host {
@@ -271,7 +269,6 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
  overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
  scrollbar-width:thin;scrollbar-color:#50637e transparent;
 }
-.talk-directory .talk-scroll:focus-visible {outline:2px solid var(--ds-mint);outline-offset:-2px}
 
 .live-directory .talk-scroll:has(.talk-status[data-state="empty"]) {
  flex:1;max-height:none;margin-block:0;display:grid;grid-template-rows:0 minmax(0,1fr) 0;
@@ -381,8 +378,6 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
 @media(hover:hover) {
  .live-directory .live-filters button:not([aria-pressed=true]):hover {background:var(--ds-soft)}
 }
-.live-directory .live-filters button:focus-visible {outline:2px solid var(--ds-mint);outline-offset:-3px}
-.live-directory .live-filters button[aria-pressed=true]:focus-visible {outline-color:#101827}
 @media(prefers-reduced-motion:reduce) {
  .live-directory .live-filters::before {transition:none}
 }
@@ -465,8 +460,6 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
  #main .room-lobby.live-directory {padding-block-start:4px}
  #main .room-lobby.live-directory {--list-spacing:6px}
 }
-.live-directory :is(button,a,input):focus-visible,.live-directory .directory-search:focus-within {outline:2px solid var(--ds-mint);outline-offset:2px}
-.live-directory .v3-room-card:focus-visible {outline-offset:-2px}
 .live-directory #v3-room-create {
  position:fixed;inset:var(--live-top,0px) 0 auto;top:calc(var(--live-top,0px) + var(--live-vh,100dvh) / 2);
  transform:translateY(-50%);margin:0 auto;width:min(480px,calc(100% - 28px));max-height:calc(var(--live-vh,100dvh) - 24px);
@@ -492,7 +485,6 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
 }
 .live-directory #v3-room-create .live-mode input {opacity:0;inset:0;width:100%;height:100%;cursor:pointer}
 .live-directory .live-mode label:has(:checked) {border-color:var(--ds-lavender)!important;background:var(--ds-soft)!important}
-.live-directory .live-mode label:has(:focus-visible) {outline:2px solid var(--ds-mint);outline-offset:-2px}
 .live-directory .live-title-row {grid-template-columns:minmax(0,1fr) auto}
 .live-directory #v3-room-create :is(input:not([type=radio]),select,textarea,[data-auto-title]) {font-size:14px;min-height:40px;padding:7px 10px}
 .live-directory #v3-room-create .voice-visibility label {min-height:40px;padding:7px 24px 7px 9px}
@@ -589,11 +581,6 @@ html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="儢月
   padding:0;border:0;border-radius:999px;background:transparent;color:var(--ds-muted);
  }
  #main .live-directory [data-live-search-clear] svg {width:18px;height:18px;stroke-width:1.8}
- #main .live-directory .directory-search:focus-within {outline:none;border-color:var(--ds-lilac)!important;filter:none}
- .live-directory .directory-search input:focus-visible {outline:none}
- .live-directory .live-tools button:focus-visible {outline:2px solid var(--ds-lilac);outline-offset:2px}
- .live-directory .live-filters button:focus-visible {outline-offset:-3px}
- .live-directory .live-filters button[aria-pressed=true]:focus-visible {outline-color:var(--ds-ink)}
  .live-directory .live-list-space {--list-spacing:14px}
 }
 @container (max-width:320px) {

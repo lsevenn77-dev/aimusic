@@ -38,7 +38,6 @@
 .song-cover-child .song-cover-detail{grid-template-columns:40px minmax(0,1fr)}
 .song-cover-child .song-cover-art,.song-cover-child .cover{width:40px;height:40px}
 .song-cover-load{align-self:center;min-height:44px;margin-top:12px}
-.song-covers-panel :is(a,button):focus-visible{outline:2px solid var(--ds-selected);outline-offset:2px}
 @media(max-width:1200px){.song-cover-row .song-cover-like,.song-cover-plays{display:none}}
 @media(max-width:600px){
  .song-covers-panel.surface{padding:12px}

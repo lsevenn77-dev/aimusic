@@ -35,7 +35,7 @@
  padding-inline:0;
 }
 .skip-content{position:fixed;top:8px;left:8px;z-index:10000;transform:translateY(calc(-100% - 16px));padding:12px 18px;border-radius:10px;background:var(--ds-panel);color:var(--ds-text)}
-.skip-content:focus{transform:none;outline:2px solid var(--ds-lilac)}
+.skip-content:focus{transform:none}
 @media(pointer:coarse){
  .login-card :is(.auth-switch,.account-recovery-link),.account-settings>a,.artist-directory .directory-follow,.artist-directory .directory-followers{display:inline-flex;align-items:center;min-height:44px}
 }

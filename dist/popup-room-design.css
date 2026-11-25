@@ -85,13 +85,6 @@
   color:var(--ds-disabled);
   cursor:not-allowed;
 }
-#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#voice-invite-form,#voice-gift-form) :is(input,select,textarea):focus-visible,
-#main .voice-room[data-voice-room] #voice-sound select:focus-visible,
-#main .voice-room[data-voice-room] #room-inbox .room-dm-query input:focus-visible {
-  border-color:var(--ds-selected);
-  outline:2px solid var(--ds-selected);
-  outline-offset:2px;
-}
 
 /* Keep each footer's existing arrangement; unify only ordinary action controls. */
 #main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.primary-button,.small-button):not(.voice-dialog-close),
@@ -129,12 +122,6 @@
   color:var(--ds-muted);
   opacity:.6;
   cursor:not-allowed;
-}
-#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.primary-button,.small-button):focus-visible,
-#main .voice-room[data-voice-room] #voice-sound .room-echo-buttons button:focus-visible,
-#main .voice-room[data-voice-room] #live-search-sheet .live-search-tabs button:focus-visible {
-  outline:2px solid var(--ds-selected);
-  outline-offset:2px;
 }
 /* Preserve the compact title generator's icon-only field position. */
 #main .voice-room[data-voice-room] #voice-settings-form .live-title-row [data-auto-title] {
@@ -467,16 +454,10 @@
   background:var(--ds-bg);
   color:var(--ds-accent-pink);
 }
-#recording-mode-dialog .recording-mode-choices [data-sing-mode]:is(:hover,:focus-visible) {
+#recording-mode-dialog .recording-mode-choices [data-sing-mode]:hover {
   border-color:var(--ds-selected);
   background:var(--ds-soft);
   color:var(--ds-text);
-}
-#dialog :is(.studio-settings,.recording-settings) :is(button,select):focus-visible,
-#dialog .duet-editor-footer button:focus-visible,
-#recording-mode-dialog .recording-mode-choices button:focus-visible {
-  outline:2px solid var(--ds-selected);
-  outline-offset:2px;
 }
 
 /* Legacy punch-completion dialog skin. The current recorder renders its result
