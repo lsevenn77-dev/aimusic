@@ -1,63 +1,110 @@
 // Cosmetics use server inventory. No ownership or purchases are stored in the browser.
-async function bindGiftCategoryTabs(form,{recipientId,initial,serial,account,initialOwned}){
- const section=form.closest('.gift-dialog'),list=form.querySelector('.gift-options'),owned=list.querySelector('.gift-owned'),ui=form._giftUI;
- const ordinary=document.createElement('div');ordinary.className='gift-ordinary-products';
- for(const el of [...list.children])if(el!==owned)ordinary.append(el);list.append(ordinary);
- const extra=document.createElement('div');extra.className='gift-decoration-products';extra.hidden=true;list.append(extra);
- let catalog,selected,period=initial?.period||'P7D',busy=false,revision=0;
- // Keep each unresolved purchase/send pair when a member changes tabs or periods.
- const attempts=new Map(),active=()=>form.isConnected&&serial===giftDialogSerial&&account===me?.id;
- const fingerprint=()=>selected?.item?'inventory:'+selected.item.id:'purchase:'+selected?.p.sku+':'+period;
- function choose(p,item=null){
-  if(busy||form._busy)return;selected={p,item};
-  if(item)period=item.period_code;
-  else if(!Number.isFinite(p.periodPrices[period]))period=Object.keys(catalog.periods).find(key=>Number.isFinite(p.periodPrices[key]));
-  formError(form).textContent='';paint();
+async function bindGiftCategoryTabs(form, {initial, serial, account, initialOwned, inventory, groups}) {
+ const ui = form._giftUI, section = form.closest('.gift-dialog'), list = form.querySelector('.gift-options');
+ const ordinary = list.querySelector('.gift-ordinary-products'), stored = list.querySelector('.gift-owned');
+ const extra = list.querySelector('.gift-decoration-products');
+ let category = '', revision = 0, selected = null, period = initial?.period || 'P7D';
+ const scrollPositions = new Map();
+ const active = () => form.isConnected && serial === giftDialogSerial && account === me?.id;
+ function select(p, item = null) {
+  selected = {p, item};
+  const options = shopProductPeriods(p, catalog.periods);
+  if (item) period = item.period;
+  else if (!options.some(([code]) => code === period)) period = options[0]?.[0];
+  extra.querySelectorAll('[data-gift-decoration-index]').forEach(button => {
+   const pressed = button.dataset.giftDecorationKey === (item?.id || p.sku);
+   button.classList.toggle('selected', pressed);
+   button.setAttribute('aria-pressed', String(pressed));
+  });
+  ui.setDecoration({...selected, period, periods:catalog.periods, setPeriod(value) {
+   if (form._busy || item || !options.some(([code]) => code === value)) return;
+   period = value;
+   select(p);
+  }});
  }
- function paint(){
-  const state=selected?attempts.get(fingerprint()):null;
-  extra.querySelectorAll('[data-gift-decoration-index]').forEach(button=>{const yes=selected&&button.dataset.giftDecorationKey===(selected.item?.id||selected.p.sku);button.classList.toggle('selected',!!yes);button.setAttribute('aria-pressed',String(!!yes));});
-  ui.setDecoration(selected?{...selected,period,periods:catalog.periods,bought:state?.bought||null,busy,setPeriod(value){if(busy||form._busy||state?.bought||selected.item||!Number.isFinite(selected.p.periodPrices[value]))return;period=value;formError(form).textContent='';paint();},send}:null);
-  form._giftMeasure?.();
- }
- async function send(){
-  if(busy||form._busy||!selected)return;if(!me)return askLogin();
-  if(me.id!==account){formError(form).textContent='계정이 변경되었습니다. 다시 열어 주세요.';return;}
-  const {p,item}=selected,key=fingerprint(),sentPeriod=period;
-  let attempt=attempts.get(key);if(!attempt){attempt={buyKey:crypto.randomUUID(),sendKey:crypto.randomUUID(),bought:item?.id||null};attempts.set(key,attempt);}
-  busy=true;form._busy=true;formError(form).textContent='';paint();
-  try{
-   if(!attempt.bought){
-    const result=await api('/api/decorations/buy','POST',{sku:p.sku,period:sentPeriod,request_id:attempt.buyKey});attempt.bought=result.order.inventory_id;
-    if(!active())return;
-    // Only a server wallet response can change the displayed balance.
-    await ui.refreshWallet().catch(()=>{});
+ let catalog;
+ function storedDecorations(items, products) {
+  const bySku = new Map(products.map(p => [p.sku,p])), variants = new Map();
+  for (const row of items) {
+   const p = bySku.get(row.item_key);
+   if (!row.giftable || !row.available || !p) continue;
+   const key = p.sku + ':' + row.period_code;
+   let entry = variants.get(key);
+   if (!entry) {
+    entry = {p, item:{id:row.id, ids:[], period:row.period_code}};
+    variants.set(key,entry);
    }
-   if(!active())return;
-   await api('/api/decorations/inventory/'+encodeURIComponent(attempt.bought)+'/send','POST',{profile_id:recipientId,request_id:attempt.sendKey,...(initial?.artistId?{artist_id:initial.artistId}:{})});
-   if(!active())return;attempts.delete(key);$('#dialog').close();toast(p.name+'을 선물했습니다.');
-  }catch(e){if(active())formError(form).textContent=e.message;}
-  finally{busy=false;form._busy=false;if(active())paint();}
+   if (initial?.inventoryId === row.id) { entry.item.id = row.id; entry.item.ids.unshift(row.id); }
+   else entry.item.ids.push(row.id);
+  }
+  return [...variants.values()];
  }
- async function show(key){
-  if(form._busy||busy||initial?.roomGift&&key!=='gifts')return;
-  const version=++revision;
-  section.querySelectorAll('[data-gift-category]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.giftCategory===key)));
-  ordinary.hidden=key!=='gifts';owned.hidden=key!=='inventory';extra.hidden=key==='gifts';extra.innerHTML='';list.scrollTop=0;
-  selected=null;ui.setCategory(key);paint();if(key==='gifts')return;
-  extra.innerHTML='<p class="gift-owned-empty" role="status">불러오는 중…</p>';
-  try{const result=await api('/api/decorations','GET',undefined,{fresh:true});if(!active()||version!==revision)return;catalog=result;
-   const items=(key==='inventory'?catalog.inventory.filter(i=>i.stored&&i.available).map(i=>({p:catalog.products.find(p=>p.sku===i.item_key),item:i})):catalog.products.filter(p=>p.kind===(key==='frames'?'PROFILE_FRAME':'TALKING_ROOM_THEME')).map(p=>({p}))).filter(value=>value.p);
-   extra.innerHTML=items.length?'<div class="gift-catalog">'+items.map(({p,item},i)=>{const starting=Number.isFinite(p.periodPrices.P7D)?'P7D':Object.keys(catalog.periods).find(code=>Number.isFinite(p.periodPrices[code]));return `<button type="button" class="gift-choice" data-gift-decoration-index="${i}" data-gift-decoration-key="${esc(item?.id||p.sku)}" aria-pressed="false"><img class="gift-art" src="${esc(p.assetPaths.overlay||p.assetPaths.roomCard)}" alt=""><strong>${esc(p.name)}</strong><span>${item?esc(catalog.periods[item.period_code]||item.period_code):(form._shopCoins?shopPrice(p.periodPrices[starting],p.currency||'G'):number(p.periodPrices[starting])+' G')+' / '+esc(catalog.periods[starting]||'')}</span></button>`;}).join('')+'</div>':key==='inventory'?'':'<p class="gift-owned-empty">선물할 상품이 없습니다.</p>';
-   extra.querySelectorAll('[data-gift-decoration-index]').forEach(b=>b.onclick=()=>{const value=items[Number(b.dataset.giftDecorationIndex)];if(busy||form._busy||!value)return;choose(value.p,value.item);});
-   if(key!=='inventory'){const value=items.find(v=>v.p.sku===initial?.sku)||items[0];if(value)choose(value.p);else{selected=null;paint();}}
-   else{const value=items.find(v=>v.item.id===initial?.inventoryId);if(value)choose(value.p,value.item);}
-   form._giftMeasure?.();
-  }catch(e){if(active()&&version===revision){extra.innerHTML='<p class="gift-owned-empty" role="alert">'+esc(e.message)+'</p>';form._giftMeasure?.();}}
+ async function show(key, first = false) {
+  if (form._busy || initial?.roomGift && key !== 'gifts') return;
+  if (category === key && !first) return;
+  if (category) scrollPositions.set(category,list.scrollTop);
+  category = key;
+  const version = ++revision;
+  selected = null;
+  formError(form).textContent = '';
+  section.querySelectorAll('[data-gift-category]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.giftCategory === key)));
+  ordinary.hidden = key !== 'gifts'; stored.hidden = key !== 'inventory'; extra.hidden = key === 'gifts';
+  extra.innerHTML = '';
+  ui.setCategory(key,first);
+  const restore = () => { list.scrollTop = scrollPositions.get(key) || 0; form._giftMeasure?.(); };
+  restore();
+  if (key === 'gifts') return;
+  try {
+   if (!catalog) {
+    extra.innerHTML = '<p class="gift-owned-empty" role="status">불러오는 중…</p>';
+    const value = await api('/api/decorations','GET',undefined,{fresh:true});
+    if (!active() || version !== revision) return;
+    catalog = value;
+   }
+   const storedTab = key === 'inventory';
+   const kind = key === 'frames' ? 'PROFILE_FRAME' : 'TALKING_ROOM_THEME';
+   const items = storedTab ? storedDecorations(catalog.inventory || [], catalog.products) :
+    catalog.products.filter(p => p.kind === kind && shopProductPeriods(p,catalog.periods).length).map(p => ({p}));
+   function card({p,item},index) {
+    const image = p.assetPaths.thumbnail || p.assetPaths.roomCard || p.assetPaths.overlay;
+    const starting = shopProductPeriods(p,catalog.periods)[0], suffix = item ? '×'+number(item.ids.length) :
+     shopPrice(p.periodPrices[starting[0]],p.currency)+' / '+esc(starting[1]);
+    const variant = item && catalog.periods[item.period] ? esc(p.name+' '+catalog.periods[item.period]+' '+item.ids.length+'개') : '';
+    const description = variant ? ' aria-label="'+variant+'" title="'+variant+'"' : '';
+    return `<button type="button" class="gift-choice" data-gift-decoration-index="${index}" data-gift-decoration-key="${esc(item?.id || p.sku)}" aria-pressed="false"${description}>${giftArt({image})}<strong title="${esc(p.name)}">${esc(p.name)}</strong><span>${suffix}</span></button>`;
+   }
+   if (storedTab) {
+    const cardsFor = kind => items.map((entry,i) => entry.p.kind === kind ? card(entry,i) : '').join('');
+    extra.innerHTML = giftInventorySection('테두리',cardsFor('PROFILE_FRAME')) + giftInventorySection('테마',cardsFor('TALKING_ROOM_THEME'));
+    if (!items.length && !groups.length && !inventory.error) extra.innerHTML = '<p class="gift-owned-empty">선물할 수 있는 상품이 없습니다.</p>';
+   } else extra.innerHTML = items.length ? '<div class="gift-catalog">'+items.map(card).join('')+'</div>' : '<p class="gift-owned-empty">선물할 상품이 없습니다.</p>';
+   extra.querySelectorAll('[data-gift-decoration-index]').forEach(b => b.onclick = () => {
+    if (form._busy) return;
+    const {p,item} = items[Number(b.dataset.giftDecorationIndex)];
+    formError(form).textContent = '';
+    select(p,item);
+   });
+   const choice = storedTab ? first && items.find(v => v.item.id === initial?.inventoryId) :
+    items.find(v => v.p.sku === initial?.sku) || items[0];
+   if (choice) select(choice.p,choice.item);
+   restore();
+  } catch (error) {
+   if (!active() || version !== revision) return;
+   extra.innerHTML = '<p class="gift-owned-empty" role="alert">'+esc(error.message)+' <button type="button" class="text-link" data-gift-decorations-retry>다시 불러오기</button></p>';
+   extra.querySelector('[data-gift-decorations-retry]').onclick = () => show(key,true);
+   restore();
+  }
  }
- section.querySelectorAll('[data-gift-category]').forEach(b=>b.onclick=()=>show(b.dataset.giftCategory));
- form.querySelectorAll('[data-owned-gift]').forEach(b=>b.addEventListener('click',()=>{if(busy||form._busy||b.disabled)return;selected=null;ui.selectOrdinary();paint();}));
- await show(initial?.roomGift?'gifts':initial?.inventoryId||initial?.giftInventoryId?'inventory':initial?.sku?.startsWith('frame_')?'frames':initial?.sku?'themes':initialOwned?'inventory':'gifts');
+ section.querySelectorAll('[data-gift-category]').forEach(b => b.onclick = () => show(b.dataset.giftCategory));
+ form.querySelectorAll('[data-owned-gift]').forEach(b => b.addEventListener('click',() => {
+  if (form._busy) return;
+  selected = null;
+  extra.querySelectorAll('[data-gift-decoration-index]').forEach(button => {
+   button.classList.remove('selected'); button.setAttribute('aria-pressed','false');
+  });
+ }));
+ await show(initial?.roomGift ? 'gifts' : initial?.inventoryId || initial?.giftInventoryId || initialOwned ? 'inventory' :
+  initial?.sku?.startsWith('frame_') ? 'frames' : initial?.sku ? 'themes' : 'gifts',true);
 }
 function decorationProductImage(p){return p.kind==='PROFILE_FRAME'?p.assetPaths.overlay:p.assetPaths.roomCard;}
 // One registered SKU already contains its duration variants; never group unrelated names.

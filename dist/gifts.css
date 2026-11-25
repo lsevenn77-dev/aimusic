@@ -40,6 +40,7 @@ body.chat-active .player{display:none!important}
   --ui-control-height: 44px;
   --gift-dialog-available-height: min(720px, calc(100vh - 24px));
   --gift-dialog-available-height: min(720px, calc(100dvh - max(12px, env(safe-area-inset-top, 0px)) - max(12px, env(safe-area-inset-bottom, 0px))));
+  --gift-dialog-height: 555px;
   --gift-dialog-line: color-mix(in srgb, var(--ds-info) 28%, var(--ds-panel));
   --gift-dialog-card: color-mix(in srgb, var(--ds-info) 8%, var(--ds-panel));
   /* Reference pink for this send action, with readable white button text. */
@@ -50,7 +51,7 @@ body.chat-active .player{display:none!important}
   width: min(448px, calc(100% - max(12px, env(safe-area-inset-left, 0px)) - max(12px, env(safe-area-inset-right, 0px))));
   min-width: 0;
   max-width: 448px;
-  height: fit-content !important;
+  height: min(var(--gift-dialog-height), var(--gift-dialog-available-height)) !important;
   min-height: 0 !important;
   max-height: var(--gift-dialog-available-height);
   margin: auto;
@@ -74,7 +75,7 @@ body.chat-active .player{display:none!important}
   display: flex;
   flex-direction: column;
   width: 100%;
-  height: auto !important;
+  height: 100% !important;
   min-width: 0;
   min-height: 0;
   max-height: calc(var(--gift-dialog-available-height) - 2px);
@@ -109,7 +110,7 @@ body.chat-active .player{display:none!important}
   flex-direction: column;
   width: 100%;
   max-width: none;
-  height: auto;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   max-height: inherit;
@@ -282,7 +283,7 @@ body.chat-active .player{display:none!important}
 #dialog .gift-dialog.gift-dialog--compact #gift-form {
   display: flex;
   flex-direction: column;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   width: 100%;
   height: auto;
   min-width: 0;
@@ -291,14 +292,12 @@ body.chat-active .player{display:none!important}
   padding: 0;
 }
 
-/* JS supplies the first two real row heights, including inventory captions.
-   No mode removes this cap; every remaining product stays in this scroller. */
 #dialog .gift-dialog.gift-dialog--compact .gift-options.gift-dialog-scroll {
-  flex: 0 0 auto;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   height: auto;
-  max-height: var(--gift-dialog-rows-height, 214px);
+  max-height: none;
   margin: 0;
   padding: 2px 10px 2px 16px;
   overflow-x: hidden;
@@ -437,10 +436,11 @@ body.chat-active .player{display:none!important}
 #dialog .gift-dialog.gift-dialog--compact .gift-dialog-footer {
   flex: 0 0 auto;
   min-width: 0;
-  margin: 8px 0 0;
-  padding: 10px 12px 12px;
-  border-top: 1px solid var(--gift-dialog-line);
-  border-radius: 14px 14px 0 0;
+  position: relative;
+  margin: 10px 0 0;
+  padding: 12px 12px 12px;
+  border: 0;
+  border-radius: 0;
   background: var(--ds-panel);
 }
 
@@ -681,8 +681,7 @@ body.chat-active .player{display:none!important}
   font-size: 13px;
 }
 
-#dialog .gift-dialog.gift-dialog--compact .gift-summary-sr-only,
-#dialog .gift-dialog.gift-dialog--compact .gift-owned .gift-catalog-heading {
+#dialog .gift-dialog.gift-dialog--compact .gift-summary-sr-only {
   position: absolute;
   display: block;
   width: 1px;
@@ -699,6 +698,7 @@ body.chat-active .player{display:none!important}
 
 @media (max-width: 540px) {
   #dialog.gift-sheet:has(.gift-dialog--compact) {
+    --gift-dialog-height: 524px;
     border-radius: 18px;
   }
 
@@ -804,32 +804,54 @@ body.chat-active .player{display:none!important}
   }
 }
 
-/* Long errors or a short screen can scroll the outer popup as a fallback.
-   The product scroller still shows at most its measured two-row viewport. */
-#dialog.gift-sheet:has(.gift-dialog--compact.gift-dialog--scroll-all) {
-  overflow-y: auto !important;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
+
+#dialog .gift-dialog.gift-dialog--compact .gift-dialog-footer::before {
+ content: "";
+ position: absolute;
+ top: 0;
+ left: 17px;
+ right: 17px;
+ height: 1px;
+ background: var(--ds-line);
 }
-
-#dialog:has(.gift-dialog--compact.gift-dialog--scroll-all) #dialog-content,
-#dialog.gift-sheet .gift-dialog.gift-dialog--compact.gift-dialog--scroll-all {
-  display: block;
-  max-height: none;
-  overflow: visible;
+#dialog .gift-dialog.gift-dialog--compact .gift-footer--inventory .gift-footer-grid {
+ grid-template-columns: minmax(0,1fr) minmax(0,2fr);
 }
-
-@media (max-height: 540px) {
-  #dialog.gift-sheet:has(.gift-dialog--compact) {
-    overflow-y: auto !important;
-    overscroll-behavior: contain;
-    scrollbar-width: thin;
-  }
-
-  #dialog:has(.gift-dialog--compact) #dialog-content,
-  #dialog.gift-sheet .gift-dialog.gift-dialog--compact {
-    display: block;
-    max-height: none;
-    overflow: visible;
-  }
+#dialog .gift-dialog.gift-dialog--compact .gift-footer--inventory :is(.gift-charge-button,.gift-silver-button,.gift-balance-cell) {
+ display: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-owned-section {
+ margin: 0 0 12px;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-owned-section h3 {
+ margin: 0 0 5px;
+ font-size: 13px;
+ color: var(--ds-body);
+}
+.gift-transfer-confirm {
+ box-sizing: border-box;
+ width: min(352px,calc(100% - 24px));
+ max-height: calc(100dvh - 24px);
+ overflow-y: auto;
+ margin: auto;
+ padding: 20px;
+ border: 1px solid var(--ds-line);
+ border-radius: var(--ds-radius-card);
+ background: var(--ds-surface);
+ color: var(--ds-text);
+ font: inherit;
+}
+.gift-transfer-confirm::backdrop { background: color-mix(in srgb,var(--ds-bg) 70%,transparent); }
+.gift-transfer-confirm form { margin: 0; text-align: center; }
+.gift-transfer-confirm h2 { margin: 0 0 12px; text-align: start; font-size: 20px; }
+.gift-transfer-confirm .gift-art { width: 72px; height: 72px; margin: 0 auto 10px; }
+.gift-transfer-confirm p { margin: 8px 0; font-size: 14px; overflow-wrap: anywhere; }
+.gift-transfer-confirm #gift-transfer-notice { color: var(--ds-muted); }
+.gift-confirm-actions { display: flex; gap: 8px; margin-top: 16px; }
+.gift-confirm-actions button { flex: 1; min-height: 44px; }
+.gift-confirm-cost { display: flex; align-items: center; justify-content: center; gap: 8px; }
+@media (max-height:420px) {
+ #dialog.gift-sheet:has(.gift-dialog--compact) .gift-dialog-header { padding-top: 0; }
+ #dialog .gift-dialog.gift-dialog--compact .gift-category-tabs { margin-block: 3px; }
+ #dialog .gift-dialog.gift-dialog--compact :is(.gift-dialog-header h2,.gift-recipient) { min-height: 32px; }
 }

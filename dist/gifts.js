@@ -22,148 +22,277 @@ async function chooseGiftRecipient(type){
   form.onsubmit=busyForm(form,async()=>{const query=form.elements.q.value.trim();const r=roomGift?{profiles:d.profiles.filter(p=>String(p.name||'').toLocaleLowerCase().includes(query.toLocaleLowerCase()))}:await api('/api/decorations/recipients?q='+encodeURIComponent(query),'GET',undefined,{fresh:true});if(serial===giftDialogSerial&&form.isConnected&&account===me?.id)paint(r.profiles);});
  }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog('<section class="gift-recipient-dialog"><h2>선물할 회원을 불러오지 못했습니다</h2><p role="alert">'+esc(e.message)+'</p></section>');}
 }
-function ownedGiftGroups(items=[],selectedId=null){
- const groups=new Map();
- for(const item of items){const key=item.gift_type+':'+!!item.available;const group=groups.get(key);if(group){group.quantity++;if(item.id===selectedId)groups.set(key,{...item,quantity:group.quantity});}else groups.set(key,{...item,quantity:1});}
- return [...groups.values()].sort((a,b)=>Number(b.available)-Number(a.available));
+function ownedGiftGroups(items = [], selectedId) {
+ const groups = new Map();
+ for (const item of items) {
+  if (!item.giftable || !item.available) continue;
+  let group = groups.get(item.gift_type);
+  if (!group) {
+   group = {id:item.id, name:item.gift_name, image:item.image, ids:[]};
+   groups.set(item.gift_type, group);
+  }
+  if (item.id === selectedId) { group.id = item.id; group.ids.unshift(item.id); }
+  else group.ids.push(item.id);
+ }
+ return [...groups.values()];
 }
-function ownedGiftCards(inventory,selectedId=null){
- const groups=ownedGiftGroups(inventory?.items||[],selectedId);
- return `<section class="gift-owned" aria-labelledby="gift-owned-title"><div class="gift-catalog-heading"><h3 id="gift-owned-title">보유 아이템</h3><span>추가 차감 없음</span></div>${inventory?.error?'<p class="gift-owned-empty" role="status">보유 아이템을 불러오지 못했습니다. <button type="button" class="text-link" data-gift-inventory-retry>다시 불러오기</button></p>':!me?'<p class="gift-owned-empty">로그인하면 보유한 선물을 볼 수 있습니다.</p>':!groups.length?'<p class="gift-owned-empty">보유한 선물이 없습니다.</p>':`<div class="gift-catalog gift-owned-catalog">${groups.map(g=>`<button type="button" class="gift-choice" data-owned-gift="${esc(g.id)}" aria-pressed="false" ${g.available?'':'disabled'}>${giftArt(g)}<strong>${esc(g.gift_name)}</strong><span>보유 ${number(g.quantity)}개</span>${g.available?'':'<small>사용 불가</small>'}</button>`).join('')}</div>`}</section>`;
+
+function storedGiftCard(group, attribute) {
+ return `<button type="button" class="gift-choice" ${attribute}="${esc(group.id)}" aria-pressed="false">${giftArt(group)}<strong title="${esc(group.name)}">${esc(group.name)}</strong><span>×${number(group.ids.length)}</span></button>`;
+}
+
+function giftInventorySection(title, cards) {
+ return cards ? `<section class="gift-owned-section"><h3>${title}</h3><div class="gift-catalog gift-owned-catalog">${cards}</div></section>` : '';
+}
+
+function confirmGiftTransfer({name,image,recipient,quantity,amount,currency,started = false}) {
+ const sheet = document.createElement('dialog');
+ sheet.className = 'gift-transfer-confirm';
+ sheet.setAttribute('aria-labelledby', 'gift-transfer-title');
+ sheet.setAttribute('aria-describedby', 'gift-transfer-question gift-transfer-notice');
+ const payment = amount == null ? '' : `<p class="gift-confirm-cost">결제 금액 ${shopPrice(amount, currency)}</p>`;
+ const period = started ? '<p>남은 이용 기간이 그대로 이전됩니다.</p>' : '';
+ sheet.innerHTML = `<form method="dialog"><h2 id="gift-transfer-title">선물하기</h2>${giftArt({image})}
+  <p id="gift-transfer-question"><strong>${esc(recipient)}</strong>님에게<br>${esc(name)} ${number(quantity)}개를 선물하시겠습니까?</p>
+  ${payment}${period}<p id="gift-transfer-notice">보낸 선물은 취소할 수 없습니다.</p>
+  <div class="gift-confirm-actions"><button type="submit" value="cancel" class="small-button" autofocus>취소</button><button type="submit" value="send" class="primary-button">선물하기</button></div></form>`;
+ const owner = $('#dialog');
+ return new Promise(resolve => {
+  const cancel = () => { if (sheet.open) sheet.close('cancel'); };
+  sheet.addEventListener('close', () => {
+   window.removeEventListener('hashchange', cancel);
+   owner?.removeEventListener('close', cancel);
+   sheet.remove();
+   resolve(sheet.returnValue === 'send');
+  }, {once:true});
+  window.addEventListener('hashchange', cancel);
+  owner?.addEventListener('close', cancel);
+  sheet.addEventListener('click', event => { if (event.target === sheet) cancel(); });
+  document.body.append(sheet);
+  sheet.showModal();
+ });
+}
+
+function finishGiftTransfer() {
+ $('#dialog').close();
+ toast('선물을 보냈습니다.');
+ window.dispatchEvent(new Event('aifect:inventory-changed'));
+ if (typeof refreshShopBalances === 'function') void refreshShopBalances();
 }
 let giftDialogSerial=0;
-// Measure the actual first two card rows; never size this dialog to the full page.
-function bindGiftCompactLayout(form){
- if(typeof document==='undefined'||typeof ResizeObserver!=='function'||!form?.closest)return;
- const section=form.closest('.gift-dialog--compact'),modal=$('#dialog'),list=form.querySelector('.gift-options'),footer=form.querySelector('.gift-checkout');
- if(!section||!modal||!list||!footer)return;
- let frame=0,stopped=false,revealSelection=true;
- const clean=()=>{if(stopped)return;stopped=true;if(frame)cancelAnimationFrame(frame);resize.disconnect();changes?.disconnect();hostChanges?.disconnect();window.removeEventListener('resize',schedule);modal.removeEventListener('close',clean);};
- const measure=()=>{
-  frame=0;if(!form.isConnected||!modal.open){clean();return;}
-  const cards=[...list.querySelectorAll('.gift-choice')].filter(el=>el.getClientRects().length),rows=[];
-  for(const card of cards){const r=card.getBoundingClientRect();if(!rows.some(top=>Math.abs(top-r.top)<2))rows.push(r.top);}
-  rows.sort((a,b)=>a-b);
-  if(rows.length){const bottom=Math.max(...cards.map(el=>el.getBoundingClientRect()).filter(r=>r.top<(rows[2]??Infinity)-2).map(r=>r.bottom)),style=getComputedStyle(list),height=Math.ceil(bottom-list.getBoundingClientRect().top+list.scrollTop+(parseFloat(style.paddingBottom)||0));if(height>0&&list.style.getPropertyValue('--gift-dialog-rows-height')!==height+'px')list.style.setProperty('--gift-dialog-rows-height',height+'px');}
-  if(revealSelection){
-   const selected=cards.find(el=>el.classList.contains('selected')||el.getAttribute('aria-pressed')==='true');
-   if(selected){
-    const card=selected.getBoundingClientRect(),viewport=list.getBoundingClientRect();
-    if(card.top<viewport.top||card.bottom>viewport.bottom){const previous=Math.max(...cards.map(el=>el.getBoundingClientRect().top).filter(top=>top<card.top-2)),top=Number.isFinite(previous)?previous:card.top;list.scrollTop=Math.max(0,list.scrollTop+top-viewport.top-(parseFloat(getComputedStyle(list).paddingTop)||0));}
-    revealSelection=false;
-   }
-  }
-  const outerHeight=el=>{if(!el)return 0;const style=getComputedStyle(el);return el.getBoundingClientRect().height+(parseFloat(style.marginTop)||0)+(parseFloat(style.marginBottom)||0);};
-  const fixed=[section.querySelector('header'),section.querySelector('.gift-category-tabs'),footer].reduce((n,el)=>n+outerHeight(el),0),rowHeight=Math.min(list.scrollHeight,parseFloat(list.style.getPropertyValue('--gift-dialog-rows-height'))||214),maximum=parseFloat(getComputedStyle(modal).maxHeight),available=(Number.isFinite(maximum)?maximum:Math.min(720,(window.visualViewport?.height||window.innerHeight)-24))-2;
-  const current=section.classList.contains('gift-dialog--scroll-all');section.classList.toggle('gift-dialog--scroll-all',fixed+rowHeight+(current?12:0)>available);
- };
- const schedule=()=>{if(!frame&&!stopped)frame=requestAnimationFrame(measure);};
- const resize=new ResizeObserver(schedule);resize.observe(section);resize.observe(footer);
- let grids=new Set();const observeGrids=()=>{const next=new Set(list.querySelectorAll('.gift-catalog'));for(const grid of grids)if(!next.has(grid))resize.unobserve(grid);for(const grid of next)if(!grids.has(grid))resize.observe(grid);grids=next;};observeGrids();
- const changes=typeof MutationObserver==='function'?new MutationObserver(()=>{observeGrids();schedule();}):null;changes?.observe(list,{childList:true,subtree:true,attributes:true,attributeFilter:['hidden','class']});
- const hostChanges=typeof MutationObserver==='function'?new MutationObserver(()=>{if(!form.isConnected)clean();}):null;const host=$('#dialog-content');if(host)hostChanges?.observe(host,{childList:true});
- window.addEventListener('resize',schedule,{passive:true});modal.addEventListener('close',clean);form._giftMeasure=schedule;form._giftCleanup=clean;schedule();
-}
 function giftCompactRecipient(profile,canChange){
  const image=typeof avatarImage==='function'?avatarImage(profile,profile.kind||'producer',false,false):'';
  return `<${canChange?'button type="button"':'div'} class="gift-recipient" id="gift-recipient"${canChange?' aria-label="받는 사람 변경"':''}><span class="gift-recipient-avatar">${image}</span><strong>${userNickname(profile.name,{profileId:profile.kind==='artist'?null:profile.id,artistId:profile.id,entityType:profile.kind})}</strong>${canChange?icon('chevron'):''}</${canChange?'button':'div'}>`;
 }
-async function giftDialog(tid,initial=null,personal=false){
- const serial=++giftDialogSerial,route=globalThis.location?.hash,roomGift=initial?.roomGift;
- const artistId=personal?initial?.artistId:null;
- const shop=typeof shopPopupContext==='function'&&shopPopupContext();
- const fromMessage=!artistId&&personal&&(initial?.fromMessage===true||route?.split('?')[0]==='#dm/'+tid);
- if(roomGift&&(!personal||typeof roomGift.send!=='function'||!roomGift.recipients?.some(p=>p.id===tid))){toast('선물할 토킹룸 참여자를 다시 선택해 주세요.');return;}
- if(personal&&me?.profile_id===tid){toast('본인에게는 선물할 수 없습니다.');return;}
- try{
-  await accountReady;const account=me?.id;
-  let [wallet,track,inventory]=await Promise.all([me?api('/api/gold','GET',undefined,{fresh:true}):Promise.resolve(null),api(artistId?'/api/artist-preview/'+encodeURIComponent(artistId):'/api/'+(personal?'producers/':'tracks/')+encodeURIComponent(tid)+(personal?'?gift_summary=0':'')),me&&!roomGift?api('/api/me/gift-inventory','GET',undefined,{fresh:true}).catch(()=>({error:true})):Promise.resolve({items:[]})]);
-  if(serial!==giftDialogSerial||route!==globalThis.location?.hash||account!==me?.id)return;
-  if(artistId&&track.profile.producer_id!==tid){toast('아티스트의 소속이 변경되었습니다. 프로필을 다시 열어 주세요.');return;}
-  const t=personal?{user_id:track.profile.user_id,producer:track.profile.display_name||track.profile.name,title:'직접 선물'}:track.track;if(!personal)remember([t]);
-  const reason=t.gift_block_reason||(me&&me.id===t.user_id?(personal?'본인에게는 선물할 수 없습니다.':'내 작품에는 선물할 수 없습니다.'):'');if(reason){toast(reason);return;}
-  const silverGifts=wallet?.silver_gifts||AifectGifts.SILVER_GIFT_CATALOG,gifts=wallet?.gifts||AifectGifts.GIFT_CATALOG,choices=roomGift?gifts:[...silverGifts,...gifts];
-  const recipientId=artistId?track.profile.producer_id:personal?track.profile.id||tid:t.producer_id,groups=ownedGiftGroups(inventory?.items||[],initial?.giftInventoryId),initialType=typeof initial==='string'?initial:initial?.id;
-  const profile={kind:artistId?'artist':'producer',id:artistId||recipientId,name:t.producer,image_version:personal?track.profile.image_version:t.producer_image_version};
-  let chosen=choices.some(g=>g.id===initialType)?initialType:roomGift?gifts[0]?.id:'silver-letter',quantity=Number.isInteger(initial?.quantity)&&initial.quantity>=1&&initial.quantity<=100?initial.quantity:1;
-  let owned=roomGift||initial?.inventoryId?null:initial?.giftInventoryId?groups.find(g=>g.id===initial.giftInventoryId&&g.available)||null:choices.some(g=>g.id===initialType)||initial?.sku?null:groups.find(g=>g.available)||null,confirmOwned=false,category=roomGift?'gifts':initial?.inventoryId||initial?.giftInventoryId?'inventory':initial?.sku?'decorations':owned?'inventory':'gifts',decoration=null;
-  const ownedRequests=new Map(),purchaseRequests=new Map();
+async function giftDialog(tid, initial = null, personal = false) {
+ const serial = ++giftDialogSerial, route = globalThis.location?.hash, roomGift = initial?.roomGift;
+ const artistId = personal ? initial?.artistId : null;
+ const fromMessage = !artistId && personal && (initial?.fromMessage === true || route?.split('?')[0] === '#dm/'+tid);
+ if (roomGift && (!personal || typeof roomGift.send !== 'function' || !roomGift.recipients?.some(p => p.id === tid))) {
+  toast('선물할 토킹룸 참여자를 다시 선택해 주세요.'); return;
+ }
+ if (personal && me?.profile_id === tid) { toast('본인에게는 선물할 수 없습니다.'); return; }
+ try {
+  await accountReady;
+  const account = me?.id;
+  const current = () => serial === giftDialogSerial && route === globalThis.location?.hash && account === me?.id;
+  const [walletData,track,inventory] = await Promise.all([
+   me ? api('/api/gold','GET',undefined,{fresh:true}) : null,
+   api(artistId ? '/api/artist-preview/'+encodeURIComponent(artistId) : '/api/'+(personal?'producers/':'tracks/')+encodeURIComponent(tid)+(personal?'?gift_summary=0':'')),
+   me && !roomGift ? api('/api/me/gift-inventory','GET',undefined,{fresh:true}).catch(() => ({error:true,items:[]})) : {items:[]}
+  ]);
+  if (!current()) return;
+  if (artistId && track.profile.producer_id !== tid) { toast('아티스트의 소속이 변경되었습니다. 프로필을 다시 열어 주세요.'); return; }
+  const t = personal ? {user_id:track.profile.user_id, producer:track.profile.display_name || track.profile.name} : track.track;
+  if (!personal) remember([t]);
+  const reason = t.gift_block_reason || (me && me.id === t.user_id ? personal ? '본인에게는 선물할 수 없습니다.' : '내 작품에는 선물할 수 없습니다.' : '');
+  if (reason) { toast(reason); return; }
+  let wallet = walletData;
+  const gold = wallet?.gifts || AifectGifts.GIFT_CATALOG, silver = wallet?.silver_gifts || AifectGifts.SILVER_GIFT_CATALOG;
+  const choices = roomGift ? gold : [...gold,...silver];
+  const groups = ownedGiftGroups(inventory.items,initial?.giftInventoryId);
+  const initialType = typeof initial === 'string' ? initial : initial?.id;
+  const explicitChoice = choices.find(g => g.id === initialType);
+  const recipientId = artistId ? track.profile.producer_id : personal ? track.profile.id || tid : t.producer_id;
+  const profile = {kind:artistId?'artist':'producer',id:artistId||recipientId,name:t.producer,image_version:personal?track.profile.image_version:t.producer_image_version};
+  let chosen = explicitChoice || (roomGift ? gold[0] : silver[0] || gold[0]);
+  let owned = groups.find(g => g.id === initial?.giftInventoryId) || null;
+  if (!roomGift && !explicitChoice && !initial?.sku && !initial?.inventoryId && !initial?.giftInventoryId) owned = groups[0] || null;
+  let category = owned || initial?.inventoryId || initial?.giftInventoryId ? 'inventory' : 'gifts', decoration = null;
+  let quantity = Number.isInteger(initial?.quantity) && initial.quantity > 0 ? initial.quantity : 1;
+  const requests = new Map();
+  const context = {...(artistId ? {artist_id:artistId} : {}), ...(fromMessage ? {from_message:true} : {}),
+   ...(!personal ? {track_id:tid} : !artistId && !fromMessage && !/^#(?:inventory|gift-inventory|gifts)\b/.test(route) ? {from_profile:true} : {})};
+  const ownedHTML = inventory.error ? '<p class="gift-owned-empty" role="alert">보유 아이템을 불러오지 못했습니다. <button type="button" class="text-link" data-gift-inventory-retry>다시 불러오기</button></p>' :
+   giftInventorySection('선물',groups.map(g => storedGiftCard(g,'data-owned-gift')).join(''));
   $('#gift-form')?._giftCleanup?.();
-  dialog(`<section class="gift-dialog gift-dialog--compact"><header class="gift-dialog-header"><h2>선물하기</h2>${giftCompactRecipient(profile,personal&&!artistId)}</header><nav class="gift-category-tabs" aria-label="선물 카테고리">${[['gifts','선물'],['frames','테두리'],['themes','테마'],['inventory','인벤토리']].map(([key,label])=>`<button type="button" class="small-button" data-gift-category="${key}" aria-pressed="false"${roomGift&&key!=='gifts'?' disabled aria-disabled="true"':''}>${label}</button>`).join('')}</nav><form id="gift-form"><div class="gift-options gift-dialog-scroll" tabindex="0" role="region" aria-label="선물 선택">${ownedGiftCards(inventory,initial?.giftInventoryId)}${giftCards(choices,null,true,shop)}<details class="gift-policy-details"${roomGift?' hidden':''}><summary>선물 수익 · 정산 안내</summary><p class="gift-fineprint">${esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)} 실버 선물은 수익 정산에 반영되지 않습니다.</p></details></div><div class="gift-checkout gift-dialog-footer"><div id="gift-decoration-detail" class="gift-extra-detail" hidden></div><div class="gift-send-summary gift-summary-sr-only" id="gift-send-summary" aria-live="polite"></div><p class="gift-fineprint gift-summary-sr-only" id="gift-send-notice">선택한 수량만큼 차감됩니다. 보낸 선물은 직접 취소할 수 없습니다.</p><p class="gift-context-detail" id="gift-detail" hidden></p><div class="gift-footer-grid"><span class="gift-balance-cell" data-currency="G">${shop?shopCoin("G"):'<span class="gift-currency-icon gold-coin" aria-hidden="true">G</span>'}<strong id="gift-balance-g">${number(wallet?.balance||0)} G</strong></span><a class="gift-charge-button" href="#gold" data-close-dialog>${icon('plus')}<span>충전하기</span></a><label class="gift-quantity"><span class="gift-summary-sr-only">선물 수량</span><select id="gift-quantity" aria-label="선물 수량" aria-describedby="gift-send-summary">${Array.from({length:100},(_,i)=>`<option value="${i+1}">${i+1}개</option>`).join('')}</select>${icon('chevron')}</label><span class="gift-balance-cell" data-currency="S">${shop?shopCoin("S"):`<span class="gift-currency-icon" aria-hidden="true"><img src="${esc(AifectGifts.FREE_GIFT.image)}" alt=""></span>`}<strong id="gift-balance-s">${number(wallet?.free?.balance||0)} S</strong></span><a class="gift-silver-button" href="#rewards" data-close-dialog>${icon('gift')}<span>오늘의 실버받기</span></a><button type="submit" class="gift-send-button" id="gift-send" aria-describedby="gift-send-summary gift-send-notice">${icon('gift')}<span class="gift-send-label">선물하기</span></button></div><button type="button" class="small-button" id="gift-owned-cancel" hidden>선택으로 돌아가기</button><p class="form-error" role="alert"></p></div></form></section>`);
-  const form=$('#gift-form'),input=$('#gift-quantity'),summary=$('#gift-send-summary'),detail=$('#gift-detail'),notice=$('#gift-send-notice'),cancel=$('#gift-owned-cancel'),send=$('#gift-send'),decorationDetail=$('#gift-decoration-detail');
-  form._shopCoins=shop;
-  const roomCheckout=!!roomGift||(typeof voiceController!=='undefined'&&voiceController?.joined);
-  let confirmedPurchase='';
-  const purchaseKey=()=>JSON.stringify([recipientId,category,chosen,quantity,decoration?.p?.sku,decoration?.period,decoration?.item?.id]);
-  const setSend=(label,disabled,description)=>{const text=send.querySelector?.('.gift-send-label');if(text)text.textContent=label;else send.textContent=label;send.disabled=disabled;send.setAttribute?.('aria-label',description||label);};
-  const showDetail=(text,visible)=>{if(detail){if(shop)detail.innerHTML=shopCurrencyText(text);else detail.textContent=text;detail.hidden=!visible;}};
-  const update=()=>{
-   if(!form.isConnected)return;
-   form.querySelectorAll('[data-owned-gift]').forEach(b=>{const selected=!decoration&&category==='inventory'&&b.dataset.ownedGift===owned?.id;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});
-   form.querySelectorAll('[data-gift-type]').forEach(b=>{const selected=!decoration&&category==='gifts'&&!owned&&b.dataset.giftType===chosen;b.classList.toggle('selected',selected);b.setAttribute('aria-pressed',String(selected));});
-   if(cancel)cancel.hidden=!confirmOwned&&(!confirmedPurchase||confirmedPurchase!==purchaseKey());
-   if(decorationDetail)decorationDetail.hidden=!decoration;
-   if(decoration){
-    const {p,item,period,periods,bought,busy,setPeriod}=decoration,cost=item||bought?0:p?.periodPrices?.[period],valid=Number.isFinite(cost)&&cost>=0,enough=(wallet?.balance||0)>=cost;
-    input.value='1';input.disabled=true;
-    if(decorationDetail){decorationDetail.innerHTML=p?`<strong>${esc(p.name)}</strong>${item?`<span>${esc(periods[item.period_code]||item.period_code)} · 보유 상품 · 추가 차감 없음</span>`:`<label>이용 기간<select id="gift-decoration-period" ${busy||bought?'disabled':''}>${Object.entries(periods).filter(([key])=>Number.isFinite(p.periodPrices[key])).map(([key,label])=>`<option value="${key}" ${key===period?'selected':''}>${esc(label)} · ${number(p.periodPrices[key])} G</option>`).join('')}</select></label>`}${bought&&!item?'<p>구매한 상품이 보관되어 있습니다. 추가 차감 없이 전송을 다시 시도할 수 있습니다.</p>':''}`:'선물할 상품을 선택해 주세요.';const select=decorationDetail.querySelector?.('select');if(select)select.onchange=()=>setPeriod(select.value);}
-    summary.innerHTML=p?`${esc(p.name)} · ${item||bought?'추가 차감 없음':'총 '+number(cost)+' G'} · ${esc(t.producer)}님에게 선물`:'선물할 상품을 선택해 주세요.';
-    showDetail(!valid?'가격을 확인해 주세요.':!enough?'골드가 부족합니다.':cost?'총 '+number(cost)+' G · 보낸 뒤 '+number((wallet?.balance||0)-cost)+' G':'',!!p&&(!valid||!enough||!!cost));
-    if(notice)notice.textContent='보낸 선물은 직접 취소할 수 없습니다.';
-    setSend(busy?'보내는 중…':'선물하기',!!form._busy||!!busy||(!p)||!!me&&(!valid||!enough),summary.textContent||'선물하기');form._giftMeasure?.();return;
+  const initialOptions = Array.from({length:100},(_,i) => `<option value="${i+1}">${i+1}개</option>`).join('');
+  dialog(`<section class="gift-dialog gift-dialog--compact"><header class="gift-dialog-header"><h2>선물하기</h2>${giftCompactRecipient(profile,personal && !artistId)}</header>
+   <nav class="gift-category-tabs" aria-label="선물 카테고리">${[['gifts','선물'],['frames','테두리'],['themes','테마'],['inventory','인벤토리']].map(([key,label]) =>
+    `<button type="button" class="small-button" data-gift-category="${key}" aria-pressed="false"${roomGift && key !== 'gifts'?' disabled aria-disabled="true"':''}>${label}</button>`).join('')}</nav>
+   <form id="gift-form"><div class="gift-options gift-dialog-scroll" tabindex="0" role="region" aria-label="선물 선택">
+    <div class="gift-ordinary-products">${giftCards(choices,null,true,true)}<details class="gift-policy-details"${roomGift?' hidden':''}><summary>선물 수익 · 정산 안내</summary><p class="gift-fineprint">${esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)} 실버 선물은 수익 정산에 반영되지 않습니다.</p></details></div>
+    <div class="gift-owned" hidden>${ownedHTML}</div><div class="gift-decoration-products" hidden></div>
+   </div><div class="gift-checkout gift-dialog-footer">
+    <div id="gift-decoration-detail" class="gift-extra-detail" hidden></div><span class="gift-summary-sr-only" id="gift-send-summary" aria-live="polite"></span>
+    <p class="gift-context-detail" id="gift-detail" hidden></p><div class="gift-footer-grid">
+    <span class="gift-balance-cell" id="gift-balance-g" data-currency="G">${shopPrice(wallet?.balance||0,'G',20)}</span>
+    <a class="gift-charge-button" href="#gold" data-close-dialog><span>충전하기</span></a>
+    <label class="gift-quantity"><span class="gift-summary-sr-only">선물 수량</span><select id="gift-quantity" aria-label="선물 수량">${initialOptions}</select>${icon('chevron')}</label>
+    <span class="gift-balance-cell" id="gift-balance-s" data-currency="S">${shopPrice(wallet?.free?.balance||0,'S',20)}</span>
+    <a class="gift-silver-button" href="#rewards" data-close-dialog>${icon('gift')}<span>오늘의 실버받기</span></a>
+    <button type="submit" class="gift-send-button" id="gift-send" aria-describedby="gift-send-summary">${icon('gift')}<span class="gift-send-label">선물하기</span></button></div>
+    <p class="form-error" role="alert"></p></div></form></section>`);
+  const form = $('#gift-form'), input = $('#gift-quantity'), send = $('#gift-send'), summary = $('#gift-send-summary');
+  const detail = $('#gift-detail'), periodBox = $('#gift-decoration-detail'), footer = form.querySelector('.gift-checkout');
+  const active = () => current() && form.isConnected && $('#dialog').open;
+  let maxOptions = 100;
+  function selection() {
+   if (category === 'inventory') {
+    if (decoration?.item) {
+     const {p,item} = decoration;
+     return {name:p.name,image:p.assetPaths.thumbnail||p.assetPaths.roomCard||p.assetPaths.overlay,ids:item.ids,path:'/api/decorations/inventory/'};
+    }
+    return owned ? {...owned,path:'/api/me/gift-inventory/'} : null;
    }
-   if(category==='frames'||category==='themes'||category==='inventory'&&!owned){input.value='1';input.disabled=true;summary.textContent='선물할 상품을 선택해 주세요.';showDetail('',false);setSend('선물하기',true);form._giftMeasure?.();return;}
-   input.disabled=!!owned||!!form._busy;input.value=owned?'1':String(quantity);
-   if(owned){
-    summary.innerHTML=`<span>${esc(owned.gift_name)} × 1<small>${esc(t.producer)}님의 프로필에 보냅니다</small></span><strong>추가 차감 없음</strong>`;
-    if(notice)notice.textContent=confirmOwned?'보유 선물 1개를 사용합니다. 보내면 취소할 수 없습니다.':'보유 선물 1개를 사용합니다. 실버·골드는 차감되지 않습니다.';
-    showDetail(`${owned.gift_name} 1개 · 추가 차감 없음${confirmOwned?' · 확인 후 전송':''}`,true);
-    setSend(form._busy?'보내는 중…':confirmOwned?'확인하고 보내기':'선물하기',!!form._busy||!recipientId||!owned.available,`${owned.gift_name} 보유 선물 1개 ${confirmOwned?'확인하고 ':''}보내기`);form._giftMeasure?.();return;
+   if (decoration) {
+    const {p,period} = decoration;
+    return {name:p.name,image:p.assetPaths.thumbnail||p.assetPaths.roomCard||p.assetPaths.overlay,unit:p.currency,price:p.periodPrices[period]};
    }
-   if(notice)notice.textContent='선택한 수량만큼 차감됩니다. 보낸 선물은 직접 취소할 수 없습니다.';
-   const g=choices.find(g=>g.id===chosen),free=!!g?.free,balance=free?(wallet?.free?.balance||0):(wallet?.balance||0),valid=!!g&&Number.isInteger(quantity)&&quantity>=1&&quantity<=100,cost=(free?g.silver:g?.gold)*quantity,within=free||cost<=AifectGifts.GIFT_MAX_GOLD,enough=balance>=cost,unit=free?'S':'G';
-   summary.innerHTML=!valid?'수량은 1개부터 100개까지 선택해 주세요.':!within?'한 번에 최대 100,000 G까지 보낼 수 있습니다.':me?`<span>${esc(g.name)} × ${quantity}<small>총 ${number(cost)} ${unit} 차감</small></span><strong>${enough?`보낸 뒤 ${number(balance-cost)} ${unit}`:free?'실버가 부족합니다':'골드가 부족합니다'}</strong>`:'로그인하고 마음을 전해 보세요.';
-   const context=!me?'로그인하고 선물할 수 있습니다.':!valid?'수량을 확인해 주세요.':!within?'한 번에 최대 100,000 G까지 보낼 수 있습니다.':!enough?`${unit==='S'?'실버':'골드'}가 부족합니다.`:`${g.name} ${quantity}개 · 총 ${number(cost)} ${unit}`,needsContext=!me||!valid||!within||!enough||quantity>1;
-   showDetail(roomGift?'토킹룸에서는 골드 선물만 보낼 수 있습니다.'+(needsContext?' '+context:''):context,!!roomGift||needsContext);
-   setSend(form._busy?'보내는 중…':confirmedPurchase===purchaseKey()?'확인하고 보내기':'선물하기',!!form._busy||!!me&&(!valid||!within||!enough),!me?'로그인하고 선물하기':`${g?.name||'선물'} ${quantity}개 · ${number(cost)} ${unit} 선물하기`);form._giftMeasure?.();
+   return category === 'gifts' && chosen ? {name:chosen.name,image:chosen.image,unit:chosen.free?'S':'G',price:chosen.free?chosen.silver:chosen.gold} : null;
+  }
+  function update() {
+   if (!form.isConnected) return;
+   const item = selection(), stored = category === 'inventory';
+   footer?.classList.toggle('gift-footer--inventory',stored);
+   form.querySelectorAll('[data-owned-gift]').forEach(b => {
+    const yes = stored && !decoration && b.dataset.ownedGift === owned?.id;
+    b.classList.toggle('selected',yes); b.setAttribute('aria-pressed',String(yes));
+   });
+   form.querySelectorAll('[data-gift-type]').forEach(b => {
+    const yes = category === 'gifts' && b.dataset.giftType === chosen?.id;
+    b.classList.toggle('selected',yes); b.setAttribute('aria-pressed',String(yes));
+   });
+   const max = stored ? item?.ids?.length || 0 : decoration ? 1 : 100;
+   if (maxOptions !== max) {
+    input.innerHTML = Array.from({length:Math.max(1,max)},(_,i) => `<option value="${i+1}">${i+1}개</option>`).join('');
+    maxOptions = max;
+   }
+   input.disabled = !!form._busy || max <= 1;
+   input.value = String(quantity);
+   const amount = item?.price * quantity;
+   const validQty = Number.isInteger(quantity) && quantity >= 1 && quantity <= max;
+   const exceeds = !stored && !decoration && item?.unit === 'G' && amount > AifectGifts.GIFT_MAX_GOLD;
+   const balance = item?.unit === 'S' ? wallet?.free?.balance : wallet?.balance;
+   const insufficient = !stored && me && (balance || 0) < amount;
+   if (summary) summary.textContent = item ? item.name+' '+quantity+'개 · '+t.producer+'님에게 선물' : '선물할 상품을 선택해 주세요.';
+   if (periodBox) {
+    periodBox.hidden = !decoration || stored;
+    if (!periodBox.hidden) {
+     const {p,period,periods} = decoration;
+     periodBox.innerHTML = `<label>이용 기간<select id="gift-decoration-period" ${form._busy?'disabled':''}>${shopProductPeriods(p,periods).map(([key,label]) => `<option value="${esc(key)}" ${period===key?'selected':''}>${esc(label)} · ${number(p.periodPrices[key])} ${p.currency.toLowerCase()}</option>`).join('')}</select></label>`;
+     const select = periodBox.querySelector('select');
+     select.onchange = () => decoration.setPeriod(select.value);
+    }
+   }
+   if (detail) {
+    const status = !item || stored ? '' : !me ? '로그인하고 선물할 수 있습니다.' : !validQty ? '수량을 확인해 주세요.' :
+     exceeds ? '한 번에 최대 100,000 g까지 보낼 수 있습니다.' : insufficient ? (item.unit==='S'?'실버':'골드')+'가 부족합니다.' : '';
+    const roomNote = roomGift ? '토킹룸에서는 골드 선물만 보낼 수 있습니다.' : '';
+    detail.textContent = [roomNote,status].filter(Boolean).join(' ');
+    detail.hidden = !detail.textContent;
+   }
+   send.disabled = !!form._busy || !recipientId || !item || !validQty || exceeds || !!insufficient;
+   send.setAttribute('aria-label',item ? item.name+' '+quantity+'개 선물하기' : '선물하기');
+  }
+  form._giftUI = {
+   setCategory(key,first) {
+    category = key; decoration = null;
+    if (!first || key !== 'inventory') owned = null;
+    if (!first) quantity = 1;
+    update();
+   },
+   setDecoration(value) {
+    if (decoration?.item?.id !== value.item?.id || decoration?.p?.sku !== value.p.sku) quantity = 1;
+    owned = null; decoration = value; update();
+   },
+   async refreshWallet() {
+    const value = await api('/api/gold','GET',undefined,{fresh:true});
+    if (!active()) return;
+    wallet = value;
+    $('#gift-balance-g').innerHTML = shopPrice(wallet.balance||0,'G',20);
+    $('#gift-balance-s').innerHTML = shopPrice(wallet.free?.balance||0,'S',20);
+    update();
+   }
   };
-  form._giftUI={
-   setCategory(key){if(roomGift&&key!=='gifts')return;category=key;decoration=null;confirmOwned=false;if(key==='gifts')owned=null;if(key==='inventory'&&!owned&&!initial?.inventoryId)owned=initial?.giftInventoryId?groups.find(g=>g.id===initial.giftInventoryId&&g.available)||null:groups.find(g=>g.available)||null;update();},
-   setDecoration(value){if(roomGift&&value)return;decoration=value;confirmOwned=false;update();},
-   selectOrdinary(){decoration=null;category='inventory';update();},
-   async refreshWallet(){if(!me)return;const value=await api('/api/gold','GET',undefined,{fresh:true});if(form.isConnected&&serial===giftDialogSerial&&account===me?.id){wallet=value;const gold=$('#gift-balance-g'),silver=$('#gift-balance-s');if(gold)gold.textContent=number(wallet.balance||0)+' G';if(silver)silver.textContent=number(wallet.free?.balance||0)+' S';update();}},
-   update,
+  input.onchange = input.oninput = () => { if (!form._busy) { quantity = Number(input.value); formError(form).textContent=''; update(); } };
+  form.querySelectorAll('[data-owned-gift]').forEach(b => b.onclick = () => {
+   if (form._busy) return;
+   category = 'inventory'; decoration = null; owned = groups.find(g => g.id === b.dataset.ownedGift);
+   quantity = 1; formError(form).textContent = ''; update();
+  });
+  form.querySelectorAll('[data-gift-type]').forEach(b => b.onclick = () => {
+   if (form._busy) return;
+   category = 'gifts'; owned = decoration = null; chosen = choices.find(g => g.id === b.dataset.giftType);
+   quantity = 1; formError(form).textContent = ''; update();
+  });
+  const change = $('#gift-recipient');
+  if (personal && !artistId && change) change.onclick = () => {
+   if (form._busy) return;
+   const next = decoration?.item ? {inventoryId:decoration.item.id} : decoration ? {sku:decoration.p.sku,period:decoration.period} :
+    owned ? {giftInventoryId:owned.id} : {id:chosen?.id};
+   return chooseGiftRecipient({...next,quantity,...(roomGift?{roomGift}:{}),...(fromMessage?{fromMessage:true}:{})});
+  };
+  const retry = form.querySelector('[data-gift-inventory-retry]');
+  if (retry) retry.onclick = () => { if (!form._busy) void giftDialog(tid,initial,personal); };
+  form.onsubmit = async event => {
+   event.preventDefault();
+   if (form._busy || send.disabled) return;
+   if (!me) { $('#dialog').close(); return askLogin(); }
+   if (!current()) { formError(form).textContent = '로그인 계정이 변경되었습니다. 선물창을 다시 열어 주세요.'; return; }
+   const item = selection(), count = quantity;
+   if (!item) return;
+   form._busy = true; formError(form).textContent = ''; update();
+   try {
+    const stored = category === 'inventory';
+    const accepted = await confirmGiftTransfer({name:item.name,image:item.image,recipient:t.producer,quantity:count,...(!stored?{amount:item.price*count,currency:item.unit}:{})});
+    if (!accepted || !active()) return;
+    let path, body;
+    if (stored) {
+     const ids = item.ids.slice(0,count);
+     path = item.path+encodeURIComponent(ids[0])+'/send';
+     body = {profile_id:recipientId,...context,...(ids.length>1?{inventory_ids:ids}:{})};
+    } else if (decoration) {
+     path = '/api/decorations/gift';
+     body = {sku:decoration.p.sku,period:decoration.period,profile_id:recipientId,...context};
+    } else {
+     const checkout = !artistId && personal && /^#gifts(?:[/?]|$)/.test(route);
+     path = roomGift ? 'room' : checkout ? '/api/gifts/checkout' : '/api/'+(personal?'producers':'tracks')+'/'+encodeURIComponent(tid)+'/gifts';
+     body = {gift_type:chosen.id,quantity:count,...(roomGift||checkout?{profile_id:recipientId}:{}),
+      ...(!roomGift?{...(artistId?{artist_id:artistId}:{}),...(fromMessage?{from_message:true}:{}),[chosen.free?'silver':'gold']:item.price*count}:{})};
+    }
+    const fingerprint = JSON.stringify([path,body]);
+    if (!requests.has(fingerprint)) requests.set(fingerprint,crypto.randomUUID());
+    body.request_id = requests.get(fingerprint);
+    if (roomGift) await roomGift.send(body);
+    else await api(path,'POST',body);
+    if (active()) finishGiftTransfer();
+   } catch (e) {
+    if (active()) formError(form).textContent = e.message;
+   } finally {
+    form._busy = false;
+    if (active()) update();
+   }
   };
   update();
-  if(typeof bindRoomGiftWallet==='function'&&typeof voiceController!=='undefined'&&voiceController?.joined)bindRoomGiftWallet(form);
-  const retry=form.querySelector('[data-gift-inventory-retry]');if(retry)retry.onclick=()=>{if(!form._busy)void giftDialog(tid,initial,personal);};
-  if(cancel)cancel.onclick=()=>{if(form._busy)return;confirmOwned=false;confirmedPurchase='';update();};
-  const recipientButton=$('#gift-recipient');if(personal&&!artistId&&recipientButton)recipientButton.onclick=()=>{if(form._busy)return;const selection=roomGift?{id:chosen,quantity,roomGift}:decoration?.p?decoration.item||decoration.bought?{inventoryId:decoration.item?.id||decoration.bought}:{sku:decoration.p.sku,period:decoration.period}:owned?{giftInventoryId:owned.id}:{id:chosen,quantity};return chooseGiftRecipient(selection);};
-  form.querySelectorAll('[data-owned-gift]').forEach(b=>b.onclick=()=>{if(form._busy||b.disabled)return;decoration=null;category='inventory';owned=groups.find(g=>g.id===b.dataset.ownedGift&&g.available)||null;confirmOwned=false;formError(form).textContent='';update();});
-  const changeQuantity=n=>{if(form._busy)return;confirmedPurchase='';quantity=n;input.value=String(n);formError(form).textContent='';update();};input.oninput=()=>changeQuantity(Number(input.value));input.onchange=input.oninput;
-  form.querySelectorAll('[data-gift-type]').forEach(b=>b.onclick=()=>{if(form._busy)return;decoration=null;category='gifts';owned=null;confirmOwned=false;chosen=b.dataset.giftType;formError(form).textContent='';update();});
-  const submit=busyForm(form,async()=>{
-   if(!me){$('#dialog').close();return askLogin();}if(account!==me?.id)throw new Error('로그인 계정이 변경되었습니다. 선물창을 다시 열어 주세요.');
-   if(owned){
-    if(!owned.available||!recipientId)throw new Error('선물할 프로필을 확인해 주세요.');if(!confirmOwned){confirmOwned=true;return;}
-    const sent=owned;let key=ownedRequests.get(sent.id);if(!key){key=crypto.randomUUID();ownedRequests.set(sent.id,key);}setSend('보내는 중…',true);
-    await api('/api/me/gift-inventory/'+encodeURIComponent(sent.id)+'/send','POST',{profile_id:recipientId,request_id:key,...(artistId?{artist_id:artistId}:{}),...(fromMessage?{from_message:true}:{}),...(!personal?{track_id:tid}:/^#(?:inventory|gift-inventory|gifts)\b/.test(route)?{}:{from_profile:true})});
-    if(serial!==giftDialogSerial||!form.isConnected||account!==me?.id)return;
-    dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(sent)}</div><h2>${esc(sent.gift_name)} 1개를 보냈습니다</h2><p>${esc(!personal?t.title:(t.producer||profile?.name||'선택한 대상'))}${!personal?' 곡에':'님에게'} 전달했습니다.</p><p>보유 선물 사용 · 실버·골드 추가 차감 없음</p><button class="primary-button" data-close-dialog>확인</button></section>`);await render();return;
-   }
-   if(category!=='gifts')throw Error('선물할 상품을 선택해 주세요.');
-   if(!Number.isInteger(quantity)||quantity<1||quantity>100)throw new Error('수량을 확인해 주세요.');
-   const g=choices.find(g=>g.id===chosen),sentQuantity=quantity;if(!g)throw Error('선물을 선택해 주세요.');const fingerprint=chosen+':'+sentQuantity;let key=purchaseRequests.get(fingerprint);if(!key){key=crypto.randomUUID();purchaseRequests.set(fingerprint,key);}setSend('보내는 중…',true);
-   const shopCheckout=!artistId&&personal&&/^#gifts(?:[/?]|$)/.test(route);
-   const r=roomGift?await roomGift.send({profile_id:recipientId,gift_type:chosen,quantity:sentQuantity,request_id:key}):await api(shopCheckout?'/api/gifts/checkout':`/api/${personal?'producers':'tracks'}/${tid}/gifts`,'POST',{...(shopCheckout?{profile_id:recipientId}:{}),gift_type:chosen,quantity:sentQuantity,request_id:key,...(artistId?{artist_id:artistId}:{}),...(fromMessage?{from_message:true}:{}),...(g.free?{silver:g.silver*sentQuantity}:{gold:g.gold*sentQuantity})});
-   if(serial!==giftDialogSerial||!form.isConnected||account!==me?.id)return;
-   if(roomGift){$('#dialog').close();toast(`${g.name} ${sentQuantity}개를 ${t.producer}님에게 선물했습니다.`);return;}
-   dialog(`<section class="gift-success"><div class="gift-celebration">${giftArt(g)}</div><span class="eyebrow">THANK YOU FOR YOUR ENCORE</span><h2>${esc(g.name)} ${sentQuantity}개를 보냈습니다</h2><p>${esc(t.producer)}${personal?'님에게':'님의 「'+esc(t.title)+'」에'}<br>응원이 전해졌습니다.</p><p>${r.gift.free?`남은 실버 ${shop?shopPrice(r.free_balance,'S'):number(r.free_balance)+' S'} · 수익 정산 없음`:`남은 골드 ${shop?shopPrice(r.balance,'G'):number(r.balance)+' G'}`}</p><button class="primary-button" data-close-dialog>계속 음악 듣기</button></section>`);await render();
-  });
-  form.onsubmit=async ev=>{if(form._busy){ev.preventDefault();return;}if(roomCheckout&&!owned&&confirmedPurchase!==purchaseKey()){ev.preventDefault();confirmedPurchase=purchaseKey();update();if(notice)notice.textContent=t.producer+'님에게 이 선물을 보낼까요?';setSend('확인하고 보내기',false);return;}if(decoration){ev.preventDefault();return decoration.send?.();}const pending=submit(ev);if(form._busy)update();await pending;if(form.isConnected&&serial===giftDialogSerial&&account===me?.id)update();};
-  bindGiftCompactLayout(form);
-  await bindGiftCategoryTabs(form,{recipientId,initial,serial,account,initialOwned:!!owned});
- }catch(e){if(serial===giftDialogSerial&&route===globalThis.location?.hash){dialog(`<h2>상점을 열지 못했습니다</h2><p role="alert">${esc(e.message)}</p><button type="button" class="primary-button" id="gift-dialog-retry">다시 시도</button>`);const retry=$('#gift-dialog-retry');if(retry)retry.onclick=()=>giftDialog(tid,initial,personal);}}
+  if (typeof bindRoomGiftWallet==='function' && typeof voiceController!=='undefined' && voiceController?.joined) bindRoomGiftWallet(form);
+  await bindGiftCategoryTabs(form,{recipientId,initial,serial,account,initialOwned:!!owned,inventory,groups});
+  if (active()) form.querySelector('.gift-choice.selected')?.scrollIntoView({block:'nearest'});
+ } catch (e) {
+  if (serial!==giftDialogSerial || route!==globalThis.location?.hash) return;
+  dialog(`<h2>상점을 열지 못했습니다</h2><p role="alert">${esc(e.message)}</p><button type="button" class="primary-button" id="gift-dialog-retry">다시 시도</button>`);
+  const retry = $('#gift-dialog-retry'); if (retry) retry.onclick = () => giftDialog(tid,initial,personal);
+ }
 }
 function bindGiftClaims(root,onChange=()=>{}){if(!root)return;root.onclick=async e=>{const b=e.target.closest('[data-claim-gift]');if(!b||b.disabled||root._busy||$('#gift-form')?._busy)return;root._busy=true;b.disabled=true;b.textContent='받는 중…';try{const s=await api('/api/gifts/free/claim','POST',{kind:b.dataset.claimGift});if(!root.isConnected)return;root.innerHTML=freeRewardsHTML(s,root.id==='gift-rewards');onChange(s);toast('실버를 받았습니다. 좋아하는 음악에 보내 보세요.');}catch(err){toast(err.message);b.disabled=false;b.textContent='다시 받기';}finally{root._busy=false;}};}
 async function profileGiftDialog(pid,initial='star'){return giftDialog(pid,initial,true);}

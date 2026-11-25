@@ -46,8 +46,8 @@
   box-shadow: none;
 }
 #dialog .gift-dialog.gift-dialog--compact .gift-dialog-footer {
-  border-color: var(--ds-line);
-  border-radius: var(--ds-radius-input) var(--ds-radius-input) 0 0;
+  border: 0;
+  border-radius: 0;
   background: var(--ds-panel);
 }
 #dialog .gift-dialog.gift-dialog--compact .gift-footer-grid > * {
@@ -60,14 +60,18 @@
   background: var(--ds-panel);
   color: var(--ds-body);
 }
-#dialog:not(.shop-dialog) .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button:not(:disabled) {
+#dialog.gift-sheet .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-charge-button,
+#dialog.gift-sheet .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-charge-button:hover {
+  color: #8EDDD2;
+}
+#dialog:not(.shop-dialog) .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button:not(:disabled),
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button:not(:disabled) {
   border-color: transparent;
   background: var(--ds-gradient);
   color: var(--ds-ink);
   box-shadow: none;
 }
-/* Shop actions retain the approved shop accent, including category colors. */
-#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button:not(:disabled),
+/* Shop checkout retains the approved shop accent. */
 #dialog.shop-dialog .shop-checkout .shop-checkout-actions > .primary-button:not(:disabled) {
   border-color: var(--ds-selected);
   background: var(--shop-purple);
