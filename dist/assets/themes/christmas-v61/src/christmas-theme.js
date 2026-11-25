@@ -7,10 +7,15 @@ const defaultRoot = new URL('../', import.meta.url);
 function image(url) { return new Promise((resolve,reject) => { const im=new Image(); im.decoding='async'; im.onload=()=>resolve(im); im.onerror=()=>reject(new Error(`Image load failed: ${url}`)); im.src=url; }); }
 function rectPath(c, x,y,w,h,r) { r=Math.min(r,w/2,h/2); c.beginPath(); c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r); c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath(); }
 
+function roomBackdropPosition(backdrop, fallback) {
+  const axes = getComputedStyle(backdrop).backgroundPosition.split(/\s+/);
+  if (axes.length !== 2 || axes.some(axis => !axis.endsWith('%'))) return fallback;
+  return axes.map(axis => parseFloat(axis) / 100);
+}
+
 /**
  * Drop-in VISUAL UNDERLAY. Does not own audio, WebRTC, chat, navigation or UI.
  * Browser/WebView implementation. Native screens need the documented adapter.
- * Missing approved portrait assets are a deliberate, explicit deployment gate.
  */
 export class AifectChristmasTheme {
   constructor(host, options={}) {
@@ -26,17 +31,25 @@ export class AifectChristmasTheme {
     this.delays=[]; this.costs=[]; this.adaptAt=0; this.pendingResize=0;
     this.hadClass=host.classList.contains('af-theme-scene'); host.classList.add('af-theme-scene');
     this.layer=document.createElement('div'); this.layer.className='af-theme-underlay'; this.layer.setAttribute('aria-hidden','true');
-    this.photo=document.createElement('img'); this.photo.className='af-theme-photo'; this.photo.alt=''; this.photo.draggable=false;
-    this.shade=document.createElement('div'); this.shade.className='af-theme-shade';
+    if (this.options.roomProfile === 'portrait') {
+      // Reuse the room's crop, dimming and edge mask on the keyboard-locked layer.
+      this.backdrop=document.createElement('div');
+      this.backdrop.className='af-theme-room-backdrop';
+      this.layer.append(this.backdrop);
+    } else {
+      this.photo=document.createElement('img'); this.photo.className='af-theme-photo'; this.photo.alt=''; this.photo.draggable=false;
+      this.shade=document.createElement('div'); this.shade.className='af-theme-shade';
+      this.layer.append(this.photo,this.shade);
+    }
     this.canvas=document.createElement('canvas'); this.canvas.className='af-theme-fx';
-    this.layer.append(this.photo,this.shade,this.canvas); host.prepend(this.layer);
+    this.layer.append(this.canvas); host.prepend(this.layer);
     this.ctx=this.canvas.getContext('2d', {alpha:true});
     this.mask=document.createElement('canvas'); this.mctx=this.mask.getContext('2d');
     this.reduce=window.matchMedia('(prefers-reduced-motion: reduce)');
     this.handlers={
-      visibility:()=>{this.visible=!document.hidden;this.sync();},
-      pagehide:()=>{this.visible=false;this.sync();},
-      pageshow:()=>{this.visible=!document.hidden;this.queueResize();this.sync();},
+      visibility:()=>this.setAppState(document.hidden?'background':'active'),
+      pagehide:()=>this.setAppState('background'),
+      pageshow:()=>{this.setAppState(document.hidden?'background':'active');this.queueResize();},
       reduce:()=>{this.sync();if(this.ready)this.draw(this.time);},
       layout:()=>this.queueResize(),
       contextlost:(e)=>{e.preventDefault();this.contextLost=true;this.sync();},
@@ -81,7 +94,8 @@ export class AifectChristmasTheme {
     if(w<1||h<1){this.sized=false;this.sync();return;}
     this.sized=true; this.w=w;this.h=h;this.metrics.resizeCount++;
     this.layer.style.width=w+'px';this.layer.style.height=h+'px';
-    const portrait=w/h<.94;
+    const ratio=w/h;
+    const portrait=(this.options.roomProfile ?? (ratio<.94?'portrait':'landscape'))==='portrait';
     let profile=portrait?this.config.profiles.portrait:this.config.profiles.landscape;
     this.metrics.blockedPortrait=portrait && !profile?.sources?.length;
     this.host.dataset.themeAssetState=this.metrics.blockedPortrait?'portrait-source-required':'ready';
@@ -92,13 +106,13 @@ export class AifectChristmasTheme {
     }
     this.assetBlocked=false;this.layer.hidden=false;
     if(!profile?.sources?.length)profile=this.config.profiles.landscape;
-    this.profile=profile;
-    const ratio=w/h;
+    this.profile=profile;this.portrait=portrait;
+    this.bulbs=profile.bulbs ?? this.config.profiles[profile.bulbsFrom]?.bulbs ?? [];
     const adaptive=ratio<1.45?[0,.5]:ratio<1.78?[.18,.5]:[.5,.60];
     const pos=this.metrics.blockedPortrait?[.18,.50]:(profile.positionOverride || (portrait?(profile.position||[.5,.5]):adaptive));
-    this.geometry=coverTransform(profile.width,profile.height,w,h,pos);
+    this.geometry=coverTransform(profile.width,profile.height,w,h,this.backdrop?roomBackdropPosition(this.backdrop,pos):pos);
     const g=this.geometry;
-    Object.assign(this.photo.style,{width:g.width+'px',height:g.height+'px',left:g.x+'px',top:g.y+'px'});
+    if(this.photo)Object.assign(this.photo.style,{width:g.width+'px',height:g.height+'px',left:g.x+'px',top:g.y+'px'});
     const maxDPR=this.level===0?this.config.limits.normalMaxDPR:1;
     const maxPixels=this.level===0?this.config.limits.normalCanvasPixels:this.config.limits.lowCanvasPixels;
     const budget=canvasBudget(w,h,window.devicePixelRatio,maxPixels,maxDPR);
@@ -113,7 +127,8 @@ export class AifectChristmasTheme {
       const local=++this.loadToken;
       const loaded=await image(this.url(raster.url));
       if(this.dead||local!==this.loadToken||token!==this.layoutToken)return;
-      this.photo.src=loaded.src;this.currentSource=raster.url;
+      if(this.photo)this.photo.src=loaded.src;
+      this.currentSource=raster.url;
     }
     if(!profile.sunMask){this.sunImage=null;this.sunURL=null;}
     if(profile.sunMask && this.sunURL!==profile.sunMask){
@@ -179,7 +194,7 @@ export class AifectChristmasTheme {
     // Fixed source-space sunshine mask; only opacity changes, not shadow geometry.
     if(this.sunImage){c.globalAlpha=.035+.11*(.5-.5*Math.cos(a));c.drawImage(this.sunImage,g.x,g.y,g.width,g.height);}
     // Light anchors use EXACTLY the same transform as the background image.
-    for(const b of p.bulbs || []){
+    for(const b of this.bulbs){
       const q=project(b,g,p.width,p.height),v=this.curve(b.curve,t),s=b.radius*g.scale;
       this.blit('bulb-dim.webp',q.x,q.y,s*3,.82*(1-v));
       this.blit('bulb-glow-v61.webp',q.x,q.y,s*3,.12+.72*v*v);
@@ -189,10 +204,12 @@ export class AifectChristmasTheme {
       const x=b.x*this.w+b.dx*s*Math.sin(a+TAU*b.phase),y=b.y*this.h+b.dy*s*Math.cos(a+TAU*b.phase);
       this.blit(b.asset,x,y,(b.extent*2+1)*s,b.opacity*(.90+.10*Math.sin(a*b.harmonic+b.phase*TAU)));
     }
+    const snowScale=this.portrait?1.5:1;
     this.config.effect.snow.forEach((p,i)=>{
       const q=modulo(t/this.config.effect.period+p.phase,1),fade=Math.min(1,q/.19,(1-q)/.20);
       const x=p.x*this.w+(p.dx*(q-.5)+6*Math.sin(TAU*q+i*1.73))*s,y=p.y*this.h+p.dy*(q-.5)*s;
-      this.blit(p.asset,x,y,p.size*s,p.opacity*fade);
+      const opacity=this.portrait?Math.min(.85,p.opacity*1.25):p.opacity;
+      this.blit(p.asset,x,y,p.size*s*snowScale,opacity*fade);
     });
     this.config.effect.dust.forEach((p,i)=>{
       const q=modulo(t/this.config.effect.period+p.phase,1),fade=Math.min(1,q/.22,(1-q)/.22);
@@ -232,12 +249,12 @@ export class AifectChristmasTheme {
   setMotion(enabled){this.motion=!!enabled;this.sync();if(!enabled)this.draw(this.time);}
   setQuality(q){if(!['auto','high','low'].includes(q))throw new RangeError('quality must be auto/high/low');this.options.quality=q;this.level=q==='low'?2:0;this.metrics.quality=q;this.queueResize();}
   /** Native host must use explicit lifecycle calls; never pause the audio system here. */
-  setAppState(state){this.setActive(state==='active');}
+  setAppState(state){this.visible=state==='active';this.sync();}
   /** Inspection/recording only: deterministic frame. Never required for production playback. */
   seek(seconds){if(!Number.isFinite(seconds))throw new TypeError('seconds must be finite');this.manual=true;this.stop();this.time=modulo(seconds,this.config.effect.period);this.draw(this.time);}
   resume(){this.manual=false;this.sync();}
   refreshProtection(){if(!this.dead)this.buildMask();}
-  getDiagnostics(){return {...this.metrics,time:this.time,running:!!this.raf,level:this.level,actualBackground:this.currentSource,meanDrawMS:this.metrics.totalDrawMS/Math.max(1,this.metrics.draws),anchors:this.geometry?(this.profile.bulbs||[]).map(b=>project(b,this.geometry,this.profile.width,this.profile.height)):[]};}
+  getDiagnostics(){return {...this.metrics,time:this.time,running:!!this.raf,level:this.level,actualBackground:this.currentSource,meanDrawMS:this.metrics.totalDrawMS/Math.max(1,this.metrics.draws),anchors:this.geometry?this.bulbs.map(b=>project(b,this.geometry,this.profile.width,this.profile.height)):[]};}
   destroy(){
     if(this.dead)return;this.dead=true;this.stop();this.loadToken++;this.layoutToken++;
     if(this.pendingResize)cancelAnimationFrame(this.pendingResize);

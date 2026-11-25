@@ -244,9 +244,17 @@
       "sourceHash": "a4d52e47f0593d7e3f266b62f586fe7874d36c9985c84f3e50cc85c27209f424"
     },
     "portrait": {
-      "status": "requires-approved-ui-free-source",
-      "sources": [],
-      "reason": "Approved mobile v5 contains baked UI. Never ship that screenshot as a native background; never silently substitute another photograph."
+      "width": 1672,
+      "height": 941,
+      "sources": [
+        {
+          "width": 1672,
+          "url": "assets/christmas-wide-1672.webp"
+        }
+      ],
+      "position": [0, 0.5],
+      "sourceHash": "9708214b1be72158efc348516074427afab1207a301e4be979db5449b097bb2c",
+      "bulbsFrom": "landscape"
     }
   },
   "cards": {
@@ -7928,7 +7936,7 @@
   },
   "qualityNotes": [
     "Original landscape is 1672x941; larger files are not real extra detail.",
-    "Portrait background has not been replaced. Portrait diagnostic mode is opt-in, not approved for deployment.",
+    "Standard and tall portrait rooms share the registered mobile background and project its source-space bulb coordinates through the room crop.",
     "v5 particle textures and trajectories are ported, but actual UI and art-directed source can change occlusion; approval still required.",
     "v6.1: finite bokeh texture support now tapers to exact zero alpha; no rectangular halo. Approved particle count, paths, color, speed, sunlight and background are unchanged."
   ]
