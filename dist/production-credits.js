@@ -1,10 +1,9 @@
 function productionCreditsFieldsHTML(value=''){
  const credit=AifectProductionCredits.parseProductionCredit(value),none=credit.usage==='none',hasOther=!!credit.other;
- return `<fieldset class="production-ai-field" data-production-ai><legend>사용한 AI 도구</legend>
+ return `<fieldset class="production-ai-field" data-production-ai><legend>사용한 AI 도구 (복수 선택)</legend>
  <p class="field-help" id="production-ai-scope">음원·가사 제작에 사용한 도구를 모두 선택해 주세요. 표지 이미지와 아이팩트의 태그 추천은 포함하지 않습니다.</p>
  <input type="hidden" name="ai_tool" value="${esc(value||'')}">
- ${AifectProductionCredits.AI_TOOL_GROUPS.map(group=>`<div class="production-ai-group"><span class="production-ai-group-label">${group.name}</span><div class="classification-options">${group.tools.map(([id,name])=>`<label><input type="checkbox" data-ai-tool value="${id}" aria-describedby="production-ai-scope production-ai-error" ${credit.ids.includes(id)?'checked':''}><span>${name}</span></label>`).join('')}</div></div>`).join('')}
- <div class="production-ai-special classification-options"><label><input type="checkbox" data-ai-other ${hasOther?'checked':''} aria-controls="production-ai-other-field"><span>기타</span></label><label class="production-ai-none"><input type="checkbox" data-ai-none ${none?'checked':''}><span>AI 사용 안 함</span></label></div>
+ <div class="production-ai-options classification-options">${AifectProductionCredits.AI_TOOLS.map(({id,name})=>`<label><input type="checkbox" data-ai-tool value="${id}" aria-describedby="production-ai-scope production-ai-error" ${credit.ids.includes(id)?'checked':''}><span>${name}</span></label>`).join('')}<label><input type="checkbox" data-ai-other ${hasOther?'checked':''} aria-controls="production-ai-other-field"><span>기타</span></label><label class="production-ai-none"><input type="checkbox" data-ai-none ${none?'checked':''}><span>AI 사용 안 함</span></label></div>
  <label id="production-ai-other-field" class="form-field production-ai-other" ${hasOther?'':'hidden'}>기타 AI 도구<input type="text" data-ai-other-text value="${esc(credit.other)}" maxlength="100" placeholder="도구 이름을 쉼표로 구분해 주세요" ${hasOther?'':'disabled'} aria-describedby="production-ai-error"></label>
  <p class="form-error production-ai-error" id="production-ai-error" data-ai-error role="status" aria-live="polite"></p></fieldset>`;
 }
