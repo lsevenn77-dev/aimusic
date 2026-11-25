@@ -124,7 +124,7 @@
 .ac-premium .ac-manage a {color:var(--ac-gold)}
 .ac-premium .ac-manage a:hover {color:var(--ac-light-gold);text-decoration:underline}
 .ac-premium .ac-manage a:active {color:var(--ac-deep-gold)}
-.ac-dashboard .ac-premium :is(a,button):focus-visible {outline-color:var(--ac-gold)}
+#main .ac-dashboard .ac-membership.ac-premium :is(a,button):focus-visible {outline-color:var(--ac-gold)!important}
 .ac-manage svg,.ac-links svg {width:14px;height:14px;flex:none}
 .ac-usage h3,.ac-payments h3 {margin:12px 0 4px;color:var(--ds-body)}
 .ac-meter {display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:8px 0}
