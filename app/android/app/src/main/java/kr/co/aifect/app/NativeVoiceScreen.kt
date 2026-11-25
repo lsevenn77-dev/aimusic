@@ -98,7 +98,10 @@ import java.net.URLEncoder
    catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;engine.error.value=e.message}finally{sending=false}}
  }
  Box(Modifier.fillMaxSize()){
- VoiceRoomBackdrop(RoomThemeSync.shownSku(room,resolvedTheme),RoomThemeSync.current(room,resolvedTheme),Modifier.matchParentSize())
+ VoiceRoomBackdrop(
+  RoomThemeSync.shownSku(room,resolvedTheme),RoomThemeSync.current(room,resolvedTheme),Modifier.matchParentSize(),
+  liveRoom=true,keyboardVisible=keyboard
+ )
  Column(Modifier.fillMaxSize().testTag("native-voice-room")){
   VoiceSeatAlert(state,host){panel="seats"}
   BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal=10.dp)){

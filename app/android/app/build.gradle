@@ -39,8 +39,8 @@ android {
    buildConfigField 'String', 'ADMOB_INTERSTITIAL_ID', '"ca-app-pub-5910265378731607/4219283278"'
   }
  }
- // Website assets and the JavaScript runtime are not packaged.
- sourceSets.main.assets.srcDirs = []
+ // Package the Android room sprites and their native animation data.
+ sourceSets.main.assets.srcDirs = ['src/main/room-assets']
  packaging.resources.excludes += ['META-INF/AL2.0', 'META-INF/LGPL2.1']
 }
 dependencies {

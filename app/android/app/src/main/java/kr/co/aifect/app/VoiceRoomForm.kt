@@ -47,10 +47,16 @@ import org.json.JSONObject
 private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을","night" to "밤하늘")
 
 /** The picker and the room use the same painting and the same mobile theme asset. */
-@Composable internal fun VoiceRoomBackdrop(background:String,theme:JSONObject?=null,modifier:Modifier=Modifier,preview:Boolean=false){
+@Composable internal fun VoiceRoomBackdrop(
+ background:String,theme:JSONObject?=null,modifier:Modifier=Modifier,preview:Boolean=false,
+ liveRoom:Boolean=false,keyboardVisible:Boolean=false
+){
  val sku=theme?.optString("sku").orEmpty().ifBlank{background}.ifBlank{"navy"}
  val image=CatalogAssets.roomMobile(theme)
- Box(modifier.testTag("voice-background-$sku")){
+ val christmas=liveRoom&&christmasRoomEffectsEnabled(theme,image)
+ val artworkReady=if(liveRoom)remember(image){mutableStateOf(false)}else null
+ val backdrop=if(christmas)modifier.lockChristmasBackdrop(keyboardVisible)else modifier
+ Box(backdrop.testTag("voice-background-$sku")){
   Canvas(Modifier.matchParentSize()){
    val base=when(sku){"sunset"->Color(0xFF0C1422);"night"->Color(0xFF050E1C);else->Color(0xFF07111F)}
    drawRect(base)
@@ -94,8 +100,13 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
   }
   if(image!=null){
    // A picker tile shows the theme's own colours; inside a room the art stays dimmed behind people and chat.
-   AsyncImage(image,null,Modifier.matchParentSize().alpha(if(preview)1f else .88f).testTag("voice-background-image"),contentScale=ContentScale.Crop)
+   AsyncImage(
+    image,null,Modifier.matchParentSize().alpha(if(preview)1f else .88f).testTag("voice-background-image"),
+    contentScale=ContentScale.Crop,
+    onLoading={artworkReady?.value=false},onSuccess={artworkReady?.value=true},onError={artworkReady?.value=false}
+   )
    Box(Modifier.matchParentSize().background(Brush.verticalGradient(if(preview)listOf(Color.Transparent,Ink.copy(alpha=.22f))else listOf(Ink.copy(alpha=.25f),Ink.copy(alpha=.56f)))))
+   if(christmas&&artworkReady?.value==true)ChristmasRoomParticles(Modifier.matchParentSize())
   }
  }
 }
