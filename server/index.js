@@ -144,7 +144,13 @@ async function fetchRequest(req,env,ctx){
   const accountPage=accountPageRoute(req,path);if(accountPage)return accountPage;
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;
   if(['/admin','/admin/','/admin.html'].includes(path))return new Response(AifectMessages.notFound,{status:404,headers:{'content-type':'text/plain; charset=utf-8','cache-control':'no-store'}});
-  const publicResponse=publicPageRoute(req,path,{checkoutOpen:checkoutEnabled(env)});if(publicResponse)return publicResponse;
+  const publicResponse=publicPageRoute(req,path,{checkoutOpen:checkoutEnabled(env)});
+  if(publicResponse && req.method==='GET' && path.replace(/\/$/,'')==='/pricing/app'){
+   const html=(await publicResponse.text()).replace(/<td>([0-9,]+)G<\/td>/g,(_,amount)=>'<td aria-label="골드 '+amount+'">'+amount+' g</td>');
+   const headers=new Headers(publicResponse.headers);headers.delete('content-length');
+   return new Response(html,{status:publicResponse.status,headers});
+  }
+  if(publicResponse)return publicResponse;
   const paymentResponse=paymentPageRoute(req,path);if(paymentResponse)return paymentResponse;
   const goldPaymentResponse=goldPaymentPageRoute(req,path);if(goldPaymentResponse)return goldPaymentResponse;
   if(!path.startsWith('/api/')&&!path.startsWith('/media/')){

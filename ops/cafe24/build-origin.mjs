@@ -8,7 +8,9 @@ export async function buildOrigin(){
  // Public HTML uses neither the Worker image mirror nor private chat delivery.
  // Keep those modules and their catalogs out of the public renderer revision.
  const workerBoundary={name:'worker-only-modules',setup(builder){
-  builder.onResolve({filter:/^\.\/(image-mirror|dm-body|welcome-notices|signup-source|premium-event)\.js$/},args=>({path:resolve(args.resolveDir,args.path),sideEffects:false}));
+  // The public HTML renderer never sends inventory or imports browser currency components.
+  builder.onResolve({filter:/^\.\/inventory-transfer\.js$/},args=>({path:args.path,external:true,sideEffects:false}));
+  builder.onResolve({filter:/^\.\/(currency|image-mirror|dm-body|welcome-notices|signup-source|premium-event)\.js$/},args=>({path:resolve(args.resolveDir,args.path),sideEffects:false}));
  }};
  const {outputFiles}=await build({entryPoints:['ops/cafe24/renderer.mjs'],bundle:true,platform:'node',format:'esm',target:'node22',write:false,plugins:[workerBoundary]});
  const renderer=outputFiles[0].contents,shell=await readFile('dist/client/aifect-shell.txt');

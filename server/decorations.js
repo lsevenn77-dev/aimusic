@@ -2,6 +2,8 @@ import {appearanceDeadlineSQL,defaultFrameSQL,premiumFrameId,premiumFrameOverrid
 import {giftSourceEntry} from './gift-source.js';
 import {one,rows,query,now,id,fail,json,rate,str} from './db.js';
 import {requireUser} from './auth.js';
+// Preserve the module initialization order of the installed public renderer.
+import './account-safety.js';
 import {inventoryTarget,recipientAllowedSQL,selectedInventoryIds,unitRequestKey} from './inventory-transfer.js';
 import {assertDmBody} from './dm-body.js';
 import {producerNameSQL} from './identity.js';
