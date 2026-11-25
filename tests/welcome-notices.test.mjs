@@ -6,6 +6,7 @@ import {hash} from '../server/auth.js';
 import {chatStreamRoute} from '../server/chat-stream.js';
 import {activateWelcomeCampaign,ensureWelcomeReceipt,welcomeNoticeStatus,queueWelcomeCampaign} from '../server/welcome-notices.js';
 import {WELCOME_CAMPAIGN_ID,WELCOME_PEER_ID} from '../shared/welcome-guide.js';
+import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
 
 const at=()=>Math.floor(Date.now()/1000);
 const receipt=(f,user)=>f.sql.prepare('SELECT * FROM welcome_receipts WHERE campaign_id=? AND user_id=?').get(WELCOME_CAMPAIGN_ID,user);
@@ -18,6 +19,52 @@ async function member(f,id,{provider='email',name=id,accountType='human',profile
 function dm(f,id,sender,recipient,body){
  f.sql.prepare('INSERT INTO direct_messages(id,sender_id,recipient_id,body,request_id,created) VALUES(?,?,?,?,?,?)').run(id,sender,recipient,body,id,at());
 }
+
+test('the official inbox has one channel and combines old guides, event cards and member-scoped operator history',async t=>{
+ const f=await fixture(t,{ADMIN_USER_IDS:'operator'}),path='/api/notices/official';
+ await member(f,'operator',{profile:true});await member(f,'friend',{profile:true});
+ await activateWelcomeCampaign({DB:f.DB});
+ f.sql.prepare('UPDATE welcome_receipts SET created=10,read_at=5 WHERE campaign_id=? AND user_id=?').run(WELCOME_CAMPAIGN_ID,'owner');
+ f.sql.prepare('INSERT INTO welcome_campaigns(id,content_json,created,recipient_max_rowid) VALUES(?,?,40,0)').run(PREMIUM_OPEN_NOTICE_ID,JSON.stringify(PREMIUM_OPEN_NOTICE));
+ f.sql.prepare("INSERT INTO welcome_receipts(campaign_id,user_id,created,source) VALUES(?,'owner',40,'broadcast')").run(PREMIUM_OPEN_NOTICE_ID);
+ dm(f,'official-first','operator','owner','이용 안내');dm(f,'reply','owner','operator','확인했습니다.');
+ dm(f,'private-other','operator','other','다른 계정에게만 표시');dm(f,'regular','friend','owner','개인 메시지');
+ f.sql.exec("UPDATE direct_messages SET created=20 WHERE id='official-first'; UPDATE direct_messages SET created=30 WHERE id='reply'");
+ const inbox=(await f.call('/api/dm?notices=unified')).body;
+ assert.deepEqual(inbox.conversations.map(p=>p.id),['aifect-official-notice','profile-friend']);
+ assert.equal(inbox.conversations[0].name,'아이팩트 안내');assert.equal(inbox.conversations[0].notice_type,'official');
+ assert.equal(inbox.conversations[0].last_message,PREMIUM_OPEN_NOTICE.title);assert.equal(inbox.conversations[0].updated,40);
+ assert.equal(inbox.conversations[0].unread,2);assert.equal(inbox.unread,3);
+ assert.equal((await f.call(path,'GET',undefined,null)).status,401);
+ const feed=(await f.call(path)).body;
+ assert.deepEqual(feed.items.map(item=>[item.id,item.created]),[['campaign:'+WELCOME_CAMPAIGN_ID,10],['dm:official-first',20],['dm:reply',30],['campaign:'+PREMIUM_OPEN_NOTICE_ID,40]]);
+ assert.equal(feed.items[0].read_at,5);assert.equal(feed.items[0].legacy_id,WELCOME_PEER_ID);
+ assert.equal(feed.items[2].mine,true);assert.deepEqual(feed.items[3].notice,PREMIUM_OPEN_NOTICE);
+ assert.ok(feed.items.every(item=>!Object.hasOwn(item,'sender_id')&&!Object.hasOwn(item,'name')));
+ assert.equal((await f.call(path,'PATCH',{ids:['dm:official-first'],user_id:'other'})).status,400);
+ const receipt=(await f.call(path,'PATCH',{ids:['dm:official-first','dm:reply','dm:private-other','dm:regular']})).body;
+ assert.equal(receipt.notice.unread,1);assert.equal(receipt.unread,2);
+ assert.equal((await f.call('/api/dm?notices=unified')).body.conversations[0].unread,1);
+ for(const id of ['reply','private-other','regular'])assert.equal(f.sql.prepare('SELECT read_at FROM direct_messages WHERE id=?').get(id).read_at,0);
+ assert.equal((await f.call('/api/notices/welcome')).body.read_at,5);
+ assert.equal((await f.call('/api/notices/premium-open-event')).body.read_at,0);
+ assert.equal((await f.call(path,'PATCH',{ids:['campaign:'+PREMIUM_OPEN_NOTICE_ID]})).body.notice.unread,0);
+ assert.ok((await f.call('/api/notices/premium-open-event')).body.read_at>0);
+ f.sql.exec("INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('owner','operator',1)");
+ assert.ok((await f.call(path)).body.items.every(item=>item.kind!=='dm'));
+});
+
+test('older official messages paginate in chronological order without duplicates at a shared timestamp',async t=>{
+ const f=await fixture(t,{ADMIN_USER_IDS:'operator'}),path='/api/notices/official';
+ await member(f,'operator',{profile:true});
+ for(let i=0;i<104;i++)dm(f,'number-'+String(i).padStart(3,'0'),'operator','owner','공지 '+i);
+ f.sql.exec("UPDATE direct_messages SET created=99 WHERE sender_id='operator'");
+ const latest=(await f.call(path)).body;
+ assert.equal(latest.items.length,100);assert.equal(latest.items[0].id,'dm:number-004');assert.equal(latest.items.at(-1).id,'dm:number-103');
+ const older=(await f.call(path+'?before='+encodeURIComponent(latest.before))).body;
+ assert.deepEqual(older.items.map(item=>item.id),['dm:number-000','dm:number-001','dm:number-002','dm:number-003']);
+ assert.equal(older.before,null);assert.equal((await f.call(path+'?before=bad')).status,400);
+});
 async function rawPatch(f,body,{origin='https://aifect.test',user='owner'}={}){
  return worker.fetch(new Request('https://aifect.test/api/notices/welcome',{
   method:'PATCH',headers:{Origin:origin,'Content-Type':'application/json',...(user?{Cookie:'aifect_session='+user}:{})},body

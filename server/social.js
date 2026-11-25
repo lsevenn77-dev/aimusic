@@ -3,6 +3,7 @@ import {storedCrewTags, includesCrewTags, crewTagsForWrite, findCrews} from './c
 import {dubbingPosterSQL} from './dubbing-poster.js';
 import {legacyCrewNoticeDisplaySQL} from './crew-notice-display.js';
 import {noticeConversations} from './welcome-notices.js';
+import {officialNoticeChannel} from './official-notices.js';
 import {crewGameCatalog} from './crew-game-catalog.js';
 import {profileCoverParticipation,dubRecruitingSQL,finished as dubFinishedSQL,dubAudioReadySQL} from './profile-works.js';
 import {syncCrewGrowth,crewGrowthSnapshot,crewMissionQuery,crewCapacitySQL} from './crew-growth.js';
@@ -241,7 +242,13 @@ export async function socialRoute(req,env,path,user){
   return json({members});
  }
  if(path==='/api/dm'&&method==='GET'){
-  const summary=await chatSummary(env,user),notices=await noticeConversations(env,user.id);return json({...summary,conversations:(await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,${producerNameSQL()} chat_nickname,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)).map(p=>({...p,is_notice:isAdmin(env,{id:p.user_id})})).concat(notices)});
+  const summary=await chatSummary(env,user);
+  const conversations=(await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,${producerNameSQL()} chat_nickname,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)).map(p=>({...p,is_notice:isAdmin(env,{id:p.user_id})}));
+  if(url.searchParams.get('notices')==='unified'){
+   const notice=await officialNoticeChannel(env,user.id);
+   return json({...summary,conversations:[notice,...conversations.filter(p=>!p.is_notice)]});
+  }
+  return json({...summary,conversations:conversations.concat(await noticeConversations(env,user.id))});
  }
  m=path.match(/^\/api\/dm\/([\w-]+)$/);
  if(m){

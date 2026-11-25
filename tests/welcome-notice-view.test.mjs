@@ -5,6 +5,7 @@ import {readFileSync} from 'node:fs';
 import {nicknameContext} from './nickname-context.mjs';
 import {render as renderStickers} from '../shared/chat-stickers.js';
 import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
+import {noticeDOM,eventTarget} from './official-notice-dom.mjs';
 
 const social=readFileSync(new URL('../dist/social-chat.js',import.meta.url),'utf8');
 const notices=readFileSync(new URL('../dist/messages-ui.js',import.meta.url),'utf8');
@@ -39,7 +40,7 @@ function context(extra={}){
  vm.runInContext(social,c);vm.runInContext(notices,c);return c;
 }
 test('welcome is one read-only guide with nine distinct destinations and no legacy stickers',()=>{
- const c=context(),html=c.welcomeGuideHTML(guide());
+ const c=context(),html=c.officialNoticeEntryHTML({...guide(),id:'campaign:guide'});
  assert.equal((html.match(/class="welcome-guide-section"/g)||[]).length,9);
  assert.equal((html.match(/class="text-link welcome-guide-link"/g)||[]).length,9);
  for(const [,title,label,href] of links){assert.ok(html.includes(escape(title)));assert.ok(html.includes(escape(label)));assert.ok(html.includes('href="'+href+'"'));}
@@ -57,7 +58,7 @@ test('nicknames and guide fields stay text, and unsafe links or sticker tokens c
  d.guide.sections[0].id='play" onmouseover="alert(6)';
  d.guide.sections[1].href='https://attacker.example/#karaoke';
  d.guide.stickers.greeting='cat_hand_wave]\"><img src=x onerror=alert(7)>';
- const html=c.welcomeGuideHTML(d);
+ const html=c.officialNoticeEntryHTML({...d,id:'campaign:guide'});
  assert.match(html,/&lt;img src=x onerror=alert\(1\)&gt;/);
  assert.match(html,/&lt;script&gt;alert\(2\)&lt;\/script&gt;/);
  assert.match(html,/&lt;svg onload=alert\(3\)&gt;/);
@@ -66,136 +67,116 @@ test('nicknames and guide fields stay text, and unsafe links or sticker tokens c
  assert.equal((html.match(/class="text-link welcome-guide-link"/g)||[]).length,7);
  assert.equal((html.match(/<img /g)||[]).length,0);
 });
-test('verified welcome channel uses its own endpoint while existing official DMs retain their route',async()=>{
- const c=context();c.dmProfileLink=()=>'<a href="#producer/operator">운영자</a>';c.dmThreadActions=()=>'<button data-dm-mute="operator">알림</button>';c.chatPanelHTML=()=>'<form id="chat-compose"></form>';
- const peers=[{id:'aifect-guide',name:'아이팩트 안내',is_notice:true,notice_type:'welcome',read_only:true,updated:20},{id:'operator',name:'운영자',is_notice:true,updated:10},{id:'fake',name:'아이팩트 안내',notice_type:'welcome',read_only:true,updated:30}];
- const calls=[],read=async path=>{calls.push(path);if(path==='/api/dm')return {conversations:peers};if(path==='/api/notices/welcome')return guide();return {peer:peers[1],messages:[]};};
- const welcome=await c.dmNoticeView('dm/notice?peer=fake',read);
- assert.deepEqual(calls,['/api/dm','/api/notices/welcome']);
- assert.equal(welcome.chat,undefined);assert.equal(welcome.welcomeNotice.campaign_id,guide().campaign_id);
- assert.match(welcome.html,/id="welcome-guide-scroll"/);assert.doesNotMatch(welcome.html,/<form|data-dm-mute|#producer\//);
- assert.match(welcome.html,/value="operator"/);assert.doesNotMatch(welcome.html,/value="fake"/);
- calls.length=0;
- const old=await c.dmNoticeView('dm/notice?peer=operator',read);
- assert.deepEqual(calls,['/api/dm','/api/dm/operator']);assert.equal(old.chat.path,'/api/dm/operator');
- assert.match(old.html,/id="chat-compose"/);assert.match(old.html,/data-dm-mute="operator"/);
-});
-
-test('the event banner precedes the original text in its read-only official channel',async()=>{
- const c=context(),path='/api/notices/premium-open-event';
- const peer={id:PREMIUM_OPEN_NOTICE_ID,name:'AIFECT 운영팀',is_notice:true,notice_type:'premium-open-event',read_only:true,unread:1};
- const opened=await c.dmNoticeView('dm/notice',async requested=>{
-  assert.equal(requested,path);
-  return {campaign_id:PREMIUM_OPEN_NOTICE_ID,notice:PREMIUM_OPEN_NOTICE,read_at:0};
- },{conversations:[peer]});
- assert.match(opened.html,/AIFECT 운영팀/);
+test('the event and guide open in one chronological feed without a sender control',async()=>{
+ const c=context(),id='campaign:'+PREMIUM_OPEN_NOTICE_ID;
+ const data={channel:{name:'아이팩트 안내'},items:[{...guide(),id:'campaign:welcome-guide-20261108-v1',legacy_id:'aifect-guide'},
+  {id,legacy_id:PREMIUM_OPEN_NOTICE_ID,notice:PREMIUM_OPEN_NOTICE,created:1795607093,read_at:0}],before:null};
+ const calls=[],read=async path=>{calls.push(path);return path==='/api/notices/official'?data:{conversations:[]};};
+ const opened=await c.dmNoticeView('dm/notice?peer='+PREMIUM_OPEN_NOTICE_ID,read);
+ assert.deepEqual(calls,['/api/dm?notices=unified','/api/notices/official']);
+ assert.equal(opened.noticeAnchor,PREMIUM_OPEN_NOTICE_ID);
+ assert.match(opened.html,/<h1>공지<\/h1><small>아이팩트 안내<\/small>/);
  assert.match(opened.html,/<img class="official-notice-banner" [^>]+width="2172" height="724"/);
+ assert.ok(opened.html.indexOf('data-welcome-section="play"')<opened.html.indexOf('<img'));
  assert.ok(opened.html.indexOf('<img')<opened.html.indexOf(PREMIUM_OPEN_NOTICE.title));
  assert.match(opened.html,/12월 31일까지<br>👑 기존·신규 회원 모두 프리미엄 무료<br>✅ 별도 신청 및 결제 없이 자동 적용/);
- assert.equal(opened.welcomeNotice.path,path);
- assert.doesNotMatch(opened.html,/<form|<textarea|contenteditable/);
+ assert.doesNotMatch(opened.html,/<select|<form|<textarea|contenteditable|AIFECT 운영팀/);
 });
 
-function acknowledgeHarness({hidden=false,renderState='ready',readAt=0}={}){
- const docEvents=new Map(),winEvents=new Map(),retryEvents=new Map(),frames=new Map(),timers=new Map(),observers=[];
- const pane={scrollTop:900,isConnected:true,getClientRects:()=>[{}]};
- const label={textContent:''},retry={disabled:false,addEventListener:(e,f)=>retryEvents.set(e,f),removeEventListener:e=>retryEvents.delete(e)};
- const status={hidden:true,querySelector:s=>s==='span'?label:retry};
- const doc={hidden,documentElement:{dataset:{renderState}},addEventListener:(e,f)=>docEvents.set(e,f),removeEventListener:e=>docEvents.delete(e)};
- let next=0,acknowledged=0;const calls=[];
- const c=context({document:doc,window:{addEventListener:(e,f)=>winEvents.set(e,f),removeEventListener:e=>winEvents.delete(e)},$:selector=>({'#welcome-guide-scroll':pane,'#welcome-guide-status':status}[selector]),
+test('the notice back button goes to the list after following another anchor in the same channel',()=>{
+ const document=eventTarget(),window=eventTarget(),location={hash:'#dm',pathname:'/',search:''};
+ let backs=0;
+ const history={state:null,replaceState(state){this.state=state;},back(){backs++;}};
+ context({document,window,location,history});
+ location.hash='#dm/notice';window.emit('hashchange');assert.equal(history.state.aifectDmBack,true);
+ history.state=null;location.hash='#dm/notice?peer=aifect-guide';window.emit('hashchange');
+ assert.equal(history.state.aifectDmBack,false);
+ document.emit('click',{target:{closest:selector=>selector.includes('a[href="#dm"]')?{}:null},preventDefault(){}});
+ assert.equal(location.hash,'dm');assert.equal(backs,0);
+});
+
+function acknowledgeHarness({hidden=false,renderState='ready',readAt=0,anchor='',olderRead=0}={}){
+ const frames=new Map(),timers=new Map(),observers=[],calls=[];
+ const older={id:'campaign:guide',legacy_id:'aifect-guide',created:1,read_at:olderRead};
+ const latest={id:'campaign:premium',legacy_id:'premium',created:2,read_at:readAt};
+ const feed={items:[older,latest],before:null};
+ const dom=noticeDOM(feed.items);
+ const document=eventTarget({hidden,documentElement:{dataset:{renderState}}}),window=eventTarget({});
+ let next=0,acknowledged=0;
+ const c=context({document,window,
   requestAnimationFrame:f=>{frames.set(++next,f);return next;},cancelAnimationFrame:id=>frames.delete(id),
   AbortController,setTimeout:(callback,delay)=>{timers.set(++next,{callback,delay});return next;},clearTimeout:id=>timers.delete(id),
   ResizeObserver:class{constructor(f){this.callback=f;observers.push(this);}observe(){}disconnect(){this.closed=true;}},
   MutationObserver:class{constructor(f){this.callback=f;observers.push(this);}observe(){}disconnect(){this.closed=true;}},
-  api:(path,method,body,options={})=>new Promise((resolve,reject)=>{
-   calls.push({path,method,body,options,resolve,reject});
-   options.signal?.addEventListener('abort',()=>reject(Object.assign(new Error('Aborted'),{name:'AbortError'})),{once:true});
-  })
+  api:(path,method,body,options={})=>{
+   if(method==='GET')return Promise.resolve(feed);
+   return new Promise((resolve,reject)=>{
+    calls.push({path,method,body:JSON.parse(JSON.stringify(body)),options,resolve,reject});
+    options.signal?.addEventListener('abort',()=>reject(new Error('Aborted')),{once:true});
+   });
+  }
  });
- const cleanup=c.bindWelcomeNotice({welcomeNotice:{campaign_id:'welcome-guide-20261108-v1',read_at:readAt}},()=>acknowledged++);
- return {c,pane,doc,docEvents,winEvents,retryEvents,status,label,retry,observers,calls,timers,cleanup,acknowledged:()=>acknowledged,
-  paint:()=>{for(const f of [...frames.values()])f();frames.clear();},
+ const cleanup=c.bindOfficialNotices(dom.host,feed,{anchor,onRead:()=>acknowledged++});
+ return {c,...dom,document,window,observers,calls,timers,cleanup,acknowledged:()=>acknowledged,
+  paint(){const scheduled=[...frames.values()];frames.clear();for(const f of scheduled)f();},
   fireTimer(delay){const entry=[...timers].find(([,timer])=>timer.delay===delay);assert.ok(entry,'expected a '+delay+'ms timer');timers.delete(entry[0]);entry[1].callback();}
  };
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
-test('notice opens at the beginning and is acknowledged only after visible ready paint, once',async()=>{
- const h=acknowledgeHarness({hidden:true,renderState:'loading'});
- assert.equal(h.pane.scrollTop,0);assert.equal(h.calls.length,0);h.paint();assert.equal(h.calls.length,0);
- h.doc.hidden=false;h.docEvents.get('visibilitychange')();assert.equal(h.calls.length,0);
- h.doc.documentElement.dataset.renderState='ready';h.observers.at(-1).callback();
- assert.equal(h.calls.length,1);assert.equal(h.calls[0].path,'/api/notices/welcome');assert.equal(h.calls[0].method,'PATCH');
- assert.deepEqual(JSON.parse(JSON.stringify(h.calls[0].body)),{campaign_id:'welcome-guide-20261108-v1'});
- h.winEvents.get('focus')();h.observers[0].callback();assert.equal(h.calls.length,1);
- h.calls[0].resolve({ok:true});await settle();assert.equal(h.acknowledged(),1);
- h.winEvents.get('focus')();assert.equal(h.calls.length,1);h.cleanup();assert.ok(h.observers.every(o=>o.closed));
- assert.equal(h.winEvents.has('focus'),false);assert.equal(h.docEvents.has('visibilitychange'),false);
+
+test('the selected notice opens after visible paint and scrolling reads only the notices in view',async()=>{
+ const h=acknowledgeHarness({hidden:true,renderState:'loading',anchor:'premium'});
+ h.paint();assert.equal(h.calls.length,0);
+ h.document.hidden=false;h.document.emit('visibilitychange');h.paint();assert.equal(h.calls.length,0);
+ h.document.documentElement.dataset.renderState='ready';h.observers.at(-1).callback();h.paint();
+ assert.equal(h.pane.scrollTop,408);assert.equal(h.calls[0].path,'/api/notices/official');
+ assert.equal(h.calls[0].method,'PATCH');assert.deepEqual(h.calls[0].body,{ids:['campaign:premium']});
+ h.calls[0].resolve({ok:true});await settle();h.paint();assert.equal(h.calls.length,1);
+ h.pane.scrollTop=0;h.pane.emit('scroll');h.paint();assert.deepEqual(h.calls[1].body,{ids:['campaign:guide']});
+ h.calls[1].resolve({ok:true});await settle();
+ assert.equal(h.acknowledged(),2);h.cleanup();assert.ok(h.observers.every(o=>o.closed));
+ assert.equal(h.window.listenerCount('focus'),0);assert.equal(h.document.listenerCount('visibilitychange'),0);
 });
-test('read acknowledgement failure stays unread and offers a single user retry',async()=>{
- const h=acknowledgeHarness();h.paint();h.calls[0].reject(new Error('연결 끊김'));await settle();
- assert.equal(h.acknowledged(),0);assert.equal(h.status.hidden,false);assert.match(h.label.textContent,/연결 끊김/);assert.equal(h.retry.disabled,false);
- h.retryEvents.get('click')();h.retryEvents.get('click')();assert.equal(h.calls.length,2);
- h.calls[1].resolve({ok:true});await settle();assert.equal(h.status.hidden,true);assert.equal(h.acknowledged(),1);h.cleanup();
+
+test('default opening points to the latest notice and existing read state needs no write',()=>{
+ const h=acknowledgeHarness({readAt:1,olderRead:1});
+ h.paint();assert.equal(h.pane.scrollTop,408);assert.equal(h.calls.length,0);h.cleanup();
 });
-test('already-read notices, route changes, and account changes cannot acknowledge the wrong view',async()=>{
- const read=acknowledgeHarness({readAt:1});read.paint();assert.equal(read.calls.length,0);read.cleanup();
+
+test('route and account switches prevent a receipt from changing the next panel',async()=>{
  const away=acknowledgeHarness();away.c.renderId=2;away.paint();assert.equal(away.calls.length,0);away.cleanup();
- const switched=acknowledgeHarness();switched.paint();switched.c.me={id:'different-member'};switched.calls[0].resolve({ok:true});await settle();assert.equal(switched.acknowledged(),0);switched.cleanup();
+ const h=acknowledgeHarness();h.paint();h.c.me={id:'different-member'};
+ h.calls[0].resolve({ok:true});await settle();assert.equal(h.acknowledged(),0);h.cleanup();
 });
 
-test('an already-read guide synchronizes its inbox once after it is actually visible',()=>{
- const h=acknowledgeHarness({hidden:true,renderState:'loading',readAt:123});h.paint();
- assert.equal(h.acknowledged(),0);assert.equal(h.calls.length,0);
- h.doc.hidden=false;h.docEvents.get('visibilitychange')();assert.equal(h.acknowledged(),0);
- h.doc.documentElement.dataset.renderState='ready';h.pane.getClientRects=()=>[];h.observers.at(-1).callback();assert.equal(h.acknowledged(),0);
- h.pane.getClientRects=()=>[{}];h.observers[0].callback();assert.equal(h.acknowledged(),1);
- h.winEvents.get('focus')();h.observers[0].callback();assert.equal(h.acknowledged(),1);assert.equal(h.calls.length,0);h.cleanup();
-});
-
-test('network recovery and page restoration retry a failed receipt without reopening the guide',async()=>{
- for(const event of ['online','pageshow']){
+test('failed receipts remain unread and manual or network retries do not send a second pending write',async()=>{
+ for(const event of ['click','online','pageshow']){
   const h=acknowledgeHarness();h.paint();h.calls[0].reject(new Error('연결 끊김'));await settle();
-  h.winEvents.get(event)?.();assert.equal(h.calls.length,2,event+' must retry the receipt');
-  h.winEvents.get(event)?.();assert.equal(h.calls.length,2,'recovery cannot duplicate an in-flight receipt');
-  h.calls[1].resolve({ok:true});await settle();assert.equal(h.acknowledged(),1);assert.equal(h.status.hidden,true);assert.equal(h.timers.size,0);
-  h.cleanup();assert.equal(h.winEvents.has(event),false);
+  assert.equal(h.acknowledged(),0);assert.equal(h.status.hidden,false);assert.match(h.label.textContent,/연결 끊김/);
+  const target=event==='click'?h.retry:h.window;
+  target.emit(event);target.emit(event);h.paint();assert.equal(h.calls.length,2);
+  h.calls[1].resolve({ok:true});await settle();assert.equal(h.acknowledged(),1);assert.equal(h.status.hidden,true);
+  h.cleanup();assert.equal(target.listenerCount(event),0);
  }
 });
 
 test('temporary receipt failures retry automatically with bounded backoff',async()=>{
- const h=acknowledgeHarness();h.observers.at(-1).callback();
+ const h=acknowledgeHarness();h.paint();
  for(const [index,delay] of [1000,3000,8000].entries()){
   h.calls[index].reject(new Error('서버 연결 실패'));await settle();
-  h.observers[0].callback();h.paint();assert.equal(h.calls.length,index+1,'layout and paint do not bypass backoff');
-  h.fireTimer(delay);assert.equal(h.calls.length,index+2);
+  h.observers[0].callback();h.paint();assert.equal(h.calls.length,index+1);
+  h.fireTimer(delay);h.paint();assert.equal(h.calls.length,index+2);
  }
  h.calls[3].reject(new Error('서버 연결 실패'));await settle();
- assert.equal(h.timers.size,0,'automatic retries stop after three attempts');assert.equal(h.acknowledged(),0);assert.equal(h.status.hidden,false);
- h.retryEvents.get('click')();assert.equal(h.calls.length,5);h.calls[4].resolve({ok:true});await settle();
- assert.equal(h.acknowledged(),1);assert.equal(h.timers.size,0);h.cleanup();
+ assert.equal(h.timers.size,0);assert.equal(h.status.hidden,false);
+ h.retry.emit('click');h.paint();h.calls[4].resolve({ok:true});await settle();
+ assert.equal(h.acknowledged(),1);h.cleanup();
 });
 
-test('a stalled receipt is aborted and retried instead of remaining pending forever',async()=>{
- const h=acknowledgeHarness();h.paint();assert.ok(h.calls[0].options.signal);
- h.fireTimer(10000);await settle();assert.equal(h.calls[0].options.signal.aborted,true);assert.equal(h.status.hidden,false);assert.equal(h.acknowledged(),0);
- h.fireTimer(1000);assert.equal(h.calls.length,2);h.calls[1].resolve({ok:true});await settle();
- assert.equal(h.acknowledged(),1);assert.equal(h.timers.size,0);h.cleanup();
-});
-
-test('retry timers retain view guards and cleanup lets an already-visible receipt finish within its deadline',async()=>{
- const hidden=acknowledgeHarness();hidden.paint();hidden.calls[0].reject(new Error('연결 끊김'));await settle();
- hidden.doc.hidden=true;hidden.fireTimer(1000);assert.equal(hidden.calls.length,1);
- hidden.winEvents.get('online')?.();assert.equal(hidden.calls.length,1);
- hidden.doc.hidden=false;hidden.docEvents.get('visibilitychange')();assert.equal(hidden.calls.length,2);hidden.cleanup();await settle();
- assert.equal(hidden.calls[1].options.signal.aborted,false,'following a guide link must not cancel a receipt already being saved');assert.equal(hidden.acknowledged(),0);
- hidden.calls[1].resolve({ok:true});await settle();assert.equal(hidden.acknowledged(),0);assert.equal(hidden.timers.size,0);
- for(const event of ['focus','online','pageshow'])assert.equal(hidden.winEvents.has(event),false);
- assert.equal(hidden.docEvents.has('visibilitychange'),false);assert.equal(hidden.retryEvents.size,0);
- for(const change of [h=>{h.c.renderId++;},h=>{h.c.me={id:'other-member'};},h=>{h.pane.isConnected=false;}]){
-  const h=acknowledgeHarness();h.paint();h.calls[0].reject(new Error('연결 끊김'));await settle();change(h);h.fireTimer(1000);
-  h.winEvents.get('pageshow')?.();assert.equal(h.calls.length,1);assert.equal(h.acknowledged(),0);h.cleanup();assert.equal(h.timers.size,0);
- }
- const stalled=acknowledgeHarness();stalled.paint();stalled.cleanup();stalled.fireTimer(10000);await settle();
- assert.equal(stalled.calls[0].options.signal.aborted,true);assert.equal(stalled.calls.length,1);assert.equal(stalled.acknowledged(),0);assert.equal(stalled.timers.size,0);
+test('a stalled receipt times out and closing lets an in-flight receipt finish without repainting',async()=>{
+ const h=acknowledgeHarness();h.paint();h.fireTimer(10000);await settle();
+ assert.equal(h.calls[0].options.signal.aborted,true);assert.equal(h.status.hidden,false);
+ h.fireTimer(1000);h.paint();assert.equal(h.calls.length,2);
+ h.cleanup();assert.equal(h.calls[1].options.signal.aborted,false);
+ h.calls[1].resolve({ok:true});await settle();assert.equal(h.acknowledged(),0);assert.equal(h.timers.size,0);
 });

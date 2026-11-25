@@ -19,7 +19,8 @@ export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest(
 const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure?'; Secure':''}`;
 export function cookies(req){return Object.fromEntries((req.headers.get('cookie')||'').split(';').map(x=>x.trim().split('=')));}
 // Operators are listed by user id in ADMIN_USER_IDS; there is no self-service admin role.
-export const isAdmin=(env,user)=>isConsoleAdmin(user)||isMcpAdmin(user)||!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
+export const configuredAdminIds=env=>(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
+export const isAdmin=(env,user)=>isConsoleAdmin(user)||isMcpAdmin(user)||!!user&&configuredAdminIds(env).includes(user.id);
 // Moderation operators have no access to payout accounts or other administrator data.
 export const isTrackModerator=(env,user)=>isAdmin(env,user)||!!user&&(env.TRACK_REVIEW_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
 // Request-local security context, never serialized or reused across requests.

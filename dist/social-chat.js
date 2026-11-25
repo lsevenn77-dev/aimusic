@@ -47,8 +47,8 @@ let dmInboxQuery='';
 let dmInboxSnapshot=null;
 function rememberDmInbox(data){if(dmInboxSnapshot?.uid!==me?.id)dmInboxQuery='';dmInboxSnapshot={uid:me?.id,data};}
 function dmOrderedConversations(conversations=[]){
- const ordered=[...conversations].sort((a,b)=>Number(b.updated||0)-Number(a.updated||0));
- return {notices:ordered.filter(p=>p.is_notice===true),direct:ordered.filter(p=>p.is_notice!==true)};
+ const direct=conversations.filter(p=>p.is_notice!==true).sort((a,b)=>Number(b.updated||0)-Number(a.updated||0));
+ return {notice:conversations.find(p=>p.notice_type==='official'),direct};
 }
 function dmSearchMatch(p,query,label=''){
  return !query||[label,chatNickname(p||{}),p?.last_message_display,p?.last_message].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
@@ -56,14 +56,13 @@ function dmSearchMatch(p,query,label=''){
 function dmConversationRow(p,selected=''){
  return '<article data-list-row class="conversation-row'+(selected===p.id?' is-selected':'')+(Number(p.unread)>0?' is-unread':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'>'+conversationCopyHTML(p,chatNickname(p),'대화를 시작해 보세요.')+conversationMetaHTML(p)+'</a></article>';
 }
-function noticeInboxHTML(notices,selected){
- const latest=notices[0]||{},p={...latest,unread:notices.reduce((n,p)=>n+Number(p.unread||0),0),muted:notices.length>0&&notices.every(p=>p.muted)};
- const active=selected==='notice'||notices.some(p=>p.id===selected);
+function noticeInboxHTML(p={},selected){
+ const active=selected==='notice';
  return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'공지','아직 받은 공지가 없습니다.',true)+conversationMetaHTML(p)+'</a>';
 }
 function conversationListHTML(conversations=[],crew=null,selected=''){
- const {notices,direct}=dmOrderedConversations(conversations),query=dmInboxQuery;
- const notice=(!query||dmSearchMatch({},query,'공지')||notices.some(p=>dmSearchMatch(p,query)))?noticeInboxHTML(notices,selected):'';
+ const {notice:official,direct}=dmOrderedConversations(conversations),query=dmInboxQuery;
+ const notice=dmSearchMatch(official,query,'공지')?noticeInboxHTML(official,selected):'';
  const crewRow=dmSearchMatch(crew,query,'크루채팅')?(crewInboxHTML(crew,selected)||'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있습니다.</p></div></a>'):'';
  const rows=direct.filter(p=>dmSearchMatch(p,query)).map(p=>dmConversationRow(p,selected)).join('');
  return '<div class="conversation-list">'+notice+crewRow+rows+'</div>'+(!notice&&!crewRow&&!rows?'<div class="dm-empty" role="status"><p>검색 결과가 없습니다.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해 보세요.</p></div>':'');
@@ -275,7 +274,7 @@ function bindSocialChat(view){
  };
  const addInboxTargets=d=>{
   addTarget('dm');addTarget('dm/notice');addTarget('dm/tools/friends');
-  for(const p of d?.conversations||[])addTarget(p.is_notice?'dm/notice?peer='+encodeURIComponent(p.id):'dm/'+p.id);
+  for(const p of d?.conversations||[])if(!p.is_notice)addTarget('dm/'+p.id);
   if(d?.crew)addTarget('dm/crew/'+d.crew.id);
  };
  const syncCrewInbox=crew=>{
@@ -299,24 +298,16 @@ function bindSocialChat(view){
  let inboxFetching=false,inboxAgain=false,inboxVersion=0;
  const loadInbox=async()=>{if(!current())return;if(inboxFetching){inboxAgain=true;return;}inboxFetching=true;
   try{do{inboxAgain=false;const version=inboxVersion;
-   try{const d=await api('/api/dm','GET',undefined,{fresh:true});if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);syncCrewInbox(d.crew);if(Number.isFinite(d.unread)&&typeof paintMessageBadge==='function')paintMessageBadge(d.unread);$('#dm-list-error').textContent='';}
+   try{const d=await api(unifiedDmInboxPath,'GET',undefined,{fresh:true});if(!current())return;if(version!==inboxVersion)continue;inboxData=d;rememberDmInbox(d);paintInbox(d);syncCrewInbox(d.crew);if(Number.isFinite(d.unread)&&typeof paintMessageBadge==='function')paintMessageBadge(d.unread);$('#dm-list-error').textContent='';}
    catch(e){if(current()&&version===inboxVersion)$('#dm-list-error').textContent=e.message;}
   }while(inboxAgain&&current());}finally{inboxFetching=false;}
  };
- const localInbox=e=>{if(current()&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{inboxVersion++;void loadInbox();};
+ const localInbox=e=>{if(current()&&e.detail){inboxVersion++;inboxData=e.detail;paintInbox(inboxData);}};const refreshInbox=()=>{inboxVersion++;void stopNotice?.refresh?.();void loadInbox();};
  window.addEventListener('aifect:inbox-local',localInbox);window.addEventListener('aifect:inbox-refresh',refreshInbox);
-  const noticeRead=peerId=>{
+  const noticeRead=({notice,...counts})=>{
    if(!current())return;inboxVersion++;
    if(inboxData){
-    const isOfficial=p=>p.is_notice===true&&p.read_only===true;
-    const isOpened=p=>isOfficial(p)&&(peerId?p.id===peerId:p.notice_type==='welcome');
-    const unreadInRows=peers=>peers.reduce((sum,p)=>sum+Number(p.unread||0),0);
-    // The summary and conversation rows may have been read on either side of the receipt update.
-    const official=inboxData.conversations.filter(isOfficial);
-    const total=Number(inboxData.notice_unread??unreadInRows(official));
-    const count=Math.min(1,Math.max(0,total-unreadInRows(official.filter(p=>!isOpened(p)))));
-    inboxData={...inboxData,notice_unread:total-count,conversations:inboxData.conversations.map(p=>isOpened(p)?{...p,unread:0}:p)};
-    for(const key of ['unread','direct_unread'])if(Number.isFinite(inboxData[key]))inboxData[key]=Math.max(0,inboxData[key]-count);
+    inboxData={...inboxData,...counts,conversations:inboxData.conversations.map(p=>p.notice_type==='official'?notice:p)};
     rememberDmInbox(inboxData);paintInbox(inboxData);
     if(Number.isFinite(inboxData.unread))paintMessageBadge(inboxData.unread);
    }
@@ -325,7 +316,7 @@ function bindSocialChat(view){
 
  const stopInbox=watchSocialChat('',()=>{
   if(!current())return;
-  directRevision++;threadBinding?.directChanged?.();void loadInbox();
+  directRevision++;threadBinding?.directChanged?.();void stopNotice?.refresh?.();void loadInbox();
  },text=>threadBinding?.directStatus?.(text),()=>{
   historyCache.clear();threadBinding?.deny?.();
   const error=$('#dm-list-error');if(error)error.textContent='로그인 상태를 다시 확인해 주세요.';
@@ -341,7 +332,7 @@ function bindSocialChat(view){
    const route=session.route;
    threadBinding=bindChatThread(panelView,{receipts,read:()=>inboxData,refreshInbox,current:()=>location.hash.slice(1)===route});
   }
-  if(panelView.welcomeNotice)stopNotice=bindWelcomeNotice(panelView,()=>noticeRead(panelView.welcomeNotice.peerId));
+  if(panelView.noticeFeed)stopNotice=bindOfficialNotices(root,panelView.noticeFeed,{anchor:panelView.noticeAnchor,onRead:noticeRead});
  }
  let controller=null;
  const route=typeof location==='undefined'?'dm':location.hash.slice(1);
@@ -361,8 +352,7 @@ function bindSocialChat(view){
    if(!finder)returnLog=null;
    unbindPanel();session.route=raw;selection=finder?'':raw.split('?')[0].slice(3);
    root.classList.toggle('has-thread',!!param);
-   const notice=inboxData?.conversations.some(p=>p.id===selection&&p.is_notice);
-   selectDmRow(root,notice?'notice':selection);
+   selectDmRow(root,selection);
    addTarget(raw);main.dataset.route=raw;
    window.AifectRender?.syncTarget();
    pane.className=param?'message-thread-pane':'message-welcome';

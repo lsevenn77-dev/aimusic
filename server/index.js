@@ -4,6 +4,7 @@ import {boxCutoverRoute,queueConfiguredBoxRetirement} from './library-unificatio
 import {playlistsRoute} from './playlists.js';
 import {myBoxesRoute} from './my-boxes.js';
 import {queuePremiumOpenNotice,queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
+import {officialNoticeRoute} from './official-notices.js';
 import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
 import {recordVisit,pruneVisits} from './visitors.js';
@@ -193,7 +194,7 @@ async function fetchRequest(req,env,ctx){
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
   if(path==='/api/account/summary'||path==='/api/account/payments')return await accountOverviewRoute(req,env,path,user);
   const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;
-  const welcome=await welcomeNoticeRoute(req,env,path,user);if(welcome)return welcome;
+  const notice=await officialNoticeRoute(req,env,path,user)||await welcomeNoticeRoute(req,env,path,user);if(notice)return notice;
   if(path==='/api/admin/mcp/identity'){
    if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해 주세요.');
    if(req.method!=='GET')fail(405,'GET만 지원합니다.');

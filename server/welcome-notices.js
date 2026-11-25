@@ -127,6 +127,10 @@ export async function welcomeNoticeRoute(req,env,path,user) {
   return json({ok:true});
  }
  if(premium)return json({peer:premiumOpenPeer(receipt),campaign_id:campaignId,created:receipt.created,read_at:receipt.read_at,notice:JSON.parse(receipt.content_json)});
+ return json({peer:peer(receipt),campaign_id:WELCOME_CAMPAIGN_ID,created:receipt.created,read_at:receipt.read_at,guide:formatWelcomeGuide(receipt)});
+}
+
+export function formatWelcomeGuide(receipt){
  const guide=updateWelcomeCopy(JSON.parse(receipt.content_json)),nickname=String(receipt.nickname||'').trim();
  // Apply the owner's presentation change to saved notices without redelivery.
  delete guide.stickers;
@@ -135,7 +139,7 @@ export async function welcomeNoticeRoute(req,env,path,user) {
   guide.sections.splice(after<0?guide.sections.length:after+1,0,WELCOME_GUIDE.sections.find(section=>section.id==='crew'));
  }
  guide.greeting=nickname?guide.greeting.replace('{닉네임}',()=>nickname):'반갑습니다! 👋\n아이팩트에 오신 걸 환영합니다.';
- return json({peer:peer(receipt),campaign_id:WELCOME_CAMPAIGN_ID,created:receipt.created,read_at:receipt.read_at,guide});
+ return guide;
 }
 
 // Authenticated admin statistics only; querying this does not initiate delivery.

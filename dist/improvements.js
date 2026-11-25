@@ -117,7 +117,7 @@ async function improvementsView(base,param,raw,readApi=api){
   if(base==='rewards'){const d=await readApi('/api/gold');return {html:`<div class="rewards-page">${heading('오늘의 실버','작은 활동을 모아 좋아하는 음악에 응원해 보세요.')}<div id="gift-shop-rewards">${freeRewardsHTML(d.free)}</div></div>`};}
   // On direct entry, mount the workspace before the history request, just like a row selection.
   if(param&&raw.split('?')[0]!=='dm/tools/friends'){
-   const inbox=param==='notice'?await readApi('/api/dm'):
+   const inbox=param==='notice'?await readApi(unifiedDmInboxPath):
     (dmInboxSnapshot?.uid===me.id?dmInboxSnapshot.data:{conversations:[]});
    const selected=raw.split('?')[0].slice(3);
    return {html:dmInboxHTML(inbox,dmLoadingSpinnerHTML,selected),inbox:true,selectedConversation:selected,openThread:true,refreshInbox:param!=='notice'};
@@ -127,9 +127,9 @@ async function improvementsView(base,param,raw,readApi=api){
  return null;
 }
 async function dmRouteView(param,raw,readApi,inbox=null,layout=dmInboxHTML){
- if(!param){const data=inbox||await readApi('/api/dm');return {html:layout(data),inbox:true};}
+ if(!param){const data=inbox||await readApi(unifiedDmInboxPath);return {html:layout(data),inbox:true};}
  if(raw.split('?')[0]==='dm/tools/friends'){
-  const data=inbox||await readApi('/api/dm');
+  const data=inbox||await readApi(unifiedDmInboxPath);
   return {html:layout(data,dmFriendFinderHTML()),inbox:true,friendFinder:true};
  }
  if(param==='notice')return dmNoticeView(raw,readApi,inbox,layout);

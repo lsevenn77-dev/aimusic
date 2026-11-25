@@ -95,7 +95,13 @@
 #main .message-workspace .message-welcome-icon::before,#main .message-workspace .message-welcome-icon::after{content:none}
 #main .message-workspace .dm-compose-preview{display:none}
 #main .message-workspace .dm-empty{padding:24px 12px;color:var(--ds-body);text-align:center}
-.dm-notice-channel{flex:none;padding:8px 16px}.dm-notice-channel select{max-width:100%;font-size:16px}
+#main :is(.message-workspace,.room-welcome-guide) .official-notice-entry+.official-notice-entry{margin-top:20px}
+#main :is(.message-workspace,.room-welcome-guide) .official-notice-earlier{display:block;margin:0 auto 12px}
+#main :is(.message-workspace,.room-welcome-guide) .official-notice-earlier[hidden]{display:none}
+#main :is(.message-workspace,.room-welcome-guide) .official-notice-message{white-space:pre-wrap;word-break:keep-all;overflow-wrap:anywhere}
+#main :is(.message-workspace,.room-welcome-guide) .official-notice-mine{max-width:82%;margin-left:auto;background:var(--ds-panel)}
+#main .room-official-notice-title{display:grid;gap:2px;min-width:0}
+#main .room-official-notice-title small{color:var(--ds-muted)}
 /* The same read-only guide fits the message pane and an existing room sheet. */
 #main .voice-room[data-voice-room] #room-inbox .room-welcome-guide{--dm-thread-title:20px;--dm-name:16px;--dm-body:15px;--dm-time:13px;display:flex;flex-direction:column;flex:1 1 0;min-width:0;min-height:0;overflow:hidden}
 #main .voice-room[data-voice-room] #room-inbox .room-welcome-art{display:grid;place-items:center;color:var(--ds-selected)}

@@ -7,11 +7,12 @@ const source=readFileSync(new URL('../dist/social-chat.js',import.meta.url),'utf
 const make=()=>{const c=nicknameContext({document:{addEventListener(){}},esc:String,crewInboxHTML:()=>'',number:String});vm.runInContext(source,c);return c;};
 test('notice and crew stay first while only ordinary DMs follow message timestamps',()=>{
  const c=make();c.icon=()=>'';
- const items=[{id:'old',name:'old',updated:2},{id:'fake',name:'AIFECT 운영팀',updated:5},{id:'official',name:'official',is_notice:true,updated:1},{id:'new',name:'new',updated:9}];
+ const items=[{id:'old',name:'old',updated:2},{id:'fake',name:'AIFECT 운영팀',updated:5},{id:'official',name:'아이팩트 안내',is_notice:true,notice_type:'official',updated:1,last_message:'최신 공지',unread:2},{id:'new',name:'new',updated:9}];
  c.items=items;const ordered=JSON.parse(vm.runInContext('JSON.stringify(dmOrderedConversations(items))',c));
- assert.deepEqual(ordered.notices.map(p=>p.id),['official']);assert.deepEqual(ordered.direct.map(p=>p.id),['new','fake','old']);assert.equal(items[0].id,'old');
+ assert.equal(ordered.notice.id,'official');assert.deepEqual(ordered.direct.map(p=>p.id),['new','fake','old']);assert.equal(items[0].id,'old');
  c.portrait=()=>'';c.crewInboxHTML=()=>'<a>CREW</a>';
  const html=c.conversationListHTML(items);assert.ok(html.indexOf('공지')<html.indexOf('CREW'));assert.ok(html.indexOf('CREW')<html.indexOf('#dm/new'));assert.ok(html.indexOf('#dm/new')<html.indexOf('#dm/old'));assert.doesNotMatch(html,/dm-pin|data-dm-filter/);
+ assert.equal((html.match(/href="#dm\/notice"/g)||[]).length,1);assert.match(html,/최신 공지/);assert.match(html,/안 읽은 메시지 2개/);
 });
 
 test('empty channels stay visible and search covers channel names and previews',()=>{
@@ -21,12 +22,13 @@ test('empty channels stay visible and search covers channel names and previews',
  vm.runInContext("dmInboxQuery='없는말'",c);assert.match(c.conversationListHTML([]),/검색 결과가 없습니다/);
 });
 
-test('notice routing only opens server-verified channels and retains all official conversations',async()=>{
+test('notice routing reads the official timeline even for a legacy peer link',async()=>{
  const c=make();Object.assign(c,{me:{id:'me'},location:{hash:'#dm',pathname:'/',search:''},window:{addEventListener(){}},URLSearchParams,icon:()=>'',dmInboxHTML:(data,body)=>body,dmProfileLink:()=>'',dmThreadActions:()=>'',chatPanelHTML:()=>'<form>composer</form>'});
  vm.runInContext(readFileSync(new URL('../dist/messages-ui.js',import.meta.url),'utf8'),c);
- const paths=[];const read=async path=>{paths.push(path);return path==='/api/dm'?{conversations:[{id:'fake',name:'AIFECT',updated:9},{id:'a',name:'Admin A',updated:1,is_notice:true},{id:'b',name:'Admin B',updated:2,is_notice:true}]}:{peer:{id:path.split('/').at(-1),name:'Admin'},messages:[]};};
- const view=await c.dmNoticeView('dm/notice?peer=fake',read);assert.deepEqual(paths,['/api/dm','/api/dm/b']);assert.equal(view.selectedConversation,'notice');assert.match(view.html,/value="a"/);assert.match(view.html,/value="b"/);assert.match(view.html,/composer/);
- const empty=await c.dmNoticeView('dm/notice',async()=>({conversations:[]}));assert.match(empty.html,/아직 받은 공지/);assert.equal(empty.chat,undefined);
+ const paths=[];const read=async path=>{paths.push(path);return path==='/api/dm?notices=unified'?{conversations:[{id:'fake',name:'AIFECT',updated:9}]}:{channel:{name:'아이팩트 안내'},items:[],before:null};};
+ const view=await c.dmNoticeView('dm/notice?peer=fake',read);assert.deepEqual(paths,['/api/dm?notices=unified','/api/notices/official']);
+ assert.equal(view.selectedConversation,'notice');assert.equal(view.noticeAnchor,'fake');assert.match(view.html,/아직 받은 공지/);assert.match(view.html,/<h1>공지<\/h1><small>아이팩트 안내<\/small>/);
+ assert.doesNotMatch(view.html,/<select|composer/);assert.equal(view.chat,undefined);
 });
 
 test('search filters the existing inbox synchronously without fetching or changing drafts',()=>{
