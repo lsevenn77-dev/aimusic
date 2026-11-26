@@ -95,12 +95,16 @@ test('public cover ranking survives blocks while personal recent and child pages
  assert.equal((await f.call('/api/tracks/one/covers?view=children&parent=source')).status,403);
 });
 test('row markup has separate native links and controls, exact tabs, escaped IDs and shared line play icon',()=>{
- const c=nicknameContext({esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),number:String,time:()=> '0:45',cover:()=>'<img>',liked:()=>false,icon:n=>`<i data-icon="${n}"></i>`});
+ const c=nicknameContext({URLSearchParams,esc:s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),number:String,time:()=> '0:45',cover:()=>'<img>',liked:()=>false,icon:n=>`<i data-icon="${n}"></i>`});
  const browse=readFileSync(new URL('../dist/browse.js',import.meta.url),'utf8');
  vm.runInContext(browse.slice(browse.indexOf('function musicRowActionsHTML('),browse.indexOf('function chartPageTable(')),c);
  vm.runInContext(readFileSync(new URL('../dist/song-covers.js',import.meta.url),'utf8'),c);
  const track={id:'cover',title:'<Long title>',producer:'Singer',rank:1,cover_mode:'duet',original_id:'original',completions:2,participants:1,can_join:true};
- const html=c.songCoversPanelHTML({id:'original'},{view:'all',covers:[track],counts:{all:1,recent:1,duet:1},accepts_covers:true},'all');
+ const data={view:'all',covers:[track],counts:{all:1,recent:1,duet:1},accepts_covers:true};
+ const html=c.songCoversPanelHTML({id:'original'},data,'all','song/original?comment=%ED%95%9C%EA%B8%80');
+ assert.match(html,/data-song-cover-route-target id="song\/original\?comment=한글&amp;covers=duet"/);
+ assert.match(html,/href="#song\/original\?comment=%ED%95%9C%EA%B8%80&amp;covers=duet" data-song-cover-tab="duet"/);
+ assert.doesNotMatch(c.songCoversPanelHTML({id:'original'},data,'all'),/data-song-cover-tab|song-cover-viewport/);
  assert.match(html,/covers=all/);assert.match(html,/covers=duet/);assert.match(html,/covers=recent/);assert.doesNotMatch(html,/covers=solo|covers=ranking/);
  for(const view of ['all','duet','recent','children']){
   const row=c.songCoverItemHTML(track,view,51);

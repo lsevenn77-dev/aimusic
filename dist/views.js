@@ -67,7 +67,11 @@ function bindRenderedRoute(base,param,explorer,ticket){
  if(base==='gifts'&&param!=='rewards'&&typeof paintWalletBalances==='function')paintWalletBalances();
  if(typeof bindPlay==='function')bindPlay(explorer);
  if(explorer?.songEntry)bindSongEntry(explorer.songEntry);
- if(base==='song'){bindSongCoverList();if(typeof bindSongDescription==='function')bindSongDescription();}
+ if(base==='song'){
+  bindSongCoverList();
+  if(explorer?.songCovers)bindSongCoverTabs(explorer.songCovers,region.dataset.route);
+  if(typeof bindSongDescription==='function')bindSongDescription();
+ }
  if(typeof bindMyPage==='function')bindMyPage(explorer);
  if(explorer?.crewDetail)bindCrewGameMenu(explorer.crewDetail.membership?.game_catalog);
  if(typeof bindProfileManagement==='function')bindProfileManagement(explorer);
@@ -87,6 +91,10 @@ function watchCachedNavigation(main){
 }
 let presentationSerial=0;
 function render(event){
+ const raw=location.hash.slice(1);
+ if(event?.type==='hashchange'&&raw.startsWith('song/')&&document.documentElement.dataset.renderState==='ready'&&refreshSongCoverRoute(raw)){
+  $('#main').dataset.route=raw;window.AifectRender?.syncTarget();return Promise.resolve();
+ }
  const syncFooter=window.AifectPageFooter;
  if(!syncFooter)return renderNavigation(event);
  const requested=location.hash;
@@ -264,15 +272,19 @@ async function renderRoute(showCachedRoute){
     history.replaceState(history.state,'','#song/'+encodeURIComponent(first.id));
     return render();
    }
-   const requestedCoverTab=new URLSearchParams(paramQuery?.split('?')[1]||'').get('covers'),coverTab=['all','duet','recent'].includes(requestedCoverTab)?requestedCoverTab:'all';
-   const core=readApi('/api/tracks/'+param).then(d=>{
+   const coverTab=songCoverTabFromRoute(raw);
+   const core=readApi('/api/tracks/'+param).then(({track})=>{
     if(ticket===renderId&&readRevision===apiRevision&&account===(me?.id||'guest')){
-     routeTracks=remember([d.track]);main.innerHTML=songDetailHeaderHTML(d.track)+'<div class="route-loading" role="status"><span>이야기와 참여 작품을 불러오는 중…</span><div></div><div></div></div>';icons();paintInteractions();if(typeof bindSongDescription==='function')bindSongDescription();
-    }return d;
+     const markup=songDetailHeaderHTML(track,songDetailIsWeb?null:undefined);
+     routeTracks=remember([track]);main.innerHTML=markup+'<div class="route-loading" role="status"><span>이야기와 참여 작품을 불러오는 중…</span><div></div><div></div></div>';icons();paintInteractions();if(typeof bindSongDescription==='function')bindSongDescription();
+    }
+    return track;
    });
-   const [{track:t},{comments},allCovers,giftData]=await Promise.all([core,readApi('/api/tracks/'+param+'/comments'),readApi('/api/tracks/'+param+'/covers?view='+coverTab),readApi('/api/tracks/'+param+'/gifts')]);
+   const [t,{comments},allCovers,giftData]=await Promise.all([core,readApi('/api/tracks/'+param+'/comments'),readApi('/api/tracks/'+param+'/covers?view='+coverTab),readApi('/api/tracks/'+param+'/gifts')]);
    remember([t]);nextTracks=[t];const coverData=t.kind==='original'?allCovers:null;if(coverData)remember(coverData.covers);
-   html=`${songDetailHeaderHTML(t)}<div class="song-page-layout"><div class="song-main-column">${songDetailLyricsHTML()}${coversPanelHTML(t,coverData,coverTab)}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2><select data-dropdown="md" id="comment-sort" aria-label="댓글 정렬"><option value="latest">최신순</option><option value="popular">인기순</option><option value="timeline">타임라인순</option></select></div><form id="comment-form"><div class="song-comment-compose-row"><textarea data-comment-input name="body" rows="1" maxlength="2000" required placeholder="${me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨 보세요.'}" aria-label="댓글"></textarea><button class="primary-button song-comment-submit" type="submit">댓글 등록</button></div><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label></div><p class="form-error" role="alert"></p></form><div id="comments" data-track="${esc(t.id)}">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${giftsPanelHTML(giftData,'응원 순위',{track:t})}${songCreditCardHTML(t)}</aside></div>`;
+   const headerHTML=songDetailHeaderHTML(t,songDetailIsWeb?songVisibleCommentCount(comments):undefined);
+   explorer={songCovers:songDetailIsWeb?coverData:null};
+   html=`${headerHTML}<div class="song-page-layout"><div class="song-main-column">${songDetailLyricsHTML()}${songCoversPanelHTML(t,coverData,coverTab,songDetailIsWeb?raw:'')}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2><select data-dropdown="md" id="comment-sort" aria-label="댓글 정렬"><option value="latest">최신순</option><option value="popular">인기순</option><option value="timeline">타임라인순</option></select></div><form id="comment-form"><div class="song-comment-compose-row"><textarea data-comment-input name="body" rows="1" maxlength="2000" required placeholder="${me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨 보세요.'}" aria-label="댓글"></textarea><button class="primary-button song-comment-submit" type="submit">댓글 등록</button></div><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label></div><p class="form-error" role="alert"></p></form><div id="comments" data-track="${esc(t.id)}">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${giftsPanelHTML(giftData,'응원 순위',{track:t})}${songCreditCardHTML(t)}</aside></div>`;
   }else if(base==='artist'||base==='producer'){
    const d=await readApi(`/api/${base==='artist'?'artists':'producers'}/${param}`);nextTracks=remember(d.tracks);
    if(base==='producer'){const q=new URLSearchParams(paramQuery?.split('?')[1]||''),tab=['tracks','covers','duets'].includes(q.get('tab'))?q.get('tab'):'all';remember(d.covers||[]);nextTracks=musicProfileItems(d,tab);html=heading('음악가의 페이지')+personProfileHTML(d,param,tab);}
@@ -354,22 +366,27 @@ function songCommentRowHTML(c,t){
  ${me?.id===c.user_id?`<button type="button" class="text-link" data-comment-action="edit" data-edit-comment="${esc(c.id)}" data-body="${esc(c.body)}">수정</button>`:''}
  </div></div></article>`;
 }
-function commentsHTML(comments,t){
- const roots=[],replies=new Map(),inline=typeof inApp==='undefined'||!inApp;
+function songCommentThreads(comments){
+ const roots=[],replies=new Map();
  for(const c of comments){
   if(c.deleted_at)continue;
   if(!c.parent_id){roots.push(c);continue;}
   if(!replies.has(c.parent_id))replies.set(c.parent_id,[]);
   replies.get(c.parent_id).push(c);
  }
- return roots.map(c=>{
-  const parent=songCommentRowHTML(c,t),children=(replies.get(c.id)||[]).map(reply=>songCommentRowHTML(reply,t)).join('');
+ return roots.map(comment=>({comment,replies:replies.get(comment.id)||[]}));
+}
+function songVisibleCommentCount(comments){
+ return songCommentThreads(comments).reduce((count,thread)=>count+1+thread.replies.length,0);
+}
+function commentsHTML(comments,t){
+ const inline=typeof inApp==='undefined'||!inApp;
+ return songCommentThreads(comments).map(({comment:c,replies})=>{
+  const parent=songCommentRowHTML(c,t),children=replies.map(reply=>songCommentRowHTML(reply,t)).join('');
   return inline?`<div class="song-comment-thread" data-comment-thread="${esc(c.id)}">${parent}<div class="song-comment-replies">${children}</div></div>`:parent+children;
  }).join('')||'<p class="quiet">첫 감상을 남겨 보세요.</p>';
 }
 function songCredits(t){return t.kind==='cover'?`<div class="song-credits"><div><span>COVER BY</span><div class="cover-performers"><a href="#producer/${esc(t.producer_id)}">${userNickname(t.producer,{profileId:t.producer_id})}</a>${t.duet_partner_id?` &amp; <a href="#producer/${esc(t.duet_partner_id)}">${userNickname(t.duet_partner,{profileId:t.duet_partner_id})}</a>`: ''}</div></div><div><span>ORIGINAL</span><a href="#song/${esc(t.original_id)}">${esc(t.original_title)}</a>${t.original_producer||t.original_artist?' · '+userNickname(t.original_producer||t.original_artist,{profileId:t.original_producer_id}):''}</div></div>`:`<div class="song-credits"><div><span>${hasArtist(t)?'AI ARTIST':'PRODUCER'}</span>${credits(t)}</div></div>`;}
-function coversPanelHTML(t,d,tab){return songCoversPanelHTML(t,d,tab);}
-
 function profileMusicCards(items){return '<div class="music-feed">'+items.map(t=>musicTrackCard(t)).join('')+'</div>';}
 function personProfileHTML(d,id,tab='all',balances=''){
  const p=d.profile,own=!!me&&p.user_id===me.id,items=musicProfileItems(d,tab),total=musicProfileItems(d).length,duets=(d.covers||[]).filter(t=>t.cover_mode==='duet').length;

@@ -58,7 +58,7 @@ async function reloadComments(tid,refreshCount=false){
  if(!list||list.dataset.track!==tid)return;
  const request=String(Number(list.dataset.request||0)+1);list.dataset.request=request;
  const replyRevision=list.dataset.replyRevision;
- if(refreshCount)list.dataset.countPending='true';
+ if(refreshCount&&!songDetailIsWeb)list.dataset.countPending='true';
  const [{comments},detail]=await Promise.all([
   api('/api/tracks/'+tid+'/comments?sort='+($('#comment-sort')?.value||'latest')),
   list.dataset.countPending?api('/api/tracks/'+tid):null
@@ -72,15 +72,19 @@ async function reloadComments(tid,refreshCount=false){
   const card=list.querySelector('[data-comment-id="'+CSS.escape(form.dataset.replyTo)+'"]');
   if(card){placeSongReply(form,card);focus?.focus({preventScroll:true});}
  }
- if(detail){
+ if(songDetailIsWeb)updateSongCommentCount(track,list.querySelectorAll('[data-comment-card]').length);
+ else if(detail){
   delete list.dataset.countPending;
   updateSongCommentCount(track,detail.track.comments);
  }
 }
 function updateSongCommentCount(track,count){
- track.comments=count;
+ if(!songDetailIsWeb)track.comments=count;
  const metric=document.querySelector('[data-song-comment-count]');
- if(metric){metric.setAttribute('aria-label','댓글 '+number(count)+'개');metric.innerHTML=icon('ui-comment')+number(count);}
+ if(!metric)return;
+ const value=number(count);metric.setAttribute('aria-label','댓글 '+value+'개');
+ if(songDetailIsWeb)metric.querySelector('[data-song-comment-value]').textContent=value;
+ else metric.innerHTML=icon('ui-comment')+value;
 }
 const songReplyDrafts=new WeakMap();
 function placeSongReply(form,card){
@@ -137,7 +141,7 @@ function toggleSongReply(button){
   list.dataset.replyRevision=String(Number(list.dataset.replyRevision||0)+1);
   const track=trackMap.get(tid);
   if(reply)insertSongReply(list,reply,track);
-  updateSongCommentCount(track,comment_count);
+  updateSongCommentCount(track,songDetailIsWeb?list.querySelectorAll('[data-comment-card]').length:comment_count);
   window.scrollTo({top:scroll,behavior:'instant'});
   toast('답글을 등록했습니다.');
  });

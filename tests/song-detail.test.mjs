@@ -12,7 +12,7 @@ function header(user='owner',active=false,platform={}){
  const c=nicknameContext({me:user?{id:user}:null,...platform,esc,number:n=>Number(n).toLocaleString('en-US'),time:()=> '2:00',liked:()=>active,hasArtist:t=>t.kind!=='cover'&&!!t.has_ai_artist,credits:t=>'<a href="#artist/'+esc(t.artist_id)+'">'+esc(t.artist)+'</a>',cover:t=>'<div class="album-art">'+esc(t.title)+'</div>',songReleaseDateHTML:()=>''});
  vm.runInContext(read('dist/icons.js'),c);
  const views=read('dist/views.js');
- vm.runInContext(views.slice(views.indexOf('function songCredits('),views.indexOf('function coversPanelHTML(')),c);
+ vm.runInContext(views.slice(views.indexOf('function songCredits('),views.indexOf('function profileMusicCards(')),c);
  c.authConfig={};
  c.songReleaseDateHTML=()=>'<p class="song-release-date">발매일</p>';
  vm.runInContext(views.slice(views.indexOf('function trackModerationToolsHTML('),views.indexOf('function trackReviewHTML(')),c);
@@ -51,16 +51,19 @@ test('empty introductions do not reserve a card and saved text stays intact',()=
 
 test('the song title heads the page and metrics follow the date before introduction and actions',()=>{
  const c=header(),html=c.songDetailHeaderHTML({...track,creator_description:'제작자 소개'});
- const order=['song-release-date','song-meta-row','song-metrics','song-engagement','data-report-track','song-header-divider','song-introduction','song-actions'];
+ const order=['song-track-meta','song-title','song-credits','song-meta-row','song-metrics','song-release-date','song-duration','song-engagement','data-report-track','song-introduction','song-actions'];
  let previous=-1;for(const key of order){const at=html.indexOf(key);assert.ok(at>previous,key);previous=at;}
  assert.equal(html.match(/class="song-introduction"/g).length,1);
  assert.match(html,/<h1\b[^>]*class="song-title"[^>]*>곡 제목<\/h1>/);assert.equal((html.match(/<h1\b/g)||[]).length,1);
  assert.match(c.songDetailHeaderHTML({...track,title:'곡 <제목> "1"'}),/<h1\b[^>]*class="song-title"[^>]*>곡 &lt;제목&gt; &quot;1&quot;<\/h1>/);
  assert.match(html,/<h3>곡 소개<\/h3>/);assert.match(html,/aria-label="재생 20회"/);assert.match(html,/aria-label="댓글 2개"/);assert.match(html,/aifect-icon-plays/);assert.match(html,/aifect-icon-comment/);
  const meta=html.match(/<span\b[^>]*class="eyebrow song-track-meta"[^>]*>([\s\S]*?)<\/span>/)?.[1];assert.equal(meta,'Pop');
- const metrics=html.match(/<p\b[^>]*class="song-metrics"[^>]*>([\s\S]*?)<\/p>/)?.[1];assert.ok(metrics);
- const duration=metrics.match(/^\s*<span\b[^>]*class="metric-inline song-duration"[^>]*>[\s\S]*?<\/span>/)?.[0];
+ const metrics=html.match(/<div\b[^>]*class="song-metrics"[^>]*>([\s\S]*?)<\/div>/)?.[1];assert.ok(metrics);
+ const duration=metrics.match(/<span\b[^>]*class="metric-inline song-duration"[^>]*>[\s\S]*?<\/span>/)?.[0];
  assert.ok(duration);assert.match(duration,/aria-label="곡 길이 2:00"/);assert.match(duration,/>2:00<\/span>/);
+ assert.ok(duration.includes(vm.runInContext("icon('clock')",c)));
+ assert.match(c.songDetailHeaderHTML(track,3),/data-song-comment-value>3<\/span>/);
+ assert.doesNotMatch(html,/song-track-options|song-header-divider/);
  assert.doesNotMatch(c.songDetailMetricsHTML({...track,ai_comments:12}),/공식|AI|응원/);
  for(const c of [header(null),header('other')]){const plain=c.songDetailHeaderHTML(track);assert.doesNotMatch(plain,/song-engagement|data-report-track/);assert.match(plain,/song-metrics/);}
 });
@@ -68,7 +71,9 @@ test('song actions retain delegates and place the five web actions in order',()=
  const c=header('owner',true),html=c.songDetailActionsHTML(track);
  const order=['data-play="song"','href="#sing/song"','data-like="song"','id="lyrics-expand"','data-add="song"','data-gift="song"','data-song-share="song"'];let previous=-1;
  for(const key of order){const i=html.indexOf(key);assert.ok(i>previous,key);previous=i;}
- assert.match(html,/aria-pressed="true"/);assert.match(html,/data-like-count>12</);
+ assert.match(html,/aria-label="좋아요 12개" aria-pressed="true"/);assert.match(html,/data-like-count>12</);
+ assert.doesNotMatch(html,/<span>좋아요<\/span>/);
+ assert.match(c.songDetailActionsHTML({...track,likes:0}),/data-like-count>0<\/span>/);
  for(const key of ['play','sing','heart','plus','gift','share-2'])assert.ok(html.includes('song-action-icon-'+key));
  assert.match(html,/<span>담기<\/span>/);assert.match(html,/<span>공유<\/span>/);
  assert.doesNotMatch(html,/data-track-menu|song-action-more|저장/);
@@ -77,7 +82,7 @@ test('song actions retain delegates and place the five web actions in order',()=
  assert.match(html,/aria-label="노래 부르기"/);assert.match(html,/<span>부르기<\/span>/);
  assert.match(html,/<span>선물<\/span>/);assert.doesNotMatch(html,/선물하기|audio-play-icon/);
  const page=c.songDetailHeaderHTML(track);
- assert.match(page,/data-track-menu="song" aria-haspopup="dialog">곡 옵션<\/button>/);
+ assert.doesNotMatch(page,/data-track-menu="song"/);
  assert.ok(html.includes(vm.runInContext("paths['file-text']",c)));
  const lyrics=page.match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
  assert.ok(lyrics);assert.match(lyrics,/data-track="song"/);assert.match(lyrics,/aria-controls="expanded-song-lyrics"/);assert.match(lyrics,/aria-expanded="false"/);assert.doesNotMatch(lyrics,/\bdisabled\b/);
@@ -110,8 +115,11 @@ test('guest listening, unavailable karaoke, self-gifts and duet ownership remain
 test('artist and producer profiles are each shown once without dropping cover credits',()=>{
  const c=header(),html=c.songDetailCreditsHTML(track);
  assert.equal(html.match(/href="#producer\/person"/g).length,1);assert.equal(html.match(/href="#artist\/artist"/g).length,1);
- assert.match(html,/song-artist-label">AI ARTIST/);assert.match(html,/song-producer-label">PRODUCER/);
- const plain=c.songDetailCreditsHTML({...track,has_ai_artist:false,artist_id:null});assert.doesNotMatch(plain,/AI ARTIST|#artist/);
+ assert.match(html,/song-artist-label">AI 아티스트/);assert.match(html,/song-producer-label">제작자/);
+ const plain=c.songDetailCreditsHTML({...track,has_ai_artist:false,artist_id:null});assert.doesNotMatch(plain,/AI 아티스트|#artist/);
+ const native=header('owner',false,{inApp:true});
+ assert.match(native.songDetailCreditsHTML(track),/song-artist-label">AI ARTIST/);
+ assert.match(native.songDetailActionsHTML(track),/<span>좋아요<\/span>/);
  const cover=c.songDetailCreditsHTML({...track,kind:'cover',original_id:'parent',original_title:'원곡',original_artist:'원곡 아티스트',cover_mode:'duet',duet_open:1,duet_partner_id:'partner',duet_partner:'파트너'});
  for(const href of ['#producer/person','#producer/partner','#song/parent'])assert.ok(cover.includes(href));
 });

@@ -52,6 +52,14 @@ test('guest does not receive delete, edit or report controls',()=>{
  const html=render([comment('foreign',{can_delete:false,can_report:false})],null);
  assert.doesNotMatch(html,/data-(?:delete|edit|report)-comment/);
 });
+test('the song header counts only rows rendered in the comment list',()=>{
+ const comments=[comment('root'),comment('bot',{account_type:'ai_bot'}),comment('reply',{parent_id:'root'}),comment('hidden',{deleted_at:1}),comment('orphan',{parent_id:'hidden'})];
+ const ctx=nicknameContext({comments});
+ vm.runInContext(renderer,ctx);
+ const displayed=render(comments,'viewer');
+ assert.equal(vm.runInContext('songVisibleCommentCount(comments)',ctx),3);
+ assert.equal((displayed.match(/data-comment-card/g)||[]).length,3);
+});
 
 test('inline reply retries return the same row and count and preserve parent and notification policy',async t=>{
  const f=await fixture(t);

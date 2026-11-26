@@ -44,11 +44,157 @@ function songCoverItemHTML(t,view,position=1,entry=false){
 function songCoversMoreHTML(d,parent=''){
  return d.next_offset==null?'':`<button type="button" class="small-button song-cover-load" data-cover-load="${d.next_offset}" data-cover-view="${esc(d.view)}" data-cover-parent="${esc(parent)}" data-pick-revision="${d.pick?.revision||0}">더 보기</button>`;
 }
-/** @param {{id:string}} t @param {SongCoverPage} d */
-function songCoversPanelHTML(t,d,tab){
+/** @param {string} raw @returns {SongCoverTab} */
+function songCoverTabFromRoute(raw){
+ const tab=new URLSearchParams(raw.split('?')[1]).get('covers');
+ return tab==='duet'||tab==='recent'?tab:'all';
+}
+/** @param {string} raw @param {SongCoverTab} [tab] */
+function songCoverRoute(raw,tab){
+ const [path,query]=raw.split('?'),params=new URLSearchParams(query);
+ if(tab)params.set('covers',tab);else params.delete('covers');
+ return params.size?path+'?'+params:path;
+}
+/** @param {SongCoverPage} d @param {SongCoverTab} tab */
+function songCoverListHTML(d,tab){
+ return (d.covers.length?d.covers.map((t,i)=>songCoverItemHTML(t,tab,i+1)).join(''):`<p class="empty-note">${tab==='duet'?'현재 참여 가능한 듀엣 모집곡이 없습니다.':'아직 공개된 완성 커버곡이 없습니다.'}</p>`)+songCoversMoreHTML(d);
+}
+/** @param {{id:string}} t @param {SongCoverPage|null} d @param {SongCoverTab} tab */
+function songCoversPanelHTML(t,d,tab,webRoute=''){
  if(!d)return '';
+ /** @type {[SongCoverTab,string][]} */
  const tabs=[['all','전체'],['duet','듀엣'],['recent','최근']];
- return `<section class="surface covers-panel song-covers-panel" data-cover-original="${esc(t.id)}" ${songPickAttributes(d.pick)}><div class="section-heading"><h2>커버곡</h2></div><nav class="tabs covers-sort" aria-label="이 곡의 커버 종류">${tabs.map(([key,label])=>`<a class="tab ${tab===key?'active':''}" href="#song/${esc(t.id)}?covers=${key}" ${tab===key?'aria-current="page"':''}>${label}<span class="song-cover-tab-count">${number(d.counts[key]||0)}</span></a>`).join('')}</nav><div class="song-cover-list" aria-live="polite">${d.covers.length?d.covers.map((t,i)=>songCoverItemHTML(t,tab,i+1)).join(''):`<p class="empty-note">${tab==='duet'?'현재 참여 가능한 듀엣 모집곡이 없습니다.':'아직 공개된 완성 커버곡이 없습니다.'}</p>`}${songCoversMoreHTML(d)}</div></section>`;
+ const route=webRoute||'song/'+t.id;
+ const links=tabs.map(([key,label])=>`<a class="tab ${tab===key?'active':''}" href="#${esc(songCoverRoute(route,key))}" ${webRoute?'data-song-cover-tab="'+key+'"':''} ${tab===key?'aria-current="page"':''}>${label}<span class="song-cover-tab-count">${number(d.counts[key]||0)}</span></a>`).join('');
+ // The first-paint guard recognizes these fragments before hashchange fires.
+ const targets=webRoute?'<div hidden aria-hidden="true">'+[...new Set([route,songCoverRoute(route),...tabs.map(([key])=>songCoverRoute(route,key))])].map(raw=>{
+  let id=raw;try{id=decodeURIComponent(raw);}catch{ id=new URLSearchParams('r='+raw.replaceAll('+','%2B').replaceAll('&','%26')).get('r')||raw; }
+  return '<span data-song-cover-route-target id="'+esc(id)+'"></span>';
+ }).join('')+'</div>':'';
+ const list=songCoverListHTML(d,tab);
+ const viewport=webRoute?`<div class="song-cover-viewport" aria-live="polite"><div class="song-cover-list">${list}</div></div>`:`<div class="song-cover-list" aria-live="polite">${list}</div>`;
+ return `<section class="surface covers-panel song-covers-panel" data-cover-original="${esc(t.id)}" ${webRoute?'data-song-cover-tabs':''} ${songPickAttributes(d.pick)}>${targets}<div class="section-heading"><h2>커버곡</h2></div><nav class="tabs covers-sort" aria-label="이 곡의 커버 종류">${links}</nav>${viewport}</section>`;
+}
+/** @typedef {{list:HTMLElement, signature:string, checkedAt:number, counts:SongCoverPage['counts'], pick?:SongCoverPage['pick'], tracks?:SongCover[]}} CachedSongCoverTab */
+/** @type {WeakMap<HTMLElement,{selectRoute:(raw:string)=>boolean, refresh:()=>Promise<void>}>} */
+const songCoverTabPanels=new WeakMap();
+const songCoverCacheAge=30000;
+/** @param {SongCoverPage} page */
+function songCoverPageSignature(page){
+ return JSON.stringify([page.covers,page.total,page.next_offset,page.pick?.revision]);
+}
+/** @param {string} raw */
+function refreshSongCoverRoute(raw){
+ const panel=/** @type {HTMLElement|null} */(document.querySelector('[data-song-cover-tabs]'));
+ return !!(panel&&songCoverTabPanels.get(panel)?.selectRoute(raw));
+}
+/** @param {SongCoverPage} initial @param {string} route */
+function bindSongCoverTabs(initial,route){
+ const panel=/** @type {HTMLElement|null} */(document.querySelector('[data-song-cover-tabs]'));if(!panel)return;
+ const viewport=/** @type {HTMLElement} */(panel.querySelector('.song-cover-viewport'));
+ const links=/** @type {NodeListOf<HTMLAnchorElement>} */(panel.querySelectorAll('[data-song-cover-tab]'));
+ const base=songCoverRoute(route),account=me?.id||'guest',endpoint='/api/tracks/'+encodeURIComponent(panel.dataset.coverOriginal)+'/covers?view=';
+ const isMounted=()=>panel.isConnected&&account===(me?.id||'guest');
+ let active=songCoverTabFromRoute(route);
+ /** @type {Map<SongCoverTab,CachedSongCoverTab>} */
+ const cache=new Map([[active,{list:/** @type {HTMLElement} */(viewport.firstElementChild),signature:songCoverPageSignature(initial),checkedAt:Date.now(),counts:initial.counts,pick:initial.pick}]]);
+ /** @type {Map<SongCoverTab,{controller:AbortController,promise:Promise<void>}>} */
+ const pending=new Map();
+ /** @param {CachedSongCoverTab} entry */
+ function show(entry){
+  if((entry.pick?.revision||0)>=Number(panel.dataset.pickRevision))applySongPickAttributes(panel,entry.pick);
+  for(const link of links){
+   const count=link.querySelector('.song-cover-tab-count'),value=number(entry.counts[link.dataset.songCoverTab]||0);
+   if(count.textContent!==value)count.textContent=value;
+  }
+  if(viewport.firstElementChild!==entry.list){
+   if(entry.tracks){
+    remember(entry.tracks.filter(track=>!pendingLikes.has(track.id)));
+    delete entry.tracks;
+   }
+   viewport.replaceChildren(entry.list);
+   paintLikeButtons(entry.list);paintChartPlayback(entry.list);
+  }
+  viewport.style.minBlockSize='';
+  viewport.removeAttribute('aria-busy');
+ }
+ /** @param {SongCoverTab} tab */
+ function load(tab){
+  const running=pending.get(tab);if(running)return running.promise;
+  const controller=new AbortController(),{signal}=controller;
+  const promise=(async()=>{
+   const previous=cache.get(tab),read=(suffix='')=>api(endpoint+tab+suffix,'GET',undefined,{fresh:true,signal});
+   let page=await read();
+   const signature=songCoverPageSignature(page);
+   if(!isMounted()||signal.aborted)return;
+   let entry=previous;
+   if(!entry||entry.signature!==signature){
+    // Keep the range already revealed by “더 보기” when refreshing this tab.
+    const shown=previous?.list.querySelectorAll(':scope > .song-cover-row,:scope > .song-cover-group').length||0;
+    while(page.next_offset!==null&&page.covers.length<shown){
+     const next=await read('&offset='+page.next_offset+'&pick_revision='+(page.pick?.revision||0));
+     if(!isMounted()||signal.aborted)return;
+     page={...next,covers:[...page.covers,...next.covers]};
+    }
+    const list=document.createElement('div');list.className='song-cover-list';list.innerHTML=songCoverListHTML(page,tab);
+    entry={list,signature,checkedAt:0,counts:page.counts,pick:page.pick,tracks:page.covers};
+   }
+   // The public ranking and personal views can have different counts for
+   // blocked performers. Compare counts against the same view's last result.
+   if(previous&&(previous.pick?.revision!==page.pick?.revision||Object.keys(previous.counts).some(key=>previous.counts[key]!==page.counts[key]))){
+    for(const [key,cached] of cache)if(key!==tab)cached.checkedAt=0;
+   }
+   entry.checkedAt=Date.now();entry.counts=page.counts;entry.pick=page.pick;cache.set(tab,entry);
+   if(tab===active)show(entry);
+  })().finally(()=>{if(pending.get(tab)?.controller===controller)pending.delete(tab);});
+  pending.set(tab,{controller,promise});return promise;
+ }
+ function revalidate(){
+  const tab=active,entry=cache.get(tab);
+  if(!isMounted()||document.hidden||entry&&Date.now()-entry.checkedAt<songCoverCacheAge)return;
+  void load(tab).catch(error=>{
+   if(!isMounted()||error.name==='AbortError'||active!==tab||cache.has(tab))return;
+   viewport.removeAttribute('aria-busy');
+   viewport.innerHTML='<div class="song-cover-list"><p class="empty-note">'+esc(error.message)+'</p><button type="button" class="small-button song-cover-load" data-song-cover-retry>다시 시도</button></div>';
+  });
+ }
+ /** @param {string} raw */
+ function selectRoute(raw){
+  if(!isMounted()||songCoverRoute(raw)!==base)return false;
+  const tab=songCoverTabFromRoute(raw);if(tab===active)return true;
+  active=tab;
+  for(const link of links){
+   const selected=link.dataset.songCoverTab===tab;
+   link.classList.toggle('active',selected);
+   if(selected)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
+  }
+  const entry=cache.get(tab);
+  if(entry)show(entry);
+  else{
+   viewport.style.minBlockSize=viewport.getBoundingClientRect().height+'px';
+   viewport.setAttribute('aria-busy','true');
+   viewport.innerHTML='<div class="song-cover-list"><p class="empty-note" role="status">커버곡을 불러오는 중…</p></div>';
+  }
+  revalidate();
+  return true;
+ }
+ function cancelReads(){for(const {controller} of pending.values())controller.abort();pending.clear();}
+ songCoverTabPanels.set(panel,{selectRoute,refresh:()=>{
+  cancelReads();for(const entry of cache.values())entry.checkedAt=0;
+  return load(active);
+ }});
+ panel.addEventListener('click',event=>{
+  if(!(event.target instanceof Element))return;
+  const link=event.target.closest('[data-song-cover-tab][aria-current="page"]');
+  if(link&&!event.button&&!event.ctrlKey&&!event.metaKey&&!event.shiftKey&&!event.altKey)event.preventDefault();
+  if(event.target.closest('[data-song-cover-retry]'))revalidate();
+ });
+ const timer=window.setInterval(revalidate,songCoverCacheAge/2);
+ document.addEventListener('visibilitychange',revalidate);window.addEventListener('focus',revalidate);
+ registerRouteCleanup(()=>{
+  cancelReads();clearInterval(timer);songCoverTabPanels.delete(panel);
+  document.removeEventListener('visibilitychange',revalidate);window.removeEventListener('focus',revalidate);
+ });
 }
 function composerPickBadgeHTML(){return '<span class="composer-pick-badge" title="작곡가가 선택한 커버" aria-label="작곡가 PICK">'+icon('composer-pin')+'<span>PICK</span></span>';}
 function songPickAttributes(pick){return `data-pick-id="${esc(pick?.cover_id||'')}" data-pick-exists="${!!(pick?.has_pick||pick?.cover_id)}" data-pick-revision="${pick?.revision||0}" data-pick-manage="${!!pick?.can_manage}" data-pick-performer="${esc([pick?.cover?.duet_partner,pick?.cover?.producer].filter(Boolean).join(' & ')||'표시할 수 없는 커버')}"`;}
@@ -73,7 +219,7 @@ function bindSongCoverPlayback(){
 }
 function bindSongCoverList(){
  const panel=/** @type {HTMLElement} */(document.querySelector('.song-covers-panel'));if(!panel)return;
- if(panel.querySelector('.song-story-cover-row'))bindChartPlayback();
+ if(panel.hasAttribute('data-song-cover-tabs')||panel.querySelector('.song-story-cover-row'))bindChartPlayback();
  else bindSongCoverPlayback();
  if(panel.dataset.coverBound)return;panel.dataset.coverBound='true';
  panel.addEventListener('click',async event=>{
@@ -93,8 +239,9 @@ function bindSongCoverList(){
    const html=d.covers.map((t,i)=>songCoverItemHTML(t,view,offset+i+1,panel.dataset.songEntry==='true')).join('')+songCoversMoreHTML(d,parent);
    if(button.dataset.coverChildren){target.innerHTML=html||'<p class="empty-note">아직 완성된 참여작 없음</p>';target.dataset.loaded='true';setSongCoverExpanded(button,target,true);}
    else {button.insertAdjacentHTML('beforebegin',html);button.remove();}
-   paintInteractions();syncSongCoverPlayback();syncChartPlayback();
-  }catch(error){if(error.status===409&&typeof refreshComposerPickPanel==='function')await refreshComposerPickPanel(panel);toast(error.message);}
+   if(panel.hasAttribute('data-song-cover-tabs')){paintLikeButtons(target);paintChartPlayback(target);}
+   else {paintInteractions();syncSongCoverPlayback();syncChartPlayback();}
+  }catch(error){if(!button.isConnected)return;if(error.status===409&&typeof refreshComposerPickPanel==='function')await refreshComposerPickPanel(panel);toast(error.message);}
   finally{button.disabled=false;button.removeAttribute('aria-busy');}
  });
 }

@@ -84,6 +84,8 @@ function composerPickMenuHTML(t){
 }
 async function refreshComposerPickPanel(panel){
  if(!panel?.isConnected)return;
+ const storyTabs=songCoverTabPanels.get(panel);
+ if(storyTabs)return storyTabs.refresh();
  const id=panel.dataset.coverOriginal,entry=panel.dataset.songEntry==='true',account=me?.id||'guest',requested=entry?songEntryState(id).tab:new URLSearchParams(location.hash.split('?')[1]||'').get('covers'),tab=['all','duet','recent'].includes(requested)?requested:'all';
  const targetCount=Math.max(50,panel.querySelectorAll('.song-cover-list>.song-cover-row,.song-cover-list>.song-cover-group').length);
  let d=await api('/api/tracks/'+encodeURIComponent(id)+'/covers?view='+tab);
@@ -122,6 +124,7 @@ async function changeComposerPick(button){
   if(panel.isConnected)applySongPickAttributes(panel,pick);
   // api() invalidates the shared read caches for both pages, without touching audio.
   try{await refreshComposerPickPanel(panel);}catch(error){
+   if(songCoverTabPanels.has(panel)){toast('PICK은 저장했지만 목록을 다시 불러오지 못했습니다.');return;}
    if(panel.isConnected){
     const list=panel.querySelector('.song-cover-list');
     list.innerHTML='<div class="song-entry-error" role="alert"><p>PICK은 저장했지만 목록을 다시 불러오지 못했습니다.</p><button type="button" class="small-button" data-pick-refresh>다시 시도</button></div>';

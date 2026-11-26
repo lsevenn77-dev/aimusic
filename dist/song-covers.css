@@ -6,6 +6,7 @@
 .song-covers-panel .covers-sort .tab{display:flex;align-items:center;gap:6px;min-height:44px;white-space:nowrap}
 .song-cover-tab-count{font-size:.75em;color:var(--ds-muted)}
 .song-cover-list{display:flex;flex-direction:column;min-width:0}
+.song-cover-viewport{min-block-size:64px;overflow-anchor:none}
 .song-cover-row{position:relative;display:flex;align-items:center;gap:8px;min-width:0;min-height:84px;padding:12px 0;border-bottom:1px solid var(--ds-line);transition:background-color .15s ease}
 .song-cover-row:hover{background:var(--ds-panel)}
 .song-cover-detail{flex:1;min-width:0;display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:center;color:var(--ds-text)}

@@ -1,10 +1,10 @@
 // Song-header presentation only. Playback, recording and social actions keep
 // their existing delegated data attributes and server permission checks.
 const songDetailIsNative=typeof inApp!=='undefined'&&inApp;
-const songDescriptionIsWeb=!songDetailIsNative&&!/AIFECT-Mobile\//i.test(globalThis.navigator?.userAgent||'');
-const songDescriptionMoreLabel=songDescriptionIsWeb?'… 더보기':'+더보기';
+const songDetailIsWeb=!songDetailIsNative&&!/AIFECT-Mobile\//i.test(globalThis.navigator?.userAgent||'');
+const songDescriptionMoreLabel=songDetailIsWeb?'… 더보기':'+더보기';
 function songCreatorDescription(t){
- const text=songDescriptionIsWeb?t.creator_description:t.description;
+ const text=songDetailIsWeb?t.creator_description:t.description;
  return typeof text==='string'&&text.trim()?text:'';
 }
 function songDescriptionHTML(t){
@@ -18,7 +18,7 @@ function bindSongDescription(){
  previous?.release();
  if(!root||!description||!content||!button)return;
  const text=content.textContent||'',characters=typeof Intl.Segmenter==='function'?Array.from(new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(text),part=>part.segment):Array.from(text);
- const nativeRemainder=songDescriptionIsWeb?null:document.createElement('p');
+ const nativeRemainder=songDetailIsWeb?null:document.createElement('p');
  if(nativeRemainder){
   nativeRemainder.className='song-introduction-rest';
   nativeRemainder.id='song-introduction-rest';
@@ -46,7 +46,7 @@ function bindSongDescription(){
   if(!overflow)state.expanded=false;
   root.classList.toggle('is-expanded',state.expanded);
   button.setAttribute('aria-expanded',String(state.expanded));
-  button.textContent=state.expanded&&songDescriptionIsWeb?'접기':songDescriptionMoreLabel;
+  button.textContent=state.expanded&&songDetailIsWeb?'접기':songDescriptionMoreLabel;
   button.hidden=!overflow;
   if(nativeRemainder)nativeRemainder.hidden=!state.expanded;
   if(overflow&&(!state.expanded||nativeRemainder)){
@@ -87,8 +87,13 @@ function bindSongDescription(){
  });
  paint(true);document.fonts?.ready.then(()=>paint(true));
 }
-function songDetailMetricsHTML(t){
- return '<p class="song-metrics"><span class="metric-inline song-duration" aria-label="곡 길이 '+time(t.duration)+'">'+time(t.duration)+'</span><span class="metric-inline" aria-label="재생 '+number(t.plays||0)+'회">'+icon('ui-plays')+number(t.plays||0)+'</span><span class="metric-inline" data-song-comment-count aria-label="댓글 '+number(t.comments||0)+'개">'+icon('ui-comment')+number(t.comments||0)+'</span></p>';
+function songDetailMetricsHTML(t,commentCount=t.comments||0){
+ const duration=time(t.duration),plays=number(t.plays||0),comments=commentCount===null?'—':number(commentCount);
+ const commentLabel=commentCount===null?'댓글 수 확인 중':'댓글 '+comments+'개';
+ const metrics='<span class="metric-inline song-duration" aria-label="곡 길이 '+duration+'">'+(songDetailIsWeb?icon('clock'):'')+duration+'</span>'+
+  '<span class="metric-inline" aria-label="재생 '+plays+'회">'+icon('ui-plays')+plays+'</span>'+
+  '<span class="metric-inline" data-song-comment-count aria-label="'+commentLabel+'">'+icon('ui-comment')+(songDetailIsWeb?'<span data-song-comment-value>'+comments+'</span>':comments)+'</span>';
+ return songDetailIsWeb?'<div class="song-metrics">'+songReleaseDateHTML(t)+metrics+'</div>':'<p class="song-metrics">'+metrics+'</p>';
 }
 function songActionIcon(name){
  // Header actions share one button surface. Reuse the shared glyphs without
@@ -100,8 +105,9 @@ function songActionIcon(name){
 function songDetailCreditsHTML(t){
  if(t.kind==='cover')return songCredits(t);
  const producer=trackNickname(t,'producer')||'창작자',href=t.producer_id?'#producer/'+esc(t.producer_id):'';
- return '<div class="song-credits">'+(hasArtist(t)?'<div><span class="song-artist-label">AI ARTIST</span>'+credits(t)+'</div>':'')+
- '<div><span class="song-producer-label">PRODUCER</span>'+(href?'<a href="'+href+'">'+producer+'</a>':'<span class="song-producer-name">'+producer+'</span>')+'</div></div>';
+ const artistLabel=songDetailIsWeb?'AI 아티스트':'AI ARTIST',producerLabel=songDetailIsWeb?'제작자':'PRODUCER';
+ return '<div class="song-credits">'+(hasArtist(t)?'<div><span class="song-artist-label">'+artistLabel+'</span>'+credits(t)+'</div>':'')+
+ '<div><span class="song-producer-label">'+producerLabel+'</span>'+(href?'<a href="'+href+'">'+producer+'</a>':'<span class="song-producer-name">'+producer+'</span>')+'</div></div>';
 }
 function songLyricsButtonHTML(t){
  return '<button type="button" class="small-button song-action-lyrics" id="lyrics-expand" data-track="'+esc(t.id)+'" aria-controls="expanded-song-lyrics" aria-expanded="false"'+(t.lyrics_mode==='synced'||t.has_lyrics_text?'':' disabled title="아직 등록된 가사가 없습니다."')+'>'+songActionIcon('lyrics')+'<span>가사</span></button>';
@@ -110,7 +116,7 @@ function songDetailActionsHTML(t){
  const id=esc(t.id),mine=!!me&&t.user_id===me.id;
  const saveLabel=songDetailIsNative?'저장':'담기';
  const listen='<button type="button" class="primary-button song-action-listen" data-play="'+id+'" data-community-toggle aria-label="노래 듣기" aria-pressed="false">'+songActionIcon('play')+'<span>듣기</span></button>';
- const like='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+'<span>좋아요</span><span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>';
+ const like='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+(songDetailIsWeb?'':'<span>좋아요</span>')+'<span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>';
  const lyrics=songLyricsButtonHTML(t);
  const save=AifectPlaylist.isPlaylistEligibleTrack(t)?'<button type="button" class="small-button song-action-save" data-add="'+id+'">'+songActionIcon('plus')+'<span>'+saveLabel+'</span></button>':'';
  const share=songDetailIsNative?'':'<button type="button" class="small-button song-action-share" data-song-share="'+id+'" aria-haspopup="dialog">'+songActionIcon('share-2')+'<span>공유</span></button>';
@@ -125,18 +131,21 @@ function songDetailActionsHTML(t){
  const trailing=share||'<button type="button" class="small-button song-action-more" data-track-menu="'+id+'" aria-label="더보기" aria-haspopup="dialog">'+songActionIcon('menu')+'</button>';
  return '<div class="song-action-groups" role="group" aria-label="곡 기능"><div class="inline-actions song-actions song-actions-primary">'+listen+sing+'</div><div class="inline-actions song-actions song-actions-secondary">'+like+lyrics+save+gift+trailing+'</div></div>';
 }
-function songDetailHeaderHTML(t){
+function songDetailHeaderHTML(t,commentCount){
  const isCover=t.kind==='cover',genres=isCover?'':(t.genres?.length?t.genres:[t.genre]).filter(Boolean).join(' · '),moderation=trackModerationToolsHTML(t);
- const options=isCover||songDetailIsNative?'':'<button type="button" class="text-link song-track-options" data-track-menu="'+esc(t.id)+'" aria-haspopup="dialog">곡 옵션</button>';
  let art=cover(t).replace('loading="lazy"','loading="eager" fetchpriority="high"');
  if(isCover){
   const change=me&&t.user_id===me.id?'<button type="button" class="small-button detail-photo-change">사진 변경</button><input type="file" hidden data-cover-photo="'+esc(t.id)+'" accept="image/jpeg,image/png,image/webp" aria-label="작품 커버사진 선택">':'';
   art='<div class="detail-cover-art">'+art+change+'</div>';
  }
- return '<section class="song-detail song-detail-refined'+(isCover?' cover-detail':'')+(genres?'':' song-detail-no-meta')+'">'+
- (genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'')+
- art+'<div class="song-detail-copy"><h1 class="song-title">'+esc(t.title)+'</h1>'+
- songDetailCreditsHTML(t)+songReleaseDateHTML(t)+'<div class="song-meta-row">'+songDetailMetricsHTML(t)+
- (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+options+'</div>'+(isCover?'':'<div class="song-header-divider" aria-hidden="true"></div>')+
- songDescriptionHTML(t)+songDetailActionsHTML(t)+'</div></section>';
+ const genre=genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'';
+ const options=!songDetailIsWeb&&!isCover&&!songDetailIsNative?'<button type="button" class="text-link song-track-options" data-track-menu="'+esc(t.id)+'" aria-haspopup="dialog">곡 옵션</button>':'';
+ const info='<h1 class="song-title">'+esc(t.title)+'</h1>'+songDetailCreditsHTML(t)+
+  (songDetailIsWeb?'':songReleaseDateHTML(t))+'<div class="song-meta-row">'+songDetailMetricsHTML(t,commentCount)+
+  (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+options+'</div>';
+ const divider=!songDetailIsWeb&&!isCover?'<div class="song-header-divider" aria-hidden="true"></div>':'';
+ return '<section class="song-detail song-detail-refined'+(songDetailIsWeb?' song-detail-web':'')+(isCover?' cover-detail':'')+(genres?'':' song-detail-no-meta')+'">'+
+  (songDetailIsWeb?'':genre)+art+'<div class="song-detail-copy">'+
+  (songDetailIsWeb?'<div class="song-header-info">'+genre+info+'</div>':info+divider)+
+  songDescriptionHTML(t)+songDetailActionsHTML(t)+'</div></section>';
 }
