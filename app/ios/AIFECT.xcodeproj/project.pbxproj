@@ -60,6 +60,7 @@
 		D4853CDB2E3B8AB0E758C513 /* RemoteArtwork.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD33952AB1DE90E526C458B /* RemoteArtwork.swift */; };
 		DE1DF00EC31DB3B81D7D27E8 /* StreamingUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26D253B26F61A0C925F8516F /* StreamingUITests.swift */; };
 		E2D56A056209E55C424EB29C /* SocialViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38A348F7A00237063BB365A0 /* SocialViews.swift */; };
+		7D0879561FC24C00888A21BB /* OfficialNotices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D0879561FC24C00888A21BA /* OfficialNotices.swift */; };
 		E5FC76EF2F29117983FBC45D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B76FEEC38A029273DA5D2BC3 /* Assets.xcassets */; };
 		F60205F847AC10A2E84791C7 /* ListenDesign.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34CD4F1B3B984E2E9ACFFEFA /* ListenDesign.swift */; };
 		784E74927F94AFA96E723427 /* LiveCommunity.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8001A70DFAEFC308165BFA0 /* LiveCommunity.swift */; };
@@ -115,6 +116,7 @@
 		36460A9A3FD421535F6747F8 /* AIFECTUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFECTUITests.swift; sourceTree = "<group>"; };
 		3678DFEB2FBF4FBEC41F2CD9 /* StudioViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudioViews.swift; sourceTree = "<group>"; };
 		38A348F7A00237063BB365A0 /* SocialViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocialViews.swift; sourceTree = "<group>"; };
+		7D0879561FC24C00888A21BA /* OfficialNotices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfficialNotices.swift; sourceTree = "<group>"; };
 		44DDB8BCB12989364D6D189A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		4A801C0AB73F938B3871397A /* AIFECTTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIFECTTests.swift; sourceTree = "<group>"; };
 		4B0A3AB666E1D557F2FB1937 /* ActivityHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityHistoryView.swift; sourceTree = "<group>"; };
@@ -232,6 +234,7 @@
 				10671A9AED61D1BCAF631137 /* RedesignComponents.swift */,
 				5FD33952AB1DE90E526C458B /* RemoteArtwork.swift */,
 				38A348F7A00237063BB365A0 /* SocialViews.swift */,
+				7D0879561FC24C00888A21BA /* OfficialNotices.swift */,
 				FB12684621CBB687AB1527AC /* StorePayments.swift */,
 				2E3A2C5B55D64F223A38422D /* StreamingUIFixture.swift */,
 				0BC8C5348BA6132EB25880E5 /* StreamingUX.swift */,
@@ -503,6 +506,7 @@
 				7ED4782420FF92F09A6D8A86 /* RedesignComponents.swift in Sources */,
 				D4853CDB2E3B8AB0E758C513 /* RemoteArtwork.swift in Sources */,
 				E2D56A056209E55C424EB29C /* SocialViews.swift in Sources */,
+				7D0879561FC24C00888A21BB /* OfficialNotices.swift in Sources */,
 				7B28F024BBF17959C8A9B3AE /* StorePayments.swift in Sources */,
 				5DB6D12AAC45AED891F8EAF9 /* StreamingUIFixture.swift in Sources */,
 				91A7DBF86C3EC0147996A335 /* StreamingUX.swift in Sources */,

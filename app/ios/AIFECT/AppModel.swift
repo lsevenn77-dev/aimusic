@@ -10,6 +10,7 @@ struct MessageRoute: Hashable {
     let id: String
     let title: String
     let crew: Bool
+    var noticeAnchor: String? = nil
 }
 
 @MainActor
@@ -33,6 +34,9 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var inboxConversations: [[String: Any]] = []
     @Published private(set) var inboxCrew: [String: Any]?
     private var inboxLoading = false
+    private var officialReadRevision = 0
+    private(set) var officialNotices = OfficialNoticeSession()
+    private var pendingOfficialNotice: OfficialNoticeRoute?
     @Published var loading = false
     @Published var error: String?
     @Published var notice: String?
@@ -58,6 +62,15 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         messagePath = [MessageRoute(id: id, title: title, crew: true)]
         selectedTab = 3
         navigationPath = NavigationPath(messagePath)
+    }
+    func openOfficialNotice(_ route: OfficialNoticeRoute) {
+        guard userID != nil else {
+            pendingOfficialNotice = route
+            if !loading { showLogin = true }
+            return
+        }
+        if selectedTab != 3 { selectTab(3) }
+        navigationPath.append(MessageRoute(id: OfficialNotice.channelID, title: "아이팩트 안내", crew: false, noticeAnchor: route.anchor))
     }
     var chatOpen: Bool { !visibleChats.isEmpty }
     @Published var walletRevision = 0
@@ -148,6 +161,10 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         let next = data["user"] as? [String: Any]
         if next?.string("id") != userID { clearPrivate() }
         user = next
+        if let route = pendingOfficialNotice {
+            if userID != nil { pendingOfficialNotice = nil; showLogin = false; openOfficialNotice(route) }
+            else { showLogin = true }
+        }
         ListeningAds.shared.setAccount(userID, premium: (user?.number("premium_until") ?? 0) > Date().timeIntervalSince1970)
         providers = data["providers"] as? [String] ?? []
         emailEnabled = data["emailEnabled"] as? Bool ?? false
@@ -155,16 +172,19 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     func refreshInbox() async {
         guard userID != nil, !inboxLoading else { return }
         let version = accountRevision
+        let receiptRevision = officialReadRevision
         inboxLoading = true; defer { inboxLoading = false }
         do {
-            let data = try await API.shared.call("/api/dm")
+            let data = try await API.shared.call(OfficialNotice.inboxPath, fresh: true)
             guard version == accountRevision, !Task.isCancelled else { return }
-            let conversations = data.objects("conversations")
-            if !NSArray(array: inboxConversations).isEqual(to: conversations) { inboxConversations = conversations }
-            let unread = data.int("unread")
-            if inboxUnread != unread { inboxUnread = unread }
-            let crew = data["crew"] as? [String: Any]
-            if !NSDictionary(dictionary: inboxCrew ?? [:]).isEqual(to: crew ?? [:]) { inboxCrew = crew }
+            if receiptRevision == officialReadRevision {
+                let conversations = OfficialNotice.inboxRows(data.objects("conversations"))
+                if !NSArray(array: inboxConversations).isEqual(to: conversations) { inboxConversations = conversations }
+                let unread = data.int("unread")
+                if inboxUnread != unread { inboxUnread = unread }
+                let crew = data["crew"] as? [String: Any]
+                if !NSDictionary(dictionary: inboxCrew ?? [:]).isEqual(to: crew ?? [:]) { inboxCrew = crew }
+            }
             if inboxError != nil { inboxError = nil }
             let readVersion = activityReadRevision
             if let summary = try? await API.shared.call("/api/notifications/summary"), version == accountRevision, readVersion == activityReadRevision, !Task.isCancelled {
@@ -172,6 +192,15 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
                 if activityUnread != unread { activityUnread = unread }
             }
         } catch { if version == accountRevision, !Task.isCancelled { inboxError = error.localizedDescription } }
+    }
+    func applyOfficialNoticeRead(_ response: [String: Any]) throws {
+        let notice = response.object("notice")
+        guard OfficialNotice.isChannel(notice) else {
+            throw APIError(status: 0, message: "읽음 상태를 반영하지 못했습니다.")
+        }
+        officialReadRevision += 1
+        if let unread = response["unread"] as? NSNumber { inboxUnread = unread.intValue }
+        inboxConversations = [notice] + inboxConversations.filter { !OfficialNotice.isChannel($0) }
     }
     func markActivityRead(through: Int? = nil, ids: [String] = []) async throws {
         guard userID != nil else { throw CancellationError() }
@@ -256,6 +285,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         API.shared.invalidateReads()
         messagePath.removeAll(); navigationPath = NavigationPath(); playerPageVisible = false
         libraryError = nil; libraryLoaded = false; followedProducers = []; followRequests = []
+        officialNotices = OfficialNoticeSession(); officialReadRevision += 1; inboxError = nil
         accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; visibleChats.removeAll(); inboxUnread = 0; activityUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
     }
     func handle(_ error: Error) {

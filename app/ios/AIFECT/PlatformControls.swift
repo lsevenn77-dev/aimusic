@@ -152,12 +152,15 @@ struct WebWorkspacePage: View {
                 NavigationStack {
                     Group {
                         if overlay.id == "notifications" { ActivityHistoryView() }
+                        else if let route = OfficialNoticeRoute(fragment: overlay.id) {
+                            OfficialNoticePage(route: route)
+                        }
                         else if overlay.id.hasPrefix("dm/") {
                             ChatPage(path: "/api/dm/" + Endpoint.pathID(String(overlay.id.dropFirst(3))), title: "메시지", crew: false)
                         } else { MessagesView().navigationTitle("메시지") }
                     }.streamingPage()
                         .navigationDestination(for: MessageRoute.self) { route in
-                            ChatPage(path: route.crew ? "/api/crews/\(Endpoint.pathID(route.id))/messages" : "/api/dm/\(Endpoint.pathID(route.id))", title: route.title, crew: route.crew)
+                            MessageDestination(route: route).streamingPage()
                         }
                         .toolbar { ToolbarItem(placement: .cancellationAction) { Button("노래방으로 돌아가기") { roomOverlay = nil } } }
                 }.presentationDetents([.fraction(0.5)]).presentationDragIndicator(.visible).preferredColorScheme(.dark)
@@ -238,10 +241,12 @@ struct WorkspaceBrowser: UIViewRepresentable {
             if (roomInbox) return;
             const target = link ? new URL(link.href, location.href) : null;
             if (target && target.origin !== location.origin) return;
-            const path = roomInbox ? 'dm' : (target?.hash || '').slice(1).split('?')[0];
+            const fragment = (target?.hash || '').slice(1);
+            const path = roomInbox ? 'dm' : fragment.split('?')[0];
             if (path !== 'notifications' && path !== 'dm' && !/^dm[/][^/]+$/.test(path)) return;
             event.preventDefault(); event.stopImmediatePropagation();
-            window.webkit.messageHandlers.roomOverlay.postMessage(path);
+            const official = /^dm[/](notice|aifect-official-notice|aifect-guide|premium-open-event-20261231-v1)$/.test(path);
+            window.webkit.messageHandlers.roomOverlay.postMessage(official ? fragment : path);
         }, true);
         """
     // Older site shells call ready before WKWebView completes same-fragment
@@ -446,7 +451,8 @@ struct WorkspaceBrowser: UIViewRepresentable {
                 return
             }
             guard message.name == "roomOverlay", let path = message.body as? String,
-                  path == "notifications" || path == "dm" || (path.hasPrefix("dm/") && SiteWorkspace.validKey(String(path.dropFirst(3)))) else { return }
+                  path == "notifications" || path == "dm" || OfficialNoticeRoute(fragment: path) != nil ||
+                  (path.hasPrefix("dm/") && SiteWorkspace.validKey(String(path.dropFirst(3)))) else { return }
             openRoomOverlay(path)
         }
         func permits(_ url: URL) -> Bool {

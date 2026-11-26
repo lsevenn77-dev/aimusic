@@ -368,6 +368,33 @@ final class StreamingUITests: XCTestCase {
         let expectation = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", value), object: app.buttons["inbox-filter-알림"])
         XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 8), .completed)
     }
+    @MainActor func testOfficialNoticeOpensDirectlyFromBothInboxTabs() {
+        let app = launch(["-official-notice"])
+        app.buttons["main-tab-3"].tap()
+        let row = app.buttons["inbox-official-notice"]
+        XCTAssertTrue(row.waitForExistence(timeout: 8))
+        let title = app.staticTexts["🎁 아이팩트가 준비한 오픈 선물!"]
+        let nav = app.navigationBars["아이팩트 안내"]
+        row.tap()
+        XCTAssertTrue(nav.waitForExistence(timeout: 8))
+        XCTAssertTrue(title.waitForExistence(timeout: 8))
+        XCTAssertTrue(title.isHittable)
+        XCTAssertFalse(app.textFields["메시지"].exists)
+        nav.buttons.firstMatch.tap()
+        XCTAssertTrue(app.buttons["inbox-filter-전체"].isSelected)
+        let noticeTab = app.buttons["inbox-filter-공지"]
+        let receipt = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "읽지 않음 1개"), object: noticeTab)
+        XCTAssertEqual(XCTWaiter.wait(for: [receipt], timeout: 8), .completed)
+        noticeTab.tap()
+        row.tap()
+        XCTAssertTrue(nav.waitForExistence(timeout: 8))
+        let guide = app.staticTexts["테스트 닉네임님, 환영합니다."]
+        reveal(guide, in: app.scrollViews["official-notice-history"], app: app, towardTop: true)
+        XCTAssertTrue(guide.isHittable)
+        nav.buttons.firstMatch.tap()
+        XCTAssertTrue(noticeTab.isSelected)
+    }
+
     @MainActor func testEnteringNotificationsReadsAllPagesAndUpdatesBadge() {
         let app = launch(["-notification-auto-read"])
         app.buttons["main-tab-3"].tap()

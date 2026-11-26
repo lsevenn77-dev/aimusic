@@ -294,6 +294,7 @@ enum ReadPolicy {
         guard !["GET", "HEAD"].contains(method), !path.hasPrefix("/api/push/") else { return false }
         // Notification lists/summaries are uncached; reading them does not change the catalog or library.
         if path == "/api/notifications/read", method == "POST" { return false }
+        if path == OfficialNotice.path, method == "PATCH" { return false }
         if ["POST", "PATCH"].contains(method), path.range(of: #"^/api/dm/[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil { return false }
         if method == "POST", path.range(of: #"^/api/crews/[A-Za-z0-9_-]+/messages$"#, options: .regularExpression) != nil { return false }
         return true

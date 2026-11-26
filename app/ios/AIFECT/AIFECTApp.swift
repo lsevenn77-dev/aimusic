@@ -21,6 +21,10 @@ struct AIFECTApp: App {
             _ = AuthController.handleOpenUrl(url: url)
             return
         }
+        if let route = OfficialNoticeRoute(url: url) {
+            model.openOfficialNotice(route)
+            return
+        }
         #if DEBUG
         model.macBrowserCallback(url)
         #endif
@@ -168,7 +172,7 @@ struct RootView: View {
                 }
             }
             .navigationDestination(for: MessageRoute.self) { route in
-                ChatPage(path: route.crew ? "/api/crews/\(Endpoint.pathID(route.id))/messages" : "/api/dm/\(Endpoint.pathID(route.id))", title: route.title, crew: route.crew).streamingPage()
+                MessageDestination(route: route).streamingPage()
             }
             .navigationDestination(isPresented: $account) { AccountView().streamingPage() }
         }.contentShape(Rectangle()).clipped().zIndex(0)

@@ -8,6 +8,15 @@ enum StreamingUIFixture {
     static var artistFollowed = false
     static var dmRead = false
     static var dmCleared = false
+    private static var officialReceipts = Set<String>()
+    private static let officialGiftID = "campaign:premium-open-event-20261231-v1"
+    private static let officialGuideID = "campaign:welcome-guide-20261108-v1"
+    private static let officialTitle = "🎁 아이팩트가 준비한 오픈 선물!"
+    private static var officialChannel: [String: Any] {
+        ["id": OfficialNotice.channelID, "name": "아이팩트 안내", "is_notice": true,
+         "read_only": true, "notice_type": "official", "last_message": officialTitle,
+         "updated": 1_795_557_600, "unread": 2 - officialReceipts.count]
+    }
     static var notificationReadThrough = 0
     static var notificationReadFailed = false
     static var notificationSnapshot: Int {
@@ -204,6 +213,27 @@ enum StreamingUIFixture {
         case "/api/tracks/fixture-duet": result = ["track": cover]
         case "/api/dm/fixture-peer" where request.httpMethod == "DELETE": dmCleared = true; result = ["ok": true]
         case "/api/dm/read-all": dmRead = true; result = ["ok": true]
+        case "/api/dm" where args.contains("-official-notice"):
+            result = ["conversations": [officialChannel], "unread": 2 - officialReceipts.count]
+        case OfficialNotice.path where args.contains("-official-notice"):
+            if request.httpMethod == "PATCH" {
+                let ids = Set(body["ids"] as? [String] ?? [])
+                guard !ids.isEmpty, ids.isSubset(of: [officialGuideID, officialGiftID]) else {
+                    return (400, "application/json", Data())
+                }
+                officialReceipts.formUnion(ids)
+                result = ["notice": officialChannel, "unread": 2 - officialReceipts.count,
+                          "direct_unread": 2 - officialReceipts.count, "notice_unread": 2 - officialReceipts.count]
+            } else {
+                let guide: [String: Any] = ["id": officialGuideID, "legacy_id": "aifect-guide", "created": 1_794_175_200,
+                    "read_at": officialReceipts.contains(officialGuideID) ? 1 : 0,
+                    "guide": ["greeting": "테스트 닉네임님, 환영합니다.",
+                              "sections": [["title": "노래방", "body": "서비스 소개 안내", "href": "#karaoke", "label": "노래방 열기"]]]]
+                let gift: [String: Any] = ["id": officialGiftID, "legacy_id": "premium-open-event-20261231-v1", "created": 1_795_557_600,
+                    "read_at": officialReceipts.contains(officialGiftID) ? 1 : 0,
+                    "notice": ["title": officialTitle, "body": String(repeating: "오픈 선물 공지 본문입니다.\n\n", count: 45)]]
+                result = ["channel": officialChannel, "items": [guide, gift], "before": NSNull()]
+            }
         case "/api/dm":
             if request.httpMethod == "DELETE" { dmCleared = true; result = ["ok": true] }
             else { result = ["conversations": dmCleared ? [] : [["id": "fixture-peer", "name": "채팅 테스트", "image_version": "fixture", "last_message": "다음에도 같이 불러요", "updated": Date().timeIntervalSince1970 - 60, "unread": dmRead ? 0 : 1]], "crew": ["id": "fixture-crew", "name": "검증 크루", "unread": 2], "unread": dmRead || dmCleared ? 2 : 3] }

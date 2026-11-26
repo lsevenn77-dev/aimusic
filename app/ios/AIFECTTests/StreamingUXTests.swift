@@ -4,6 +4,46 @@ import AVFoundation
 @testable import AIFECT
 
 final class StreamingUXTests: XCTestCase {
+    func testOfficialNoticeRoutingAndChannelIdentity() throws {
+        let channel: [String: Any] = ["id": OfficialNotice.channelID, "name": "아이팩트 안내",
+                                      "is_notice": true, "read_only": true, "notice_type": "official"]
+        let adoptedName: [String: Any] = ["id": "another-profile", "name": "아이팩트 안내"]
+        let legacy: [String: Any] = ["id": "aifect-guide", "is_notice": true, "notice_type": "welcome"]
+        XCTAssertEqual(OfficialNotice.inboxRows([channel, adoptedName, legacy]).map(\.selfID),
+                       [OfficialNotice.channelID, "another-profile"])
+        XCTAssertEqual(OfficialNoticeRoute(target: "notice"), OfficialNoticeRoute())
+        XCTAssertEqual(OfficialNoticeRoute(target: OfficialNotice.channelID), OfficialNoticeRoute())
+        XCTAssertEqual(OfficialNoticeRoute(target: "aifect-guide")?.anchor, "aifect-guide")
+        XCTAssertEqual(OfficialNoticeRoute(target: "premium-open-event-20261231-v1")?.anchor, "premium-open-event-20261231-v1")
+        let url = try XCTUnwrap(URL(string: "https://aifect.co.kr/#dm/notice?entry=campaign%3Awelcome"))
+        XCTAssertEqual(OfficialNoticeRoute(url: url)?.anchor, "campaign:welcome")
+        XCTAssertNil(OfficialNoticeRoute(fragment: "dm/another-profile?entry=campaign%3Awelcome"))
+        XCTAssertFalse(ReadPolicy.invalidates(OfficialNotice.path, method: "PATCH"))
+    }
+
+    func testOfficialFeedPreservesDistinctBodiesAndReadStateAcrossPages() throws {
+        let channel: [String: Any] = ["id": OfficialNotice.channelID, "is_notice": 1,
+                                      "read_only": 1, "notice_type": "official"]
+        let guide: [String: Any] = ["id": "campaign:welcome", "legacy_id": "aifect-guide", "created": 10,
+                                    "guide": ["greeting": "검증 닉네임님, 환영합니다."]]
+        let gift: [String: Any] = ["id": "campaign:gift", "created": 20,
+                                   "notice": ["title": "오픈 선물", "body": "별도의 공지 본문"]]
+        let dm: [String: Any] = ["id": "dm:sent", "kind": "dm", "mine": true, "created": 30, "body": "문의"]
+        let head = try OfficialNoticeFeed(response: ["channel": channel, "items": [gift, dm], "before": "20|campaign:gift"])
+        let tail = try OfficialNoticeFeed(response: ["channel": channel, "items": [guide, gift], "before": NSNull()])
+        var feed = head
+        feed.acknowledge(["campaign:gift"], at: 40)
+        feed.prepend(tail)
+        feed.refresh(head)
+        XCTAssertEqual(feed.items.map(\.id), ["campaign:welcome", "campaign:gift", "dm:sent"])
+        XCTAssertEqual(feed.items.filter(\.unread).map(\.id), ["campaign:welcome"])
+        XCTAssertEqual(feed.items[1].payload.object("notice").string("body"), "별도의 공지 본문")
+        XCTAssertTrue(feed.items[0].matches("aifect-guide"))
+        XCTAssertNil(feed.before)
+        let receipt = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-24T15:10:00Z"))
+        XCTAssertEqual(OfficialNotice.date(receipt.timeIntervalSince1970), "2026.11.25 00:10")
+    }
+
     func testActivityNotificationsDoNotMislabelCommentsOrUnknownKindsAsCovers() {
         let messages = [
             "comment": "내 음악에 댓글을 남겼어요.",

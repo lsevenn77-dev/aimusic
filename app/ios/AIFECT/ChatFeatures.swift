@@ -565,7 +565,7 @@ private struct ChatStickerPicker: View {
     }
 }
 
-private struct ChatStickerText: View {
+struct ChatStickerText: View {
     let bodyText: String
     @State private var images: [String: UIImage] = [:]
     var body: some View {

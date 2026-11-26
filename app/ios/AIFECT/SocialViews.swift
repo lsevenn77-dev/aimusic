@@ -144,13 +144,14 @@ struct MessagesView: View {
     @State private var working = false
     @State private var error: String?
     @State private var deleteTarget: CatalogItemSelection?
+    private var official: [String: Any]? { model.inboxConversations.first(where: OfficialNotice.isChannel) }
     private var conversations: [[String: Any]] { model.inboxConversations.filter { !$0.flag("is_notice") } }
     private var crew: [String: Any]? { filter == "전체" ? model.inboxCrew : nil }
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 ForEach(["전체", "공지", "알림"], id: \.self) { name in
-                    let count = name == "공지" ? model.inboxConversations.filter { $0.flag("is_notice") }.reduce(0) { $0 + $1.int("unread") } : name == "알림" ? model.activityUnread : 0
+                    let count = name == "공지" ? official?.int("unread") ?? 0 : name == "알림" ? model.activityUnread : 0
                     Button { filter = name } label: {
                         Text(name).font(.system(size: 14, weight: .semibold)).lineLimit(1)
                             .frame(maxWidth: .infinity, minHeight: 38)
@@ -164,12 +165,13 @@ struct MessagesView: View {
             }.padding(.horizontal, 12)
             if model.user == nil { LoginPrompt(title: "로그인하고 메시지 보기") }
             else if filter == "알림" { ActivityHistoryView() }
-            else if filter == "공지" { InboxNoticeArchive(channels: model.inboxConversations.filter { $0.flag("is_notice") }) }
             else {
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(model.inboxConversations.filter { $0.flag("is_notice") }.sorted { $0.number("updated") > $1.number("updated") }, id: \.selfID) { notice in
-                            Button { filter = "공지" } label: { InboxNoticeBanner(title: notice.displayName(), bodyText: notice.string("last_message"), date: notice.number("updated")) }.buttonStyle(.plain).padding(.vertical, 4)
+                        if let official {
+                            NavigationLink(value: MessageRoute(id: OfficialNotice.channelID, title: official.string("name"), crew: false)) {
+                                InboxNoticeBanner(channel: official)
+                            }.buttonStyle(.plain).padding(.vertical, 4).accessibilityIdentifier("inbox-official-notice")
                         }
                         if let crew {
                             NavigationLink(value: MessageRoute(id: crew.string("id"), title: crew.string("name"), crew: true)) {
@@ -198,9 +200,12 @@ struct MessagesView: View {
                                 }.padding(.horizontal, 13).padding(.vertical, 9).background(Brand.card.opacity(0.8), in: RoundedRectangle(cornerRadius: 18)).overlay(RoundedRectangle(cornerRadius: 18).stroke(AifectDesign.stroke)).padding(.vertical, 5)
                             }
                         }
-                        if crew == nil && conversations.isEmpty { ContentUnavailableView("대화를 시작해보세요", systemImage: "bubble.left.and.bubble.right", description: Text("새 대화에서 팔로잉을 선택하거나 프로필에서 메시지를 보낼 수 있어요.")) }
-                        if model.inboxUnread > 0 { Button("모두 읽음") { Task { await markAllRead() } }.disabled(working).frame(maxWidth: .infinity, minHeight: 44).accessibilityIdentifier("inbox-read-all") }
-                        if let error { RetryCard(message: error) { Task { await load() } } }
+                        if filter == "공지" && official == nil && error == nil && model.inboxError == nil { ProgressView().padding() }
+                        if filter == "전체" {
+                            if crew == nil && conversations.isEmpty && official == nil { ContentUnavailableView("대화를 시작해보세요", systemImage: "bubble.left.and.bubble.right", description: Text("새 대화에서 팔로잉을 선택하거나 프로필에서 메시지를 보낼 수 있어요.")) }
+                            if model.inboxUnread > 0 { Button("모두 읽음") { Task { await markAllRead() } }.disabled(working).frame(maxWidth: .infinity, minHeight: 44).accessibilityIdentifier("inbox-read-all") }
+                        }
+                        if let message = error ?? model.inboxError { RetryCard(message: message) { Task { await load() } } }
                     }.padding(.horizontal, 12).padding(.top, 12).padding(.bottom, 20)
                 }.refreshable { await load() }
             }
@@ -1135,80 +1140,32 @@ struct PlayerInventoryView: View {
     }
 }
 
-struct InboxNoticeBanner: View {
-    let title: String, bodyText: String
-    let date: Double
+private struct InboxNoticeBanner: View {
+    let channel: [String: Any]
     var body: some View {
+        let count = channel.int("unread")
+        let updated = channel.number("updated")
         HStack(spacing: 9) {
             Image(systemName: "megaphone").font(.title3).foregroundStyle(Brand.aqua)
             VStack(alignment: .leading, spacing: 4) {
-                HStack { Text(title).font(.system(size: 15, weight: .bold)).lineLimit(1); Spacer(); if date > 0 { Text(Date(timeIntervalSince1970: date), format: .dateTime.month().day()).font(.system(size: 10)).foregroundStyle(AifectDesign.muted) } }
-                Text(bodyText).font(.system(size: 12)).foregroundStyle(AifectDesign.secondaryText).lineLimit(1)
+                HStack {
+                    Text(channel.string("name")).font(.system(size: 15, weight: .bold)).lineLimit(1)
+                    Spacer()
+                    if updated > 0 {
+                        Text(OfficialNotice.date(updated, includeTime: false)).font(.system(size: 10)).foregroundStyle(AifectDesign.muted)
+                    }
+                }
+                let preview = ChatSticker.preview(channel.string("last_message"))
+                if !preview.isEmpty { Text(preview).font(.system(size: 12)).foregroundStyle(AifectDesign.secondaryText).lineLimit(1) }
+            }
+            if count > 0 {
+                Text(count > 99 ? "99+" : String(count)).font(.caption2.bold()).foregroundStyle(Brand.background)
+                    .padding(5).background(StreamStyle.purple, in: Capsule())
+                    .accessibilityLabel("읽지 않음 \(count)개")
             }
             Image(systemName: "chevron.right").font(.caption).foregroundStyle(AifectDesign.muted)
-        }.padding(12).frame(minHeight: 60).background(Brand.card, in: RoundedRectangle(cornerRadius: 14)).overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke))
-    }
-}
-
-struct InboxNoticeArchive: View {
-    @EnvironmentObject private var model: AppModel
-    let channels: [[String: Any]]
-    @State private var entries: [[String: Any]] = []
-    @State private var selected: CatalogItemSelection?
-    @State private var error: String?
-    @State private var loading = false
-    @State private var depth = 1
-    @State private var hasMore = false
-    var body: some View {
-        ScrollView {
-            LazyVStack(spacing: 7) {
-                ForEach(entries, id: \.selfID) { row in
-                    Button { selected = CatalogItemSelection(payload: row) } label: { InboxNoticeBanner(title: row.string("title"), bodyText: row.string("body"), date: row.number("created")) }.buttonStyle(.plain)
-                }
-                if loading { ProgressView() }
-                if let error { RetryCard(message: error) { Task { await load() } } }
-                if entries.isEmpty && !loading && error == nil { Text("등록된 공지가 없어요").foregroundStyle(AifectDesign.muted).padding() }
-                if hasMore { Button("이전 공지 더 보기") { depth += 1 } }
-            }.padding(12)
-        }.task(id: "\(model.userID ?? "guest")|\(depth)|" + channels.map { $0.selfID + $0.string("last_message") }.joined()) { await load() }
-            .navigationDestination(isPresented: Binding(get: { selected != nil }, set: { if !$0 { selected = nil } })) {
-                if let item = selected { ScrollView { VStack(alignment: .leading, spacing: 16) { Text(item.payload.string("title")).font(.title2.bold()); Text(item.payload.string("body")).font(.body).textSelection(.enabled) }.frame(maxWidth: .infinity, alignment: .leading).padding(20) }.navigationTitle("공지").streamingPage()
-                    .task {
-                        if !item.payload.string("campaign").isEmpty { _ = try? await API.shared.call("/api/notices/welcome", method: "PATCH", body: ["campaign_id": item.payload.string("campaign")]) }
-                        else { _ = try? await API.shared.call("/api/dm/" + Endpoint.pathID(item.payload.string("channel")), method: "PATCH") }
-                        await model.refreshInbox()
-                    } }
-            }
-    }
-    private func load() async {
-        let owner = model.userID; guard let owner else { entries = []; return }
-        loading = true; error = nil; hasMore = false
-        do {
-            var result: [[String: Any]] = []
-            for channel in channels {
-                let id = channel.selfID
-                if channel.string("notice_type") == "welcome" {
-                    let data = try await API.shared.call("/api/notices/welcome")
-                    let guide = data.object("guide")
-                    let paragraphs = ([guide.string("greeting")] + (guide["intro"] as? [String] ?? []) + guide.objects("sections").map { $0.string("title") + "\n" + (($0["paragraphs"] as? [String]) ?? ($0["body"] as? [String]) ?? [$0.string("body")]).joined(separator: "\n") } + (guide["closing"] as? [String] ?? [])).filter { !$0.isEmpty }.joined(separator: "\n\n")
-                    result.append(["id": id, "channel": id, "title": "아이팩트 안내", "body": paragraphs, "created": data.number("created"), "campaign": data.string("campaign_id")]); continue
-                }
-                var cursor: Int?
-                for pageIndex in 0..<depth {
-                    let data = try await API.shared.call("/api/dm/" + Endpoint.pathID(id) + (cursor.map { "?before=\($0)" } ?? ""))
-                    try Task.checkCancellation(); guard owner == model.userID else { return }
-                    let messages = data.objects("messages").filter { $0.string("recipient_id").isEmpty || $0.string("recipient_id") == owner }
-                    for message in messages {
-                        result.append(["id": id + "/" + message.selfID, "channel": id, "title": message.string("title", fallback: channel.displayName()), "body": message.string("body"), "created": message.number("created")])
-                    }
-                    if pageIndex == 0 && messages.isEmpty { result.append(["id": id, "channel": id, "title": channel.displayName(), "body": channel.string("last_message"), "created": channel.number("updated")]) }
-                    guard data.flag("has_more"), let before = messages.map({ $0.int("sequence") }).filter({ $0 > 0 }).min(), cursor == nil || before < cursor! else { break }
-                    cursor = before; if pageIndex == depth - 1 { hasMore = true }
-                }
-            }
-            guard owner == model.userID else { return }
-            var ids = Set<String>(); entries = result.filter { ids.insert($0.selfID).inserted }.sorted { $0.number("created") > $1.number("created") }; loading = false
-        } catch is CancellationError { } catch { if owner == model.userID { self.error = error.localizedDescription; loading = false } }
+        }.padding(12).frame(minHeight: 60).background(Brand.card, in: RoundedRectangle(cornerRadius: 14))
+            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AifectDesign.stroke)).contentShape(Rectangle())
     }
 }
 
