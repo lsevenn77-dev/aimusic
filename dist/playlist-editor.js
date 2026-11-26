@@ -35,11 +35,11 @@ function confirmPrivatePlaylist(){
 }
 async function selectPlaylistForItem(item){
  if(!me)return askLogin();
- return libraryPicker({kind:'playlists',item,onSelect:async(pid,selected)=>{
+ return playlistPicker({item,unified:true,onSelect:async(pid,selected,active=()=>true)=>{
   const change=!!selected.is_public&&restrictedItems([item]);
   if(change&&!await confirmPrivatePlaylist())return false;
-  const data=await api('/api/playlists/'+encodeURIComponent(pid)+'/items','PUT',{...itemRef(item),revision:selected.revision,confirm_private:change});
-  toast(data.already_added?'이미 추가된 콘텐츠입니다.':'플레이리스트에 추가되었습니다.');
+  if(!active())return false;
+  return api('/api/playlists/'+encodeURIComponent(pid)+'/items','PUT',{...itemRef(item),revision:selected.revision,confirm_private:change});
  }});
 }
 function unifiedPlaylistActions(p,owned){
@@ -52,13 +52,13 @@ function editableItemRows(items){
   return `<div class="playlist-order-row"><span>${i+1}</span><div><strong title="${title}">${title}</strong><small>${libraryKindName(item.kind)}</small></div><button type="button" class="small-button" data-item-up="${i}" aria-label="${title} 위로" ${i?'':'disabled'}>↑</button><button type="button" class="small-button" data-item-down="${i}" aria-label="${title} 아래로" ${i+1<items.length?'':'disabled'}>↓</button><button type="button" class="small-button" data-item-remove="${i}" aria-label="${title} 제거">제거</button></div>`;
  }).join('')||'<p class="field-help">아직 추가된 콘텐츠가 없습니다.</p>';
 }
-async function unifiedPlaylistEditor({id=null,initial=null,fork=false,focusItems=false,find=false,source='search'}={}){
+async function unifiedPlaylistEditor({id=null,initial=null,fork=false,focusItems=false,find=false,source='search',canOpen=()=>true,onCreated}={}){
  if(!me)return askLogin();
  const uid=me.id,ticket=renderId,request_id=crypto.randomUUID();
  const current=()=>me?.id===uid&&ticket===renderId;
  const detail=id?await api('/api/playlists/'+encodeURIComponent(id),'GET',undefined,{fresh:true}):null;
  const original=detail?.playlist||{};
- if(!current())return;
+ if(!current()||!canOpen())return;
  if(fork&&!original.saved)return toast('먼저 플레이리스트를 저장해 주세요.');
  const items=[...(detail?.items||[])];
  if(initial){
@@ -71,7 +71,7 @@ async function unifiedPlaylistEditor({id=null,initial=null,fork=false,focusItems
   }
   items.push(initial);
  }
- if(!current())return;
+ if(!current()||!canOpen())return;
  dialog(`<h2>${fork?'내 플레이리스트로 편집':id?'플레이리스트 편집':'새 플레이리스트'}</h2><form id="playlist-form" class="playlist-editor">
   <div id="playlist-design-preview" inert aria-label="플레이리스트 미리보기"></div>
   ${fork?'':imageField('대표 이미지','image',id?playlistImageURL(original):'')}
@@ -171,6 +171,11 @@ async function unifiedPlaylistEditor({id=null,initial=null,fork=false,focusItems
    }
   }
   if(!live())return;
+  if(onCreated){
+   toast('플레이리스트가 저장되었습니다.');
+   await onCreated();
+   return;
+  }
   $('#dialog').close();toast(fork?'편집본이 내 플레이리스트에 저장되었습니다.':'플레이리스트가 저장되었습니다.');
   const href='#playlist/'+encodeURIComponent(savedId);if(location.hash===href)await render();else location.hash=href;
  });

@@ -143,6 +143,8 @@
  #main .cover-detail .cover-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:5px;padding-inline:0;overflow:visible}
  #main .cover-detail .cover-actions-owner,#main .cover-detail .cover-actions:has(.song-action-save){grid-template-columns:repeat(4,minmax(0,1fr))}
  #main .cover-detail .cover-actions-owner:has(.song-action-save){grid-template-columns:repeat(5,minmax(0,1fr))}
+ #main .cover-detail .cover-actions:has(.song-action-share){grid-template-columns:repeat(4,minmax(0,1fr))}
+ #main .cover-detail .cover-actions:has(.song-action-share):is(.cover-actions-owner,:has(.song-action-save)){grid-template-columns:repeat(3,minmax(0,1fr))}
  #main .cover-detail .cover-actions>:is(button,a){width:100%;min-width:0;padding-inline:3px;gap:3px;font-size:12px}
  #main .cover-detail .cover-actions .song-action-icon{width:14px;height:14px;flex-basis:14px}
  #main .song-detail-refined .song-actions .song-action-like>span:not([data-like-count]){display:none}

@@ -1,14 +1,15 @@
 // Song-header presentation only. Playback, recording and social actions keep
 // their existing delegated data attributes and server permission checks.
 const songDetailIsNative=typeof inApp!=='undefined'&&inApp;
+const songDescriptionIsWeb=!songDetailIsNative&&!/AIFECT-Mobile\//i.test(globalThis.navigator?.userAgent||'');
+const songDescriptionMoreLabel=songDescriptionIsWeb?'… 더보기':'+더보기';
 function songCreatorDescription(t){
- if(typeof t.description!=='string')return '';
- // The saved field is authoritative. Content cannot establish authorship.
- return t.description.trim()?t.description:'';
+ const text=songDescriptionIsWeb?t.creator_description:t.description;
+ return typeof text==='string'&&text.trim()?text:'';
 }
 function songDescriptionHTML(t){
  const text=songCreatorDescription(t),label=t.kind==='cover'?'커버 소개':'곡 소개';
- return text?'<section class="song-introduction" aria-label="'+label+'" data-song-description-track="'+esc(t.id)+'"><div class="song-introduction-heading"><h3>'+label+'</h3></div><p class="song-description" id="song-description-text"><span class="song-description-content">'+esc(text)+'</span><button type="button" class="text-link song-description-toggle" aria-controls="song-description-text" aria-expanded="false" hidden>+더보기</button></p></section>':'';
+ return text?'<section class="song-introduction" aria-label="'+label+'" data-song-description-track="'+esc(t.id)+'"><div class="song-introduction-heading"><h3>'+label+'</h3></div><p class="song-description" id="song-description-text"><span class="song-description-content">'+esc(text)+'</span><button type="button" class="text-link song-description-toggle" aria-controls="song-description-text" aria-expanded="false" hidden>'+songDescriptionMoreLabel+'</button></p></section>':'';
 }
 let songDescriptionBinding=null;
 function bindSongDescription(){
@@ -17,35 +18,54 @@ function bindSongDescription(){
  previous?.release();
  if(!root||!description||!content||!button)return;
  const text=content.textContent||'',characters=typeof Intl.Segmenter==='function'?Array.from(new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(text),part=>part.segment):Array.from(text);
- const remainder=document.createElement('p');
- remainder.className='song-introduction-rest';remainder.id='song-introduction-rest';remainder.hidden=true;
- root.parentElement.append(remainder);button.setAttribute('aria-controls',remainder.id);
- const state={track:root.dataset.songDescriptionTrack,expanded:!!expanded,active:true,width:0,release:null};
+ const nativeRemainder=songDescriptionIsWeb?null:document.createElement('p');
+ if(nativeRemainder){
+  nativeRemainder.className='song-introduction-rest';
+  nativeRemainder.id='song-introduction-rest';
+  nativeRemainder.hidden=true;
+  root.parentElement.append(nativeRemainder);
+  button.setAttribute('aria-controls',nativeRemainder.id);
+ }
+ const state={track:root.dataset.songDescriptionTrack,expanded:!!expanded,active:true,width:0,lineHeight:0,release:null};
  songDescriptionBinding=state;
  const paint=(force=false)=>{
   if(!state.active||!root.isConnected)return;
   const width=description.getBoundingClientRect().width;
-  if(!width||(!force&&width===state.width))return;
+  const lineHeight=parseFloat(getComputedStyle(description).lineHeight);
+  if(!width||(!force&&width===state.width&&lineHeight===state.lineHeight))return;
   const focused=document.activeElement===button;
-  state.width=width;description.style.minHeight='';root.classList.add('is-description-ready');content.textContent=text;button.hidden=true;
-  const limit=parseFloat(getComputedStyle(description).lineHeight)*2+1,overflow=description.getBoundingClientRect().height>limit;
+  state.width=width;
+  state.lineHeight=lineHeight;
+  description.style.minHeight='';
+  root.classList.add('is-description-ready');
+  content.textContent=text;
+  button.hidden=true;
+  const limit=lineHeight*2+1;
+  const fits=()=>description.getBoundingClientRect().height<=limit;
+  const overflow=!fits();
   if(!overflow)state.expanded=false;
   root.classList.toggle('is-expanded',state.expanded);
-  button.setAttribute('aria-expanded',String(state.expanded));button.textContent='+더보기';button.hidden=!overflow;
-  remainder.hidden=!state.expanded;
-  if(overflow){
+  button.setAttribute('aria-expanded',String(state.expanded));
+  button.textContent=state.expanded&&songDescriptionIsWeb?'접기':songDescriptionMoreLabel;
+  button.hidden=!overflow;
+  if(nativeRemainder)nativeRemainder.hidden=!state.expanded;
+  if(overflow&&(!state.expanded||nativeRemainder)){
+   // Include the inline control in each fit check so it stays within two lines.
    const prefix=count=>characters.slice(0,count).join('').trimEnd();
+   const suffix=nativeRemainder?'…':'';
    let low=0,high=characters.length;
    while(low<high){
-    const middle=Math.ceil((low+high)/2);content.textContent=prefix(middle)+'…';
-    if(description.getBoundingClientRect().height<=limit)low=middle;else high=middle-1;
+    const middle=Math.ceil((low+high)/2);
+    content.textContent=prefix(middle)+suffix;
+    if(fits())low=middle;else high=middle-1;
    }
    const start=prefix(low);
-   content.textContent=start+'…';
-   if(state.expanded){
-    // The continuation opens below both action rows, keeping the controls in place.
+   content.textContent=start+suffix;
+   if(nativeRemainder&&state.expanded){
     description.style.minHeight=description.getBoundingClientRect().height+'px';
-    content.textContent=start;button.textContent='+접기';remainder.textContent=text.slice(start.length);
+    content.textContent=start;
+    button.textContent='+접기';
+    nativeRemainder.textContent=text.slice(start.length);
    }
   }
   if(focused&&!button.hidden)button.focus({preventScroll:true});
@@ -53,7 +73,18 @@ function bindSongDescription(){
  button.onclick=()=>{state.expanded=!state.expanded;paint(true);};
  const resize=()=>paint(),observer=typeof ResizeObserver==='function'?new ResizeObserver(resize):null;
  observer?.observe(description);if(!observer)window.addEventListener('resize',resize);
- state.release=registerRouteCleanup(()=>{state.active=false;observer?.disconnect();if(!observer)window.removeEventListener('resize',resize);remainder.remove();description.style.minHeight='';content.textContent=text;button.hidden=true;button.onclick=null;root.classList.remove('is-description-ready','is-expanded');if(songDescriptionBinding===state)songDescriptionBinding=null;});
+ state.release=registerRouteCleanup(()=>{
+  state.active=false;
+  observer?.disconnect();
+  if(!observer)window.removeEventListener('resize',resize);
+  nativeRemainder?.remove();
+  description.style.minHeight='';
+  content.textContent=text;
+  button.hidden=true;
+  button.onclick=null;
+  root.classList.remove('is-description-ready','is-expanded');
+  if(songDescriptionBinding===state)songDescriptionBinding=null;
+ });
  paint(true);document.fonts?.ready.then(()=>paint(true));
 }
 function songDetailMetricsHTML(t){
@@ -82,15 +113,16 @@ function songDetailActionsHTML(t){
  const like='<button type="button" class="small-button song-action-like '+(liked(t.id)?'is-active':'')+'" data-like="'+id+'" aria-label="좋아요 '+number(t.likes||0)+'개" aria-pressed="'+liked(t.id)+'">'+songActionIcon('heart')+'<span>좋아요</span><span class="song-like-count" data-like-count>'+number(t.likes||0)+'</span></button>';
  const lyrics=songLyricsButtonHTML(t);
  const save=AifectPlaylist.isPlaylistEligibleTrack(t)?'<button type="button" class="small-button song-action-save" data-add="'+id+'">'+songActionIcon('plus')+'<span>'+saveLabel+'</span></button>':'';
+ const share=songDetailIsNative?'':'<button type="button" class="small-button song-action-share" data-song-share="'+id+'" aria-haspopup="dialog">'+songActionIcon('share-2')+'<span>공유</span></button>';
  if(t.kind==='cover'){
   const remove=mine?'<button type="button" class="small-button danger-button" data-delete-track="'+id+'" data-track-title="'+esc(t.title)+'" data-track-kind="cover">커버 삭제</button>':'';
   const join=t.cover_mode==='duet'&&t.duet_open&&!mine?'<a class="text-link detail-duet-entry" href="#sing/'+esc(t.original_id)+'?duet='+id+'">'+songActionIcon('sing')+'듀엣 참여</a>':'';
-  return '<div class="inline-actions song-actions cover-actions'+(mine?' cover-actions-owner':'')+'" role="group" aria-label="커버 작품 기능">'+listen+like+lyrics+(globalThis.AifectUnifiedPlaylists?save:'')+remove+'</div>'+join;
+  return '<div class="inline-actions song-actions cover-actions'+(mine?' cover-actions-owner':'')+'" role="group" aria-label="커버 작품 기능">'+listen+like+lyrics+(globalThis.AifectUnifiedPlaylists?save:'')+share+remove+'</div>'+join;
  }
  const sing=t.karaoke_ready?'<a class="primary-button song-action-sing" href="#sing/'+id+'" aria-label="노래 부르기">'+songActionIcon('sing')+'<span>부르기</span></a>':'';
 
  const gift=mine?'':'<button type="button" class="small-button gift-entry song-action-gift" data-gift="'+id+'" aria-label="선물">'+songActionIcon('gift')+'<span>선물</span></button>';
- const trailing=songDetailIsNative?'<button type="button" class="small-button song-action-more" data-track-menu="'+id+'" aria-label="더보기" aria-haspopup="dialog">'+songActionIcon('menu')+'</button>':'<button type="button" class="small-button song-action-share" data-song-share="'+id+'" aria-haspopup="dialog">'+songActionIcon('share-2')+'<span>공유</span></button>';
+ const trailing=share||'<button type="button" class="small-button song-action-more" data-track-menu="'+id+'" aria-label="더보기" aria-haspopup="dialog">'+songActionIcon('menu')+'</button>';
  return '<div class="song-action-groups" role="group" aria-label="곡 기능"><div class="inline-actions song-actions song-actions-primary">'+listen+sing+'</div><div class="inline-actions song-actions song-actions-secondary">'+like+lyrics+save+gift+trailing+'</div></div>';
 }
 function songDetailHeaderHTML(t){

@@ -231,6 +231,99 @@
       }
     }
   }
+
+  /* Let the settings set the minimum height while the remaining viewport
+     stretches the shared grid. A short window can grow the document. */
+  :root:not([data-aifect-native]) .page-wrap:has(> #main > #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording)) {
+    --record-frame-inset:clamp(3px,calc(5dvh - 24px),24px);
+    display:flex;
+    flex-direction:column;
+    height:auto;
+    min-height:100dvh;
+    overflow:visible;
+
+    > .topbar { flex:none; }
+    > #main {
+      flex:1 0 auto;
+      align-items:stretch;
+      width:100%;
+      height:auto;
+      min-height:0;
+      padding-block:var(--record-frame-inset)!important;
+      overflow:visible;
+    }
+    > #main > #sing {
+      --record-card-inset:clamp(4px,calc(3dvh - 12.5px),16px);
+      --record-setting-gap:clamp(3px,calc(2.45dvh - 10px),12px);
+      --record-slider-height:clamp(24px,calc(8dvh - 22px),55px);
+      --record-option-height:clamp(28px,calc(5.2dvh - 4px),45px);
+      height:auto;
+      max-height:none;
+      grid-template-rows:max-content minmax(min-content,1fr);
+
+      > .sing-head {
+        padding-block:clamp(8px,calc(4dvh - 16px),20px) var(--record-setting-gap)!important;
+      }
+      > .sing-recording {
+        grid-template-rows:max-content clamp(0px,calc(5dvh - 29px),15px)
+          clamp(22px,4.1dvh,35px) clamp(28px,4.5dvh,40px)
+          minmax(calc(var(--record-line) + 15px),1fr) max-content;
+        overflow:visible;
+      }
+      .sing-wheel {
+        /* The lyric list follows the grid track even when the song is long. */
+        contain:size;
+        height:calc(100% - 15px)!important;
+      }
+      > .sing-status:not(.show-notice) {
+        grid-area:1 / 1;
+        inset:0 auto auto 0;
+        padding:0!important;
+      }
+
+      > #sing-live-settings {
+        grid-row:1 / -1;
+        grid-template-rows:auto auto minmax(min-content,1fr);
+        align-content:stretch;
+        align-items:stretch;
+        gap:var(--record-setting-gap);
+        overflow:visible;
+        overscroll-behavior-y:auto;
+
+        .studio-setting-card { padding-block:var(--record-card-inset); }
+        .studio-space { align-self:stretch; }
+        .studio-setting-card h2 { margin-block-end:var(--record-setting-gap); }
+        .studio-range,.studio-range input[type=range] {
+          min-height:var(--record-slider-height);
+          height:var(--record-slider-height);
+        }
+        :is(.studio-key,.studio-size) { margin-block-start:calc(var(--record-setting-gap) * .67); }
+        .studio-key-stepper { min-height:0; }
+        :is(.studio-key button,.sing-lyric-sizes button) {
+          height:var(--record-option-height);
+          min-height:var(--record-option-height);
+        }
+        .sing-monitor {
+          min-height:var(--record-slider-height);
+          margin-block:calc(var(--record-setting-gap) / 3);
+        }
+        .microphone-check {
+          min-height:var(--record-option-height);
+          margin-block-start:calc(var(--record-setting-gap) * .67);
+          padding-block:calc(var(--record-setting-gap) / 2);
+        }
+        [data-mic-toggle] { min-height:var(--record-option-height); }
+        .studio-space-presets .studio-preset-tile {
+          min-height:clamp(46px,calc(7dvh + 4px),75px);
+          gap:clamp(2px,calc(1.2dvh - 5px),6.25px);
+          padding-block:clamp(2px,calc(1.8dvh - 8px),7.5px);
+        }
+        .studio-preset-icon,.studio-preset-icon svg {
+          height:clamp(18px,calc(2.6dvh + 3px),26.25px);
+        }
+      }
+    }
+  }
 }
 @media(max-width:800px) {
   #main #sing.web-studio .studio-publish-panel :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=hidden]),select,textarea) { font-size:16px!important; }

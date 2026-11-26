@@ -161,8 +161,21 @@ export async function catalogRoute(req,env,path,user){
  if(m){
   const tid=m[1],detail=await published(env,tid);if(method!=='GET'&&detail.kind==='original')await assertArtistInteraction(env,detail.artist_id,user?.id);
   if(!m[2]&&method==='GET'){
-   const [tracks,karaoke,ai]=await Promise.all([trackList(env,`t.id=? AND ${VISIBLE()}`,[tid],'t.created DESC',1),one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid),one(env,"SELECT count(*) n FROM comments c JOIN users u ON u.id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND u.account_type='ai_bot'",tid)]);
-   return json({track:{...tracks[0],gift_block_reason:await giftBlockReason(env,user?.id,detail),ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
+   const [tracks,karaoke,ai,editorial]=await Promise.all([
+    trackList(env,`t.id=? AND ${VISIBLE()}`,[tid],'t.created DESC',1),
+    one(env,`SELECT 1 FROM tracks t WHERE t.id=? AND ${SINGABLE()}`,tid),
+    one(env,"SELECT count(*) n FROM comments c JOIN users u ON u.id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND u.account_type='ai_bot'",tid),
+    one(env,`SELECT json_extract(target,'$.before') original_description,json_extract(target,'$.after') generated_description
+      FROM admin_audit WHERE id=? AND action='track_description_editorial' AND json_valid(target)`,'public-copy-0078:'+tid)
+   ]);
+   const track=tracks[0];
+   let creatorDescription=track?.description??'';
+   // The 0078 audit records the exact replacement and the preceding creator text.
+   if(editorial?.generated_description?.replaceAll('\r\n','\n')===creatorDescription.replaceAll('\r\n','\n')){
+    creatorDescription=editorial.original_description??'';
+    if(['0000','-','없음'].includes(creatorDescription.trim()))creatorDescription='';
+   }
+   return json({track:{...track,creator_description:creatorDescription,gift_block_reason:await giftBlockReason(env,user?.id,detail),ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
   }
   if(m[2]==='covers'){
    if(method!=='GET')fail(405,AifectMessages.unsupportedRequest);

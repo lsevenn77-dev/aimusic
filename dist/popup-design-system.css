@@ -441,3 +441,93 @@ dialog .primary-button[aria-disabled="true"] {
     background:Highlight;
   }
 }
+
+.playlist-picker-panel { min-width:0; }
+.playlist-picker-panel > :not(.playlist-picker-list) { flex:none; }
+.playlist-picker-list {
+  min-height:0;
+  max-height:min(308px,42dvh);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+}
+.playlist-picker-rows {
+  list-style:none;
+  margin:0;
+  padding:0;
+}
+#dialog.compact-popup .playlist-picker-panel .playlist-picker-row {
+  position:relative;
+  display:grid;
+  grid-template-columns:30px minmax(0,1fr) auto;
+  align-items:center;
+  column-gap:8px;
+  width:100%;
+  height:44px;
+  min-height:44px;
+  margin:0;
+  padding:0 4px;
+  border:0;
+  border-radius:0;
+  color:var(--popup-text);
+  background:none;
+  text-align:left;
+}
+.playlist-picker-rows > li + li .playlist-picker-row::before {
+  content:"";
+  position:absolute;
+  inset:0 0 auto;
+  border-top:1px solid var(--popup-line);
+  pointer-events:none;
+}
+#dialog.compact-popup .playlist-picker-row[aria-disabled="false"]:hover { background:var(--popup-soft); }
+#dialog.compact-popup .playlist-picker-row[aria-disabled="true"] { cursor:default; }
+#dialog.compact-popup :is(.playlist-picker-row,.playlist-picker-new,.playlist-picker-more):focus-visible {
+  outline:1px solid var(--popup-progress);
+  outline-offset:-1px;
+}
+.playlist-picker-art {
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:30px;
+  height:30px;
+  overflow:hidden;
+  border-radius:var(--ds-radius-sm);
+  background:var(--popup-panel);
+  color:var(--popup-muted);
+}
+.playlist-picker-art > img {
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.playlist-picker-art:has(> img) > svg { visibility:hidden; }
+.playlist-picker-name {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:14px;
+}
+.playlist-picker-action {
+  display:flex;
+  color:var(--popup-muted);
+}
+.playlist-picker-row.is-added .playlist-picker-action { color:var(--popup-progress); }
+.playlist-picker-row[aria-busy="true"] .playlist-picker-action { opacity:.55; }
+#dialog.compact-popup .playlist-picker-status { margin:0; }
+#dialog.compact-popup .playlist-picker-panel > .form-error { margin:0; }
+#dialog.compact-popup .playlist-picker-panel :is(.playlist-picker-new,.playlist-picker-more) {
+  width:100%;
+  gap:6px;
+  color:var(--popup-progress);
+  background:none;
+  border:1px solid var(--popup-line);
+}
+#dialog.compact-popup .playlist-picker-panel .playlist-picker-new { height:42px;min-height:42px; }
+#dialog.compact-popup .playlist-picker-panel .playlist-picker-more { margin-top:4px; }
+@media(max-width:800px) {
+  #dialog.compact-popup:has(.playlist-picker-panel) { width:calc(100% - 40px); }
+}
