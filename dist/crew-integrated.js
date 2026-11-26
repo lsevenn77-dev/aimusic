@@ -1,17 +1,60 @@
 function crewGrowthHTML(g,c,m){
- const meter=`<strong>Lv.${g.level}</strong><p>${number(g.xp)} / ${g.next_xp===null?'MAX':number(g.next_xp)} XP</p><progress value="${g.progress}" max="1" aria-label="크루 성장 경험치"></progress><p>${g.next_xp===null?'최고 레벨 달성':number(Math.max(0,g.next_xp-g.xp))+' XP · 최대 인원 '+g.next_capacity+'명'+(g.next_available_at>Date.now()/1000?' · '+Math.ceil((g.next_available_at-Date.now()/1000)/86400)+'일 후 승급 가능':'')}</p>`;
- const missions=period=>'<section class="surface crew-mission-card"><h3>'+ (period==='day'?'오늘의 미션':'이번 주 미션')+'</h3><p>'+ (period==='day'?'매일':'월요일')+' 한국 시간 00시 갱신</p>'+g.missions.filter(x=>x.period===period).map(x=>'<div class="crew-mission"><span>'+icon(x.complete?'check':'users')+'</span><div><strong>'+esc(x.label)+'</strong><small>'+x.progress+'/'+x.target+' · '+(x.complete?'완료':'진행 중')+'</small></div><span>+'+x.xp+' XP</span></div>').join('')+'</section>';
- return '<section class="crew-growth"><h2>크루 소개</h2><p>'+esc(c.description)+'</p><div class="crew-growth-grid"><section class="surface">'+meter+'</section><section class="surface"><h3>크루 수용 인원</h3><strong>'+c.members+' / '+c.capacity+'명</strong><p>다음 레벨 정원 '+g.next_capacity+'명</p></section></div><p class="field-help">제작곡·커버·완성 듀엣 공개는 곡마다 한 번, 크루원별 하루 최대 5회 반영됩니다. 최고 레벨은 최소 184일(약 6개월)이 필요합니다. 한국 시간 자정에 한도가 초기화됩니다.</p><h2>성장 미션 달성 현황</h2><div class="crew-growth-grid">'+missions('day')+missions('week')+'</div><h2>레벨별 인원 확장</h2><div class="crew-level-steps">'+(g.levels||[]).map(l=>'<div class="surface" '+(l.level===g.level?'aria-current="step"':'')+'><strong>Lv.'+l.level+'</strong><span>'+l.capacity+'명</span><small>'+number(l.xp)+' XP · 최소 '+l.min_days+'일</small></div>').join('')+'</div>'+(m?'<button class="small-button" data-leave-crew="'+esc(c.id)+'" '+(m.role==='owner'?'disabled title="크루장을 위임한 후 탈퇴할 수 있습니다."':'')+'>크루 탈퇴</button>':'')+'</section>';
+ const nextDay=Math.ceil((g.next_available_at-Date.now()/1000)/86400);
+ const next=g.next_xp==null?'':'<p>다음 레벨 정원 '+number(g.next_capacity)+'명'+(nextDay>0?' · '+nextDay+'일 후 승급 가능':'')+'</p>';
+ const missions=period=>'<section class="crew-mission-card"><h3>'+ (period==='day'?'오늘의 미션':'이번 주 미션')+'</h3><p>'+ (period==='day'?'매일':'월요일')+' 한국 시간 00시 갱신</p>'+g.missions.filter(x=>x.period===period).map(x=>'<div class="crew-mission"><span>'+icon(x.complete?'check':'users')+'</span><div><strong>'+esc(x.label)+'</strong><small>'+x.progress+'/'+x.target+' · '+(x.complete?'완료':'진행 중')+'</small></div><span>+'+x.xp+' XP</span></div>').join('')+'</section>';
+ return '<details class="crew-growth"><summary>성장 미션과 레벨별 정원</summary>'+next+
+  '<p class="field-help">제작곡·커버·완성 듀엣 공개는 곡마다 한 번, 크루원별 하루 최대 5회 반영됩니다. 최고 레벨은 최소 184일(약 6개월)이 필요합니다. 한국 시간 자정에 한도가 초기화됩니다.</p>'+
+  '<div class="crew-growth-grid">'+missions('day')+missions('week')+'</div><h3>레벨별 인원 확장</h3><div class="crew-level-steps">'+
+  (g.levels||[]).map(l=>'<div '+(l.level===g.level?'aria-current="step"':'')+'><strong>Lv.'+l.level+'</strong><span>'+l.capacity+'명</span><small>'+number(l.xp)+' XP · 최소 '+l.min_days+'일</small></div>').join('')+
+  '</div></details>'+(m?'<button type="button" class="small-button crew-leave" data-leave-crew="'+esc(c.id)+'" '+
+  (m.role==='owner'?'disabled title="크루장을 위임한 후 탈퇴할 수 있습니다."':'')+'>크루 탈퇴</button>':'');
 }
-function crewNoticeFeed(items,cid,canManage){return '<div class="section-heading"><h2>크루 공지</h2></div>'+(canManage?'<button class="primary-button" data-notice-new="'+esc(cid)+'">공지 등록</button>':'')+(items.length?items.map(n=>'<article class="surface crew-notice"><header><h3>'+(n.is_pinned?'<span class="crew-pin">중요</span> ':'')+esc(n.title)+'</h3><small>'+userNickname(n.author_name||'크루 운영진',{profileId:n.author_profile_id,userId:n.author_id})+' · '+new Date(n.created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+'</small></header><p>'+esc(n.body)+'</p><div class="crew-notice-images">'+n.images.map(i=>'<button data-gallery-photo="'+esc(i.url)+'" data-photo-label="공지 이미지"><img src="'+esc(i.url)+'" alt="공지 첨부 이미지"></button>').join('')+'</div>'+(canManage?'<div class="inline-actions"><button class="small-button" data-notice-edit="'+esc(n.id)+'">수정</button><button class="text-link" data-notice-delete="'+esc(n.id)+'">삭제</button></div>':'')+'</article>').join(''):myEmpty('등록된 공지가 없습니다.'));}
-async function bindCrewIntegrated(){
- bindCrewGameMenu();
- const active=document.querySelector('.crew-room-tabs .active');
- if(active?.parentElement){const nav=active.parentElement;nav.scrollLeft+=Math.max(0,active.getBoundingClientRect().right-nav.getBoundingClientRect().right);}
- const root=$('[data-crew-notices]');if(!root)return;try{const cid=root.dataset.crewNotices,d=await api('/api/crews/'+cid+'/notices','GET',undefined,{fresh:true});if(!root.isConnected)return;root.innerHTML=crewNoticeFeed(d.items,cid,d.can_manage);root.onclick=async e=>{const b=e.target.closest('[data-notice-new],[data-notice-edit],[data-notice-delete]');if(!b)return;const n=d.items.find(n=>n.id===(b.dataset.noticeEdit||b.dataset.noticeDelete));if(b.dataset.noticeDelete){if(!confirm('이 공지를 삭제할까요?'))return;try{await api('/api/crews/'+cid+'/notices/'+n.id,'DELETE');await bindCrewIntegrated();}catch(err){toast(err.message);}return;}crewNoticeEditor(cid,n);};}catch(e){root.textContent=e.message;}}
-function crewNoticeEditor(cid,n){
+function crewNoticeFeed(items,canManage){
+ return '<header class="crew-section-heading"><h2>크루 공지</h2>'+
+  (canManage?'<button type="button" class="small-button" data-notice-new>공지 등록</button>':'')+'</header>'+
+  (items.length?items.map(n=>{
+   const date=new Date(n.created*1000),author=userNickname(n.author_name||'크루 운영진',{profileId:n.author_profile_id,userId:n.author_id});
+   return '<article class="crew-notice"><header><h3>'+(n.is_pinned?'<span class="crew-pin">고정</span> ':'')+esc(n.title)+'</h3><small>'+
+    author+' · <time datetime="'+date.toISOString()+'">'+date.toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})+'</time></small></header>'+
+    '<p>'+esc(n.body)+'</p><div class="crew-notice-images">'+n.images.map(i=>'<button type="button" data-gallery-photo="'+esc(i.url)+
+    '" data-photo-label="공지 이미지"><img src="'+esc(i.url)+'" alt="공지 첨부 이미지" loading="lazy"></button>').join('')+'</div>'+
+    (canManage?'<div class="inline-actions"><button type="button" class="text-link" data-notice-edit="'+esc(n.id)+
+     '">수정</button><button type="button" class="text-link" data-notice-delete="'+esc(n.id)+'">삭제</button></div>':'')+'</article>';
+  }).join(''):'<p class="crew-empty">등록된 공지가 없습니다.</p>');
+}
+function mountCrewNotices(root,cid,signal){
+ const path='/api/crews/'+encodeURIComponent(cid)+'/notices';
+ let data,loading=false;
+ async function load(){
+  if(loading||signal.aborted)return;
+  loading=true;
+  root.setAttribute('aria-busy','true');
+  try{
+   data=await api(path,'GET',undefined,{fresh:true,signal});
+   if(root.isConnected&&!signal.aborted)root.innerHTML=crewNoticeFeed(data.items,data.can_manage);
+  }catch(e){
+   if(root.isConnected&&!signal.aborted)root.innerHTML='<h2>크루 공지</h2><p class="crew-empty" role="alert">'+esc(e.message)+
+    '</p><button type="button" class="small-button" data-notice-retry>다시 시도</button>';
+  }finally{loading=false;root.removeAttribute('aria-busy');}
+ }
+ root.onclick=async event=>{
+  const button=event.target.closest('[data-notice-new],[data-notice-edit],[data-notice-delete],[data-notice-retry]');
+  if(!button||loading)return;
+  if(button.hasAttribute('data-notice-retry'))return load();
+  if(!data?.can_manage)return;
+  const n=data.items.find(n=>n.id===(button.dataset.noticeEdit||button.dataset.noticeDelete));
+  if(!button.hasAttribute('data-notice-delete'))return crewNoticeEditor(cid,n,load);
+  if(!n||!confirm('이 공지를 삭제할까요?'))return;
+  button.disabled=true;
+  try{await api(path+'/'+encodeURIComponent(n.id),'DELETE');await load();}
+  catch(e){toast(e.message);button.disabled=false;}
+ };
+ root.innerHTML='<p class="crew-empty" role="status">공지를 불러오는 중…</p>';
+ void load();
+}
+function crewNoticeEditor(cid,n,refresh){
  const ids=(n?.images||[]).map(i=>i.id);dialog('<h2>'+(n?'공지 수정':'공지 등록')+'</h2><form id="crew-notice-form" class="upload-form"><label class="form-field">제목<input name="title" maxlength="80" required value="'+esc(n?.title||'')+'"></label><label class="form-field">내용<textarea name="body" maxlength="2000" required>'+esc(n?.body||'')+'</textarea></label><label class="checkbox-line"><input type="checkbox" name="is_pinned" '+(n?.is_pinned?'checked':'')+'>중요 공지 (최대 2개)</label><div id="notice-existing">'+(n?.images||[]).map(i=>'<label class="checkbox-line"><input name="keep" type="checkbox" value="'+esc(i.id)+'" checked><img width="50" height="50" src="'+esc(i.url)+'" alt="첨부 사진">유지</label>').join('')+'</div><label class="form-field">이미지 추가 (총 4장 이하)<input type="file" name="photos" multiple accept="image/jpeg,image/png,image/webp"></label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>');
- const f=$('#crew-notice-form');const uploaded=new Map();f.onsubmit=busyForm(f,async fd=>{const images=fd.getAll('keep').filter(x=>ids.includes(x)),files=fd.getAll('photos').filter(f=>f.size);if(images.length+files.length>4)throw Error('이미지는 최대 4장까지 첨부해 주세요.');for(const file of files){if(!uploaded.has(file)){const result=await uploadFile('/api/crews/'+cid+'/notice-images',file);uploaded.set(file,result.id);}images.push(uploaded.get(file));}await api('/api/crews/'+cid+'/notices'+(n?'/'+n.id:''),n?'PATCH':'POST',{title:fd.get('title'),body:fd.get('body'),is_pinned:fd.get('is_pinned')==='on',images});$('#dialog').close();await bindCrewIntegrated();});
+ const f=$('#crew-notice-form');const uploaded=new Map();f.onsubmit=busyForm(f,async fd=>{const images=fd.getAll('keep').filter(x=>ids.includes(x)),files=fd.getAll('photos').filter(f=>f.size);if(images.length+files.length>4)throw Error('이미지는 최대 4장까지 첨부해 주세요.');for(const file of files){if(!uploaded.has(file)){const result=await uploadFile('/api/crews/'+encodeURIComponent(cid)+'/notice-images',file);uploaded.set(file,result.id);}images.push(uploaded.get(file));}await api('/api/crews/'+encodeURIComponent(cid)+'/notices'+(n?'/'+encodeURIComponent(n.id):''),n?'PATCH':'POST',{title:fd.get('title'),body:fd.get('body'),is_pinned:fd.get('is_pinned')==='on',images});if(f.isConnected)$('#dialog').close();await refresh();});
 }
 
 document.addEventListener('click',event=>{if(event.target.closest('[data-focus-crew-search]'))document.querySelector('#crew-search input')?.focus();});

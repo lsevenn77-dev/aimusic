@@ -68,7 +68,7 @@ function bindRenderedRoute(base,param,explorer,ticket){
  if(explorer?.songEntry)bindSongEntry(explorer.songEntry);
  if(base==='song'){bindSongCoverList();if(typeof bindSongDescription==='function')bindSongDescription();}
  if(typeof bindMyPage==='function')bindMyPage(explorer);
- if(typeof bindCrewIntegrated==='function')void bindCrewIntegrated();
+ if(explorer?.crewDetail)bindCrewGameMenu(explorer.crewDetail.membership?.game_catalog);
  if(typeof bindProfileManagement==='function')bindProfileManagement(explorer);
  if(typeof bindVoice==='function')bindVoice(explorer?.playVoice?'voice':base,param);
  if(typeof bindUnifiedSearch==='function')bindUnifiedSearch(explorer);
@@ -101,6 +101,9 @@ async function renderNavigation(event){
  if(typeof sing!=='undefined'&&sing&&await retainSingRoute(sing))return;
  if(typeof retainRoomRoute==='function'&&retainRoomRoute(location.hash.slice(1)))return;
  const raw=location.hash.slice(1)||'home';
+ if(event?.type==='hashchange'&&typeof refreshCrewInternalTab==='function'&&refreshCrewInternalTab(raw)){
+  window.AifectRender?.syncTarget();return;
+ }
  // Follow tabs are state changes inside one mounted page. Native hashchange
  // also covers back/forward; no synthetic popstate or duplicate render is needed.
  if(typeof refreshFollowRoute==='function'&&refreshFollowRoute(raw)){

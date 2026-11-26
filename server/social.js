@@ -8,7 +8,11 @@ import {crewGameCatalog} from './crew-game-catalog.js';
 import {profileCoverParticipation,dubRecruitingSQL,finished as dubFinishedSQL,dubAudioReadySQL} from './profile-works.js';
 import {syncCrewGrowth,crewGrowthSnapshot,crewMissionQuery,crewCapacitySQL} from './crew-growth.js';
 import {CREW_ROLE_LIMITS,CREW_ROLE_ALIAS,crewSettings,assertCrewLevel,auditCrew} from './crew-v3.js';
-import {dubbingVisibleSQL} from './dubbing-access.js';
+import {dubbingCreatorRestrictedSQL,dubbingVisibleSQL} from './dubbing-access.js';
+import {CASTING_TTL,castingUnblockedSQL} from './dubbing-casting.js';
+import {dubbingPlayCountSQL} from './dubbing-plays.js';
+import {recordingEnabled} from './dubbing-recording.js';
+import {comparePublicWorks,dubbingLikesSQL,dubbingPublishedAtSQL} from './play.js';
 import {playerColumnsSQL} from './player.js';
 import {assertUnblocked} from './account-safety.js';
 import {one,rows,query,run,now,id,str,fail,json,rate,rateQuery} from './db.js';
@@ -78,7 +82,30 @@ async function crewHistory(env,cid,url,membership){
  const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
  return json({messages,has_more,membership,member_roles,roles:CREW_ROLES,crew:{id:cid,name:membership.crew_name,image_version:membership.crew_image_version}});
 }
-async function crewDetail(env,cid,user){
+function crewDubbingQuery(env,cid,uid,webWorks){
+ const webFields=webWorks?`,
+  (SELECT id FROM producers WHERE user_id=p.owner_id) owner_profile_id,${dubbingLikesSQL} likes,${dubbingPlayCountSQL()} plays,
+  ${dubbingPublishedAtSQL} published_at,(${dubFinishedSQL}) work_finished,
+  (${castingUnblockedSQL('p','?1')} AND NOT ${dubbingCreatorRestrictedSQL('?1')}
+   AND (p.root_id IS NULL OR (EXISTS(SELECT 1 FROM dubbing_combinations combo
+    WHERE combo.project_id=p.id AND combo.root_id=p.root_id AND combo.expired_at=0 AND combo.last_participation>unixepoch()-${CASTING_TTL})
+    AND EXISTS(SELECT 1 FROM dubbing_projects root WHERE root.id=p.root_id AND root.visibility='public'
+     AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=?1 AND b.blocked_id=root.owner_id) OR (b.blocked_id=?1 AND b.user_id=root.owner_id))
+     AND ${castingUnblockedSQL('root','?1')})
+    AND NOT EXISTS(SELECT 1 FROM dubbing_recordings vr WHERE vr.project_id=p.id AND vr.user_id=?1)))) casting_available`:'';
+ return query(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.root_id,p.owner_id,p.title,p.updated,p.created,p.state,p.visibility,
+  ${dubAudioReadySQL} audio_ready,'dubbing' kind,${publicNameSQL('du')} owner_name,
+  EXISTS(SELECT 1 FROM dubbing_role_claims vc WHERE vc.project_id=p.id AND vc.user_id=?1) viewer_claimed,
+  (${dubRecruitingSQL()}) recruiting${webFields}
+  FROM dubbing_projects p JOIN users du ON du.id=p.owner_id
+  WHERE du.provider!='deleted' AND p.visibility='public' AND ${dubbingVisibleSQL()}
+  AND ((${dubFinishedSQL}) OR (${dubRecruitingSQL()}))
+  AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=?1 AND b.blocked_id=p.owner_id) OR (b.blocked_id=?1 AND b.user_id=p.owner_id))
+  AND (p.owner_id IN (SELECT user_id FROM crew_members WHERE crew_id=?2)
+   OR EXISTS(SELECT 1 FROM dubbing_role_claims dc JOIN crew_members cm ON cm.user_id=dc.user_id WHERE dc.project_id=p.id AND cm.crew_id=?2))
+  ORDER BY p.updated DESC`,uid,cid);
+}
+async function crewDetail(env,cid,user,webWorks=false){
  await syncCrewGrowth(env,cid);
  // One DB round trip after XP synchronization: read the entire live snapshot.
  // Do not cache membership, bans, or viewer-filtered music between requests.
@@ -86,11 +113,22 @@ async function crewDetail(env,cid,user){
  query(env,`${crewSelect} WHERE c.id=?`,cid),
  query(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user?.id||''),
  query(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,m.role,${producerNameSQL()} profile_name,(SELECT count(*) FROM follows f WHERE kind='producer' AND target_id=p.id) followers FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined,m.rowid LIMIT 150`,cid),
- trackListQuery(env,`${VISIBLE()} AND (t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR (t.duet_parent_id IS NOT NULL AND dt.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)) OR EXISTS(SELECT 1 FROM tracks child JOIN crew_members cm ON cm.user_id=child.user_id WHERE child.duet_parent_id=t.id AND cm.crew_id=? AND ${VISIBLE('child')} AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=child.user_id) OR (b.blocked_id=? AND b.user_id=child.user_id))))`,[cid,cid,cid,user?.id||'',user?.id||''],'t.created DESC',-1),
- query(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user?.id||''),query(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.root_id,p.owner_id,p.title,p.updated,p.created,p.state,p.visibility,${dubAudioReadySQL} audio_ready,'dubbing' kind,(SELECT name FROM producers WHERE user_id=p.owner_id) owner_name,EXISTS(SELECT 1 FROM dubbing_role_claims vc WHERE vc.project_id=p.id AND vc.user_id=?) viewer_claimed,(${dubRecruitingSQL()}) recruiting FROM dubbing_projects p JOIN users du ON du.id=p.owner_id WHERE du.provider!='deleted' AND p.visibility='public' AND ${dubbingVisibleSQL()} AND ((${dubFinishedSQL}) OR (${dubRecruitingSQL()})) AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id)) AND (p.owner_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR EXISTS(SELECT 1 FROM dubbing_role_claims dc JOIN crew_members cm ON cm.user_id=dc.user_id WHERE dc.project_id=p.id AND cm.crew_id=?)) ORDER BY p.updated DESC`,user?.id||'',user?.id||'',user?.id||'',cid,cid),crewMissionQuery(env,cid),query(env,'SELECT 1 FROM crew_members WHERE user_id=? LIMIT 1',user?.id||'')]);
+ trackListQuery(env,`${VISIBLE()} AND (t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR (t.duet_parent_id IS NOT NULL AND dt.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)) OR EXISTS(SELECT 1 FROM tracks child JOIN crew_members cm ON cm.user_id=child.user_id WHERE child.duet_parent_id=t.id AND cm.crew_id=? AND ${VISIBLE('child')} AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=child.user_id) OR (b.blocked_id=? AND b.user_id=child.user_id))))`,[cid,cid,cid,user?.id||'',user?.id||''],'t.created DESC',-1,false,webWorks),
+ query(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user?.id||''),
+ crewDubbingQuery(env,cid,user?.id||'',webWorks),
+ crewMissionQuery(env,cid),query(env,'SELECT 1 FROM crew_members WHERE user_id=? LIMIT 1',user?.id||'')]);
  const c=result[0].results[0],membership=result[1].results[0]||null,members=result[2].results,tracks=result[3].results.map(trackClassification),ban=result[4].results[0];
  if(!c)fail(404,'크루를 찾을 수 없습니다.');if(c.join_policy==='invite_only'&&!membership)fail(403,'크루 회원만 볼 수 있습니다.');const banned=!!ban;
- const dubbings=result[5].results.map(p=>({...p,can_join:!!user&&!!p.recruiting&&!p.viewer_claimed}));await profileCoverParticipation(env,tracks,user);
+ const canRecord=webWorks&&env.DUBBING_ENABLED==='true'&&recordingEnabled(env);
+ const dubbings=result[5].results.map(({casting_available,...p})=>({...p,
+  can_join:!!user&&!!p.recruiting&&!p.viewer_claimed&&(!webWorks||canRecord&&p.owner_id!==user.id&&!!casting_available)
+ }));
+ await profileCoverParticipation(env,tracks,user);
+ if(webWorks){
+  const ordered=[...tracks,...dubbings].map(work=>({work,id:work.id,likes:work.likes,plays:work.plays,publishedAt:work.published_at}));
+  ordered.sort((a,b)=>comparePublicWorks(a,b,true));
+  ordered.forEach(({work},rank)=>{work.popular_rank=rank;});
+ }
  const otherCrew=!membership&&user?result[7].results[0]:null;
  return {other_crew:!!otherCrew,growth:crewGrowthSnapshot(c,result[6].results),dubbings,crew:present(c),membership:membership?{...membership,fishing_preview:true,game_catalog:await crewGameCatalog(env,cid),canonical_role:CREW_ROLE_ALIAS[membership.role]}:null,members:members.map(m=>({...m,canonical_role:CREW_ROLE_ALIAS[m.role]})),tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
 }
@@ -103,7 +141,7 @@ export async function socialRoute(req,env,path,user){
  if(path==='/api/crews'){
   if(method==='GET'){
    const mine=user?await one(env,'SELECT m.crew_id,c.name FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.user_id=?',user.id):null;
-   if(mine&&url.searchParams.get('home')==='1')return json({mine:mine.crew_id,detail:await crewDetail(env,mine.crew_id,user)});
+   if(mine&&url.searchParams.get('home')==='1')return json({mine:mine.crew_id,detail:await crewDetail(env,mine.crew_id,user,url.searchParams.get('web')==='1')});
    if(url.searchParams.get('directory')==='1'){
     const result=await findCrews(env,url.searchParams,crewSelect,present);
     const rankings=url.searchParams.get('summary')==='1'?await rows(env,`${crewSelect} ORDER BY xp DESC,c.created ASC,c.id ASC LIMIT 5`):null;
@@ -157,7 +195,7 @@ export async function socialRoute(req,env,path,user){
  m=path.match(/^\/api\/crews\/([\w-]+)(?:\/(join|leave|messages))?$/);
  if(m){
   const cid=m[1],action=m[2];
-  if(!action&&method==='GET')return json(await crewDetail(env,cid,user));
+  if(!action&&method==='GET')return json(await crewDetail(env,cid,user,url.searchParams.get('web')==='1'));
   if(action==='messages'&&method==='GET')return crewHistory(env,cid,url,await member(env,cid,user));
   const c=await one(env,'SELECT * FROM crews WHERE id=?',cid);if(!c)fail(404,'크루를 찾을 수 없습니다.');
   requireUser(user);

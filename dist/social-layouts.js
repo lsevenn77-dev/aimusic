@@ -14,25 +14,22 @@ function canManageCrew(membership){
 }
 function crewHeroHTML(c,m){
  const frame=c.level>=10?4:c.level>=8?3:c.level>=5?2:c.level>=3?1:0;
- const levelTag=c.level>=7?'<span class="crew-max-badge">'+(c.level===10?'최고 레벨 크루':'함께 성장하는 크루')+'</span>':'';
  const settings=canManageCrew(m)?`<div class="crew-settings-anchor"><button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="menu" aria-expanded="false" aria-controls="crew-settings-menu" title="크루 설정">${icon('settings',22)}</button><div id="crew-settings-menu" class="fan-settings-menu" role="menu" aria-label="크루 관리" hidden></div></div>`:'';
- const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}" data-banner-ends="${Number(m.game_catalog?.banner_ends_at)||0}" data-week-ends="${Number(m.game_catalog?.ends_at)||0}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
- const next=c.next_xp==null?'최고 레벨':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
+ const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
+ const next=c.next_xp==null?'최고 레벨 달성':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
  const name=usesCrewNameBadges()?crewNameWithBadgeHTML(c):crewNameHTML(c);
+ const activities=crewActivities(c);
  return `<header class="crew-detail-header crew-frame-${frame}">
    <div class="crew-detail-top">
-    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy"><h1 title="${esc(c.name)}">${name}</h1><span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span> ${levelTag}</div>${settings}</div>
-    ${game}
+    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy">
+    <h1 title="${esc(c.name)}">${name}<small class="crew-level">Lv.${number(c.level)}</small></h1>
+    <span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span>
+    ${activities.length?'<ul class="crew-activities" aria-label="활동 방향">'+activities.map(tag=>'<li>'+esc(tag)+'</li>').join('')+'</ul>':''}
+    </div></div>${settings}${game}
    </div>
-   <div class="crew-detail-xp"><div><span><strong>Lv.${number(c.level)}</strong> ${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div><progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>
+   <div class="crew-detail-xp"><div><span>${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div>
+   <progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>
  </header>`;
-}
-function crewMemberProfile(p){
- const name=p.profile_name||p.name,role=crewRoleLabels[p.role==='operator'?'manager':p.role];
- return `<a class="crew-member-profile" href="#producer/${esc(p.id)}" title="${esc(name)}">
-   <span class="crew-member-face player-avatar avatar-frame-host">${avatarImage(p,'producer',false)}${playerBadgeHTML(p)}</span>
-   <strong${premiumNameAttribute(p.id,p.user_id)}>${esc(name)}</strong>${p.role!=='member'&&role?`<small>${esc(role)}</small>`:''}
- </a>`;
 }
 function crewMusicRows(tracks){return tracks.length?songTable(tracks):'<p class="social-empty">조건에 맞는 음악이 없습니다. 검색어나 필터를 바꿔 보세요.</p>';}
 function crewHomeLayout(d,intro){
@@ -87,20 +84,43 @@ function crewGameMenuHTML(catalog,now=Date.now()){
   <svg viewBox="${crop.view}" aria-hidden="true" focusable="false"><defs><clipPath id="${clipId}"><path d="${crop.outline}"/></clipPath></defs>
    <image href="${esc(game.banner_art)}" width="1086" height="362" clip-path="url(#${clipId})"/></svg></a>`;
 }
-function bindCrewGameMenu(){
+function bindCrewGameMenu(initialCatalog){
  const root=document.querySelector('[data-crew-games]');
  if(!root||root.dataset.bound)return;
  root.dataset.bound='1';
  const account=me?.id;
- let alive=true,busy=false,boundary,lastMarkup;
- let close=Number(root.dataset.bannerEnds)*1000,weekEnd=Number(root.dataset.weekEnds)*1000;
+ const crew=root.dataset.crewGames,controller=new AbortController();
+ let alive=true,busy=false,boundary,catalog=initialCatalog,lastMarkup=crewGameMenuHTML(initialCatalog);
+ let rankingWeek=null,rankingCheck=0,rankingPending=false;
+ const current=()=>alive&&root.isConnected&&account===me?.id;
  function expire(){
-  if(close && Date.now()>=close && root.firstChild){root.replaceChildren();lastMarkup='';}
+  if(catalog?.banner_ends_at&&Date.now()>=catalog.banner_ends_at*1000&&root.firstChild){
+   root.replaceChildren();lastMarkup='';rankingWeek=null;
+  }
  }
  function schedule(){
   clearTimeout(boundary);
-  const now=Date.now(),next=close>now?close:weekEnd;
+  const now=Date.now(),close=(catalog?.banner_ends_at||0)*1000,weekEnd=(catalog?.ends_at||0)*1000,next=close>now?close:weekEnd;
   if(next>now)boundary=setTimeout(refresh,next-now);
+ }
+ async function loadRacingSummary(){
+  if(catalog?.active_game_id!=='racing'||!root.querySelector('.crew-game-entry')||document.hidden||rankingPending)return;
+  const week=catalog.week;
+  if(rankingWeek===week&&Date.now()-rankingCheck<120000)return;
+  rankingPending=true;
+  try{
+   const data=await api('/api/crew-racing/lobby','GET',undefined,{fresh:true,signal:controller.signal});
+   if(!current()||catalog.week!==week||catalog.active_game_id!=='racing'||!root.querySelector('.crew-game-entry'))return;
+   rankingWeek=week;rankingCheck=Date.now();
+   root.querySelector('.crew-game-summary')?.remove();
+   const standing=data.week===week&&data.crew===crew&&data.ranking?.find(row=>row.crew_id===crew);
+   if(standing&&[standing.place,standing.members,standing.points].every(Number.isFinite)&&standing.members>0){
+    root.insertAdjacentHTML('beforeend',`<p class="crew-game-summary" title="이번 주 멤버별 최고 점수 상위 10명 집계">
+    <span>주간 ${number(standing.place)}위</span><span>참여 ${number(standing.members)}명</span><span>누적 ${number(standing.points)}점</span></p>`);
+   }
+  }catch(error){
+   if(current()&&[401,403].includes(error.status))root.querySelector('.crew-game-summary')?.remove();
+  }finally{rankingPending=false;}
  }
  async function refresh(){
   if(!alive)return;
@@ -108,17 +128,18 @@ function bindCrewGameMenu(){
   if(busy||document.hidden)return;
   busy=true;
   try{
-   const data=await api('/api/crews/'+encodeURIComponent(root.dataset.crewGames)+'/games','GET',undefined,{fresh:true});
-   if(!alive||!root.isConnected||account!==me?.id)return;
-   close=data.banner_ends_at*1000;weekEnd=data.ends_at*1000;
+   const data=await api('/api/crews/'+encodeURIComponent(crew)+'/games','GET',undefined,{fresh:true,signal:controller.signal});
+   if(!current())return;
+   catalog=data;
    const markup=crewGameMenuHTML(data);
-   if(markup!==lastMarkup){root.innerHTML=markup;lastMarkup=markup;}
+   if(markup!==lastMarkup){root.innerHTML=markup;lastMarkup=markup;rankingWeek=null;}
+   void loadRacingSummary();
   }catch(e){
    if(alive&&[401,403].includes(e.status)){root.replaceChildren();lastMarkup='';}
   }finally{busy=false;if(alive)schedule();}
  }
  const timer=setInterval(refresh,30000);
  document.addEventListener('visibilitychange',refresh);
- registerRouteCleanup(()=>{alive=false;clearInterval(timer);clearTimeout(boundary);document.removeEventListener('visibilitychange',refresh);});
- schedule();void refresh();
+ registerRouteCleanup(()=>{alive=false;controller.abort();clearInterval(timer);clearTimeout(boundary);document.removeEventListener('visibilitychange',refresh);});
+ schedule();void loadRacingSummary();
 }

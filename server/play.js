@@ -9,9 +9,12 @@ import {publicNameSQL,producerLookupNameSQL} from './identity.js';
 
 const unblocked=`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))`;
 const finished=`p.state='complete' AND (EXISTS(SELECT 1 FROM dubbing_combinations c WHERE c.project_id=p.id AND c.expired_at=0) OR EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.output_key!=''))`;
-const publishedAt=`COALESCE((SELECT MAX(j.updated) FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready'),p.updated)`;
-const likes=`(SELECT COUNT(*) FROM likes l WHERE l.dubbing_id=p.id)`;
+export const dubbingPublishedAtSQL=`COALESCE((SELECT MAX(j.updated) FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready'),p.updated)`;
+export const dubbingLikesSQL=`(SELECT COUNT(*) FROM likes l WHERE l.dubbing_id=p.id)`;
 const count=`(SELECT COUNT(*) FROM dubbing_role_claims c WHERE c.project_id=p.id)`;
+export function comparePublicWorks(a,b,popular=false){
+ return (popular?b.likes-a.likes||Number(b.plays||0)-Number(a.plays||0):0)||b.publishedAt-a.publishedAt||a.id.localeCompare(b.id);
+}
 
 async function dubbings(env,user,{tab='latest',type='all',offset=0,limit=25,q=''}={}){
  if(env.DUBBING_ENABLED!=='true'||!['all','dubbing'].includes(type))return [];
@@ -28,9 +31,9 @@ async function dubbings(env,user,{tab='latest',type='all',offset=0,limit=25,q=''
   args.push(uid);
  }
  if(q){where+=' AND (p.title LIKE ? OR '+publicNameSQL('u')+' LIKE ?)';args.push('%'+q+'%','%'+q+'%');}
- const sort=tab==='popular'?`${likes} DESC,${publishedAt} DESC`:tab==='join'?'p.created DESC':`${publishedAt} DESC`;
- return rows(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.owner_id ownerId,p.title,'dubbing' type,p.state,p.visibility,p.duration,p.created,${publishedAt} publishedAt,
-  ${publicNameSQL('u')} ownerName,p.options_json,p.role_count roleCount,${count} participants,${likes} likes,
+ const sort=tab==='popular'?`${dubbingLikesSQL} DESC,${dubbingPublishedAtSQL} DESC`:tab==='join'?'p.created DESC':`${dubbingPublishedAtSQL} DESC`;
+ return rows(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.owner_id ownerId,p.title,'dubbing' type,p.state,p.visibility,p.duration,p.created,${dubbingPublishedAtSQL} publishedAt,
+  ${publicNameSQL('u')} ownerName,p.options_json,p.role_count roleCount,${count} participants,${dubbingLikesSQL} likes,
   (SELECT id FROM producers WHERE user_id=p.owner_id LIMIT 1) producer_id
   FROM dubbing_projects p JOIN users u ON u.id=p.owner_id
   WHERE u.provider!='deleted' AND ${dubbingVisibleSQL()} AND ${unblocked} AND ${where}
@@ -84,6 +87,6 @@ export async function playRoute(req,env,path,user){
   dubbings(env,user,{tab,type,limit:offset+26,q})
  ]);
  const works=[...tracks.map(t=>({...t,type:t.cover_mode,publishedAt:t.created})),...projects.map(p=>({...p,genres:JSON.parse(p.options_json).genres,options_json:undefined}))];
- works.sort((a,b)=>(tab==='popular'?b.likes-a.likes||Number(b.plays||0)-Number(a.plays||0):0)||b.publishedAt-a.publishedAt||a.id.localeCompare(b.id));
+ works.sort((a,b)=>comparePublicWorks(a,b,tab==='popular'));
  return json({works:works.slice(offset,offset+25),nextOffset:works.length>offset+25?offset+25:null,dubbingAvailable:env.DUBBING_ENABLED==='true'});
 }

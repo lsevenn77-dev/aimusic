@@ -48,12 +48,20 @@ function shareSongByMessage(trackId){
  if(!me)return askLogin();
  const track=trackMap.get(trackId);
  if(!track)return toast('공유할 곡을 찾을 수 없습니다.');
- dialog(`<section class="profile-share-panel song-share-panel"><h2>곡 공유</h2>${songShareTrackHTML(track)}
-  <form id="song-share-form"><label class="brand-search profile-share-search">${icon('search')}<input type="search" name="q" aria-label="닉네임 검색" placeholder="닉네임 검색" maxlength="100" autocomplete="off" enterkeyhint="search"></label>
+ openMessageRecipientDialog({
+  heading:'곡 공유',formId:'song-share-form',content:songShareTrackHTML(track),
+  send:(recipient,requestId)=>api('/api/dm/'+encodeURIComponent(recipient),'POST',{track_id:trackId,request_id:requestId}),
+  onSent:()=>{toast('곡을 보냈습니다.');window.dispatchEvent(new Event('aifect:inbox-refresh'));}
+ });
+}
+function openMessageRecipientDialog({heading,formId,content='',sendLabel='보내기',filter=()=>true,send,onSent}){
+ if(!me)return askLogin();
+ dialog(`<section class="profile-share-panel song-share-panel"><h2>${esc(heading)}</h2>${content}
+  <form id="${esc(formId)}"><label class="brand-search profile-share-search">${icon('search')}<input type="search" name="q" aria-label="닉네임 검색" placeholder="닉네임 검색" maxlength="100" autocomplete="off" enterkeyhint="search"></label>
   <fieldset class="profile-share-people"><legend class="sr-only">받는 사람</legend><div data-song-share-people></div></fieldset>
   <p class="profile-share-result" role="status"></p><p class="form-error" role="alert"></p>
-  <div class="profile-share-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="button" class="primary-button" data-send-song disabled>보내기</button></div></form></section>`);
- const modal=$('#dialog'),form=$('#song-share-form'),input=form.elements.q,people=form.querySelector('fieldset'),list=form.querySelector('[data-song-share-people]'),button=form.querySelector('[data-send-song]'),status=form.querySelector('[role=status]'),error=form.querySelector('.form-error'),uid=me.id;
+  <div class="profile-share-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="button" class="primary-button" data-send-song disabled>${esc(sendLabel)}</button></div></form></section>`);
+ const modal=$('#dialog'),form=document.getElementById(formId),input=form.elements.q,people=form.querySelector('fieldset'),list=form.querySelector('[data-song-share-people]'),button=form.querySelector('[data-send-song]'),status=form.querySelector('[role=status]'),error=form.querySelector('.form-error'),uid=me.id;
  const requests=new Map();
  let timer,controller,sending=false;
  const active=()=>modal.open&&form.isConnected&&uid===me?.id;
@@ -65,8 +73,9 @@ function shareSongByMessage(trackId){
   const query=input.value.trim(),request=controller=new AbortController();
   status.textContent=query?'검색 중…':'받는 사람을 불러오는 중…';
   try{
-   const {members}=await api('/api/dm/recipients/search?'+new URLSearchParams({suggested:1,q:query}),'GET',undefined,{signal:request.signal,fresh:true});
+   const result=await api('/api/dm/recipients/search?'+new URLSearchParams({suggested:1,q:query}),'GET',undefined,{signal:request.signal,fresh:true});
    if(!active()||request.signal.aborted)return;
+   const members=result.members.filter(filter);
    list.innerHTML=members.map(person=>`<label class="profile-share-person"><input type="radio" name="recipient" value="${esc(person.id)}">${avatarImage({...person,name:person.nickname},'producer',false,false)}<span${premiumNameAttribute(person.id,person.user_id)}>${esc(person.nickname)}<small>${esc(person.public_id)}</small></span></label>`).join('');
    status.textContent=members.length?'':query?AifectMessages.searchEmpty:'닉네임을 검색해 받는 사람을 찾을 수 있습니다.';
   }catch(err){if(active()&&!request.signal.aborted)status.textContent='받는 사람을 불러오지 못했습니다. 다시 검색해 주세요.';}
@@ -86,9 +95,9 @@ function shareSongByMessage(trackId){
   if(!requests.has(recipient))requests.set(recipient,crypto.randomUUID());
   sending=true;input.disabled=true;people.disabled=true;button.setAttribute('aria-busy','true');error.textContent='';update();
   try{
-   await api('/api/dm/'+encodeURIComponent(recipient),'POST',{track_id:trackId,request_id:requests.get(recipient)});
-   if(active())modal.close();
-   if(uid===me?.id){toast('곡을 보냈습니다.');window.dispatchEvent(new Event('aifect:inbox-refresh'));}
+   const result=await send(recipient,requests.get(recipient)),stillActive=active();
+   if(stillActive)modal.close();
+   if(uid===me?.id)onSent(result,stillActive);
   }catch(err){if(active())error.textContent=err.message;}
   finally{sending=false;input.disabled=false;people.disabled=false;button.removeAttribute('aria-busy');update();}
  };

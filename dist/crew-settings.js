@@ -74,7 +74,28 @@ function bindCrewSettingsMenu(trigger) {
  });
 }
 
-function openCrewDialog(trigger,path,detail,action) {
+function canManageCrewMember(role,targetRole){
+ return targetRole!=='owner'&&(role==='owner'||role==='deputy'&&targetRole!=='deputy');
+}
+
+async function openCrewMemberAction(trigger,cid,key,targetId){
+ if(trigger.disabled)return;
+ const path='/api/crews/'+encodeURIComponent(cid),route=location.hash,account=me?.id;
+ trigger.disabled=true;
+ try{
+  const detail=await api(path,'GET',undefined,{fresh:true});
+  if(!trigger.isConnected||route!==location.hash||account!==me?.id)return;
+  const action=crewActionsFor(detail.membership?.role).find(action=>action.key===key);
+  if(!action)return toast('크루 운영 권한을 확인해 주세요.');
+  if(targetId&&!detail.members.some(person=>person.id===targetId&&canManageCrewMember(detail.membership.role,person.role))){
+   return toast('관리할 수 있는 크루 멤버를 확인해 주세요.');
+  }
+  openCrewDialog(trigger,path,detail,action,targetId);
+ }catch(e){if(trigger.isConnected)toast(e.message);}
+ finally{trigger.disabled=false;}
+}
+
+function openCrewDialog(trigger,path,detail,action,targetId) {
  const modal=document.createElement('dialog'),route=location.hash;
  modal.className='crew-action-dialog compact-popup';
  modal.setAttribute('role','dialog');
@@ -119,12 +140,12 @@ function openCrewDialog(trigger,path,detail,action) {
   modal.remove();
   if(location.hash!==route||!trigger.isConnected) return;
   if(ui.refresh){clearCrewNavigation();await render();}
-  if(location.hash===route)(document.querySelector('[data-edit-crew]')||document.querySelector('#main')).focus({preventScroll:true});
+  if(location.hash===route)(trigger.isConnected?trigger:document.querySelector('[data-edit-crew]')||document.querySelector('#main')).focus({preventScroll:true});
  },{once:true});
  document.body.append(modal);
  modal.showModal();
  if(action.key==='info') bindCrewInfo(ui,detail);
- if(action.key==='members') bindCrewMemberList(ui,detail);
+ if(action.key==='members') bindCrewMemberList(ui,detail,targetId);
  if(action.key==='activity') bindCrewActivity(ui);
  if(action.key==='leadership') bindCrewTransfer(ui,detail);
 }
@@ -183,28 +204,29 @@ function bindCrewInfo(ui,detail) {
  };
 }
 
-function bindCrewMemberList(ui,detail) {
+function bindCrewMemberList(ui,detail,targetId) {
  const {body,tools}=ui;
- tools.innerHTML='<input type="search" aria-label="멤버 닉네임 검색" placeholder="닉네임 검색">';
+ if(!targetId)tools.innerHTML='<input type="search" aria-label="멤버 닉네임 검색" placeholder="닉네임 검색">';
  const search=tools.querySelector('input');
  function show(){
   const role=detail.membership?.role;
-  const members=detail.members.filter(m=>m.role!=='owner');
-  const visible=members.filter(m=>(m.profile_name||m.name).toLocaleLowerCase().includes(search.value.trim().toLocaleLowerCase()));
+  const members=detail.members.filter(m=>m.role!=='owner'&&(!targetId||m.id===targetId));
+  const term=search?.value.trim().toLocaleLowerCase()||'';
+  const visible=members.filter(m=>(m.profile_name||m.name).toLocaleLowerCase().includes(term));
   body.innerHTML=visible.map(m=>{
    const name=esc(m.profile_name||m.name),value=m.role==='operator'?'manager':m.role;
    const options=Object.entries(crewRoleLabels).filter(([k])=>k!=='owner').map(([k,v])=>`<option value="${k}" ${k===value?'selected':''}>${v}</option>`).join('');
    return `<div class="crew-manage-row" data-member="${esc(m.id)}"><a${premiumNameAttribute(m.id,m.user_id)} href="#producer/${esc(m.id)}">${name}</a><div class="crew-row-actions">
     ${role==='owner'?`<select aria-label="${name} 직책">${options}</select>`:`<span>${esc(crewRoleLabels[value])}</span>`}
-    ${role==='owner'||(role==='deputy'&&m.role!=='deputy')?`<button type="button" class="small-button" data-kick aria-label="${name} 강퇴">강퇴</button>`:''}</div></div>`;
+    ${canManageCrewMember(role,m.role)?`<button type="button" class="small-button" data-kick aria-label="${name} 강퇴">강퇴</button>`:''}</div></div>`;
   }).join('')||`<p>${members.length?AifectMessages.searchEmpty:'관리할 멤버가 없습니다.'}</p>`;
  }
- search.oninput=show;
+ if(search)search.oninput=show;
  function update(control,kick){
   const id=control.closest('[data-member]').dataset.member,person=detail.members.find(m=>m.id===id);
   if(!person)return;
   const role=detail.membership?.role;
-  if(role!=='owner'&&!(kick&&role==='deputy'&&person.role!=='deputy'))return;
+  if(kick?!canManageCrewMember(role,person.role):role!=='owner')return;
   if(kick&&!confirm(`${person.profile_name||person.name}님을 강퇴할까요? 이 크루에 다시 가입할 수 없게 됩니다.`))return;
   void ui.run(async()=>{
    try {

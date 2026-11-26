@@ -337,19 +337,22 @@ function bindVoiceLobby(){
   if(form._busy||closing)return;
   if(history.state?.liveCreate===requestId){closing=true;history.back();}else finish();
  }
- open.onclick=async()=>{
+ async function openCreate(requestedCrew){
   if(!me){returnRoute=location.hash;location.hash='#account';return;}
   if(open.dataset.opening||modal.open)return;
+  const route=location.hash,account=me.id;
   open.dataset.opening='true';open.disabled=true;
   try{
-   const options=await voiceRequest('options');if(!root.isConnected)return;
+   const options=await voiceRequest('options');
+   if(!root.isConnected||route!==location.hash||account!==me?.id)return;
+   const crews=options.crews||[];currentCrew=crews.length===1?crews[0]:null;
+   if(requestedCrew&&currentCrew?.id!==requestedCrew)throw Error('소속 크루에서만 크루 토킹룸을 만들 수 있습니다.');
    requestId=crypto.randomUUID();generation++;currentMode=null;
    titleDrafts={talk:options.suggested_titles?.talk||options.suggested_title||'',karaoke:options.suggested_titles?.karaoke||''};
    form.reset();generate.disabled=false;error.textContent='';
-   fields.mode.value=root.dataset.filter==='all'?root.dataset.defaultMode:root.dataset.filter;
-   fields.visibility.value='public';fields.max_members.value='30';
+   fields.mode.value=requestedCrew?'talk':root.dataset.filter==='all'?root.dataset.defaultMode:root.dataset.filter;
+   fields.visibility.value=requestedCrew?'crew':'public';fields.max_members.value='30';
    fillRoomThemeChoices(form,options);
-   const crews=options.crews||[];currentCrew=crews.length===1?crews[0]:null;
    crewIssue=crews.length?'크루 소속 정보를 확인해 주세요. 새로고침 후 다시 시도할 수 있습니다.':'소속 크루가 있어야 크루 방을 만들 수 있습니다.';
    crewChoice.disabled=!currentCrew;crewChoice.closest('label').title=currentCrew?'':crewIssue;
    fields.crew_id.value=currentCrew?.id||'';
@@ -357,7 +360,8 @@ function bindVoiceLobby(){
    history.pushState({...history.state,liveCreate:requestId},'');modal.showModal();fitViewport();
   }catch(e){if(root.isConnected)toast(e.message);}
   finally{delete open.dataset.opening;open.disabled=root.dataset.enabled==='false';}
- };
+ }
+ open.onclick=()=>openCreate();
  fields.title.oninput=()=>{titleDrafts[currentMode]=fields.title.value;generation++;generate.disabled=false;};
  fields.max_members.oninput=updateCapacity;
  for(const button of capacityButtons)button.onclick=()=>{fields.max_members.value=button.dataset.capacity;updateCapacity();};
@@ -396,6 +400,8 @@ function bindVoiceLobby(){
   }
  });
  bindTalkingDirectory(root);
+ const requestedCrew=new URLSearchParams(location.hash.split('?')[1]).get('crew-room');
+ if(requestedCrew&&me)void openCreate(requestedCrew);
 }
 
 async function playBrowseV3(raw,readApi=api){

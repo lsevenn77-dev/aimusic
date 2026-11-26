@@ -47,7 +47,7 @@
   // Tab directories keep hidden URL targets alongside their persistent shells.
   // Drop the generic ID to avoid duplicates. The initial shell needs one
   // retarget; subsequent native tab/history navigations already target it.
-  const tabTarget=[...(document.querySelectorAll?.('[data-play-route-target],[data-community-route-target],[data-mypage-route-target],[data-chart-route-target],[data-dm-route-target],[data-follow-route-target]')||[])].find(target=>target.id===targetId);
+  const tabTarget=[...(document.querySelectorAll?.('[data-play-route-target],[data-community-route-target],[data-mypage-route-target],[data-chart-route-target],[data-dm-route-target],[data-follow-route-target],[data-crew-route-target]')||[])].find(target=>target.id===targetId);
   if(tabTarget){
    if(marker.id)marker.removeAttribute('id');
    return retarget(tabTarget);

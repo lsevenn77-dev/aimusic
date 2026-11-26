@@ -10,7 +10,9 @@ import revisedOriginals from './dubbing-original-editions.json' with {type:'json
 export const CASTING_LICENSE='casting-2026-11-01';
 export const CASTING_TTL=30*86400;
 const validId=v=>typeof v==='string'&&/^[\w-]{1,80}$/.test(v);
-const blockSQL=`NOT EXISTS(SELECT 1 FROM dubbing_recordings br JOIN user_blocks b ON (b.user_id=? AND b.blocked_id=br.user_id) OR (b.blocked_id=? AND b.user_id=br.user_id) WHERE br.project_id=p.id)`;
+export const castingUnblockedSQL=(alias='p',viewer='?')=>`NOT EXISTS(SELECT 1 FROM dubbing_recordings br JOIN user_blocks b
+ ON (b.user_id=${viewer} AND b.blocked_id=br.user_id) OR (b.blocked_id=${viewer} AND b.user_id=br.user_id) WHERE br.project_id=${alias}.id)`;
+const blockSQL=castingUnblockedSQL();
 async function accessible(env,pid,user){
  const uid=user?.id||'';
  const p=await one(env,`SELECT p.*,${publicNameSQL('u')} owner_name FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id=? AND u.provider!='deleted' AND ${dubbingVisibleSQL()}
