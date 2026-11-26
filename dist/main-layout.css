@@ -1,3 +1,9 @@
+/* The shared shell uses viewport scrolling. Classic scrollbars keep their slot
+   as pages and lists change height. Overlay scrollbars use no layout space. */
+:where(html:not(.aifect-script-embedded):has(> body > .page-wrap > #main:not([data-room-focus]))) {
+ scrollbar-gutter:stable;
+}
+
 /* Outer content frame measured from the live home, 2026-10-29.
    Fixed computed values deliberately do not inherit per-page UI scaling.
    Only #main owns the gutter; navigation and card/section interiors are untouched. */

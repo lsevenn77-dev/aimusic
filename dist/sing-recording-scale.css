@@ -109,10 +109,6 @@
 #main #sing.web-studio .sing-countdown i.is-visible { opacity: 1 !important; }
 
 @media(min-width:1024px) {
-  /* Preserve the shell width when this route no longer needs page scrolling. */
-  html:has(#main #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording)) {
-    scrollbar-gutter: stable;
-  }
   /* The desktop shell is already 88px tall. Scale the controls, not the
      viewport: the remaining space belongs to lyrics and settings scrolling. */
   .page-wrap #main:has(#sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording)) {

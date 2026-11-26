@@ -27,13 +27,16 @@ test('anonymous shop skips wallet request and category deep links select the cor
  const c=context({me:null}),api=async path=>{assert.notEqual(path,'/api/gold');return path==='/api/decorations'?{products:Object.values(DECORATIONS),periods:PERIOD_LABELS}:{gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG};};
  const html=await c.finalGiftShopView('themes',api);assert.ok(html.includes('data-shop-active="themes"'));assert.ok(/data-shop-gold>[^<]*<span[^>]+aria-label="골드 0"/.test(html));
  assert.equal((html.match(/data-shop-category="frames"/g)||[]).length,4);assert.equal((html.match(/data-shop-category="themes"/g)||[]).length,4);
+ for(const [tag,category] of html.matchAll(/<article [^>]*data-shop-category="([^"]+)"[^>]*>/g)){
+  assert.equal(tag.endsWith(' hidden>'),category!=='themes',`${category} card has the correct initial visibility`);
+ }
 });
 test('search is category-scoped, Unicode/case/space tolerant, clearable and keyboard-operable',()=>{
  const element=dataset=>({dataset,listeners:{},hidden:false,attributes:{},addEventListener(t,fn){this.listeners[t]=fn;},setAttribute(k,v){this.attributes[k]=v;},focus(){this.focused=true;}});
  const tabs=['gifts','frames','themes'].map(shopTab=>element({shopTab}));
  const cards=[['gifts','반짝 스티커'],['gifts','AIFECT Gift'],['frames','별 프레임'],['themes','별 테마']].map(([shopCategory,shopName])=>element({shopCategory,shopName}));
- const input=Object.assign(element({}),{value:''}),panel=element({}),empty=element({});
- const root={dataset:{shopActive:'gifts'},querySelectorAll:s=>s==='[data-shop-tab]'?tabs:s==='.shop-card'?cards:[],querySelector:s=>s==='.shop-item-search input'?input:s==='#shop-products'?panel:s==='.shop-empty'?empty:null};
+ const input=Object.assign(element({}),{value:''}),panel=Object.assign(element({}),{querySelectorAll:s=>s==='.shop-card'?cards:[]}),empty=element({});
+ const root={dataset:{shopActive:'gifts'},querySelectorAll:s=>s==='[data-shop-tab]'?tabs:[],querySelector:s=>s==='.shop-item-search input'?input:s==='#shop-products'?panel:s==='.shop-empty'?empty:null};
  const c=context({$:()=>root});c.bindShopShelves();const visible=()=>cards.filter(x=>!x.hidden).map(x=>x.dataset.shopName);
  assert.deepEqual(visible(),['반짝 스티커','AIFECT Gift']);input.value='반 짝스티커';input.listeners.input();assert.deepEqual(visible(),['반짝 스티커']);
  input.value='ａｉｆｅｃｔＧＩＦＴ';input.listeners.input();assert.deepEqual(visible(),['AIFECT Gift']);
@@ -73,8 +76,8 @@ test('shop binding passes Play timing and silent playback options, preserves she
  const element=dataset=>({dataset,listeners:{},hidden:false,attributes:{},signals:[],addEventListener(type,fn,options={}){this.listeners[type]=fn;if(options.signal){this.signals.push(options.signal);options.signal.addEventListener('abort',()=>{if(this.listeners[type]===fn)delete this.listeners[type];},{once:true});}},setAttribute(k,v){this.attributes[k]=v;},focus(){this.focused=true;}});
  const tabs=['gifts','frames','themes'].map(shopTab=>element({shopTab}));
  const cards=[['gifts','별 선물'],['frames','별 프레임'],['frames','달 프레임'],['themes','별 테마']].map(([shopCategory,shopName])=>element({shopCategory,shopName}));
- const input=Object.assign(element({}),{value:'별'}),panel=element({}),empty=element({}),banner=element({shopBanners:'[]'});
- const root={dataset:{shopActive:'frames'},querySelectorAll:s=>s==='[data-shop-tab]'?tabs:s==='.shop-card'?cards:[],querySelector:s=>s==='.shop-item-search input'?input:s==='#shop-products'?panel:s==='.shop-empty'?empty:s==='#shop-banner'?banner:null};
+ const input=Object.assign(element({}),{value:'별'}),panel=Object.assign(element({}),{querySelectorAll:s=>s==='.shop-card'?cards:[]}),empty=element({}),banner=element({shopBanners:'[]'});
+ const root={dataset:{shopActive:'frames'},querySelectorAll:s=>s==='[data-shop-tab]'?tabs:[],querySelector:s=>s==='.shop-item-search input'?input:s==='#shop-products'?panel:s==='.shop-empty'?empty:s==='#shop-banner'?banner:null};
  const mounts=[],active=new Set(),routeCleanups=new Set(),audio={paused:false};let page=root;
  const c=context({$:()=>page,audio,
   mountFeatureCarousel(target,slides,options){const mount={target,slides,options};mounts.push(mount);active.add(mount);return ()=>active.delete(mount);},
@@ -100,8 +103,8 @@ test('same-hash banner clicks select the category while modified clicks, swipes 
  const element=dataset=>({dataset,listeners:{},hidden:false,attributes:{},addEventListener(type,fn){this.listeners[type]=fn;},setAttribute(k,v){this.attributes[k]=v;},focus(){}});
  const tabs=['gifts','frames','themes'].map(shopTab=>element({shopTab}));
  const cards=[['frames','별 프레임'],['frames','달 프레임'],['themes','별 테마']].map(([shopCategory,shopName])=>element({shopCategory,shopName}));
- const input=Object.assign(element({}),{value:'별'}),panel=element({}),empty=element({}),banner=element({shopBanners:'[]'}),location={hash:'#gifts/frames'};
- const root={dataset:{shopActive:'frames'},querySelectorAll:s=>s==='[data-shop-tab]'?tabs:s==='.shop-card'?cards:[],querySelector:s=>s==='.shop-item-search input'?input:s==='#shop-products'?panel:s==='.shop-empty'?empty:s==='#shop-banner'?banner:null};
+ const input=Object.assign(element({}),{value:'별'}),panel=Object.assign(element({}),{querySelectorAll:s=>s==='.shop-card'?cards:[]}),empty=element({}),banner=element({shopBanners:'[]'}),location={hash:'#gifts/frames'};
+ const root={dataset:{shopActive:'frames'},querySelectorAll:s=>s==='[data-shop-tab]'?tabs:[],querySelector:s=>s==='.shop-item-search input'?input:s==='#shop-products'?panel:s==='.shop-empty'?empty:s==='#shop-banner'?banner:null};
  const c=context({$:()=>root,location,mountFeatureCarousel:()=>()=>{}});c.bindShopShelves();
  tabs[2].listeners.click();
  const state=()=>({category:root.dataset.shopActive,query:input.value,visible:cards.filter(x=>!x.hidden).map(x=>x.dataset.shopName),selected:tabs.map(t=>t.attributes['aria-selected'])});

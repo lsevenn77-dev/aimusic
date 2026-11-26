@@ -187,9 +187,6 @@ main:is([data-route^="community"],[data-route="crew"],[data-route^="crew?"],[dat
 @container (max-width:350px){
  .room-lobby .brand-search .search-sparkle {display:none}
 }
-html:has(#main > .talk-directory, #main > .music-community-tabs[aria-label="커뮤니티"]) {
- scrollbar-gutter:stable;
-}
 /* Use Play's main-tab metrics, including its rendered scale, on all four destinations. */
 #main > .music-community-tabs[aria-label="커뮤니티"] {
  --ui-type-scale:1;

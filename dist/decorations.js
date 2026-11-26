@@ -134,15 +134,16 @@ function shopStartingPrice(p,periods){
  return shopPrice(p.periodPrices[first[0]],p.currency||'G');
 }
 function shopNormalizeSearch(value){return String(value??'').normalize('NFKC').toLocaleLowerCase().replace(/\s+/gu,'');}
-function shopCards(items,periods={}){
+function shopCards(items,periods={},activeCategory){
  return items.map(p=>{
   const theme=p.kind==='TALKING_ROOM_THEME',currency=p.free?'S':p.currency||'G';
   const category=p.sku?(theme?'themes':'frames'):'gifts';
+  const hidden=activeCategory&&category!==activeCategory?' hidden':'';
   const action=p.sku?'data-decoration="'+esc(p.sku)+'"':'data-gift-buy="'+esc(p.id)+'"';
   const price=p.sku?shopStartingPrice(p,periods):shopPrice(p.free?p.silver:p.gold,currency);
   const name=esc(shopProductDisplayName(p));
   const preview=p.previewLayout==='landscape'?p.assetPaths.roomDesktop:p.assetPaths?.roomMobile;
-  return '<article class="shop-card '+(currency==='S'?'is-silver':'is-gold')+'" data-shop-category="'+category+'" data-shop-name="'+esc(p.name)+'">'+
+  return '<article class="shop-card '+(currency==='S'?'is-silver':'is-gold')+'" data-shop-category="'+category+'" data-shop-name="'+esc(p.name)+'"'+hidden+'>'+
    '<button type="button" class="shop-card-select" '+action+' aria-label="'+name+' 상품 선택"><img class="shop-card-art" src="'+esc(p.sku?decorationProductImage(p):p.image)+'" alt="" loading="lazy"><strong class="shop-card-name" title="'+name+'">'+name+'</strong></button>'+
    '<div class="shop-card-price">'+price+'</div><div class="shop-card-actions">'+
    (theme?'<button type="button" class="shop-card-preview" data-theme-preview="'+esc(preview||'')+'" data-theme-layout="'+(p.previewLayout==='landscape'?'landscape':'portrait')+'" data-theme-sku="'+esc(p.sku)+'" data-theme-name="'+name+'" aria-label="'+name+' 미리보기" '+(preview?'':'disabled')+'>미리보기</button>':'')+
@@ -203,21 +204,22 @@ async function finalGiftShopView(category,readApi=api){
  return '<div class="shop-page" data-shop-active="'+active+'"><section class="shop-banner home-content-refresh" id="shop-banner" aria-label="AIFECT 상점 배너" data-shop-banners="'+esc(JSON.stringify(shopBannerSlides(products)))+'"></section>'+
  '<header class="shop-heading"><h1 class="shop-title">'+shopIcon('cart')+'<span>상점</span></h1><nav class="shop-actions" aria-label="상점 관리"><a href="#gold">'+shopIcon('wallet')+'<span>골드 충전</span></a><a href="#gifts/rewards">'+shopCoin('S')+'<span>실버 받기</span></a><a href="#inventory">'+shopIcon('inventory')+'<span>인벤토리</span></a></nav><div class="shop-balances" role="status" aria-label="보유 자산" aria-live="polite">'+shopBalancesHTML(wallet)+'</div></header>'+
  '<div class="shop-toolbar"><div class="shop-tabs aifect-main-tabs" role="tablist" aria-label="상점 카테고리">'+tabs.map(([id,label,glyph],index)=>'<button type="button" role="tab" id="shop-tab-'+id+'" data-shop-tab="'+id+'" data-tab-tone="'+['pink','mint','purple'][index]+'" aria-controls="shop-products" aria-selected="'+(id===active)+'" tabindex="'+(id===active?'0':'-1')+'">'+shopIcon(glyph)+'<span>'+label+'</span></button>').join('')+'</div><label class="shop-item-search">'+shopIcon('search')+'<input type="search" placeholder="아이템 검색" aria-label="아이템 검색" autocomplete="off"></label></div>'+
- '<div id="shop-products" class="shop-products" role="tabpanel" aria-labelledby="shop-tab-'+active+'" tabindex="0">'+shopCards(products,d.periods)+'</div><p class="shop-empty" role="status" hidden>검색 결과가 없습니다.</p></div>';
+ '<div id="shop-products" class="shop-products" role="tabpanel" aria-labelledby="shop-tab-'+active+'" tabindex="0">'+shopCards(products,d.periods,active)+'</div><p class="shop-empty" role="status" hidden>검색 결과가 없습니다.</p></div>';
 }
 let shopLayoutCleanup=()=>{};
 function bindShopShelves(){
  shopLayoutCleanup();const root=$('.shop-page');if(!root)return;
  const controller=new AbortController(),tabs=[...root.querySelectorAll('[data-shop-tab]')],input=root.querySelector('.shop-item-search input');
+ const panel=root.querySelector('#shop-products'),empty=root.querySelector('.shop-empty');
  const banner=root.querySelector('#shop-banner');
  const bannerCleanup=banner?mountFeatureCarousel(banner,JSON.parse(banner.dataset.shopBanners),{renderSlide:shopBannerHTML,label:'AIFECT 상점 안내',previousLabel:'이전 상점 배너',nextLabel:'다음 상점 배너',dotsLabel:'상점 배너 선택',initialId:root.dataset.shopActive,intervalMs:4000,syncAudio:false,pauseForDialogs:true}):null;
- const cards=[...root.querySelectorAll('.shop-card')].map(card=>({card,name:shopNormalizeSearch(card.dataset.shopName)}));
+ const cards=[...panel.querySelectorAll('.shop-card')].map(card=>({card,name:shopNormalizeSearch(card.dataset.shopName)}));
  const update=()=>{
   const active=root.dataset.shopActive,query=shopNormalizeSearch(input.value);let count=0;
   for(const {card,name} of cards){card.hidden=card.dataset.shopCategory!==active||!name.includes(query);if(!card.hidden)count++;}
   for(const tab of tabs){const selected=tab.dataset.shopTab===active;tab.setAttribute('aria-selected',String(selected));tab.tabIndex=selected?0:-1;}
-  root.querySelector('#shop-products').setAttribute('aria-labelledby','shop-tab-'+active);
-  root.querySelector('.shop-empty').hidden=count>0;
+  panel.setAttribute('aria-labelledby','shop-tab-'+active);
+  empty.hidden=count>0;
  };
  for(const tab of tabs){
   tab.addEventListener('click',()=>{root.dataset.shopActive=tab.dataset.shopTab;update();},{signal:controller.signal});
