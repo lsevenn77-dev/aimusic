@@ -81,8 +81,35 @@ export const relationXp=sqliteTable('relation_xp',{
 },t=>[primaryKey({columns:[t.relationId,t.sourceKey]}),check('relation_xp_positive',sql`${t.amount}>0`)]);
 export const giftInventory=sqliteTable('gift_inventory',{
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),giftType:text('gift_type').notNull(),giftName:text('gift_name').notNull(),currency:text('currency').notNull(),value:integer('value').notNull(),source:text('source').notNull(),requestId:text('request_id').notNull(),unit:integer('unit').notNull(),created:integer('created').notNull(),usedAt:integer('used_at').notNull().default(0),sendRequestId:text('send_request_id'),recipientId:text('recipient_id').references(()=>producers.id),
- expiresAt:integer('expires_at'),grantTerms:text('grant_terms')
-},t=>[uniqueIndex('gift_inventory_request_unit').on(t.userId,t.requestId,t.unit),uniqueIndex('gift_inventory_send_request').on(t.userId,t.sendRequestId),index('gift_inventory_owner').on(t.userId,t.usedAt),check('gift_inventory_currency',sql`${t.currency} IN ('gold','silver','reward')`),check('gift_inventory_value',sql`${t.value}>=0`)]);
+ expiresAt:integer('expires_at'),grantTerms:text('grant_terms'),dispatchItem:text('dispatch_item'),
+ recalledAt:integer('recalled_at'),selectedForSend:text('selected_for_send')
+},t=>[uniqueIndex('gift_inventory_request_unit').on(t.userId,t.requestId,t.unit),uniqueIndex('gift_inventory_send_request').on(t.userId,t.sendRequestId),index('gift_inventory_owner').on(t.userId,t.usedAt),index('gift_inventory_dispatch').on(t.dispatchItem),check('gift_inventory_currency',sql`${t.currency} IN ('gold','silver','reward')`),check('gift_inventory_value',sql`${t.value}>=0`)]);
+export const giftDispatches=sqliteTable('gift_dispatches',{
+ id:text('id').primaryKey(),adminId:text('admin_id').notNull(),checkId:text('check_id').notNull(),
+ audience:text('audience').notNull(),targetCount:integer('target_count').notNull(),plan:text('plan').notNull(),
+ origin:text('origin').notNull(),reason:text('reason').notNull(),message:text('message').notNull(),
+ test:integer('test').notNull().default(0),expires:integer('expires').notNull(),confirmedAt:integer('confirmed_at')
+},t=>[index('gift_dispatch_history').on(t.test,t.confirmedAt,t.id)]);
+export const giftDispatchItems=sqliteTable('gift_dispatch_items',{
+ id:text('id').primaryKey(),dispatchId:text('dispatch_id').notNull().references(()=>giftDispatches.id,{onDelete:'cascade'}),
+ userId:text('user_id').notNull(),line:integer('line').notNull(),state:text('state').notNull(),issue:text('issue'),
+ token:text('token'),grantedAt:integer('granted_at'),expiresAt:integer('expires_at'),
+ noticeState:text('notice_state').notNull().default('pending')
+},t=>[
+ uniqueIndex('gift_dispatch_member_line').on(t.dispatchId,t.userId,t.line),
+ index('gift_dispatch_pending').on(t.dispatchId,t.state,t.id),
+ index('gift_dispatch_token').on(t.dispatchId,t.token),
+ index('gift_dispatch_arrivals').on(t.dispatchId,t.line,t.noticeState,t.id)
+]);
+export const giftDispatchAdjustments=sqliteTable('gift_dispatch_adjustments',{
+ id:text('id').primaryKey(),dispatchId:text('dispatch_id').notNull().references(()=>giftDispatches.id,{onDelete:'cascade'}),
+ adminId:text('admin_id').notNull(),kind:text('kind').notNull(),scope:text('scope'),reason:text('reason').notNull(),
+ deadline:integer('deadline'),expires:integer('expires').notNull(),confirmedAt:integer('confirmed_at')
+},t=>[index('gift_dispatch_adjustments_dispatch').on(t.dispatchId,t.confirmedAt,t.id)]);
+export const giftDispatchEffects=sqliteTable('gift_dispatch_effects',{
+ adjustmentId:text('adjustment_id').notNull().references(()=>giftDispatchAdjustments.id,{onDelete:'cascade'}),
+ inventoryId:text('inventory_id').notNull(),type:text('type').notNull(),beforeExpires:integer('before_expires')
+},t=>[primaryKey({columns:[t.adjustmentId,t.type,t.inventoryId]})]);
 // Catalog settings share the existing item IDs. Inventory, payment receipts and
 // ledgers keep their original ownership and price snapshots.
 export const productCatalog=sqliteTable('product_catalog',{
@@ -288,8 +315,10 @@ export const playerXp=sqliteTable('player_xp',{
  userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),sourceKey:text('source_key').notNull(),kind:text('kind').notNull(),amount:integer('amount').notNull(),created:integer('created').notNull()
 },t=>[primaryKey({columns:[t.userId,t.sourceKey]}),index('player_xp_recent').on(t.userId,t.created),check('player_xp_positive',sql`${t.amount}>0`)]);
 export const playerInventory=sqliteTable('player_inventory',{
- id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),itemKey:text('item_key').notNull(),source:text('source').notNull(),sourceRef:text('source_ref').notNull(),grantedAt:integer('granted_at').notNull(),expiresAt:integer('expires_at').notNull().default(0),revoked:integer('revoked').notNull().default(0)
-},t=>[uniqueIndex('player_inventory_grant').on(t.userId,t.source,t.sourceRef),index('player_inventory_user').on(t.userId)]);
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),itemKey:text('item_key').notNull(),source:text('source').notNull(),sourceRef:text('source_ref').notNull(),grantedAt:integer('granted_at').notNull(),expiresAt:integer('expires_at').notNull().default(0),revoked:integer('revoked').notNull().default(0),
+ periodCode:text('period_code'),redeemBefore:integer('redeem_before'),seasonEndsAt:integer('season_ends_at'),
+ grantTerms:text('grant_terms'),dispatchItem:text('dispatch_item')
+},t=>[uniqueIndex('player_inventory_grant').on(t.userId,t.source,t.sourceRef),index('player_inventory_user').on(t.userId),index('player_inventory_dispatch').on(t.dispatchItem)]);
 export const playerEquipment=sqliteTable('player_equipment',{
  userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),frameInventoryId:text('frame_inventory_id').references(()=>playerInventory.id,{onDelete:'set null'})
 });

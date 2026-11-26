@@ -99,7 +99,7 @@ await cp('dist/chart-ui.css','dist/client/chart-ui.css');
 await cp('dist/input-controls.css','dist/client/input-controls.css');
 for(const file of ['dropdown.js','dropdown.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/brand.css','dist/client/brand.css');
-for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compression.js','admin-notice.css','official-notice.css','notice-editor.js','notice-audience.js','admin-notices.js','admin-products.css','admin-products.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compression.js','admin-notice.css','official-notice.css','notice-editor.js','notice-audience.js','admin-notices.js','admin-products.css','admin-products.js','admin-gift-dispatch.css','admin-gift-dispatch.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 for(const file of ['product-preview.js','product-preview.css','chat-ui.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await mkdir('dist/client/admin',{recursive:true});
 await cp('dist/admin.html','dist/client/admin/dashboard.html');

@@ -8,6 +8,7 @@ import {publicNameSQL} from './identity.js';
 import {formatWelcomeGuide} from './welcome-notices.js';
 import {noticeVisible,recipientRichNotice} from './notice-visibility.js';
 import {noticeImageResponse} from './admin-notices.js';
+import {withGiftArrivalDetails} from './gift-dispatch-notices.js';
 import {legacyNoticeImage,noticeAssetId} from '../shared/official-notice-content.js';
 
 const channel={id:'aifect-official-notice',name:'아이팩트 안내',is_notice:true,notice_type:'official',read_only:true};
@@ -55,7 +56,8 @@ function noticeEntry(record){
   return {...base,kind:'dm',mine:!!record.mine,body,image_id,image_expires,crew_invite_id};
  }
  const rich=recipientRichNotice(record);
- if(rich)return {...base,rich,version:record.version,edited_at:record.edited_at,test:!!record.test};
+ if(rich)return {...base,rich,version:record.version,edited_at:record.edited_at,test:!!record.test,
+  ...(record.campaign_kind==='gift'?{gift:true}:{})};
  return legacy_id===WELCOME_CAMPAIGN_ID||record.campaign_kind==='welcome'?
   {...base,guide:formatWelcomeGuide(record)}:{...base,notice:JSON.parse(record.content_json)};
 }
@@ -90,14 +92,14 @@ export async function officialNoticeRoute(req,env,path,user){
    if(before!==null||known.length>pageSize||known.some(key=>!validId.test(key)))fail(400,'공지 위치를 확인해 주세요.');
    const records=await rows(env,`${history} SELECT * FROM official_history WHERE id IN (SELECT value FROM json_each(?))
     ORDER BY created,id`,...scope(env,user.id),JSON.stringify(known));
-   return json({channel,items:records.map(noticeEntry),before:null});
+   return json({channel,items:(await withGiftArrivalDetails(env,user.id,records)).map(noticeEntry),before:null});
   }
   const cursor=before===null?null:validCursor.exec(before);
   if(before!==null&&!cursor)fail(400,'공지 위치를 확인해 주세요.');
   const records=await rows(env,`${history} SELECT * FROM official_history${cursor?' WHERE (created,id)<(?,?)':''}
     ORDER BY created DESC,id DESC LIMIT ?`,...scope(env,user.id),...(cursor?[Number(cursor[1]),cursor[2]]:[]),pageSize+1);
   const hasEarlier=records.length>pageSize;
-  const items=records.slice(0,pageSize).reverse().map(noticeEntry);
+  const items=(await withGiftArrivalDetails(env,user.id,records.slice(0,pageSize))).reverse().map(noticeEntry);
   return json({channel,items,before:hasEarlier?items[0].created+'|'+items[0].id:null});
  }
  if(req.method!=='PATCH')fail(405,AifectMessages.unsupportedRequest);

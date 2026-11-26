@@ -6,6 +6,7 @@ import {
 } from './product-catalog.js';
 import {parseProductDeadline} from './product-deadline.js';
 import {activeDecorationSQL,decorationFundingSQL} from './decorations.js';
+import {PERMANENT_PERIOD} from '../shared/decorations.js';
 import {parseProductAssets,productForm,describeProductVersion,sha256} from './product-assets.js';
 import {measureProductReview,productReviewStatus,reviewBuilds} from './product-reviews.js';
 
@@ -26,7 +27,7 @@ const ensureCurrent=(product,expected)=>{
 };
 const shape=product=>{
  const {original,...p}=product;
- return {...p,grant_executor:p.type==='gift'?'gift_inventory':null};
+ return {...p,grant_executor:'gift_dispatch'};
 };
 
 function normalizeDefinition(body,previous){
@@ -37,7 +38,7 @@ function normalizeDefinition(body,previous){
  const distribution=body.distribution;
  if(!['shop','grant'].includes(distribution)||typeof body.eventOnly!=='boolean')fail(400,'상품 구분과 이벤트 표시 상태를 확인해 주세요.');
  if(!body.options||typeof body.options!=='object'||Array.isArray(body.options))fail(400,'가격과 이용 기간 옵션을 확인해 주세요.');
- const allowed=type==='gift'?[GIFT_OPTION]:PERIODS;
+ const allowed=type==='gift'?[GIFT_OPTION]:PERIODS.filter(period=>distribution==='grant'||period!==PERMANENT_PERIOD);
  const prices=Object.keys(body.options);
  if(!prices.length||prices.some(key=>!allowed.includes(key)))fail(400,'현재 서비스에서 지원하는 이용 기간을 선택해 주세요.');
  const options=Object.fromEntries(allowed.filter(key=>prices.includes(key)).map(key=>{

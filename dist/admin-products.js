@@ -1,5 +1,5 @@
 (() => {
- const kinds={gift:'선물',frame:'테두리',theme:'테마'}, periods={unit:'1개',P7D:'7일',P1M:'1개월',P3M:'3개월'};
+ const kinds={gift:'선물',frame:'테두리',theme:'테마'}, periods={unit:'1개',P7D:'7일',P1M:'1개월',P3M:'3개월',PERMANENT:'영구'};
  const modes={static:'정적 이미지',layered:'분리형 패키지',animated:'애니메이션 이미지'};
  const platforms={desktop:'PC웹',mobile:'모바일웹',android:'Android',ios:'iOS'};
  const surfaces={shop:'상점 카드',inventory:'인벤토리','gift-picker':'선물하기',my:'마이',profile:'회원 프로필',messages:'메시지',
@@ -112,7 +112,7 @@
     '</small></div>'+btn('검수 및 파일','version','data-version="'+e(v.id)+'"')+'</li>').join('')+'</ul>':'<p class="management-meta">등록한 에셋 버전이 없습니다.</p>';
    modal(p.name,'<div class="product-overview">'+img(p.asset?.files.thumbnail,96)+'<dl>'+Object.entries(labels).map(([k,v])=>'<div><dt>'+e(k)+'</dt><dd>'+e(v)+'</dd></div>').join('')+'</dl></div>'+
     (p.description?'<p>'+e(p.description)+'</p>':'')+(p.eventOnly?'<span class="product-state">이벤트 한정</span>':'')+
-    actions(controls+(p.grant&&p.grant_executor?btn('지급하기','dispatch'):'')+(p.grant_executor?btn('지급 내역','dispatch'):''))+
+    actions(controls+(p.grant&&p.grant_executor?'<label>지급 옵션 <select data-grant-option>'+Object.keys(p.options).map(option=>'<option value="'+e(option)+'">'+e(periods[option])+'</option>').join('')+'</select></label>'+btn('지급하기','dispatch'):'')+(p.grant_executor?btn('지급 내역','dispatch-history'):''))+
     (p.grant&&!p.grant_executor?'<p class="management-meta">이 상품 유형은 선물 발송 관리 연동이 필요합니다.</p>':'')+message+
     '<section class="product-subsection"><h2>에셋 및 버전</h2>'+actions((p.asset?btn('적용 미리보기','preview'):'')+
     (edit&&!p.archived?btn('에셋 등록','upload')+(p.id==='theme_christmas'?'':btn('검증 에셋 연결','link')):'')+
@@ -290,7 +290,10 @@
    if(a==='version'){void version(b.dataset.version);return;}
    if(a==='preview'){preview(p,b.dataset.version);return;}
    if(a==='review'){reviewForm(p,b.dataset.platform,b.dataset.surface);return;}
-   if(a==='dispatch'){close();jumpToGrant(p.id);return;}
+   if(a==='dispatch'||a==='dispatch-history'){
+    const option=box.querySelector('[data-grant-option]')?.value;close();
+    jumpToGrant({product_id:p.id,option,history:a==='dispatch-history'});return;
+   }
    if(a==='archive'&&!window.confirm('상품을 보관하고 판매와 지급을 중지하시겠습니까? 기존 사용권은 유지됩니다.'))return;
    const body=a==='sale'||a==='grant'?{action:'status',sale:a==='sale'?!p.sale:p.sale,grant:a==='grant'?!p.grant:p.grant}:
     a==='restore'?{action:'rollback',version_id:null}:{action:a,...(b.dataset.version?{version_id:b.dataset.version}:{})};

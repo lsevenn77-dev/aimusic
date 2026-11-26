@@ -6,6 +6,7 @@ import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID,PREMIUM_OPEN_NOTICE_SENDER,PR
 import {eventEnd,eventUntilSQL} from './premium-event.js';
 import {noticeAssetURL,noticePlainText} from '../shared/official-notice-content.js';
 import {noticeVisible,recipientRichNotice} from './notice-visibility.js';
+import {withGiftArrivalDetails} from './gift-dispatch-notices.js';
 
 const eligible = "u.account_type='human' AND u.provider!='deleted'";
 const premiumOpenPeer = receipt => ({id:PREMIUM_OPEN_NOTICE_ID,name:PREMIUM_OPEN_NOTICE_SENDER,chat_nickname:PREMIUM_OPEN_NOTICE_SENDER,is_notice:true,notice_type:PREMIUM_OPEN_NOTICE_TYPE,read_only:true,last_message:PREMIUM_OPEN_NOTICE.title,updated:receipt.created,unread:receipt.read_at?0:1});
@@ -33,10 +34,11 @@ function peer(receipts) {
 }
 
 async function deliveredNotices(env,userId) {
- return rows(env,`SELECT r.rowid sequence,r.campaign_id,r.created,r.read_at,c.content_json,${publicNameSQL()} nickname,
+ const records=await rows(env,`SELECT r.rowid sequence,r.campaign_id,r.created,r.read_at,c.content_json,${publicNameSQL()} nickname,
   c.kind,c.title,c.edit_json,c.edited_at,c.version,c.test
   FROM welcome_receipts r JOIN welcome_campaigns c ON c.id=r.campaign_id JOIN users u ON u.id=r.user_id
   WHERE ${noticeVisible} AND r.user_id=? AND ${eligible} ORDER BY r.created,r.rowid`,userId);
+ return withGiftArrivalDetails(env,userId,records);
 }
 
 function noticeEntry(receipt) {

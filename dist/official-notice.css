@@ -27,3 +27,6 @@
 .official-notice-channel-note{margin:0;padding:10px 14px;border-block-start:1px solid var(--ds-line,var(--line,#353b4b));color:var(--ds-muted,var(--muted,#9da4b6));text-align:center;font-size:13px;line-height:1.4;flex:none}
 .official-notice-entry .welcome-guide-time{display:block;margin:0 0 12px;text-align:center;color:var(--ds-muted,var(--muted,#9da4b6));font-size:var(--dm-time,13px)}
 .official-rich-body .cat-chat-sticker{max-width:100%;vertical-align:middle}
+.official-rich-body .official-gift-line{display:flex;align-items:center;gap:12px;min-width:0;text-align:left}
+.official-gift-line>img{width:44px;height:44px;flex:none;object-fit:contain;border-radius:8px}
+.official-gift-line>span{min-width:0;overflow-wrap:anywhere}

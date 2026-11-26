@@ -1,6 +1,6 @@
 import {appearanceColumnsSQL,defaultFrameSQL,memberFrameUntilSQL,premiumFrameId,premiumFrameOverrideSQL} from './premium-appearance.js';
 import * as AifectMessages from '../shared/system-messages.js';
-import {decorationInventory,decorationFundingSQL} from './decorations.js';
+import {activeDecorationSQL,decorationInventory} from './decorations.js';
 import {one,rows,query,fail,json,now} from './db.js';
 import {PLAYER_ITEMS,PLAYER_RULES,PREMIUM_APPEARANCE,playerProgress} from '../shared/player.js';
 import {CREW_LEVELS,crewLevel} from '../shared/crews.js';
@@ -18,7 +18,7 @@ const frameAssetSQL=role=>`CASE WHEN json_extract(pav.files,'$.${role}.extension
  THEN '/api/product-assets/'||pc.product_id||'/'||pav.id||'/${role}.'||json_extract(pav.files,'$.${role}.extension') END`;
 const managedFrameBase=`COALESCE(${frameAssetSQL('fallback')},${frameAssetSQL('base')})`;
 const managedFrameEffect=`CASE WHEN pav.mode='animated' THEN ${frameAssetSQL('base')} ELSE ${frameAssetSQL('effect')} END`;
-const usableSQL=(alias,uid)=>`((${managedFrame(alias)} AND ${alias}.source='decoration' AND ${alias}.expires_at>unixepoch() AND ${decorationFundingSQL(alias)}) OR (${Object.entries(PLAYER_ITEMS).map(([key,item])=>`(${alias}.item_key=${sqlString(key)}${item.paid?` AND ${alias}.source='decoration' AND ${alias}.expires_at>unixepoch() AND ${decorationFundingSQL(alias)}`:item.membership?' AND '+crewQualifiedSQL(uid,item):''})`).join(' OR ')}))`;
+const usableSQL=(alias,uid)=>`((${managedFrame(alias)} AND ${activeDecorationSQL(alias)}) OR (${Object.entries(PLAYER_ITEMS).map(([key,item])=>`(${alias}.item_key=${sqlString(key)}${item.paid?' AND '+activeDecorationSQL(alias):item.membership?' AND '+crewQualifiedSQL(uid,item):''})`).join(' OR ')}))`;
 function rewardQueries(env,uid){return rewards.map(([key,item])=>{const source=item.min_level?'level':'crew-level';return query(env,`INSERT OR IGNORE INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) SELECT ${sqlString('reward:'+key+':')}||u.id,u.id,${sqlString(key)},${sqlString(source)},${sqlString(key)},unixepoch() FROM users u WHERE ${uid?'u.id=? AND ':''}${eligibleSQL('u.id',item)} AND NOT EXISTS(SELECT 1 FROM player_inventory existing WHERE existing.user_id=u.id AND existing.source=${sqlString(source)} AND existing.source_ref=${sqlString(key)}) LIMIT 500`,...(uid?[uid]:[]));});}
 // Grant from server XP only, once, including users who qualified before release.
 export async function grantPlayerRewards(env,uid){await env.DB.batch(rewardQueries(env,uid));}

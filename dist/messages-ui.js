@@ -118,7 +118,11 @@ function bindOfficialNotices(host,feed,{anchor='',onRead=()=>{}}={}){
  const schedule=()=>{if(current()&&ackFrame===null)ackFrame=requestAnimationFrame(acknowledge);};
  const repaint=sorted=>{
   const oldNodes=children();
-  const same=(entry,node)=>entry?.id===node.dataset.noticeId&&entry.version===items.get(entry.id)?.version;
+  const same=(entry,node)=>{
+   const previous=items.get(entry?.id);
+   return entry?.id===node.dataset.noticeId&&entry.version===previous?.version&&
+    (!entry.gift||JSON.stringify(entry.rich)===JSON.stringify(previous?.rich));
+  };
   if(sorted.length===oldNodes.length&&sorted.every((entry,index)=>same(entry,oldNodes[index])))return;
   const bounds=pane.getBoundingClientRect(),nextById=new Map(sorted.map(entry=>[entry.id,entry]));
   const visible=oldNodes.find(node=>nextById.has(node.dataset.noticeId)&&node.getBoundingClientRect().bottom>bounds.top);

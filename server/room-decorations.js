@@ -5,7 +5,7 @@ import {activeDecorationSQL,decorationInventory} from './decorations.js';
 import {playerColumnsSQL} from './player.js';
 export async function roomThemeChoices(env,uid){
  const owned=(await decorationInventory(env,uid)).filter(i=>i.available&&i.product.kind==='TALKING_ROOM_THEME');
- const paid=owned.sort((a,b)=>(a.stored-b.stored)||(b.activated_at||0)-(a.activated_at||0)).map(i=>({...i.product,paid:true,selectable:true,inventory_id:i.id,status:i.status,applied:i.applied,period_code:i.period_code,expires_at:i.expires_at,activated_at:i.activated_at}));
+ const paid=owned.sort((a,b)=>(a.stored-b.stored)||(b.activated_at||0)-(a.activated_at||0)).map(i=>({...i.product,paid:true,selectable:true,inventory_id:i.id,status:i.status,applied:i.applied,period_code:i.period_code,expires_at:i.expires_at,activated_at:i.activated_at,reward_deadline:i.reward_deadline,season_ends_at:i.season_ends_at}));
  return [...paid,...FREE_ROOM_THEMES.map(p=>({...p,uiMode:roomUIMode(p),selectable:true,paid:false,status:'ACTIVE',expires_at:0}))];
 }
 export async function assertRoomTheme(env,uid,sku){
@@ -78,7 +78,7 @@ export async function directoryRoomThemes(env,rooms){
  const themes=new Map(),expired=[],server_now=now(),products=await catalog(env,settings.map(row=>row.sku));
  for(const {id,host_id,revision,sku,expires_at,inventory_id} of settings){
   const product=await catalogRoomTheme(env,sku,products),paid=product?.kind==='TALKING_ROOM_THEME';
-  const active=paid&&expires_at>server_now;
+  const active=paid&&expires_at!==null&&(expires_at===0||expires_at>server_now);
   themes.set(id,themeResponse(product&&(!paid||active)?product:DEFAULT_ROOM_SKIN,active?expires_at:0,server_now,active?inventory_id:null));
   if(revision!=null&&!active&&(paid||isRetiredRoomTheme(sku)))expired.push([id,host_id,revision,sku]);
  }

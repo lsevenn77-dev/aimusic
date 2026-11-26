@@ -10,7 +10,7 @@ export const noticeLinks=Object.freeze({
  '#home':'홈','#play':'플레이','#karaoke':'노래방','#live?mode=karaoke':'라이브 노래방',
  '#voice?mode=talk':'토킹룸','#community/crews':'크루','#karaoke/duets':'듀엣',
  '#karaoke/dubbing?tab=join':'더빙','#artists':'AI 아티스트','#upload':'업로드',
- '#membership':'프리미엄','#shop':'상점','#dm':'메시지'
+ '#membership':'프리미엄','#shop':'상점','#dm':'메시지','#inventory':'인벤토리'
 });
 export const noticeAssetId=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const detailLink=/^#song\/([\w-]{1,100})(?:\?comments=1)?$/;
@@ -122,6 +122,10 @@ export function legacyNoticeContent(legacy,{welcome=false}={}){
 
 export const noticeAssetURL=(asset,campaignId)=>'/api/notices/official/'+encodeURIComponent(campaignId)+'/images/'+encodeURIComponent(asset);
 export const adminNoticeAssetURL=asset=>asset===legacyNoticeImage?PREMIUM_OPEN_NOTICE.banner:'/api/admin/notices/images/'+encodeURIComponent(asset);
+export function giftThumbnail(value){
+ return typeof value==='string'&&/^\/(?:assets|api\/product-assets)\/[\w./-]+\.(?:webp|png|jpe?g)$/i.test(value)&&
+  !value.includes('..')?value:'';
+}
 
 function linkHTML(href,body){
  const safe=noticeHref(href);
@@ -156,6 +160,12 @@ export function renderNoticeBody(content,{imageURL,renderStickers,editing=false}
   }
   if(!blockTypes.includes(block.type))continue;
   if(block.type==='li'&&!list){list=block.list==='ol'?'ol':'ul';markup+='<'+list+'>';}
+  const thumbnail=block.type==='p'&&!editing&&giftThumbnail(block.thumbnail);
+  if(thumbnail){
+   markup+='<p class="official-gift-line"><img src="'+escapeHTML(thumbnail)+'" alt="" loading="lazy"><span>'+
+    block.runs.map(r=>renderRun(r,renderStickers,false)).join('')+'</span></p>';
+   continue;
+  }
   markup+='<'+block.type+' data-align="'+align+'">'+(block.runs.map(r=>renderRun(r,renderStickers,editing)).join('')||'<br>')+'</'+block.type+'>';
  }
  closeList();

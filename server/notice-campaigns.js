@@ -122,6 +122,23 @@ export async function publishOfficialNotice(env,actor,input,{test=false}={}){
   check:await createAudienceCheck(env,actor,audience,{oldId:check.id})},409);
 }
 
+export function giftArrivalNoticeQueries(env,job,anchors,content){
+ const keys=JSON.stringify(anchors);
+ const eligible=`FROM gift_dispatch_items a JOIN users u ON u.id=a.user_id
+  WHERE a.dispatch_id=? AND a.line=0 AND a.id IN (SELECT value FROM json_each(?)) AND ${eligibleNoticeMember}
+  AND NOT EXISTS(SELECT 1 FROM gift_dispatch_items p WHERE p.dispatch_id=a.dispatch_id AND p.user_id=a.user_id AND p.state='pending')
+  AND EXISTS(SELECT 1 FROM gift_dispatch_items g WHERE g.dispatch_id=a.dispatch_id AND g.user_id=a.user_id AND g.state='granted')`;
+ return [
+  query(env,`INSERT INTO welcome_campaigns(id,content_json,created,recipient_max_rowid,kind,title,author_id,audience,test)
+   SELECT 'gift-'||a.id,?,unixepoch(),0,'gift',?,?,'specific',? ${eligible} ON CONFLICT(id) DO NOTHING`,
+   JSON.stringify(content),content.title,job.admin_id,job.test,job.id,keys),
+  query(env,`INSERT INTO welcome_receipts(campaign_id,user_id,created,source)
+   SELECT c.id,a.user_id,c.created,'broadcast' FROM gift_dispatch_items a JOIN welcome_campaigns c ON c.id='gift-'||a.id
+   JOIN users u ON u.id=a.user_id WHERE a.dispatch_id=? AND a.line=0 AND a.id IN (SELECT value FROM json_each(?))
+   AND ${eligibleNoticeMember} AND c.kind='gift' ON CONFLICT(campaign_id,user_id) DO NOTHING`,job.id,keys)
+ ];
+}
+
 function managedContent(row){
  const data=JSON.parse(row.edit_json??row.content_json);
  if(data.format===noticeFormat)return data;

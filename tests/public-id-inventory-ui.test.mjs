@@ -24,15 +24,10 @@ test('stored gift public code lookup preserves the selected inventory ID when op
  await h.forms['#mp-confirm-send'].onclick();
  assert.equal(h.calls.length,1);assert.equal(h.opened.length,1);assert.equal(h.opened[0].id,'recipient');assert.equal(h.opened[0].initial.giftInventoryId,'stock-1');assert.equal(h.closed,false);
 });
-test('admin console grants use the public code, selected transfer policy and a stable retry key',async()=>{
- const events={},button={disabled:false},status={},fields={public_id:{value:' qxf7082 '},gift_type:{value:'silver-letter'},quantity:{value:'2'},reason:{value:'운영 테스트'},giftable:{checked:false},origin:{value:'admin'},deadline:{value:'',addEventListener(){}}};
- const form={elements:fields,reportValidity:()=>true,reset(){},querySelectorAll:()=>[],querySelector:key=>key==='[type=submit]'?button:status,addEventListener:(name,fn)=>{events[name]=fn;}};
- const calls=[];
- const ctx=vm.createContext({crypto:webcrypto,URLSearchParams,document:{addEventListener(){}},$:id=>id==='#admin-gift-grant'?form:{},api:async(path,opts)=>{if(path.startsWith('/api/admin/gift-inventory/grants?'))return {grants:[],page:1,more:false};calls.push({path,body:JSON.parse(opts.body)});if(calls.length===1)throw Error('일시 오류');}});
- const js=source('admin.js'); vm.runInContext(js.slice(js.indexOf('  function bindAdminGiftGrant()'),js.indexOf('  async function init()')),ctx);
- assert.match(source('admin.html'),/name="public_id" pattern="\[A-Za-z\]\{3\}\[0-9\]\{4\}"/);
- for(let i=0;i<2;i++)await events.submit({preventDefault(){}});
- assert.equal(calls.length,2);assert.equal(calls[0].path,'/api/admin/gift-inventory/grant');
- assert.equal(calls[0].body.public_id,'QXF7082');assert.equal(calls[0].body.quantity,2);assert.equal(calls[0].body.giftable,false);
- assert.deepEqual(calls[0],calls[1]);assert.match(status.textContent,/2개를 지급/);
+test('the member directory passes its selected IDs to the shared audience selector in gift dispatch',()=>{
+ assert.match(source('admin.html'),/id="member-go-gift" disabled/);
+ assert.match(source('admin.js'),/navigate\('gift-dispatch',\{ids:\[\.\.\.directory\.selected\]\}\)/);
+ const js=source('admin-gift-dispatch.js');
+ assert.match(js,/AifectNoticeAudience\.create/);
+ assert.match(js,/audience\.set\(\{type:'specific',ids:selection\.ids\}\)/);
 });

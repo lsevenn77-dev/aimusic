@@ -1,5 +1,6 @@
 // Registered SKUs. Prices live here and are quoted by the server.
-export const PERIOD_LABELS=Object.freeze({P7D:'7일',P1M:'1개월',P3M:'3개월'});
+export const PERMANENT_PERIOD='PERMANENT';
+export const PERIOD_LABELS=Object.freeze({P7D:'7일',P1M:'1개월',P3M:'3개월',[PERMANENT_PERIOD]:'영구'});
 export const DECORATION_PRICES_GOLD=Object.freeze({
  PROFILE_FRAME:Object.freeze({P7D:50,P1M:150,P3M:390}),
  TALKING_ROOM_THEME:Object.freeze({P7D:100,P1M:300,P3M:790})
@@ -66,6 +67,7 @@ export function quoteDecoration(sku,period){
 // Epoch seconds, matching the existing inventory. Month arithmetic is in KST.
 export function decorationExpiry(start,period){
  if(!Number.isSafeInteger(start)||start<0)throw new RangeError('Invalid start time');
+ if(period===PERMANENT_PERIOD)return 0;
  if(period==='P7D')return start+7*86400;
  const months=({P1M:1,P3M:3})[period];if(!months)throw new RangeError('Invalid period');
  const local=new Date((start+9*3600)*1000),y=local.getUTCFullYear(),m=local.getUTCMonth();

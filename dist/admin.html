@@ -43,13 +43,12 @@
         <button class="admin-nav-item" data-view="cover-compression"><span>♫</span><b>커버 파일 압축</b></button>
         <p class="nav-section">운영 관리</p>
         <button class="admin-nav-item" data-view="notice-chat"><span aria-hidden="true">▤</span><b>공지 채팅 관리</b></button>
+        <button class="admin-nav-item" data-view="gift-dispatch"><span aria-hidden="true">◇</span><b>선물 발송 관리</b></button>
+        <button class="admin-nav-item" data-view="products"><span aria-hidden="true">▤</span><b>상품 관리</b></button>
         <p class="nav-section">MONEY</p>
         <button class="admin-nav-item" data-view="subscriptions"><span>♕</span><b>구독 관리</b></button>
         <button class="admin-nav-item" data-view="gold"><span>◎</span><b>골드 관리</b></button>
         <button class="admin-nav-item" data-view="payouts"><span>▣</span><b>정산 관리</b><i id="payout-badge"></i></button>
-        <p class="nav-section">운영 관리</p>
-        <button class="admin-nav-item" data-view="gift-dispatch"><span aria-hidden="true">◇</span><b>선물 발송 관리</b></button>
-        <button class="admin-nav-item" data-view="products"><span aria-hidden="true">▤</span><b>상품 관리</b></button>
       </nav>
 
       <div class="sidebar-status">
@@ -142,34 +141,7 @@
           </section>
 
           <section class="view-page hidden" data-page="products" id="admin-products"></section>
-          <section class="view-page hidden" data-page="gift-dispatch">
-            <div class="section-heading"><h1>선물 발송 관리</h1></div>
-            <details class="admin-card wide-card" id="gift-grant-panel" open>
-              <summary>보관함 선물 지급</summary>
-              <form id="admin-gift-grant" class="inline-controls">
-                <label>회원 공개 ID <input name="public_id" pattern="[A-Za-z]{3}[0-9]{4}" maxlength="7" autocomplete="off" placeholder="예: QXF7082" required></label>
-                <label>상품 <select name="gift_type" required></select></label>
-                <label>지급 출처 <select name="origin"><option value="admin">운영</option><option value="event">이벤트</option></select></label>
-                <label>사용 기한 <select name="deadline"><option value="">상품 기본값</option><option value="days">지급일 기준</option><option value="date">종료 날짜</option><option value="none">기한 없음</option></select></label>
-                <label data-deadline="days" hidden>일수 <input type="number" name="days" min="1" max="3650"></label>
-                <label data-deadline="date" hidden>종료일 (한국 시간) <input type="date" name="date"></label>
-                <label>수량 <input name="quantity" type="number" min="1" max="100" value="1" required></label>
-                <label>지급 사유 <input name="reason" maxlength="300" required></label>
-                <label><input name="giftable" type="checkbox" checked> 타인에게 선물 가능</label>
-                <button type="submit" class="small-button" disabled>지급하기</button>
-                <p class="field-help" role="status"></p>
-              </form>
-            </details>
-            <article class="admin-card wide-card" id="gift-grant-history">
-              <div class="card-head"><h2>지급 내역</h2><button class="small-button" id="gift-grant-all" type="button" hidden>전체 내역</button></div>
-              <p class="management-meta" id="gift-grant-scope"></p>
-              <div id="gift-grant-history-rows" aria-live="polite"></div>
-              <div class="management-actions">
-                <button class="small-button" id="gift-grant-previous" type="button" hidden>이전</button>
-                <button class="small-button" id="gift-grant-next" type="button" hidden>다음</button>
-              </div>
-            </article>
-          </section>
+          <section class="view-page hidden notice-admin" data-page="gift-dispatch" id="admin-gift-dispatch"></section>
           <section class="view-page hidden" data-page="people">
             <div class="section-heading"><div><p class="eyebrow">AUDIENCE</p><h1>사용자 · 창작자</h1></div></div>
             <article class="admin-card wide-card" id="member-directory">
@@ -188,6 +160,7 @@
                   <button type="button" id="member-select-results">검색 결과 전체 선택</button>
                   <button type="button" id="member-clear-selection">선택 해제</button>
                   <button type="button" id="member-go-notice" disabled>공지 작성으로 이동</button>
+                  <button type="button" id="member-go-gift" disabled>선물 발송으로 이동</button>
                 </div>
                 <div id="member-notice-roster"></div>
               </div>
@@ -248,7 +221,9 @@
   <script defer src="/notice-audience.js"></script>
   <script defer src="/admin-notices.js"></script>
   <script defer src="/admin-products.js"></script>
-  <script defer src="/admin.js?v=20261126-operations"></script>
+  <link rel="stylesheet" href="/admin-gift-dispatch.css">
+  <script defer src="/admin-gift-dispatch.js"></script>
+  <script defer src="/admin.js?v=20261126-gift-dispatch"></script>
   <script defer src="/admin-ai-bots.js"></script><script defer src="/admin-cover-compression.js"></script>
 <link rel="stylesheet" href="/popup-close.css">
 <link rel="stylesheet" href="/icon-feedback.css">

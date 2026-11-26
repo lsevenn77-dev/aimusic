@@ -9,7 +9,7 @@ import {checkedNoticeContent,mutateNoticeCampaign,noticeDetail,noticeHistory,not
 
 const base='/api/admin/notices';
 const assetRoute=/^\/api\/admin\/notices\/images\/([0-9a-f-]{36})$/i;
-const canManage=(env,user)=>env.AIFECT_NOTICE_READ_ONLY!=='true'&&(isConsoleAdmin(user)||
+export const canManageNotices=(env,user)=>env.AIFECT_NOTICE_READ_ONLY!=='true'&&(isConsoleAdmin(user)||
  isAdmin(env,user)&&(env.AIFECT_NOTICE_OPERATOR_IDS||'').split(',').map(x=>x.trim()).includes(user.id));
 const draftPageSize=30;
 const allowedMethods=new Map([
@@ -89,7 +89,7 @@ export async function adminNoticeRoute(req,env,path,user){
  if(path!==base&&!path.startsWith(base+'/'))return null;
  requireUser(user);
  if(!isAdmin(env,user))fail(403,'관리자만 공지 채팅을 확인할 수 있습니다.');
- const section=path.slice(base.length),method=req.method,params=new URL(req.url).searchParams,manage=canManage(env,user);
+ const section=path.slice(base.length),method=req.method,params=new URL(req.url).searchParams,manage=canManageNotices(env,user);
  const asset=assetRoute.exec(path),draft=/^\/drafts\/([0-9a-f-]{36})$/i.exec(section),
   roster=/^\/rosters\/([0-9a-f-]{36})$/i.exec(section),check=/^\/targets\/([0-9a-f-]{36})$/i.exec(section),
   campaign=/^\/history\/([\w-]{1,100})(?:\/(recipients|withdraw))?$/.exec(section);

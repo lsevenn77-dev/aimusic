@@ -459,6 +459,9 @@
 #inventory-products .stock-title {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:1.4}
 #inventory-products .stock-meta,#inventory-products .stock-quantity {margin:0;color:var(--ds-muted);font-size:12px;line-height:1.5}
 #inventory-products .stock-equipped {color:#8EDDD2}
+#inventory-products .stock-meta time{display:block;color:var(--ds-muted)}
+#inventory-products .stock-meta time small{display:block;font-size:11px;overflow-wrap:anywhere}
+#inventory-products .stock-meta .stock-expiring{color:var(--ds-accent-pink)}
 #inventory-products .stock-actions {display:flex;gap:4px;align-items:stretch;margin-top:auto;padding-top:3px}
 #inventory-products .stock-actions :is(a,button) {
  display:grid;place-items:center;flex:1 1 0;min-width:0;min-height:30px;padding:3px;

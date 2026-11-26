@@ -205,7 +205,8 @@
   };
   return {value,set(input={type:'',ids:[]}){
    type.value=input.type||'';$('[data-specific]').hidden=type.value!=='specific';setIds(input.ids??[],false);
-  },setWritable(writable){type.disabled=!writable;ids.disabled=!writable;roster.setWritable(writable);}};
+  },setWritable(writable){type.disabled=!writable;ids.disabled=!writable;roster.setWritable(writable);},
+  setRosterWritable(writable){roster.setWritable(writable);}};
  }
  globalThis.AifectNoticeAudience={create,rosterTools,types,download,max,esc};
 })();

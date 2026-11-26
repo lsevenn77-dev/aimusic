@@ -348,9 +348,11 @@ function decorationRemaining(expires,serverNow=Math.floor(Date.now()/1000)){
  return seconds<=0?'기간 만료':(seconds>=86400?Math.ceil(seconds/86400)+'일 남음':seconds>=3600?Math.ceil(seconds/3600)+'시간 남음':Math.ceil(seconds/60)+'분 남음')+' · '+new Date(expires*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+'까지';
 }
 function rentalPeriodText(item,at){
- const period=({P7D:'7일',P1M:'1개월',P3M:'3개월'})[item.period_code];
+ const period=({P7D:'7일',P1M:'1개월',P3M:'3개월',PERMANENT:'영구'})[item.period_code];
+ if(item.status==='UNUSED'&&item.season_ends_at)return new Date(item.season_ends_at*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'})+' KST 시즌 종료';
  if(item.status==='UNUSED'&&period)return period+' · 최초 사용부터';
  if(item.expires_at)return decorationRemaining(item.expires_at,at).split(' · ')[0];
+ if(item.period_code==='PERMANENT')return '';
  return item.paid||item.product&&item.status==='ACTIVE'?'이용 기간 확인 필요':item.usage||'기간 제한 없음';
 }
 function rentalStatusHTML(item,at){

@@ -6,6 +6,7 @@ import {myBoxesRoute} from './my-boxes.js';
 import {queuePremiumOpenNotice,queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
 import {officialNoticeRoute} from './official-notices.js';
 import {adminNoticeRoute} from './admin-notices.js';
+import {adminGiftDispatchRoute} from './admin-gift-dispatch.js';
 import {noticeJsonLimit} from '../shared/official-notice-content.js';
 import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
@@ -210,7 +211,7 @@ async function fetchRequest(req,env,ctx){
   }
   const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;
   const notice=await officialNoticeRoute(req,env,path,user)||await welcomeNoticeRoute(req,env,path,user);if(notice)return notice;
-  const noticeAdmin=await adminNoticeRoute(req,env,path,user);if(noticeAdmin)return noticeAdmin;
+  const noticeAdmin=await adminNoticeRoute(req,env,path,user)||await adminGiftDispatchRoute(req,env,path,user);if(noticeAdmin)return noticeAdmin;
   if(path==='/api/admin/mcp/identity'){
    if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해 주세요.');
    if(req.method!=='GET')fail(405,'GET만 지원합니다.');

@@ -25,12 +25,12 @@ function inventoryItems(state) {
   category:i.product.kind === 'TALKING_ROOM_THEME' ? 'themes' : 'frames',
   status:i.stored ? 'UNUSED' : 'ACTIVE'
  }));
- const decorations = groupInventoryUnits([...frames, ...rentals].filter(i => !i.expires_at || i.expires_at > inventoryNow(state)),
-  i => i.stored ? JSON.stringify([i.item_key, i.period_code, i.acquisition, i.giftable, i.available]) : i.id);
- const gifts = inventoryGiftGroups((state.gifts.items||[]).map(item=>{
-  if(item.expires_at&&item.expires_at<=inventoryNow(state))return {...item,available:false,giftable:false,expired:true};
-  return item;
- })).map(i => ({...i,name:i.gift_name,category:'gifts'}));
+ const at=inventoryNow(state);
+ const decorations = groupInventoryUnits([...frames, ...rentals].filter(i => (!i.expires_at || i.expires_at > at) &&
+  (!i.reward_deadline || i.reward_deadline > at)), i => i.stored ?
+  JSON.stringify([i.item_key, i.period_code, i.acquisition, i.reward_deadline, i.season_ends_at, i.giftable, i.available]) : i.id);
+ const gifts = inventoryGiftGroups((state.gifts.items||[]).filter(i=>!i.expired&&(!i.expires_at||i.expires_at>at)))
+  .map(i => ({...i,name:i.gift_name,category:'gifts'}));
  return [...gifts, ...decorations].sort((a,b) => Number(!!b.equipped) - Number(!!a.equipped));
 }
 function inventoryActions(item) {
@@ -46,10 +46,19 @@ function inventoryActions(item) {
 function inventoryCard(item,state) {
  const labels = [];
  if (item.equipped) labels.push('<span class="stock-equipped">'+(item.category==='frames'?'착용 중':'사용 중')+'</span>');
- if(item.category==='gifts'&&item.expires_at){
-  const formatDate=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'medium',timeStyle:'short'});
-  labels.push(esc(item.expired?'사용 기한 만료':(item.expires_at-inventoryNow(state)<=3*86400?'만료 임박 · ':'')+formatDate.format(new Date(item.expires_at*1000))+' 종료'));
- }else if(item.expires_at||item.period_code)labels.push(esc(rentalPeriodText(item,inventoryNow(state))));
+ const deadline=item.reward_deadline||item.expires_at,at=inventoryNow(state);
+ if(item.category!=='gifts'&&item.stored&&item.period_code){
+  const duration=rentalPeriodText(item,at);if(duration)labels.push(esc(duration));
+ }
+ if(deadline){
+  const exact=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'medium',timeStyle:'short',hourCycle:'h23'}).format(deadline*1000)+' KST';
+  const remaining=decorationRemaining(deadline,at).split(' · ')[0];
+  const name=item.category==='gifts'?'사용 기한':item.stored?'사용 시작 기한':'이용 종료';
+  labels.push('<time class="'+(deadline-at<=3*86400?'stock-expiring':'')+'" datetime="'+new Date(deadline*1000).toISOString()+
+   '" title="'+esc(name+' '+exact)+'">'+esc((deadline-at<=3*86400?'만료 임박 · ':'')+remaining)+' <small>'+esc(name+' '+exact)+'</small></time>');
+ }
+ if((item.acquisition==='event'||item.grant_origin==='event'))labels.push('이벤트 지급');
+ if(item.acquisition==='admin'||item.grant_origin==='admin')labels.push('운영 지급');
  if (item.acquisition === 'received') labels.push('받은 선물');
  if (item.acquisition === 'mixed') labels.push('받은 선물 포함');
  const quantity = item.category === 'gifts' || item.quantity > 1 ? '<span class="stock-quantity" aria-label="보유 '+item.quantity+'개">×'+number(item.quantity)+'</span>' : '';
@@ -72,7 +81,7 @@ function inventoryPanel(state) {
 async function readOwnedInventory(readApi) {
  const read = path => readApi(path,'GET',undefined,{fresh:true}).catch(e => ({error:e.message}));
  const [player,gifts] = await Promise.all([read('/api/me/player'),read('/api/me/gift-inventory')]);
- return {player,gifts,serverNow:player.server_now || Date.now()/1000,receivedAt:inventoryClock()};
+ return {player,gifts,serverNow:player.server_now || gifts.server_now || Date.now()/1000,receivedAt:inventoryClock()};
 }
 async function unifiedInventoryView(raw,readApi=api) {
  if (!me) {returnRoute=location.hash; return {html:gate()};}
