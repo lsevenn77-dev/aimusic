@@ -38,7 +38,8 @@ internal fun inventoryDecorationStatus(item:JSONObject,at:Long=System.currentTim
 @Composable internal fun InventoryDecorationConfirm(item:JSONObject,busy:Boolean,error:String?,dismiss:()->Unit,use:()->Unit){
  val product=item.optJSONObject("product")?:item
  val frame=product.optString("kind")=="PROFILE_FRAME"
- val period=mapOf("P7D" to "7일","P1M" to "1개월","P3M" to "3개월")[item.optString("period_code")]
+ val period=mapOf("P7D" to "7일","P1M" to "1개월","P3M" to "3개월","PERMANENT" to "영구")[item.optString("period_code")]
+ val reward=item.optString("acquisition") in listOf("admin","event")
  val available=item.optBoolean("available")
  Dialog(onDismissRequest={if(!busy)dismiss()},properties=DialogProperties(usePlatformDefaultWidth=false,dismissOnBackPress=!busy,dismissOnClickOutside=!busy)){
   Surface(color=Ink,shape=RoundedCornerShape(20.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.padding(horizontal=22.dp).widthIn(max=360.dp).fillMaxWidth().testTag("inventory-use-dialog")){
@@ -51,7 +52,9 @@ internal fun inventoryDecorationStatus(item:JSONObject,at:Long=System.currentTim
      Text(product.optString("name","아이템"),fontSize=17.sp,lineHeight=24.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.testTag("inventory-use-name"))
      period?.let{Text("$it · 사용 시작부터 적용",fontSize=12.sp,lineHeight=18.sp,color=Aqua,modifier=Modifier.testTag("inventory-use-period"))}
      Text(if(frame)"프로필에 액자를 장착합니다."else "사용 기간을 시작한 뒤 토킹룸 설정에서 배경을 선택할 수 있어요.",fontSize=13.sp,lineHeight=20.sp,color=SoftText)
-     Text("보관 아이템 1개를 사용해요. 같은 아이템의 남은 기간은 연장돼요.",fontSize=11.sp,lineHeight=17.sp,color=Muted)
+     inventoryDeadlineLabel(item.optLong("reward_deadline"),"사용 시작 기한")?.let{Text(it,fontSize=11.sp,color=Muted)}
+     inventoryDeadlineLabel(item.optLong("season_ends_at"),"시즌 종료")?.let{Text(it,fontSize=11.sp,color=Muted)}
+     Text(if(reward)"보관 중인 이용권 1개가 시작됩니다."else "보관 아이템 1개를 사용해요. 같은 아이템의 남은 기간은 연장돼요.",fontSize=11.sp,lineHeight=17.sp,color=Muted)
      if(!available)Text(item.optString("reason").ifBlank{"사용 상태를 다시 확인해주세요."},fontSize=12.sp,lineHeight=18.sp,color=Pink)
     }
     error?.takeIf{it.isNotBlank()}?.let{Text(it,fontSize=12.sp,lineHeight=18.sp,color=Pink,modifier=Modifier.testTag("inventory-use-error").semantics{liveRegion=LiveRegionMode.Polite})}

@@ -35,6 +35,19 @@ class CatalogAssetsTest {
   assertEquals(Endpoint.origin+"/media/themes/future/cover.webp",CatalogAssets.decorationImage(room))
   assertEquals(Endpoint.origin+"/media/themes/future/mobile.webp?hash=xyz",CatalogAssets.roomMobile(room))
  }
+ @Test fun nativeBackgroundAndEffectSelectTheSameVersionedCanvas(){
+  val assets=JSONObject().put("roomMobile","/assets/themes/product/mobile.webp")
+   .put("mobileEffect","/assets/themes/product/mobile-effect.webp")
+   .put("roomApp","/assets/themes/product/app.webp")
+   .put("appEffect","/assets/themes/product/app-effect.webp")
+  val theme=JSONObject().put("assets",assets)
+  assertEquals(Endpoint.origin+"/assets/themes/product/app.webp",CatalogAssets.roomMobile(theme))
+  assertEquals(Endpoint.origin+"/assets/themes/product/app-effect.webp",CatalogAssets.roomEffect(theme))
+  assets.remove("appEffect")
+  assertNull(CatalogAssets.roomEffect(theme))
+  assets.remove("roomApp")
+  assertEquals(Endpoint.origin+"/assets/themes/product/mobile-effect.webp",CatalogAssets.roomEffect(theme))
+ }
  @Test fun assetShapesAllowServerUpgradesWithoutAppChanges(){
   val future=JSONObject().put("assets",JSONObject().put("image","/assets/v2/gifts/leaf.avif?v=99"))
   assertEquals(Endpoint.origin+"/assets/v2/gifts/leaf.avif?v=99",CatalogAssets.giftImage(future))

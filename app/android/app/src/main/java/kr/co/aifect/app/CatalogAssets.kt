@@ -36,12 +36,22 @@ internal object CatalogAssets {
 
  fun giftImage(gift:JSONObject?):String?=fromObject(gift,"image","image_url","thumbnail","artwork","url")
  fun decorationImage(product:JSONObject?):String? {
+  fromObject(product,"catalog_thumbnail")?.let{return it}
   val kind=product?.optString("kind")
   return if(kind=="TALKING_ROOM_THEME")
    fromObject(product,"roomCard","thumbnail","roomMobile","roomDesktop","image","cover")
   else fromObject(product,"thumbnail","overlay","roomCard","roomMobile","image","cover")
  }
- fun roomMobile(theme:JSONObject?):String?=fromObject(theme,"roomMobile","roomDesktop","image","background","artwork")
+ fun roomMobile(theme:JSONObject?):String?=fromObject(theme,"roomApp","roomMobile","roomDesktop","image","background","artwork")
+
+ fun roomEffect(theme:JSONObject?):String? {
+  val role=when {
+   fromObject(theme,"roomApp")!=null -> "appEffect"
+   fromObject(theme,"roomMobile")!=null -> "mobileEffect"
+   else -> "desktopEffect"
+  }
+  return fromObject(theme,role)
+ }
 
  fun giftCatalog(json:JSONObject):Map<String,JSONObject>{
   val result=linkedMapOf<String,JSONObject>()

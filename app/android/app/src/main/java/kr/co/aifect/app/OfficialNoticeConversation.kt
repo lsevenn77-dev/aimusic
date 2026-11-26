@@ -59,7 +59,8 @@ private val campaignPattern = Regex("^campaign:([A-Za-z0-9_-]{1,100})$")
 private val assetPattern = Regex("^(?:[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}|premium-open-event-banner)$")
 private val songPath = Regex("^#song/([A-Za-z0-9_-]{1,100})(?:\\?comments=1)?$")
 private val menuLinks = setOf("#home", "#play", "#karaoke", "#live?mode=karaoke", "#voice?mode=talk", "#community/crews",
-    "#karaoke/duets", "#karaoke/dubbing?tab=join", "#artists", "#upload", "#membership", "#shop", "#dm")
+    "#karaoke/duets", "#karaoke/dubbing?tab=join", "#artists", "#upload", "#membership", "#shop", "#dm", "#inventory")
+private val giftThumbnail = Regex("^/(?:assets|api/product-assets)/[A-Za-z0-9_./-]+\\.(?:webp|png|jpe?g)$", RegexOption.IGNORE_CASE)
 private val kst = ZoneId.of("Asia/Seoul")
 private val dayLabel = DateTimeFormatter.ofPattern("yyyy년 M월 d일", Locale.KOREAN).withZone(kst)
 private val hourLabel = DateTimeFormatter.ofPattern("HH:mm", Locale.KOREAN).withZone(kst)
@@ -105,6 +106,7 @@ internal fun OfficialNoticeConversation(m: MusicModel, close: () -> Unit) {
                 it == "#community/crews" -> { m.dismissMessages(); m.selectTab(3); m.communityMode = "crews" }
                 it == "#membership" -> { m.billingInitialTab = "premium"; m.showBilling = true }
                 it == "#shop" -> m.showShop = true
+                it == "#inventory" -> { m.dismissMessages(); m.showInventory = true }
                 else -> runCatching { uriHandler.openUri(if (it.startsWith("#")) Endpoint.url("/" + it) else it) }
                     .onFailure { m.notice = "링크를 열 수 없습니다." }
             }
@@ -270,7 +272,15 @@ private fun OfficialNoticeCard(m: MusicModel, row: JSONObject, loader: ImageLoad
                                         }
                                     }
                                 }
-                                else -> NoticeParagraph(block, ordered, open)
+                                else -> {
+                                    val thumb = block.optString("thumbnail")
+                                    if (row.optBoolean("gift") && giftThumbnail.matches(thumb) && !thumb.contains("..")) {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            GiftItemImage(thumb, Modifier.size(44.dp).testTag("official-gift-thumbnail"))
+                                            Box(Modifier.weight(1f)) { NoticeParagraph(block, ordered, open) }
+                                        }
+                                    } else NoticeParagraph(block, ordered, open)
+                                }
                             }
                         }
                     }

@@ -71,15 +71,15 @@ private fun JSONObject.presentAmount(key:String):String?=
     Text("보유 선물",fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f))
     TextButton({m.showShop=true},modifier=Modifier.testTag("inventory-shop")){Text("선물 상점",fontSize=12.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(16.dp))}
    }
-   val groups=inventory.data?.optJSONArray("items").objects().groupBy{it.optString("gift_type")+":"+it.optBoolean("available",true)}.values.toList()
+   val groups=inventory.data?.optJSONArray("items").objects().filterNot{heldGiftExpired(it)}.groupBy(::ownedGiftGroupKey).values.toList()
    groups.chunked(3).forEach{row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    row.forEach{group->val gift=group.first();val available=gift.optBoolean("available",true)
+    row.forEach{group->val gift=group.first();val available=ownedGiftAvailable(gift)
      Surface(onClick={m.showInventory=true},color=Panel,shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.weight(1f).testTag("my-owned-gift-${gift.optString("gift_type")}-${if(available)"available"else "held"}")){
       Column(Modifier.padding(9.dp),horizontalAlignment=Alignment.CenterHorizontally){
        GiftItemImage(gift.optString("image"),Modifier.fillMaxWidth().height(64.dp))
        Text(gift.optString("gift_name"),fontSize=12.sp,lineHeight=17.sp,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().heightIn(min=34.dp).wrapContentHeight())
        Text("${inventoryAmount(group.size)}개 보유",fontSize=11.sp,lineHeight=16.sp,color=if(available)Aqua else Muted)
-       Text(if(available)"선물 관리"else "사용 보류",fontSize=10.sp,lineHeight=15.sp,color=Muted)
+       Text(ownedGiftDeadlineLabel(gift)?:if(available)"선물 관리"else "사용 보류",fontSize=10.sp,lineHeight=15.sp,color=Muted)
       }
      }
     };repeat(3-row.size){Spacer(Modifier.weight(1f))}

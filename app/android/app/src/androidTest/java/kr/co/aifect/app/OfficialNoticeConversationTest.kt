@@ -38,6 +38,8 @@ class OfficialNoticeConversationTest {
         val read = AtomicBoolean()
         val now = System.currentTimeMillis() / 1000
         val mark = "campaign:fixture-notice"
+        val giftMark = "campaign:gift-qa"
+        val giftArt = "/assets/fixture-gift.png"
         val picture = "4a6b230b-99cd-4a7a-a012-016a8a223361"
         val image = Bitmap.createBitmap(400, 120, Bitmap.Config.ARGB_8888)
         image.eraseColor(Color.rgb(88, 178, 168))
@@ -55,6 +57,11 @@ class OfficialNoticeConversationTest {
             return payload("id" to mark, "created" to now, "read_at" to if (read.get()) now else 0,
                 "edited_at" to if (edited) now else 0, "version" to (revision.get() + 1), "rich" to rich)
         }
+        val gift = payload("id" to giftMark, "created" to now + 1, "read_at" to now, "version" to 1,
+            "gift" to true, "rich" to payload("format" to 1, "title" to "선물이 도착했습니다", "blocks" to JSONArray(listOf(
+                payload("type" to "p", "thumbnail" to giftArt, "runs" to JSONArray(listOf(payload("text" to "선물 × 2")))),
+                payload("type" to "p", "runs" to JSONArray(listOf(payload("text" to "인벤토리 열기", "href" to "#inventory"))))
+            ))))
         workers.execute {
             while (!server.isClosed) {
                 val socket = runCatching { server.accept() }.getOrNull() ?: break
@@ -102,7 +109,7 @@ class OfficialNoticeConversationTest {
                                 return@use
                             }
                             val endpoint = "/api/notices/official"
-                            val binary = path == "$endpoint/fixture-notice/images/$picture"
+                            val binary = path == "$endpoint/fixture-notice/images/$picture" || path == giftArt
                             val response = when {
                                 binary -> png
                                 path == endpoint && parts[0] == "PATCH" -> {
@@ -110,8 +117,13 @@ class OfficialNoticeConversationTest {
                                     if ((0 until ids.length()).any { ids.optString(it) == mark }) read.set(true)
                                     "{}".toByteArray()
                                 }
-                                path == endpoint -> payload("items" to JSONArray(if (revision.get() == 2) listOf(old) else listOf(old, item())))
+                                path == endpoint -> payload("items" to JSONArray(if (revision.get() >= 3) listOf(old, gift) else if (revision.get() == 2) listOf(old) else listOf(old, item())))
                                     .toString().toByteArray(Charsets.UTF_8)
+                                path == "/api/me/gift-inventory" -> payload("server_now" to now, "items" to JSONArray(listOf(
+                                    payload("id" to "gift-1", "gift_type" to "fixture", "gift_name" to "기한제 검증 선물",
+                                        "grant_origin" to "event", "image" to giftArt, "expires_at" to now + 86400,
+                                        "available" to true, "giftable" to true)
+                                ))).toString().toByteArray(Charsets.UTF_8)
                                 else -> "{}".toByteArray()
                             }
                             val type = if (binary) "image/png" else "application/json"
@@ -132,7 +144,10 @@ class OfficialNoticeConversationTest {
                 model.user = payload("id" to "fixture-account", "name" to "격리 테스트 계정")
                 model.messagePeer = OfficialNoticePeer
             }
-            ui.setContent { MaterialTheme { MessagesSheet(model, embedded = true) } }
+            ui.setContent { MaterialTheme {
+                if (model.showInventory) PlayerInventorySheet(model, { model.showInventory = false }) {}
+                else MessagesSheet(model, embedded = true)
+            } }
             ui.waitUntil(15000) { ui.onAllNodesWithText("새 공식 공지").fetchSemanticsNodes().isNotEmpty() }
             ui.onNodeWithTag("dm-input").assertDoesNotExist()
             ui.onNodeWithText("아이팩트 공식 안내 채널입니다.").assertIsDisplayed()
@@ -149,6 +164,20 @@ class OfficialNoticeConversationTest {
             revision.set(2)
             ui.waitUntil(10000) { ui.onAllNodesWithText("수정된 공식 공지").fetchSemanticsNodes().isEmpty() }
             ui.onNodeWithText("기존 환영 공지").assertIsDisplayed()
+            revision.set(3)
+            ui.waitUntil(10000) { ui.onAllNodesWithText("선물이 도착했습니다").fetchSemanticsNodes().isNotEmpty() }
+            ui.onNodeWithTag("official-gift-thumbnail").assertIsDisplayed()
+            fun screenshot(name: String) {
+                val image = instrumentation.uiAutomation.takeScreenshot() ?: return
+                val folder = context.getExternalFilesDir(null) ?: context.filesDir
+                File(folder, name).outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                image.recycle()
+            }
+            screenshot("gift-android-notice.png")
+            ui.onNodeWithText("인벤토리 열기").performTouchInput { click() }
+            ui.waitUntil(12000) { ui.onAllNodesWithTag("inventory-gift-deadline").fetchSemanticsNodes().isNotEmpty() }
+            ui.onNodeWithText("기한제 검증 선물").assertIsDisplayed()
+            screenshot("gift-android-inventory.png")
         } finally {
             ui.runOnIdle { model.user = null }
             instrumentation.runOnMainSync { models.clear() }

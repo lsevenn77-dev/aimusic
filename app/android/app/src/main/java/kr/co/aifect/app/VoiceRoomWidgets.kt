@@ -22,6 +22,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import kotlinx.coroutines.delay
@@ -36,11 +38,24 @@ internal fun voiceGiftImage(gift:JSONObject,catalog:Map<String,JSONObject>):Stri
  val type=gift.optString("type").ifBlank{gift.optString("gift_type")}.ifBlank{gift.optString("id")}
  return CatalogAssets.giftImage(gift) ?: CatalogAssets.giftImage(catalog[type])
 }
-@Composable internal fun VoiceGiftArt(gift:JSONObject,size:Int=48,catalog:Map<String,JSONObject> = emptyMap()){
- val image=voiceGiftImage(gift,catalog)
- if(image==null)Icon(Icons.Outlined.CardGiftcard,gift.optString("name"),Modifier.size(size.dp),tint=Pink)
- else SubcomposeAsyncImage(image,gift.optString("name"),Modifier.size(size.dp),contentScale=ContentScale.Fit,
-  loading={Icon(Icons.Outlined.CardGiftcard,null,Modifier.padding(10.dp),tint=Pink)},error={Icon(Icons.Outlined.CardGiftcard,null,Modifier.padding(10.dp),tint=Pink)})
+@Composable internal fun VoiceGiftArt(gift:JSONObject,size:Int=48,catalog:Map<String,JSONObject> = emptyMap(),playing:Boolean=false){
+ val thumbnail=voiceGiftImage(gift,catalog)
+ val type=gift.optString("type").ifBlank{gift.optString("gift_type")}.ifBlank{gift.optString("id")}
+ val item=catalog[type]
+ val artwork=if(playing)CatalogAssets.fromObject(gift,"artwork")?:CatalogAssets.fromObject(item,"artwork")?:thumbnail else thumbnail
+ val motion=if(playing)CatalogAssets.fromObject(gift,"animation")?:CatalogAssets.fromObject(item,"animation")else null
+ val effect=if(playing)CatalogAssets.fromObject(gift,"effect")?:CatalogAssets.fromObject(item,"effect")else null
+ val image=motion?:artwork
+ Box(Modifier.size(size.dp),contentAlignment=Alignment.Center){
+  if(image==null)Icon(Icons.Outlined.CardGiftcard,gift.optString("name"),Modifier.fillMaxSize(),tint=Pink)
+  else SubcomposeAsyncImage(image,gift.optString("name"),Modifier.fillMaxSize(),contentScale=ContentScale.Fit,
+   loading={Icon(Icons.Outlined.CardGiftcard,null,Modifier.padding(10.dp),tint=Pink)},
+   error={
+    if(artwork!=null&&image!=artwork)AsyncImage(artwork,gift.optString("name"),Modifier.fillMaxSize(),contentScale=ContentScale.Fit)
+    else Icon(Icons.Outlined.CardGiftcard,null,Modifier.padding(10.dp),tint=Pink)
+   })
+  if(effect!=null&&image!=null)AsyncImage(effect,null,Modifier.matchParentSize(),contentScale=ContentScale.Fit)
+ }
 }
 @Composable internal fun VoiceGiftMessage(chat:JSONObject,catalog:Map<String,JSONObject> = emptyMap()){
  val gift=chat.optJSONObject("gift")?:JSONObject()
@@ -56,15 +71,16 @@ internal fun voiceGiftImage(gift:JSONObject,catalog:Map<String,JSONObject>):Stri
  var chat by remember(engine){mutableStateOf<JSONObject?>(null)}
  val progress=remember{Animatable(0f)}
  val context=LocalContext.current
+ val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+ val reduce=android.provider.Settings.Global.getFloat(context.contentResolver,android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
  LaunchedEffect(engine){engine.giftAnimations.collect{next->
   chat=next;progress.snapTo(0f)
-  val reduce=android.provider.Settings.Global.getFloat(context.contentResolver,android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
   if(reduce){progress.snapTo(.5f);delay(1200)}else progress.animateTo(1f,tween(2500,easing=LinearEasing))
   chat=null
  }}
- chat?.let{c->val p=progress.value;val scale=when{p<.18f->.2f+p/.18f*.8f;p>.8f->((1f-p)/.2f).coerceAtLeast(0f);else->1f}
+ chat?.takeIf{lifecycleState==Lifecycle.State.RESUMED}?.let{c->val p=progress.value;val scale=when{p<.18f->.2f+p/.18f*.8f;p>.8f->((1f-p)/.2f).coerceAtLeast(0f);else->1f}
   Column(modifier.testTag("voice-gift-animation").graphicsLayer{scaleX=scale;scaleY=scale;rotationZ=if(p in .2f.. .7f)sin((p-.2f)*60f)*9f else 0f;alpha=if(p>.8f)((1f-p)/.2f)else(p/.12f).coerceAtMost(1f)},horizontalAlignment=Alignment.CenterHorizontally){
-   VoiceGiftArt(c.optJSONObject("gift")?:JSONObject(),112,catalog)
+   VoiceGiftArt(c.optJSONObject("gift")?:JSONObject(),112,catalog,playing=!reduce)
    Text("${c.optJSONObject("gift")?.optString("name")} ×${c.optJSONObject("gift")?.optInt("quantity",1)}",color=SoftText,fontWeight=FontWeight.Bold,modifier=Modifier.background(Panel.copy(alpha=.94f),RoundedCornerShape(12.dp)).padding(horizontal=12.dp,vertical=6.dp))
   }
  }

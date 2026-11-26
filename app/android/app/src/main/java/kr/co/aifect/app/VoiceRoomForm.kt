@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
@@ -40,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
@@ -50,6 +53,10 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
 @Composable internal fun VoiceRoomBackdrop(background:String,theme:JSONObject?=null,modifier:Modifier=Modifier,preview:Boolean=false){
  val sku=theme?.optString("sku").orEmpty().ifBlank{background}.ifBlank{"navy"}
  val image=CatalogAssets.roomMobile(theme)
+ val context=LocalContext.current
+ val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+ val reducedMotion=android.provider.Settings.Global.getFloat(context.contentResolver,android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
+ val effect=if(!preview&&!reducedMotion&&lifecycleState==Lifecycle.State.RESUMED)CatalogAssets.roomEffect(theme)else null
  Box(modifier.testTag("voice-background-$sku")){
   Canvas(Modifier.matchParentSize()){
    val base=when(sku){"sunset"->Color(0xFF0C1422);"night"->Color(0xFF050E1C);else->Color(0xFF07111F)}
@@ -96,6 +103,7 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
    // A picker tile shows the theme's own colours; inside a room the art stays dimmed behind people and chat.
    AsyncImage(image,null,Modifier.matchParentSize().alpha(if(preview)1f else .88f).testTag("voice-background-image"),contentScale=ContentScale.Crop)
    Box(Modifier.matchParentSize().background(Brush.verticalGradient(if(preview)listOf(Color.Transparent,Ink.copy(alpha=.22f))else listOf(Ink.copy(alpha=.25f),Ink.copy(alpha=.56f)))))
+   if(effect!=null)AsyncImage(effect,null,Modifier.matchParentSize().testTag("voice-background-effect"),contentScale=ContentScale.Crop)
   }
  }
 }

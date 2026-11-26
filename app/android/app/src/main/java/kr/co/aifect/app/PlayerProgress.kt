@@ -113,6 +113,9 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
         Box(Modifier.fillMaxWidth().weight(1f),contentAlignment=Alignment.Center){Avatar(p.optString("name"),p,56)}
         Text(i.optString("name"),fontSize=12.sp,lineHeight=17.sp,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.fillMaxWidth().height(44.dp).wrapContentHeight())
         Text(if(equipped)"장착 중" else if(i.optBoolean("available"))"장착" else "보유",fontSize=11.sp,lineHeight=16.sp,color=if(equipped)Pink else Muted)
+        inventoryDeadlineLabel(i.optLong("expires_at"),"이용 종료",d.optLong("server_now",System.currentTimeMillis()/1000))?.let{
+         Text(it,fontSize=9.sp,lineHeight=13.sp,modifier=Modifier.testTag("inventory-frame-deadline"))
+        }
        }
       }
      }
@@ -124,25 +127,30 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
    items(decorations.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
     row.forEach{i->val product=i.optJSONObject("product")?:i;val stored=i.optBoolean("stored")||i.optString("source")=="decoration_stock"
      Surface(onClick={error=null;decoration=i},enabled=stored&&i.optBoolean("available")&&!busy,color=Panel,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f).testTag("inventory-decoration-${i.optString("id")}")){
-      Column(Modifier.height(156.dp).padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
+      Column(Modifier.heightIn(min=156.dp).height(if(i.optLong("reward_deadline")>0L||i.optLong("expires_at")>0L)182.dp else 156.dp).padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
        AsyncImage(decorationImage(product),product.optString("name"),Modifier.fillMaxWidth().weight(1f),contentScale=ContentScale.Fit)
        Text(product.optString("name"),fontSize=12.sp,maxLines=2,modifier=Modifier.height(44.dp).wrapContentHeight())
        Text(inventoryDecorationStatus(i),fontSize=11.sp,lineHeight=16.sp,color=if(inventoryDecorationStatus(i)=="적용 중")Aqua else Muted,modifier=Modifier.testTag("inventory-decoration-status-${i.optString("id")}"))
+       inventoryDeadlineLabel(i.optLong(if(stored)"reward_deadline"else "expires_at"),
+        if(stored)"사용 시작 기한"else "이용 종료",data?.optLong("server_now")?.takeIf{it>0L}?:System.currentTimeMillis()/1000)?.let{
+        Text(it,fontSize=9.sp,lineHeight=13.sp,modifier=Modifier.testTag("inventory-decoration-deadline"))
+       }
       }
      }
     };repeat(3-row.size){Spacer(Modifier.weight(1f))}
    }}
    if(gifts==null&&giftError==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua)}
    giftError?.let{item{Text(it,color=Pink);TextButton(onClick={retry++}){Text("보유 선물 다시 불러오기")}}}
-   val ownedGifts=gifts.orEmpty().groupBy{it.optString("gift_type")+":"+it.optBoolean("available",true)}.values.toList()
+   val ownedGifts=gifts.orEmpty().filterNot{heldGiftExpired(it)}.groupBy(::ownedGiftGroupKey).values.toList()
    if(ownedGifts.isNotEmpty())item{Text("선물",fontSize=16.sp,fontWeight=FontWeight.SemiBold)}
    items(ownedGifts.chunked(3)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-    row.forEach{group->val i=group.first();val available=i.optBoolean("available",true)
+    row.forEach{group->val i=group.first();val available=ownedGiftAvailable(i)&&i.optBoolean("giftable",true)
      Surface(onClick={gift=i},enabled=available,color=Panel,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f).testTag("inventory-gift-${i.optString("gift_type")}")){
-      Column(Modifier.height(156.dp).padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
+      Column(Modifier.height(if(i.optLong("expires_at")>0L)184.dp else 156.dp).padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
        Box(Modifier.fillMaxWidth().weight(1f),contentAlignment=Alignment.Center){GiftItemImage(i.optString("image"),Modifier.size(64.dp))}
        Text(i.optString("gift_name"),fontSize=12.sp,lineHeight=17.sp,maxLines=2,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center,modifier=Modifier.fillMaxWidth().height(44.dp).wrapContentHeight())
        Text(if(available)"${group.size}개 보유" else "${group.size}개 · 사용 보류",fontSize=11.sp,lineHeight=16.sp,color=Muted)
+       ownedGiftDeadlineLabel(i)?.let{Text(it,fontSize=9.sp,lineHeight=13.sp,modifier=Modifier.testTag("inventory-gift-deadline"))}
       }
      }
     };repeat(3-row.size){Spacer(Modifier.weight(1f))}

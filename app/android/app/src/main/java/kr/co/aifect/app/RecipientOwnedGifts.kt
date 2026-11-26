@@ -35,15 +35,15 @@ import java.util.UUID
   if(inventory?.isEmpty()==true)Text("보유한 선물 아이템이 없어요.",fontSize=13.sp,color=Muted)
   error?.let{Text(it,color=Pink,fontSize=13.sp);if(selected==null)TextButton(onClick={retry++},enabled=!busy){Text("다시 불러오기")}}
   success?.let{Text(it,color=Aqua,fontSize=13.sp,modifier=Modifier.testTag("recipient-owned-success"))}
-  val groups=inventory.orEmpty().groupBy{it.optString("gift_type")+":"+it.optBoolean("available",true)}.values.toList()
+  val groups=inventory.orEmpty().filterNot{heldGiftExpired(it)}.groupBy(::ownedGiftGroupKey).values.toList()
   groups.chunked(3).forEach{row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-   row.forEach{group->val item=group.first();val available=item.optBoolean("available",true)
+   row.forEach{group->val item=group.first();val available=ownedGiftAvailable(item)&&item.optBoolean("giftable",true)
     Surface(onClick={selected=item;requestId=UUID.randomUUID().toString();error=null},enabled=!busy&&available&&!recipientId.isNullOrBlank(),color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f).testTag("recipient-owned-${item.optString("gift_type")}")){
      Column(Modifier.padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
       GiftItemImage(item.optString("image"),Modifier.fillMaxWidth().aspectRatio(1f))
       Text(item.optString("gift_name"),fontSize=12.sp,lineHeight=17.sp,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=TextAlign.Center,modifier=Modifier.heightIn(min=42.dp).wrapContentHeight())
       Text("${group.size}개 보유",color=Aqua,fontSize=12.sp,modifier=Modifier.testTag("recipient-owned-count-${item.optString("gift_type")}"))
-      Text(if(available)"선물하기" else "사용 보류",color=Muted,fontSize=11.sp,modifier=Modifier.padding(top=4.dp))
+      Text(ownedGiftDeadlineLabel(item)?:if(available)"선물하기" else "사용 보류",color=Muted,fontSize=11.sp,modifier=Modifier.padding(top=4.dp))
      }
     }
    };repeat(3-row.size){Spacer(Modifier.weight(1f))}
