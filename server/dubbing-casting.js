@@ -6,6 +6,7 @@ import {publicNameSQL} from './identity.js';
 import {dubbingVisibleSQL,assertDubbingCreator} from './dubbing-access.js';
 import {dubbingRecordingWindows} from '../shared/dubbing-recording.js';
 import revisedOriginals from './dubbing-original-editions.json' with {type:'json'};
+import {closeDeletedContentReports} from './deleted-content-reports.js';
 
 export const CASTING_LICENSE='casting-2026-11-01';
 export const CASTING_TTL=30*86400;
@@ -222,7 +223,8 @@ export async function expireDubbingCombinations(env,stamp=now()){
   for(const pid of ids)await env.DB.batch([
    query(env,`INSERT INTO dubbing_audio_cleanup(object_key,created) SELECT l.audio_key,? FROM dubbing_recording_lines l JOIN dubbing_recordings r ON r.id=l.recording_id WHERE r.project_id=? ON CONFLICT(object_key) DO NOTHING`,stamp,pid),
    query(env,'DELETE FROM dubbing_recordings WHERE project_id=?',pid),query(env,'DELETE FROM dubbing_role_claims WHERE project_id=?',pid),
-   query(env,"UPDATE dubbing_projects SET deleted_at=?,visibility='private' WHERE id=?",stamp,pid)]);
+   query(env,"UPDATE dubbing_projects SET deleted_at=?,visibility='private' WHERE id=?",stamp,pid),
+   ...closeDeletedContentReports(env,'dubbing','t.id=?',[pid],'system',stamp)]);
  }
  for(const item of await rows(env,'SELECT object_key FROM dubbing_audio_cleanup ORDER BY created LIMIT 100')){
   const referenced=await one(env,`SELECT 1 present WHERE EXISTS(SELECT 1 FROM dubbing_recording_lines WHERE audio_key=?) OR EXISTS(SELECT 1 FROM dubbing_final_jobs j,dubbing_projects p,json_each(j.manifest_json,'$.lines') l WHERE p.id=j.project_id AND p.deleted_at=0 AND json_extract(l.value,'$.key')=?)`,item.object_key,item.object_key);

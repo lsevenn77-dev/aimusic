@@ -68,6 +68,18 @@ test('reporter deletion scrubs private evidence without undoing an enforced take
  assert.equal(retained.status,'removed');assert.equal(retained.contact,'');assert.equal(retained.rightsholder,'');assert.equal(retained.details,'');assert.equal(retained.evidence_json,'[]');
  assert.equal((await f.call('/api/dubbing/projects/'+p.id,'GET',null,null)).status,404);
 });
+test('deleting a dubbing work closes its pending rights report and keeps the evidence in history',async t=>{
+ const f=await setup(t),p=await f.create(),report=await f.report(p);
+ assert.equal((await f.call('/api/admin/dubbing','GET',null,'other')).body.summary.open_reports,1);
+ assert.equal((await f.call('/api/dubbing/projects/'+p.id,'DELETE',{revision:p.revision})).status,200);
+ const retained=f.sql.prepare('SELECT * FROM track_reports WHERE id=?').get(report.id);
+ assert.equal(retained.status,'dismissed');
+ assert.equal(retained.version,report.version+1);
+ assert.equal(retained.evidence_json,report.evidence_json);
+ assert.equal((await f.call('/api/admin/dubbing','GET',null,'other')).body.summary.open_reports,0);
+ const audit=f.sql.prepare("SELECT target FROM admin_audit WHERE action='dubbing-report:auto-close'").get();
+ assert.equal(JSON.parse(audit.target).report_id,report.id);
+});
 test('report evidence validation and concurrent admin decisions prevent overwrites',async t=>{
  const f=await setup(t),p=await f.create();for(const evidence of [['javascript:alert(1)'],['https://name:password@example.test'],[]])assert.equal((await f.call('/api/dubbing/projects/'+p.id+'/report','POST',{...reporting,evidence},'other')).status,400);
  const r=await f.report(p),results=await Promise.all([f.review(r),f.review(r,'dismissed')]);assert.deepEqual(results.map(x=>x.status).sort(),[200,409]);assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM admin_audit').get().n,1);

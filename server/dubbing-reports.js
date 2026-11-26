@@ -1,8 +1,9 @@
 import * as AifectMessages from '../shared/system-messages.js';
-import {one,rows,query,run,now,id,fail,str,json,rate} from './db.js';
+import {one,rows,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {dubbingVisibleSQL,dubbingRemoved} from './dubbing-access.js';
 import {reconcileDubbingGold} from './dubbing-gold.js';
+import {dubbingReportFrom,openDubbingReportSQL,REVIEW_PAGE_SIZE,reviewCursor,reviewPage} from './review-queues.js';
 export function evidenceLinks(value){
  if(!Array.isArray(value)||value.length>5)fail(400,'증빙 링크는 최대 5개까지 입력해 주세요.');
  return value.map(v=>{const text=str(v,1000);let u;try{u=new URL(text);}catch{fail(400,'증빙 링크 주소를 확인해 주세요.');}if(u.protocol!=='https:'||u.username||u.password)fail(400,'증빙은 인증 정보가 없는 HTTPS 링크로 입력해 주세요.');return u.href;});
@@ -17,7 +18,13 @@ export async function dubbingReportRoute(req,env,p,user,action,tail){
   const rightsholder=str(body.rightsholder,100),contact=str(body.contact,254),details=str(body.details,2000),evidence=evidenceLinks(body.evidence);
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)||!evidence.length||body.confirmed!==true)fail(400,'권리자 연락 이메일, 증빙 링크와 신고 확인이 필요합니다.');
   await rate(env,'rights-report:'+user.id,10,86400);const rid=id();
-  await run(env,"INSERT OR IGNORE INTO track_reports(id,dubbing_id,user_id,reason,details,rightsholder,contact,evidence_json,created) VALUES(?,?,?,'copyright',?,?,?,?,?)",rid,p.id,user.id,details,rightsholder,contact,JSON.stringify(evidence),now());return json({ok:true},201);
+  const inserted=await query(env,`INSERT INTO track_reports(id,dubbing_id,user_id,reason,details,rightsholder,contact,evidence_json,created)
+   SELECT ?,p.id,?,'copyright',?,?,?,?,? FROM dubbing_projects p WHERE p.id=? AND p.visibility='public' AND ${dubbingVisibleSQL()}
+   ON CONFLICT(dubbing_id,user_id) DO NOTHING RETURNING id`,rid,user.id,details,rightsholder,contact,JSON.stringify(evidence),now(),p.id).first();
+  if(inserted)return json({ok:true},201);
+  const duplicate=await one(env,'SELECT id FROM track_reports WHERE dubbing_id=? AND user_id=?',p.id,user.id);
+  if(duplicate)return json({id:duplicate.id});
+  fail(409,'작품 상태가 변경되었습니다. 다시 확인해 주세요.');
  }
  if(p.owner_id!==user.id)fail(403,'작품 작성자만 이의신청할 수 있습니다.');
  const appeal=str(body.details,2000),evidence=evidenceLinks(body.evidence);
@@ -27,11 +34,15 @@ export async function dubbingReportRoute(req,env,p,user,action,tail){
 export async function dubbingReportsAdminRoute(req,env,path,user){
  if(!path.startsWith('/api/admin/dubbing-reports'))return null;requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
  if(path==='/api/admin/dubbing-reports'&&req.method==='GET'){
-  const status=new URL(req.url).searchParams.get('status')||'pending';if(!['pending','removed','appealed','upheld','dismissed','restored'].includes(status))fail(400,'신고 상태를 확인해 주세요.');
-  return json({reports:await rows(env,`SELECT r.*,p.title,p.owner_id,p.generation_id,
+  const params=new URL(req.url).searchParams,status=params.get('status')||'pending';
+  if(!['pending','removed','appealed','upheld','dismissed','restored'].includes(status))fail(400,'신고 상태를 확인해 주세요.');
+  const cursor=reviewCursor(params,'r');
+  const {items,...page}=reviewPage(await rows(env,`SELECT r.*,p.title,p.owner_id,p.generation_id,
    (SELECT json_group_array(json_object('id',x.id,'title',x.title)) FROM dubbing_projects x WHERE x.id!=p.id AND ((p.generation_id IS NOT NULL AND x.generation_id=p.generation_id) OR x.creation_hash=p.creation_hash)) linked_projects,
    (SELECT COUNT(DISTINCT x.dubbing_id) FROM track_reports x JOIN dubbing_projects dp ON dp.id=x.dubbing_id WHERE dp.owner_id=p.owner_id AND x.status IN ('removed','appealed','upheld')) violations
-   FROM track_reports r JOIN dubbing_projects p ON p.id=r.dubbing_id WHERE r.status=? ORDER BY r.created,r.id LIMIT 100`,status)});
+   ${dubbingReportFrom} WHERE r.status=? ${['pending','appealed'].includes(status)?`AND ${openDubbingReportSQL}`:''} ${cursor.where}
+   ORDER BY r.created,r.id LIMIT ?`,status,...cursor.args,REVIEW_PAGE_SIZE+1));
+  return json({reports:items,...page});
  }
  const m=path.match(/^\/api\/admin\/dubbing-reports\/([\w-]+)$/);if(!m||req.method!=='PATCH')fail(405,AifectMessages.unsupportedRequest);
  const report=await one(env,'SELECT * FROM track_reports WHERE id=? AND dubbing_id IS NOT NULL',m[1]);if(!report)fail(404,'신고를 찾을 수 없습니다.');

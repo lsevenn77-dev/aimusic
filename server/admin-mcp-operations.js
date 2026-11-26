@@ -13,6 +13,8 @@ import {rankingAudit} from './ranking-audit.js';
 import {lyricAnalysisStatus} from './lyric-analysis.js';
 import {commentRefreshStatus} from './bot-comment-refresh.js';
 import {botNicknameStatus} from './nicknames.js';
+import {closeDeletedCommentReports} from './comment-moderation.js';
+import {openDubbingReportCountSQL,reviewCounts} from './review-queues.js';
 
 const spendable = `p.status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=p.id AND o.state!='paid')
  AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=p.id AND pp.state='refunded')`;
@@ -80,11 +82,11 @@ async function stats(env,a) {
  (SELECT COUNT(*) FROM dubbing_projects WHERE deleted_at=0) dubbing_projects,
  (SELECT COUNT(*) FROM crews) crews,
  (SELECT COUNT(*) FROM listens WHERE qualified=1 AND started>=?) qualified_plays,
- (SELECT COUNT(*) FROM comment_reports WHERE status='pending') pending_comment_reports,
- (SELECT COUNT(*) FROM track_reports WHERE status IN ('pending','appealed')) pending_content_reports,
+ (SELECT COUNT(*) FROM track_reports r JOIN tracks t ON t.id=r.track_id
+  WHERE t.status!='deleted' AND r.status IN ('pending','appealed')) + ${openDubbingReportCountSQL} pending_content_reports,
  (SELECT COUNT(*) FROM admin_email_bugs) registered_email_bugs,
  (SELECT COALESCE(SUM(gold),0) FROM admin_test_gold_grants WHERE created>=?) test_gold_granted`,cutoff,now(),cutoff,cutoff);
- return {days,from:cutoff,as_of:now(),...counts,welcome_notice:await welcomeNoticeStatus(env),premium_open_notice:await premiumOpenNoticeStatus(env),playlist_cleanup:await playlistCleanupStatus(env),library_v2:await libraryMigrationStatus(env),ranking_audit:await rankingAudit(env),lyric_analysis:await lyricAnalysisStatus(env),bot_comment_refresh:await commentRefreshStatus(env),bot_nicknames:await botNicknameStatus(env)};
+ return {days,from:cutoff,as_of:now(),...counts,...await reviewCounts(env),welcome_notice:await welcomeNoticeStatus(env),premium_open_notice:await premiumOpenNoticeStatus(env),playlist_cleanup:await playlistCleanupStatus(env),library_v2:await libraryMigrationStatus(env),ranking_audit:await rankingAudit(env),lyric_analysis:await lyricAnalysisStatus(env),bot_comment_refresh:await commentRefreshStatus(env),bot_nicknames:await botNicknameStatus(env)};
 }
 async function reports(env,a) {
  const status=a.status??'pending',filter=status==='all'?'1=1':'r.status=?',args=status==='all'?[]:[status];
@@ -111,6 +113,22 @@ async function registerBug(env,actor,a) {
  ]);}catch(e){const duplicate=await replay();if(duplicate)return {...duplicate,replayed:true};throw e;}
  return {id:bugId,audit_id:'mcp:'+bugId,replayed:false};
 }
+async function backupDeletedTrackReport(env,report,auditId){
+ if(!env.DB.withSession||!env.BUCKET)fail(503,'운영 DB 백업을 확인할 수 없습니다.');
+ const db=env.DB.withSession('first-primary');
+ const original=await one({DB:db},`SELECT r.id,r.track_id,r.status,r.decision,r.resolved_by,r.resolved_at,r.version
+  FROM track_reports r JOIN tracks t ON t.id=r.track_id
+  WHERE r.id=? AND r.track_id=? AND r.version=? AND r.status='pending' AND t.status='deleted'`,report.id,report.track_id,report.version);
+ if(!original)fail(409,'신고 또는 음원 상태가 변경되었습니다. 다시 조회하세요.');
+ const bookmark=db.getBookmark();
+ if(!bookmark)fail(503,'운영 DB 복구 지점을 확인할 수 없습니다.');
+ const objectKey='admin-backups/track-reports/'+auditId+'.json';
+ const contents=JSON.stringify({captured_at:now(),bookmark,track_status:'deleted',report:original});
+ const saved=await env.BUCKET.put(objectKey,contents,{httpMetadata:{contentType:'application/json',cacheControl:'private, no-store'}});
+ if(!saved)fail(503,'신고 백업을 저장하지 못했습니다.');
+ return {object_key:objectKey,bookmark};
+}
+
 async function moderate(env,actor,a) {
  const table=a.kind==='comment'?'comment_reports':'track_reports';
  const r=await one(env,`SELECT * FROM ${table} WHERE id=?`,a.report_id);
@@ -124,6 +142,7 @@ async function moderate(env,actor,a) {
  if(a.kind==='comment'&&(r.status!=='pending'||!['removed','dismissed'].includes(a.decision)))fail(400,'댓글 신고는 대기 상태에서 삭제 또는 기각할 수 있습니다.');
  if(a.kind==='track'&&(!a.version||a.version!==r.version||!({pending:['removed','dismissed'],removed:['restored']}[r.status]?.includes(a.decision))))fail(409,'신고 version 또는 처리 결정을 확인하세요.');
  const at=now(),key=crypto.randomUUID(),writes=[];
+ let backup;
  const guard=`EXISTS(SELECT 1 FROM admin_audit WHERE id=?)`;
  // A fresh audit row is the transaction guard for every following write.
  if(a.kind==='comment') {
@@ -133,19 +152,21 @@ async function moderate(env,actor,a) {
    query(env,`UPDATE comments SET body='',edited=?,deleted_at=?,deleted_by=? WHERE id=? AND deleted_at=0 AND ${guard}`,at,at,actor.id,r.comment_id,key),
    query(env,`DELETE FROM comment_likes WHERE comment_id=? AND ${guard}`,r.comment_id,key));
   writes.push(query(env,`UPDATE comment_reports SET status=?,resolved_by=?,resolved_at=? WHERE id=? AND ${guard}`,a.decision,actor.id,at,r.id,key));
+  if(a.decision==='removed')writes.push(...closeDeletedCommentReports(env,r.comment_id,actor.id,at));
  } else {
   const track=await one(env,'SELECT id,status FROM tracks WHERE id=?',r.track_id);
   const from=a.decision==='restored'?'removed':'published',to=a.decision==='restored'?'published':'removed';
-  if(a.decision!=='dismissed'&&track?.status!==from)fail(409,'콘텐츠 상태가 변경되었습니다. 다시 확인하세요.');
+  if(!track||(a.decision!=='dismissed'&&track.status!==from))fail(409,'콘텐츠 상태가 변경되었습니다. 다시 확인하세요.');
+  if(a.decision==='dismissed'&&track.status==='deleted')backup=await backupDeletedTrackReport(env,r,key);
   // Restoring one report must not override another upheld report on the same track.
   if(a.decision==='restored'&&await one(env,"SELECT 1 FROM track_reports WHERE track_id=? AND id!=? AND status IN ('removed','appealed','upheld')",r.track_id,r.id))fail(409,'다른 신고의 제거 결정이 남아 있습니다.');
-  writes.push(query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created) SELECT ?,?,'mcp:track-report',?,? WHERE EXISTS(SELECT 1 FROM track_reports WHERE id=? AND status=? AND version=?) AND EXISTS(SELECT 1 FROM tracks WHERE id=? AND status=?) AND (?!='restored' OR NOT EXISTS(SELECT 1 FROM track_reports WHERE track_id=? AND id!=? AND status IN ('removed','appealed','upheld')))`,key,actor.id,JSON.stringify({report_id:r.id,track_id:r.track_id,decision:a.decision,reason:a.reason}),at,r.id,a.expected_status,a.version,r.track_id,track.status,a.decision,r.track_id,r.id));
+  writes.push(query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created) SELECT ?,?,'mcp:track-report',?,? WHERE EXISTS(SELECT 1 FROM track_reports WHERE id=? AND status=? AND version=?) AND EXISTS(SELECT 1 FROM tracks WHERE id=? AND status=?) AND (?!='restored' OR NOT EXISTS(SELECT 1 FROM track_reports WHERE track_id=? AND id!=? AND status IN ('removed','appealed','upheld')))`,key,actor.id,JSON.stringify({report_id:r.id,track_id:r.track_id,decision:a.decision,reason:a.reason,...(backup?{backup}:{})}),at,r.id,a.expected_status,a.version,r.track_id,track.status,a.decision,r.track_id,r.id));
   if(a.decision!=='dismissed')writes.push(query(env,`UPDATE tracks SET status=?,lease_token=NULL,lease_until=0 WHERE id=? AND ${guard}`,to,r.track_id,key));
   writes.push(query(env,`UPDATE track_reports SET status=?,decision=?,resolved_by=?,resolved_at=?,version=version+1 WHERE id=? AND ${guard}`,a.decision,a.reason,actor.id,at,r.id,key));
  }
  await env.DB.batch(writes);
  if(!await one(env,'SELECT id FROM admin_audit WHERE id=?',key))fail(409,'다른 관리자가 먼저 처리했습니다. 다시 조회하세요.');
- return {report_id:r.id,status:a.decision,audit_id:key};
+ return {report_id:r.id,status:a.decision,audit_id:key,...(backup?{backup}:{})};
 }
 
 export async function executeAdminTool(env,actor,name,a) {

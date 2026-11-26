@@ -24,6 +24,7 @@ import {originalArchiveRoute} from './original-archives.js';
 import {premiumAudio,premiumAudioRoute} from './premium-audio.js';
 import {premiumGrantInternalRoute} from './premium-grant.js';
 import {karaokeQueue,karaokeInternalRoute} from './karaoke.js';
+import {closeDeletedContentReports} from './deleted-content-reports.js';
 import {coverCompressionInternal} from './cover-compression.js';
 export {parseRange};
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
@@ -83,6 +84,7 @@ export async function mediaRoute(req,env,path,user){
   // Keep the ledger's track reference; deletion is irreversible through all publishing routes.
   await env.DB.batch([
    query(env,"UPDATE tracks SET uploaded_at=CASE WHEN status='uploading' AND uploaded_at=0 THEN -1 ELSE uploaded_at END,status='deleted',lease_token=NULL,lease_until=0,error=NULL WHERE id=? AND user_id=?",track.id,user.id),
+   ...closeDeletedContentReports(env,'track','t.id=? AND t.user_id=?',[track.id,user.id],user.id,now()),
    query(env,'DELETE FROM lyric_jobs WHERE track_id=?',track.id),
    query(env,'DELETE FROM karaoke_jobs WHERE track_id=?',track.id)
   ]);return json({ok:true});

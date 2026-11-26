@@ -6,6 +6,7 @@ import {one,rows,now,fail,json,str} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {eligibleNoticeMember} from './notice-audience.js';
+import {reviewCounts} from './review-queues.js';
 
 const ALLOWED_DAYS=new Set([7,30,90]);
 const toNumber=value=>Number(value||0);
@@ -72,6 +73,7 @@ export async function adminDashboardRoute(req,env,path,user){
  if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
  const url=new URL(req.url);
  if(path==='/api/admin/dashboard/members')return memberDirectory(env,url.searchParams,now());
+ if(path==='/api/admin/dashboard/review-counts')return json(await reviewCounts(env));
  if(path==='/api/admin/dashboard/search'){
   const q=str(url.searchParams.get('q')||'',80,false);
   if(q.length<2)return json({query:q,tracks:[],creators:[],users:[]});
@@ -83,7 +85,7 @@ export async function adminDashboardRoute(req,env,path,user){
  const firstDay=visitDay(at)-days+1;
  const [
   visitRows,summary,playSeries,userSeries,billingRevenue,goldRevenue,giftShares,providers,signupSources,topTracks,recentTracks,
-  recentUsers,recentCreators,subscriptionStates,recentGold,payoutPending
+  recentUsers,recentCreators,subscriptionStates,recentGold,payoutPending,review
  ]=await Promise.all([
   rows(env,'SELECT platform,source,count(*) n,sum(day=?) today FROM visitor_days WHERE day BETWEEN ? AND ? GROUP BY platform,source',visitDay(at),firstDay,visitDay(at)),
   one(env,`SELECT
@@ -93,9 +95,7 @@ export async function adminDashboardRoute(req,env,path,user){
    (SELECT count(*) FROM users u WHERE ${currentMember} AND ${premiumMember}) active_subscribers,
    (SELECT count(*) FROM listens WHERE qualified=1 AND started>=?) qualified_plays,
    (SELECT count(*) FROM tracks WHERE status='published') published_tracks,
-   (SELECT count(*) FROM producers p JOIN users u ON u.id=p.user_id WHERE u.account_type='human') creators,
-   (SELECT count(*) FROM comment_reports WHERE status='pending') pending_comment_reports,
-   (SELECT count(DISTINCT track_id) FROM track_reports) reported_tracks`,cutoff,kstStart(at),kstStart(at)+86400,at,cutoff),
+   (SELECT count(*) FROM producers p JOIN users u ON u.id=p.user_id WHERE u.account_type='human') creators`,cutoff,kstStart(at),kstStart(at)+86400,at,cutoff),
   rows(env,`SELECT day,count(*) n FROM listens WHERE qualified=1 AND started>=? GROUP BY day ORDER BY day`,cutoff),
   rows(env,`SELECT date(created,'unixepoch','+9 hours') day,count(*) n
    FROM users WHERE provider!='deleted' AND account_type='human' AND created>=? GROUP BY day ORDER BY day`,cutoff),
@@ -132,7 +132,8 @@ export async function adminDashboardRoute(req,env,path,user){
    FROM gold_purchases gp JOIN users u ON u.id=gp.user_id
    WHERE gp.status='paid' AND gp.channel IN ('web','apple','google_play') AND gp.price_krw>0 ORDER BY gp.paid_at DESC LIMIT 6`),
   one(env,`SELECT count(*) n,COALESCE(sum(net_krw),0) krw
-   FROM payout_statements WHERE status IN ('scheduled','held')`)
+   FROM payout_statements WHERE status IN ('scheduled','held')`),
+  reviewCounts(env,at)
  ]);
  const todayVisits={web:0,android:0,ios:0};
  const sources=new Map(signupSources.map(x=>[x.src,{src:x.src,signups:toNumber(x.n),visits:0}]));
@@ -149,7 +150,7 @@ export async function adminDashboardRoute(req,env,path,user){
    users:toNumber(summary?.users),new_users:toNumber(summary?.new_users),today_users:toNumber(summary?.today_users),
    active_subscribers:toNumber(summary?.active_subscribers),qualified_plays:toNumber(summary?.qualified_plays),
    published_tracks:toNumber(summary?.published_tracks),creators:toNumber(summary?.creators),
-   pending_comment_reports:toNumber(summary?.pending_comment_reports),reported_tracks:toNumber(summary?.reported_tracks)
+   ...review,reported_tracks:review.track_review_candidates
   },
   series:{plays:playSeries.map(x=>({day:x.day,value:toNumber(x.n)})),users:userSeries.map(x=>({day:x.day,value:toNumber(x.n)}))},
   revenue:{

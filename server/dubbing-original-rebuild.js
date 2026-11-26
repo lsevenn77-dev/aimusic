@@ -5,6 +5,7 @@ import {dubbingVisibleSQL} from './dubbing-access.js';
 import {officialDubbingProducerId as owner} from '../shared/dubbing-official.js';
 import {dubbingTimeline,validateDubbingScript} from '../shared/dubbing.js';
 import {dubbingRecordingWindows,validateDubbingTake} from '../shared/dubbing-recording.js';
+import {closeDeletedContentReports} from './deleted-content-reports.js';
 
 const privateMeta=type=>({httpMetadata:{contentType:type,cacheControl:'private, no-store'}});
 const countGuard='SELECT CASE WHEN changes()=1 THEN 1 ELSE abs(-9223372036854775808) END';
@@ -119,6 +120,7 @@ export async function officialRebuild(req,env,root,user,operation) {
   const at=now();const checkedWrite=(sql,...args)=>[query(env,sql,...args),approved(env)];
   await env.DB.batch([
    ...checkedWrite("UPDATE dubbing_projects SET deleted_at=?,visibility='private',revision=revision+1,updated=? WHERE id=? AND owner_id=? AND root_id=? AND revision=? AND deleted_at=0 AND state='complete' AND visibility='public'",at,at,c.oldEdition,owner,c.oldRoot,c.editionRevision),
+   ...closeDeletedContentReports(env,'dubbing','t.id=?',[c.oldEdition],owner,at),
    ...checkedWrite("UPDATE dubbing_projects SET visibility='public',revision=revision+1,updated=? WHERE id=? AND owner_id=? AND root_id IS NULL AND visibility='private' AND deleted_at=0 AND creation_hash=?",at,c.root,owner,c.hash),
    ...checkedWrite("UPDATE dubbing_projects SET visibility='public',revision=revision+1,updated=? WHERE id=? AND owner_id=? AND root_id=? AND state='complete' AND deleted_at=0 AND visibility='private' AND creation_hash=?",at,c.edition,owner,c.root,c.hash),
    query(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',c.oldRoot+':original-retired',owner,'dubbing_edition_replace',JSON.stringify({oldEdition:c.oldEdition,oldRoot:c.oldRoot,edition:c.edition,root:c.root,hash:c.hash}),at)

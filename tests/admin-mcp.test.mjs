@@ -27,6 +27,48 @@ async function setup(t,extra={}) {
 const output=r=>{assert.equal(r.status,200,JSON.stringify(r.body));assert.equal(r.body.result?.isError,false,JSON.stringify(r.body));return r.body.result.structuredContent;};
 const grant=(overrides={})=>({user_id:'other',gold:100,reason:'음성 선물 테스트',request_id:'test-request-0000001',...overrides});
 
+test('legacy deleted-track cleanup requires the pre-change backup and preserves all report history',async t=>{
+ const f=await setup(t),snapshots=[];
+ f.sql.exec(`UPDATE tracks SET status='deleted' WHERE id='one';
+  INSERT INTO track_reports(id,track_id,user_id,reason,details,created)
+  VALUES('legacy','one','other','low_quality','report content',1),
+        ('unrelated','two','other','low_quality','other report',2)`);
+ let bookmark=null;
+ f.DB.withSession=constraint=>{
+  assert.equal(constraint,'first-primary');
+  return {prepare:f.DB.prepare,getBookmark:()=>bookmark};
+ };
+ const bucket={async put(key,contents,options){
+  assert.equal(f.sql.prepare("SELECT status FROM track_reports WHERE id='legacy'").get().status,'pending');
+  assert.equal(options.httpMetadata.cacheControl,'private, no-store');
+  snapshots.push([key,JSON.parse(contents)]);
+  return {key};
+ }};
+ const args={kind:'track',report_id:'legacy',decision:'dismissed',expected_status:'pending',version:1,reason:'이미 삭제된 음원의 미처리 신고 종결'};
+ const close=env=>f.tool('aifect_moderate_report',args,{env});
+ assert.equal((await close({BUCKET:bucket})).body.result.isError,true);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
+ assert.equal(snapshots.length,0);
+
+ bookmark='test-bookmark';
+ assert.equal((await close({BUCKET:{put:async()=>null}})).body.result.isError,true);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,0);
+ const result=output(await close({BUCKET:bucket}));
+ assert.equal(result.status,'dismissed');
+ assert.equal(result.backup.bookmark,bookmark);
+ assert.equal(result.backup.object_key,snapshots[0][0]);
+ assert.equal(snapshots[0][1].report.status,'pending');
+ assert.deepEqual(f.sql.prepare('SELECT id,status,version,details FROM track_reports ORDER BY id').all().map(row=>({...row})),[
+  {id:'legacy',status:'dismissed',version:2,details:'report content'},
+  {id:'unrelated',status:'pending',version:1,details:'other report'}
+ ]);
+ const audit=f.sql.prepare('SELECT target FROM admin_audit WHERE id=?').get(result.audit_id);
+ assert.deepEqual(JSON.parse(audit.target).backup,result.backup);
+ assert.equal(f.sql.prepare("SELECT status FROM tracks WHERE id='one'").get().status,'deleted');
+ assert.equal((await close({BUCKET:bucket})).body.result.isError,true);
+ assert.equal(snapshots.length,1);
+});
+
 test('MCP discovery and every operation require Sites owner, ignoring member/admin cookies, emails and caller roles',async t=>{
  const f=await setup(t);
  for(const method of ['server/discover','initialize','tools/list','tools/call']) {

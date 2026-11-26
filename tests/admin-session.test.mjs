@@ -35,7 +35,7 @@ test('standalone admin session is private, hashed, and never becomes a member lo
 
 test('all dashboard operations require authentication and successful moderation is audited',async t=>{
  const f=await setup(t),cookie=await f.login();
- for(const path of ['/api/admin/dashboard','/api/admin/dashboard/search?q=QA','/api/admin/comment-reports','/api/admin/track-review','/api/admin/payouts','/api/admin/diamonds']){
+ for(const path of ['/api/admin/dashboard','/api/admin/dashboard/review-counts','/api/admin/dashboard/search?q=QA','/api/admin/comment-reports','/api/admin/track-review','/api/admin/payouts','/api/admin/diamonds']){
   assert.equal((await f.request(path)).status,401,path);
   const r=await f.request(path,{cookie});assert.equal(r.status,200,path+JSON.stringify(r.body));
  }

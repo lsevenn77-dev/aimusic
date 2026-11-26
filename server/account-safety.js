@@ -2,6 +2,7 @@ import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,run,now,id,fail,json,rate} from './db.js';
 import {requireUser,appleClientSecret,viewerBlockedIds,viewerBlockedArtists} from './auth.js';
 import {cancelSubscription} from './billing.js';
+import {closeDeletedContentReports} from './deleted-content-reports.js';
 
 const encoder=new TextEncoder();
 const to64=b=>btoa(String.fromCharCode(...new Uint8Array(b)));
@@ -124,7 +125,7 @@ export async function deleteAccount(env,user){
   WHERE is_public=1 AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=playlists.id AND t.user_id=?)
   AND NOT EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=playlists.id AND t.user_id!=?)`,uid,uid));
 
- for(const table of ['lyric_jobs','karaoke_jobs','premium_audio_jobs','original_archives','track_reports','playlist_tracks','likes','free_gifts','comments'])writes.push(q(`DELETE FROM ${table} WHERE track_id IN (${ownTracks})`,uid));
+ for(const table of ['lyric_jobs','karaoke_jobs','premium_audio_jobs','original_archives','playlist_tracks','likes','free_gifts','comments'])writes.push(q(`DELETE FROM ${table} WHERE track_id IN (${ownTracks})`,uid));
  for(const table of ['welcome_receipts','player_equipment','player_inventory','player_xp','sessions','account_handles','apple_login_tokens','push_devices','push_preferences','user_blocks','comment_reports','comment_likes','comments','likes','follows','playlist_saves','playlist_preferences','playlists','listens','free_gift_claims','free_gift_wallets','crew_bans','crew_xp','crew_messages','crew_members'])writes.push(q(`DELETE FROM ${table} WHERE user_id=?`,uid));
  writes.push(q("UPDATE track_reports SET rightsholder='',contact='',details='',evidence_json='[]' WHERE user_id=?",uid));
  writes.push(q('DELETE FROM user_blocks WHERE blocked_id=?',uid),q('DELETE FROM direct_messages WHERE sender_id=? OR recipient_id=?',uid,uid),q('DELETE FROM push_outbox WHERE recipient=?',uid),q('DELETE FROM free_gifts WHERE sender_id=?',uid),q("DELETE FROM oauth_states WHERE provider='mobile' AND nonce=?",uid));
@@ -137,6 +138,7 @@ export async function deleteAccount(env,user){
  writes.push(q('DELETE FROM artist_fan_settings WHERE artist_id IN (SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=?)',uid));
  // Minimal anonymous keys remain only where accounting rows require stable foreign keys.
  writes.push(q("UPDATE tracks SET status='deleted',title='삭제된 음악',genre='',tags='',description='',lyrics='',lyrics_mode='none',ai_tool='',participation='',original_key='',original_bytes=0,duration=0,has_cover=0,cover_version='',cover_type='',error=NULL,lease_token=NULL,lease_until=0,karaoke_terms='',karaoke_at=0,duet_guide='' WHERE user_id=?",uid));
+ writes.push(...closeDeletedContentReports(env,'track','t.user_id=?',[uid],uid,now()));
  writes.push(q("UPDATE artists SET name='삭제된 아티스트',bio='',genre='',image_version='',image_type='' WHERE producer_id IN (SELECT id FROM producers WHERE user_id=?)",uid));
  writes.push(q("UPDATE producers SET name='탈퇴한 회원',bio='',image_version='',image_type='',banner_version='',banner_type='',nickname_confirmed=1 WHERE user_id=?",uid));
  writes.push(q("UPDATE users SET email=?||'@deleted.aifect.invalid',name='탈퇴한 회원',password=NULL,provider='deleted',subject=NULL,premium_until=0,apple_premium_until=0,playlist_selection='[]' WHERE id=?",uid,uid));

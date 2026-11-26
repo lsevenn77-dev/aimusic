@@ -1,15 +1,17 @@
 import * as AifectMessages from '../shared/system-messages.js';
-import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
+import {one,rows,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,isTrackModerator,isAdmin,hash} from './auth.js';
 import {published,VISIBLE} from './catalog.js';
 import {producerNameSQL} from './identity.js';
+import {INACTIVE_DAYS,QUALITY_REPORT_THRESHOLD,pendingQualityReportsSQL,trackReviewCandidates,trackReviewFrom,REVIEW_PAGE_SIZE,reviewCursor,reviewPage} from './review-queues.js';
+import {closeDeletedContentReports} from './deleted-content-reports.js';
 
-export const INACTIVE_DAYS=60,QUALITY_REPORT_THRESHOLD=3;
 const metrics=`SELECT t.id,t.title,t.kind,t.status,t.created,t.producer_id,${producerNameSQL()} producer,
  COALESCE((SELECT max(l.started) FROM listens l WHERE l.track_id=t.id AND l.qualified=1),0) last_played,
- (SELECT count(*) FROM track_reports r WHERE r.track_id=t.id AND r.reason='low_quality') report_count
- FROM tracks t JOIN producers p ON p.id=t.producer_id`;
-function reasons(t,cutoff){return [...(t.created<=cutoff&&t.last_played<=cutoff?['inactive']:[]),...(t.report_count>=QUALITY_REPORT_THRESHOLD?['low_quality']:[])];}
+ (SELECT count(*) FROM track_reports r WHERE r.track_id=t.id AND r.reason='low_quality') report_count,
+ ${pendingQualityReportsSQL} pending_report_count
+ ${trackReviewFrom}`;
+function reasons(t,cutoff){return [...(t.created<=cutoff&&t.last_played<=cutoff?['inactive']:[]),...(t.pending_report_count>=QUALITY_REPORT_THRESHOLD?['low_quality']:[])];}
 
 export async function trackModerationRoute(req,env,path,user){
  let m=path.match(/^\/api\/tracks\/([\w-]+)\/report$/);
@@ -20,8 +22,11 @@ export async function trackModerationRoute(req,env,path,user){
   const details=str(b.details||'',500,false);
   if(await one(env,'SELECT id FROM track_reports WHERE track_id=? AND user_id=?',t.id,user.id))return json({ok:true,reported:true});
   await rate(env,'track-report:'+user.id,20,3600);
-  await run(env,'INSERT OR IGNORE INTO track_reports(id,track_id,user_id,reason,details,created) VALUES(?,?,?,?,?,?)',id(),t.id,user.id,b.reason,details,now());
-  return json({ok:true,reported:true},201);
+  const report=await query(env,`INSERT INTO track_reports(id,track_id,user_id,reason,details,created)
+   SELECT ?,t.id,?,?,?,? FROM tracks t WHERE t.id=? AND ${VISIBLE()}
+   ON CONFLICT(track_id,user_id) DO NOTHING RETURNING id`,id(),user.id,b.reason,details,now(),t.id).first();
+  if(!report)await published(env,t.id);
+  return json({ok:true,reported:true},report?201:200);
  }
  if(!path.startsWith('/api/admin/track-review'))return null;
  requireUser(user);if(!isTrackModerator(env,user))fail(403,'음원 운영자만 확인할 수 있습니다.');
@@ -33,30 +38,32 @@ export async function trackModerationRoute(req,env,path,user){
   if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
   const b=await req.json();if(b.snapshot!==snapshot||b.count!==tracks.length||b.confirm!=='DELETE_ALL_COVERS')fail(409,'삭제 대상이 변경됐습니다. 목록을 다시 확인해 주세요.');
   if(!tracks.length)return json({deleted:0});
-  const ids=JSON.stringify(tracks.map(t=>t.id)),audit=id();
+  const ids=JSON.stringify(tracks.map(t=>t.id)),audit=id(),at=now();
   await env.DB.batch([
-   query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)",audit,user.id,'covers:delete-all',JSON.stringify({tracks}),now()),
+   query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)",audit,user.id,'covers:delete-all',JSON.stringify({tracks}),at),
    query(env,"UPDATE tracks SET uploaded_at=CASE WHEN status='uploading' AND uploaded_at=0 THEN -1 ELSE uploaded_at END,status='deleted',lease_token=NULL,lease_until=0,error=NULL WHERE kind='cover' AND id IN (SELECT value FROM json_each(?))",ids),
+   ...closeDeletedContentReports(env,'track',"t.kind='cover' AND t.id IN (SELECT value FROM json_each(?))",[ids],user.id,at),
    query(env,'DELETE FROM lyric_jobs WHERE track_id IN (SELECT value FROM json_each(?))',ids),
    query(env,'DELETE FROM karaoke_jobs WHERE track_id IN (SELECT value FROM json_each(?))',ids)
   ]);
   return json({deleted:tracks.length,audit});
  }
- const cutoff=now()-INACTIVE_DAYS*86400;
+ const candidates=trackReviewCandidates(now()),cutoff=candidates.cutoff;
  if(path==='/api/admin/track-review'&&req.method==='GET'){
   const url=new URL(req.url),view=url.searchParams.get('view')||'candidates',q=str(url.searchParams.get('q')||'',100,false);
   if(!['candidates','all','removed'].includes(view))fail(400,'검토 목록을 확인해 주세요.');
-  const args=[],clauses=[view==='removed'?"t.status='removed'":VISIBLE()];
+  const args=view==='candidates'?[...candidates.args]:[];
+  const clauses=[view==='candidates'?candidates.where:view==='removed'?"t.status='removed'":VISIBLE()];
   if(q){clauses.push('(t.title LIKE ? OR '+producerNameSQL()+' LIKE ?)');args.push('%'+q+'%','%'+q+'%');}
-  if(view==='candidates')clauses.push(`((t.created<=? AND NOT EXISTS(SELECT 1 FROM listens l WHERE l.track_id=t.id AND l.qualified=1 AND l.started>?)) OR (SELECT count(*) FROM track_reports r WHERE r.track_id=t.id AND r.reason='low_quality')>=?)`),args.push(cutoff,cutoff,QUALITY_REPORT_THRESHOLD);
-  const tracks=await rows(env,`${metrics} WHERE ${clauses.join(' AND ')} ORDER BY t.created,t.id LIMIT 101`,...args),has_more=tracks.length>100;
-  tracks.length=Math.min(tracks.length,100);
-  return json({tracks:tracks.map(t=>({...t,reasons:reasons(t,cutoff)})),has_more,view,q,inactive_days:INACTIVE_DAYS,report_threshold:QUALITY_REPORT_THRESHOLD,automatic_actions:false});
+  const cursor=reviewCursor(url.searchParams,'t');
+  const {items,...page}=reviewPage(await rows(env,`${metrics} WHERE ${clauses.join(' AND ')} ${cursor.where}
+   ORDER BY t.created,t.id LIMIT ?`,...args,...cursor.args,REVIEW_PAGE_SIZE+1));
+  return json({tracks:items.map(t=>({...t,reasons:reasons(t,cutoff)})),...page,view,q,inactive_days:INACTIVE_DAYS,report_threshold:QUALITY_REPORT_THRESHOLD,automatic_actions:false});
  }
  m=path.match(/^\/api\/admin\/track-review\/([\w-]+)(?:\/(visibility))?$/);
  if(!m)fail(404,'음원 검토 페이지를 찾을 수 없습니다.');
  const t=await one(env,`${metrics} WHERE t.id=?`,m[1]);if(!t)fail(404,'음원을 찾을 수 없습니다.');
- if(!m[2]&&req.method==='GET')return json({track:{...t,reasons:reasons(t,cutoff)},reports:await rows(env,'SELECT id,reason,details,created FROM track_reports WHERE track_id=? ORDER BY created DESC LIMIT 100',t.id)});
+ if(!m[2]&&req.method==='GET')return json({track:{...t,reasons:reasons(t,cutoff)},reports:await rows(env,'SELECT id,reason,details,created,status,decision,resolved_at,version FROM track_reports WHERE track_id=? ORDER BY created DESC LIMIT 100',t.id)});
  if(m[2]&&req.method==='POST'){
   const b=await req.json();if(!['remove','restore'].includes(b.action))fail(400,'처리 방식을 확인해 주세요.');
   const removing=b.action==='remove',from=removing?'published':'removed',to=removing?'removed':'published';

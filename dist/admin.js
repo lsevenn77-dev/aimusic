@@ -21,7 +21,8 @@
     active:'활성',cancelled:'해지',failed:'실패',pending:'결제대기',registering:'카드등록',review:'확인중',idle:'대기',
     scheduled:'지급예정',held:'정보대기',paid:'지급완료',removed:'삭제',dismissed:'유지'
   }[value]||value||'-');
-  const state={days:7,data:null,me:null,view:'dashboard',payoutPeriod:null};
+  const state={days:7,data:null,me:null,view:'dashboard',payoutPeriod:null,review:null};
+  let reviewRequest=0;
   const directory={group:'all',cursor:null,lastDay:'',count:0,request:0,page:[],selected:new Set(),query:''};
   const eventTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
   const memberTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
@@ -51,7 +52,9 @@
   }
 
   function showLogin(message=''){
-    state.data=null;state.me=null;
+    state.data=null;state.me=null;state.review=null;
+    reviewRequest++;
+    for(const name of ['track','report','payout'])setBadge(name,0);
     directory.request++;
     directory.selected.clear();updateMemberSelection();
     document.dispatchEvent(new CustomEvent('aifect-admin-notices-reset'));
@@ -88,6 +91,7 @@
     if(view==='people')loadMembers();
     if(view==='moderation'){loadCommentReports();loadDubbingReports();}
     if(view==='dubbing')loadDubbing();
+    if(['tracks','moderation','dubbing'].includes(view))void loadReviewCounts();
     if(view==='payouts')loadPayouts();
     if(view==='notice-chat')document.dispatchEvent(new CustomEvent('aifect-admin-notices',{detail:{request:api,toast,ids:selection}}));
     if(view==='products')products?.open();
@@ -260,18 +264,39 @@
   function renderLists(data){
     $('#top-track-list').innerHTML=(data.top_tracks||[]).map((x,i)=>'<div class="rank-row"><span class="rank-no">'+(i+1)+'</span>'+cover(x)+'<div class="row-main"><strong>'+esc(x.title)+'</strong><span>'+esc(x.artist)+'</span></div><span class="row-value"><span class="row-icon" aria-hidden="true">▶</span> '+num(x.plays)+'</span></div>').join('')||'<div class="empty-state">기간 내 재생 데이터가 없습니다.</div>';
     $('#recent-track-list').innerHTML=(data.recent_tracks||[]).map(x=>'<div class="compact-row">'+cover(x)+'<div class="row-main"><strong>'+esc(x.title)+'</strong><span>'+esc(x.artist)+' · '+esc(x.genre||'장르 미지정')+'</span></div><span class="row-value">'+kstDate(x.created)+'</span></div>').join('')||'<div class="empty-state">공개된 음원이 없습니다.</div>';
+  }
+
+  function setBadge(name,count){
+    const badge=$('#'+name+'-badge');
+    badge.textContent=count>0?num(count):'';
+    badge.hidden=!(count>0);
+  }
+
+  function renderOperationAlerts(){
+    const review=state.review||{};
+    const payouts=state.data?.payouts;
+    const reports=(review.pending_comment_reports||0)+(review.open_dubbing_reports||0);
     const alerts=[];
-    if(data.summary.pending_comment_reports)alerts.push(['report','신고',num(data.summary.pending_comment_reports)+'건의 댓글 신고가 대기 중입니다.','moderation']);
-    if(data.summary.reported_tracks)alerts.push(['track','음원',num(data.summary.reported_tracks)+'곡에 음질 신고 이력이 있습니다.','tracks']);
-    if(data.payouts.pending_count)alerts.push(['payout','정산',num(data.payouts.pending_count)+'건 · '+money(data.payouts.pending_krw)+' 지급 대기','payouts']);
+    if(reports)alerts.push(['report','신고',num(reports)+'건의 신고·이의신청이 대기 중입니다.','moderation']);
+    if(review.track_review_candidates)alerts.push(['track','음원',num(review.track_review_candidates)+'곡의 검토가 필요합니다.','tracks']);
+    if(payouts?.pending_count)alerts.push(['payout','정산',num(payouts.pending_count)+'건 · '+money(payouts.pending_krw)+' 지급 대기','payouts']);
     if(!alerts.length)alerts.push(['payout','정상','현재 즉시 확인할 운영 알림이 없습니다.','dashboard']);
     $('#operation-alerts').innerHTML=alerts.map(x=>'<button class="alert-row" data-jump="'+x[3]+'" type="button"><span class="alert-label '+x[0]+'">'+x[1]+'</span><span class="row-main"><strong>'+esc(x[2])+'</strong></span><span class="row-value row-icon" aria-hidden="true">›</span></button>').join('');
-    $('#report-badge').textContent=data.summary.pending_comment_reports||'';
-    $('#report-badge').hidden=!data.summary.pending_comment_reports;
-    $('#track-badge').textContent=data.summary.reported_tracks||'';
-    $('#track-badge').hidden=!data.summary.reported_tracks;
-    $('#payout-badge').textContent=data.payouts.pending_count||'';
-    $('#payout-badge').hidden=!data.payouts.pending_count;
+  }
+
+  function renderReviewCounts(review){
+    state.review=review;
+    setBadge('track',review.track_review_candidates);
+    setBadge('report',(review.pending_comment_reports||0)+(review.open_dubbing_reports||0));
+    renderOperationAlerts();
+  }
+
+  async function loadReviewCounts(){
+    const current=++reviewRequest;
+    try{
+      const review=await api('/api/admin/dashboard/review-counts');
+      if(current===reviewRequest)renderReviewCounts(review);
+    }catch(error){if(current===reviewRequest)toast(error.message);}
   }
 
   function renderTableRows(body,rows,emptyMessage=''){
@@ -393,8 +418,11 @@
     ]),'결제 내역이 없습니다.');
   }
 
-  function renderDashboard(data){
+  function renderDashboard(data,currentReviewRequest){
     state.data=data;
+    if(currentReviewRequest===reviewRequest)renderReviewCounts(data.summary);
+    else renderOperationAlerts();
+    setBadge('payout',data.payouts.pending_count);
     renderKPIs(data);
     renderChart($('#plays-chart'),data.series.plays,data.days,barChart);
     renderChart($('#users-chart'),data.series.users,data.days,lineChart);
@@ -413,9 +441,10 @@
 
   async function loadDashboard(showNotice=false){
     const button=$('#refresh-button');button.disabled=true;
+    const currentReviewRequest=reviewRequest;
     try{
       const data=await api('/api/admin/dashboard?days='+state.days);
-      renderDashboard(data);
+      if(state.me)renderDashboard(data,currentReviewRequest);
       if(showNotice)toast('최신 운영 데이터를 불러왔습니다.');
     }catch(error){
       toast(error.message);
@@ -441,6 +470,38 @@
     }catch(error){$('#search-result-content').innerHTML='<div class="admin-card empty-state">'+esc(error.message)+'</div>';}
   }
 
+  async function loadReviewPage({box,url,field,loading,empty,render},cursor=null){
+    const request=String((Number(box.dataset.reviewRequest)||0)+1);
+    box.dataset.reviewRequest=request;
+    const more=box.querySelector('[data-review-more]');
+    if(!cursor)box.innerHTML='<div class="panel-loader">'+loading+'</div>';
+    try{
+      const result=await api(url+(cursor?'&cursor='+encodeURIComponent(cursor):''));
+      if(box.dataset.reviewRequest!==request)return;
+      const html=result[field].map(render).join('');
+      if(cursor){
+        more?.remove();
+        box.insertAdjacentHTML('beforeend',html);
+      }else box.innerHTML=html||'<div class="empty-state">'+empty+'</div>';
+      if(result.next_cursor){
+        const button=document.createElement('button');
+        button.type='button';
+        button.className='small-button';
+        button.dataset.reviewMore='';
+        button.textContent='더 보기';
+        button.onclick=()=>{
+          button.disabled=true;
+          void loadReviewPage({box,url,field,loading,empty,render},result.next_cursor);
+        };
+        box.append(button);
+      }
+    }catch(error){
+      if(box.dataset.reviewRequest!==request)return;
+      if(cursor&&more){more.disabled=false;toast(error.message);}
+      else box.innerHTML='<div class="empty-state">'+esc(error.message)+'</div>';
+    }
+  }
+
   async function loadTrackReview(){
     const box=$('#track-review-content');
     if(!$('#cover-purge-tools')){
@@ -448,17 +509,17 @@
       tools.innerHTML='<h2>사이트 전체 커버 관리</h2><p>원곡과 더빙 작품을 제외한 모든 회원의 커버곡을 확인합니다.</p><button class="small-button danger" id="cover-purge-preview">전체 커버 삭제 대상 확인</button><div id="cover-purge-result"></div>';
       box.before(tools);$('#cover-purge-preview').onclick=previewCoverPurge;
     }
-    box.innerHTML='<div class="panel-loader">음원 검토 목록을 불러오는 중입니다.</div>';
     const view=$('#track-review-filter').value,q=$('#track-review-search').value.trim();
-    try{
-      const result=await api('/api/admin/track-review?view='+encodeURIComponent(view)+'&q='+encodeURIComponent(q));
-      if(!result.tracks.length){box.innerHTML='<div class="empty-state">조건에 맞는 음원이 없습니다.</div>';return;}
-      box.innerHTML=result.tracks.map(x=>{
+    return loadReviewPage({
+      box,url:'/api/admin/track-review?view='+encodeURIComponent(view)+'&q='+encodeURIComponent(q),field:'tracks',
+      loading:'음원 검토 목록을 불러오는 중입니다.',empty:'조건에 맞는 음원이 없습니다.',
+      render:x=>{
         const reasons=(x.reasons||[]).map(r=>'<span class="soft-badge">'+(r==='inactive'?'장기 비활성':'음질 신고')+'</span>').join('');
         const action=x.status==='removed'?'restore':'remove';
-        return '<article class="management-card"><div class="management-card-head"><div><h3>'+esc(x.title)+'</h3><p>'+esc(x.producer)+' · '+esc(statusName(x.status))+'</p></div><span class="soft-badge">신고 '+num(x.report_count)+'</span></div><div class="management-meta">'+reasons+'<span class="soft-badge">최근 재생 '+(x.last_played?kstDate(x.last_played):'없음')+'</span></div><div class="management-actions"><button class="small-button '+(action==='remove'?'danger':'good')+'" data-track-action="'+action+'" data-id="'+esc(x.id)+'">'+(action==='remove'?'공개에서 제거':'공개 복구')+'</button></div></article>';
-      }).join('');
-    }catch(error){box.innerHTML='<div class="empty-state">'+esc(error.message)+'</div>';}
+        const reportCount=view==='candidates'?(x.pending_report_count??x.report_count):x.report_count;
+        return '<article class="management-card"><div class="management-card-head"><div><h3>'+esc(x.title)+'</h3><p>'+esc(x.producer)+' · '+esc(statusName(x.status))+'</p></div><span class="soft-badge">신고 '+num(reportCount)+'</span></div><div class="management-meta">'+reasons+'<span class="soft-badge">최근 재생 '+(x.last_played?kstDate(x.last_played):'없음')+'</span></div><div class="management-actions"><button class="small-button '+(action==='remove'?'danger':'good')+'" data-track-action="'+action+'" data-id="'+esc(x.id)+'">'+(action==='remove'?'공개에서 제거':'공개 복구')+'</button></div></article>';
+      }
+    });
   }
 
   async function previewCoverPurge(){
@@ -473,7 +534,7 @@
         try{
           const result=await api('/api/admin/track-review/covers/purge',{method:'POST',body:JSON.stringify({snapshot:d.snapshot,count:d.count,confirm:'DELETE_ALL_COVERS'})});
           box.innerHTML='<p role="status">커버 '+num(result.deleted)+'곡을 삭제했습니다. 원곡과 더빙 작품은 유지됩니다.</p>';
-          await loadTrackReview();
+          await Promise.all([loadTrackReview(),loadReviewCounts()]);
         }catch(error){box.textContent=error.message;}
       };
     }catch(error){box.textContent=error.message;}
@@ -485,18 +546,17 @@
     try{
       await api('/api/admin/track-review/'+encodeURIComponent(id)+'/visibility',{method:'POST',body:JSON.stringify({action,note})});
       toast(action==='remove'?'음원을 공개 목록에서 제거했습니다.':'음원을 다시 공개했습니다.');
-      await Promise.all([loadTrackReview(),loadDashboard()]);
+      await Promise.all([loadTrackReview(),loadReviewCounts()]);
     }catch(error){toast(error.message);}
   }
 
   async function loadCommentReports(){
     const box=$('#comment-report-content'),status=$('#comment-report-filter').value;
-    box.innerHTML='<div class="panel-loader">댓글 신고를 불러오는 중입니다.</div>';
-    try{
-      const result=await api('/api/admin/comment-reports?status='+encodeURIComponent(status));
-      if(!result.reports.length){box.innerHTML='<div class="empty-state">해당 상태의 신고가 없습니다.</div>';return;}
-      box.innerHTML=result.reports.map(x=>'<article class="management-card"><div class="management-card-head"><div><h3>'+esc(x.title)+'</h3><p>사유 '+esc(x.reason)+' · '+kstDateTime(x.created)+'</p></div><span class="soft-badge">'+esc(statusName(x.status))+'</span></div><div class="management-meta"><span class="soft-badge">신고 내용</span><span>'+esc(x.details||'상세 설명 없음')+'</span></div><p style="margin-top:12px;color:#c7cbd5">“'+esc(x.body_snapshot||'')+'”</p>'+(x.status==='pending'?'<div class="management-actions"><button class="small-button good" data-report-action="dismissed" data-id="'+esc(x.id)+'">유지</button><button class="small-button danger" data-report-action="removed" data-id="'+esc(x.id)+'">댓글 삭제</button></div>':'')+'</article>').join('');
-    }catch(error){box.innerHTML='<div class="empty-state">'+esc(error.message)+'</div>';}
+    return loadReviewPage({
+      box,url:'/api/admin/comment-reports?status='+encodeURIComponent(status),field:'reports',
+      loading:'댓글 신고를 불러오는 중입니다.',empty:'해당 상태의 신고가 없습니다.',
+      render:x=>'<article class="management-card"><div class="management-card-head"><div><h3>'+esc(x.title)+'</h3><p>사유 '+esc(x.reason)+' · '+kstDateTime(x.created)+'</p></div><span class="soft-badge">'+esc(statusName(x.status))+'</span></div><div class="management-meta"><span class="soft-badge">신고 내용</span><span>'+esc(x.details||'상세 설명 없음')+'</span></div><p style="margin-top:12px;color:#c7cbd5">“'+esc(x.body_snapshot||'')+'”</p>'+(x.status==='pending'?'<div class="management-actions"><button class="small-button good" data-report-action="dismissed" data-id="'+esc(x.id)+'">유지</button><button class="small-button danger" data-report-action="removed" data-id="'+esc(x.id)+'">댓글 삭제</button></div>':'')+'</article>'
+    });
   }
 
   async function resolveCommentReport(id,status){
@@ -504,7 +564,7 @@
     try{
       await api('/api/admin/comment-reports/'+encodeURIComponent(id),{method:'PATCH',body:JSON.stringify({status})});
       toast(status==='removed'?'댓글을 삭제 처리했습니다.':'신고를 유지 처리했습니다.');
-      await Promise.all([loadCommentReports(),loadDashboard()]);
+      await Promise.all([loadCommentReports(),loadReviewCounts()]);
     }catch(error){toast(error.message);}
   }
 
@@ -627,16 +687,32 @@
     }catch(e){box.innerHTML='<div class="empty-state">'+esc(e.message)+'</div>';}
   }
   async function loadDubbingReports(){
-    const box=$('#dubbing-rights-list');if(!box)return;box.innerHTML='<div class="panel-loader">권리 신고를 불러오는 중입니다.</div>';
-    try{const d=await api('/api/admin/dubbing-reports?status='+$('#dubbing-rights-status').value);
-      const links=value=>{let list=[];try{list=JSON.parse(value);}catch{}return list.map(v=>/^https:\/\//.test(v)?'<a href="'+esc(v)+'" target="_blank" rel="noopener noreferrer">'+esc(v)+'</a>':'').join('<br>');};
-      const actions={pending:[['removed','공개 중단'],['dismissed','신고 종결']],removed:[['restored','복원']],appealed:[['restored','복원'],['upheld','중단 유지']],upheld:[['restored','복원']]};
-      box.innerHTML=d.reports.length?d.reports.map(r=>'<article class="management-card"><div class="management-card-head"><h3>'+esc(r.title)+'</h3><span class="soft-badge">'+esc(({pending:'접수',removed:'공개 중단',appealed:'이의신청',upheld:'중단 유지',restored:'복원',dismissed:'종결'})[r.status]||r.status)+'</span></div><p>권리자 '+esc(r.rightsholder)+' · '+esc(r.contact)+'</p><p>'+esc(r.details)+'</p><p>'+links(r.evidence_json)+'</p><p>작성자의 공개 중단 작품 '+num(r.violations)+'개 · 3개 이상이면 새 더빙 제작·참여 제한</p>'+(r.appeal?'<h4>이의신청</h4><p>'+esc(r.appeal)+'</p><p>'+links(r.appeal_evidence_json)+'</p>':'')+'<p>연결 작품: '+JSON.parse(r.linked_projects||'[]').map(p=>'<a href="/#dubbing/'+encodeURIComponent(p.id)+'" target="_blank" rel="noopener">'+esc(p.title)+'</a>').join(' · ')+'</p><p>'+esc(r.decision)+'</p>'+((actions[r.status]||[]).length?'<label class="dubbing-review-note">작성자에게 표시할 검토 사유<textarea maxlength="2000" rows="3" required></textarea></label>':'')+'<div class="management-actions">'+(actions[r.status]||[]).map(([a,label])=>'<button class="small-button" data-rights-id="'+esc(r.id)+'" data-rights-version="'+r.version+'" data-rights-action="'+a+'">'+label+'</button>').join('')+'</div></article>').join(''):'<div class="empty-state">해당 상태의 권리 신고가 없습니다.</div>';
-      $$('[data-rights-id]',box).forEach(b=>b.onclick=async()=>{const input=b.closest('.management-card').querySelector('textarea'),note=input.value.trim();if(!note){input.reportValidity();return;}b.disabled=true;try{await api('/api/admin/dubbing-reports/'+b.dataset.rightsId,{method:'PATCH',body:JSON.stringify({status:b.dataset.rightsAction,version:Number(b.dataset.rightsVersion),note})});toast('검토 결과를 저장했습니다.');await loadDubbingReports();}catch(err){toast(err.message);b.disabled=false;}});
-    }catch(e){box.innerHTML='<div class="empty-state">'+esc(e.message)+'</div>';}
+    const box=$('#dubbing-rights-list'),status=$('#dubbing-rights-status').value;
+    const links=value=>{let list=[];try{list=JSON.parse(value);}catch{}return list.map(v=>/^https:\/\//.test(v)?'<a href="'+esc(v)+'" target="_blank" rel="noopener noreferrer">'+esc(v)+'</a>':'').join('<br>');};
+    const actions={pending:[['removed','공개 중단'],['dismissed','신고 종결']],removed:[['restored','복원']],appealed:[['restored','복원'],['upheld','중단 유지']],upheld:[['restored','복원']]};
+    return loadReviewPage({
+      box,url:'/api/admin/dubbing-reports?status='+encodeURIComponent(status),field:'reports',
+      loading:'권리 신고를 불러오는 중입니다.',empty:'해당 상태의 권리 신고가 없습니다.',
+      render:r=>'<article class="management-card"><div class="management-card-head"><h3>'+esc(r.title)+'</h3><span class="soft-badge">'+esc(({pending:'접수',removed:'공개 중단',appealed:'이의신청',upheld:'중단 유지',restored:'복원',dismissed:'종결'})[r.status]||r.status)+'</span></div><p>권리자 '+esc(r.rightsholder)+' · '+esc(r.contact)+'</p><p>'+esc(r.details)+'</p><p>'+links(r.evidence_json)+'</p><p>작성자의 공개 중단 작품 '+num(r.violations)+'개 · 3개 이상이면 새 더빙 제작·참여 제한</p>'+(r.appeal?'<h4>이의신청</h4><p>'+esc(r.appeal)+'</p><p>'+links(r.appeal_evidence_json)+'</p>':'')+'<p>연결 작품: '+JSON.parse(r.linked_projects||'[]').map(p=>'<a href="/#dubbing/'+encodeURIComponent(p.id)+'" target="_blank" rel="noopener">'+esc(p.title)+'</a>').join(' · ')+'</p><p>'+esc(r.decision)+'</p>'+((actions[r.status]||[]).length?'<label class="dubbing-review-note">작성자에게 표시할 검토 사유<textarea maxlength="2000" rows="3" required></textarea></label>':'')+'<div class="management-actions">'+(actions[r.status]||[]).map(([a,label])=>'<button class="small-button" data-rights-id="'+esc(r.id)+'" data-rights-version="'+r.version+'" data-rights-action="'+a+'">'+label+'</button>').join('')+'</div></article>'
+    });
+  }
+
+  async function resolveDubbingReport(button){
+    const input=button.closest('.management-card').querySelector('textarea'),note=input.value.trim();
+    if(!note){input.reportValidity();return;}
+    button.disabled=true;
+    try{
+      await api('/api/admin/dubbing-reports/'+encodeURIComponent(button.dataset.rightsId),{method:'PATCH',body:JSON.stringify({status:button.dataset.rightsAction,version:Number(button.dataset.rightsVersion),note})});
+      toast('검토 결과를 저장했습니다.');
+      await Promise.all([loadDubbingReports(),loadReviewCounts(),state.view==='dubbing'&&loadDubbing()]);
+    }catch(error){toast(error.message);button.disabled=false;}
   }
 
   $('#dubbing-rights-status').addEventListener('change',loadDubbingReports);
+  $('#dubbing-rights-list').addEventListener('click',event=>{
+    const button=event.target.closest('[data-rights-id]');
+    if(button)void resolveDubbingReport(button);
+  });
   $$('.admin-nav-item').forEach(btn=>btn.addEventListener('click',()=>navigate(btn.dataset.view)));
   app.addEventListener('click',event=>{
     const shortcut=event.target.closest('[data-open-members]');
@@ -684,7 +760,7 @@
     }catch(error){toast(error.message);}finally{button.disabled=false;}
   };
   app.addEventListener('click',e=>{const jump=e.target.closest('[data-jump]');if(jump&&app.contains(jump))navigate(jump.dataset.jump);});
-  async function refreshCurrentView(){if(state.view==='cover-compression')document.dispatchEvent(new CustomEvent('aifect-admin-cover-compression'));if(state.view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));await loadDashboard(true);if(state.view==='dubbing')await loadDubbing();if(state.view==='moderation')await Promise.all([loadCommentReports(),loadDubbingReports()]);}
+  async function refreshCurrentView(){if(state.view==='cover-compression')document.dispatchEvent(new CustomEvent('aifect-admin-cover-compression'));if(state.view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));await loadDashboard(true);if(state.view==='dubbing')await loadDubbing();if(state.view==='tracks')await loadTrackReview();if(state.view==='moderation')await Promise.all([loadCommentReports(),loadDubbingReports()]);}
   $('#period-select').addEventListener('change',async e=>{state.days=Number(e.target.value)||7;await refreshCurrentView();});
   $('#refresh-button').addEventListener('click',()=>{
     if(state.view==='notice-chat'){document.dispatchEvent(new CustomEvent('aifect-admin-notices-refresh'));return;}
@@ -709,7 +785,7 @@
   $('#track-review-search').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();loadTrackReview();}});
   $('#track-review-content').addEventListener('click',e=>{const btn=e.target.closest('[data-track-action]');if(btn)changeTrackVisibility(btn.dataset.id,btn.dataset.trackAction);});
   $('#comment-report-filter').addEventListener('change',loadCommentReports);
-  $('#comment-report-refresh').addEventListener('click',loadCommentReports);
+  $('#comment-report-refresh').addEventListener('click',()=>Promise.all([loadCommentReports(),loadReviewCounts()]));
   $('#comment-report-content').addEventListener('click',e=>{const btn=e.target.closest('[data-report-action]');if(btn)resolveCommentReport(btn.dataset.id,btn.dataset.reportAction);});
   $('#payout-period-select').addEventListener('change',e=>loadPayouts(e.target.value));
   $('#payout-close-button').addEventListener('click',e=>closePayoutPeriod(e.currentTarget.dataset.period));

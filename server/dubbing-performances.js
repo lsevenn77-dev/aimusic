@@ -4,6 +4,7 @@ import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {reconcileDubbingGold} from './dubbing-gold.js';
+import {closeDeletedContentReports} from './deleted-content-reports.js';
 
 export async function dubbingVersions(env,p,user){
  const root=p.root_id||p.id,uid=user?.id||'';
@@ -61,9 +62,12 @@ export async function deleteDubbingProject(req,env,p,user){
  requireUser(user);if(p.owner_id!==user.id)fail(403,'올린 사람만 삭제할 수 있습니다.');
  const body=await req.json();if(body.revision!==p.revision)fail(409,'대본이 변경되었습니다. 다시 확인해 주세요.');
  const at=now();
- const result=await query(env,`UPDATE dubbing_projects SET deleted_at=?,visibility='private',revision=revision+1,updated=?
- WHERE id=? AND owner_id=? AND revision=? AND deleted_at=0 RETURNING id`,at,at,p.id,user.id,body.revision).first();
- if(!result)fail(409,'이미 삭제했거나 변경된 대본입니다.');
+ const [result]=await env.DB.batch([
+  query(env,`UPDATE dubbing_projects SET deleted_at=?,visibility='private',revision=revision+1,updated=?
+   WHERE id=? AND owner_id=? AND revision=? AND deleted_at=0 RETURNING id`,at,at,p.id,user.id,body.revision),
+  ...closeDeletedContentReports(env,'dubbing','t.id=? AND t.owner_id=?',[p.id,user.id],user.id,at)
+ ]);
+ if(!result.results.length)fail(409,'이미 삭제했거나 변경된 대본입니다.');
  // Retain recordings and accounting records; every read/worker checks the tombstone.
  await reconcileDubbingGold(env);
  return json({deleted:true});

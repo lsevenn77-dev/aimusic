@@ -2,6 +2,7 @@ import {one,rows,query,now,id,fail,str,json} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {dubbingSettings} from './dubbing-settings.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
+import {openDubbingReportCountSQL} from './review-queues.js';
 import {reconcileDubbingGold} from './dubbing-gold.js';
 import {PIKA_ORIGIN} from './dubbing-pika.js';
 import {dubbingQuota} from './dubbing-quota.js';
@@ -45,7 +46,7 @@ export async function dubbingAdminRoute(req,env,path,user){
   const n=Number(new URL(req.url).searchParams.get('days')||30),days=[7,30,90].includes(n)?n:30,cutoff=now()-days*86400;
   const [summary,generations,assets,gold,jobs,payments,settings]=await Promise.all([
    one(env,`SELECT (SELECT COUNT(*) FROM dubbing_projects) projects,(SELECT COUNT(*) FROM dubbing_recordings WHERE state='submitted') submitted_roles,
-    (SELECT COUNT(*) FROM dubbing_projects WHERE state='complete') completed,(SELECT COUNT(*) FROM track_reports WHERE dubbing_id IS NOT NULL AND status IN ('pending','appealed')) open_reports,
+    (SELECT COUNT(*) FROM dubbing_projects WHERE state='complete') completed,${openDubbingReportCountSQL} open_reports,
     (SELECT COUNT(*) FROM dubbing_script_rewards WHERE completed_at>=?) ad_rewards`,cutoff),
    rows(env,`SELECT CASE WHEN input_hash LIKE 'sound-plan:%' THEN 'sound_plan' ELSE 'script' END kind,state,COUNT(*) count,
     SUM(COALESCE(json_extract(usage_json,'$.inputTokens'),0)) input_tokens,SUM(COALESCE(json_extract(usage_json,'$.outputTokens'),0)) output_tokens FROM dubbing_generations WHERE created>=? GROUP BY kind,state`,cutoff),

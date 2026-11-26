@@ -69,3 +69,91 @@ test('owner unpublish cannot overwrite a concurrent moderator removal',async t=>
  assert.deepEqual((await f.call('/api/admin/track-review?view=removed','GET',null,'other')).body.tracks.map(x=>x.id),['one']);
  assert.equal((await f.call('/api/admin/track-review/one/visibility','POST',{action:'restore'},'other')).status,200);
 });
+
+test('review badge uses unprocessed cases and keeps the complete candidate list accessible',async t=>{
+ const f=await fixture(t,{ADMIN_USER_IDS:'owner'});
+ f.sql.exec(`UPDATE tracks SET created=unixepoch();
+  UPDATE tracks SET status='deleted' WHERE id='hidden';
+  INSERT INTO users(id,email,name,created) VALUES('third','third@test.invalid','three',0),('fourth','fourth@test.invalid','four',0);
+  INSERT INTO track_reports(id,track_id,user_id,reason,status,created)
+   SELECT track.id||user.id,track.id,user.id,'low_quality',
+    CASE WHEN track.id='three' AND user.id='other' THEN 'dismissed' ELSE 'pending' END,1
+   FROM tracks track CROSS JOIN users user WHERE track.id IN ('one','three','hidden') AND user.id!='owner'`);
+ const candidate=await f.call('/api/admin/track-review');
+ assert.deepEqual(candidate.body.tracks.map(track=>track.id),['one']);
+ assert.equal(candidate.body.tracks[0].pending_report_count,3);
+ assert.equal((await f.call('/api/admin/dashboard')).body.summary.track_review_candidates,1);
+ const detail=(await f.call('/api/admin/track-review/three')).body;
+ assert.equal(detail.track.report_count,3);
+ assert.equal(detail.track.pending_report_count,2);
+ assert.ok(detail.reports.some(report=>report.status==='dismissed'));
+
+ const insert=f.sql.prepare(`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status)
+  VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,0,'published')`);
+ for(let i=0;i<100;i++)insert.run('inactive-'+i,'Inactive '+i);
+ const first=(await f.call('/api/admin/track-review')).body;
+ const second=(await f.call('/api/admin/track-review?cursor='+encodeURIComponent(first.next_cursor))).body;
+ assert.equal(first.tracks.length,100);
+ assert.deepEqual(second.tracks.map(track=>track.id),['one']);
+ assert.equal(second.next_cursor,null);
+ assert.equal((await f.call('/api/admin/dashboard/review-counts')).body.track_review_candidates,first.tracks.length+second.tracks.length);
+});
+
+test('deleting an upload closes all of its pending reports, preserves history and is atomic',async t=>{
+ const f=await fixture(t,{ADMIN_USER_IDS:'owner'});
+ f.sql.exec(`INSERT INTO users(id,email,name,created) VALUES('third','third@test.invalid','three',0);
+  INSERT INTO track_reports(id,track_id,user_id,reason,details,status,created)
+  VALUES('first','one','other','low_quality','snapshot','pending',1),
+        ('second','one','third','low_quality','another','pending',2),
+        ('prior','one','owner','low_quality','historical','dismissed',3),
+        ('separate','two','other','low_quality','other song','pending',4);
+  INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES('prior-audit','admin','previous','{}',1);
+  CREATE TRIGGER fail_report_close BEFORE UPDATE OF status ON track_reports WHEN NEW.id='second'
+  BEGIN SELECT RAISE(ABORT,'fixture write error'); END;`);
+ const read=()=>f.sql.prepare('SELECT id,track_id,reason,details,status,version FROM track_reports ORDER BY id').all().map(report=>({...report}));
+ const before=read();
+ assert.equal((await f.call('/api/uploads/one','DELETE')).status,500);
+ assert.deepEqual(read(),before);
+ assert.equal(f.sql.prepare("SELECT status FROM tracks WHERE id='one'").get().status,'published');
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM admin_audit').get().n,1);
+
+ f.sql.exec('DROP TRIGGER fail_report_close');
+ assert.equal((await f.call('/api/uploads/one','DELETE')).status,200);
+ assert.equal((await f.call('/api/uploads/one','DELETE')).status,200);
+ assert.equal(f.sql.prepare("SELECT status FROM tracks WHERE id='one'").get().status,'deleted');
+ assert.deepEqual(read(),before.map(report=>['first','second'].includes(report.id)?{...report,status:'dismissed',version:2}:report));
+ const audits=f.sql.prepare("SELECT target FROM admin_audit WHERE action='track-report:auto-close'").all().map(row=>JSON.parse(row.target));
+ assert.deepEqual(audits.map(audit=>audit.report_id).sort(),['first','second']);
+ assert.ok(audits.every(audit=>audit.track_id==='one'));
+ assert.equal(f.sql.prepare("SELECT action FROM admin_audit WHERE id='prior-audit'").get().action,'previous');
+ assert.equal((await f.call('/api/tracks/one/report','POST',{reason:'low_quality'},'other')).status,404);
+});
+
+test('a report started before a track deletion cannot leave a new pending row behind',async t=>{
+ const f=await fixture(t),prepare=f.DB.prepare;
+ f.DB.prepare=sql=>{
+  const statement=prepare(sql);
+  if(!sql.includes('INSERT INTO track_reports'))return statement;
+  return {bind(...args){
+   const bound=statement.bind(...args);
+   return {...bound,async first(){
+    assert.equal((await f.call('/api/uploads/one','DELETE')).status,200);
+    return bound.first();
+   }};
+  }};
+ };
+ assert.equal((await f.call('/api/tracks/one/report','POST',{reason:'low_quality'},'other')).status,404);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM track_reports').get().n,0);
+});
+
+test('admin cover deletion closes only reports belonging to the selected covers',async t=>{
+ const f=await fixture(t,{ADMIN_USER_IDS:'owner'});
+ f.sql.exec(`UPDATE tracks SET kind='cover',original_id='three' WHERE id='one';
+  INSERT INTO track_reports(id,track_id,user_id,reason,created) VALUES
+   ('cover','one','other','low_quality',1),('original','three','other','low_quality',1)`);
+ const path='/api/admin/track-review/covers/purge',preview=(await f.call(path)).body;
+ const result=await f.call(path,'POST',{count:preview.count,snapshot:preview.snapshot,confirm:'DELETE_ALL_COVERS'});
+ assert.equal(result.body.deleted,1);
+ assert.deepEqual(f.sql.prepare('SELECT status FROM track_reports ORDER BY id').all().map(report=>report.status),['dismissed','pending']);
+ assert.equal(f.sql.prepare("SELECT status FROM tracks WHERE id='three'").get().status,'published');
+});

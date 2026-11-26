@@ -67,3 +67,39 @@ test('admin search excludes deleted accounts and handles SQL metacharacters as i
  assert.deepEqual((await f.call('/api/admin/dashboard/search?q='+encodeURIComponent("' OR 1=1 --"))).body.users,[]);
  assert.equal((await f.call('/api/admin/dashboard/search?q=x')).body.users.length,0);
 });
+
+test('report badge and dubbing KPI use the actionable lists and retain resolved reports',async t=>{
+ const f=await fixture(t,{ADMIN_USER_IDS:'owner'});
+ f.sql.exec(`UPDATE tracks SET created=unixepoch();
+  INSERT INTO users(id,email,name,created) VALUES('third','third@test.invalid','three',0);
+  INSERT INTO comments(id,track_id,user_id,body,created,deleted_at)
+  VALUES('live','one','owner','body',1,0),('deleted','one','owner','',1,10);
+  INSERT INTO comment_reports(id,comment_id,user_id,reason,body_snapshot,created)
+  VALUES('first','live','other','abuse','body',1),('duplicate','live','third','abuse','body',1),
+        ('old','deleted','other','abuse','deleted body',1);
+  INSERT INTO dubbing_projects(id,owner_id,title,options_json,script_json,script_key,creation_hash,role_count,duration,write_token,created,updated,deleted_at)
+  VALUES('work','owner','Alive','{}','{}','work','work',1,1,'work',1,1,0),
+        ('tombstone','owner','Deleted','{}','{}','deleted','deleted',1,1,'deleted',1,1,10);
+  INSERT INTO track_reports(id,dubbing_id,user_id,reason,details,status,created)
+  VALUES('rights','work','other','copyright','evidence','pending',1),
+        ('dead-rights','tombstone','other','copyright','old','pending',1),
+        ('appeal','tombstone','third','copyright','old appeal','appealed',1)`);
+ const counts=async()=>(await f.call('/api/admin/dashboard/review-counts')).body;
+ const commentList=async status=>(await f.call('/api/admin/comment-reports?status='+status)).body.reports;
+ const dubbingList=async status=>(await f.call('/api/admin/dubbing-reports?status='+status)).body.reports;
+ assert.deepEqual(await counts(),{track_review_candidates:0,pending_comment_reports:2,open_dubbing_reports:2});
+ assert.equal((await counts()).pending_comment_reports,(await commentList('pending')).length);
+ assert.equal((await counts()).open_dubbing_reports,(await dubbingList('pending')).length+(await dubbingList('appealed')).length);
+ assert.equal((await f.call('/api/admin/dubbing')).body.summary.open_reports,2);
+
+ assert.equal((await f.call('/api/admin/comment-reports/first','PATCH',{status:'removed'})).status,200);
+ assert.deepEqual((await commentList('removed')).map(report=>[report.id,report.body_snapshot]),[['duplicate','body'],['first','body']]);
+ assert.equal((await counts()).pending_comment_reports,0);
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE action IN ('comment-report:removed','comment-report:auto-close')").get().n,2);
+
+ const result=await f.call('/api/admin/dubbing-reports/rights','PATCH',{status:'dismissed',version:1,note:'권리 검토 완료'});
+ assert.equal(result.status,200);
+ assert.equal((await counts()).open_dubbing_reports,1);
+ assert.equal((await f.call('/api/admin/dubbing')).body.summary.open_reports,1);
+ assert.equal((await dubbingList('dismissed'))[0].id,'rights');
+});
