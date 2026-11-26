@@ -168,6 +168,12 @@
    if(!writable)return false;
    if(key==='undo'||key==='redo'){moveHistory(key==='undo');return true;}
    const point=select(target);
+   if((key==='insertHTML'||key==='insertText')&&point.collapsed&&point.startContainer===body){
+    const previous=body.childNodes[point.startOffset-1];
+    if(previous&&supported.includes(previous.tagName)){
+     point.selectNodeContents(previous);point.collapse(false);
+    }
+   }
    const applied=document.execCommand(key,false,value);
    if(!applied&&key==='insertHTML')return insertMarkup(value,point);
    capture();updated();

@@ -84,30 +84,30 @@
   background:var(--ds-lilac);color:var(--room-input,var(--ds-ink));border-radius:8px;font-size:10px;line-height:15px;
 }
 /* Align the image centre to the font's cap-height centre on every line. */
-#main img.cat-chat-sticker,#main .cat-picker img {
+:is(#main,.notice-admin) img.cat-chat-sticker,:is(#main,.notice-admin) .cat-picker img {
   width:auto;height:var(--cat-art-size);max-width:100%;object-fit:contain;
 }
-#main img.cat-chat-sticker {
+:is(#main,.notice-admin) img.cat-chat-sticker {
   display:inline-block;vertical-align:middle;vertical-align:calc(.5cap - var(--cat-art-size) * .5);
   margin:0;padding:0;border:0;border-radius:0;background:none;
 }
 /* The inline-block's baseline is its bottom edge. Place the measured glyph
    centre on the Korean text axis, leaving room for each crown or sparkle. */
-#main .cat-word-slot {
+:is(#main,.notice-admin) .cat-word-slot {
   display:inline-block;box-sizing:border-box;overflow:hidden;line-height:0;
   width:var(--cat-slot-width);max-width:100%;height:var(--cat-slot-height);
   vertical-align:calc(.38em - var(--cat-below-ink));padding-block-start:var(--cat-art-inset);
 }
-#main img.cat-word,#main .cat-word-slot img.cat-word-ink {
+:is(#main,.notice-admin) img.cat-word,:is(#main,.notice-admin) .cat-word-slot img.cat-word-ink {
   width:var(--cat-slot-width);height:var(--cat-art-height);vertical-align:calc(.38em - var(--cat-below-ink));
 }
-#main .cat-word-slot img.cat-word-ink {display:block}
+:is(#main,.notice-admin) .cat-word-slot img.cat-word-ink {display:block}
 /* An editor wraps the entire image as one character. Its intrinsic minimum
    must include the real box even when the character counter needs to wrap. */
 #main [data-dm-editor] img.cat-chat-sticker {max-width:none}
-#main :is(img,.cat-word-slot).cat-after-text {margin-inline-start:5px}
-#main :is(img,.cat-word-slot).cat-before-text {margin-inline-end:5px}
-#main :is(img,.cat-word-slot).cat-after-sticker {margin-inline-start:3px}
+:is(#main,.notice-admin) :is(img,.cat-word-slot).cat-after-text {margin-inline-start:5px}
+:is(#main,.notice-admin) :is(img,.cat-word-slot).cat-before-text {margin-inline-end:5px}
+:is(#main,.notice-admin) :is(img,.cat-word-slot).cat-after-sticker {margin-inline-start:3px}
 #main .voice-chat-message p:has(.cat-chat-sticker) {display:block;width:fit-content}
 #main .message-workspace #chat-compose [data-dm-editor] {
   box-sizing:border-box;display:block;width:100%;min-width:0;min-height:44px;max-height:120px;
