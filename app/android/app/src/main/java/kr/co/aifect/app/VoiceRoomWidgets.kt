@@ -72,7 +72,7 @@ internal fun voiceGiftImage(gift:JSONObject,catalog:Map<String,JSONObject>):Stri
  val progress=remember{Animatable(0f)}
  val context=LocalContext.current
  val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
- val reduce=android.provider.Settings.Global.getFloat(context.contentResolver,android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
+ val reduce=!productAssetMotionEnabled(context)
  LaunchedEffect(engine){engine.giftAnimations.collect{next->
   chat=next;progress.snapTo(0f)
   if(reduce){progress.snapTo(.5f);delay(1200)}else progress.animateTo(1f,tween(2500,easing=LinearEasing))

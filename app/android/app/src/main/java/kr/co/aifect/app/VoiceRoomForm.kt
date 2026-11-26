@@ -20,9 +20,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -52,12 +54,24 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
 /** The picker and the room use the same painting and the same mobile theme asset. */
 @Composable internal fun VoiceRoomBackdrop(background:String,theme:JSONObject?=null,modifier:Modifier=Modifier,preview:Boolean=false){
  val sku=theme?.optString("sku").orEmpty().ifBlank{background}.ifBlank{"navy"}
- val image=CatalogAssets.roomMobile(theme)
  val context=LocalContext.current
  val lifecycleState by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
  val reducedMotion=android.provider.Settings.Global.getFloat(context.contentResolver,android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,1f)==0f
- val effect=if(!preview&&!reducedMotion&&lifecycleState==Lifecycle.State.RESUMED)CatalogAssets.roomEffect(theme)else null
- Box(modifier.testTag("voice-background-$sku")){
+ val power=context.getSystemService(android.os.PowerManager::class.java)
+ val memory=context.getSystemService(android.app.ActivityManager::class.java)
+ val connectivity=context.getSystemService(android.net.ConnectivityManager::class.java)
+ val economy=memory?.isLowRamDevice==true||power?.isPowerSaveMode==true||
+  connectivity?.restrictBackgroundStatus==android.net.ConnectivityManager.RESTRICT_BACKGROUND_STATUS_ENABLED
+ val static=preview||reducedMotion||lifecycleState!=Lifecycle.State.RESUMED||android.os.Build.VERSION.SDK_INT<28
+ val packaged=theme?.optJSONObject("artwork")!=null||theme?.optJSONObject("themeArtwork")!=null
+ val image=if(packaged)null else CatalogAssets.roomMobile(theme)
+ val effect=if(!packaged&&!static)CatalogAssets.roomEffect(theme)else null
+ BoxWithConstraints(modifier.clipToBounds().testTag("voice-background-$sku")){
+  val viewportDpr=LocalDensity.current.density.toDouble()
+  val version=theme?.optString("asset_version").orEmpty().ifBlank{theme?.optString("assetVersion").orEmpty()}
+  var failed by remember(sku,version){mutableStateOf(emptySet<String>())}
+  val chosen=CatalogAssets.roomArtwork(theme,maxWidth.value.toDouble(),maxHeight.value.toDouble(),viewportDpr,economy,static,failed)
+  var loaded by remember { mutableStateOf<CatalogAssets.ThemeArtwork?>(null) }
   Canvas(Modifier.matchParentSize()){
    val base=when(sku){"sunset"->Color(0xFF0C1422);"night"->Color(0xFF050E1C);else->Color(0xFF07111F)}
    drawRect(base)
@@ -105,7 +119,23 @@ private val FreeRoomBackgrounds=listOf("navy" to "네이비","sunset" to "노을
    Box(Modifier.matchParentSize().background(Brush.verticalGradient(if(preview)listOf(Color.Transparent,Ink.copy(alpha=.22f))else listOf(Ink.copy(alpha=.25f),Ink.copy(alpha=.56f)))))
    if(effect!=null)AsyncImage(effect,null,Modifier.matchParentSize().testTag("voice-background-effect"),contentScale=ContentScale.Crop)
   }
+  if(packaged){
+   val previous=loaded?.takeIf{chosen!=null&&it.source!=chosen.source}
+   if(previous!=null)ThemeArtworkImage(previous,previous.source,Modifier.matchParentSize())
+   if(chosen!=null){
+    ThemeArtworkImage(chosen,chosen.source,Modifier.matchParentSize().alpha(if(loaded?.source==chosen.source)1f else 0f).testTag("voice-background-image"),
+     loaded={loaded=chosen},failed={failed=failed+chosen.source})
+    if(chosen.effect!=null&&loaded?.source==chosen.source)ThemeArtworkImage(chosen,chosen.effect,Modifier.matchParentSize().testTag("voice-background-effect"),
+     failed={failed=failed+chosen.effect})
+   }
+  }
  }
+}
+
+@Composable private fun ThemeArtworkImage(art:CatalogAssets.ThemeArtwork,url:String,modifier:Modifier,loaded:()->Unit={},failed:()->Unit={}){
+ val alignment=BiasAlignment((art.focusX*2-1).toFloat(),(art.focusY*2-1).toFloat())
+ AsyncImage(url,null,modifier,alignment=alignment,contentScale=if(art.fit=="cover")ContentScale.Crop else ContentScale.Fit,
+  onSuccess={loaded()},onError={failed()})
 }
 
 /** Room creation sits on the same violet aurora as the approved reference: light from the top right, teal at the bottom. */

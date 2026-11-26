@@ -58,7 +58,16 @@ class MainActivity:ComponentActivity(){
   }
   if(savedInstanceState==null)handleLink(intent)
  }
- private fun handleLink(intent:Intent){val uri=intent.data?:return;if(uri.scheme=="https"&&uri.encodedAuthority=="aifect.co.kr"){val match=Regex("^/music/([A-Za-z0-9_-]{1,80})$").matchEntire(uri.encodedPath.orEmpty());if(match!=null)model.openCurrentSong(match.groupValues[1])}else model.finishLogin(uri)}
+ private fun handleLink(intent:Intent){
+  val uri=intent.data?:return
+  if(uri.scheme=="kr.co.aifect.app"&&uri.encodedAuthority=="product-review"){
+   MobileExperienceRoute.fromProductReview(uri.toString())?.let{openMobileExperience(this,it)}
+   return
+  }
+  if(uri.scheme=="https"&&uri.encodedAuthority=="aifect.co.kr"){
+   Regex("^/music/([A-Za-z0-9_-]{1,80})$").matchEntire(uri.encodedPath.orEmpty())?.let{model.openCurrentSong(it.groupValues[1])}
+  }else model.finishLogin(uri)
+ }
  override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);handleLink(intent);if(model.user!=null)push(intent)}
  private lateinit var updates:ReleaseUpdates
  override fun onStart(){super.onStart();model.playbackVisible(true)}

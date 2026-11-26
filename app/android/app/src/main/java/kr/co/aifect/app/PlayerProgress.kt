@@ -44,7 +44,10 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
  val image=CatalogAssets.url(framePath)
  if(image!=null)AsyncImage(image,contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
  else if(p.optString("profile_frame")=="crew-outline")Image(painterResource(R.drawable.player_frame_clan_aether),contentDescription=null,modifier=frameModifier,contentScale=ContentScale.Fit)
- val effect=CatalogAssets.url(display?.optString("effect").orEmpty())
+ val context=androidx.compose.ui.platform.LocalContext.current
+ val lifecycle by androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+ val effect=if(lifecycle==androidx.lifecycle.Lifecycle.State.RESUMED&&productAssetMotionEnabled(context))
+  CatalogAssets.url(display?.optString("effect").orEmpty())else null
  if(image!=null&&effect!=null)AsyncImage(effect,null,frameModifier,contentScale=ContentScale.Fit)
  if(size>=80&&(!p.isNull("player_xp")||p.has("player_level"))){
   val level=p.optInt("player_level",playerLevel(p.optInt("player_xp"))).coerceIn(1,100).toString()
@@ -59,6 +62,10 @@ internal fun playerLevel(xp:Int)=((1+sqrt(1+xp.coerceAtLeast(0)/12.5))/2).toInt(
   }
  }
 }
+
+internal fun productAssetMotionEnabled(context:android.content.Context):Boolean=
+ android.os.Build.VERSION.SDK_INT>=28&&context.getSystemService(android.os.PowerManager::class.java)?.isPowerSaveMode!=true&&
+ android.provider.Settings.Global.getFloat(context.contentResolver,android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,1f)!=0f
 @Composable private fun PlayerXPCard(p:JSONObject,open:(()->Unit)?=null){
  val xp=p.optInt("xp");val level=p.optInt("level",1);val remaining=p.optInt("remaining")
  Surface(color=Panel,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Stroke)){

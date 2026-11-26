@@ -5,20 +5,26 @@ import java.net.URI
 /** Only these product-owned experiences may receive the signed-in app session. */
 internal object MobileExperienceRoute {
  private val id=Regex("[A-Za-z0-9_-]{1,120}")
+ private val reviewTicket=Regex("[A-Za-z0-9_-]{16,420}\\.[A-Za-z0-9_-]{43}")
  private val games=setOf("rhythm","jump","racing","fishing")
  fun valid(route:String):Boolean {
   val p=route.split('/')
-  return p.size==2&&p[0] in setOf("live","voice")&&id.matches(p[1])&&p[1]!="create" ||
+  return isProductReview(route)||p.size==2&&p[0] in setOf("live","voice")&&id.matches(p[1])&&p[1]!="create" ||
    p.size==3&&p[0]=="game"&&p[1] in games&&id.matches(p[2])
  }
  fun path(route:String):String {
   require(valid(route))
   val p=route.split('/')
+  if(isProductReview(route))return "/api/product-review/${p[1]}/room"
   return if(isRoom(route))"/#${p[0]}/${p[1]}" else if(p[1]=="jump")"/#crew-jump/${p[2]}" else "/crew-${p[1]}/?crew=${p[2]}&from=crew"
  }
  fun fromUrl(url:String,origin:String):String? {
   if(!CurrentNavigation.sameOrigin(url,origin))return null
   val u=runCatching{URI(url)}.getOrNull()?:return null
+  if(u.rawQuery==null&&u.rawFragment==null){
+   val review=u.rawPath.orEmpty().removePrefix("/api/").removeSuffix("/room")
+   if(isProductReview(review)&&path(review)==u.rawPath)return review
+  }
   val hash=u.fragment.orEmpty()
   if(isRoom(hash))return hash
   if(hash.startsWith("crew-jump/"))return "game/jump/${hash.substringAfter('/')}".takeIf(::valid)
@@ -27,6 +33,12 @@ internal object MobileExperienceRoute {
   return "game/$game/$crew".takeIf(::valid)
  }
  fun isRoom(route:String)=valid(route)&&(route.startsWith("live/")||route.startsWith("voice/"))
- fun title(route:String)=if(route.startsWith("voice/"))"토킹룸" else when(route.split('/').getOrNull(1)){"rhythm"->"비트콤보";"jump"->"점프러시";"racing"->"터보레이스";"fishing"->"월척헌터";else->"노래방"}
+ fun isProductReview(route:String)=route.startsWith("product-review/")&&reviewTicket.matches(route.substringAfter('/'))
+ fun fromProductReview(url:String):String? {
+  val prefix="kr.co.aifect.app://product-review?ticket="
+  if(!url.startsWith(prefix))return null
+  return ("product-review/"+url.removePrefix(prefix)).takeIf(::isProductReview)
+ }
+ fun title(route:String)=if(isProductReview(route))"상품 적용 검수" else if(route.startsWith("voice/"))"토킹룸" else when(route.split('/').getOrNull(1)){"rhythm"->"비트콤보";"jump"->"점프러시";"racing"->"터보레이스";"fishing"->"월척헌터";else->"노래방"}
  fun canUseMicrophone(route:String,origin:String,requestOrigin:String)=isRoom(route)&&CurrentNavigation.sameOrigin(requestOrigin,origin)
 }

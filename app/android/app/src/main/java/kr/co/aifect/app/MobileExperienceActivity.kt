@@ -104,6 +104,7 @@ class MobileExperienceActivity:ComponentActivity(){
     override fun shouldOverrideUrlLoading(v:WebView,request:WebResourceRequest):Boolean{
      if(!request.isForMainFrame)return false
      val url=request.url.toString()
+     if(MobileExperienceRoute.isProductReview(route))return url!=Endpoint.origin+MobileExperienceRoute.path(route)
      if(!CurrentNavigation.sameOrigin(url,Endpoint.origin))return true
      val next=MobileExperienceRoute.fromUrl(url,Endpoint.origin)
      if(next!=null){route=next;headerLabel.text=MobileExperienceRoute.title(next);return false}
@@ -123,6 +124,9 @@ class MobileExperienceActivity:ComponentActivity(){
   content.addView(web,LinearLayout.LayoutParams(-1,0,1f));setContentView(root)
   ViewCompat.setOnApplyWindowInsetsListener(root){v,insets->val b=insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.ime());v.setPadding(b.left,b.top,b.right,b.bottom);insets}
   onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){when{custom!=null->hideCustom();!MobileExperienceRoute.isRoom(route)&&bar.visibility==View.GONE->bar.visibility=View.VISIBLE;else->requestLeave()}}})
+  if(MobileExperienceRoute.isProductReview(route)){
+   web.loadUrl(Endpoint.origin+MobileExperienceRoute.path(route));return
+  }
   val cookies=CookieManager.getInstance()
   cookies.removeAllCookies{
    if(isFinishing)return@removeAllCookies
@@ -133,6 +137,7 @@ class MobileExperienceActivity:ComponentActivity(){
  private fun hideCustom(){custom?.let{root.removeView(it)};custom=null;content.visibility=View.VISIBLE;customCallback?.onCustomViewHidden();customCallback=null}
  private var leaving=false
  private fun requestLeave(){
+  if(MobileExperienceRoute.isProductReview(route)){finish();return}
   if(leaving||isFinishing)return;leaving=true
   if(MobileExperienceRoute.isRoom(route)&&!disposed&&CurrentNavigation.sameOrigin(web.url.orEmpty(),Endpoint.origin)){
    // The page owns mode, active popup and leave cleanup. Mode switches stay inside it.
@@ -155,17 +160,22 @@ class MobileExperienceActivity:ComponentActivity(){
   dialog.show()
  }
  private fun showError(){if(isFinishing)return;AlertDialog.Builder(this).setMessage("화면을 불러오지 못했어요. 연결을 확인하고 다시 시도해주세요.").setPositiveButton("다시 연결"){_,_->web.loadUrl(Endpoint.origin+MobileExperienceRoute.path(route))}.setNegativeButton("닫기"){_,_->finish()}.show()}
- override fun onPause(){if(::web.isInitialized&&!disposed){web.evaluateJavascript("window.dispatchEvent(new Event('blur'));",null);web.onPause()};super.onPause()}
+ private fun assetVisibility(inactive:Boolean){
+  if((MobileExperienceRoute.isRoom(route)||MobileExperienceRoute.isProductReview(route))&&CurrentNavigation.sameOrigin(web.url.orEmpty(),Endpoint.origin)){
+   web.evaluateJavascript("document.documentElement.toggleAttribute('data-aifect-room-inactive',$inactive);window.dispatchEvent(new Event('aifect:room-visibility'));",null)
+  }
+ }
+ override fun onPause(){if(::web.isInitialized&&!disposed){assetVisibility(true);web.evaluateJavascript("window.dispatchEvent(new Event('blur'));",null);web.onPause()};super.onPause()}
  override fun onStop(){
   if(::web.isInitialized&&!disposed&&MobileExperienceRoute.isRoom(route)&&!isChangingConfigurations){permission?.deny();permission=null;web.loadUrl("about:blank");suspended=true}
   super.onStop()
  }
- override fun onResume(){super.onResume();if(::web.isInitialized&&!disposed){web.onResume();if(suspended)web.loadUrl(Endpoint.origin+MobileExperienceRoute.path(route))}}
+ override fun onResume(){super.onResume();if(::web.isInitialized&&!disposed){web.onResume();assetVisibility(false);if(suspended)web.loadUrl(Endpoint.origin+MobileExperienceRoute.path(route))}}
  override fun onDestroy(){fishingPort?.close();fishingPort=null;getSharedPreferences("native_session",0).unregisterOnSharedPreferenceChangeListener(sessionListener);permission?.deny();permission=null;if(::web.isInitialized&&!disposed){web.stopLoading();web.loadUrl("about:blank");web.removeAllViews();web.destroy();disposed=true};super.onDestroy()}
 }
 
 internal fun mobileExperienceScript(route:String):String {
- val live=MobileExperienceRoute.isRoom(route)
+ val live=MobileExperienceRoute.isRoom(route)||MobileExperienceRoute.isProductReview(route)
  val css="""
  :root{color-scheme:dark;--sidebar:0px;--bg:#0b1024;--panel:#1a2038}
  html,body{max-width:100%;margin:0;overscroll-behavior:none}
@@ -211,7 +221,7 @@ internal fun mobileExperienceScript(route:String):String {
      radial-gradient(ellipse at 68% 17%,rgb(67 107 202 / 49%),transparent 56%),
      linear-gradient(140deg,#080d26,#142b56 65%,#071128)!important;
  }
- #main .voice-room[data-voice-room][data-paid-theme]{
+ #main .voice-room[data-voice-room][data-paid-theme]:not([data-product-package]){
    background-color:#0c121b!important;
    background-image:linear-gradient(rgb(9 15 28 / 42%),rgb(9 15 28 / 58%)),var(--decoration-mobile)!important;
    background-position:center center!important;

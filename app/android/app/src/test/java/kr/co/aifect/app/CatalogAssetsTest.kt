@@ -48,6 +48,23 @@ class CatalogAssetsTest {
   assets.remove("roomApp")
   assertEquals(Endpoint.origin+"/assets/themes/product/mobile-effect.webp",CatalogAssets.roomEffect(theme))
  }
+ @Test fun packageRendererUsesRoomGeometryAndKeepsEffectsOnTheSelectedCanvas(){
+  val theme=JSONObject("""
+   {"artwork":{
+    "desktop":{"src":"/assets/desktop.webp","width":1280,"height":720,"fit":"cover","focus":[0.55,0.5],"safe":[0.35,0.31,0.77,0.67],"effect":"/assets/desktop-effect.webp"},
+    "mobile":{"src":"/assets/mobile.webp","width":720,"height":1600,"fit":"cover","focus":[0.5,0.45],"safe":[0.25,0.26,0.78,0.73],"effect":"/assets/mobile-effect.webp","low":{"src":"/assets/mobile-low.webp","width":432,"height":960}}
+   }}
+  """.trimIndent())
+  val desktop=CatalogAssets.roomArtwork(theme,1440.0,850.0,1.25,false,false)
+  assertEquals("desktop",desktop?.role)
+  assertEquals(Endpoint.origin+"/assets/desktop-effect.webp",desktop?.effect)
+  val phone=CatalogAssets.roomArtwork(theme,390.0,844.0,2.0,false,false)
+  assertEquals("mobile",phone?.role)
+  assertEquals(Endpoint.origin+"/assets/mobile-effect.webp",phone?.effect)
+  val economy=CatalogAssets.roomArtwork(theme,390.0,844.0,2.0,true,false)
+  assertEquals(Endpoint.origin+"/assets/mobile-low.webp",economy?.source)
+  assertNull(economy?.effect)
+ }
  @Test fun assetShapesAllowServerUpgradesWithoutAppChanges(){
   val future=JSONObject().put("assets",JSONObject().put("image","/assets/v2/gifts/leaf.avif?v=99"))
   assertEquals(Endpoint.origin+"/assets/v2/gifts/leaf.avif?v=99",CatalogAssets.giftImage(future))
