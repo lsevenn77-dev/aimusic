@@ -25,6 +25,10 @@
   const directory={group:'all',cursor:null,lastDay:'',count:0,request:0,page:[],selected:new Set(),query:''};
   const eventTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
   const memberTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
+  const chartRenderers=new WeakMap();
+  const chartObserver=new ResizeObserver(entries=>{
+    for(const {target,contentRect} of entries)chartRenderers.get(target)?.(contentRect);
+  });
 
   function toast(message){
     const el=$('#admin-toast');
@@ -132,49 +136,76 @@
     return out.slice(-samples);
   }
 
-  function barChart(svg,raw,days){
-    const data=normalizeSeries(raw,days),W=720,H=280,p={l:42,r:18,t:18,b:34};
-    if(!data.length||data.every(x=>!x.value)){svg.innerHTML='<text x="360" y="140" text-anchor="middle" class="axis-label">기간 내 집계된 재생이 없습니다.</text>';return;}
-    const max=Math.max(...data.map(x=>x.value),1),usable=W-p.l-p.r,gap=9,bw=Math.max(5,(usable-gap*(data.length-1))/data.length);
+  function renderChart(svg,raw,days,draw){
+    const data=normalizeSeries(raw,days);
+    const render=({width,height})=>{
+      if(width<=0||height<=0)return;
+      // Match CSS pixels so axis labels keep their size when a panel shrinks.
+      svg.setAttribute('viewBox','0 0 '+width+' '+height);
+      draw(svg,data,width,height);
+    };
+    chartObserver.observe(svg);
+    chartRenderers.set(svg,render);
+    render(svg.getBoundingClientRect());
+  }
+
+  function dateLabelStep(count,spacing){
+    return Math.max(count>10?2:1,Math.ceil(48/Math.max(1,spacing)));
+  }
+
+  function barChart(svg,data,W,H){
+    if(!data.some(x=>x.value)){
+      svg.innerHTML='<text x="'+W/2+'" y="'+H/2+'" text-anchor="middle" class="axis-label">기간 내 집계된 재생이 없습니다.</text>';
+      return;
+    }
+    const max=Math.max(...data.map(x=>x.value),1),p={l:Math.max(42,12+num(max).length*8),r:22,t:18,b:34};
+    const slot=(W-p.l-p.r)/data.length,gap=Math.min(9,slot*.25),bw=slot-gap;
+    const dateStep=dateLabelStep(data.length,slot);
     let out='<defs><linearGradient id="playGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e86eb3"/><stop offset="1" stop-color="#8b73e8"/></linearGradient></defs>';
     [0,.25,.5,.75,1].forEach(r=>{
       const y=p.t+(H-p.t-p.b)*(1-r);
       out+='<line class="chart-gridline" x1="'+p.l+'" y1="'+y+'" x2="'+(W-p.r)+'" y2="'+y+'"/>';
-      out+='<text class="axis-label" x="'+(p.l-8)+'" y="'+(y+3)+'" text-anchor="end">'+num(max*r)+'</text>';
+      out+='<text class="axis-label" x="'+(p.l-8)+'" y="'+(y+4)+'" text-anchor="end">'+num(max*r)+'</text>';
     });
     data.forEach((x,i)=>{
-      const h=(x.value/max)*(H-p.t-p.b-8),xx=p.l+i*(bw+gap),yy=H-p.b-h;
+      const h=(x.value/max)*(H-p.t-p.b-8),xx=p.l+i*slot+gap/2,yy=H-p.b-h;
       out+='<rect class="chart-bar" x="'+xx+'" y="'+yy+'" width="'+bw+'" height="'+h+'" rx="5"><title>'+esc(x.day)+' · '+num(x.value)+'회</title></rect>';
-      if(data.length<=10||i%2===0)out+='<text class="axis-label" x="'+(xx+bw/2)+'" y="'+(H-12)+'" text-anchor="middle">'+x.day.slice(5).replace('-','/')+'</text>';
+      if(i%dateStep===0)out+='<text class="axis-label" x="'+(xx+bw/2)+'" y="'+(H-12)+'" text-anchor="middle">'+x.day.slice(5).replace('-','/')+'</text>';
     });
     svg.innerHTML=out;
   }
 
-  function lineChart(svg,raw,days){
-    const data=normalizeSeries(raw,days),W=460,H=280,p={l:38,r:18,t:22,b:34};
-    if(!data.length||data.every(x=>!x.value)){svg.innerHTML='<text x="230" y="140" text-anchor="middle" class="axis-label">기간 내 신규 회원이 없습니다.</text>';return;}
+  function lineChart(svg,data,W,H){
+    const p={l:28,r:22,t:22,b:34};
+    if(!data.some(x=>x.value)){
+      svg.innerHTML='<text x="'+W/2+'" y="'+H/2+'" text-anchor="middle" class="axis-label">기간 내 신규 회원이 없습니다.</text>';
+      return;
+    }
     const max=Math.max(...data.map(x=>x.value),1),usableW=W-p.l-p.r,usableH=H-p.t-p.b;
-    const pts=data.map((x,i)=>[p.l+(i/(Math.max(1,data.length-1)))*usableW,H-p.b-(x.value/max)*usableH,x]);
+    const spacing=usableW/Math.max(1,data.length-1),dateStep=dateLabelStep(data.length,spacing);
+    const pts=data.map((x,i)=>[p.l+i*spacing,H-p.b-(x.value/max)*usableH,x]);
     let out='<defs><linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#9a82ff"/><stop offset="1" stop-color="#6fd8ff"/></linearGradient></defs>';
     [0,.5,1].forEach(r=>{const y=p.t+usableH*(1-r);out+='<line class="chart-gridline" x1="'+p.l+'" y1="'+y+'" x2="'+(W-p.r)+'" y2="'+y+'"/>';});
     out+='<polyline class="chart-line" points="'+pts.map(x=>x[0]+','+x[1]).join(' ')+'"/>';
     pts.forEach((pt,i)=>{
       out+='<circle class="chart-dot" cx="'+pt[0]+'" cy="'+pt[1]+'" r="5"><title>'+esc(pt[2].day)+' · '+num(pt[2].value)+'명</title></circle>';
-      if(data.length<=10||i%2===0)out+='<text class="axis-label" x="'+pt[0]+'" y="'+(H-12)+'" text-anchor="middle">'+pt[2].day.slice(5).replace('-','/')+'</text>';
+      if(i%dateStep===0)out+='<text class="axis-label" x="'+pt[0]+'" y="'+(H-12)+'" text-anchor="middle">'+pt[2].day.slice(5).replace('-','/')+'</text>';
     });
     svg.innerHTML=out;
   }
 
-  function detailedChart(svg,raw,days){
-    const normalized=normalizeSeries(raw,days);
-    const W=980,H=330,p={l:52,r:24,t:24,b:38};
-    const max=Math.max(...normalized.map(x=>x.value),1);
+  function detailedChart(svg,data,W,H){
+    const max=Math.max(...data.map(x=>x.value),1),p={l:Math.max(52,14+num(max).length*8),r:24,t:24,b:38};
+    const spacing=(W-p.l-p.r)/Math.max(1,data.length-1),dateStep=dateLabelStep(data.length,spacing);
     let out='<defs><linearGradient id="detailGradient" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#e86eb3"/><stop offset=".55" stop-color="#9a82ff"/><stop offset="1" stop-color="#6fd8ff"/></linearGradient></defs>';
     [0,.25,.5,.75,1].forEach(r=>{const y=p.t+(H-p.t-p.b)*(1-r);out+='<line class="chart-gridline" x1="'+p.l+'" y1="'+y+'" x2="'+(W-p.r)+'" y2="'+y+'"/><text class="axis-label" x="'+(p.l-10)+'" y="'+(y+4)+'" text-anchor="end">'+num(max*r)+'</text>';});
-    if(normalized.length){
-      const pts=normalized.map((x,i)=>[p.l+i*(W-p.l-p.r)/Math.max(1,normalized.length-1),H-p.b-(x.value/max)*(H-p.t-p.b),x]);
+    if(data.length){
+      const pts=data.map((x,i)=>[p.l+i*spacing,H-p.b-(x.value/max)*(H-p.t-p.b),x]);
       out+='<polyline points="'+pts.map(x=>x[0]+','+x[1]).join(' ')+'" fill="none" stroke="url(#detailGradient)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>';
-      pts.forEach((pt,i)=>{out+='<circle cx="'+pt[0]+'" cy="'+pt[1]+'" r="5" fill="#f18ac4" stroke="#141824" stroke-width="3"><title>'+num(pt[2].value)+'회</title></circle>';if(i%2===0||normalized.length<9)out+='<text class="axis-label" x="'+pt[0]+'" y="'+(H-13)+'" text-anchor="middle">'+pt[2].day.slice(5).replace('-','/')+'</text>';});
+      pts.forEach((pt,i)=>{
+        out+='<circle cx="'+pt[0]+'" cy="'+pt[1]+'" r="5" fill="#f18ac4" stroke="#141824" stroke-width="3"><title>'+num(pt[2].value)+'회</title></circle>';
+        if(i%dateStep===0)out+='<text class="axis-label" x="'+pt[0]+'" y="'+(H-13)+'" text-anchor="middle">'+pt[2].day.slice(5).replace('-','/')+'</text>';
+      });
     }
     svg.innerHTML=out;
   }
@@ -227,20 +258,32 @@
   }
 
   function renderLists(data){
-    $('#top-track-list').innerHTML=(data.top_tracks||[]).map((x,i)=>'<div class="rank-row"><span class="rank-no">'+(i+1)+'</span>'+cover(x)+'<div class="row-main"><strong>'+esc(x.title)+'</strong><span>'+esc(x.artist)+'</span></div><span class="row-value">▶ '+num(x.plays)+'</span></div>').join('')||'<div class="empty-state">기간 내 재생 데이터가 없습니다.</div>';
+    $('#top-track-list').innerHTML=(data.top_tracks||[]).map((x,i)=>'<div class="rank-row"><span class="rank-no">'+(i+1)+'</span>'+cover(x)+'<div class="row-main"><strong>'+esc(x.title)+'</strong><span>'+esc(x.artist)+'</span></div><span class="row-value"><span class="row-icon" aria-hidden="true">▶</span> '+num(x.plays)+'</span></div>').join('')||'<div class="empty-state">기간 내 재생 데이터가 없습니다.</div>';
     $('#recent-track-list').innerHTML=(data.recent_tracks||[]).map(x=>'<div class="compact-row">'+cover(x)+'<div class="row-main"><strong>'+esc(x.title)+'</strong><span>'+esc(x.artist)+' · '+esc(x.genre||'장르 미지정')+'</span></div><span class="row-value">'+kstDate(x.created)+'</span></div>').join('')||'<div class="empty-state">공개된 음원이 없습니다.</div>';
     const alerts=[];
     if(data.summary.pending_comment_reports)alerts.push(['report','신고',num(data.summary.pending_comment_reports)+'건의 댓글 신고가 대기 중입니다.','moderation']);
     if(data.summary.reported_tracks)alerts.push(['track','음원',num(data.summary.reported_tracks)+'곡에 음질 신고 이력이 있습니다.','tracks']);
     if(data.payouts.pending_count)alerts.push(['payout','정산',num(data.payouts.pending_count)+'건 · '+money(data.payouts.pending_krw)+' 지급 대기','payouts']);
     if(!alerts.length)alerts.push(['payout','정상','현재 즉시 확인할 운영 알림이 없습니다.','dashboard']);
-    $('#operation-alerts').innerHTML=alerts.map(x=>'<button class="alert-row" data-jump="'+x[3]+'" type="button"><span class="alert-label '+x[0]+'">'+x[1]+'</span><span class="row-main"><strong>'+esc(x[2])+'</strong></span><span class="row-value">›</span></button>').join('');
+    $('#operation-alerts').innerHTML=alerts.map(x=>'<button class="alert-row" data-jump="'+x[3]+'" type="button"><span class="alert-label '+x[0]+'">'+x[1]+'</span><span class="row-main"><strong>'+esc(x[2])+'</strong></span><span class="row-value row-icon" aria-hidden="true">›</span></button>').join('');
     $('#report-badge').textContent=data.summary.pending_comment_reports||'';
     $('#report-badge').hidden=!data.summary.pending_comment_reports;
     $('#track-badge').textContent=data.summary.reported_tracks||'';
     $('#track-badge').hidden=!data.summary.reported_tracks;
     $('#payout-badge').textContent=data.payouts.pending_count||'';
     $('#payout-badge').hidden=!data.payouts.pending_count;
+  }
+
+  function renderTableRows(body,rows,emptyMessage=''){
+    const headers=[...body.closest('table').tHead.rows[0].cells];
+    if(!rows.length){
+      body.innerHTML=emptyMessage?'<tr><td colspan="'+headers.length+'">'+esc(emptyMessage)+'</td></tr>':'';
+      return;
+    }
+    body.innerHTML=rows.map(cells=>'<tr>'+cells.map((content,i)=>{
+      const label=headers[i].textContent.trim();
+      return '<td'+(label?' data-label="'+esc(label)+'"':'')+'>'+content+'</td>';
+    }).join('')+'</tr>').join('');
   }
 
   function renderPlaysView(data){
@@ -252,13 +295,17 @@
       ['기간',data.days+'일']
     ].map(x=>'<div class="stat-box"><small>'+x[0]+'</small><strong>'+x[1]+'</strong></div>').join('');
     $('#play-range-label').textContent='최근 '+data.days+'일';
-    detailedChart($('#plays-detail-chart'),data.series.plays,data.days);
-    $('#top-track-table').innerHTML=(data.top_tracks||[]).map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.title)+'</td><td>'+esc(x.artist)+'</td><td>'+num(x.plays)+'</td><td>'+num(x.likes)+'</td></tr>').join('')||'<tr><td colspan="5">기간 내 재생 데이터가 없습니다.</td></tr>';
+    renderChart($('#plays-detail-chart'),data.series.plays,data.days,detailedChart);
+    renderTableRows($('#top-track-table'),(data.top_tracks||[]).map((x,i)=>[
+      i+1,esc(x.title),esc(x.artist),num(x.plays),num(x.likes)
+    ]),'기간 내 재생 데이터가 없습니다.');
   }
 
   function renderPeople(data){
     $('#people-creators-count').textContent=num(data.recent_creators.length)+'명 표시';
-    $('#recent-creator-table').innerHTML=data.recent_creators.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+num(x.tracks)+'</td><td>'+num(x.followers)+'</td><td>'+kstDate(x.created)+'</td></tr>').join('')||'<tr><td colspan="4">창작자 데이터가 없습니다.</td></tr>';
+    renderTableRows($('#recent-creator-table'),data.recent_creators.map(x=>[
+      esc(x.name),num(x.tracks),num(x.followers),kstDate(x.created)
+    ]),'창작자 데이터가 없습니다.');
   }
 
   function directoryParams(){
@@ -341,14 +388,16 @@
       kpiCard('◇','플랫폼 선물 몫',money(r.gift_platform_krw),num(r.gifts)+'건'),
       kpiCard('♥','창작자 선물 몫',money(r.gift_creator_krw),'확정 배분')
     ].join('');
-    $('#gold-table').innerHTML=(data.recent_gold||[]).map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.channel)+'</td><td>'+num(x.gold)+'G</td><td>'+money(x.price_krw)+'</td><td>'+kstDateTime(x.paid_at)+'</td></tr>').join('')||'<tr><td colspan="5">결제 내역이 없습니다.</td></tr>';
+    renderTableRows($('#gold-table'),(data.recent_gold||[]).map(x=>[
+      esc(x.name),esc(x.channel),num(x.gold)+'G',money(x.price_krw),kstDateTime(x.paid_at)
+    ]),'결제 내역이 없습니다.');
   }
 
   function renderDashboard(data){
     state.data=data;
     renderKPIs(data);
-    barChart($('#plays-chart'),data.series.plays,data.days);
-    lineChart($('#users-chart'),data.series.users,data.days);
+    renderChart($('#plays-chart'),data.series.plays,data.days,barChart);
+    renderChart($('#users-chart'),data.series.users,data.days,lineChart);
     $('#plays-total').textContent=num(data.summary.qualified_plays)+'회';
     $('#new-users-total').textContent='+'+num(data.summary.new_users)+'명';
     $('#insight-text').textContent='최근 '+data.days+'일 동안 유효 재생 '+num(data.summary.qualified_plays)+'회, 신규 회원 '+num(data.summary.new_users)+'명입니다.';
@@ -480,11 +529,12 @@
         kpiCard('₩','총 정산액',money(gross),'세전'),
         kpiCard('✓','실지급 합계',money(net),'원천징수 후')
       ].join('');
-      $('#payout-table').innerHTML=statements.map(x=>{
+      renderTableRows($('#payout-table'),statements.map(x=>{
         const tax=Number(x.income_tax_krw||0)+Number(x.local_tax_krw||0);
         const button=x.status==='scheduled'?'<button class="small-button good" data-payout-paid="'+esc(x.id)+'">지급 완료</button>':'';
-        return '<tr><td>'+esc(x.profile)+'</td><td>'+money(x.gross_krw)+'</td><td>'+money(tax)+'</td><td>'+money(x.net_krw)+'</td><td><span class="soft-badge '+payoutStatusClass(x.status)+'">'+esc(statusName(x.status))+'</span></td><td>'+esc(x.due_on||'-')+'</td><td>'+button+'</td></tr>';
-      }).join('')||'<tr><td colspan="7">선택한 기간에 정산서가 없습니다.</td></tr>';
+        return [esc(x.profile),money(x.gross_krw),money(tax),money(x.net_krw),
+          '<span class="soft-badge '+payoutStatusClass(x.status)+'">'+esc(statusName(x.status))+'</span>',esc(x.due_on||'-'),button];
+      }),'선택한 기간에 정산서가 없습니다.');
     }catch(error){toast(error.message);}
   }
 
@@ -565,7 +615,10 @@
         kpiCard('$','Pika 확정 비용','$'+amount.toFixed(6),'원화 추정 '+money(d.pika.estimated_krw)),
         kpiCard('◇','신고·이의신청',num(d.summary.open_reports),'운영자 검토 필요'),
         kpiCard('▶','광고 보상',num(d.summary.ad_rewards),'최근 '+d.days+'일 · 웹 화면 광고')
-      ].join('')+'</div><article class="admin-card"><h2>음향 제작 가격</h2><form id="dubbing-price-form" class="inline-controls"><label>작품당 Gold <input name="gold" type="number" min="1" max="10000" step="1" required value="'+d.settings.soundGold+'"></label><button class="primary-button" type="submit">가격 저장</button></form><p>기존 결제 금액은 유지됩니다. 변경된 가격은 다음 제작 확인창부터 적용됩니다.</p><p>실제 골드 차감: '+(d.flags.charging?'켜짐':'꺼짐')+' · 유료 API 실행: '+(d.flags.paidAPI?'켜짐':'꺼짐')+'</p></article><article class="admin-card"><h2>비용 · 사용량</h2><p>'+esc(d.costNote)+'</p><p>미정산·미확인 비용 '+num(d.pika.unsettled_costs)+'건 · 환율 미설정 '+num(d.pika.missing_fx)+'건</p><div class="management-list">'+d.generations.map(x=>'<div class="management-meta"><b>'+esc(x.kind==='script'?'대본':'음향 계획')+'</b><span>'+esc(x.state)+' '+num(x.count)+'건</span><span>입력 '+num(x.input_tokens)+' · 출력 '+num(x.output_tokens)+' 토큰</span></div>').join('')+'</div></article><article class="admin-card"><div class="card-heading"><h2>실패 · 확인 필요 작업</h2><button class="small-button" id="dubbing-reconcile">미처리 환급 확인</button></div><p>Pika 결과가 불명확한 작업은 유료 생성을 반복하지 않습니다. 최종 녹음 합성은 저장된 파일로만 재시도합니다.</p>'+ (d.jobs.length?d.jobs.map(j=>'<div class="management-card"><h3>'+esc(j.title)+'</h3><p>'+esc(j.kind==='final'?'최종 합성':'배경 음향')+' · '+esc(j.state)+' · 시도 '+j.attempts+'</p><p>'+esc(j.error)+'</p>'+(j.kind==='sound'?'<p>환급 기록을 보존하며 사용자가 새 제작을 요청할 수 있게 준비합니다. 자동 제작·차감은 하지 않습니다.</p><label>확인 사유<textarea data-reset-note maxlength="500" rows="2" required></textarea></label>'+(j.state==='unknown'?'<label><input type="checkbox" data-unsubmitted> 외부 요청이 전송되지 않은 것을 확인했습니다.</label>':'')+'<button class="small-button" data-sound-reset="'+esc(j.id)+'" data-updated="'+j.updated+'" data-unknown="'+(j.state==='unknown')+'">실패한 음향 다시 준비</button>':'')+(j.can_retry?'<label class="dubbing-review-note">재시도 사유<textarea maxlength="2000" rows="2" required></textarea></label><button class="small-button" data-final-retry="'+esc(j.id)+'" data-updated="'+j.updated+'">최종 합성 재시도</button>':'')+'</div>').join(''):'<div class="empty-state">확인이 필요한 작업이 없습니다.</div>')+'</article><article class="admin-card"><h2>Gold 이용·환급 내역</h2><div class="data-table-wrap"><table><thead><tr><th>작품</th><th>사용</th><th>환급</th><th>상태</th><th>일시</th></tr></thead><tbody>'+d.payments.map(p=>'<tr><td>'+esc(p.title)+'</td><td>'+p.gold+'G</td><td>'+p.refunded_gold+'G</td><td>'+esc(p.state)+'</td><td>'+kstDateTime(p.created)+'</td></tr>').join('')+'</tbody></table></div></article>';
+      ].join('')+'</div><article class="admin-card"><h2>음향 제작 가격</h2><form id="dubbing-price-form" class="inline-controls"><label>작품당 Gold <input name="gold" type="number" min="1" max="10000" step="1" required value="'+d.settings.soundGold+'"></label><button class="primary-button" type="submit">가격 저장</button></form><p>기존 결제 금액은 유지됩니다. 변경된 가격은 다음 제작 확인창부터 적용됩니다.</p><p>실제 골드 차감: '+(d.flags.charging?'켜짐':'꺼짐')+' · 유료 API 실행: '+(d.flags.paidAPI?'켜짐':'꺼짐')+'</p></article><article class="admin-card"><h2>비용 · 사용량</h2><p>'+esc(d.costNote)+'</p><p>미정산·미확인 비용 '+num(d.pika.unsettled_costs)+'건 · 환율 미설정 '+num(d.pika.missing_fx)+'건</p><div class="management-list">'+d.generations.map(x=>'<div class="management-meta"><b>'+esc(x.kind==='script'?'대본':'음향 계획')+'</b><span>'+esc(x.state)+' '+num(x.count)+'건</span><span>입력 '+num(x.input_tokens)+' · 출력 '+num(x.output_tokens)+' 토큰</span></div>').join('')+'</div></article><article class="admin-card"><div class="card-heading"><h2>실패 · 확인 필요 작업</h2><button class="small-button" id="dubbing-reconcile">미처리 환급 확인</button></div><p>Pika 결과가 불명확한 작업은 유료 생성을 반복하지 않습니다. 최종 녹음 합성은 저장된 파일로만 재시도합니다.</p>'+ (d.jobs.length?d.jobs.map(j=>'<div class="management-card"><h3>'+esc(j.title)+'</h3><p>'+esc(j.kind==='final'?'최종 합성':'배경 음향')+' · '+esc(j.state)+' · 시도 '+j.attempts+'</p><p>'+esc(j.error)+'</p>'+(j.kind==='sound'?'<p>환급 기록을 보존하며 사용자가 새 제작을 요청할 수 있게 준비합니다. 자동 제작·차감은 하지 않습니다.</p><label class="dubbing-review-note">확인 사유<textarea data-reset-note maxlength="500" rows="2" required></textarea></label>'+(j.state==='unknown'?'<label><input type="checkbox" data-unsubmitted> 외부 요청이 전송되지 않은 것을 확인했습니다.</label>':'')+'<button class="small-button" data-sound-reset="'+esc(j.id)+'" data-updated="'+j.updated+'" data-unknown="'+(j.state==='unknown')+'">실패한 음향 다시 준비</button>':'')+(j.can_retry?'<label class="dubbing-review-note">재시도 사유<textarea maxlength="2000" rows="2" required></textarea></label><button class="small-button" data-final-retry="'+esc(j.id)+'" data-updated="'+j.updated+'">최종 합성 재시도</button>':'')+'</div>').join(''):'<div class="empty-state">확인이 필요한 작업이 없습니다.</div>')+'</article><article class="admin-card"><h2>Gold 이용·환급 내역</h2><div class="data-table-wrap"><table class="admin-table"><thead><tr><th>작품</th><th>사용</th><th>환급</th><th>상태</th><th>일시</th></tr></thead><tbody id="dubbing-payment-table"></tbody></table></div></article>';
+      renderTableRows($('#dubbing-payment-table'),d.payments.map(p=>[
+        esc(p.title),p.gold+'G',p.refunded_gold+'G',esc(p.state),kstDateTime(p.created)
+      ]));
       dubbingCreditsPanel(box);
       $('#dubbing-price-form').onsubmit=async e=>{e.preventDefault();const b=e.currentTarget.querySelector('button');b.disabled=true;try{await api('/api/admin/dubbing/settings',{method:'PUT',body:JSON.stringify({soundGold:Number(e.currentTarget.elements.gold.value),version:d.settings.version})});toast('제작 가격을 저장했습니다.');await loadDubbing();}catch(err){toast(err.message);}finally{b.disabled=false;}};
       $('#dubbing-reconcile').onclick=async e=>{e.currentTarget.disabled=true;try{await api('/api/admin/dubbing/reconcile',{method:'POST',body:'{}'});await loadDubbing();toast('환급 상태를 확인했습니다.');}catch(err){toast(err.message);loadDubbing();}};
