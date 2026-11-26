@@ -6,13 +6,16 @@ function libraryTitleCheck(form,exclude='',needsUnique=()=>true){
  form.addEventListener('change',()=>{++serial;clearTimeout(timer);if(!needsUnique()){input.setCustomValidity('');status.textContent='';}});input.addEventListener('input',()=>{++serial;input.setCustomValidity('');clearTimeout(timer);timer=setTimeout(check,350);});return check;
 }
 async function contentSaveMenu(tid){
- const ticket=renderId;if(!me)return askLogin();const t=trackMap.get(tid)||(await api('/api/tracks/'+encodeURIComponent(tid))).track;
- if(ticket!==renderId)return;
- if(await checkPlaylistUnification())return ticket===renderId&&selectPlaylistForItem({kind:t.kind,content_id:t.id,content:t});
+ const ticket=renderId;if(!me)return askLogin();const account=me.id;
+ const t=trackMap.get(tid)||(await api('/api/tracks/'+encodeURIComponent(tid))).track;
+ if(ticket!==renderId||me?.id!==account)return;
+ const unified=await checkPlaylistUnification();
+ if(ticket!==renderId||me?.id!==account)return;
+ if(unified)return selectPlaylistForItem({kind:t.kind,content_id:t.id,content:t});
  if(t.kind==='cover')return boxPicker({kind:'cover',content_id:tid});
  if(!AifectPlaylist.isPlaylistEligibleTrack(t))return;
  dialog('<h2>담기</h2><div class="dialog-list"><button class="small-button" id="save-to-playlist">플레이리스트에 담기</button><button class="small-button" id="save-to-box">마이박스에 담기</button></div>');
- $('#save-to-playlist').onclick=()=>targetPlaylistPicker(tid).catch(e=>toast(e.message));$('#save-to-box').onclick=()=>boxPicker({kind:'original',content_id:tid}).catch(e=>toast(e.message));
+ $('#save-to-playlist').onclick=()=>targetPlaylistPicker(tid,t).catch(e=>toast(e.message));$('#save-to-box').onclick=()=>boxPicker({kind:'original',content_id:tid}).catch(e=>toast(e.message));
 }
 async function libraryPicker({kind,item,onSelect}){
  if(!me)return askLogin();const account=me.id,box=kind==='myboxes';
@@ -23,7 +26,157 @@ async function libraryPicker({kind,item,onSelect}){
  form.onsubmit=e=>{e.preventDefault();q=form.elements.q.value;load();};more.onclick=()=>load(true);
  $('#library-picker-new').onclick=()=>{(box?myBoxDialog(null,item):playlistDialog(null,globalThis.AifectUnifiedPlaylists?item:item.content_id)).catch(e=>toast(e.message));};await load();
 }
-async function targetPlaylistPicker(tid){if(await checkPlaylistUnification())return contentSaveMenu(tid);return libraryPicker({kind:'playlists',item:{kind:'original',content_id:tid},onSelect:async pid=>{const d=await api(`/api/playlists/${pid}/tracks/${tid}`,'PUT');toast(d.already_added?'이미 추가된 곡입니다.':'플레이리스트에 추가되었습니다.');}});}
+// Pending additions are shared if the same content is reopened before a write finishes.
+const playlistPickerWrites=new Map();
+function playlistPickerRow(playlist){
+ const image=playlistImageURL(playlist),name=esc(playlist.name);
+ return `<li><button type="button" class="playlist-picker-row" data-playlist-target="${esc(playlist.id)}" title="${name}">
+  <span class="playlist-picker-art" aria-hidden="true">${icon('list',16)}${image?`<img src="${esc(image)}" alt="" loading="lazy">`:''}</span>
+  <span class="playlist-picker-name">${name}</span><span class="playlist-picker-action" aria-hidden="true"></span>
+ </button></li>`;
+}
+async function playlistPicker({item,onSelect,unified=false}){
+ if(!me)return askLogin();
+ if(inApp)return libraryPicker({kind:'playlists',item,onSelect:async(id,playlist)=>{
+  const result=await onSelect(id,playlist);
+  if(result===false)return false;
+  toast(result.already_added?(unified?'이미 추가된 콘텐츠입니다.':'이미 추가된 곡입니다.'):'플레이리스트에 추가되었습니다.');
+ }});
+ const ticket=renderId,account=me.id,modal=$('#dialog');
+ if(!item.content){
+  const id=encodeURIComponent(item.content_id);
+  const content=item.kind==='dubbing'?(await api('/api/dubbing/projects/'+id)).project:
+   trackMap.get(item.content_id)||(await api('/api/tracks/'+id)).track;
+  item={...item,content};
+ }
+ if(ticket!==renderId||me?.id!==account)return;
+ const track={...item.content,kind:item.kind};
+ dialog(`<section class="playlist-picker-panel">
+  <h2>플레이리스트에 담기</h2>
+  ${songShareTrackHTML({...track,artist:track.kind==='dubbing'?track.ownerName:playerCredit(track)})}
+  <label class="playlist-picker-search" data-input-shell>${icon('search',18)}<input type="search" aria-label="플레이리스트 검색" placeholder="플레이리스트 검색" maxlength="100" autocomplete="off"></label>
+  <div class="playlist-picker-list">
+   <p class="playlist-picker-status" role="status"></p>
+   <ul class="playlist-picker-rows" role="list" aria-label="내 플레이리스트"></ul>
+   <button type="button" class="playlist-picker-more" hidden>더 보기</button>
+  </div>
+  <p class="form-error" role="alert"></p><span class="sr-only" role="status"></span>
+  <button type="button" class="playlist-picker-new">${icon('plus',18)} 새 플레이리스트 만들기</button>
+ </section>`);
+ const panel=$('.playlist-picker-panel'),input=panel.querySelector('input'),list=panel.querySelector('.playlist-picker-list'),
+  rows=panel.querySelector('.playlist-picker-rows'),status=panel.querySelector('.playlist-picker-status'),
+  error=panel.querySelector('.form-error'),announcement=panel.querySelector('.sr-only'),
+  more=panel.querySelector('.playlist-picker-more'),create=panel.querySelector('.playlist-picker-new');
+ const active=()=>modal.open&&panel.isConnected&&ticket===renderId&&me?.id===account;
+ const scope=JSON.stringify([account,item.kind,item.content_id]),writes=playlistPickerWrites.get(scope)||new Map();
+ const targets=new Map(),confirmed=new Set();
+ let query='',offset=null,timer,request;
+
+ function syncRow(id){
+  const target=targets.get(id);
+  if(!target)return;
+  const {playlist,row}=target,added=playlist.contains||confirmed.has(id),pending=writes.has(id);
+  row.classList.toggle('is-added',added);
+  row.setAttribute('aria-disabled',String(added||pending));
+  if(pending)row.setAttribute('aria-busy','true');
+  else row.removeAttribute('aria-busy');
+  row.setAttribute('aria-label',playlist.name+(added?' · 이미 담김':pending?' · 담는 중':' · 담기'));
+  row.querySelector('.playlist-picker-action').innerHTML=icon(added?'check':'plus',18);
+ }
+ function watchWrite(id,write,name=''){
+  void write.then(result=>{
+   if(result===false)return;
+   confirmed.add(id);
+   if(active()&&name)announcement.textContent=name+'에 담았습니다.';
+  },err=>{
+   if(active()&&name)error.textContent='플레이리스트에 담지 못했습니다. '+err.message;
+  }).finally(()=>{if(active())syncRow(id);});
+ }
+ for(const [id,write] of writes)watchWrite(id,write);
+
+ async function load(append=false){
+  const current=new AbortController();
+  request?.abort();
+  request=current;
+  more.disabled=true;
+  status.textContent=append?'':'플레이리스트를 불러오는 중입니다.';
+  try{
+   const params=new URLSearchParams({section:'playlists',filter:'mine',q:query,limit:50,offset:append?offset:0,contains:item.content_id,kind:item.kind});
+   const data=await api('/api/me/music-library?'+params,'GET',undefined,{fresh:true,signal:current.signal});
+   if(!active()||current.signal.aborted)return;
+   for(const playlist of data.items){
+    if(targets.has(playlist.id))continue;
+    rows.insertAdjacentHTML('beforeend',playlistPickerRow(playlist));
+    targets.set(playlist.id,{playlist,row:rows.lastElementChild.firstElementChild});
+    syncRow(playlist.id);
+   }
+   status.textContent=targets.size?'':query?AifectMessages.searchEmpty:'플레이리스트가 없습니다.';
+   offset=data.nextOffset;
+   more.hidden=offset==null;
+  }catch(err){
+   if(!active()||current.signal.aborted)return;
+   status.textContent='';
+   error.textContent='플레이리스트를 불러오지 못했습니다. '+err.message;
+  }finally{if(active()&&!current.signal.aborted)more.disabled=false;}
+ }
+ function filter(){
+  const value=input.value.trim();
+  if(value===query)return;
+  query=value;
+  clearTimeout(timer);
+  request?.abort();
+  targets.clear();
+  rows.replaceChildren();
+  list.scrollTop=0;
+  more.hidden=true;
+  error.textContent='';
+  status.textContent='플레이리스트를 불러오는 중입니다.';
+  timer=setTimeout(()=>{if(active())void load();},160);
+ }
+ input.oninput=event=>{if(!event.isComposing)filter();};
+ input.oncompositionend=filter;
+ more.onclick=()=>load(true);
+ // These buttons own their pending state. The page's click handler resets global action controls.
+ panel.addEventListener('click',event=>{if(event.target.closest('button'))event.stopPropagation();});
+ rows.addEventListener('error',event=>{if(event.target.matches('img'))event.target.remove();},true);
+ rows.onclick=event=>{
+  const row=event.target.closest('[data-playlist-target]'),id=row?.dataset.playlistTarget,target=targets.get(id);
+  if(!active()||!target||row.getAttribute('aria-disabled')==='true'||writes.has(id))return;
+  error.textContent='';
+  const write=Promise.resolve().then(()=>active()?onSelect(id,target.playlist,active):false).finally(()=>{
+   writes.delete(id);
+   if(!writes.size)playlistPickerWrites.delete(scope);
+  });
+  writes.set(id,write);
+  playlistPickerWrites.set(scope,writes);
+  syncRow(id);
+  watchWrite(id,write,target.playlist.name);
+ };
+ create.onclick=async()=>{
+  create.disabled=true;
+  try{
+   await playlistDialog(null,unified?item:track,{
+    canOpen:active,
+    onCreated:()=>playlistPicker({item,onSelect,unified})
+   });
+  }catch(err){if(active())error.textContent=err.message;}
+  finally{create.disabled=false;}
+ };
+ modal.addEventListener('close',()=>{
+  clearTimeout(timer);
+  request?.abort();
+ },{once:true});
+ await load();
+}
+async function targetPlaylistPicker(tid,track){
+ const ticket=renderId,account=me?.id,unified=await checkPlaylistUnification();
+ if(ticket!==renderId||me?.id!==account)return;
+ if(unified)return track?selectPlaylistForItem({kind:track.kind,content_id:tid,content:track}):contentSaveMenu(tid);
+ return playlistPicker({
+  item:{kind:'original',content_id:tid,content:track},
+  onSelect:pid=>api(`/api/playlists/${encodeURIComponent(pid)}/tracks/${encodeURIComponent(tid)}`,'PUT')
+ });
+}
 async function boxPicker(item){if(await checkPlaylistUnification())return selectPlaylistForItem(item);return libraryPicker({kind:'myboxes',item,onSelect:async bid=>{const d=await api(`/api/my-boxes/${bid}/items`,'PUT',item);toast(d.already_added?'이미 추가된 콘텐츠입니다.':'마이박스에 추가되었습니다.');}});}
 async function myBoxDialog(existing=null,item=null){
  if(!me)return askLogin();dialog(`<h2>${existing?'마이박스 이름 변경':'새 마이박스'}</h2><form id="mybox-form">${formField('이름','name','text',existing?.name||'','required maxlength="80"')}<p class="field-help">${icon('lock')} 나만 볼 수 있는 비공개 공간입니다.</p><button class="primary-button">${item?'만들고 담기':'저장'}</button><p class="form-error" role="alert"></p></form>`);

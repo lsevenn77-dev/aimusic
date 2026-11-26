@@ -150,7 +150,7 @@ html.profile-embed,html.profile-embed body {background:transparent;min-width:0}
 .dm-song-share-detail>svg{width:14px;height:14px}
 a.dm-song-share:hover .dm-song-share-detail{color:var(--ds-text)}
 
-#dialog.compact-popup:has(.song-share-dialog){
+#dialog.compact-popup:has(:is(.song-share-dialog,.playlist-picker-panel)){
  --song-share-mint:#8eddd2;
  width:380px;max-width:calc(100% - 40px);padding:20px;
  border-radius:var(--ds-radius-card);overflow:hidden;box-shadow:none;
@@ -159,32 +159,32 @@ a.dm-song-share:hover .dm-song-share-detail{color:var(--ds-text)}
 @media(max-width:600px){
  #dialog.compact-popup:has(.song-share-dialog){width:calc(100% - 40px)}
 }
-.song-share-dialog{
+:is(.song-share-dialog,.playlist-picker-panel){
  display:flex;flex-direction:column;gap:12px;
  /* Leave room for the dialog border, padding and 32px of viewport clearance. */
  max-height:calc(100dvh - 74px);
 }
 .song-share-heading{display:flex;align-items:center;justify-content:space-between}
-#dialog.compact-popup .song-share-heading>h2{margin:0;font-size:var(--pc-font-section,19px)}
+#dialog.compact-popup :is(.song-share-heading,.playlist-picker-panel)>h2{margin:0;font-size:var(--pc-font-section,19px)}
 #dialog .song-share-heading>.song-share-close{position:static;border-radius:var(--ds-radius-sm)}
-.song-share-dialog .song-share-track-copy>:is(strong,small){
+:is(.song-share-dialog,.playlist-picker-panel) .song-share-track-copy>:is(strong,small){
  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .song-share-form{display:flex;flex-direction:column;gap:10px;min-height:0}
-#dialog .song-share-search{
+#dialog :is(.song-share-search,.playlist-picker-search){
  display:flex;flex:none;align-items:center;gap:8px;min-height:44px;padding:0 11px;
  background:var(--ds-bg);color:var(--ds-muted);
  border:1px solid rgb(255 255 255 / 18%);border-radius:var(--ds-radius-sm);
 }
-#dialog .song-share-search:focus-within{border-color:var(--ds-focus-system-color,var(--song-share-mint))}
-.song-share-search>svg{width:18px;height:18px;flex:none}
-#dialog .song-share-search>input{
+#dialog :is(.song-share-search,.playlist-picker-search):focus-within{border-color:var(--ds-focus-system-color,var(--song-share-mint))}
+:is(.song-share-search,.playlist-picker-search)>svg{width:18px;height:18px;flex:none}
+#dialog :is(.song-share-search,.playlist-picker-search)>input{
  flex:1;min-width:0;width:100%;min-height:0;margin:0;padding:0;
  border:0;background:transparent;color:var(--ds-text);font-size:16px;box-shadow:none;
 }
-#dialog .song-share-search>input::placeholder{color:var(--ds-muted)}
+#dialog :is(.song-share-search,.playlist-picker-search)>input::placeholder{color:var(--ds-muted)}
 @layer aifect-focus {
- #dialog .song-share-search:focus-within{outline:none!important}
+ #dialog :is(.song-share-search,.playlist-picker-search):focus-within{outline:none!important}
 }
 .song-share-people{
  position:relative;min-height:0;max-height:295px;

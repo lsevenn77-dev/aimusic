@@ -234,12 +234,16 @@ async function uploadFile(url,file,onprogress=()=>{},imageOptions){if(!imageOpti
  xhr.onabort=()=>reject(new Error(stalled?'파일 전송이 멈췄습니다. 선택한 파일은 유지되어 있으니 연결 상태를 확인하고 다시 시도해 주세요.':'파일 전송이 취소되었습니다.'));
  heartbeat();xhr.send(file);
 });}finally{invalidateReads();}}
-async function playlistDialog(existing=null,initialTrack=null){
- const ticket=renderId;if(!me)return askLogin();await refreshLibrary();if(ticket!==renderId)return;if(!existing&&!canCreatePlaylist())return;if(globalThis.AifectUnifiedPlaylists)return unifiedPlaylistEditor({id:existing?.id,initial:initialTrack});
+async function playlistDialog(existing=null,initialTrack=null,{canOpen=()=>true,onCreated}={}){
+ const ticket=renderId;if(!me)return askLogin();const account=me.id;
+ const current=()=>ticket===renderId&&me?.id===account;
+ await refreshLibrary();if(!current()||!canOpen())return;
+ if(!existing&&!canCreatePlaylist())return;
+ if(globalThis.AifectUnifiedPlaylists)return unifiedPlaylistEditor({id:existing?.id,initial:initialTrack,canOpen,onCreated});
  const detail=existing?await api('/api/playlists/'+existing.id,'GET',undefined,{fresh:true}):null;
  if(detail)existing=detail.playlist;
- const initial=initialTrack?(trackMap.get(initialTrack)||(await api('/api/tracks/'+initialTrack)).track):null;
- if(ticket!==renderId)return;
+ const initial=typeof initialTrack==='string'?(trackMap.get(initialTrack)||(await api('/api/tracks/'+encodeURIComponent(initialTrack))).track):initialTrack;
+ if(!current()||!canOpen())return;
  const tracks=detail?.tracks||(initial?[initial]:[]);
  dialog(`<h2${existing?'':' class="popup-title-clearance"'}>${existing?'플레이리스트 설정':'새 플레이리스트'}</h2><form id="playlist-form" class="playlist-editor"><div id="playlist-design-preview" inert aria-label="추천 플레이리스트 표시 미리보기"></div>${imageField('대표 이미지','image',existing?playlistImageURL(existing):'')}${existing?.image_version?'<label class="checkbox-line"><input type="checkbox" name="remove_image">기본 커버로 되돌리기</label>':''}${formField('제목','name','text',existing?.name||'','required maxlength="80"')}<label class="form-field">소개<textarea name="description" maxlength="600" placeholder="어떤 순간에 들으면 좋을까요?">${esc(existing?.description||'')}</textarea></label><label class="checkbox-line"><input name="is_public" type="checkbox" ${existing?.is_public?'checked':''}> 링크로 누구나 볼 수 있게 공개</label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`);
  const form=$('#playlist-form');bindImageInputs(form);let targetId=existing?.id,previewURL='';
@@ -254,7 +258,26 @@ async function playlistDialog(existing=null,initialTrack=null){
  const reset=form.querySelector('[data-reset-image]');reset?.addEventListener('click',()=>{if(previewURL)URL.revokeObjectURL(previewURL);previewURL='';preview();});
  $('#dialog').addEventListener('close',()=>{if(previewURL)URL.revokeObjectURL(previewURL);},{once:true});preview();
  const checkTitle=libraryTitleCheck(form,()=>targetId||''),request_id=crypto.randomUUID();
- form.onsubmit=busyForm(form,async fd=>{if(!await checkTitle())throw Error('플레이리스트 제목을 확인해 주세요.');await validateImage(fd.get('image'));const d=await api(targetId?`/api/playlists/${targetId}`:'/api/playlists',targetId?'PATCH':'POST',{name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),request_id,...(existing?{revision:existing.revision}:{}),...(!existing&&initialTrack?{track_ids:[initialTrack]}:{})});targetId=targetId||d.id;if(fd.get('image')?.size)await uploadFile(`/api/playlists/${targetId}/image`,fd.get('image'));else if(fd.has('remove_image'))await api(`/api/playlists/${targetId}/image`,'DELETE');$('#dialog').close();await refreshLibrary(true);location.hash='playlist/'+targetId;await render();});
+ const active=()=>current()&&form.isConnected&&$('#dialog').open;
+ form.onsubmit=busyForm(form,async fd=>{
+  if(!await checkTitle())throw Error('플레이리스트 제목을 확인해 주세요.');
+  await validateImage(fd.get('image'));
+  if(!active())return;
+  const data=await api(targetId?`/api/playlists/${targetId}`:'/api/playlists',targetId?'PATCH':'POST',{
+   name:fd.get('name'),description:fd.get('description'),is_public:fd.has('is_public'),request_id,
+   ...(existing?{revision:existing.revision}:{}),...(!existing&&initial?{track_ids:[initial.id]}:{})
+  });
+  targetId=targetId||data.id;
+  if(fd.get('image')?.size)await uploadFile(`/api/playlists/${targetId}/image`,fd.get('image'));
+  else if(fd.has('remove_image'))await api(`/api/playlists/${targetId}/image`,'DELETE');
+  if(!active())return;
+  if(onCreated){
+   toast('플레이리스트가 저장되었습니다.');
+   await onCreated();
+   return;
+  }
+  $('#dialog').close();await refreshLibrary(true);location.hash='playlist/'+targetId;await render();
+ });
 }
 async function addToPlaylist(tid){const ticket=renderId;if(!me)return askLogin();await refreshLibrary();if(ticket!==renderId)return;return targetPlaylistPicker(tid);}
 async function playlistOrderDialog(pid){const ticket=renderId;
