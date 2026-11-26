@@ -26,8 +26,9 @@ export function sourceFromRequest(req) {
 // 페이지 응답에 출처 쿠키를 붙인다. 이미 출처 쿠키가 있으면(첫 방문 우선) 그대로 둔다.
 export function withSourceCookie(req, response) {
   const url = new URL(req.url);
-  const src = cleanSource(url.searchParams.get('src'));
-  if (!src || sourceFromRequest(req)) return response;
+  const src = cleanSource(url.searchParams.get('src')) || cleanSource(url.searchParams.get('utm_source'));
+  const previous = sourceFromRequest(req);
+  if (!src || (previous && previous !== 'no_referrer')) return response;
   const headers = new Headers(response.headers);
   headers.set('cache-control', 'private, no-store');
   headers.append('set-cookie', `${COOKIE}=${src}; Path=/; Max-Age=2592000; SameSite=None; Secure`);

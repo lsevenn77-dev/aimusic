@@ -239,8 +239,8 @@
     $('#payout-summary-box').innerHTML='<div class="stat-box"><small>지급 예정·정보 대기</small><strong>'+money(data.payouts.pending_krw)+'</strong><div class="management-meta"><span class="soft-badge">'+num(data.payouts.pending_count)+'건</span><span class="soft-badge">다이아 현금 정산 신청</span></div></div>';
   }
 
-  const sourceLabels=new Map([['yt','유튜브 채널'],['yt_v','유튜브 영상'],['yt_s','유튜브 쇼츠'],['ig','인스타'],['app','앱']]);
-  const sourceLabel=src=>sourceLabels.get(src)||src||'알 수 없음';
+  const sourceLabels=new Map([['yt','유튜브 채널'],['yt_v','유튜브 영상'],['yt_s','유튜브 쇼츠'],['ig','인스타'],['app','앱'],['youtube','유튜브'],['instagram','인스타'],['naver','네이버'],['google','구글'],['kakao','카카오'],['daum','다음'],['facebook','페이스북'],['x','X(트위터)'],['tiktok','틱톡'],['bing','빙'],['internal','사이트 내부 이동'],['no_referrer','직접 방문 · 출처 미전달'],['other_referral','기타 외부 사이트'],['kakao_browser','카카오톡 내 브라우저'],['ig_browser','인스타 내 브라우저']]);
+  const sourceLabel=src=>sourceLabels.get(src)||src||'유입 정보 미기록';
   function renderProviders(data){
     $('#source-heading').textContent='유입 경로별 방문·가입 · 최근 '+data.days+'일';
     const entries=data.visitors?.sources||[];

@@ -1,7 +1,7 @@
 import * as AifectMessages from '../shared/system-messages.js';
 import {fail,json,now,rate,query} from './db.js';
 import {hash} from './auth.js';
-import {sourceFromRequest} from './signup-source.js';
+import {cleanSource,sourceFromRequest} from './signup-source.js';
 
 export const visitDay=(at=now())=>Math.floor((at+9*3600)/86400);
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
@@ -19,7 +19,7 @@ export async function recordVisit(req,env){
  const ip=req.headers.get('cf-connecting-ip');
  if(ip)await rate(env,'visits:'+await hash(day+':'+ip),600,60);
  const token=await hash(day+':'+payload.token.toLowerCase());
- const source=sourceFromRequest(req)||(platform==='web'?null:'app');
+ const source=platform==='web' ? cleanSource(payload.source)||sourceFromRequest(req) : sourceFromRequest(req)||'app';
  await env.DB.batch([
   query(env,'INSERT INTO visitor_days(day,platform,token,source) VALUES(?,?,?,?) ON CONFLICT(day,platform,token) DO NOTHING',day,platform,token,source),
   expiredVisits(env,day)
