@@ -97,9 +97,6 @@
 .comment-compose-bottom label{font-size:0.8333125rem;color:var(--ds-muted);display:flex;align-items:center;gap:5px}
 input[type=checkbox]{accent-color:var(--lime);width:15px;height:15px;flex-shrink:0}
 .comment-compose-bottom .small-button{font-size:0.8333125rem;min-height:32px}
-.comment-sort{display:flex;gap:18px;margin:22px 0 5px}
-.comment-sort button{background:none;color:var(--ds-muted);padding:5px 0;font-size:0.8958125rem}
-.comment-sort button.selected{color:var(--ds-selected)}
 .comment{display:flex;gap:12px;padding:22px 0;border-bottom:1px solid #2c3330}
 .comment-content{min-width:0;flex:1}
 .comment-content>strong,.creator-reply strong{font-size:0.8958125rem;font-weight:600}

@@ -207,12 +207,8 @@
 }
 
 /* The song conversation keeps its composer and actions compact at every width. */
-.song-main-column .comments-panel>.section-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:12px;margin:0 0 16px}
-.song-main-column .comments-panel>.section-heading h2{min-width:0;margin:0;line-height:1.5}
-.song-main-column .comments-panel .section-heading>.aifect-dropdown{margin-left:auto;flex:0 0 auto;--dropdown-height:44px}
-.song-main-column .comments-panel .aifect-dropdown-trigger{min-width:106px;font-size:16px;font-weight:600;line-height:1.4;border-color:var(--ds-border);border-radius:var(--ds-radius-sm)}
-.song-main-column .comments-panel .aifect-dropdown-label{transform:translateY(1px)}
-.song-main-column .comments-panel #comment-sort:not(.aifect-dropdown-source){margin-left:auto;min-height:44px;font-size:16px;line-height:1.4;border-color:var(--ds-border)}
+.song-main-column .comments-panel>.section-heading{display:block;margin:0 0 12px}
+.song-main-column .comments-panel>.section-heading h2{margin:0;line-height:1.5}
 .song-comment-compose-row{--ui-control-height:44px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px}
 .song-main-column .comments-panel .song-comment-compose-row textarea{background:var(--ds-panel);border-radius:var(--ds-radius-input)}
 .song-main-column .comments-panel .song-comment-compose-row textarea::placeholder{white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
@@ -238,8 +234,6 @@
 .song-main-column .comments-panel [data-comment-like].is-active{color:var(--ds-selected)!important}
 .song-main-column .comments-panel [data-comment-like][aria-pressed=true] svg{fill:currentColor}
 @media(max-width:767px){
- .song-main-column .comments-panel>.section-heading{gap:8px;margin-bottom:12px}
- .song-main-column .comments-panel .aifect-dropdown-trigger{min-width:94px;padding-inline:10px;font-size:15px}
  .song-comment-compose-row{gap:8px}
  .song-main-column .comments-panel .song-comment-submit{min-width:88px;padding:0 10px;font-size:14px}
  .song-main-column .comments-panel .live-comment{gap:10px;padding-block:8px}

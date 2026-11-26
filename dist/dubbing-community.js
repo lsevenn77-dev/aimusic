@@ -18,11 +18,14 @@ function bindDubbingCommunity(p,root){
  const report=root.querySelector('[data-dubbing-rights-report]');if(report)report.onclick=()=>{if(needLogin())dubbingRightsForm(p);};
  const like=root.querySelector('#dubbing-like');if(like)like.onclick=async()=>{if(!needLogin())return;like.disabled=true;try{const result=await api('/api/dubbing/projects/'+p.id+'/like',p.community.liked?'DELETE':'PUT');p.community=result;like.textContent='♥ 좋아요 '+result.likes;like.setAttribute('aria-pressed',String(!!result.liked));}catch(e){toast(e.message);}finally{like.disabled=false;}};
  const list=root.querySelector('#dubbing-comments'),form=root.querySelector('#dubbing-comment-form'),more=root.querySelector('#dubbing-comments-more');if(!list)return;
- let offset=0,loading=false,pendingId=null,pendingText='';
- const load=async(append=false)=>{if(loading)return;loading=true;try{const data=await api('/api/dubbing/projects/'+p.id+'/comments?offset='+(append?offset:0));if(!list.isConnected)return;
+ let offset=0,loading=false,readRequest=0,pendingId=null,pendingText='';
+ const load=async(append=false)=>{
+  if(append&&loading)return;
+  const request=++readRequest;loading=true;
+  try{const data=await api('/api/dubbing/projects/'+p.id+'/comments?offset='+(append?offset:0));if(!list.isConnected||request!==readRequest)return;
   const html=data.comments.map(c=>`<article class="dubbing-comment" ${c.canDelete||c.canReport?'data-comment-card tabindex="0" aria-label="댓글"':''}><div><b>${memberNickname(c)}</b><small>${new Date(c.created*1000).toLocaleDateString('ko-KR')}</small></div><p>${esc(c.body)}</p><div class="dubbing-comment-actions comment-actions-row">${c.canDelete?`<button class="small-button" data-comment-action="delete" data-comment-delete="${esc(c.id)}">삭제</button>`:''}${c.canReport?`<button class="small-button" data-comment-action="report" data-comment-report="${esc(c.id)}">댓글 신고</button>`:''}</div></article>`).join('');
   if(append)list.insertAdjacentHTML('beforeend',html);else list.innerHTML=html||'<p class="dubbing-muted">첫 감상을 남겨 보세요.</p>';offset=data.nextOffset;more.hidden=offset===null;
- }catch(e){toast(e.message);}finally{loading=false;}};
+ }catch(e){if(list.isConnected&&request===readRequest)toast(e.message);}finally{if(request===readRequest)loading=false;}};
  more.onclick=()=>load(true);load();
  form.onsubmit=async e=>{e.preventDefault();if(!needLogin())return;const button=form.querySelector('button'),text=form.elements.body.value.trim();if(!text)return;
   if(text!==pendingText||!pendingId){pendingId=crypto.randomUUID();pendingText=text;}button.disabled=true;

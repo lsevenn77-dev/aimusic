@@ -36,7 +36,6 @@ function bindForms(base,param){
  if(base==='song')syncSongListen();
  if($('#comment-form')){
   const form=$('#comment-form');form.onsubmit=busyForm(form,async fd=>{if(!me){askLogin();return;}const ts=fd.has('with_time')&&current?.id===param?Math.floor(audio.currentTime):null;await api(`/api/tracks/${param}/comments`,'POST',{body:fd.get('body'),timestamp:ts});form.reset();await reloadComments(param,true);toast('댓글을 등록했습니다.');});
-  $('#comment-sort').onchange=()=>reloadComments(param).catch(e=>toast(e.message));
  }
  if($('#new-playlist'))$('#new-playlist').onclick=()=>playlistDialog().catch(e=>toast(e.message));
  if($('#upload-form'))bindUploadForm($('#upload-form'),upload);
@@ -60,7 +59,7 @@ async function reloadComments(tid,refreshCount=false){
  const replyRevision=list.dataset.replyRevision;
  if(refreshCount&&!songDetailIsWeb)list.dataset.countPending='true';
  const [{comments},detail]=await Promise.all([
-  api('/api/tracks/'+tid+'/comments?sort='+($('#comment-sort')?.value||'latest')),
+  api('/api/tracks/'+tid+'/comments'),
   list.dataset.countPending?api('/api/tracks/'+tid):null
  ]);
  if(!list.isConnected||list.dataset.request!==request)return;
@@ -102,12 +101,8 @@ function insertSongReply(list,reply,track){
  const thread=list.querySelector('[data-comment-thread="'+CSS.escape(reply.parent_id)+'"]');
  const holder=thread?.querySelector('.song-comment-replies');
  if(!holder||holder.querySelector('[data-comment-id="'+CSS.escape(reply.id)+'"]'))return;
- const sort=$('#comment-sort').value;
- const before=sort==='timeline'?null:[...holder.children].find(row=>{
-  if(!row.hasAttribute('data-comment-card'))return false;
-  const difference=sort==='popular'?reply.likes-Number(row.dataset.commentLikes):0;
-  return difference?difference>0:reply.created>=Number(row.dataset.commentCreated);
- });
+ const before=[...holder.children].find(row=>row.hasAttribute('data-comment-card')&&
+  compareCommentChronology(reply,{id:row.dataset.commentId,created:Number(row.dataset.commentCreated)})<0);
  (before||holder).insertAdjacentHTML(before?'beforebegin':'beforeend',songCommentRowHTML(reply,track));
 }
 function toggleSongReply(button){

@@ -232,7 +232,15 @@ function bindArtistFanpage(){
   const request=(feedRequests.get(target)||0)+1;feedRequests.set(target,request);
   try{const res=await read('/posts'+(parent?'/'+encodeURIComponent(parent)+'/replies':'')+'?kind='+kind+'&offset='+offset);if(signal.aborted||!target.isConnected||feedRequests.get(target)!==request)return;
    res.items.forEach(p=>postMap.set(p.id,p));if(!offset)target.innerHTML='';target.querySelector('[data-feed-more]')?.remove();
-   const items=d.tab==='home'&&!parent?res.items.slice(0,3):res.items;target.insertAdjacentHTML('beforeend',items.map(postHTML).join('')||(!offset?'<p class="fan-empty">'+(parent?'아직 답글이 없습니다.':kind==='news'?'아직 등록된 소식이 없습니다.':'첫 응원글을 남겨 보세요.')+'</p>':''));
+   const items=d.tab==='home'&&!parent?res.items.slice(0,3):res.items;
+   if(parent){
+    // The API pages from newest to oldest, so older pages go above the loaded replies.
+    const loaded=new Set([...target.children].map(el=>el.dataset.post));
+    const replies=items.filter(p=>!loaded.has(p.id)).reverse();
+    target.insertAdjacentHTML('afterbegin',replies.map(postHTML).join('')||(!offset?'<p class="fan-empty">아직 답글이 없습니다.</p>':''));
+   }else{
+    target.insertAdjacentHTML('beforeend',items.map(postHTML).join('')||(!offset?'<p class="fan-empty">'+(kind==='news'?'아직 등록된 소식이 없습니다.':'첫 응원글을 남겨 보세요.')+'</p>':''));
+   }
    if(res.next!==null&&(parent||d.tab!=='home')){const button=document.createElement('button');button.className='small-button';button.dataset.feedMore='';button.textContent='더 불러오기';button.onclick=()=>{button.disabled=true;void loadFeed(target,kind,res.next,parent);};target.append(button);}
    return res;
   }catch(e){if(!signal.aborted&&feedRequests.get(target)===request){target.innerHTML='<p role="alert">'+esc(e.message)+'</p>';}}
@@ -246,7 +254,9 @@ function bindArtistFanpage(){
  root.querySelectorAll('[data-fan-feed]').forEach(el=>{
   if(focusId&&el.dataset.fanFeed==='lounge')void (async()=>{
    try{const res=await read('/posts?kind=lounge&focus='+encodeURIComponent(focusId));if(signal.aborted||!el.isConnected)return;res.items.forEach(p=>postMap.set(p.id,p));
-    el.innerHTML=res.items.map(postHTML).join('')||'<p class="fan-empty">삭제되었거나 볼 수 없는 응원글·댓글입니다.</p>';
+    const parent=res.items.find(p=>!p.parent_id),reply=parent&&res.items.find(p=>p.parent_id===parent.id);
+    el.innerHTML=res.items.filter(p=>p!==reply).map(postHTML).join('')||'<p class="fan-empty">삭제되었거나 볼 수 없는 응원글·댓글입니다.</p>';
+    if(reply)el.querySelector('[data-fan-replies="'+CSS.escape(parent.id)+'"]').innerHTML='<div data-reply-list>'+postHTML(reply)+'</div>';
     const node=[...el.querySelectorAll('[data-post]')].find(n=>n.dataset.post===focusId);if(node){node.setAttribute('tabindex','-1');node.scrollIntoView({block:'center'});node.focus({preventScroll:true});}
    }catch(e){if(!signal.aborted)el.innerHTML='<p role="status">'+esc(e.message)+'</p>';}
   })();else void loadFeed(el,el.dataset.fanFeed);
@@ -254,7 +264,13 @@ function bindArtistFanpage(){
  function compose(kind,p=null,parent=null){
   if(!me){toast('로그인 후 작성해 주세요.');return;}
   dialog('<h2>'+(p?'글 수정':kind==='news'?'공식 소식':'팬 응원글')+'</h2><form id="fan-post-form" class="upload-form">'+(kind==='news'?'<label class="form-field">제목<input name="title" maxlength="160" value="'+esc(p?.title||'')+'" required></label>':'')+'<label class="form-field">내용<textarea name="body" maxlength="2000" rows="5" required>'+esc(p?.body||'')+'</textarea></label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>');
-  const form=$('#fan-post-form'),requestId=crypto.randomUUID();form.onsubmit=busyForm(form,async fd=>{await read('/posts'+(p?'/'+p.id:''),p?'PUT':'POST',{kind,title:fd.get('title')||'',body:fd.get('body'),parent_id:parent,request_id:requestId});$('#dialog').close();await refresh();});
+  const form=$('#fan-post-form'),requestId=crypto.randomUUID();form.onsubmit=busyForm(form,async fd=>{
+   await read('/posts'+(p?'/'+p.id:''),p?'PUT':'POST',{kind,title:fd.get('title')||'',body:fd.get('body'),parent_id:parent,request_id:requestId});
+   $('#dialog').close();
+   const list=root.querySelector('[data-fan-feed="lounge"]');
+   if(!p&&kind==='lounge'&&list)await loadFeed(list,kind);
+   else await refresh();
+  });
  }
  root.querySelectorAll('[data-fan-compose]').forEach(el=>on(el,'click',()=>compose(el.dataset.fanCompose)));
  if(d.tab==='lounge'&&new URLSearchParams(location.hash.split('?')[1]).get('compose')==='1'&&!history.state?.fanComposeHandled){

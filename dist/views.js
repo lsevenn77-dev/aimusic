@@ -284,7 +284,7 @@ async function renderRoute(showCachedRoute){
    remember([t]);nextTracks=[t];const coverData=t.kind==='original'?allCovers:null;if(coverData)remember(coverData.covers);
    const headerHTML=songDetailHeaderHTML(t,songDetailIsWeb?songVisibleCommentCount(comments):undefined);
    explorer={songCovers:songDetailIsWeb?coverData:null};
-   html=`${headerHTML}<div class="song-page-layout"><div class="song-main-column">${songDetailLyricsHTML()}${songCoversPanelHTML(t,coverData,coverTab,songDetailIsWeb?raw:'')}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2><select data-dropdown="md" id="comment-sort" aria-label="댓글 정렬"><option value="latest">최신순</option><option value="popular">인기순</option><option value="timeline">타임라인순</option></select></div><form id="comment-form"><div class="song-comment-compose-row"><textarea data-comment-input name="body" rows="1" maxlength="2000" required placeholder="${me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨 보세요.'}" aria-label="댓글"></textarea><button class="primary-button song-comment-submit" type="submit">댓글 등록</button></div><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label></div><p class="form-error" role="alert"></p></form><div id="comments" data-track="${esc(t.id)}">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${giftsPanelHTML(giftData,'응원 순위',{track:t})}${songCreditCardHTML(t)}</aside></div>`;
+   html=`${headerHTML}<div class="song-page-layout"><div class="song-main-column">${songDetailLyricsHTML()}${songCoversPanelHTML(t,coverData,coverTab,songDetailIsWeb?raw:'')}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2></div><form id="comment-form"><div class="song-comment-compose-row"><textarea data-comment-input name="body" rows="1" maxlength="2000" required placeholder="${me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨 보세요.'}" aria-label="댓글"></textarea><button class="primary-button song-comment-submit" type="submit">댓글 등록</button></div><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label></div><p class="form-error" role="alert"></p></form><div id="comments" data-track="${esc(t.id)}">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${giftsPanelHTML(giftData,'응원 순위',{track:t})}${songCreditCardHTML(t)}</aside></div>`;
   }else if(base==='artist'||base==='producer'){
    const d=await readApi(`/api/${base==='artist'?'artists':'producers'}/${param}`);nextTracks=remember(d.tracks);
    if(base==='producer'){const q=new URLSearchParams(paramQuery?.split('?')[1]||''),tab=['tracks','covers','duets'].includes(q.get('tab'))?q.get('tab'):'all';remember(d.covers||[]);nextTracks=musicProfileItems(d,tab);html=heading('음악가의 페이지')+personProfileHTML(d,param,tab);}
@@ -354,7 +354,7 @@ function playlistsHTML(items){return `<div class="playlist-grid">${items.map(p=>
 function songCommentRowHTML(c,t){
  const inline=typeof inApp==='undefined'||!inApp;
  const replyLabel=c.parent_id?(inline?'<span class="song-reply-icon" aria-hidden="true">'+icon('corner-down-right')+'</span>':'<span class="comment-reply-label">답글</span>'):'';
- return `<article data-comment-card tabindex="0" aria-label="${inline&&c.parent_id?'대댓글':'댓글'}" data-comment-id="${esc(c.id)}" data-comment-created="${c.created}" data-comment-likes="${c.likes}" class="live-comment ${c.parent_id?'is-reply':''}">
+ return `<article data-comment-card tabindex="0" aria-label="${inline&&c.parent_id?'대댓글':'댓글'}" data-comment-id="${esc(c.id)}" data-comment-created="${c.created}" class="live-comment ${c.parent_id?'is-reply':''}">
  ${inline?replyLabel:''}<div class="comment-avatar profile-avatar" data-profile-preview="${esc(c.profile_id||'member:'+c.user_id)}" role="button" tabindex="0" aria-haspopup="dialog">${avatarImage({name:c.name,profile_id:c.profile_id,user_id:c.user_id,image_version:c.image_version},'producer',false)}</div>
  <div>${inline?'':replyLabel}<div class="song-comment-meta"><strong>${memberNickname(c)}</strong>${c.creator?'<span class="creator-badge">PRODUCER</span>':''}<span class="comment-age">${new Date(c.created*1000).toLocaleDateString('ko-KR')}${c.edited?' · 수정됨':''}</span></div>
  <p class="song-comment-body">${c.timestamp!==null?`<button class="timestamp" data-seek="${c.timestamp}" data-track="${esc(t.id)}">${time(c.timestamp)}</button>`:''}${esc(c.body)}</p>
@@ -379,10 +379,14 @@ function songCommentThreads(comments){
 function songVisibleCommentCount(comments){
  return songCommentThreads(comments).reduce((count,thread)=>count+1+thread.replies.length,0);
 }
+function compareCommentChronology(a,b){
+ return a.created-b.created||a.id.localeCompare(b.id);
+}
 function commentsHTML(comments,t){
  const inline=typeof inApp==='undefined'||!inApp;
- return songCommentThreads(comments).map(({comment:c,replies})=>{
-  const parent=songCommentRowHTML(c,t),children=replies.map(reply=>songCommentRowHTML(reply,t)).join('');
+ const threads=songCommentThreads(comments).sort((a,b)=>compareCommentChronology(b.comment,a.comment));
+ return threads.map(({comment:c,replies})=>{
+  const parent=songCommentRowHTML(c,t),children=replies.sort(compareCommentChronology).map(reply=>songCommentRowHTML(reply,t)).join('');
   return inline?`<div class="song-comment-thread" data-comment-thread="${esc(c.id)}">${parent}<div class="song-comment-replies">${children}</div></div>`:parent+children;
  }).join('')||'<p class="quiet">첫 감상을 남겨 보세요.</p>';
 }

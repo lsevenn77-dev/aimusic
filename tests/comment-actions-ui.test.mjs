@@ -39,6 +39,19 @@ test('comment rows expose like and reply controls, including replies to a reply'
  assert.doesNotMatch(html,/data-delete-comment/,'unrelated viewer has no delete action');
 });
 
+test('comments show newest threads first and oldest replies first within each thread',()=>{
+ const html=render([
+  comment('older-root',{created:10}),
+  comment('newer-reply',{created:50,parent_id:'newer-root',likes:10,timestamp:5}),
+  comment('older-reply',{created:30,parent_id:'newer-root'}),
+  comment('newer-root',{created:20}),
+  comment('older-root-reply',{created:60,parent_id:'older-root'})
+ ],'viewer');
+ assert.deepEqual([...html.matchAll(/data-comment-id="([^"]+)"/g)].map(([,id])=>id),
+  ['newer-root','older-reply','newer-reply','older-root','older-root-reply']);
+ assert.match(html,/data-seek="5"/);
+});
+
 test('author can edit/delete and post owner can delete without edit',()=>{
  const own=render([comment('own',{user_id:'writer',can_delete:true})],'writer');
  assert.match(own,/data-edit-comment="own"/);
