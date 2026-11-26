@@ -21,6 +21,7 @@ class MainActivity:ComponentActivity(){
  private val model:MusicModel by viewModels()
  private lateinit var signIn:NativeSignIn
  private lateinit var ads:ListeningAds
+ private var pendingOfficialNotice:OfficialNoticeRoute?=null
  private val notificationPermission=registerForActivityResult(ActivityResultContracts.RequestPermission()){ }
  private fun push(intent:Intent){
   val kind=intent.getStringExtra("pushKind")?:return
@@ -46,6 +47,11 @@ class MainActivity:ComponentActivity(){
   ads=ListeningAds(this)
   enableEdgeToEdge(statusBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),navigationBarStyle=SystemBarStyle.dark(android.graphics.Color.TRANSPARENT))
   setContent {
+   LaunchedEffect(model.user, model.loading){
+    val route=pendingOfficialNotice?:return@LaunchedEffect
+    if(model.user!=null){pendingOfficialNotice=null;model.showLogin=false;model.openOfficialNotice(route)}
+    else if(!model.loading)model.authenticated()
+   }
    LaunchedEffect(model.user){if(model.user!=null)push(intent)}
    LaunchedEffect(model.user,model.membership,model.loading){if(model.user!=null&&!model.loading){ads.prepare();
     if(android.os.Build.VERSION.SDK_INT>=33&&com.google.firebase.FirebaseApp.getApps(this@MainActivity).isNotEmpty()&&
@@ -58,7 +64,30 @@ class MainActivity:ComponentActivity(){
   }
   if(savedInstanceState==null)handleLink(intent)
  }
- private fun handleLink(intent:Intent){val uri=intent.data?:return;if(uri.scheme=="https"&&uri.encodedAuthority=="aifect.co.kr"){val match=Regex("^/music/([A-Za-z0-9_-]{1,80})$").matchEntire(uri.encodedPath.orEmpty());if(match!=null)model.openCurrentSong(match.groupValues[1])}else model.finishLogin(uri)}
+ private fun handleLink(intent:Intent){
+  val uri=intent.data?:return
+  val site=uri.scheme=="https"&&uri.encodedAuthority=="aifect.co.kr"
+  val appNotice=uri.scheme=="kr.co.aifect.app"&&uri.encodedAuthority=="dm"
+  fun Uri.noticeEntry()=getQueryParameter("entry")?:getQueryParameter("peer")
+  val notice=when{
+   site&&uri.path=="/"->uri.encodedFragment?.let{fragment->
+    val link=Uri.parse("https://aifect.co.kr/"+fragment)
+    OfficialNoticeRoute.fromPath(link.path.orEmpty().removePrefix("/"),link.noticeEntry())
+   }
+   site->OfficialNoticeRoute.fromPath(uri.path.orEmpty().removePrefix("/"),uri.noticeEntry())
+   appNotice->OfficialNoticeRoute.fromPath("dm"+uri.path.orEmpty(),uri.noticeEntry())
+   else->null
+  }
+  if(notice!=null){
+   if(model.user!=null)model.openOfficialNotice(notice)
+   else {pendingOfficialNotice=notice;if(!model.loading)model.authenticated()}
+   return
+  }
+  if(site){
+   val match=Regex("^/music/([A-Za-z0-9_-]{1,80})$").matchEntire(uri.encodedPath.orEmpty())
+   if(match!=null)model.openCurrentSong(match.groupValues[1])
+  }else if(!appNotice)model.finishLogin(uri)
+ }
  override fun onNewIntent(intent:Intent){super.onNewIntent(intent);setIntent(intent);handleLink(intent);if(model.user!=null)push(intent)}
  private lateinit var updates:ReleaseUpdates
  override fun onStart(){super.onStart();model.playbackVisible(true)}

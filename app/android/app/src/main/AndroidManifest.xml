@@ -57,6 +57,12 @@
                 <data android:scheme="kr.co.aifect.app" android:host="auth" />
             </intent-filter>
             <intent-filter android:autoVerify="true"><action android:name="android.intent.action.VIEW"/><category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/><data android:scheme="https" android:host="aifect.co.kr" android:pathPrefix="/music/"/></intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="kr.co.aifect.app" android:host="dm" />
+            </intent-filter>
         </activity>
         <service android:name=".PlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="true">
             <intent-filter><action android:name="androidx.media3.session.MediaSessionService" /></intent-filter>

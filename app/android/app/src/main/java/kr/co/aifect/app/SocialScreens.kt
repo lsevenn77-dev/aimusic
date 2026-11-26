@@ -367,9 +367,14 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   if(!current(pid))return
   if(pid==null){
    val revision=++inboxRevision.longValue
-   val inbox=m.api.call("/api/dm",fresh=true);val result=inbox.optJSONArray("conversations").objects();if(!current(pid)||revision!=inboxRevision.longValue)return
+   val receiptRevision=m.officialNoticeReadRevision
+   val inbox=m.api.call(OfficialNotice.inboxPath,fresh=true)
+   val result=OfficialNotice.inboxRows(inbox.optJSONArray("conversations").objects())
+   if(!current(pid)||revision!=inboxRevision.longValue||receiptRevision!=m.officialNoticeReadRevision)return
    m.inboxCrew=inbox.optJSONObject("crew");m.unreadMessages=inbox.optInt("unread")
-   conversations=result;synced=true;NativeChatCache.saveConversations(context,accountId,result);return
+   conversations=result;synced=true;error=null
+   NativeChatCache.saveConversations(context,accountId,result){receiptRevision==m.officialNoticeReadRevision}
+   return
   }
   val cursor=if(older)chatCursor(messages,true)else if(!refreshLatest&&latestSequence>0)"?after=$latestSequence" else ""
   val d=m.api.call("/api/dm/$pid"+cursor)
@@ -418,7 +423,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  LaunchedEffect(peerId,accountId){
   val snapshot=NativeChatCache.read(context,accountId)
   if(!current(peerId))return@LaunchedEffect
-  conversations=snapshot.conversations
+  if(!synced)conversations=OfficialNotice.inboxRows(snapshot.conversations)
   peerId?.let{snapshot.threads[it]}?.let{thread->
    if(data==null)data=thread.peer?.let{payload("peer" to it)}
    messages=mergeChat(thread.messages,messages);latestSequence=maxOf(latestSequence,thread.readSequence);earlier=thread.earlier
@@ -453,7 +458,11 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
      TextButton(onClick={m.followPerson(id)},enabled=!m.busy,modifier=Modifier.testTag("dm-peer-follow"),contentPadding=PaddingValues(horizontal=6.dp)){Text(if(followed)"팔로잉" else "팔로우",fontSize=12.sp)}
     }
    }
-   error?.let{Text(it,color=Pink,modifier=Modifier.padding(horizontal=18.dp))}
+   error?.let{Text(it,color=Pink,modifier=Modifier.padding(horizontal=18.dp))
+    if(peerId==null)TextButton(onClick={sheetScope.launch{
+     try{load()}catch(e:CancellationException){throw e}catch(e:Exception){error=e.message}
+    }}){Text("다시 시도")}
+   }
    if(m.messagePeer==null){
     inboxState.SaveableStateProvider("inbox:$accountId"){
      MessageInbox(m,conversations,synced,Modifier.fillMaxWidth().weight(1f),
@@ -462,7 +471,16 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
        inboxRevision.longValue++
        conversations=conversations.filterNot{it.optString("id")==id}
        sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
-      },refreshInbox={load()},openProfile=::openMessageProfile)
+      },onNoticeRead={receipt->
+       val notice=receipt.optJSONObject("notice")
+       require(notice?.isOfficialNotice()==true){"읽음 상태를 반영하지 못했습니다."}
+       if(current(null)){
+        m.applyOfficialNoticeRead(receipt)
+        val revision=m.officialNoticeReadRevision
+        conversations=listOf(notice)+conversations.filterNot{it.isOfficialNotice()}
+        NativeChatCache.saveConversations(context,accountId,conversations){revision==m.officialNoticeReadRevision}
+       }
+      },openProfile=::openMessageProfile)
     }
    }else{
     ChatHistory(m,messages,earlier,historyLoading,{if(!historyLoading){historyLoading=true;sheetScope.launch{try{load(older=true)}catch(e:Exception){if(e is CancellationException)throw e;if(current(peerId))error=e.message}finally{historyLoading=false}}}},m.user?.optString("id"),false,peer=peer?.optString("name")?:"",retry={send(it)},modifier=Modifier.weight(1f).padding(horizontal=8.dp),fill=true,peerPerson=peer,openPeer={peer?.let{openMessageProfile(it)}})

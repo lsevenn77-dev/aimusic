@@ -20,6 +20,7 @@ internal object NativeReadPolicy {
   // Chat bodies/read receipts do not change catalog, follows or playlist access.
   // Join/leave/moderation and every other mutation retain full invalidation.
   if(method in setOf("POST","PATCH")&&Regex("/api/dm/[A-Za-z0-9_-]+").matches(base))return false
+  if(method=="PATCH"&&base==OfficialNotice.path)return false
   if(method=="POST"&&Regex("/api/crews/[A-Za-z0-9_-]+/messages").matches(base))return false
   return true
  }

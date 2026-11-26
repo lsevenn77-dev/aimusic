@@ -28,20 +28,21 @@ import kotlinx.coroutines.delay
 import org.json.JSONObject
 import java.net.URLEncoder
 
-@Composable internal fun MessageInbox(m:MusicModel,conversations:List<JSONObject>,synced:Boolean,modifier:Modifier=Modifier,readAll:()->Unit,onConversationDeleted:(String)->Unit,refreshInbox:suspend ()->Unit,openProfile:(JSONObject)->Unit){
+@Composable internal fun MessageInbox(m:MusicModel,conversations:List<JSONObject>,synced:Boolean,modifier:Modifier=Modifier,readAll:()->Unit,onConversationDeleted:(String)->Unit,onNoticeRead:suspend (JSONObject)->Unit,openProfile:(JSONObject)->Unit){
  var filter by rememberSaveable{mutableStateOf("전체")}
  var compose by remember{mutableStateOf(false)}
  var deleteTarget by remember(m.user?.optString("id")){mutableStateOf<JSONObject?>(null)}
- var welcome by rememberSaveable(m.user?.optString("id")){mutableStateOf(false)}
  val notices=filter=="공지"
  val alerts=filter=="알림"
- val announcements=conversations.filter{it.isInboxNotice()}.sortedByDescending{it.optLong("updated")}
+ val official=conversations.firstOrNull{it.isOfficialNotice()}
+ val allScroll=rememberLazyListState()
+ val noticeScroll=rememberLazyListState()
  val crew=m.inboxCrew
  Column(modifier.testTag("message-inbox")){
   Row(Modifier.fillMaxWidth().padding(horizontal=12.dp),horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){
    listOf("전체","공지","알림").forEach{label->
     val selected=filter==label
-    val count=when(label){"공지"->announcements.sumOf{it.optInt("unread")};"알림"->m.unreadActivities;else->0}
+    val count=when(label){"공지"->official?.optInt("unread")?:0;"알림"->m.unreadActivities;else->0}
     Box(Modifier.weight(1f).heightIn(min=48.dp).selectable(selected,role=Role.Tab,onClick={filter=label}).testTag("inbox-filter-"+label),contentAlignment=Alignment.Center){
      val fill=if(selected)Modifier.background(Brush.horizontalGradient(listOf(Color(0xFF9164AB),Color(0xFF555176),Color(0xFF468D90))),CircleShape) else Modifier
      Box(Modifier.fillMaxWidth().heightIn(min=38.dp).then(fill).border(1.dp,if(selected)Aqua.copy(alpha=.65f) else Stroke,CircleShape).padding(horizontal=3.dp,vertical=5.dp),contentAlignment=Alignment.Center){
@@ -54,29 +55,33 @@ import java.net.URLEncoder
     Icon(Icons.Rounded.PersonAddAlt,"새 대화",tint=SoftText)
    }
   }
-  fun openAnnouncement(p:JSONObject){if(p.isWelcomeGuide())welcome=true else filter="공지"}
-  if(!notices&&!alerts)announcements.firstOrNull()?.let{p->
+  if(!notices&&!alerts&&official!=null){
    Box(Modifier.fillMaxWidth().padding(start=12.dp,end=12.dp,top=12.dp)){
-    NoticeBanner(InboxNotice(p,null),"dm-conversation-"+p.optString("id")){openAnnouncement(p)}
+    NoticeBanner(official){m.messageNoticeRoute=OfficialNoticeRoute()}
    }
   }
   if(alerts)ActivityFeed(m,embedded=true)
-  else if(notices)NoticeArchive(m,announcements,synced,{welcome=true},refreshInbox)
-  else LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag("inbox-list"),contentPadding=PaddingValues(12.dp,12.dp,12.dp,20.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
-   items(announcements.drop(1),key={"dm-"+it.optString("id")}){p->
-    NoticeBanner(InboxNotice(p,null),"dm-conversation-"+p.optString("id")){openAnnouncement(p)}
+  else LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag(if(notices)"notice-archive" else "inbox-list"),
+   state=if(notices)noticeScroll else allScroll,contentPadding=PaddingValues(12.dp,12.dp,12.dp,20.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){
+   if(notices&&official!=null)item(key=OfficialNotice.channelId){
+    NoticeBanner(official){m.messageNoticeRoute=OfficialNoticeRoute()}
    }
-   if(crew!=null)item(key="pinned-crew"){
-    InboxCard(crew,true,{m.openCrewMessages(crew.getString("id"))},openProfile)
-   }
-   items(conversations.filterNot{it.isInboxNotice()},key={"dm-"+it.optString("id")}){p->
-    InboxCard(p,false,{m.messagePeer=p.getString("id")},openProfile,onLongClick={deleteTarget=p})
-   }
-   if(conversations.isEmpty()&&crew==null)item{
-    Empty(if(synced)"첫 대화를 시작해보세요" else "대화를 불러오고 있어요","오른쪽 위 새 대화에서 음악 친구를 찾아보세요.",Icons.Rounded.ChatBubbleOutline)
-   }
-   if(m.unreadMessages>0)item(key="read-all"){
-    TextButton(onClick=readAll,modifier=Modifier.fillMaxWidth().testTag("inbox-read-all")){Text("모두 읽음")}
+   if(notices){
+    if(!synced&&official==null)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
+    else if(official==null)item{Text("등록된 공지가 없어요",color=Muted,modifier=Modifier.padding(12.dp))}
+   }else{
+    if(crew!=null)item(key="pinned-crew"){
+     InboxCard(crew,true,{m.openCrewMessages(crew.getString("id"))},openProfile)
+    }
+    items(conversations.filterNot{it.isInboxNotice()},key={"dm-"+it.optString("id")}){p->
+     InboxCard(p,false,{m.messagePeer=p.getString("id")},openProfile,onLongClick={deleteTarget=p})
+    }
+    if(conversations.isEmpty()&&crew==null)item{
+     Empty(if(synced)"첫 대화를 시작해보세요" else "대화를 불러오고 있어요","오른쪽 위 새 대화에서 음악 친구를 찾아보세요.",Icons.Rounded.ChatBubbleOutline)
+    }
+    if(m.unreadMessages>0)item(key="read-all"){
+     TextButton(onClick=readAll,modifier=Modifier.fillMaxWidth().testTag("inbox-read-all")){Text("모두 읽음")}
+    }
    }
   }
  }
@@ -84,7 +89,11 @@ import java.net.URLEncoder
   val peer=person.getString("id")
   DeleteConversationDialog(m,peer,person.optString("name"),dismiss={deleteTarget=null},deleted={onConversationDeleted(peer)})
  }
- if(welcome)WelcomeNotice(m,{welcome=false},refreshInbox)
+ m.messageNoticeRoute?.let{route->
+  AppPage("아이팩트 안내",{m.messageNoticeRoute=null}){
+   key(route,m.officialNotices){OfficialNoticeConversation(m,route,onNoticeRead)}
+  }
+ }
  if(compose)NewConversationPage(m,{compose=false}){id->compose=false;m.messagePeer=id}
 }
 
@@ -112,8 +121,7 @@ import java.net.URLEncoder
       if(!p.isNull("image_version")&&p.optString("image_version").isNotBlank())AsyncImage(Endpoint.url("/media/crew/$id?v=${p.optString("image_version")}"),"크루 사진",Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
      }
      if(unread>0)Spacer(Modifier.align(Alignment.TopEnd).size(9.dp).background(StreamPurple,CircleShape))
-    }else if(p.isWelcomeGuide())Box(Modifier.size(48.dp).background(StreamPurple.copy(alpha=.18f),CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Rounded.Campaign,null,tint=Aqua)}
-    else Box(Modifier.size(48.dp).testTag("dm-list-profile-"+id).combinedClickable(onClickLabel="상대 페이지 보기",onLongClickLabel="대화 기록 삭제",onLongClick=onLongClick,onClick={openProfile(p)})){Avatar(name,p,48)}
+    }else Box(Modifier.size(48.dp).testTag("dm-list-profile-"+id).combinedClickable(onClickLabel="상대 페이지 보기",onLongClickLabel="대화 기록 삭제",onLongClick=onLongClick,onClick={openProfile(p)})){Avatar(name,p,48)}
     Column(Modifier.weight(1f).padding(horizontal=12.dp)){
      Row(verticalAlignment=Alignment.CenterVertically){
       Text(name,fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false))
@@ -131,155 +139,22 @@ import java.net.URLEncoder
  }
 }
 
-private fun JSONObject.isInboxNotice()=optBoolean("is_notice")||optInt("is_notice")==1
-private fun JSONObject.isWelcomeGuide()=isInboxNotice()&&optString("notice_type")=="welcome"&&(optBoolean("read_only")||optInt("read_only")==1)
-
-private data class InboxNotice(val channel:JSONObject,val message:JSONObject?){
- val channelId=channel.optString("id")
- val id=if(message==null)channelId else channelId+"/"+message.optString("id")
- val date=message?.optLong("created")?:channel.optLong("updated")
- val body=message?.optString("body")?:channel.optString("last_message")
- val title=if(message==null)channel.optString("name") else message.optString("title").ifBlank{
-  body.trim().lineSequence().firstOrNull{it.isNotBlank()}?:channel.optString("name")
- }
- val preview=if(message==null||message.optString("title").isNotBlank())body else body.trim().substringAfter('\n',"").trim().ifBlank{channel.optString("name")}
-}
-
-@Composable private fun NoticeArchive(m:MusicModel,channels:List<JSONObject>,synced:Boolean,openWelcome:()->Unit,onRead:suspend ()->Unit){
- val account=m.user?.optString("id")
- var selected by rememberSaveable(account){mutableStateOf<String?>(null)}
- var depth by rememberSaveable(account){mutableIntStateOf(1)}
- val notices=mutableListOf<InboxNotice>()
- val reads=mutableListOf<CurrentRead>()
- var hasOlder=false
- channels.forEach{channel->key(channel.optString("id")){
-  val cid=channel.optString("id")
-  if(channel.isWelcomeGuide())notices.add(InboxNotice(channel,null))
-  else if(CurrentNavigation.safeID(cid)){
-   var cursor=0L
-   for(page in 0 until depth){
-    val path="/api/dm/$cid"+if(cursor>0)"?before=$cursor" else ""
-    val read=currentRead(m,path)
-    reads.add(read)
-    // Re-read the newest page when a live inbox update announces a new message.
-    if(page==0){
-     val updated=channel.optLong("updated")
-     val signature=channel.optString("last_message")+updated
-     var previous by remember(cid){mutableStateOf(signature)}
-     LaunchedEffect(signature){if(previous!=signature){previous=signature;read.retry()}}
-    }
-    val history=read.data?:break
-    val messages=history.optJSONArray("messages").objects()
-    messages.filter{it.optString("recipient_id")==account}.forEach{notices.add(InboxNotice(channel,it))}
-    val before=messages.map{it.optLong("sequence")}.filter{it>0}.minOrNull()
-    if(!history.optBoolean("has_more")||before==null||(cursor>0&&before>=cursor))break
-    cursor=before
-    if(page==depth-1)hasOlder=true
-   }
-  }
- }}
- val ordered=notices.distinctBy{it.id}.sortedWith(compareByDescending<InboxNotice>{it.date}.thenByDescending{it.message?.optLong("sequence")?:0L})
- LazyColumn(Modifier.fillMaxSize().testTag("notice-archive"),contentPadding=PaddingValues(12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
-  items(ordered,key={it.id}){entry->
-   val tag=if(entry.message==null)"dm-conversation-"+entry.channelId else "notice-item-"+entry.id
-   NoticeBanner(entry,tag){if(entry.message==null)openWelcome() else selected=entry.id}
-  }
-  reads.filter{it.error!=null}.forEach{failed->item{ReadStatus(failed)}}
-  if(!synced||reads.any{it.loading})item{LinearProgressIndicator(Modifier.fillMaxWidth())}
-  else if(ordered.isEmpty()&&reads.none{it.error!=null})item{Text("등록된 공지가 없어요",color=Muted,modifier=Modifier.padding(12.dp))}
-  if(hasOlder)item{TextButton({depth++},modifier=Modifier.fillMaxWidth()){Text("이전 공지 더 보기")}}
- }
- ordered.firstOrNull{it.id==selected}?.let{entry->
-  AppPage("공지",{selected=null}){
-   val message=entry.message
-   var failed by remember{mutableStateOf(false)}
-   var attempt by remember{mutableIntStateOf(0)}
-   val refresh by rememberUpdatedState(onRead)
-   LaunchedEffect(entry.id,attempt){
-    if(entry.channel.optInt("unread")>0&&message?.optLong("read_at")==0L)try{
-     m.api.call("/api/dm/${entry.channelId}","PATCH");refresh();failed=false
-    }catch(e:CancellationException){throw e}catch(e:Exception){failed=true}
-   }
-   Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-    val shape=RoundedCornerShape(18.dp)
-    Column(Modifier.fillMaxWidth().background(Panel,shape).border(1.dp,Stroke,shape).padding(18.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-     Text(entry.channel.optString("name"),color=Aqua,fontSize=14.sp)
-     if(entry.date>0)Text(activityDate(entry.date),color=Muted,fontSize=12.sp)
-     val explicitTitle=message?.optString("title").orEmpty()
-     if(explicitTitle.isNotBlank())Text(explicitTitle,fontSize=19.sp,fontWeight=FontWeight.Bold)
-     Text(entry.body,fontSize=16.sp,lineHeight=25.sp,modifier=Modifier.testTag("notice-full-body"))
-     if(message!=null&&!message.isNull("image_id")&&message.optString("image_id").isNotBlank())ChatImage(m,message,false)
-    }
-    if(failed)TextButton({attempt++}){Text("읽음 상태 다시 반영하기")}
-   }
-  }
- }
-}
-
-@Composable private fun NoticeBanner(entry:InboxNotice,tag:String,open:()->Unit){
+@Composable private fun NoticeBanner(channel:JSONObject,open:()->Unit){
  val shape=RoundedCornerShape(14.dp)
- Surface(onClick=open,shape=shape,color=Panel,modifier=Modifier.fillMaxWidth().border(1.dp,Stroke,shape).testTag(tag)){
+ val updated=channel.optLong("updated")
+ val preview=stickerPreview(channel.opt("last_message") as? String ?: "")
+ Surface(onClick=open,shape=shape,color=Panel,modifier=Modifier.fillMaxWidth().border(1.dp,Stroke,shape).testTag("dm-conversation-"+OfficialNotice.channelId)){
   Row(Modifier.fillMaxWidth().heightIn(min=60.dp).padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(9.dp)){
    Icon(Icons.Rounded.Campaign,null,Modifier.size(22.dp),tint=Aqua)
    Column(Modifier.weight(1f)){
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
-     Text(entry.title,Modifier.weight(1f),fontSize=15.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
-     if(entry.date>0)Text(activityDate(entry.date).substringBefore(' '),fontSize=10.sp,color=Muted)
+     Text(channel.optString("name"),Modifier.weight(1f),fontSize=15.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
+     if(updated>0)Text(activityDate(updated).substringBefore(' '),fontSize=10.sp,color=Muted)
     }
-    if(entry.preview.isNotBlank())Text(entry.preview,fontSize=12.sp,lineHeight=17.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
+    if(preview.isNotBlank())Text(preview,fontSize=12.sp,lineHeight=17.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
    }
+   UnreadCount(channel.optInt("unread"),small=true)
    Icon(Icons.Rounded.ChevronRight,"공지 전문 보기",Modifier.size(17.dp),tint=Muted)
-  }
- }
-}
-
-@Composable private fun WelcomeNotice(m:MusicModel,onBack:()->Unit,onRead:suspend ()->Unit){
- AppPage("아이팩트 안내",onBack){
-  val read=currentRead(m,"/api/notices/welcome")
-  val data=read.data
-  val guide=data?.optJSONObject("guide")
-  val sections=guide?.optJSONArray("sections").objects()
-  val valid=guide!=null&&guide.optString("greeting").isNotBlank()&&sections.isNotEmpty()
-  var readError by remember{mutableStateOf(false)}
-  var attempt by remember{mutableIntStateOf(0)}
-  val latestOnRead by rememberUpdatedState(onRead)
-  val campaign=data?.optString("campaign_id").orEmpty()
-  if(valid&&data!=null){
-   LaunchedEffect(campaign,attempt){
-    if(data.optLong("read_at")==0L&&campaign.isNotBlank()){
-     try{
-      m.api.call("/api/notices/welcome","PATCH",payload("campaign_id" to campaign))
-      latestOnRead()
-      readError=false
-     }catch(e:CancellationException){throw e}catch(e:Exception){readError=true}
-    }
-   }
-  }
-  Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   if(read.loading||read.error!=null)ReadStatus(read)
-   if(valid&&guide!=null){
-    Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(Color(0xFF302943),Panel,Color(0xFF172C37)))).border(1.dp,Stroke,RoundedCornerShape(20.dp)).padding(20.dp).testTag("welcome-notice-banner"),verticalArrangement=Arrangement.spacedBy(12.dp)){
-     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-      Icon(Icons.Rounded.Campaign,null,tint=Aqua)
-      Text("공지",color=Aqua,fontWeight=FontWeight.Bold)
-      val date=data?.optLong("created")?:0L
-      if(date>0)Text(activityDate(date),color=Muted,fontSize=12.sp)
-     }
-     Text(guide.optString("greeting"),fontSize=21.sp,lineHeight=29.sp,fontWeight=FontWeight.Bold)
-     fun paragraphs(key:String):List<String>{
-      val lines=guide.optJSONArray(key)?:return emptyList()
-      return (0 until lines.length()).mapNotNull{lines.opt(it) as? String}.filter{it.isNotBlank()}
-     }
-     paragraphs("intro").forEach{Text(it,fontSize=15.sp,lineHeight=23.sp)}
-     sections.forEach{section->
-      HorizontalDivider(color=Stroke)
-      Text(section.optString("title"),fontSize=17.sp,fontWeight=FontWeight.SemiBold,color=Aqua)
-      Text(section.optString("body"),fontSize=15.sp,lineHeight=23.sp)
-     }
-     paragraphs("closing").forEach{Text(it,fontSize=15.sp,lineHeight=23.sp)}
-    }
-    if(readError)TextButton(onClick={attempt++}){Text("읽음 상태 다시 반영하기")}
-   }else if(!read.loading&&read.error==null){Text("공지 내용을 불러오지 못했어요.");TextButton(onClick=read::retry){Text("다시 불러오기")}}
   }
  }
 }

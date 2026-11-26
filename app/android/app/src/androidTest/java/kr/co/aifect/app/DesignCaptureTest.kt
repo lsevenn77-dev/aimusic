@@ -385,7 +385,11 @@ class DesignCaptureTest {
 
  @Before fun launch(){
   assertTrue(context.packageName.endsWith(".test"))
-  assertTrue("Capture is emulator-only",android.os.Build.HARDWARE in listOf("ranchu","goldfish"))
+  val emulator=android.os.Build.HARDWARE in listOf("ranchu","goldfish") ||
+   (android.os.Build.SUPPORTED_ABIS.firstOrNull()=="x86_64" && android.os.ParcelFileDescriptor.AutoCloseInputStream(
+    instrumentation.uiAutomation.executeShellCommand("cat /sys/class/dmi/id/product_name")
+   ).bufferedReader().use{it.readText().trim()=="VirtualBox"})
+  assertTrue("Capture is emulator-only",emulator)
   NativeSession.put(context,"cookie","");NativeSession.put(context,"ticket","")
   responses["/api/me"]=payload("user" to me,"membership" to payload("plan" to "free"),"providers" to JSONArray(),"emailEnabled" to true)
   responses["/api/me/profile"]=payload("profile" to own,"followers" to arr(peer),"follower_count" to 24,"following_count" to 18)
@@ -476,10 +480,11 @@ class DesignCaptureTest {
     val webAsset=if(path.startsWith("/api/")||path.startsWith("/media/"))null else runCatching{instrumentation.context.assets.open("current-web/"+(if(path=="/")"index.html" else path.removePrefix("/"))).use{it.readBytes()}}.getOrNull()
     when{webAsset!=null->{type=when{path.endsWith(".js")->"application/javascript; charset=utf-8";path.endsWith(".css")->"text/css; charset=utf-8";path.endsWith(".svg")->"image/svg+xml";else->"text/html; charset=utf-8"};bytes=webAsset}
      path=="/api/dubbing/projects/poster-original/poster"->{type="image/png";bytes=photos[0]}
+     path=="/assets/official-notice-fixture.webp"->{type="image/png";bytes=photos[0]}
      path=="/media/sample/audio"->{type="audio/wav";bytes=audio}
      path.startsWith("/media/")->{type="image/png";bytes=photos[if(path.contains("ocean")||path.contains("own")||path.contains("photo-2")||path.contains("crew"))1 else 0]}
      path.startsWith("/assets/gifts/")->{type=if(path.endsWith(".png"))"image/png"else"image/webp";bytes=giftsBytes[path.substringAfterLast('/')]?:ByteArray(0)}
-     else->{type="application/json";bytes=(responses[request[1]]?:responses[path]?:payload("ok" to true)).toString().toByteArray()}}
+     else->{type="application/json";bytes=(responses[request[0]+" "+request[1]]?:responses[request[1]]?:responses[path]?:payload("ok" to true)).toString().toByteArray()}}
     val status=responseStatuses[path]?:200
     val session=if(path=="/api/auth/mobile/exchange"&&status==200)"Set-Cookie: aifect_session=browser-fixture; Path=/; HttpOnly\r\n" else ""
     out.write("HTTP/1.1 $status Response\r\n${session}Content-Type: $type\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray());out.write(bytes)
@@ -994,10 +999,11 @@ class DesignCaptureTest {
   val incoming=responses.getValue("/api/dm")
   incoming.put("crew",JSONObject(crew.toString()).put("unread",1))
   val people=incoming.getJSONArray("conversations")
-  listOf("older" to now-200,"newer" to now-100).forEach{(id,date)->people.put(payload("id" to id,"name" to id,"updated" to date,"last_message" to id,"is_notice" to true))}
+  people.put(officialNoticeFixture("최신 안내",0))
   repeat(20){people.put(payload("id" to "peer-$it","name" to "친구 $it","updated" to now,"last_message" to "대화"))}
   act{it.play(Song(song),listOf(Song(song),Song(cover)));it.selectTab(5)}
-  ready("mini-player-mode");ready("dm-conversation-newer")
+  val officialTag="dm-conversation-"+OfficialNotice.channelId
+  ready("mini-player-mode");ready(officialTag)
   val mode=ui.onNodeWithTag("mini-player-mode")
   mode.performClick()
   ui.waitUntil(10000){model.repeat==androidx.media3.common.Player.REPEAT_MODE_ONE&&!model.shuffle}
@@ -1008,47 +1014,127 @@ class DesignCaptureTest {
   mode.performClick();ui.waitUntil(10000){!model.shuffle&&model.repeat==androidx.media3.common.Player.REPEAT_MODE_OFF}
   act{val c=it.controller!!;assertEquals(0,c.previousMediaItemIndex);assertEquals(1,c.currentMediaItemIndex)}
   fun top(tag:String)=ui.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot.top
-  assertTrue(top("dm-conversation-newer")<top("dm-conversation-older"))
-  assertTrue(top("dm-conversation-older")<top("inbox-crew"))
+  assertTrue(top(officialTag)<top("inbox-crew"))
   ui.onNodeWithTag("inbox-list").performScrollToNode(hasTestTag("dm-conversation-peer-17"))
-  ui.onNodeWithTag("dm-conversation-newer").assertIsDisplayed()
+  ui.onNodeWithTag(officialTag).assertIsDisplayed()
  }
- @Test fun noticesStackByPostAndOpenTheSelectedBody(){
-  val official=payload("id" to "design-official","is_notice" to true,"name" to "운영팀","updated" to now,"unread" to 0)
-  responses.getValue("/api/dm").getJSONArray("conversations").put(official)
-  fun post(id:String,body:String,created:Long,sequence:Int)=payload("id" to id,"body" to body,"created" to created,"sequence" to sequence,"recipient_id" to "design-user")
-  val newest=post("b","서비스 업데이트\n새로운 기능을 확인해보세요.\n공지 전문 마지막 줄",now,20)
-  val older=post("a","이벤트 공지\n참여 방법이에요.",now-100,18)
-  val sent=post("r","개인 답장",now-50,19).put("recipient_id","admin")
-  responses["/api/dm/design-official"]=payload("messages" to arr(sent,newest),"has_more" to true)
-  responses["/api/dm/design-official?before=19"]=payload("messages" to arr(older),"has_more" to false)
-  act{it.selectTab(5)};ready("inbox-filter-공지");ui.onNodeWithTag("inbox-filter-공지").performClick()
-  val recent=ui.onNodeWithTag("notice-item-design-official/b")
-  ready("notice-item-design-official/b");ui.onNodeWithText("이전 공지 더 보기").performClick()
-  ready("notice-item-design-official/a")
-  assertTrue(recent.fetchSemanticsNode().boundsInRoot.top<ui.onNodeWithTag("notice-item-design-official/a").fetchSemanticsNode().boundsInRoot.top)
-  ui.onNodeWithTag("notice-item-design-official/r").assertDoesNotExist()
-  recent.performClick();ui.onNodeWithTag("notice-full-body").assertTextEquals(newest.getString("body"))
-  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("notice-item-design-official/a").performClick()
-  ui.onNodeWithTag("notice-full-body").assertTextEquals(older.getString("body"));assertNull(model.messagePeer)
- }
- @Test fun welcomeIsANoticeFromBothInboxTabs(){
-  val endpoint="/api/notices/welcome"
-  val inbox=responses.getValue("/api/dm").getJSONArray("conversations")
-  inbox.put(payload("id" to "design-guide","name" to "아이팩트 안내","is_notice" to true,"read_only" to true,"notice_type" to "welcome","last_message" to "가입을 환영해요","unread" to 1))
-  responses[endpoint]=payload("campaign_id" to "welcome-1","created" to now,"read_at" to 0,"guide" to payload("greeting" to "가입을 환영해요","intro" to JSONArray(listOf("아이팩트를 소개할게요.")),"sections" to arr(payload("title" to "노래방","body" to "함께 노래를 불러보세요.")),"closing" to JSONArray(listOf("반가워요!"))))
+ private fun officialNoticeFixture(preview:String,unread:Int)=payload(
+  "id" to OfficialNotice.channelId,"name" to "아이팩트 안내","notice_type" to "official",
+  "is_notice" to true,"read_only" to true,"last_message" to preview,"updated" to now,"unread" to unread
+ )
+ @Test fun officialNoticeOpensFromBothTabsAndAcknowledgesOnlyVisibleMessages(){
+  val giftId="campaign:premium-open-event-20261231-v1"
+  val guideId="campaign:welcome-guide-20261108-v1"
+  val giftTitle="🎁 아이팩트가 준비한 오픈 선물!"
+  val personalGreeting="소리님, 환영합니다!"
+  val row="dm-conversation-"+OfficialNotice.channelId
+  val endpoint=OfficialNotice.path
+  val banner="/assets/official-notice-fixture.webp"
+  val bannerGate=CountDownLatch(1)
+  val bannerRequested=CountDownLatch(1)
+  heldResponses[banner]=bannerGate
+  heldRequests[banner]=bannerRequested
+  val channel=officialNoticeFixture(giftTitle,2)
+  val inbox=responses.getValue("/api/dm")
+  inbox.getJSONArray("conversations").put(channel)
+  inbox.put("unread",5)
+  val guide=payload("id" to guideId,"created" to now-36000,"read_at" to 0,"legacy_id" to "aifect-guide",
+   "guide" to payload("greeting" to personalGreeting,"sections" to arr(payload("title" to "노래방","body" to "노래방 소개","href" to "#karaoke","label" to "노래방 가기"))))
+  val gift=payload("id" to giftId,"created" to now,"read_at" to 0,"legacy_id" to "premium-open-event-20261231-v1",
+   "notice" to payload("title" to giftTitle,"banner" to banner,"body" to "선물 안내 본문입니다.\n\n".repeat(60)))
+  responses[endpoint]=payload("channel" to channel,"items" to arr(guide,gift),"before" to null)
+  responses["PATCH "+endpoint]=payload("unread" to 4,"direct_unread" to 2,"notice_unread" to 1,"notice" to officialNoticeFixture(giftTitle,1))
   act{it.selectTab(5)}
-  ready("dm-conversation-design-guide");ui.onNodeWithTag("dm-conversation-design-guide").performClick()
-  ready("welcome-notice-banner");text("함께 노래를 불러보세요.");ui.onNodeWithTag("dm-composer").assertDoesNotExist()
+  ready(row)
+  ui.onNodeWithTag(row).assertTextContains(giftTitle).performClick()
+  ready("official-entry-"+giftId)
+  ui.onNodeWithText(giftTitle).assertIsDisplayed()
+  ui.onNodeWithTag("dm-composer").assertDoesNotExist()
+  val artwork=ui.onNodeWithContentDescription(giftTitle)
+  assertTrue(bannerRequested.await(10,TimeUnit.SECONDS))
+  val reserved=artwork.getUnclippedBoundsInRoot()
+  assertEquals(3f,(reserved.right-reserved.left).value/(reserved.bottom-reserved.top).value,.05f)
+  bannerGate.countDown()
   ui.waitUntil(15000){requestBodies.containsKey(endpoint)}
-  assertEquals("welcome-1",JSONObject(requestBodies.getValue(endpoint)).getString("campaign_id"))
-  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("inbox-filter-공지").performClick()
-  ui.onNodeWithTag("dm-conversation-design-peer").assertDoesNotExist()
-  ui.onNodeWithTag("dm-list-profile-design-guide").assertDoesNotExist()
-  ui.onNodeWithTag("dm-conversation-design-guide").performClick();ready("welcome-notice-banner")
-  assertFalse(requestUrls.contains("/api/dm/design-guide"))
-  ui.onNodeWithTag("page-back").performClick();ui.onNodeWithTag("inbox-filter-알림").performClick();ready("activity-list")
-  ui.onNodeWithTag("dm-conversation-design-guide").assertDoesNotExist()
+  val ids=JSONObject(requestBodies.getValue(endpoint)).getJSONArray("ids")
+  assertEquals(1,ids.length());assertEquals(giftId,ids.getString(0))
+  ui.waitUntil(15000){model.officialNotices.feed?.items?.find{it.id==giftId}?.unread==false}
+  assertEquals(reserved,artwork.getUnclippedBoundsInRoot())
+  assertTrue(model.officialNotices.feed!!.items.first{it.id==guideId}.unread)
+
+  Espresso.pressBack()
+  ui.onNodeWithTag("inbox-filter-전체").assertIsSelected()
+  ui.onNodeWithTag(row).assertTextContains("1")
+  ui.onNodeWithTag("inbox-filter-공지").performClick()
+  ui.onNodeWithTag(row).assertTextContains(giftTitle).assertTextContains("1").performClick()
+  ready("official-entry-"+giftId)
+  ui.onNodeWithText(giftTitle).assertIsDisplayed()
+  ui.onNodeWithTag("official-notice-history").performScrollToIndex(1)
+  ui.onNodeWithText(personalGreeting).assertIsDisplayed()
+  ui.onNodeWithText("노래방 가기").assertIsDisplayed()
+  ui.onNodeWithTag("page-back").performClick()
+  ui.onNodeWithTag("inbox-filter-공지").assertIsSelected()
+  ui.onNodeWithTag(row).performClick()
+  ready("official-entry-"+guideId)
+  ui.onNodeWithText(personalGreeting).assertIsDisplayed()
+  assertTrue(requestUrls.contains(OfficialNotice.inboxPath))
+  assertFalse(requestUrls.contains("/api/notices/welcome"))
+  assertNull(model.messagePeer)
+ }
+ @Test fun linkedNoticePagesToItsMessageAndRetainsTheOfficialDm(){
+  val giftId="campaign:premium-open-event-20261231-v1"
+  val guideId="campaign:welcome-guide-20261108-v1"
+  val endpoint=OfficialNotice.path
+  val channel=officialNoticeFixture("최근 운영 안내",0)
+  responses.getValue("/api/dm").getJSONArray("conversations").put(channel)
+  val gift=payload("id" to giftId,"created" to now-100,"read_at" to now-90,
+   "legacy_id" to "premium-open-event-20261231-v1","notice" to payload("title" to "오픈 선물","body" to "오픈 선물 전문"))
+  val dm=payload("id" to "dm:admin","kind" to "dm","mine" to true,"created" to now,"body" to "최근 운영 안내")
+  val cursor="${now-100}|$giftId"
+  responses[endpoint]=payload("channel" to channel,"items" to arr(gift,dm),"before" to cursor)
+  val guide=payload("id" to guideId,"created" to now-1000,"read_at" to now-900,"legacy_id" to "aifect-guide",
+   "guide" to payload("greeting" to "예전 가입 안내","sections" to arr(payload("title" to "서비스","body" to "소개 본문"))))
+  val earlierPath=endpoint+"?before="+CurrentNavigation.query(cursor)
+  responses[earlierPath]=payload("channel" to channel,"items" to arr(guide,gift),"before" to null)
+  act{it.selectTab(5);it.openMessages("aifect-guide")}
+  ready("official-entry-"+guideId)
+  ui.onNodeWithText("예전 가입 안내").assertIsDisplayed()
+  assertTrue(requestUrls.contains(earlierPath))
+  val ids=model.officialNotices.feed!!.items.map{it.id}
+  assertEquals(listOf(guideId,giftId,"dm:admin"),ids)
+  ui.onNodeWithTag("official-notice-history").performScrollToIndex(3)
+  ui.onNodeWithText("최근 운영 안내").assertIsDisplayed()
+  assertFalse(requestBodies.containsKey(endpoint))
+ }
+ @Test fun loadingEarlierAndRefreshingKeepTheReadingAnchor(){
+  val endpoint=OfficialNotice.path
+  val channel=officialNoticeFixture("운영 안내",0)
+  responses.getValue("/api/dm").getJSONArray("conversations").put(channel)
+  fun post(id:String,created:Long,text:String)=payload(
+   "id" to "dm:$id","kind" to "dm","mine" to true,"created" to created,"body" to text
+  )
+  val cursor="${now-50}|dm:middle"
+  val middle=post("middle",now-50,"읽던 운영 안내")
+  val latest=post("latest",now,"가장 최근 공지")
+  responses[endpoint]=payload("channel" to channel,"items" to arr(middle,latest),"before" to cursor)
+  responses[endpoint+"?before="+CurrentNavigation.query(cursor)]=payload(
+   "channel" to channel,"items" to arr(post("earliest",now-100,"이전 운영 안내"),middle),"before" to null
+  )
+  act{it.selectTab(5)}
+  val row="dm-conversation-"+OfficialNotice.channelId
+  ready(row);ui.onNodeWithTag(row).performClick()
+  ready("official-entry-dm:latest")
+  ui.onNodeWithTag("official-notice-history").performScrollToIndex(0)
+  val reading=ui.onNodeWithTag("official-entry-dm:middle")
+  val top=reading.fetchSemanticsNode().boundsInRoot.top
+  ui.onNodeWithText("이전 공지 보기").performClick()
+  ui.waitUntil(15000){model.officialNotices.feed?.items?.size==3}
+  assertEquals(top,reading.fetchSemanticsNode().boundsInRoot.top,2f)
+  responses[endpoint]=payload("channel" to channel,
+   "items" to arr(middle,latest,post("arrived",now+10,"읽는 중 도착한 안내")),"before" to cursor)
+  ui.waitUntil(15000){model.officialNotices.feed?.items?.size==4}
+  assertEquals(top,reading.fetchSemanticsNode().boundsInRoot.top,2f)
+  assertEquals(4,model.officialNotices.feed!!.items.map{it.id}.toSet().size)
  }
  @Test fun inboxBadgeCombinesMessagesAndActivities(){
   val summary="/api/dm/summary"

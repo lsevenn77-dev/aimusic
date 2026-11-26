@@ -33,6 +33,7 @@ internal object NativeChatCache {
  private const val MAX_BYTES=4*1024*1024
  private const val MAX_THREADS=30
  private const val MAX_MESSAGES=150
+ private const val MAX_CONVERSATIONS=101 // Up to 100 DMs plus the official notice channel.
  private val memory=ConcurrentHashMap<String,NativeDmSnapshot>()
  private val io=Mutex()
  private val signedOut=ConcurrentHashMap.newKeySet<String>()
@@ -74,13 +75,16 @@ internal object NativeChatCache {
      earlier=entry.optBoolean("earlier"),draft=entry.optString("draft").take(2000),updated=entry.optLong("updated"),readSequence=entry.optLong("read_sequence").coerceAtLeast(0L)
     )
    }
-   NativeDmSnapshot(json.optJSONArray("conversations").objects().take(100),threads)
+   NativeDmSnapshot(OfficialNotice.inboxRows(json.optJSONArray("conversations").objects()).take(MAX_CONVERSATIONS),threads)
   }.getOrDefault(NativeDmSnapshot())
   memory[key]=snapshot
   return snapshot
  }
- suspend fun saveConversations(context:Context,accountId:String,conversations:List<JSONObject>)=withContext(Dispatchers.IO){
-  io.withLock{val old=readLocked(context,accountId);writeLocked(context,accountId,old.copy(conversations=conversations.take(100).map{JSONObject(it.toString())}))}
+ suspend fun saveConversations(context:Context,accountId:String,conversations:List<JSONObject>,current:()->Boolean={true})=withContext(Dispatchers.IO){
+  io.withLock{
+   val old=readLocked(context,accountId)
+   if(current())writeLocked(context,accountId,old.copy(conversations=conversations.take(MAX_CONVERSATIONS).map{JSONObject(it.toString())}))
+  }
  }
  suspend fun saveThread(context:Context,accountId:String,peerId:String,peer:JSONObject?,messages:List<JSONObject>,earlier:Boolean,draft:String?=null,readSequence:Long?=null)=withContext(Dispatchers.IO){
   io.withLock{
@@ -105,7 +109,7 @@ internal object NativeChatCache {
  suspend fun clear(context:Context,accountId:String,peerId:String?=null)=withContext(Dispatchers.IO){io.withLock{val old=readLocked(context,accountId);writeLocked(context,accountId,if(peerId==null)NativeDmSnapshot()else old.copy(conversations=old.conversations.filterNot{it.optString("id")==peerId},threads=old.threads-peerId))}}
  suspend fun clearThrough(context:Context,accountId:String,peerId:String,sequence:Long)=withContext(Dispatchers.IO){if(sequence>0)io.withLock{val old=readLocked(context,accountId);val thread=old.threads[peerId]?:return@withLock;val kept=thread.messages.filter{it.optLong("sequence")==0L||it.optLong("sequence")>sequence};if(kept.size!=thread.messages.size)writeLocked(context,accountId,old.copy(threads=old.threads+(peerId to thread.copy(messages=kept))))}}
  private fun encode(accountId:String,snapshot:NativeDmSnapshot)=JSONObject().put("version",VERSION).put("account",accountId).put("origin",Endpoint.origin)
-  .put("conversations",JSONArray(snapshot.conversations.take(100))).put("threads",JSONArray().apply{
+  .put("conversations",JSONArray(snapshot.conversations.take(MAX_CONVERSATIONS))).put("threads",JSONArray().apply{
    snapshot.threads.forEach{(id,thread)->put(JSONObject().put("id",id).put("peer",thread.peer?:JSONObject.NULL).put("messages",JSONArray(thread.messages)).put("earlier",thread.earlier).put("draft",thread.draft).put("updated",thread.updated).put("read_sequence",thread.readSequence))}
   }).toString().toByteArray(Charsets.UTF_8)
  private fun writeLocked(context:Context,accountId:String,snapshot:NativeDmSnapshot){

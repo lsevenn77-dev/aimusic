@@ -190,13 +190,27 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var showRewards by mutableStateOf(false)
  var showMessages by mutableStateOf(false)
  var messagePeer by mutableStateOf<String?>(null)
+ internal var messageNoticeRoute by mutableStateOf<OfficialNoticeRoute?>(null)
+ internal var officialNotices by mutableStateOf(OfficialNoticeSession()); private set
+ @Volatile internal var officialNoticeReadRevision = 0L; private set
  var messageCrew by mutableStateOf<String?>(null)
  var showNotifications by mutableStateOf(false)
  var unreadActivities by mutableIntStateOf(0)
  suspend fun refreshActivitySummary(){val account=user?.optString("id")?:return;val data=api.call("/api/notifications/summary",fresh=true);if(user?.optString("id")==account)unreadActivities=data.optInt("unread")}
  var unreadMessages by mutableIntStateOf(0)
  var inboxCrew by mutableStateOf<JSONObject?>(null)
- suspend fun refreshMessageSummary(){val account=user?.optString("id")?:return;val d=api.call("/api/dm/summary");if(user?.optString("id")==account){unreadMessages=d.optInt("unread");inboxCrew=d.optJSONObject("crew")}}
+ suspend fun refreshMessageSummary(){
+  val account=user?.optString("id")?:return
+  val receiptRevision=officialNoticeReadRevision
+  val d=api.call("/api/dm/summary")
+  if(user?.optString("id")==account&&receiptRevision==officialNoticeReadRevision){
+   unreadMessages=d.optInt("unread");inboxCrew=d.optJSONObject("crew")
+  }
+ }
+ internal fun applyOfficialNoticeRead(result:JSONObject){
+  officialNoticeReadRevision++
+  unreadMessages=result.optInt("unread",unreadMessages)
+ }
  fun openCrewMessages(cid:String){
   if(!authenticated())return
   dismissProfile();messageSourceProfile=null;showMessages=false
@@ -310,12 +324,19 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  fun retryProfile(){retryProfileLoad?.invoke()}
  fun openMessages(peerId:String?=null){
   if(!authenticated())return
+  val official=peerId?.let(OfficialNoticeRoute::fromTarget)
+  if(official!=null){openOfficialNotice(official);return}
   if(tab!=5&&!showMessages)messageSourceProfile=profilePage()
   if(tab==5)messageSourceProfile=null
-  dismissProfile();messageCrew=null;messagePeer=peerId;showMessages=tab!=5
+  dismissProfile();messageCrew=null;messageNoticeRoute=null;messagePeer=peerId;showMessages=tab!=5
+ }
+ internal fun openOfficialNotice(route:OfficialNoticeRoute){
+  if(!authenticated())return
+  if(tab!=5&&!showMessages)messageSourceProfile=profilePage()
+  dismissProfile();messageCrew=null;messagePeer=null;messageNoticeRoute=route;showMessages=tab!=5
  }
  fun dismissMessages(){
-  dismissProfile();showMessages=false;messagePeer=null;messageCrew=null
+  dismissProfile();showMessages=false;messagePeer=null;messageCrew=null;messageNoticeRoute=null
   messageSourceProfile?.let{displayProfile(it)};messageSourceProfile=null
  }
  var current by mutableStateOf<Song?>(null)
@@ -383,6 +404,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   selectedList=null;listSongs=emptyList();listLoading=false;playlistTarget=null;collection=null;collectionBusy=false;collectionError=null
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
+  messageNoticeRoute=null;officialNotices=OfficialNoticeSession();officialNoticeReadRevision++
   showNotifications=false;unreadActivities=0;showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
   showAccount=false;showInventory=false;showShop=false;photoPreview=null;galleryPreview=null;ownGalleryJob?.cancel();ownGallery=null;ownGalleryAt=0;ownGalleryRevision=-1;profileImages.memoryCache?.clear();accountError=null;nicknameCheck=null;studioBusy=false;studioError=null;studioData=JSONObject()
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
@@ -432,6 +454,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  }
  fun authenticated():Boolean { if(user==null){showLogin=true;return false};return true }
  fun openPush(kind:String,target:String,recipient:String){
+  if(kind=="dm"&&user?.optString("id")==recipient){
+   OfficialNoticeRoute.fromTarget(target)?.let{openOfficialNotice(it);return}
+  }
   if(user?.optString("id")!=recipient||!Regex("[a-zA-Z0-9-]{1,80}").matches(target))return
   if(kind=="dm")openMessages(target)
   else if(kind=="crew")openCrewMessages(target)
@@ -562,7 +587,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   if(index==1)listenPage="발견"
   if(index in listOf(4,6) && user!=null)refreshLibrary()
   if(index==6&&user!=null)refreshMyDashboard()
-  if(index==5){messagePeer=null;messageCrew=null}
+  if(index==5){messagePeer=null;messageCrew=null;messageNoticeRoute=null}
  }
  fun library(page:String){if(tab!=4)libraryReturnTab=tab;libraryPage=page;selectTab(4)}
  fun leaveLibrary(){selectTab(libraryReturnTab)}
