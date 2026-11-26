@@ -67,3 +67,21 @@ test('typed song shares use existing DM persistence, reject inaccessible songs a
  f.sql.exec("INSERT INTO user_blocks(user_id,blocked_id,created) VALUES('other','owner',0)");
  assert.equal((await f.call(path,'POST',{track_id:'two',request_id:crypto.randomUUID()})).status,403);
 });
+
+test('cover shares retain cover artwork and vocalist credit in both DM histories',async t=>{
+ const f=await fixture(t);
+ f.sql.exec(`INSERT INTO producers(id,user_id,name,created,nickname_confirmed) VALUES('singer','other','커버 가창자',0,1);
+  UPDATE tracks SET karaoke_at=1 WHERE id='one';
+  INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,has_cover,cover_version,cover_type)
+  VALUES('cover','other','artist','singer','나의 커버','Rock','',1,'wav',128,0,'published','cover','one',1,'cover-art','image/webp');`);
+ const payload={track_id:'cover',request_id:crypto.randomUUID()};
+ const sent=await f.call('/api/dm/singer','POST',payload);
+ assert.equal(sent.status,201,JSON.stringify(sent.body));
+ const card={id:'cover',kind:'cover',title:'나의 커버',artist:'커버 가창자 · 커버',artwork_id:'cover',cover_version:'cover-art'};
+ assert.deepEqual(sent.body.message.shared_track,card);
+ assert.deepEqual((await f.call('/api/dm/singer')).body.messages[0].shared_track,card);
+ assert.deepEqual((await f.call('/api/dm/producer','GET',undefined,'other')).body.messages[0].shared_track,card);
+ f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");
+ assert.equal((await f.call('/api/dm/producer','GET',undefined,'other')).body.messages[0].shared_track,null);
+ assert.equal((await f.call('/api/dm/singer','POST',{...payload,request_id:crypto.randomUUID()})).status,404);
+});

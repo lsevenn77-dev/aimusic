@@ -92,7 +92,7 @@ test('guest listening, unavailable karaoke, self-gifts and duet ownership remain
  assert.match(other.songDetailActionsHTML(invitation),/href="#sing\/original\?duet=invitation"/);
  assert.doesNotMatch(own.songDetailActionsHTML(invitation),/듀엣 참여/);
  const mine=own.songDetailHeaderHTML(invitation);
- assert.match(mine,/data-play="invitation".*data-like="invitation".*id="lyrics-expand".*data-delete-track="invitation".*data-track-kind="cover"/);
+ assert.match(mine,/data-play="invitation".*data-like="invitation".*id="lyrics-expand".*data-song-share="invitation".*data-delete-track="invitation".*data-track-kind="cover"/);
  assert.match(mine,/data-cover-photo="invitation"/);
  assert.doesNotMatch(mine,/song-track-meta|내 녹음 파일 저장|내 커버 삭제|data-add=|data-gift=/);
  for(const viewer of [own,other,guest]){
@@ -100,6 +100,9 @@ test('guest listening, unavailable karaoke, self-gifts and duet ownership remain
   assert.match(viewer.songDetailActionsHTML(invitation),/data-add="invitation"/);
  }
  for(const viewer of [other,guest])assert.doesNotMatch(viewer.songDetailHeaderHTML(invitation),/data-cover-photo|data-delete-track/);
+ const native=header('other',false,{inApp:true});
+ assert.doesNotMatch(native.songDetailActionsHTML(invitation),/data-song-share/);
+ assert.match(native.songDetailActionsHTML(track),/data-track-menu="song"/);
  assert.doesNotMatch(own.songDetailHeaderHTML(track),/data-cover-photo/);
  const unavailable=other.songDetailHeaderHTML({...track,lyrics_mode:'none'}).match(/<button\b[^>]*\bid="lyrics-expand"[^>]*>/)?.[0];
  assert.ok(unavailable);assert.match(unavailable,/\bdisabled\b/);

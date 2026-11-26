@@ -79,7 +79,7 @@ function bindUnifiedSearch(view){
 function normalizeSearchInputs(root=document){
  const selector='input[type="search"],input[aria-label*="검색"],input[placeholder*="검색"],#global-search input,#search-form input[name="q"],#library-search,#playlist-filter';
  for(const input of root.querySelectorAll(selector)){
-  if(input.type==='hidden'||input.closest('.brand-search,.shop-item-search,.room-song-search')||input.tagName!=='INPUT')continue;
+  if(input.type==='hidden'||input.closest('.brand-search,.shop-item-search,.room-song-search,.song-share-search')||input.tagName!=='INPUT')continue;
   const parent=input.parentElement,single=parent.matches('#global-search,.discover-search,.aifect-search,.crew-discovery-search')&&parent.querySelectorAll('input:not([type="hidden"]),select').length===1;
   const shell=single?parent:document.createElement('span');
   if(!single){input.before(shell);shell.append(input);}

@@ -44,7 +44,7 @@ async function resolveDmSongCards(env,messages){
  const ids=[...new Set(messages.map(sharedSongId).filter(Boolean))];
  if(!ids.length)return messages;
  const tracks=await trackList(env,`${VISIBLE()} AND t.id IN (SELECT value FROM json_each(?))`,[JSON.stringify(ids)],'t.id',ids.length);
- const cards=new Map(tracks.map(({id,title,artist,artwork_id,cover_version})=>[id,{id,title,artist,artwork_id,cover_version}]));
+ const cards=new Map(tracks.map(({id,kind,title,artist,artwork_id,cover_version})=>[id,{id,kind,title,artist,artwork_id,cover_version}]));
  return messages.map(message=>{
   const trackId=sharedSongId(message);
   return trackId?{...message,shared_track:cards.get(trackId)||null}:message;
