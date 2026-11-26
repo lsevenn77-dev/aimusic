@@ -1,0 +1,78 @@
+{
+  "revision": "detail-20261109",
+  "scope": "Desktop PLAY music-stand perforation continuity and TALKING sofa/plant depth; approved mobile sources and all portraits unchanged.",
+  "assets": [
+    {
+      "id": "play",
+      "source_url": "/assets/home-banners/mobile-20261109/play-1536.webp",
+      "source_sha256": "b37c0c37e734a31d79407243871f5ba490ceb1546334e32f5c285330176fa162",
+      "edit_method": "image_gen screenshot edit and UI cleanup; extract corrected object pixels into desktop-only scenery and transparent overlay. Every portrait pixel is outside the correction mask.",
+      "clean_image_sha256": "b3cfee11163cbf854efce270eff893267b821a2ee6606c789a9c706e6bd28593",
+      "crop": {
+        "left": 28,
+        "top": 152,
+        "width": 2112,
+        "height": 410
+      },
+      "protected_from_x": 600,
+      "protected_person_pixels_changed": 0,
+      "desktop_overlay_pixels": 120451,
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "play-left-2365.webp",
+          "url": "/assets/home-banners/detail-20261109/play-left-2365.webp",
+          "width": 2365,
+          "height": 768,
+          "bytes": 234510,
+          "sha256": "f4e612398f2bedc013f5e7086aef77e1f0371d1b8a827ae96652fc08070be6b8"
+        },
+        {
+          "side": "overlay",
+          "filename": "play-background-overlay-1536.webp",
+          "url": "/assets/home-banners/detail-20261109/play-background-overlay-1536.webp",
+          "width": 1536,
+          "height": 768,
+          "bytes": 67888,
+          "sha256": "a524404a9fbe26482529b43e9d6aee2135d054c9e47b2e1a30f307b3f315ef0f"
+        }
+      ]
+    },
+    {
+      "id": "talking",
+      "source_url": "/assets/home-banners/mobile-20261109/talking-1536.webp",
+      "source_sha256": "6e3e3884274287ec347226d2fd8735b42b875aff997cdea496cd4757f3db0504",
+      "edit_method": "image_gen screenshot edit and UI cleanup; extract corrected object pixels into desktop-only scenery and transparent overlay. Every portrait pixel is outside the correction mask.",
+      "clean_image_sha256": "70d83e1660be45ce2a1f6720748ae878c25ad54bc6cc21632b1ed8e08c3ebdfa",
+      "crop": {
+        "left": 36,
+        "top": 152,
+        "width": 2092,
+        "height": 408
+      },
+      "protected_from_x": 460,
+      "protected_person_pixels_changed": 0,
+      "desktop_overlay_pixels": 284918,
+      "outputs": [
+        {
+          "side": "left",
+          "filename": "talking-left-2365.webp",
+          "url": "/assets/home-banners/detail-20261109/talking-left-2365.webp",
+          "width": 2365,
+          "height": 768,
+          "bytes": 644558,
+          "sha256": "64f156985eac31cde3c2f6972f7eef565ef24fd3251204b2383e658d8db9a268"
+        },
+        {
+          "side": "overlay",
+          "filename": "talking-background-overlay-1536.webp",
+          "url": "/assets/home-banners/detail-20261109/talking-background-overlay-1536.webp",
+          "width": 1536,
+          "height": 768,
+          "bytes": 127778,
+          "sha256": "9192fe81826d7db19e209d79ab3d2e187a03b736b19399be58177e633f9a069b"
+        }
+      ]
+    }
+  ]
+}

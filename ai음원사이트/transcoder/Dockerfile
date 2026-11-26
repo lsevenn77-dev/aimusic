@@ -4,6 +4,7 @@ WORKDIR /app
 COPY worker.py /app/worker.py
 COPY archive.py /app/archive.py
 COPY premium.py /app/premium.py
+COPY cover_compression.py /app/cover_compression.py
 USER 10001:10001
 ENV PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
 CMD ["python","worker.py"]

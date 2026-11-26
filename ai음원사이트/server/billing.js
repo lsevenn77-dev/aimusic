@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,run,id,now,fail,json,rate} from './db.js';
 import {PREMIUM,POLICY_VERSION,SUBSCRIPTION_REVENUE_POLICY} from '../shared/site-info.js';
 import {checkoutEnabled,niceConfigured,niceRequest,cardCredentials,issueBillingKey,expireBillingKey,sealBillingKey,openBillingKey,findPayment,chargeBillingKey,verifyNiceSignature,digest,equalSecret,nextBillingMonth} from './nicepay.js';
@@ -14,7 +15,7 @@ async function lock(env,sid){
 async function unlock(env,s){await run(env,'UPDATE billing_subscriptions SET lease_token=NULL,lease_until=0 WHERE id=? AND lease_token=?',s.id,s.lease_token);}
 async function renewLock(env,s){
  const held=await query(env,'UPDATE billing_subscriptions SET lease_until=? WHERE id=? AND lease_token=? AND lease_until>? RETURNING id',now()+180,s.id,s.lease_token,now()).first();
- if(!held)fail(409,'결제를 확인하고 있습니다. 잠시 후 구독 내역을 확인해주세요.');
+ if(!held)fail(409,'결제를 확인하고 있습니다. 잠시 후 구독 내역을 확인해 주세요.');
 }
 async function releaseCard(env,s){
  const current=await one(env,'SELECT * FROM billing_subscriptions WHERE id=?',s.id);
@@ -27,21 +28,24 @@ async function releaseCard(env,s){
  }
 }
 async function readBody(req){
- const text=await req.text();if(text.length>16384)fail(413,'요청이 너무 큽니다.');
- try{return JSON.parse(text);}catch{fail(400,'요청 내용을 확인해주세요.');}
+ const text=await req.text();if(text.length>16384)fail(413,AifectMessages.requestTooLarge);
+ try{return JSON.parse(text);}catch{fail(400,'요청 내용을 확인해 주세요.');}
 }
 async function workerReady(env){return Number((await one(env,"SELECT last_seen FROM billing_worker WHERE id='runner'"))?.last_seen)>now()-180;}
+export async function webCheckoutAvailable(env,user){
+ return !reviewAccount(env,user)&&checkoutEnabled(env)&&await workerReady(env);
+}
 export async function billingStatus(env,user){
  const s=user?await subscription(env,user):null;
  const starts=now(),day=new Date((starts+9*3600)*1000).getUTCDate();
  const payments=s?await rows(env,'SELECT id,amount,status,period_start,period_end,created,refunded FROM billing_payments WHERE subscription_id=? ORDER BY cycle DESC LIMIT 24',s.id):[];
- return {review_only:reviewAvailable(env,user),review_expires:reviewAvailable(env,user)?Number(env.BILLING_REVIEW_UNTIL):null,checkout_available:!reviewAccount(env,user)&&checkoutEnabled(env)&&await workerReady(env),price:PREMIUM.price,revenue_policy:SUBSCRIPTION_REVENUE_POLICY,currency:'KRW',interval:'month',starts_at:starts,first_renewal_at:nextBillingMonth(starts,day),billing_day:day,subscription:s?{price:s.price,state:s.state,renewing:s.state==='active'&&!s.cancel_requested,period_end:s.period_end||null,card_name:s.card_name,payment_pending:payments.some(p=>['processing','review'].includes(p.status))}:null,payments};
+ return {review_only:reviewAvailable(env,user),review_expires:reviewAvailable(env,user)?Number(env.BILLING_REVIEW_UNTIL):null,checkout_available:await webCheckoutAvailable(env,user),price:PREMIUM.price,revenue_policy:SUBSCRIPTION_REVENUE_POLICY,currency:'KRW',interval:'month',starts_at:starts,first_renewal_at:nextBillingMonth(starts,day),billing_day:day,subscription:s?{price:s.price,state:s.state,renewing:s.state==='active'&&!s.cancel_requested,period_end:s.period_end||null,card_name:s.card_name,payment_pending:payments.some(p=>['processing','review'].includes(p.status))}:null,payments};
 }
 export async function billingTerms(env){
  const terms=[];
  for(const type of TERMS){
   const data=await niceRequest(env,'/v1/terms?termsType='+type);
-  if(data.resultCode!=='0000'||typeof data.content!=='string'||data.content.length>60000)fail(503,'결제 약관을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+  if(data.resultCode!=='0000'||typeof data.content!=='string'||data.content.length>60000)fail(503,'결제 약관을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
   terms.push({type,title:String(data.termsTitle),content:data.content});
  }
  const body=JSON.stringify({policy:POLICY_VERSION,price:PREMIUM.price,terms}),version=await digest(body);
@@ -57,8 +61,8 @@ export async function reconcilePayment(env,s,p){
  await renewLock(env,s);
  await run(env,'UPDATE billing_payments SET last_checked=? WHERE id=?',checked,p.id);
  if(data.resultCode!=='0000')return false;
- if(data.orderId!==p.id||data.amount!==p.amount||data.currency!=='KRW'||String(data.payMethod).toLowerCase()!=='card'||typeof data.tid!=='string'||!data.tid||data.mallReserved!==s.id||(p.tid&&p.tid!==data.tid))fail(502,'결제 내역 확인이 필요합니다. 고객센터에 문의해주세요.');
- if(data.signature&&!await verifyNiceSignature(env,data))fail(502,'결제 내역 확인이 필요합니다. 고객센터에 문의해주세요.');
+ if(data.orderId!==p.id||data.amount!==p.amount||data.currency!=='KRW'||String(data.payMethod).toLowerCase()!=='card'||typeof data.tid!=='string'||!data.tid||data.mallReserved!==s.id||(p.tid&&p.tid!==data.tid))fail(502,'결제 내역 확인이 필요합니다. 고객센터에 문의해 주세요.');
+ if(data.signature&&!await verifyNiceSignature(env,data))fail(502,'결제 내역 확인이 필요합니다. 고객센터에 문의해 주세요.');
  if(!['paid','failed','expired','cancelled','partialCancelled'].includes(data.status))return false;
  if(!Number.isSafeInteger(data.balanceAmt)||data.balanceAmt<0||data.balanceAmt>p.amount)fail(502,'결제 금액 확인이 필요합니다.');
  // A later refund cannot be undone by a delayed older response.
@@ -115,17 +119,17 @@ async function startSubscription(req,env,user){
  if(reviewAccount(env,user))fail(403,'심사 계정은 카드 입력 화면 확인 전용입니다. 실제 카드 등록과 결제는 실행되지 않습니다.');
  if(!checkoutEnabled(env)||!await workerReady(env))fail(503,'카드 정기결제를 준비 중입니다.');
  const body=await readBody(req),card=cardCredentials(body.card);
- if(body.consent!==true||typeof body.terms_version!=='string')fail(400,`이용약관과 매월 ${PREMIUM.price.toLocaleString('ko-KR')}원 정기결제에 동의해주세요.`);
+ if(body.consent!==true||typeof body.terms_version!=='string')fail(400,`이용약관과 매월 ${PREMIUM.price.toLocaleString('ko-KR')}원 정기결제에 동의해 주세요.`);
  const terms=await one(env,'SELECT body FROM billing_terms WHERE version=?',body.terms_version);
- if(!terms||JSON.parse(terms.body).policy!==POLICY_VERSION||JSON.parse(terms.body).price!==PREMIUM.price)fail(409,'약관과 이용권 정보를 새로 확인해주세요.');
+ if(!terms||JSON.parse(terms.body).policy!==POLICY_VERSION||JSON.parse(terms.body).price!==PREMIUM.price)fail(409,'약관과 이용권 정보를 새로 확인해 주세요.');
  await rate(env,'billing-start:'+user.id,6,3600);
  const sid='as'+id().replaceAll('-',''),time=now(),day=new Date((time+9*3600)*1000).getUTCDate();
  await run(env,`INSERT INTO billing_subscriptions(id,user_id,state,anchor_day,consent_version,consent_at,price,baseline_until,created,updated) VALUES(?,?,'idle',?,?,?,?,?,?,?) ON CONFLICT(user_id) DO NOTHING`,sid,user.id,day,body.terms_version,time,PREMIUM.price,Number(user.base_premium_until??user.premium_until)||0,time,time);
  const existing=await subscription(env,user),s=await lock(env,existing.id);
- if(!s)fail(409,'구독 요청을 처리 중입니다. 잠시 후 구독 내역을 확인해주세요.');
+ if(!s)fail(409,'구독 요청을 처리 중입니다. 잠시 후 구독 내역을 확인해 주세요.');
  try{
-  if(s.period_end>time||['active','pending','registering','review'].includes(s.state)||await one(env,`SELECT id FROM billing_payments WHERE subscription_id=? AND status IN ${pendingSQL}`,s.id))fail(409,'이용 중이거나 확인 중인 구독이 있습니다. 구독 내역을 확인해주세요.');
-  if(s.bid_cipher){await releaseCard(env,s);if((await one(env,'SELECT bid_cipher FROM billing_subscriptions WHERE id=?',s.id)).bid_cipher)fail(503,'이전 결제 수단을 정리하고 있습니다. 잠시 후 다시 시도해주세요.');}
+  if(s.period_end>time||['active','pending','registering','review'].includes(s.state)||await one(env,`SELECT id FROM billing_payments WHERE subscription_id=? AND status IN ${pendingSQL}`,s.id))fail(409,'이용 중이거나 확인 중인 구독이 있습니다. 구독 내역을 확인해 주세요.');
+  if(s.bid_cipher){await releaseCard(env,s);if((await one(env,'SELECT bid_cipher FROM billing_subscriptions WHERE id=?',s.id)).bid_cipher)fail(503,'이전 결제 수단을 정리하고 있습니다. 잠시 후 다시 시도해 주세요.');}
   await run(env,"UPDATE billing_subscriptions SET state='registering',cancel_requested=0,anchor_day=?,consent_version=?,consent_at=?,price=?,updated=? WHERE id=?",day,body.terms_version,time,PREMIUM.price,time,s.id);
   let issued;
   try{await renewLock(env,s);issued=await issueBillingKey(env,card,'ar'+id().replaceAll('-',''));await renewLock(env,s);}
@@ -139,7 +143,7 @@ async function startSubscription(req,env,user){
 }
 export async function cancelSubscription(env,user){
  const existing=await subscription(env,user);if(!existing)return json(await billingStatus(env,user));
- const s=await lock(env,existing.id);if(!s)fail(409,'결제를 확인하고 있습니다. 잠시 후 다시 해지해주세요.');
+ const s=await lock(env,existing.id);if(!s)fail(409,'결제를 확인하고 있습니다. 잠시 후 다시 해지해 주세요.');
  try{
   await env.DB.batch([query(env,"UPDATE billing_subscriptions SET cancel_requested=1,state='cancelled',updated=? WHERE id=?",now(),s.id),query(env,"UPDATE billing_payments SET status='failed',updated=? WHERE subscription_id=? AND status='created'",now(),s.id)]);
   // Cancelling renewal takes effect even when key cleanup must be retried.
@@ -157,7 +161,7 @@ async function syncSubscription(env,user){
 export async function billingRoute(req,env,path,user){
  if(!path.startsWith('/api/billing/'))return null;
  if(path==='/api/billing/status'&&req.method==='GET')return json(await billingStatus(env,user));
- if(!user)fail(401,'로그인 후 이용해주세요.');
+ if(!user)fail(401,AifectMessages.signIn);
  if(path==='/api/billing/terms'&&req.method==='GET'){await rate(env,'billing-terms:'+user.id,12,300);return json(await billingTerms(env));}
  if(path==='/api/billing/subscribe'&&req.method==='POST')return startSubscription(req,env,user);
  if(path==='/api/billing/cancel'&&req.method==='POST')return cancelSubscription(env,user);

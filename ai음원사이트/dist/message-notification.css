@@ -1,0 +1,35 @@
+/* Final message/notification presentation. Shared values stay exact under region scaling. */
+:root{--activity-accent:#C7A8F4;--activity-ink:#142033;--activity-dot-size:6px;--activity-count-size:18px;--activity-count-font:10px;--activity-time-font:11px;--activity-status-gap:7px;--activity-time-color:#8898AD}
+:is(.activity-badge,.nav-message-badge,.activity-dot){display:inline-block;flex:none;width:var(--activity-dot-size);min-width:var(--activity-dot-size);height:var(--activity-dot-size);padding:0;border:0;border-radius:50%;background:var(--activity-accent);background-image:none;box-shadow:none;transform:none;font-size:0;line-height:0}
+:is(.activity-badge,.nav-message-badge)[hidden]{display:none}
+#sidebar :is(a[href="#dm"],a[href="#notifications"]){position:relative;padding-right:calc(14px + 0px)}
+#sidebar :is(.activity-badge,.nav-message-badge){position:static;inset:auto;margin:0 0 0 auto;align-self:center}
+.topbar :is(.header-messages,.header-activity){position:relative;display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;min-height:44px;padding:0}
+.topbar :is(.activity-badge,.nav-message-badge){position:absolute;top:6px;right:5px;left:auto;margin:0}
+.topbar .header-search{display:none}
+.social-mobile-navigation :is(.activity-badge,.nav-message-badge){position:absolute;top:5px;left:calc(50% + 12px);right:auto;margin:0}
+.activity-page .activity-row{display:flex;align-items:center;gap:calc(12px + 0px);padding:calc(18px + 0px) 0;margin:0;border:0;border-bottom:1px solid #ffffff0b;border-radius:0;background:none;box-shadow:none}
+.activity-page .activity-row.is-unread{background:rgb(199 168 244 / 3%);border-color:#ffffff0b}
+.activity-page .activity-row:hover{background:#ffffff04}
+.activity-page .activity-meta{line-height:20px}
+.activity-page .activity-copy{min-width:0}
+.activity-page .activity-copy>p{margin-top:calc(5px + 0px)}
+@media(max-width:800px){
+ .message-workspace{grid-template-columns:minmax(0,1fr)}
+ .topbar{--header-inset:clamp(8px,3vw,20px);padding-inline:var(--header-inset);gap:4px}
+ .topbar .mobile-brand{display:block;width:86px;min-width:0;flex:0 1 86px}
+ .topbar .top-actions{display:flex;gap:0;flex:none;margin-inline-start:auto}
+ .topbar :is(.header-login,.design-badge,.upload-button>span){display:none}
+ .topbar .top-actions :is(.header-search,.header-messages,.header-activity,.upload-button){display:inline-flex;align-items:center;justify-content:center;flex:none;width:44px;height:44px;padding:0;border:0;background:transparent;color:var(--ds-text)}
+ .topbar .top-actions :is(.header-search,.header-messages,.header-activity,.upload-button) svg{display:block;width:22px;height:22px}
+ .topbar #global-search{display:none}
+ .topbar:has(.header-search[aria-expanded=true]) #global-search{display:flex;position:absolute;inset:100% var(--header-inset) auto;width:auto;max-width:none;margin:0}
+ .message-thread-pane .dm-thread-header{padding-inline:8px!important}
+ .message-thread-pane .dm-thread-person{gap:calc(6px + 0px)}
+ .message-thread-pane .dm-thread-person>.artist-portrait{width:36px;height:36px;flex-basis:36px}
+ .message-thread-pane .dm-thread-actions>.icon-button{min-width:36px}
+}
+@media(max-width:600px){
+ .activity-page .activity-row{gap:calc(9px + 0px)}
+ .activity-page .activity-avatar{width:36px;height:36px}
+}

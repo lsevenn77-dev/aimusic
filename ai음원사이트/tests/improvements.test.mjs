@@ -8,7 +8,7 @@ import {crewLevel} from '../shared/crews.js';
 async function person(f,uid){
  f.sql.prepare("INSERT INTO users(id,email,name,provider,created) VALUES(?,?,?,'google',0)").run(uid,uid+'@example.test','Private legal name '+uid);
  f.sql.prepare('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)').run(await hash(uid),uid,Date.now()/1000+3600);
- const r=await f.call('/api/me/profile','PUT',{name:'Nickname '+uid},uid);assert.equal(r.status,200);return r.body.profile.id;
+ const r=await f.call('/api/me/profile','PUT',{name:'Nick_'+uid},uid);assert.equal(r.status,200);return r.body.profile.id;
 }
 async function crew(f){const r=await f.call('/api/crews','POST',{name:'Together',description:'Music together',interests:'Rock'});assert.equal(r.status,201,JSON.stringify(r.body));return r.body.crew.id;}
 const rid=()=>crypto.randomUUID();
@@ -19,20 +19,20 @@ test('legacy auto-copied OAuth names stay stored but are absent from public prof
  for(const path of ['/api/me','/api/me/profile','/api/catalog?section=producers','/api/producers/legacy','/api/tracks/legacy-cover','/api/community?kind=cover','/api/cover-rankings?kind=singers&period=all'])assert.ok(!JSON.stringify((await f.call(path,'GET',null,'other')).body).includes('Private legal name'),path);
  assert.equal((await f.call('/api/search?q=Private%20legal%20name')).body.producers.length,0);
  assert.equal(f.sql.prepare("SELECT name FROM producers WHERE id='legacy'").get().name,'Private legal name');
- await f.call('/api/me/profile','PUT',{name:'Private legal name'},'other');
- assert.equal((await f.call('/api/producers/legacy')).body.profile.name,'Private legal name','an explicit personal nickname choice is respected');
+ await f.call('/api/me/profile','PUT',{name:'PrivName'},'other');
+ assert.equal((await f.call('/api/producers/legacy')).body.profile.name,'PrivName','an explicit personal nickname choice is respected');
 });
 
 test('public identity follows chosen nickname without changing private OAuth identity',async t=>{
  const f=await fixture(t);f.sql.exec("UPDATE users SET provider='google',name='Private legal name' WHERE id='other'");
  const anon=(await f.call('/api/me','GET',null,'other')).body.user;assert.equal(anon.name,'리스너 other');
- const profile=(await f.call('/api/me/profile','PUT',{name:'Moon singer',bio:'Hello'},'other')).body.profile;
- assert.equal((await f.call('/api/me','GET',null,'other')).body.user.name,'Moon singer');
+ const profile=(await f.call('/api/me/profile','PUT',{name:'MoonSing',bio:'Hello'},'other')).body.profile;
+ assert.equal((await f.call('/api/me','GET',null,'other')).body.user.name,'MoonSing');
  assert.equal(f.sql.prepare("SELECT name FROM users WHERE id='other'").get().name,'Private legal name');
  await f.call('/api/tracks/one/comments','POST',{body:'Listen together'},'other');
- assert.equal((await f.call('/api/tracks/one/comments')).body.comments[0].name,'Moon singer');
- const list=(await f.call('/api/playlists','POST',{name:'Night songs',is_public:true},'other')).body;assert.equal((await f.call('/api/playlists/'+list.id+'/tracks/one','PUT',{},'other')).status,200);
- assert.equal((await f.call('/api/playlists?scope=public')).body.playlists.find(p=>p.user_id==='other').owner_name,'Moon singer');
+ assert.equal((await f.call('/api/tracks/one/comments')).body.comments[0].name,'MoonSing');
+ const list=(await f.call('/api/playlists','POST',{name:'Night songs',is_public:true,track_ids:['one']},'other')).body;assert.equal((await f.call('/api/playlists/'+list.id+'/tracks/one','PUT',{},'other')).status,200);
+ assert.equal((await f.call('/api/playlists?scope=public')).body.playlists.find(p=>p.user_id==='other').owner_name,'MoonSing');
  f.sql.prepare("INSERT INTO follows VALUES('other','producer','producer',0)").run();
  assert.equal((await f.call('/api/me/profile')).body.followers[0].id,profile.id);
  f.sql.exec("DELETE FROM producers WHERE user_id='other'");
@@ -64,20 +64,20 @@ test('crew membership enforces capacity, single membership, recruitment and chat
  await f.call(`/api/crews/${cid}`,'PATCH',{recruiting:false});await f.call(`/api/crews/${cid}/leave`,'POST',{},'m0');
  assert.equal((await f.call(`/api/crews/${cid}/join`,'POST',{},'m9')).status,409);
  assert.equal((await f.call(`/api/crews/${cid}/messages`,'POST',{body:'not a member',request_id:rid()},'m0')).status,403);
- await f.call(`/api/crews/${cid}/leave`,'POST');
- const d=(await f.call(`/api/crews/${cid}`,'GET',null,'m1')).body;assert.equal(d.membership.role,'owner');assert.equal(d.crew.members,8);
+ assert.equal((await f.call(`/api/crews/${cid}/leave`,'POST')).status,409);
+ const d=(await f.call(`/api/crews/${cid}`,'GET',null,'m1')).body;assert.equal(d.membership.role,'member');assert.equal(d.crew.members,9);
 });
 
-test('crew XP comes from new public tracks and one daily chat, with exact level caps',async t=>{
- assert.deepEqual([0,100,500,1500,3000].map(x=>crewLevel(x).capacity),[10,20,50,100,150]);
+test('crew chat and unverifiable uploads cannot grant mission XP',async t=>{
+ assert.deepEqual([0,300,800,1600,18500].map(x=>crewLevel(x).capacity),[10,10,20,20,50]);
  const f=await fixture(t),cid=await crew(f),path=`/api/crews/${cid}/messages`,request_id=rid();
  await f.call(path,'POST',{body:'Hello',request_id});await f.call(path,'POST',{body:'Hello',request_id});await f.call(path,'POST',{body:'Again',request_id:rid()});
  assert.equal((await f.call(path)).body.messages.filter(m=>m.kind!=='system').length,2);
  assert.equal((await f.call(path,'POST',{body:'Changed',request_id})).status,409);
- let d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,10);
+ let d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,0);
  f.sql.exec("UPDATE tracks SET created=unixepoch() WHERE id IN ('one','two'); UPDATE tracks SET created=unixepoch() WHERE id='hidden'");
- d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,12);assert.equal(d.crew.capacity,10);
- assert.equal((await f.call(`/api/crews/${cid}`)).body.crew.xp,12);
+ d=(await f.call(`/api/crews/${cid}`)).body;assert.equal(d.crew.xp,0);assert.equal(d.crew.capacity,10);
+ assert.equal((await f.call(`/api/crews/${cid}`)).body.crew.xp,0);
  assert.ok((await f.call('/api/crews')).body.tracks.some(x=>x.id==='one'));assert.ok(!d.tracks.some(x=>x.id==='hidden'));
 });
 
@@ -104,14 +104,16 @@ test('deleted comments disappear, surviving replies become roots and deleted par
  assert.equal((await f.call('/api/tracks/one/comments','POST',{body:'Late reply',parent_id:parent},'other')).status,400);
 });
 
-test('cover attachment endpoint requires active Premium while ordinary streaming still works',async t=>{
+test('cover attachment endpoint allows only the recording owner regardless of Premium; streaming still works',async t=>{
  const bytes=new Uint8Array(256),BUCKET={async get(){return {body:bytes,size:bytes.length}},async head(){return {size:bytes.length}}};const f=await fixture(t,{BUCKET});
  f.sql.exec("UPDATE tracks SET karaoke_at=1 WHERE id='one'; INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id) VALUES('cover','owner','artist','producer','Cover','Rock','',1,'wav',256,0,'published','cover','one')");
  const raw=(path,user='owner',method='GET')=>worker.fetch(new Request('https://aifect.test'+path,{method,headers:user?{Cookie:'aifect_session='+user}:{}}),{DB:f.DB,BUCKET},{waitUntil(){}});
- assert.equal((await raw('/api/covers/cover/download',null)).status,401);assert.equal((await raw('/api/covers/cover/download')).status,403);assert.equal((await raw('/media/cover/stream')).status,200);
+ assert.equal((await raw('/api/covers/cover/download',null)).status,401);assert.equal((await raw('/api/covers/cover/download')).status,200);assert.equal((await raw('/media/cover/stream','other')).status,200);
  f.sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");let r=await raw('/api/covers/cover/download');assert.equal(r.status,200);assert.match(r.headers.get('content-disposition'),/^attachment/);
  assert.equal((await raw('/api/covers/cover/download','owner','HEAD')).status,200);
- f.sql.exec("UPDATE users SET premium_until=1 WHERE id='owner'");assert.equal((await raw('/api/covers/cover/download')).status,403);
+ f.sql.exec("UPDATE users SET premium_until=1 WHERE id='owner'; UPDATE users SET premium_until=unixepoch()+3600 WHERE id='other'");assert.equal((await raw('/api/covers/cover/download')).status,200);
+ for(const method of ['GET','HEAD'])assert.equal((await raw('/api/covers/cover/download','other',method)).status,403);
+ assert.equal((await raw('/api/covers/one/download')).status,403);
 });
 
 test('free playback gets three adjacent cues while whole synchronized lyrics remain Premium',async t=>{

@@ -1,8 +1,10 @@
-import test from 'node:test';
+import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import {createHash,randomBytes} from 'node:crypto';
-const origin=process.env.AIFECT_TEST_ORIGIN||'http://127.0.0.1:4174';
-if(!/^http:\/\/127\.0\.0\.1:\d+$/.test(origin))throw Error('Only isolated local test servers are allowed');
+import {httpFixture} from './http-fixture.mjs';
+let origin,dispose;
+before(async()=>{({origin}=await httpFixture({after:fn=>dispose=fn}));});
+after(()=>dispose?.());
 const call=async(path,method='GET',body,cookie='',headers={})=>{
  const r=await fetch(origin+path,{method,headers:{Origin:origin,Cookie:cookie,...headers,...(body?{'Content-Type':'application/json'}:{})},body:body?JSON.stringify(body):undefined,redirect:'manual'});
  const text=await r.text();let data;try{data=JSON.parse(text)}catch{data={html:text}}return {r,data};
@@ -13,7 +15,7 @@ test('mobile login: browser consent, verifier binding, single-use exchange and c
  const {ticket,url}=start.data;assert.equal(new URL(url).origin,origin);assert.ok(!url.includes(verifier));assert.ok(!url.includes(challenge));
  assert.equal((await call('/api/auth/mobile/exchange','POST',{ticket,verifier})).r.status,409);
  assert.equal((await call('/api/auth/mobile/exchange','POST',{ticket,verifier:randomBytes(48).toString('base64url')})).r.status,401);
- const user=await call('/api/auth/register','POST',{email:'native-'+Date.now()+'@example.test',password:'Native-only-test-password',name:'Native QA '+Date.now()});
+ const user=await call('/api/auth/register','POST',{email:'native-'+Date.now()+'@example.test',password:'Native-only-test-password',name:'NativeQA'});
  assert.equal(user.r.status,200);const cookie=user.r.headers.get('set-cookie').split(';')[0];
  const browser=await call(new URL(url).pathname+new URL(url).search,'GET',undefined,cookie);
  assert.equal(browser.r.status,200);assert.match(browser.data.html,/이 계정으로 계속하기/);assert.match(browser.r.headers.get('set-cookie'),/HttpOnly/);

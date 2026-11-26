@@ -1,0 +1,301 @@
+/* Recorder-owned popups only. Final CSS pixels, after the shared popup skins.
+   Keep moved settings nodes, hidden panels, duet role colors and audio handlers. */
+#dialog.compact-popup:is(.recording-settings-dialog,.record-settings-dialog,.duet-editor-dialog) {
+  --sing-popup-pad:24px;
+  --sing-popup-safe:0px;
+  --sing-popup-max-height:min(680px,calc(100dvh - 32px));
+  box-sizing:border-box;width:min(480px,calc(100vw - 32px));max-width:calc(100vw - 32px);
+  height:fit-content;max-height:var(--sing-popup-max-height);margin:auto;
+  padding:var(--sing-popup-pad) var(--sing-popup-pad) calc(var(--sing-popup-pad) + var(--sing-popup-safe))!important;
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-feature);
+  background:var(--ds-surface)!important;color:var(--ds-body);overflow:hidden;
+  box-shadow:var(--popup-shadow);
+
+  #dialog-content {
+    min-width:0;min-height:0;width:100%;overflow:hidden;
+
+    > :is(.recording-settings,.studio-settings,.duet-editor) {
+      display:flex;flex-direction:column;gap:16px;min-width:0;min-height:0;
+      max-height:calc(var(--sing-popup-max-height) - var(--sing-popup-pad) * 2 - var(--sing-popup-safe) - 2px);
+      padding:0;margin:0;color:var(--ds-body);
+    }
+    > :is(.recording-settings,.studio-settings,.duet-editor) > h2 {
+      flex:none;min-height:28px;margin:0;padding:0 44px 0 0;
+      color:var(--ds-text);font-size:var(--popup-title-size);font-weight:600;
+      line-height:1.4;letter-spacing:-.025em;word-break:keep-all;
+    }
+    :is(.recording-setting-tabs,.studio-tabs,.duet-methods) {
+      display:grid;flex:none;gap:4px;margin:0;padding:4px;
+      border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+      background:var(--ds-bg);
+    }
+    .recording-setting-tabs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    :is(.studio-tabs,.duet-methods) { grid-template-columns:repeat(2,minmax(0,1fr)); }
+    :is(.recording-setting-tabs,.studio-tabs,.duet-methods) button {
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      width:100%;min-width:0;min-height:44px;height:auto;padding:10px 8px;margin:0;
+      border:0;border-radius:var(--ds-radius-sm);background:transparent;color:var(--ds-body);
+      font-family:inherit;font-size:14px;font-weight:500;line-height:1.4;box-shadow:none;
+    }
+    :is(.recording-setting-tabs,.studio-tabs,.duet-methods) button[aria-selected=true] {
+      background:var(--ds-soft);color:var(--ds-selected);font-weight:600;
+    }
+    :is(.recording-setting-tabs,.studio-tabs,.duet-methods) button:enabled:not([aria-selected=true]):hover {
+      background:var(--ds-soft);color:var(--ds-text);
+    }
+    .studio-tabs svg { width:18px;height:18px;flex:none; }
+    :is(.recording-settings-body,.studio-settings-body,.duet-editor-lines) {
+      flex:1 1 auto;min-height:0;max-height:none;min-width:0;margin:0;padding:0 4px 2px 0;
+      overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;
+      scrollbar-color:var(--ds-border) transparent;
+    }
+    :is(.recording-settings,.studio-settings) > .primary-button,
+    .duet-editor-footer button {
+      display:flex;align-items:center;justify-content:center;gap:8px;flex:none;
+      width:100%;min-height:44px;height:auto;padding:11px 16px;margin:0;
+      border:1px solid transparent;border-radius:var(--ds-radius-input);
+      background:var(--ds-gradient);color:var(--ds-ink);
+      font-family:inherit;font-size:14px;font-weight:600;line-height:1.5;box-shadow:none;
+    }
+    .studio-setting-card {
+      padding:0;margin:0;min-width:0;background:transparent;border:0;border-radius:0;box-shadow:none;
+    }
+    :is(.studio-setting-card > h2,.studio-sound > h3,.studio-reverb > h3,.studio-noise > h3) {
+      margin:0 0 12px;padding:0;color:var(--ds-text);font-size:16px;font-weight:600;line-height:1.5;
+    }
+    .studio-setting-card > h2 svg { width:18px;height:18px;color:var(--ds-muted); }
+    :is(.studio-control-name,.studio-key,.studio-size,.sing-monitor,summary) {
+      color:var(--ds-body);font-size:14px;line-height:1.5;
+    }
+    .studio-control-name { min-width:0;white-space:normal;word-break:keep-all;font-weight:500; }
+    .studio-range output { color:var(--ds-muted);font-size:13px;font-variant-numeric:tabular-nums; }
+    :is(.field-help,.studio-side-note,.studio-ticks,.sing-monitor small) {
+      margin:8px 0 0;color:var(--ds-muted);font-size:13px;line-height:1.6;
+    }
+    .studio-range { margin:0 0 16px; }
+    .studio-range > span { margin-bottom:8px; }
+    .studio-range input[type=range] {
+      appearance:none;display:block;width:100%;min-width:0;height:44px;min-height:44px;
+      padding:0;border:0;border-radius:0;cursor:pointer;
+      background:var(--ds-gradient) left center/var(--position,0%) 4px no-repeat,
+        linear-gradient(var(--ds-border),var(--ds-border)) center/100% 4px no-repeat!important;
+    }
+    .studio-range input[type=range]::-webkit-slider-runnable-track { height:4px;border:0;background:transparent; }
+    .studio-range input[type=range]::-webkit-slider-thumb {
+      appearance:none;width:14px;height:14px;margin-top:-5px;border:0;border-radius:50%;background:var(--ds-text);box-shadow:none;
+    }
+    .studio-range input[type=range]::-moz-range-track,
+    .studio-range input[type=range]::-moz-range-progress { height:4px;border:0;background:transparent; }
+    .studio-range input[type=range]::-moz-range-thumb { width:14px;height:14px;border:0;border-radius:50%;background:var(--ds-text);box-shadow:none; }
+    .studio-range input[type=range]:disabled { opacity:.5;cursor:not-allowed; }
+    .studio-noise { margin-top:20px;padding-top:20px;border-color:var(--ds-line); }
+    :is(.studio-key-stepper,.sing-lyric-sizes) {
+      border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-bg);
+    }
+    .studio-key-stepper { grid-template-columns:44px minmax(0,1fr) 44px; }
+    :is(.studio-key,.studio-key-actions,.sing-lyric-sizes) button {
+      display:flex;align-items:center;justify-content:center;width:100%;min-width:0;
+      min-height:44px;height:auto;margin:0;padding:8px 4px;
+      border-radius:var(--ds-radius-sm);font-size:14px;line-height:1.5;
+    }
+    .studio-key-actions button { border-color:var(--ds-line);background:var(--ds-bg); }
+    .studio-key-actions button:enabled:hover { background:var(--ds-soft);color:var(--ds-text); }
+    :is(.studio-space-presets,.sing-presets) {
+      display:grid;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:8px!important;
+    }
+    .studio-preset-tile {
+      display:flex;flex-direction:row;align-items:center;justify-content:center;gap:8px;
+      width:100%;min-width:0;min-height:52px!important;height:auto;
+      padding:12px 8px!important;grid-column:auto!important;
+      border:1px solid var(--ds-line)!important;border-radius:var(--ds-radius-input)!important;
+      background:var(--ds-bg)!important;color:var(--ds-body)!important;
+      font-family:inherit;font-size:14px!important;font-weight:500;line-height:1.5;box-shadow:none!important;
+    }
+    .studio-preset-tile:not(:disabled):not([aria-pressed=true]):hover {
+      background:var(--ds-soft)!important;color:var(--ds-text)!important;
+    }
+    .studio-preset-tile[aria-pressed=true] {
+      border-color:color-mix(in srgb,var(--ds-selected) 40%,var(--ds-line))!important;
+      background:var(--ds-soft)!important;color:var(--ds-selected)!important;
+    }
+    .studio-preset-tile .studio-preset-icon {
+      display:grid;place-items:center;flex:none;width:20px;height:20px;padding:0;
+      border:0;border-radius:0;background:none!important;color:inherit;
+    }
+    .studio-preset-icon svg { width:20px;height:20px;color:inherit; }
+    .studio-space-presets {
+      grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:4px!important;
+    }
+    .studio-space-presets .studio-preset-tile {
+      flex-direction:column;gap:4px;min-height:66px!important;padding:6px 1px!important;
+      word-break:keep-all;font-size:clamp(11px,3.2vw,14px)!important;line-height:1.3;
+    }
+    .studio-extra-presets { display:flex;margin:8px 0 0; }
+    .studio-extra-presets .studio-preset-tile { width:100%;min-height:44px!important;margin:0; }
+    :is(.sing-effect-details,.studio-advanced) {
+      margin:16px 0 0;padding:0;border:0;border-top:1px solid var(--ds-line);
+      border-radius:0;background:transparent;
+    }
+    summary { min-height:44px;padding:12px 0;cursor:pointer; }
+    .sing-monitor { min-height:44px;margin:8px 0 16px; }
+    .microphone-check {
+      display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;
+      align-items:center;margin:16px 0 0;padding:16px 0 0;
+      min-height:0;border:0;border-top:1px solid var(--ds-line);border-radius:0;background:transparent;
+    }
+    .microphone-check-info { grid-column:1;grid-row:1;min-width:0; }
+    .microphone-check-info strong {
+      display:block;white-space:normal;overflow:visible;color:var(--ds-muted);
+      font-size:13px;font-weight:500;line-height:1.6;
+    }
+    .microphone-check.is-connected strong { color:var(--ds-progress); }
+    .microphone-check-input { grid-column:1/-1;grid-row:2;min-width:0; }
+    .microphone-check [data-mic-toggle] {
+      position:static;inset:auto;grid-column:2;grid-row:1;width:auto;min-width:0;min-height:44px;
+      height:auto;padding:10px 12px;margin:0;border:1px solid var(--ds-line);
+      border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-body);
+      font-family:inherit;font-size:14px;line-height:1.5;box-shadow:none;
+    }
+    .microphone-check [data-mic-toggle]:enabled:hover { background:var(--ds-soft);color:var(--ds-text); }
+    .microphone-check [data-mic-toggle][aria-pressed=true] {
+      border-color:var(--ds-selected);background:var(--ds-soft);color:var(--ds-selected);
+    }
+    .microphone-check-bars i { background:var(--ds-border); }
+    .microphone-check-bars i.is-active { background:var(--ds-progress); }
+    .duet-brushes { flex:none;gap:8px;margin:0; }
+    .duet-brushes button {
+      display:flex;align-items:center;justify-content:center;gap:8px;
+      width:100%;min-width:0;min-height:44px;height:auto;padding:10px 6px;
+      border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+      background:var(--ds-bg);color:var(--line-color);
+      font-family:inherit;font-size:14px;font-weight:500;line-height:1.5;box-shadow:none;
+    }
+    .duet-brushes button[aria-pressed=true] {
+      border-color:var(--line-color);background:color-mix(in srgb,var(--line-color) 12%,var(--ds-bg));
+    }
+    .duet-edit-line {
+      display:flex;align-items:center;justify-content:flex-start;gap:12px;
+      width:100%;min-width:0;min-height:48px;height:auto;margin:0 0 8px;padding:12px;
+      border-radius:var(--ds-radius-input);text-align:left;white-space:normal;box-shadow:none;
+    }
+    .duet-edit-line:last-child { margin-bottom:0; }
+    .duet-edit-line:enabled:hover { border-color:var(--line-color); }
+    .duet-edit-line:disabled { opacity:1;cursor:default; }
+    .duet-edit-lyric { font-size:var(--pc-font-body,14px);line-height:1.6; }
+    .duet-editor [data-duet-note] { flex:none;margin:0;color:var(--ds-muted);font-size:13px;line-height:1.6; }
+    .duet-editor-footer { display:flex;flex:none;gap:12px;padding:0;margin:0; }
+    .duet-editor-footer button { flex:1 1 0; }
+    .duet-editor-footer [data-duet-reset] { border-color:var(--ds-line);background:var(--ds-bg);color:var(--ds-body); }
+    .duet-editor-footer svg { width:18px;height:18px; }
+    :is(.recording-setting-tabs,.studio-tabs,.duet-methods) button:disabled,
+    :is(.studio-settings,.recording-settings) button:disabled,
+    .duet-editor-footer button:disabled {
+      border-color:var(--ds-line)!important;background:var(--ds-secondary)!important;
+      color:var(--ds-disabled)!important;opacity:.6;cursor:not-allowed;filter:none;
+    }
+    [hidden] { display:none!important; }
+  }
+  #dialog-close { top:calc(var(--sing-popup-pad) - 8px);right:var(--sing-popup-pad);color:var(--ds-body); }
+  #dialog-close:hover { color:var(--ds-text); }
+}
+
+#dialog.compact-popup.duet-editor-dialog {
+  --sing-popup-max-height:min(720px,calc(100dvh - 32px));
+  width:min(640px,calc(100vw - 32px))!important;
+}
+/* The shared recorder preset rule carries three IDs through :is(). Match that
+   only inside the moved space panel so busy controls retain disabled colors. */
+#dialog.compact-popup.recording-settings-dialog #dialog-content #record-panel-space .studio-preset-tile:disabled {
+  border-color:var(--ds-line)!important;background:var(--ds-secondary)!important;color:var(--ds-disabled)!important;
+}
+
+/* Confirmations stay centered and keep the existing explicit choices. */
+#sing-exit-dialog.compact-popup,
+#dialog.compact-popup.sing-draft-delete-popup {
+  box-sizing:border-box;width:min(520px,calc(100vw - 32px));max-width:calc(100vw - 32px);
+  height:fit-content;max-height:calc(100dvh - 32px);margin:auto;padding:24px;
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-feature);
+  background:var(--ds-surface);color:var(--ds-body);box-shadow:var(--popup-shadow);overflow:auto;
+}
+#sing-exit-dialog.compact-popup > .popup-prompt,
+#dialog.compact-popup.sing-draft-delete-popup #dialog-content .popup-prompt {
+  margin:0 0 12px;color:var(--ds-text);font-size:var(--popup-title-size);font-weight:600;line-height:1.45;word-break:keep-all;
+}
+#sing-exit-dialog.compact-popup #sing-exit-note,
+#dialog.compact-popup.sing-draft-delete-popup .sing-draft-delete-dialog > p:not(.popup-prompt,.form-error) {
+  margin:0;color:var(--ds-body);font-size:var(--pc-font-body,14px);line-height:1.7;word-break:keep-all;
+}
+#dialog.compact-popup.sing-draft-delete-popup #dialog-content .sing-draft-delete-dialog > .field-help {
+  margin:8px 0 0;color:var(--ds-muted);font-size:13px;line-height:1.6;
+}
+#sing-exit-dialog.compact-popup .sing-exit-actions,
+#dialog.compact-popup.sing-draft-delete-popup .inline-actions {
+  display:flex;flex-wrap:nowrap;gap:8px;margin:20px 0 0;padding:0;
+}
+#sing-exit-dialog.compact-popup .sing-exit-actions button,
+#dialog.compact-popup.sing-draft-delete-popup .inline-actions button {
+  display:flex;align-items:center;justify-content:center;flex:1 1 0;
+  width:auto;min-width:0;min-height:44px;height:auto;margin:0;padding:11px 12px;
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);color:var(--ds-body);font-family:inherit;font-size:14px;
+  font-weight:500;line-height:1.5;white-space:normal;word-break:keep-all;box-shadow:none;
+}
+#sing-exit-dialog.compact-popup .sing-exit-actions [data-choice=save] {
+  border-color:transparent;background:var(--ds-gradient);color:var(--ds-ink);font-weight:600;
+}
+#sing-exit-dialog.compact-popup .sing-exit-actions [data-choice=discard],
+#dialog.compact-popup.sing-draft-delete-popup .inline-actions .danger-button {
+  border-color:color-mix(in srgb,var(--ds-social) 35%,var(--ds-line));
+  background:var(--ds-bg);color:var(--ds-social);
+}
+#sing-exit-dialog.compact-popup .sing-exit-actions button:enabled:hover,
+#dialog.compact-popup.sing-draft-delete-popup .inline-actions button:enabled:hover { filter:brightness(1.12); }
+#sing-exit-dialog.compact-popup .sing-exit-actions button:disabled,
+#dialog.compact-popup.sing-draft-delete-popup .inline-actions button:disabled {
+  border-color:var(--ds-line);background:var(--ds-secondary);color:var(--ds-disabled);opacity:.6;cursor:not-allowed;filter:none;
+}
+
+/* The entry chooser is also used from the play hub, which scales its children. */
+#recording-mode-dialog {
+  width:min(360px,calc(100vw - 32px));max-height:calc(100dvh - 32px);
+  padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-feature);
+  background:var(--ds-surface);box-shadow:var(--popup-shadow);overflow:auto;
+}
+#recording-mode-dialog > h2 {
+  margin:0 0 20px;color:var(--ds-text);font-size:var(--popup-title-size);font-weight:600;line-height:1.4;text-align:left;
+}
+#recording-mode-dialog .recording-mode-choices { gap:12px; }
+#recording-mode-dialog .recording-mode-choices [data-sing-mode] {
+  min-height:48px;padding:12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);color:var(--ds-body);font-size:14px;font-weight:500;line-height:1.5;
+}
+#recording-mode-dialog .recording-mode-choices [data-sing-mode]:is(:hover,:active) {
+  border-color:var(--ds-selected);background:var(--ds-soft);color:var(--ds-selected);box-shadow:none;
+}
+
+@media(max-width:800px) {
+  #dialog.compact-popup:is(.recording-settings-dialog,.record-settings-dialog,.duet-editor-dialog) {
+    --sing-popup-pad:20px;
+    --sing-popup-safe:env(safe-area-inset-bottom,0px);
+    --sing-popup-max-height:calc(100dvh - 16px);
+    width:min(480px,100vw);max-width:100vw;margin:auto auto 0;
+    border-radius:var(--ds-radius-feature) var(--ds-radius-feature) 0 0;
+  }
+  #dialog.compact-popup.duet-editor-dialog { width:min(640px,100vw)!important; }
+  #sing-exit-dialog.compact-popup,#dialog.compact-popup.sing-draft-delete-popup { padding:20px; }
+}
+@media(max-width:540px) {
+  #sing-exit-dialog.compact-popup .sing-exit-actions { flex-direction:column; }
+  #sing-exit-dialog.compact-popup .sing-exit-actions button { width:100%;flex:none; }
+}
+@media(max-width:360px) {
+  #dialog.compact-popup:is(.recording-settings-dialog,.record-settings-dialog,.duet-editor-dialog) { --sing-popup-pad:16px; }
+  #dialog.compact-popup.duet-editor-dialog #dialog-content .duet-brushes { gap:6px; }
+  #dialog.compact-popup.duet-editor-dialog #dialog-content .duet-brushes button { flex-direction:column;gap:6px; }
+}
+@media(max-height:480px) {
+  #dialog.compact-popup:is(.recording-settings-dialog,.record-settings-dialog,.duet-editor-dialog) {
+    --sing-popup-pad:16px;--sing-popup-max-height:calc(100dvh - 16px);
+  }
+  #dialog.compact-popup:is(.recording-settings-dialog,.record-settings-dialog,.duet-editor-dialog) #dialog-content > :is(.recording-settings,.studio-settings,.duet-editor) { gap:12px; }
+}

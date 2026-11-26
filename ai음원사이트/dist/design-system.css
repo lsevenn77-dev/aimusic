@@ -1,0 +1,237 @@
+/* AIFECT reference palette · 2026-10-17. Shared visual tokens; no layout or lyric-state changes. */
+:root {
+  --ds-lavender:#b7b6ff; --ds-lilac:#d6baff; --ds-mint:#aeebdf; --ds-white:#fff;
+  --ds-bg:#0c121b; --ds-panel:#131b26; --ds-raised:#1f1f26;
+  --ds-secondary:#2a2a35; --ds-border:#3a3a48; --ds-dim:#6b7280;
+  --ds-text:#F8FAFC; --ds-body:#BEC1C9; --ds-muted:#9CA3AF; --ds-disabled:#6B7280; --ds-ink:#101722;
+  /* Text accents are separate from the existing gradient stops and product colors. */
+  --ds-accent-lavender:#D3BAFF; --ds-accent-mint:#AFE5E3; --ds-accent-pink:#F4A8CE;
+  --ds-selected:var(--ds-accent-lavender); --ds-progress:var(--ds-accent-mint); --ds-social:var(--ds-accent-pink);
+  --ds-space-3:12px;
+  --ds-success:#4ade80; --ds-warning:#facc15; --ds-error:#f87171; --ds-info:#60a5fa;
+  --ds-gradient:linear-gradient(105deg,var(--ds-lilac),var(--ds-lavender) 48%,var(--ds-mint));
+  --ds-surface:linear-gradient(130deg,#19222f,#111922 75%);
+  --ds-line:rgba(183,182,255,.16); --ds-soft:rgba(183,182,255,.10);
+  --ds-radius-sm:8px; --ds-radius-input:12px; --ds-radius-card:16px; --ds-radius-feature:20px;
+  --bg:var(--ds-bg); --panel:var(--ds-panel); --line:var(--ds-line); --muted:var(--ds-muted); --white:var(--ds-text);
+  --pink:var(--ds-lilac); --aqua:var(--ds-mint); --lime:var(--ds-lavender);
+  --brand-gradient:var(--ds-gradient); --ui-accent:var(--ds-lilac); --ui-accent-soft:var(--ds-soft);
+  --ui-border:var(--ds-line); --ui-radius:var(--ds-radius-card);
+  --music-bg:var(--ds-bg); --music-panel:var(--ds-panel); --music-raised:#202735;
+  --music-text:var(--ds-text); --music-muted:var(--ds-muted); --music-accent:var(--ds-lilac); --music-aqua:var(--ds-mint);
+  --surface-wash:var(--ds-panel); --surface-feature:#202735;
+  accent-color:var(--ds-lavender);
+}
+body,.page-wrap {background:var(--ds-bg);color:var(--ds-body)}
+:where(h1,h2,h3,h4,h5,h6) {color:var(--ds-text)}
+::selection {background:#b7b6ff55;color:var(--ds-text)}
+button svg,a svg,summary svg {stroke-width:1.6}
+/* Keep menu strokes consistent, including the player's legacy overflow override. */
+button svg.menu-icon,.player #player-more svg.menu-icon {stroke-width:1.8}
+.icon-button {color:var(--ds-body)}
+.icon-button:hover,.text-link:hover,.header-login:hover,.topbar :is(.header-messages,.header-activity):hover {color:var(--ds-selected)}
+.tiny-eyebrow,.eyebrow {color:var(--ds-body)}
+
+/* Navigation and outlined controls. */
+.sidebar {background:linear-gradient(180deg,#101722,#0d141d);border-color:var(--ds-line)}
+#sidebar .nav-link {color:var(--ds-body);border-radius:12px}
+#sidebar .nav-link svg {color:var(--ds-body)}
+#sidebar .nav-link:hover {background:var(--ds-soft);color:var(--ds-text)}
+#sidebar .nav-link.active,#sidebar .nav-link[aria-current=page] {
+  background:var(--ds-gradient);color:var(--ds-ink);box-shadow:inset 0 1px 0 #ffffff60;font-weight:700;
+}
+#sidebar .nav-link.active svg,#sidebar .nav-link[aria-current=page] svg {color:var(--ds-ink)}
+.topbar {background:#0e151ff5;border-color:var(--ds-line)}
+.search-box,.topbar .search-box {background:linear-gradient(110deg,#1b2230,#151d28);border-color:#3a3a48;border-radius:12px}
+.search-box button,#global-search .search-submit {background:#b7b6ff18;color:var(--ds-body);border-radius:8px}
+.upload-button {border-color:#5f6175;border-radius:999px;color:var(--ds-text)}
+.upload-button:hover {border-color:var(--ds-lilac);background:var(--ds-soft);color:var(--ds-selected)}
+.mobile-navigation {background:#101722f7;border-color:var(--ds-line)}
+.mobile-navigation a {color:var(--ds-muted)}
+.mobile-navigation a.active,.mobile-navigation a[aria-current=page] {color:var(--ds-selected);background:transparent}
+.mobile-navigation a.active svg,.mobile-navigation a[aria-current=page] svg {color:var(--ds-body)}
+.mobile-menu[aria-expanded=true] {color:var(--ds-body);background:transparent}
+
+/* Soft gradient on primary actions; secondary actions stay outlined. */
+.primary-button,.gift-dashboard-actions .primary-button,.release-actions>.primary-button,.music-primary-actions>.primary-button {
+  background:var(--ds-gradient);border:1px solid #d6baff55;color:var(--ds-ink);border-radius:12px;
+  box-shadow:inset 0 1px 0 #ffffff45;transition:filter .16s,border-color .16s;
+}
+.primary-button:hover,.gift-dashboard-actions .primary-button:hover {background:var(--ds-gradient);filter:brightness(1.07)}
+.primary-button:active {filter:brightness(.94)}
+/* Followed profile actions retain their label and remain available to unfollow.
+   Fade the existing gradient rather than the text, keeping the gray label legible. */
+:is(#main,dialog.profile-preview) button[data-follow][data-follow-presentation="profile"][aria-pressed="true"] {
+  background:linear-gradient(105deg,color-mix(in srgb,var(--ds-lilac) 16%,transparent),color-mix(in srgb,var(--ds-lavender) 16%,transparent) 48%,color-mix(in srgb,var(--ds-mint) 16%,transparent));
+  border-color:color-mix(in srgb,var(--ds-muted) 24%,transparent);color:var(--ds-muted);
+  filter:grayscale(1);box-shadow:none;
+}
+.release-actions {grid-template-columns:minmax(0,1fr) 44px}
+.release-actions>.music-save {grid-column:1/-1;justify-content:flex-start}
+.release-actions>.primary-button svg,.music-primary-actions>.primary-button svg {background:transparent;color:var(--ds-ink)}
+.small-button,.secondary-button,.outline-button {
+  background:linear-gradient(130deg,#20273580,#161c2680);border:1px solid #53566a;color:var(--ds-text);border-radius:12px;
+}
+.small-button:hover,.secondary-button:hover,.outline-button:hover {background:#b7b6ff12;border-color:var(--ds-lavender);color:var(--ds-text)}
+:is(button,input,select,textarea):disabled {cursor:not-allowed}
+.primary-button:disabled,.small-button:disabled,.secondary-button:disabled {background:#2a2d38;border-color:#3a3d4a;color:var(--ds-disabled);filter:none;box-shadow:none}
+.tab.active,.view-tabs .selected,.view-tabs [aria-selected=true],.community-redesign .music-community-tabs .tab.active {
+  color:var(--ds-selected);border-bottom-color:var(--ds-lavender);
+}
+.genre-row a:first-child,.chip.active,.filter-chip.active,.filter-chip[aria-pressed=true],.gift-quantity-presets [aria-pressed=true] {
+  background:var(--ds-gradient);color:var(--ds-ink);border-color:transparent;
+}
+.genre-row a:hover {border-color:var(--ds-lavender)}
+
+
+.activity-heading-icon,.activity-avatar>span {color:var(--ds-body);background:#b7b6ff15}
+
+/* Surfaces use a restrained tint so album artwork and gift art remain prominent. */
+.surface,.crew-card,.conversation-row,.social-profile,.singing-intro,.music-my-links a,.music-shortcuts a,.activity-row {
+  background:var(--ds-surface);border-color:var(--ds-line);border-radius:var(--ds-radius-card);
+}
+.release-feature,.music-crew-entry,.my-crew-preview,.creator-callout,.membership-hero,.profile-hero,.music-participate,.activity-heading {
+  background:radial-gradient(ellipse at 100% 0,#b7b6ff16,transparent 65%),linear-gradient(120deg,#1c2934,#1c2031 60%,#202333);
+  border-color:var(--ds-line);border-radius:var(--ds-radius-feature);
+}
+.community-redesign .community-concept-card,.community-redesign .community-concept-card:nth-child(even) {
+  background:radial-gradient(ellipse at 100% 0,#b7b6ff24,transparent 60%),linear-gradient(125deg,#1b2735,#151d2b);
+  border-color:#b7b6ff38;
+}
+.community-redesign .social-side-card,.community-redesign .community-song-panel {background:var(--ds-surface);border-color:var(--ds-line)}
+.community-redesign .community-art-play:hover,.community-redesign .is-playing .community-art-play {background:var(--ds-gradient);color:var(--ds-ink);border-color:var(--ds-lilac)}
+.community-redesign .community-song-like {color:var(--ds-body);background:radial-gradient(circle at 30% 20%,#d6baff35,#b7b6ff0d);border-color:#d6baff60;box-shadow:none}
+.community-redesign .community-reactions [data-like].is-active {color:var(--ds-social)}
+.community-redesign .community-reactions [data-gift] {color:var(--ds-body)}
+.community-redesign .music-follow {background:var(--ds-soft);border-color:#b7b6ff40;color:var(--ds-text)}
+.gift-rewards-link {background:linear-gradient(110deg,#b7b6ff16,#aeebdf0d)!important;border-color:#b7b6ff38!important;color:var(--ds-body)!important}
+.gift-dashboard-hero {background:radial-gradient(ellipse at 88% 30%,#d6baff20,transparent 55%),linear-gradient(110deg,#1a2533,#242238);border-color:#d6baff38}
+.gift-dashboard-section {background:var(--ds-surface);border-color:var(--ds-line)}
+.gift-dashboard-section.gift-gold-section {background:radial-gradient(ellipse at 100% 0,#d6baff18,transparent 60%),linear-gradient(120deg,#242130,#1b1c2a);border-color:#d6baff38}
+.gift-section-cta {color:var(--ds-body);background:var(--ds-soft);border-color:var(--ds-line);box-shadow:none}
+.gift-dashboard .gift-choice:hover {border-color:#d6baff77}
+.activity-row.is-unread {background:linear-gradient(110deg,#b7b6ff12,#aeebdf09);border-color:#b7b6ff30}
+.conversation-row:hover {background:#222a3a}
+.chat-panel.dm-chat-panel {background:var(--ds-panel)!important;border-color:var(--ds-line)}
+.dm-message .dm-bubble {background:#242a38}
+.dm-message.mine .dm-bubble {background:linear-gradient(115deg,#3b3555,#343d54);color:var(--ds-text)}
+
+/* Fields, feedback, and dialogs. Preserve validation color meaning. */
+.form-field :is(input,textarea,select),.search-box input,.gift-quantity input {
+  background:#171e29;border-color:#3a3a48;color:var(--ds-text);border-radius:12px;
+}
+.search-box input {background:transparent}
+.form-field :is(input,textarea)::placeholder {color:var(--ds-muted)}
+
+.form-field :is(input,textarea,select)[aria-invalid=true] {border-color:var(--ds-error);outline-color:var(--ds-error)}
+.form-field :is(input,textarea,select):disabled {background:#252a34;color:var(--ds-disabled);border-color:#343b47}
+dialog,.queue-dialog {background:var(--ds-surface);border:1px solid #b7b6ff38;border-radius:20px;color:var(--ds-text);box-shadow:0 24px 80px #0007}
+dialog::backdrop {background:#050911b8;backdrop-filter:blur(6px)}
+.toast {background:linear-gradient(115deg,#22283b,#17232d);border:1px solid #b7b6ff55;color:var(--ds-text);border-radius:12px;box-shadow:0 10px 35px #0005}
+.toast.success,[role=alert].success {border-color:#4ade8055;color:var(--ds-progress)}
+.toast.error,[role=alert].error {border-color:#f8717177;color:#ffb7b7}
+[role=alert].warning {border-color:#facc1566;color:#f8de7b}
+.field-error {color:var(--ds-error)}
+
+/* Playback: retain desktop two-line / mobile one-line lyric sizing. */
+.player:not(.is-collapsed),.player.is-collapsed {background:linear-gradient(110deg,#111a26f7,#151c29fa);border-color:#b7b6ff35}
+.player .play-button {background:var(--ds-gradient);color:var(--ds-ink);border-color:#d6baff77;box-shadow:0 0 0 4px #b7b6ff09}
+.player .play-button svg {fill:currentColor;stroke-width:1.3}
+.player .player-buttons>.icon-button.is-active {color:var(--ds-body)!important}
+.player .player-right>#player-lyrics-toggle {background:#b7b6ff09;border-color:#53566a;color:var(--ds-text)}
+.player .player-right>#player-lyrics-toggle[aria-pressed=true] {color:var(--ds-selected);border-color:#b7b6ff80}
+.player .player-right>#listen-mode {color:var(--ds-body);border-color:#d6baff55}
+.player .player-lyric {color:var(--ds-text);background:#171f2df7;border-color:#b7b6ff35}
+.player #seek::-webkit-slider-runnable-track {background:linear-gradient(90deg,var(--ds-lilac),var(--ds-mint)) left/var(--seek-progress) 100% no-repeat,#343a48}
+.player #seek::-moz-range-track {background:#343a48}
+.player #seek::-moz-range-progress {background:var(--ds-gradient)}
+.player #seek::-webkit-slider-thumb {background:#fff;box-shadow:0 0 8px #b7b6ff40}
+.player #seek::-moz-range-thumb {background:#fff;box-shadow:0 0 8px #b7b6ff40}
+
+/* Studio controls share the palette, while lyric role/status colors keep their meaning. */
+#sing.web-studio {--studio-pink:var(--ds-lilac);--studio-blue:var(--ds-mint)}
+#sing.web-studio .sing-head,#sing.web-studio .sing-recording {background:#151e2a}
+#sing.web-studio .studio-setting-card {background:var(--ds-surface);border-color:var(--ds-line);border-radius:16px}
+#sing.web-studio .sing-mode [aria-pressed=true],#sing.web-studio .studio-tone-levels [aria-pressed=true],
+#sing.web-studio .sing-presets [aria-pressed=true],#sing.web-studio .sing-lyric-sizes button[aria-pressed=true],
+#sing.web-studio .studio-preset-tile[aria-pressed=true],
+#sing.web-studio .studio-edit-tools [aria-selected=true] {
+  background:var(--ds-gradient);color:var(--ds-ink);border-color:#d6baff70;
+}
+#sing.web-studio .studio-edit-tools [aria-selected=true] :is(strong,small,svg) {color:var(--ds-ink)}
+#sing.web-studio .studio-preset-tile[aria-pressed=true] {background:var(--ds-gradient)!important;border-color:var(--ds-lavender)!important;color:var(--ds-ink)!important;box-shadow:inset 0 1px 0 #ffffff45!important}
+#sing.web-studio .studio-preset-tile[aria-pressed=true] svg {color:var(--ds-ink)}
+#sing.web-studio .studio-setting-card h2 svg {color:var(--ds-body)}
+#sing.web-studio .sing-monitor input:checked {background:radial-gradient(circle at 30px 50%,#fff 8px,transparent 9px),var(--ds-gradient);border-color:var(--ds-lavender)}
+#sing.web-studio .studio-transport .studio-record svg {color:var(--ds-body);border-color:var(--ds-lavender);background:radial-gradient(circle,#b7b6ff20,#1b1f30)!important;box-shadow:0 0 24px #b7b6ff12!important}
+#sing.web-studio .sing-key-value {color:var(--ds-body)}
+#sing.web-studio .studio-punch-button,#sing.web-studio .studio-save-button {background:var(--ds-gradient);color:var(--ds-ink);border-color:var(--ds-lilac)}
+#sing.web-studio .studio-action-main:not(:disabled) {background:var(--ds-gradient);color:var(--ds-ink);border-color:var(--ds-lilac)}
+#sing.web-studio #sing-seek {appearance:none;-webkit-appearance:none;background:transparent;padding:0;border:0}
+#sing.web-studio #sing-seek::-webkit-slider-runnable-track {height:5px;border-radius:99px;background:linear-gradient(90deg,var(--ds-lilac),var(--ds-mint)) left/var(--position,0%) 100% no-repeat,#343a48}
+#sing.web-studio #sing-seek::-webkit-slider-thumb {appearance:none;-webkit-appearance:none;width:13px;height:13px;margin-top:-4px;border:0;border-radius:50%;background:#fff}
+#sing.web-studio #sing-seek::-moz-range-track {height:5px;border-radius:99px;background:#343a48}
+#sing.web-studio #sing-seek::-moz-range-progress {height:5px;border-radius:99px;background:var(--ds-gradient)}
+#sing.web-studio #sing-seek::-moz-range-thumb {width:13px;height:13px;border:0;border-radius:50%;background:#fff}
+
+/* Only mixer and volume inputs opt into this visual track; playback has its own live progress. */
+input.design-range[type=range],#sing.web-studio input.design-range[type=range],.player #volume.design-range {
+  appearance:none;-webkit-appearance:none;background:transparent;border:0;padding:0;accent-color:var(--ds-lavender);
+}
+input.design-range[type=range]::-webkit-slider-runnable-track {height:5px;border-radius:99px;background:linear-gradient(90deg,var(--ds-lilac),var(--ds-mint)) left/var(--ds-range-progress,0%) 100% no-repeat,#343a48}
+input.design-range[type=range]::-webkit-slider-thumb {appearance:none;-webkit-appearance:none;width:13px;height:13px;border:0;border-radius:50%;margin-top:-4px;background:#fff;box-shadow:0 1px 8px #0004}
+input.design-range[type=range]::-moz-range-track {height:5px;border:0;border-radius:99px;background:#343a48}
+input.design-range[type=range]::-moz-range-progress {height:5px;border-radius:99px;background:var(--ds-gradient)}
+input.design-range[type=range]::-moz-range-thumb {width:13px;height:13px;border:0;border-radius:50%;background:#fff}
+input.design-range[type=range]:disabled {opacity:.45}
+@media(prefers-reduced-motion:reduce){.primary-button,.sidebar .nav-link{transition:none}}
+
+/* Semantic text states. Keep gradient controls' dark ink, currency and duet roles. */
+[data-like].is-active,[data-like][aria-pressed=true],[data-comment-like].is-active,
+.song-table-like.is-active,#dubbing-like[aria-pressed=true],.sing-favorite.active {color:var(--ds-social)!important}
+.activity-gift-quantity {color:var(--ds-social)}
+:is(.crew-growth-summary strong,.crew-growth-grid>.surface:first-child>strong,.crew-level-steps strong,.crew-max-badge,.player-progress-title h2,.mp-level>strong) {color:var(--ds-selected)}
+:is(.status-published,.studio-alignment-state.is-ready,.crew-recruit-state.is-open,.chart-movement.new strong,.toast.success,[role=alert].success) {color:var(--ds-progress)}
+.crew-mission>span:last-child {color:var(--ds-progress)}
+.music-participate,.cover-collection-join,.karaoke-participation a:not(:disabled),.sing-discovery-covers,.duet-fill {color:var(--ds-progress)}
+.diamond-actions #diamond-exchange-form .diamond-preview {color:var(--ds-progress)}
+/* Selected tools on dark surfaces use lavender; filled gradient controls keep ink. */
+.voice-room :is(.voice-music-mini,.voice-music-transport) [aria-pressed=true],
+#sing.web-studio .studio-noise-levels [aria-pressed=true],
+#sing.web-studio .studio-transport [aria-pressed=true] {color:var(--ds-selected)!important}
+
+.player .player-lyric {color:var(--ds-selected)}
+
+/* Shared song options only; other dialogs keep their existing presentation. */
+#dialog:has(.track-options) {
+  box-sizing:border-box;width:min(360px,calc(100vw - 48px));height:fit-content;
+  max-width:360px;max-height:none;margin:auto;padding:12px 16px;
+  background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);box-shadow:none;overflow:visible;
+}
+#dialog:has(.track-options)::backdrop {backdrop-filter:none}
+#dialog .track-options {
+  display:block;margin:0;padding:0;overflow-x:hidden;overflow-y:auto;
+  max-height:calc(100vh - 96px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  max-height:calc(100dvh - 96px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+  overscroll-behavior:contain;scrollbar-width:thin;
+}
+#dialog .track-option {
+  box-sizing:border-box;display:grid;grid-template-columns:20px minmax(0,1fr) 18px;
+  align-items:center;gap:12px;width:100%;min-height:45px;margin:0;padding:0 4px;
+  border:0;border-bottom:1px solid var(--ds-line);border-radius:0;
+  background:transparent;box-shadow:none;color:var(--ds-text)!important;
+  font-family:inherit;font-size:14px;font-weight:400;line-height:1.5;text-align:left;text-decoration:none;
+}
+#dialog .track-option:last-child {border-bottom:0}
+#dialog .track-option svg {width:20px;height:20px;fill:none;stroke:currentColor;filter:none}
+#dialog .track-option>svg:last-child {width:18px;height:18px;color:var(--ds-muted)}
+#dialog .track-option-now {background:color-mix(in srgb,var(--ds-muted) 9%,transparent);border-radius:var(--ds-radius-sm)}
+#dialog .track-option-delete {color:var(--ds-accent-pink)!important}
+#dialog .track-option:hover {text-decoration:underline;text-underline-offset:3px}
+#dialog:has(.track-options) #dialog-close {
+  position:absolute;top:8px;right:8px;display:grid;place-items:center;
+  width:44px;height:44px;min-width:44px;min-height:44px;margin:0;padding:0;
+  border:0;border-radius:0;background:transparent;box-shadow:none;filter:none;
+  color:var(--ds-text);font-size:24px;font-weight:400;line-height:1;z-index:1;
+}

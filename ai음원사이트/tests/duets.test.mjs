@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
@@ -62,13 +63,16 @@ test('solo/duet filters retain old covers and both membership levels get the ori
  assert.equal(full.lyrics_mode,'synced');assert.match(full.lyrics,/함께 불러요/);
 });
 test('browser duet export plays one backing for its entire duration and only the new vocal interval',()=>{
- const played=[];const context=vm.createContext({window:{},document:{addEventListener(){}},JSON});
+ const played=[];const context=nicknameContext({window:{},document:{addEventListener(){}},JSON});
+ vm.runInContext(readFileSync(new URL('../dist/sing-key.js',import.meta.url),'utf8'),context);
  vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),context);
- const audio={createGain(){return {gain:{},connect(){}};},createBufferSource(){return {connect(){},start(...args){played.push({buffer:this.buffer,args});}};},destination:{},startRendering(){}};
+ const audio={createGain(){return {gain:{},connect(){}};},createBufferSource(){return {connect(target){return target;},start(...args){played.push({buffer:this.buffer,args});}};},destination:{},startRendering(){}};
  const s={mode:'duet',mr:{duration:20},voice:{duration:5},mix:{mr:1,voice:1,offset:0}};
  context.audio=audio;context.s=s;vm.runInContext('voiceBuffer=s=>s.voice;scheduleMix(audio,0,0,s)',context);
  assert.equal(played.length,2);assert.equal(played[0].buffer,s.mr);assert.deepEqual(played[0].args,[0,0,20]);assert.deepEqual(played[1].args,[0,0,5]);
  s.mode='solo';played.length=0;vm.runInContext('scheduleMix(audio,0,0,s)',context);assert.equal(played[0].args[2],5);
+ s.keySemitones=2;s.keyMR={key:2,source:s.mr,buffer:{duration:20,shifted:true}};played.length=0;vm.runInContext('scheduleMix(audio,0,0,s)',context);assert.equal(played[0].buffer,s.keyMR.buffer);assert.equal(played[1].buffer,s.voice);
+ s.keyMR=null;assert.throws(()=>vm.runInContext('scheduleMix(audio,0,0,s)',context),/반주를 다시 준비/);
 });
 
 test('song upload persists solo or duet choice and rejects an invalid classification',async t=>{
@@ -88,7 +92,7 @@ test('neutral duet slots let any two people join, including legacy first recordi
  assert.equal((await f.call('/api/covers','POST',{...base,duet_slot:'second'},'other')).status,400);
 });
 test('every original offers solo and duet without singer gender labels',()=>{
- const context=vm.createContext({window:{},document:{addEventListener(){}},JSON,esc:s=>s});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),context);
- context.d={mode:'solo',track:{performance_mode:'solo'}};const solo=vm.runInContext('singModeHTML(d)',context);assert.match(solo,/data-sing-mode="solo"/);assert.match(solo,/data-sing-mode="duet"/);assert.doesNotMatch(solo,/남자|여자/);
- context.d={mode:'duet',track:{performance_mode:'duet'}};const duet=vm.runInContext('singModeHTML(d)',context);assert.match(duet,/>듀엣</);assert.match(duet,/aria-pressed="true"/);assert.doesNotMatch(duet,/남자|여자/);
+ const context=nicknameContext({window:{},document:{addEventListener(){}},JSON,esc:s=>s});vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),context);
+ context.d={mode:'solo',track:{performance_mode:'solo'}};const solo=vm.runInContext('singRecordingModeHTML(d)',context);assert.match(solo,/data-sing-record-mode="solo"/);assert.match(solo,/data-sing-record-mode="duet"/);assert.doesNotMatch(solo,/남자|여자/);
+ context.d={mode:'duet',track:{performance_mode:'duet'}};const duet=vm.runInContext('singRecordingModeHTML(d)',context);assert.match(duet,/>듀엣</);assert.match(duet,/data-sing-record-mode="duet"/);assert.doesNotMatch(duet,/남자|여자/);
 });

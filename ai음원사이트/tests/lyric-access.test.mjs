@@ -5,18 +5,37 @@ import vm from 'node:vm';
 import * as core from '../shared/lyrics.js';
 const source=readFileSync(new URL('../dist/lyrics.js',import.meta.url),'utf8');
 function player(api,clock=Date){
- const hud={},calls=[],events={},audio={currentTime:0,paused:false,addEventListener(name,fn){events[name]=fn;}},track={id:'song',duration:90,lyrics_mode:'synced',lyrics_access:'line',lyrics:''};
- const context=vm.createContext({window:{},playSerial:0,current:track,me:{id:'listener'},audio,trackMap:new Map([[track.id,track]]),AifectLyrics:core,api:async path=>{calls.push(path);return api(path);},$:sel=>sel==='#player-lyric'?hud:null,Date:clock,esc:String,icon:()=>'',time:String});
+ const hud={replaceChildren(...rows){this.children=rows;this.textContent=rows.map(row=>row.textContent).join('\n');}},calls=[],events={},audio={currentTime:0,paused:false,addEventListener(name,fn){events[name]=fn;}},track={id:'song',duration:90,lyrics_mode:'synced',lyrics_access:'line',lyrics:''};
+ const context=vm.createContext({window:{},document:{createElement:()=>({})},playSerial:0,current:track,me:{id:'listener'},audio,trackMap:new Map([[track.id,track]]),AifectLyrics:core,api:async path=>{calls.push(path);return api(path);},$:sel=>sel==='#player-lyric'?hud:null,Date:clock,esc:String,icon:()=>'',time:String});
  vm.runInContext(source,context);return {context,hud,calls,audio,events,run:s=>vm.runInContext(s,context)};
 }
 const flush=()=>new Promise(resolve=>setImmediate(resolve));
+test('mobile and desktop player share the two-line preview',async()=>{
+ const p=player(()=>({line:{text:'현재 가사',from:0,until:10},lines:[{time:0,text:'현재 가사'},{time:10,text:'다음 가사'}]}));
+ let mobile=true;p.context.matchMedia=()=>({matches:mobile});
+ p.run('setCurrentLyrics(current)');await flush();assert.equal(p.hud.textContent,'현재 가사\n다음 가사');
+ mobile=false;p.run('updateSyncedLyrics(true)');assert.equal(p.hud.textContent,'현재 가사\n다음 가사');
+ mobile=true;p.run("current={...current,lyrics:'[00:00]첫 줄\\n[00:10]다음 줄',lyrics_access:'full',lyrics_access_until:Date.now()/1000+1000};setCurrentLyrics(current)");
+ assert.equal(p.hud.textContent,'첫 줄\n다음 줄');
+});
 test('one-line client prefetches before boundaries and reuses nearby lines after seeks',async()=>{
  const p=player(path=>{const at=Number(path.split('=')[1]);return {line:at<12.25?{text:'첫 줄',from:0,until:12.25}:{text:'둘째 줄',from:12.25,until:90}};});
  p.run('setCurrentLyrics(current)');await flush();assert.equal(p.hud.textContent,'첫 줄');assert.equal(p.calls.length,1);
  for(const at of [1,4,9]){p.audio.currentTime=at;p.run('updateSyncedLyrics()');}await flush();assert.equal(p.calls.length,1);
  p.audio.currentTime=9.25;p.run('updateSyncedLyrics()');await flush();assert.equal(p.calls.length,2);assert.match(p.calls[1],/at=12\.25$/);assert.equal(p.hud.textContent,'첫 줄');
  p.audio.currentTime=12.25;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'둘째 줄');assert.equal(p.calls.length,2);
- p.audio.currentTime=12.2499;p.events.seeking();assert.equal(p.hud.textContent,'첫 줄');assert.equal(p.calls.length,2);
+ p.audio.currentTime=12.2499;p.events.seeking();assert.equal(p.hud.textContent,'둘째 줄');assert.equal(p.calls.length,2);
+});
+
+test('compact lyrics lead by half a second for free and premium listeners while retaining a shared two-line display',async()=>{
+ const p=player(path=>{const at=Number(path.split('=')[1]);return {line:at<10?{text:'첫 줄',from:0,until:10}:{text:'다음 줄',from:10,until:20},lines:[{time:0,text:'첫 줄'},{time:10,text:'다음 줄'},{time:20,text:'마지막 줄'}]};});
+ p.context.matchMedia=()=>({matches:true});p.run('setCurrentLyrics(current)');await flush();
+ p.audio.currentTime=9.499;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'첫 줄\n다음 줄');
+ p.audio.currentTime=9.5;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'다음 줄\n마지막 줄');assert.equal(p.audio.currentTime,9.5);
+ p.context.matchMedia=()=>({matches:false});p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'다음 줄\n마지막 줄');
+ p.run("current={...current,lyrics:'[00:00]첫 줄\\n[00:10]다음 줄\\n[00:20]마지막 줄',lyrics_access:'full',lyrics_access_until:Date.now()/1000+1000};setCurrentLyrics(current)");
+ assert.equal(p.hud.textContent,'다음 줄\n마지막 줄');
+ p.audio.currentTime=9.499;p.run('updateSyncedLyrics()');assert.equal(p.hud.textContent,'첫 줄\n다음 줄');
 });
 test('slow next-line requests do not flash a loading message or duplicate requests',async()=>{
  let resolveNext;const p=player(path=>Number(path.split('=')[1])<12?{line:{text:'첫 줄',from:0,until:12}}:new Promise(resolve=>{resolveNext=resolve;}));

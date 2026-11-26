@@ -1,0 +1,452 @@
+[
+  {
+    "genre": "Ballad",
+    "path": "/assets/genres/04.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Steinway_%26_Sons_concert_grand_piano,_model_D-274,_manufactured_at_Steinway%27s_factory_in_Hamburg,_Germany.png",
+    "author": "Steinway & Sons, 10 Rondenbarg, Hamburg D-22525, Germany, eu.steinway.com.Steinway & Sons, 1 Steinway Place, Long Island City, New York 11105, The United States, www.steinway.com.",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "title": "File:Steinway & Sons concert grand piano, model D-274, manufactured at Steinway's factory in Hamburg, Germany.png"
+  },
+  {
+    "genre": "Dark Pop",
+    "path": "/assets/genres/03.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Musician%27s_shoes_in_purple_smoke_(Unsplash).jpg",
+    "author": "Eszter Biró sztuu",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "title": "File:Musician's shoes in purple smoke (Unsplash).jpg"
+  },
+  {
+    "genre": "Soul",
+    "path": "/assets/genres/06.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Sunny_Ozell_%2B_Band_live_at_Rockwood_Music_Hall_NYC_(Sep_2015).jpg",
+    "author": "Lisayoungin",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "title": "File:Sunny Ozell + Band live at Rockwood Music Hall NYC (Sep 2015).jpg"
+  },
+  {
+    "genre": "R&B",
+    "path": "/assets/genres/05.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:EMI_RM-1B_microphone_(1930s),_Abbey_Road_Studios.jpg",
+    "author": "Josephenus P. Riley",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "title": "File:EMI RM-1B microphone (1930s), Abbey Road Studios.jpg"
+  },
+  {
+    "genre": "Hip-Hop",
+    "path": "/assets/genres/07.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:DJ_Skillspinz.jpg",
+    "author": "Djskillspinz",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "title": "File:DJ Skillspinz.jpg"
+  },
+  {
+    "genre": "Rock",
+    "path": "/assets/genres/08.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Fender_Concert_Amp.jpg",
+    "author": "Centervolume",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Fender Concert Amp.jpg"
+  },
+  {
+    "genre": "Alternative",
+    "path": "/assets/genres/09.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Coheed_and_Cambria_2016232214800_2016-08-19_Summer_Breeze_-_Sven_-_5DS_R_-_0126_-_5DSR8007_mod_(cropped).jpg",
+    "author": "Sven Mandel",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Coheed and Cambria 2016232214800 2016-08-19 Summer Breeze - Sven - 5DS R - 0126 - 5DSR8007 mod (cropped).jpg"
+  },
+  {
+    "genre": "Indie Pop",
+    "path": "/assets/genres/10.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Indie_Festival.jpg",
+    "author": "Tajal Yusoff",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Indie Festival.jpg"
+  },
+  {
+    "genre": "K-POP",
+    "path": "/assets/genres/01.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:IVE_(%EC%95%84%EC%9D%B4%EB%B8%8C)_performing_at_the_2023_World_Scout_Jamboree_K-POP_Super_Live_Concert.jpg",
+    "author": "Korea.net / Korean Culture and Information Service",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "title": "File:IVE (아이브) performing at the 2023 World Scout Jamboree K-POP Super Live Concert.jpg"
+  },
+  {
+    "genre": "Pop",
+    "path": "/assets/genres/02.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Patti_Smith_performing_in_Finland,_2007.jpg",
+    "author": "Beni Köhler from Finland (en:User:Skit ineb)",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "title": "File:Patti Smith performing in Finland, 2007.jpg"
+  },
+  {
+    "genre": "EDM",
+    "path": "/assets/genres/11.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Tomorrowland_main_stage_30juillet_2017.jpg",
+    "author": "Arroser",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Tomorrowland main stage 30juillet 2017.jpg"
+  },
+  {
+    "genre": "Electronic",
+    "path": "/assets/genres/12.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Moog_modular_synthesizer_details_(2016-08_by_kpr2_@pixabay_1573329).jpg",
+    "author": "kpr2",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "title": "File:Moog modular synthesizer details (2016-08 by kpr2 @pixabay 1573329).jpg"
+  },
+  {
+    "genre": "Synth Pop",
+    "path": "/assets/genres/13.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Electronic_Dream_Plant_Wasp_Synthesizer.jpg",
+    "author": "R.Bartz",
+    "license": "CC BY-SA 2.5",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.5",
+    "title": "File:Electronic Dream Plant Wasp Synthesizer.jpg"
+  },
+  {
+    "genre": "City Pop",
+    "path": "/assets/genres/14.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Tokyo_Tower,_Minato_City.jpg",
+    "author": "David Kernan",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "title": "File:Tokyo Tower, Minato City.jpg"
+  },
+  {
+    "genre": "Lo-fi",
+    "path": "/assets/genres/15.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:MAXELL_UR_60_Audio_Cassette_%E2%80%94_Front_Side.jpg",
+    "author": "Wesha",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:MAXELL UR 60 Audio Cassette — Front Side.jpg"
+  },
+  {
+    "genre": "Jazz",
+    "path": "/assets/genres/16.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:A_Saxophone.jpg",
+    "author": "Sally V",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:A Saxophone.jpg"
+  },
+  {
+    "genre": "Blues",
+    "path": "/assets/genres/17.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Guitar_Shorty_(blues_musician).jpg",
+    "author": "Nicholas  Toronto, Canada",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "title": "File:Guitar Shorty (blues musician).jpg"
+  },
+  {
+    "genre": "Folk",
+    "path": "/assets/genres/18.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Man_playing_Brazilian_folk_music_of_Recife.jpg",
+    "author": "Wilfredor",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Man playing Brazilian folk music of Recife.jpg"
+  },
+  {
+    "genre": "Acoustic",
+    "path": "/assets/genres/19.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Man_playing_an_acoustic_brazilian_guitar_(Viol%C3%A3o)_on_Marco_Zero_Square,_Refice,_Pernambuco,_Brazil.jpg",
+    "author": "Wilfredor",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "title": "File:Man playing an acoustic brazilian guitar (Violão) on Marco Zero Square, Refice, Pernambuco, Brazil.jpg"
+  },
+  {
+    "genre": "Country",
+    "path": "/assets/genres/20.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Banjo_band.jpg",
+    "author": "Red 81",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Banjo band.jpg"
+  },
+  {
+    "genre": "Classical",
+    "path": "/assets/genres/21.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Violin_Orchestra_Bratislava_(2011).jpg",
+    "author": "Pavol Frešo",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "title": "File:Violin Orchestra Bratislava (2011).jpg"
+  },
+  {
+    "genre": "Ambient",
+    "path": "/assets/genres/22.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Misty_Forest_-_geograph.org.uk_-_3877959.jpg",
+    "author": "kevin higgins ",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "title": "File:Misty Forest - geograph.org.uk - 3877959.jpg"
+  },
+  {
+    "genre": "Fusion",
+    "path": "/assets/genres/23.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Drums_and_Ealing_Jazz_-_geograph.org.uk_-_271689.jpg",
+    "author": "Glyn Baker",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "title": "File:Drums and Ealing Jazz - geograph.org.uk - 271689.jpg"
+  },
+  {
+    "genre": "Korean Folklore Fusion",
+    "path": "/assets/genres/24.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Janggu.jpg",
+    "author": "Visviva",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "title": "File:Janggu.jpg"
+  },
+  {
+    "genre": "World Music",
+    "path": "/assets/genres/25.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Groupe_Tribal_Percussions_-_247.jpg",
+    "author": "\n\n\n\n\n\nAnother one of my pictures:\n\n\n\nThis photograph was taken by Medium69 (William Crochot) and released under the license stated below. You are free to use it for any purpose as long as you credit the author (William Crochot), the Source (Wikimedia Commons) and the license (CC-BY-SA 4.0) in close relation to the image.\n\n\n\n\n\nPlease do not upload an updated image here without consultation with the Author. The author would like to make corrections only at his own source RAW. This ensures that the changes are preserved.Please if you think that any changes should be required, please inform the author.Otherwise you can upload a new image with a new name. Please use one of the templates derivative or extract.\n\n\n\n\n\n",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Groupe Tribal Percussions - 247.jpg"
+  },
+  {
+    "genre": "국악",
+    "path": "/assets/genres/26.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Gayageum_12_string.jpg",
+    "author": "Visviva",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "title": "File:Gayageum 12 string.jpg"
+  },
+  {
+    "genre": "트로트",
+    "path": "/assets/genres/27.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Jang_Yoon-Jeong_at_the_Golden_Disk_Awards_2008.jpg",
+    "author": "KIYOUNG KIM from Seoul, South Korea",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "title": "File:Jang Yoon-Jeong at the Golden Disk Awards 2008.jpg"
+  },
+  {
+    "genre": "J-POP",
+    "path": "/assets/genres/28.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:MAZZEL_at_the_2026_Music_Awards_Japan_02.jpg",
+    "author": "BuzzFeed Japan",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "title": "File:MAZZEL at the 2026 Music Awards Japan 02.jpg"
+  },
+  {
+    "genre": "OST",
+    "path": "/assets/genres/29.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Film_Reel_on_an_IMAX_15_70_mm_Film_Projector_2.jpg",
+    "author": "DiscoA340",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "title": "File:Film Reel on an IMAX 15 70 mm Film Projector 2.jpg"
+  },
+  {
+    "genre": "Instrumental",
+    "path": "/assets/genres/30.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Jeppe_Tuxen_Oslo_Jazzfestival_2023_(213309).jpg",
+    "author": "Tore Sætre",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Jeppe Tuxen Oslo Jazzfestival 2023 (213309).jpg"
+  },
+  {
+    "genre": "Dance",
+    "path": "/assets/genres/31.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Leon_Lai_Stage_On_8_Concert-Leon_Lai_and_8_dancers.jpg",
+    "author": "Lienwingyan",
+    "license": "CC0",
+    "licenseUrl": "http://creativecommons.org/publicdomain/zero/1.0/deed.en",
+    "title": "File:Leon Lai Stage On 8 Concert-Leon Lai and 8 dancers.jpg"
+  },
+  {
+    "genre": "Funk",
+    "path": "/assets/genres/32.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:0-ESP_Ltd_F_255_electric_bass_guitar_body_08.jpg",
+    "author": "Elmschrat",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:0-ESP Ltd F 255 electric bass guitar body 08.jpg"
+  },
+  {
+    "genre": "Disco",
+    "path": "/assets/genres/33.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Disco_ball_in_home.jpg",
+    "author": "Santeri Viinamäki",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Disco ball in home.jpg"
+  },
+  {
+    "genre": "Metal",
+    "path": "/assets/genres/34.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Tsjuder,_Jan-Erik_%E2%80%9ENag%E2%80%9C_Rom%C3%B8ren_at_Party.San_Metal_Open_Air_2013.jpg",
+    "author": "Jonas Rogowski",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "title": "File:Tsjuder, Jan-Erik „Nag“ Romøren at Party.San Metal Open Air 2013.jpg"
+  },
+  {
+    "genre": "Punk",
+    "path": "/assets/genres/35.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:HC_Punk_M%C3%A1s_All%C3%A1_de_la_Gral_Paz.jpg",
+    "author": "HCPunkMasAlla",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:HC Punk Más Allá de la Gral Paz.jpg"
+  },
+  {
+    "genre": "Reggae",
+    "path": "/assets/genres/36.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Rebelution_Reggae_Band.jpg",
+    "author": "Abby Gillardi",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "title": "File:Rebelution Reggae Band.jpg"
+  },
+  {
+    "genre": "Latin",
+    "path": "/assets/genres/37.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:2006-06-03_Congas1.JPG",
+    "author": "Stephan Czuratis (Jazz-face at de.wikipedia",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "title": "File:2006-06-03 Congas1.JPG"
+  },
+  {
+    "genre": "Reggaeton",
+    "path": "/assets/genres/38.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Daddy_Yankee,_Con_Calma_Tour_2019.jpg",
+    "author": "Apoxyomenus",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Daddy Yankee, Con Calma Tour 2019.jpg"
+  },
+  {
+    "genre": "Afrobeats",
+    "path": "/assets/genres/39.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Djemb%C3%A9%27s.jpg",
+    "author": "Edwin1971 at Dutch Wikipedia",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+    "title": "File:Djembé's.jpg"
+  },
+  {
+    "genre": "House",
+    "path": "/assets/genres/40.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:DJ_rupture_Lecture_(Demo)_in_Chattanooga.jpg",
+    "author": "Michael Miller",
+    "license": "CC BY 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+    "title": "File:DJ rupture Lecture (Demo) in Chattanooga.jpg"
+  },
+  {
+    "genre": "Techno",
+    "path": "/assets/genres/41.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Vagator,_Goa,_India,_DJ_playing_techno_music.jpg",
+    "author": "Vyacheslav Argenberg",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "title": "File:Vagator, Goa, India, DJ playing techno music.jpg"
+  },
+  {
+    "genre": "Trance",
+    "path": "/assets/genres/42.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:LSRCITY_rainbow_lasers_01.jpg",
+    "author": "rickdenridder",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:LSRCITY rainbow lasers 01.jpg"
+  },
+  {
+    "genre": "Drum & Bass",
+    "path": "/assets/genres/43.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:A_drum_kit_made_by_Mapex_Drums_-_Cacon_Photos-_Copyleft_-_Creative_Commons_11.jpg",
+    "author": "Mostafameraji",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "title": "File:A drum kit made by Mapex Drums - Cacon Photos- Copyleft - Creative Commons 11.jpg"
+  },
+  {
+    "genre": "Trap",
+    "path": "/assets/genres/44.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Roland_TR-808_(large).jpg",
+    "author": "Roland_TR-808_&_909.jpg: Brandon Daniel\nderivative work: Clusternote (talk)",
+    "license": "CC BY-SA 2.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+    "title": "File:Roland TR-808 (large).jpg"
+  },
+  {
+    "genre": "Gospel",
+    "path": "/assets/genres/45.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Harlem_Gospel_Choir.jpg",
+    "author": "Aviv ben Jehuda",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Harlem Gospel Choir.jpg"
+  },
+  {
+    "genre": "New Age",
+    "path": "/assets/genres/46.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Phu_Sang_Waterfall_01.jpg",
+    "author": "Khunkay",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "title": "File:Phu Sang Waterfall 01.jpg"
+  },
+  {
+    "genre": "Chillout",
+    "path": "/assets/genres/47.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Rapanui_Rock_during_sunset,_Sumner,_Christchurch,_New_Zealand.jpg",
+    "author": "Michal Klajban",
+    "license": "CC BY-SA 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+    "title": "File:Rapanui Rock during sunset, Sumner, Christchurch, New Zealand.jpg"
+  },
+  {
+    "genre": "Cinematic",
+    "path": "/assets/genres/48.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Dublin_Philharmonic_Orchestra_performing_Tchaikovsky%27s_Symphony_No_4_in_Charlotte,_North_Carolina.jpg",
+    "author": "Derek Gleeson.",
+    "license": "CC BY-SA 3.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by-sa/3.0",
+    "title": "File:Dublin Philharmonic Orchestra performing Tchaikovsky's Symphony No 4 in Charlotte, North Carolina.jpg"
+  },
+  {
+    "genre": "Orchestral",
+    "path": "/assets/genres/49.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:BBC_Symphony_Orchestra_at_the_Royal_Albert_Hall.jpg",
+    "author": "Cbusram",
+    "license": "CC BY 4.0",
+    "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+    "title": "File:BBC Symphony Orchestra at the Royal Albert Hall.jpg"
+  },
+  {
+    "genre": "Children",
+    "path": "/assets/genres/50.webp",
+    "source": "https://commons.wikimedia.org/wiki/File:Glockenspiel-malletech.jpg",
+    "author": "flamurai",
+    "license": "Public domain",
+    "licenseUrl": "",
+    "title": "File:Glockenspiel-malletech.jpg"
+  }
+]

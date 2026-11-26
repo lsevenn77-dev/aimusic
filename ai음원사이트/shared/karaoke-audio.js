@@ -1,10 +1,11 @@
 // Pure pieces of the singing screen, bundled for the browser as AifectKaraoke.
 export {roomGain,roomImpulse,restoreRoomMix} from './room-reverb.js';
+export {punchLyricLines,punchLyricRange,punchClock,punchCountdown} from './punch-recording.js';
 export {vocalPresets,presetMix,editVocalMix,defaultVocalMix,restoreVocalMix,VocalProcessor,renderVocals} from './vocal-effects.js';
 import {NoiseCleaner} from './vocal-effects.js';
 
-// Singing, preview and the uploaded mix all run at 32 kHz: it keeps phone memory low and a 10-minute
-// stereo 16-bit WAV (about 77 MB) under the 80 MB upload limit.
+// Singing, preview and final mixing run at 32 kHz to keep phone memory low.
+// Export/upload uses 256 kbps MP3; editable takes and dubbing lines remain PCM.
 export const MIX_RATE=32000;
 
 // The line and word sounding at `t` seconds, and how far through that word the singer is (0..1).
@@ -55,4 +56,17 @@ export function encodeWav(channels,sampleRate){
  let o=44;
  for(let i=0;i<frames;i++)for(let c=0;c<count;c++){const s=Math.max(-1,Math.min(1,channels[c][i]));v.setInt16(o,s<0?s*0x8000:s*0x7fff,true);o+=2;}
  return new Uint8Array(buffer);
+}
+
+// Bounded punch-in preserves untouched audio, unlike continuing a take from a lyric.
+export function normalizeTakeRange(start,end,duration){
+ const total=Number.isFinite(duration)?Math.max(0,duration):0,min=Math.min(.1,total);
+ const a=Math.max(0,Math.min(Number.isFinite(start)?start:0,total-min));
+ return {start:a,end:Math.max(a+min,Math.min(Number.isFinite(end)?end:total,total))};
+}
+export function replaceTakeRange(previous,chunks,recordClock,sampleRate,start,end){
+ const first=Math.max(0,Math.round(start*sampleRate)),last=Math.max(first,Math.round(end*sampleRate));
+ if(last<=first)return previous||new Float32Array(0);
+ const out=new Float32Array(Math.max(previous?.length||0,last));if(previous)out.set(previous);
+ out.set(placeChunks(chunks,recordClock,sampleRate,last-first),first);return out;
 }

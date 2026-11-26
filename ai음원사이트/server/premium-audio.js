@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,run,query,now,id,fail,json} from './db.js';
 import {MAX_AUDIO,objectResponse,originalKey} from './storage.js';
 import {isPremium} from './membership.js';
@@ -16,7 +17,7 @@ export async function premiumAudioRoute(req,env,path){
  if(path==='/internal/premium-audio/claim'&&req.method==='POST'){
   await run(env,"INSERT OR IGNORE INTO premium_audio_jobs(track_id,updated) SELECT id,? FROM tracks WHERE status IN ('published','hidden')",now());
   await run(env,"UPDATE premium_audio_jobs SET state='failed',lease_token=NULL WHERE state='processing' AND lease_until<=? AND attempts>=3",now());
-  const token=id(),job=await query(env,`UPDATE premium_audio_jobs SET state='processing',lease_token=?,lease_until=?,attempts=attempts+1,updated=?,output_key='',output_sha='',output_bytes=0 WHERE track_id=(SELECT j.track_id FROM premium_audio_jobs j JOIN tracks t ON t.id=j.track_id WHERE j.state IN ('queued','processing') AND j.attempts<3 AND j.lease_until<=? AND t.status IN ('published','hidden') ORDER BY j.updated,j.track_id LIMIT 1) RETURNING *`,token,now()+900,now(),now()).first();
+  const token=id(),job=await query(env,`UPDATE premium_audio_jobs SET state='processing',lease_token=?,lease_until=?,attempts=attempts+1,updated=?,output_key='',output_sha='',output_bytes=0 WHERE track_id=(SELECT j.track_id FROM premium_audio_jobs j JOIN tracks t ON t.id=j.track_id WHERE j.state IN ('queued','processing') AND j.attempts<3 AND j.lease_until<=? AND t.status IN ('published','hidden') AND NOT EXISTS(SELECT 1 FROM cover_compressions c WHERE c.track_id=j.track_id AND c.state='processing') ORDER BY j.updated,j.track_id LIMIT 1) RETURNING *`,token,now()+900,now(),now()).first();
   if(job){
    const track=await one(env,'SELECT * FROM tracks WHERE id=?',job.track_id);
    job.source_key=originalKey(track);job.original_ext=track.original_ext;job.duration=track.duration;
@@ -50,5 +51,5 @@ export async function premiumAudioRoute(req,env,path){
  if(action==='fail'&&req.method==='POST'){
   await run(env,"UPDATE premium_audio_jobs SET state=CASE WHEN attempts>=3 THEN 'failed' ELSE 'queued' END,lease_until=0,lease_token=NULL,updated=? WHERE track_id=? AND lease_token=? AND state='processing'",now(),job.track_id,job.lease_token);return json({ok:true});
  }
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }

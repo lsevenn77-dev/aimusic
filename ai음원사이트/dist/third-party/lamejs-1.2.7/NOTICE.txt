@@ -1,0 +1,16 @@
+AIFECT uses unmodified @breezystack/lamejs 1.2.7, a JavaScript port of LAME,
+for high-quality MP3 cover exports. Original author: Alex Zhukov.
+LAME: https://lame.sourceforge.io/
+Package: https://www.npmjs.com/package/@breezystack/lamejs/v/1.2.7
+Corresponding upstream source commit: 1fb0ef5fa177413107e2e107d054a9b994e3f79c
+https://github.com/gideonstele/lamejs/tree/1fb0ef5fa177413107e2e107d054a9b994e3f79c
+
+License: GNU Lesser General Public License, version 3. See LGPL-3.0.txt and
+GPL-3.0.txt here, as well as the upstream LICENSE notice.
+Complete corresponding source: ./source.tar.gz (served with this library).
+
+The encoder is an independent, readable ES module at ./lamejs.js. It is not
+inlined into AIFECT application bundles. You may replace this module with a
+modified, interface-compatible implementation exporting Mp3Encoder; the Worker
+imports that path at runtime without recompiling the application. AIFECT's
+wrapper and gapless metadata writer do not modify the encoder library.

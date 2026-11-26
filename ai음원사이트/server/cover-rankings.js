@@ -1,3 +1,5 @@
+import * as AifectMessages from '../shared/system-messages.js';
+import {publicContentContext} from './block-policy.js';
 import {genreFilterSQL} from '../shared/genres.js';
 import {producerNameSQL} from './identity.js';
 import {validGenre} from '../shared/genres.js';
@@ -9,12 +11,13 @@ export {rankingPeriod} from './ranking-period.js';
 
 export async function coverRankingRoute(req,env,path){
  if(path!=='/api/cover-rankings')return null;
- if(req.method!=='GET')fail(405,'지원하지 않는 요청입니다.');
+ env=publicContentContext(env);
+ if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
  const p=new URL(req.url).searchParams,period=rankingPeriod(p.get('period')||'today'),kind=p.get('kind')||'tracks';
- if(!['tracks','singers'].includes(kind))fail(400,'랭킹 종류를 확인해주세요.');
+ if(!['tracks','singers'].includes(kind))fail(400,'랭킹 종류를 확인해 주세요.');
  const genre=p.get('genre')||'',q=(p.get('q')||'').trim().slice(0,100),original=p.get('original_id')||'';
- if(genre&&!validGenre(genre))fail(400,'장르를 확인해주세요.');
- if(original){const t=await published(env,original);if(t.kind!=='original')fail(400,'원곡을 선택해주세요.');}
+ if(genre&&!validGenre(genre))fail(400,'장르를 확인해 주세요.');
+ if(original){const t=await published(env,original);if(t.kind!=='original')fail(400,'원곡을 선택해 주세요.');}
  const requested=Number(p.get('limit')||50),limit=Number.isInteger(requested)&&requested>0?Math.min(requested,100):50;
  let where=`${VISIBLE()} AND t.kind='cover'`,args=[];
  if(genre){where+=' AND '+genreFilterSQL();args.push(genre,genre);}
@@ -28,8 +31,8 @@ export async function coverRankingRoute(req,env,path){
  const bound=[period.from,period.until,...args];
  let tracks=[],singers=[];
  if(kind==='tracks'){
-  const ranked=await rows(env,`${cte} SELECT * FROM scores ${p.get('include_unranked')==='1'?'':'WHERE rank_likes>0'} ORDER BY rank_likes DESC,total_likes DESC,created DESC,id LIMIT ?`,...bound,limit);
-  if(ranked.length){const data=await trackList(env,`${VISIBLE()} AND t.id IN (${ranked.map(()=>'?').join(',')})`,ranked.map(x=>x.id),'t.id',limit),byId=new Map(data.map(t=>[t.id,t]));tracks=ranked.filter(r=>byId.has(r.id)).map((r,i)=>({...byId.get(r.id),rank:i+1,rank_likes:r.rank_likes}));}
+  const full=p.get('full')==='1',ranked=await rows(env,`${cte} SELECT * FROM scores ${p.get('include_unranked')==='1'?'':'WHERE rank_likes>0'} ORDER BY rank_likes DESC,total_likes DESC,created DESC,id ${full?'':'LIMIT ?'}`,...bound,...(full?[]:[limit]));
+  if(ranked.length){const data=[];for(let i=0;i<ranked.length;i+=80){const chunk=ranked.slice(i,i+80);data.push(...await trackList(env,`${VISIBLE()} AND t.id IN (${chunk.map(()=>'?').join(',')})`,chunk.map(x=>x.id),'t.id',chunk.length));}const byId=new Map(data.map(t=>[t.id,t]));tracks=ranked.filter(r=>byId.has(r.id)).map((r,i)=>({...byId.get(r.id),rank:i+1,rank_likes:r.rank_likes}));}
  }else{
   singers=(await rows(env,`${cte} SELECT p.id,${producerNameSQL()} name,p.bio,p.image_version,
     sum(s.rank_likes) rank_likes,sum(s.total_likes) total_likes,count(*) ranked_covers,

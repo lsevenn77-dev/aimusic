@@ -1,0 +1,175 @@
+{
+  "date": "2026-10-26",
+  "projectId": "appgprj_6aa56aec3434819186f9a42d9a557520",
+  "sourceVersion": 228,
+  "reason": "가치가 별로 없는 콘텐츠",
+  "adsTxtStatus": "승인됨",
+  "productionAudit": {
+    "pages": 35,
+    "tracks": 24,
+    "missingDescriptions": 13,
+    "placeholderDescriptions": 2,
+    "shortDescriptionsToReview": 4
+  },
+  "verifiedIssues": [
+    "홈 초기 HTML에 공개 곡 상세 링크가 없음: 배포 assets 설정에서 Worker 우선 경로 누락",
+    "빈 본문 스트림이 붙은 GET/HEAD 요청을 재구성할 때 예외 발생",
+    "공개 곡 상세에서 바로 재생할 수 없고 등록된 아티스트 소개/제작 참여 정보가 빠짐"
+  ],
+  "changes": [
+    "홈과 index.html만 Worker 우선 처리",
+    "공개 곡 상세에 기존 1분 미리듣기 연결",
+    "실제 등록된 아티스트/창작자 소개와 참여 정보 표시",
+    "임시 소개 문구 제외 및 빈 검색 결과 noindex",
+    "GET/HEAD 빈 본문 재구성 오류 수정",
+    "격리한 D1/R2에서 빌드된 Worker의 공개 페이지 검증 및 운영 확인 스크립트 강화"
+  ],
+  "verification": {
+    "focusedTests": 5,
+    "localWorkerSmoke": "passed",
+    "browserWidths": [
+      320,
+      390,
+      768,
+      1440
+    ],
+    "browserAudio": "1초 로컬 무음 샘플 재생, 오류 없음",
+    "productionWrites": 0,
+    "productionStreams": 0,
+    "databaseMigration": true
+  },
+  "remaining": [
+    "이번 후보 버전 게시와 소개 19건 반영 확인",
+    "배포 후 실제 공개 HTML/소개/미리듣기 HEAD/ads.txt 확인",
+    "사용자가 요청한 AdSense 재심사 제출과 접수 상태 확인. 승인 보장 불가"
+  ],
+  "descriptionReview": [
+    {
+      "title": "별일 아닌 것처럼 · 리스너 8ee92b09 · 듀엣",
+      "url": "https://aifect.co.kr/music/a12c93eb-4894-4109-8345-971c507febec",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "별일 아닌 것처럼 · 리스너 8ee92b09 · 커버",
+      "url": "https://aifect.co.kr/music/e8ce3d21-43f4-4eee-bf8c-e6187b417d7d",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "비행운 · 리스너 8ee92b09 · 커버",
+      "url": "https://aifect.co.kr/music/40d9c296-8098-4f3a-a4d5-344a3621d60f",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "비행운 · Veil",
+      "url": "https://aifect.co.kr/music/2b4a4bce-a7e9-4f80-b688-d49b551c0cef",
+      "description": "0000",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "Turn it up · DÉON",
+      "url": "https://aifect.co.kr/music/1026bba2-0b78-4bea-8a08-04398a6bd497",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "Aftershock · 인아",
+      "url": "https://aifect.co.kr/music/8aa3c4cb-dcc0-41af-9260-b6f758075d05",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "Okinawa · Hiviki",
+      "url": "https://aifect.co.kr/music/8be24352-e0b4-4645-b0fb-1f31f14f41b3",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "Blurry on purpose · 그램",
+      "url": "https://aifect.co.kr/music/4cef5b92-6ab0-4e89-882e-63574db0f783",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "물수제비 · Veil",
+      "url": "https://aifect.co.kr/music/fa24aee4-6ef5-41f9-b2e6-819a144d72b0",
+      "description": "잘 불러보세요",
+      "priority": "짧은 소개 검토"
+    },
+    {
+      "title": "Caught Ya! · 그램",
+      "url": "https://aifect.co.kr/music/28a2aa28-c0ed-4198-a0f0-4bf7a76abf8b",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "한 번뿐이니까 · 사이그램",
+      "url": "https://aifect.co.kr/music/fef77394-8dd9-4638-9e82-a241b77b738c",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "참 좋다 · 코코",
+      "url": "https://aifect.co.kr/music/068aa26a-cb99-41be-96e1-7e61beb54de1",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "별일 아닌 것처럼 · Vibe",
+      "url": "https://aifect.co.kr/music/d4c239cc-d765-4ca3-a62e-97283a7c9e8b",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "조금씩 멀어지고 있었나 봐 · Vibe",
+      "url": "https://aifect.co.kr/music/91252ca1-1715-4dfb-9fee-aa01a05ca6be",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "널 사랑하지 않아 · Veil",
+      "url": "https://aifect.co.kr/music/d4eeb934-5662-4a85-9474-ba29b85d8e75",
+      "description": "-",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "난 안 괜찮아 · Vibe",
+      "url": "https://aifect.co.kr/music/b545d1c3-6c8d-46b7-bf64-0a5c91032cf2",
+      "description": "",
+      "priority": "내용 보완 필요"
+    },
+    {
+      "title": "금단증상 · 코코",
+      "url": "https://aifect.co.kr/music/f922a40a-6aa8-4be2-9ba6-17eb2237ad63",
+      "description": "위험하지만 즐기고 있는 사랑",
+      "priority": "짧은 소개 검토"
+    },
+    {
+      "title": "도깨비 신부 · 코코",
+      "url": "https://aifect.co.kr/music/fb173848-a634-4f2d-a30d-22b57fb7776e",
+      "description": "도깨비신부 설화",
+      "priority": "짧은 소개 검토"
+    },
+    {
+      "title": "조금 많이 좋아해서.. · 코코",
+      "url": "https://aifect.co.kr/music/69e208a7-f7c0-45b9-8f2d-1621ace4fabb",
+      "description": "이루어질 수 없는 사랑에 대한 노래",
+      "priority": "짧은 소개 검토"
+    }
+  ],
+  "sources": [
+    "https://support.google.com/adsense/answer/10015918?hl=ko",
+    "https://support.google.com/adsense/answer/7299563?hl=ko",
+    "https://developers.cloudflare.com/workers/static-assets/routing/worker-script/"
+  ],
+  "operatorFollowup": "곡 설명 작성 및 반영 후 바로 재심사 요청",
+  "descriptionCopy": {
+    "count": 19,
+    "migration": "0078_public_music_descriptions",
+    "review": "docs/music-description-copy-20261026.json",
+    "guards": "expected original description, title, producer, kind, cover mode, original track and published status",
+    "audit": "admin_audit per modified track; before/after retained"
+  }
+}

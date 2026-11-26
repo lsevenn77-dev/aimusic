@@ -1,0 +1,1 @@
+ALTER TABLE `dubbing_projects` ADD `poster_version` text DEFAULT '' NOT NULL;

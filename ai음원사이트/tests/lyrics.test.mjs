@@ -1,7 +1,21 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseLrc,serializeLrc,activeCueIndex,timestamp,cleanLyricAnnotations} from '../shared/lyrics.js';
+import {fixture} from './fixture.mjs';
+import worker from '../server/index.js';
 import {lyricsFields} from '../server/lyrics.js';
+
+test('song links resolve to the player-preserving song route and plain lyrics stay untimed',async t=>{
+ const {call,sql}=await fixture(t);
+ const redirect=await worker.fetch(new Request('https://aifect.test/song/one?lyrics=1'),{});assert.equal(redirect.status,302);
+ assert.ok(redirect.headers.get('location').endsWith('/#song/one?lyrics=1'));
+ for(const mode of ['none','synced']){
+  sql.prepare('UPDATE tracks SET duration=90,lyrics_mode=?,lyrics=? WHERE id=?').run(mode,'첫 줄\n\n또 같은 줄','one');
+  assert.deepEqual((await call('/api/tracks/one/lyrics/text')).body,{lines:['첫 줄','','또 같은 줄'],synced:false});
+  assert.equal((await call('/api/tracks/one/lyrics/line?at=1')).body.line,null);
+  assert.equal((await call('/api/tracks/one')).body.track.has_lyrics_text,true);
+ }
+});
 
 test('LRC timestamps support metadata, BOM, repeated tags, offsets, fractions and blank instrumental cues',()=>{
  const cues=parseLrc('\uFEFF[ar:AIFECT]\r\n[offset:-500]\r\n[00:12.50][00:30.125]후렴\r\n[00:01]첫 줄\r\n[00:20.5]\r\n[00:01.000]번역');

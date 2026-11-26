@@ -1,0 +1,454 @@
+{
+  "tool": "built-in image_gen.imagegen",
+  "purpose": "Left background outpainting next to the unchanged mobile photograph. Only generated background pixels are served; all generated portrait pixels are discarded.",
+  "rendering": {
+    "original": "The exact existing 1536x768 mobile WebP, fully opaque at its original 2:1 aspect ratio, right-aligned and full banner height.",
+    "background": "People-free generated left rectangle, right-aligned at the original photo edge, using the same vertical scale.",
+    "mobile": "Original 768px and 1536px files and the mobile framing are unchanged."
+  },
+  "template_geometry": {
+    "width": 3072,
+    "height": 1024,
+    "editable_white_rectangle": {
+      "x": 0,
+      "y": 216,
+      "width": 1888,
+      "height": 592
+    },
+    "original_photo_rectangle": {
+      "x": 1888,
+      "y": 216,
+      "width": 1184,
+      "height": 592
+    },
+    "black_padding": "Excluded from every output"
+  },
+  "encoding": {
+    "software": "ImageMagick convert",
+    "quality": 92,
+    "method": 6,
+    "format": "WEBP",
+    "operation": "Crop only the generated left rectangle, exclude external black padding, resize to 2172x681"
+  },
+  "assets": [
+    {
+      "id": "studio",
+      "source_url": "/assets/home-banners/mobile-20261109/studio-1536.webp",
+      "source": {
+        "filename": "studio-1536.webp",
+        "sha256": "53418b74229d18a560119352a28ace399ae256e5797b7f8f10e5dbdc896e32a2",
+        "bytes": 147000,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit, STRICT LEFT OUTPAINT.\nImage 1 is a prepared edit template, NOT an aesthetic reference to reinterpret. Output EXACTLY 3072 x 1024 pixels, 3:1 landscape.\nEdit ONLY the WHITE RECTANGLE: x=0..1887, y=216..807. Fill that white rectangle with a seamless DIRECT LEFTWARD CONTINUATION of the existing exact photograph on its RIGHT. Keep the original photo at x=1888..3071, y=216..807 exactly as placed: do not change its size, placement, subjects, face, pose, clothing, props, color, lighting or camera. Keep the TOP BLACK PADDING y=0..215 and BOTTOM BLACK PADDING y=808..1023 exactly black and exactly their current height. KEEP these black bars; they will be cropped later. Do not add content in the bars. Leave no white area.\nThis is completing ONE CONTINUOUS PHOTO STRIP, not creating a separate blank-room picture. At the vertical seam x=1888, carry the same wall planes, furniture edges, perspective lines, illumination, subtle texture and photographic depth of field straight across the seam without any abrupt change. Do not duplicate, mirror, repeat, relocate or collage the existing photograph. Do not stretch any existing content. Extend the same physical room to the LEFT from the exact edge pixels. Match color and lighting closely at the seam. Farther left, keep the scenery quiet and natural for HTML text later, while retaining real room detail; do not insert a gradient, blur slab, vignette or flat-color panel.\nNO new people, bodies, faces, skin, hands, silhouettes, human reflections, portraits or human-shaped decorations in the filled rectangle. The only existing people must remain in the original RIGHT photo. NO text, logos, UI, borders, symbols, labels or watermark anywhere. No new dramatic decorations or lighting. No fake extra bokeh. Keep coherent physical perspective and smooth seamless continuity.\n\nSCENE EDGE: continue the violet-purple acoustic recording-studio room precisely from the LEFT EDGE of the pasted photo. The acoustic slat panel near the top seam, matte purple wall behind it, low rear ledge, violet light strip beneath the ledge, and the little plant that is partially cut at the seam should continue naturally into the missing left area. Continue only the missing cut part of that same plant if needed; do NOT add a second duplicate hanging plant or repeat the speaker/headphones/laptop. Preserve the ledge and wall heights/angles across x1888. A restrained extension of the actual studio wall and worktop is enough. No extra person or empty human silhouette.",
+      "provenance": {
+        "input_template": {
+          "filename": "studio-canvas.png",
+          "sha256": "c634578e7171405e63f810d654ea06ea43273818b5f769e17ee4d0de260ef8cd",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-0abc7f44-b285-4481-844d-2f75eeab2e5c.png",
+          "sha256": "b4d462183e56f3bed2945efcbf6d1ccb8e898b3fe320cc323db402c1259b8d2f",
+          "width": 2172,
+          "height": 724
+        },
+        "crop": {
+          "x": 0,
+          "y": 156,
+          "width": 1335,
+          "height": 412
+        },
+        "note": "Only the area left of the original image is used. The generated right-hand original-photo region is completely excluded."
+      },
+      "outputs": [
+        {
+          "filename": "studio-2172.webp",
+          "sha256": "e514132e62e74a22387cb050b5a473145744b94add4ba3eeff1aab17cf7d266b",
+          "bytes": 20948,
+          "width": 2172,
+          "height": 681,
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "url": "/assets/home-banners/background-20261109/studio-2172.webp"
+        }
+      ],
+      "visual_review": {
+        "people_absent": true,
+        "black_padding_absent": true,
+        "source_mobile_unchanged": true
+      }
+    },
+    {
+      "id": "play",
+      "source_url": "/assets/home-banners/mobile-20261109/play-1536.webp",
+      "source": {
+        "filename": "play-1536.webp",
+        "sha256": "b37c0c37e734a31d79407243871f5ba490ceb1546334e32f5c285330176fa162",
+        "bytes": 116056,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit, STRICT LEFT OUTPAINT.\nImage 1 is a prepared edit template, NOT an aesthetic reference to reinterpret. Output EXACTLY 3072 x 1024 pixels, 3:1 landscape.\nEdit ONLY the WHITE RECTANGLE: x=0..1887, y=216..807. Fill that white rectangle with a seamless DIRECT LEFTWARD CONTINUATION of the existing exact photograph on its RIGHT. Keep the original photo at x=1888..3071, y=216..807 exactly as placed: do not change its size, placement, subjects, face, pose, clothing, props, color, lighting or camera. Keep the TOP BLACK PADDING y=0..215 and BOTTOM BLACK PADDING y=808..1023 exactly black and exactly their current height. KEEP these black bars; they will be cropped later. Do not add content in the bars. Leave no white area.\nThis is completing ONE CONTINUOUS PHOTO STRIP, not creating a separate blank-room picture. At the vertical seam x=1888, carry the same wall planes, furniture edges, perspective lines, illumination, subtle texture and photographic depth of field straight across the seam without any abrupt change. Do not duplicate, mirror, repeat, relocate or collage the existing photograph. Do not stretch any existing content. Extend the same physical room to the LEFT from the exact edge pixels. Match color and lighting closely at the seam. Farther left, keep the scenery quiet and natural for HTML text later, while retaining real room detail; do not insert a gradient, blur slab, vignette or flat-color panel.\nNO new people, bodies, faces, skin, hands, silhouettes, human reflections, portraits or human-shaped decorations in the filled rectangle. The only existing people must remain in the original RIGHT photo. NO text, logos, UI, borders, symbols, labels or watermark anywhere. No new dramatic decorations or lighting. No fake extra bokeh. Keep coherent physical perspective and smooth seamless continuity.\n\nSCENE EDGE: continue the muted deep teal/green vocal rehearsal room precisely from the LEFT EDGE of the pasted photo. The seam mostly crosses matte green acoustic wall, and near the lower half it cuts a black perforated music stand. Naturally complete the missing LEFT portion of THAT SAME music stand with consistent perspective, while extending the same green paneled wall behind it. Do not create a second stand, second speaker, second singer or repeated copy of the glass window. Preserve the exact edge height/angle of the existing music stand where it crosses x1888; it should look like one continuous object, not ghosted duplicate silhouettes. Quiet realistic studio space farther left, same green light and shallow optical depth of field.",
+      "provenance": {
+        "input_template": {
+          "filename": "play-canvas.png",
+          "sha256": "da856698ed456a8e027061a996e2f6be3280e10aff9b3be4931ec38bb99bc613",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-fff87c5b-aca8-4070-b64d-ff1124f07d4c.png",
+          "sha256": "37db82f12f8a8dbbee8a357162eea4486096a995b34a62b5c3fc2915e5e79a82",
+          "width": 2172,
+          "height": 724
+        },
+        "crop": {
+          "x": 0,
+          "y": 155,
+          "width": 1335,
+          "height": 412
+        },
+        "note": "Only the area left of the original image is used. The generated right-hand original-photo region is completely excluded."
+      },
+      "outputs": [
+        {
+          "filename": "play-2172.webp",
+          "sha256": "3eb9082cd9e9d914b6fba3bc56f34fadf00a0993043458caaf22d30bba205c57",
+          "bytes": 11016,
+          "width": 2172,
+          "height": 681,
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "url": "/assets/home-banners/background-20261109/play-2172.webp"
+        }
+      ],
+      "visual_review": {
+        "people_absent": true,
+        "black_padding_absent": true,
+        "source_mobile_unchanged": true
+      }
+    },
+    {
+      "id": "participate",
+      "source_url": "/assets/home-banners/mobile-20261109/participate-1536.webp",
+      "source": {
+        "filename": "participate-1536.webp",
+        "sha256": "83f5ea9c45f9ce8163834ed49e09eb2793ff40ff45cbc9cabf9b1edac417b8d0",
+        "bytes": 169218,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit, STRICT LEFT OUTPAINT.\nImage 1 is a prepared edit template, NOT an aesthetic reference to reinterpret. Output EXACTLY 3072 x 1024 pixels, 3:1 landscape.\nEdit ONLY the WHITE RECTANGLE: x=0..1887, y=216..807. Fill that white rectangle with a seamless DIRECT LEFTWARD CONTINUATION of the existing exact photograph on its RIGHT. Keep the original photo at x=1888..3071, y=216..807 exactly as placed: do not change its size, placement, subjects, face, pose, clothing, props, color, lighting or camera. Keep the TOP BLACK PADDING y=0..215 and BOTTOM BLACK PADDING y=808..1023 exactly black and exactly their current height. KEEP these black bars; they will be cropped later. Do not add content in the bars. Leave no white area.\nThis is completing ONE CONTINUOUS PHOTO STRIP, not creating a separate blank-room picture. At the vertical seam x=1888, carry the same wall planes, furniture edges, perspective lines, illumination, subtle texture and photographic depth of field straight across the seam without any abrupt change. Do not duplicate, mirror, repeat, relocate or collage the existing photograph. Do not stretch any existing content. Extend the same physical room to the LEFT from the exact edge pixels. Match color and lighting closely at the seam. Farther left, keep the scenery quiet and natural for HTML text later, while retaining real room detail; do not insert a gradient, blur slab, vignette or flat-color panel.\nNO new people, bodies, faces, skin, hands, silhouettes, human reflections, portraits or human-shaped decorations in the filled rectangle. The only existing people must remain in the original RIGHT photo. NO text, logos, UI, borders, symbols, labels or watermark anywhere. No new dramatic decorations or lighting. No fake extra bokeh. Keep coherent physical perspective and smooth seamless continuity.\n\nSCENE EDGE: continue the same coral/salmon recording studio precisely from the LEFT EDGE of the pasted photo. The seam crosses the dark sound-booth glass window at the top, coral wall below it, and part of the low mixer and narrow studio table in the lower band. Continue those exact window-frame and table-edge perspective lines directly to the left at their existing vertical positions. Complete only the missing left side of the existing mixer if needed; no second duplicated mixer, no new microphone, no second plant, no new singers. Extend the same smoked glass and muted coral acoustic wall naturally. Keep the original warm lamp reflection and photographic softness consistent; no new visible people or reflections inside the booth.",
+      "provenance": {
+        "input_template": {
+          "filename": "participate-canvas.png",
+          "sha256": "f9933dbaec0639fc1daf319a5966509977759ea8f2d17063f4b71a6f4e463196",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-6860b730-2905-4a2b-9790-61f43fc31edd.png",
+          "sha256": "f48dab61b1c61543bc2d3169a6b36ae0757ef563ff0211638ebe4e66ab225f7d",
+          "width": 2172,
+          "height": 724
+        },
+        "crop": {
+          "x": 0,
+          "y": 152,
+          "width": 1335,
+          "height": 417
+        },
+        "note": "Only the area left of the original image is used. The generated right-hand original-photo region is completely excluded."
+      },
+      "outputs": [
+        {
+          "filename": "participate-2172.webp",
+          "sha256": "1327643d1f0440f7cf051f828d2120af25571581f229568b0ec8d8e7729813a7",
+          "bytes": 18776,
+          "width": 2172,
+          "height": 681,
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "url": "/assets/home-banners/background-20261109/participate-2172.webp"
+        }
+      ],
+      "visual_review": {
+        "people_absent": true,
+        "black_padding_absent": true,
+        "source_mobile_unchanged": true
+      }
+    },
+    {
+      "id": "artists",
+      "source_url": "/assets/home-banners/mobile-20261109/artists-1536.webp",
+      "source": {
+        "filename": "artists-1536.webp",
+        "sha256": "2b949b594fa62a5fd29d587bca5c0aa07e3649867fac76114af1a056fe84ac0d",
+        "bytes": 174920,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit.\nAsset type: strict partial LEFT outpainting of a photograph on a fixed canvas.\nInput image 1 is the exact EDIT TARGET, not a style reference. It is 3072 x 1024 pixels with a fixed central strip y=216 through y=807, height 592. The original photograph is already pasted at x=1888 through x=3071 in that strip. The blank WHITE rectangle at x=0 through x=1887, y=216 through y=807 is the ONLY editable area.\nFill ONLY this white rectangle with a seamless direct continuation of the exact photograph to its LEFT. Start from the photograph edge at x=1888, align every wall, furniture edge, floor line and light at that border, and extend the same physical scene leftward naturally. Do not recreate, redesign, repeat, mirror or relocate the existing photograph.\nDirectly continue the actual dark plum stage backdrop and reflective floor into the white rectangle. At x=1888, the wall and floor connection must continue without a seam. Extend existing background architecture and restrained photographic magenta stage illumination only. Do not repeat the existing keyboard, microphone stand, foreground equipment cases, truss or performer; this is new space LEFT of that exact view, not another copy of the scene. Keep the backdrop/floor line at the same height and perspective as the pasted photo.\nSTRICT INVARIANTS: The entire pasted photo on the right remains completely unchanged, at precisely its current size and coordinates; do not touch the people, faces, bodies, clothing, props, image crop, colors or light in that existing photo. The black top padding y=0 through y=215 and black bottom padding y=808 through y=1023 must remain pure black and exactly the same height. KEEP BOTH BLACK BARS for later technical cropping. Do not fill or remove them. Do not move the photo, zoom, reframe, stretch or change aspect ratio.\nReturn the exact 3072 x 1024 canvas. ONLY the white rectangle becomes natural photographic scenery. No new people, faces, heads, bodies, hands, silhouettes, reflections of people, printed people, text, logos, UI, poster, graphics or watermark. No duplicate objects, artificial gradient filler, blur bands or hard compositing edge. Use the original's same color, camera perspective, materials, photographic depth of field and lighting. The outpainted left area must contain background only.",
+      "provenance": {
+        "input_template": {
+          "filename": "artists-canvas.png",
+          "sha256": "acdb610a1ad367e01fa6f13afe3ab85c81b177c0d74a321c4b944a08b2749893",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-03c01482-7c29-4fff-93ce-3fff64accb6b.png",
+          "sha256": "e50258e41e0148b1c5a05ec4449aa3e5137a76509a3f569d05ecc3c8d8840ea7",
+          "width": 2172,
+          "height": 724
+        },
+        "crop": {
+          "x": 0,
+          "y": 154,
+          "width": 1335,
+          "height": 415,
+          "note": "Generated canvas retains 3:1 aspect at 2172x724 instead of requested 3072x1024. Left ROI width is normalized to 1335px. Vertical photo-strip bounds are measured to avoid generated black padding/antialias."
+        },
+        "note": "Only the area left of the original image is used. The generated right-hand original-photo region is completely excluded."
+      },
+      "outputs": [
+        {
+          "filename": "artists-2172.webp",
+          "sha256": "ebc9ace799eee3d479546f3e8dda8c4e3fe685fc7fc702cb937b1278aee2107f",
+          "bytes": 11754,
+          "width": 2172,
+          "height": 681,
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "url": "/assets/home-banners/background-20261109/artists-2172.webp"
+        }
+      ],
+      "visual_review": {
+        "people_absent": true,
+        "black_padding_absent": true,
+        "source_mobile_unchanged": true
+      }
+    },
+    {
+      "id": "karaoke",
+      "source_url": "/assets/home-banners/mobile-20261109/karaoke-1536.webp",
+      "source": {
+        "filename": "karaoke-1536.webp",
+        "sha256": "f7fe983124f55d981e0b9e95b55510536d3ce21612ca7f954558e999f7a3e387",
+        "bytes": 153684,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit.\nAsset type: strict partial LEFT outpainting of a photograph on a fixed canvas.\nInput image 1 is the exact EDIT TARGET, not a style reference. It is 3072 x 1024 pixels with a fixed central strip y=216 through y=807, height 592. The original photograph is already pasted at x=1888 through x=3071 in that strip. The blank WHITE rectangle at x=0 through x=1887, y=216 through y=807 is the ONLY editable area.\nFill ONLY this white rectangle with a seamless direct continuation of the exact photograph to its LEFT. Start from the photograph edge at x=1888, align every wall, furniture edge, floor line and light at that border, and extend the same physical scene leftward naturally. Do not recreate, redesign, repeat, mirror or relocate the existing photograph.\nDirectly continue the dark navy padded wall panels and blue velvet sofa into the white rectangle, starting from the exact wall/sofa edges at x=1888. Keep their horizontal seam heights identical to the pasted photo. Extend the physical sofa and wall to the LEFT with believable perspective. Do not add or repeat displays, tables, drinks, speakers, microphones, foreground props or any person. Match the exact existing cobalt/navy practical lighting without introducing new bright effects.\nSTRICT INVARIANTS: The entire pasted photo on the right remains completely unchanged, at precisely its current size and coordinates; do not touch the people, faces, bodies, clothing, props, image crop, colors or light in that existing photo. The black top padding y=0 through y=215 and black bottom padding y=808 through y=1023 must remain pure black and exactly the same height. KEEP BOTH BLACK BARS for later technical cropping. Do not fill or remove them. Do not move the photo, zoom, reframe, stretch or change aspect ratio.\nReturn the exact 3072 x 1024 canvas. ONLY the white rectangle becomes natural photographic scenery. No new people, faces, heads, bodies, hands, silhouettes, reflections of people, printed people, text, logos, UI, poster, graphics or watermark. No duplicate objects, artificial gradient filler, blur bands or hard compositing edge. Use the original's same color, camera perspective, materials, photographic depth of field and lighting. The outpainted left area must contain background only.",
+      "provenance": {
+        "input_template": {
+          "filename": "karaoke-canvas.png",
+          "sha256": "812e933599604f554fbd97f78a7d70c196d20709c58382be34e44f50aa57932c",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-1bf77fc2-bddd-46fb-b11b-fd9afb160adf.png",
+          "sha256": "4d57941779e2f30955119645f9d8815e7bb580a08725cd1c51aa33035df7af73",
+          "width": 2172,
+          "height": 724
+        },
+        "crop": {
+          "x": 0,
+          "y": 155,
+          "width": 1335,
+          "height": 413,
+          "note": "Generated canvas retains 3:1 aspect at 2172x724 instead of requested 3072x1024. Left ROI width is normalized to 1335px. Vertical photo-strip bounds are measured to avoid generated black padding/antialias."
+        },
+        "note": "Only the area left of the original image is used. The generated right-hand original-photo region is completely excluded."
+      },
+      "outputs": [
+        {
+          "filename": "karaoke-2172.webp",
+          "sha256": "c46f5af21b8ae482ba66dbe65e0c06e06a348f5c36c59e2a1a65090bbfcc8350",
+          "bytes": 18524,
+          "width": 2172,
+          "height": 681,
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "url": "/assets/home-banners/background-20261109/karaoke-2172.webp"
+        }
+      ],
+      "visual_review": {
+        "people_absent": true,
+        "black_padding_absent": true,
+        "source_mobile_unchanged": true
+      }
+    },
+    {
+      "id": "talking",
+      "source_url": "/assets/home-banners/mobile-20261109/talking-1536.webp",
+      "source": {
+        "filename": "talking-1536.webp",
+        "sha256": "6e3e3884274287ec347226d2fd8735b42b875aff997cdea496cd4757f3db0504",
+        "bytes": 191944,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit.\nAsset type: strict partial LEFT outpainting of a photograph on a fixed canvas.\nInput image 1 is the exact EDIT TARGET, not a style reference. It is 3072 x 1024 pixels with a fixed central strip y=216 through y=807, height 592. The original photograph is already pasted at x=1888 through x=3071 in that strip. The blank WHITE rectangle at x=0 through x=1887, y=216 through y=807 is the ONLY editable area.\nFill ONLY this white rectangle with a seamless direct continuation of the exact photograph to its LEFT. Start from the photograph edge at x=1888, align every wall, furniture edge, floor line and light at that border, and extend the same physical scene leftward naturally. Do not recreate, redesign, repeat, mirror or relocate the existing photograph.\nDirectly continue the teal wall, blue sofa and the partial foreground/background plant at the pasted photograph's LEFT edge into the white rectangle. Connect those same physical objects where they touch x=1888, with unchanged camera height and perspective. The plant at the seam belongs to the same plant, not an extra new plant. Do not repeat the lamp, shelf, speaker, drinks, table, seated group or other existing scene elements. Fill new actual room space to the LEFT, keeping the original calm teal/plum lighting and depth of field.\nSTRICT INVARIANTS: The entire pasted photo on the right remains completely unchanged, at precisely its current size and coordinates; do not touch the people, faces, bodies, clothing, props, image crop, colors or light in that existing photo. The black top padding y=0 through y=215 and black bottom padding y=808 through y=1023 must remain pure black and exactly the same height. KEEP BOTH BLACK BARS for later technical cropping. Do not fill or remove them. Do not move the photo, zoom, reframe, stretch or change aspect ratio.\nReturn the exact 3072 x 1024 canvas. ONLY the white rectangle becomes natural photographic scenery. No new people, faces, heads, bodies, hands, silhouettes, reflections of people, printed people, text, logos, UI, poster, graphics or watermark. No duplicate objects, artificial gradient filler, blur bands or hard compositing edge. Use the original's same color, camera perspective, materials, photographic depth of field and lighting. The outpainted left area must contain background only.",
+      "provenance": {
+        "input_template": {
+          "filename": "talking-canvas.png",
+          "sha256": "9df7017989fe90c14d50f02c91e8c507f90f7645c43cc1b2e2f6ee69141d2ae2",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-262a06f1-fa83-434d-a4ce-bbca0a1bd9db.png",
+          "sha256": "ffe81c33e9bc8f1d17be3b32534174c83eadf9e5ada3eb49b209554dc13f6b8a",
+          "width": 2172,
+          "height": 724
+        },
+        "crop": {
+          "x": 0,
+          "y": 152,
+          "width": 1335,
+          "height": 418,
+          "note": "Generated canvas retains 3:1 aspect at 2172x724 instead of requested 3072x1024. Left ROI width is normalized to 1335px. Vertical photo-strip bounds are measured to avoid generated black padding/antialias."
+        },
+        "note": "Only the area left of the original image is used. The generated right-hand original-photo region is completely excluded."
+      },
+      "outputs": [
+        {
+          "filename": "talking-2172.webp",
+          "sha256": "7dfeda694363cdc184f749a14ea4cc1819cd48373b9c6dc13d87a7555e6f2e7a",
+          "bytes": 38116,
+          "width": 2172,
+          "height": 681,
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "url": "/assets/home-banners/background-20261109/talking-2172.webp"
+        }
+      ],
+      "visual_review": {
+        "people_absent": true,
+        "black_padding_absent": true,
+        "source_mobile_unchanged": true
+      }
+    },
+    {
+      "id": "crew",
+      "source_url": "/assets/home-banners/seamless-20261109/crew-1536.webp",
+      "source": {
+        "filename": "crew-1536.webp",
+        "sha256": "196be700d4caff77d4af8f835fddbcc0eed34075cdf8d23ce6c95c2aa1e81564",
+        "bytes": 82764,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit. Asset type: strict LEFT outpainting of a fixed photographic banner template. Image 1 is the exact edit target, not a style reference. Output exactly 3072 by 1024 pixels, 3:1. The black padding is intentional and MUST STAY BLACK and unchanged: y=0 through 215 and y=808 through 1023 across the entire width. The live photo strip is y=216 through 807 (height 592). Within that strip, the existing original photograph is exactly x=1888 through 3071 (width 1184). Do not move, scale, crop, recolor, restyle, blur, regenerate or modify ANY of that existing right photograph. Every original face, expression, hair, body, pose, clothes, instrument, hand, prop, furniture edge and lighting stays exactly where it is. Fill ONLY the WHITE rectangle x=0 through 1887, y=216 through 807 with a seamless DIRECT LEFT extension of the real physical room in that photo. The boundary at x=1888 must be invisible: continue the precise existing wall, wall panels, furniture edges, perspective and heights through it. This is extension of one continuous room, NOT a repeat, mirrored tile, new shot or redesigned room. Complete any partly cropped object crossing that exact boundary once, without duplicating it farther left. Match the original photographic focus, color, exposure, camera perspective and lighting. Do not add people, silhouettes, reflections of people, person pictures, portraits, animals, text, labels, logos, watermark, poster graphics, interfaces, glowing symbols, gradient blocks, haze or smeared blur. Keep the black bars as black bars for a later crop. Only fill the specified white rectangle, preserving everything else. Scene-specific extension: continue the warm olive-green rehearsal room to the left of the visible vertical wood acoustic slats. Naturally extend the existing cropped keyboard and its stand at the photo's left boundary, with one coherent geometry. Continue the wood floor and rug edge at their present heights. Quiet olive acoustic wall and restrained familiar room detail farther left. Do not add another copy of the existing lamp, keyboard, amplifier or people.",
+      "provenance": {
+        "input_template": {
+          "filename": "crew-canvas.png",
+          "sha256": "e5ec1fab68405b025eb13f24457d589dad3b59cdbef4813eec07d1c9f8180b49",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-e2b5246c-16ad-454e-a152-b24f5798f5cc.png",
+          "sha256": "703daa590c0a63937d7031f248120f0398c309b1368b257c59689b958e1270ef",
+          "width": 2172,
+          "height": 724
+        },
+        "crop": {
+          "x": 0,
+          "y": 154,
+          "width": 1335,
+          "height": 413
+        },
+        "note": "Only the area left of the original image is used. The generated right-hand original-photo region is completely excluded."
+      },
+      "outputs": [
+        {
+          "filename": "crew-2172.webp",
+          "sha256": "5ea3a2c65c324d9453523f88184ed321d8d199fdc7580d6e069191462b271bb6",
+          "bytes": 17186,
+          "width": 2172,
+          "height": 681,
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "url": "/assets/home-banners/background-20261109/crew-2172.webp"
+        }
+      ],
+      "visual_review": {
+        "people_absent": true,
+        "black_padding_absent": true,
+        "source_mobile_unchanged": true
+      }
+    },
+    {
+      "id": "premium",
+      "source_url": "/assets/home-banners/mobile-20261109/premium-1536.webp",
+      "source": {
+        "filename": "premium-1536.webp",
+        "sha256": "990c78716f33069c6619fadf69406966f48d660159d3066eb98d1a28517d55be",
+        "bytes": 186530,
+        "width": 1536,
+        "height": 768,
+        "format": "WEBP",
+        "mime_type": "image/webp"
+      },
+      "prompt": "Use case: precise-object-edit. Asset type: strict LEFT outpainting of a fixed photographic banner template. Image 1 is the exact edit target, not a style reference. Output exactly 3072 by 1024 pixels, 3:1. The black padding is intentional and MUST STAY BLACK and unchanged: y=0 through 215 and y=808 through 1023 across the entire width. The live photo strip is y=216 through 807 (height 592). Within that strip, the existing original photograph is exactly x=1888 through 3071 (width 1184). Do not move, scale, crop, recolor, restyle, blur, regenerate or modify ANY of that existing right photograph. Every original face, expression, hair, body, pose, clothes, instrument, hand, prop, furniture edge and lighting stays exactly where it is. Fill ONLY the WHITE rectangle x=0 through 1887, y=216 through 807 with a seamless DIRECT LEFT extension of the real physical room in that photo. The boundary at x=1888 must be invisible: continue the precise existing wall, wall panels, furniture edges, perspective and heights through it. This is extension of one continuous room, NOT a repeat, mirrored tile, new shot or redesigned room. Complete any partly cropped object crossing that exact boundary once, without duplicating it farther left. Match the original photographic focus, color, exposure, camera perspective and lighting. Do not add people, silhouettes, reflections of people, person pictures, portraits, animals, text, labels, logos, watermark, poster graphics, interfaces, glowing symbols, gradient blocks, haze or smeared blur. Keep the black bars as black bars for a later crop. Only fill the specified white rectangle, preserving everything else. Scene-specific extension: continue the deep navy vinyl-listening room directly left. The visible dark navy vertical slat wall and low dark cabinet/desk continue across the boundary at the same heights and perspective. Complete the already partly cropped turntable once at that boundary, preserving its flat physical plane; do not repeat the turntable elsewhere. Maintain the subdued navy wall and existing soft gold lighting. No new lamp, duplicated headphones, extra turntables or invented prominent display furniture. An unbroken realistic room extends left.",
+      "provenance": {
+        "input_template": {
+          "filename": "premium-canvas.png",
+          "sha256": "92efb891956165448b23376bc0264a83f4dc517ae18feb07948702182afdbd0e",
+          "width": 3072,
+          "height": 1024
+        },
+        "generated": {
+          "filename": "exec-a2c1baa3-ec6a-4baf-a83c-a99a782c86b5.png",
+          "sha256": "d1d7c778b8d08fcf6657fb595398f6a54c8114471754d0172f52ef58d1b507d6",
+          "width": 2172,
+          "height": 724
+        },
+        "crop": {
+          "x": 0,
+          "y": 153,
+          "width": 1335,
+          "height": 416
+        },
+        "note": "Only the area left of the original image is used. The generated right-hand original-photo region is completely excluded."
+      },
+      "outputs": [
+        {
+          "filename": "premium-2172.webp",
+          "sha256": "a4937059e397bdcafed79896ba66a52a1f9a4b39d3638182a236fbff95f19d67",
+          "bytes": 18998,
+          "width": 2172,
+          "height": 681,
+          "format": "WEBP",
+          "mime_type": "image/webp",
+          "url": "/assets/home-banners/background-20261109/premium-2172.webp"
+        }
+      ],
+      "visual_review": {
+        "people_absent": true,
+        "black_padding_absent": true,
+        "source_mobile_unchanged": true
+      }
+    }
+  ]
+}

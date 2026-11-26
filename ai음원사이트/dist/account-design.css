@@ -1,0 +1,165 @@
+#main[data-route^="account"] .account-login-panel {
+  min-width:0;width:100%;max-width:none;margin:0;padding:calc(24px);
+  background:var(--ds-panel);border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);box-shadow:none;
+}
+#main[data-route^="account"] .login-layout.account-guest {
+  display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  align-items:start;gap:calc(32px);width:100%;max-width:none;min-height:0;margin:0;padding:0;
+}
+#main[data-route^="account"] .account-guest .login-story {min-width:0;padding:calc(28px) 0}
+#main[data-route^="account"] .account-guest .eyebrow {
+  font-size:var(--pc-font-caption,13px);color:var(--ds-muted);line-height:1.6;letter-spacing:1.2px;
+}
+#main[data-route^="account"] .account-guest .login-story h1 {
+  margin:calc(16px) 0;font-size:var(--pc-font-page,25px);line-height:1.6;letter-spacing:-.6px;
+}
+#main[data-route^="account"] .account-guest .login-story h1 br {display:none}
+#main[data-route^="account"] .account-guest .login-story h1 em {display:block;color:var(--ds-selected)}
+#main[data-route^="account"] .account-guest .login-story>p {
+  margin:0;color:var(--ds-body);font-size:var(--pc-font-body,15px);line-height:1.85;word-break:keep-all;
+}
+#main[data-route^="account"] .account-guest .login-story>p br {display:none}
+#main[data-route^="account"] .account-guest .login-perks {
+  display:grid;gap:calc(16px);margin-top:calc(28px);font-size:var(--pc-font-meta,14px);line-height:1.6;
+}
+#main[data-route^="account"] .account-guest .login-perks>span {gap:calc(10px)}
+#main[data-route^="account"] .account-guest .login-perks svg {width:18px;height:18px;flex-shrink:0}
+#main[data-route^="account"] .account-login-panel h2 {
+  margin:calc(8px) 0;font-size:var(--pc-font-section,20px);line-height:1.5;letter-spacing:-.4px;
+}
+#main[data-route^="account"] .account-login-panel>p {
+  margin:0 0 calc(24px);font-size:var(--pc-font-meta,14px);line-height:1.65;
+}
+#main[data-route^="account"] .account-login-panel .form-field {margin-bottom:calc(16px)}
+#main[data-route^="account"] .account-login-panel .form-error:empty {display:none}
+#main[data-route^="account"] .account-login-panel .account-recovery-link {
+  display:inline-flex;align-items:center;min-height:44px;color:var(--ds-muted);
+}
+#main[data-route^="account"] .account-login-panel>p:has(.account-recovery-link) {margin:calc(8px) 0 0}
+#main[data-route^="account"] .account-login-panel .auth-switch {
+  display:inline-flex;align-items:center;min-height:44px;margin:0;padding:calc(8px) 0;
+  color:var(--ds-selected);font-size:var(--pc-font-control,14px);line-height:1.6;text-align:left;
+}
+#main[data-route^="account"] .account-login-panel .login-divider {
+  gap:calc(12px);margin:calc(20px) 0 calc(16px);font-size:var(--pc-font-caption,13px);line-height:1.5;
+}
+#main[data-route^="account"] .account-login-panel .login-divider::before,
+#main[data-route^="account"] .account-login-panel .login-divider::after {background:var(--ds-line)}
+#main[data-route^="account"] .account-login-panel .social-login {
+  min-height:44px;padding:calc(10px) calc(16px);margin-top:calc(10px);
+  border-radius:var(--ds-radius-input);font-size:var(--pc-font-control,14px);line-height:1.5;box-shadow:none;
+}
+#main[data-route^="account"] .account-login-panel .social-login.apple {background:var(--ds-bg);border-color:var(--ds-line)}
+#main[data-route^="account"] .account-login-panel .login-note {
+  margin:calc(18px) 0 calc(10px);font-size:var(--pc-font-caption,13px);line-height:1.65;
+}
+#main[data-route^="account"] .account-login-panel .policy-note {
+  margin:0;text-align:center;font-size:var(--pc-font-caption,13px);line-height:1.8;
+}
+#main[data-route^="account"] .account-login-panel .policy-note a {display:inline-block;padding-block:calc(6px)}
+@media(max-width:1000px){
+  #main[data-route^="account"] .login-layout.account-guest {grid-template-columns:1fr;gap:calc(20px)}
+  #main[data-route^="account"] .account-guest .login-story {padding:0}
+  #main[data-route^="account"] .account-guest .login-story h1 {margin:calc(10px) 0}
+  #main[data-route^="account"] .account-guest .login-perks {display:none}
+}
+@media(max-width:600px){
+  #main[data-route^="account"] .account-login-panel {padding:calc(20px) calc(16px)}
+  #main[data-route^="account"] .account-guest .login-story h1 {font-size:var(--pc-font-page,24px)}
+}
+@media(max-width:800px){
+  #main[data-route^="account"] .account-login-panel input {font-size:16px!important}
+}
+
+/* Account content uses the shared shell, fonts and surface tokens. */
+.ac-dashboard {
+ --ac-mint:#8eddd2;
+ color:var(--ds-text);font-size:var(--pc-font-body,15px);line-height:1.5;
+}
+.ac-dashboard h1 {margin:0 0 18px;font-size:var(--pc-font-page,25px);line-height:1.35}
+.ac-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;align-items:stretch}
+.ac-management {grid-column:1/-1;display:grid;grid-template-columns:inherit;gap:inherit;align-items:stretch;min-width:0}
+.ac-dashboard .ac-card {min-width:0;margin:0;padding:18px 22px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel);box-shadow:none}
+.ac-card h2 {margin:0 0 10px;font-size:var(--pc-font-section,20px);line-height:1.4;letter-spacing:-.025em}
+.ac-card h3 {margin:8px 0 2px;font-size:var(--pc-font-title,16px);line-height:1.45}
+.ac-heading {display:flex;align-items:center;justify-content:space-between;gap:12px}
+.ac-heading h2 {margin:0}
+.ac-heading>svg {width:19px;color:var(--ds-muted)}
+.ac-membership {--ac-accent:var(--ac-mint)}
+#main .ac-dashboard .ac-membership.ac-premium {
+ --ac-accent:#E6C27A;
+ background:#20232A;
+ border-color:rgba(203,177,125,.24);
+}
+.ac-membership.ac-premium h2 {display:flex;align-items:center;gap:7px}
+.ac-plan-icon {display:inline-grid;place-items:center;flex:none;width:24px;height:24px;border-radius:6px;color:var(--ac-accent)}
+.ac-plan-icon svg {width:16px;height:16px}
+.ac-plan-summary {display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.ac-plan-state {flex:none;font-size:var(--pc-font-meta,14px)}
+.ac-plan-state,.ac-membership .ac-pass-active dd {color:var(--ac-mint)}
+.ac-nickname {display:inline-flex;align-items:center;max-width:100%;vertical-align:baseline}
+.ac-nickname>span {min-width:0;overflow-wrap:anywhere}
+.ac-nickname[data-premium-style]::after {flex:none;width:.8em;height:.8em;margin-inline-start:.1em}
+.ac-membership .ac-plan-label {display:inline-flex;align-items:center;padding:3px 9px;color:var(--ac-accent);background:color-mix(in srgb,var(--ac-accent) 9%,transparent);border-radius:5px;font-size:12px;font-weight:700;letter-spacing:.07em}
+.ac-membership.ac-premium :is(.ac-plan-icon,.ac-plan-label) {background:rgba(230,194,122,.08)}
+.ac-membership h3 {margin:12px 0 4px;color:var(--ac-mint)}
+.ac-membership.ac-premium h3 {color:var(--ds-text)}
+.ac-dashboard .ac-note,.ac-ledger {color:var(--ds-muted);font-size:var(--pc-font-meta,14px);line-height:1.6;overflow-wrap:anywhere}
+.ac-card p {margin:6px 0}
+.ac-pass {margin-top:10px;border-top:1px solid var(--ds-line);padding-top:8px}
+.ac-values {display:grid;gap:5px;margin:0}
+.ac-values>div {display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-width:0}
+.ac-values dt {flex:none;color:var(--ds-muted)}
+.ac-values dd {margin:0;text-align:right;overflow-wrap:anywhere}
+.ac-dashboard .ac-primary {min-height:44px;margin-top:10px;background:var(--ac-mint);color:var(--ds-bg);border:0;box-shadow:none}
+.ac-dashboard [hidden] {display:none!important}
+.ac-manage {display:flex;flex-wrap:wrap;gap:0 16px}
+.ac-manage :is(a,button),.ac-restore {display:inline-flex;align-items:center;gap:5px;min-height:44px;padding:0;font-size:var(--pc-font-control,14px);color:var(--ac-mint);background:none;border:none;text-decoration:none}
+.ac-membership.ac-premium .ac-pass {border-color:rgba(255,255,255,.12)}
+.ac-membership.ac-premium .ac-pass-note {display:flex;align-items:baseline;gap:7px;padding:4px 8px;border:1px solid transparent;color:var(--ds-muted)}
+.ac-pass-note svg {width:14px;height:14px;flex:none;align-self:flex-start;margin-top:.28em}
+.ac-membership.ac-premium .ac-manage a:hover {text-decoration:underline}
+.ac-manage svg,.ac-links svg {width:14px;height:14px;flex:none}
+.ac-usage h3 {margin:12px 0 4px;color:var(--ds-body)}
+.ac-payments .ac-heading,.ac-history-heading {margin-bottom:10px}
+.ac-dashboard .ac-history-heading h1 {margin:0}
+.ac-payments .ac-manage a,.ac-history-heading a {white-space:nowrap}
+.ac-payments .ac-manage a {margin-block:-8px}
+.ac-meter {display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin:8px 0}
+.ac-meter strong {font-size:var(--pc-font-section,20px);color:var(--ac-mint)}
+.ac-meter strong span {font-size:var(--pc-font-body,15px);margin-left:2px}
+.ac-meter>span {font-size:var(--pc-font-meta,14px);color:var(--ds-muted)}
+.ac-usage progress {width:100%;height:6px;display:block;appearance:none;border:0;border-radius:5px;overflow:hidden;background:var(--ds-line);color:var(--ac-mint);accent-color:var(--ac-mint)}
+.ac-usage progress::-webkit-progress-bar {background:var(--ds-line)}
+.ac-usage progress::-webkit-progress-value {background:var(--ac-mint)}
+.ac-usage progress::-moz-progress-bar {background:var(--ac-mint)}
+.ac-usage .ac-note {margin-top:10px}
+.ac-benefits {grid-column:1/-1}
+.ac-benefits ul {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 20px}
+.ac-dashboard ul {margin:0;padding:0;list-style:none}
+.ac-benefits li {display:flex;align-items:center;gap:9px;min-height:30px}
+.ac-benefits li span {word-break:keep-all}
+.ac-benefits svg {width:17px;height:17px;color:var(--ds-muted);flex:none}
+.ac-benefits.ac-premium li svg {color:#CBB17D}
+.ac-links>a,.ac-links>button,.ac-password summary {display:flex;width:100%;padding:5px 0;min-height:44px;align-items:center;justify-content:space-between;border:0;border-bottom:1px solid var(--ds-line);background:none;color:var(--ds-text);font:inherit;text-decoration:none;cursor:pointer}
+.ac-links>:last-child {border-bottom:0}
+.ac-links svg {color:var(--ds-muted)}
+.ac-password summary {list-style:none}
+.ac-password summary::-webkit-details-marker {display:none}
+.ac-password[open] summary svg {transform:rotate(90deg)}
+.ac-password form {display:grid;gap:8px;padding:10px 0}
+.ac-password form .small-button {justify-self:start}
+.ac-filters {display:flex;gap:4px;flex-wrap:wrap;margin:5px 0}
+.ac-filters button {min-height:44px;padding:0 9px;color:var(--ds-muted);background:none;border:0;font:inherit;font-size:var(--pc-font-control,14px);text-decoration:none;cursor:pointer}
+.ac-filters button {border-bottom:2px solid transparent}
+.ac-filters button[aria-pressed=true] {color:var(--ac-mint);border-bottom-color:var(--ac-mint);font-weight:700}
+.ac-ledger li {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--ds-line)}
+.ac-ledger li>div {min-width:0;display:grid}
+.ac-ledger li>div:last-child {text-align:right}
+.ac-ledger li strong {color:var(--ds-text);font-size:var(--pc-font-body,15px)}
+.ac-links .ac-withdraw {color:#D7A0A4}
+@media(max-width:800px){.ac-grid{grid-template-columns:minmax(0,1fr);gap:10px}.ac-dashboard .ac-card{padding:16px}.ac-dashboard h1{margin-bottom:12px}.ac-benefits ul{gap:4px 8px}.ac-values{gap:6px}.ac-password input{font-size:16px}}
+
+#main:has(> .ac-dashboard) {padding-block-end:14px}
+#main:has(.ac-dashboard) ~ .page-footer :is(.footer-logo,.footer-copyright) {display:none}

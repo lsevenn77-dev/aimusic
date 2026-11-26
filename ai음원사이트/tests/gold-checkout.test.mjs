@@ -23,16 +23,17 @@ async function setup(t,overrides={}){
  };
  return {...f,env,create,callback,payments,calls,timeout:()=>{timeout=true;}};
 }
-test('gold uses the four server prices, explicit one-time consent, and idempotent orders',async t=>{
+test('gold uses the eligible server prices, explicit one-time consent, and idempotent orders',async t=>{
  const f=await setup(t),rid=crypto.randomUUID();const [a,b]=await Promise.all([f.create(500,rid),f.create(500,rid)]);
  assert.equal(a.status,201);assert.equal(b.status,201);assert.equal(a.body.order.id,b.body.order.id);assert.equal(a.body.payment.amount,5500);assert.equal(a.body.payment.method,'card');assert.equal(a.body.order.gold,525);assert.match(a.body.payment.goodsName,/525G/);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM gold_purchases').get().n,1);assert.equal((await f.call('/api/gold')).body.balance,0);
  assert.equal((await f.create(1000,rid)).status,409);assert.equal((await f.create(100)).status,400);assert.equal((await f.create(500,crypto.randomUUID(),null)).status,401);
  assert.equal((await f.call('/api/gold/checkout','POST',{gold:500,request_id:crypto.randomUUID()})).status,400);
- for(const [gold,amount,total] of [[1000,11000,1050],[5000,55000,5250],[10000,110000,10500]]){const o=await f.create(gold);assert.equal(o.body.payment.amount,amount);assert.equal(o.body.order.gold,total);}
+ for(const [gold,amount,total] of [[1000,11000,1050],[5000,55000,5250]]){const o=await f.create(gold);assert.equal(o.body.payment.amount,amount);assert.equal(o.body.order.gold,total);}
+ assert.equal((await f.create(10000)).status,400);
  const wallet=(await f.call('/api/gold')).body;assert.equal(wallet.web_bonus_percent,5);
  assert.deepEqual(wallet.packs.map(p=>p.gold),[500,1000,5000,10000],'existing native consumers retain base packs');
- assert.deepEqual(wallet.web_packs.map(p=>[p.gold,p.bonus_gold,p.total_gold,p.price]),[[500,25,525,5500],[1000,50,1050,11000],[5000,250,5250,55000],[10000,500,10500,110000]]);
+ assert.deepEqual(wallet.web_packs.map(p=>[p.gold,p.bonus_gold,p.total_gold,p.price]),[[500,25,525,5500],[1000,50,1050,11000],[5000,250,5250,55000]]);
  const forged=await f.call('/api/gold/checkout','POST',{gold:500,bonus_gold:999,total_gold:1499,price:1,request_id:crypto.randomUUID(),consent:true});assert.equal(forged.body.order.gold,525);assert.equal(forged.body.payment.amount,5500);
  assert.equal((await f.create(525)).status,400,'checkout accepts base pack ID, not client-supplied delivered quantity');
 });
@@ -59,6 +60,22 @@ test('refund verification freezes spent lots and prevents races with gifts and s
 });
 test('production checkout remains off without an explicit contract fee, even with the sales flag on',async t=>{
  const f=await setup(t,{GOLD_WEB_FEE_BP:''});assert.equal((await f.create()).status,409);assert.equal(f.calls.length,0);
+});
+
+test('public TEST readiness never grants legacy purchase or reviewer permissions',async t=>{
+ const f=await setup(t,{GOLD_CHECKOUT_ENABLED:'false',TOSS_GOLD_TEST_CHECKOUT_ENABLED:'true',TOSS_GOLD_TEST_CLIENT_KEY:'test_ck_gold_fixture',TOSS_GOLD_TEST_MID:'gold_fixture',AUTH_PEPPER:'a-long-fixture-state-pepper',BILLING_REVIEW_USER_IDS:'owner',BILLING_REVIEW_UNTIL:'1'});
+ for(const user of ['owner','other']){
+  const status=(await f.call('/api/gold','GET',undefined,user)).body;
+  assert.equal(status.test_checkout_available,true);
+  assert.equal(status.review_only,false);
+  assert.equal(status.checkout_available,false);
+  assert.equal((await f.create(500,crypto.randomUUID(),user)).status,409);
+ }
+ assert.equal(f.calls.length,0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM gold_orders').get().n,0);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM gold_purchases').get().n,0);
+ f.env.TOSS_GOLD_TEST_CHECKOUT_ENABLED='false';
+ assert.equal((await f.call('/api/gold')).body.test_checkout_available,false);
 });
 
 

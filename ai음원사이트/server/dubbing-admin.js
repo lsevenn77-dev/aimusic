@@ -1,0 +1,103 @@
+import {one,rows,query,now,id,fail,str,json} from './db.js';
+import {requireUser,isAdmin} from './auth.js';
+import {dubbingSettings} from './dubbing-settings.js';
+import {dubbingVisibleSQL} from './dubbing-access.js';
+import {reconcileDubbingGold} from './dubbing-gold.js';
+import {PIKA_ORIGIN} from './dubbing-pika.js';
+import {dubbingQuota} from './dubbing-quota.js';
+import {publicNameSQL} from './identity.js';
+export async function dubbingAdminRoute(req,env,path,user){
+ if(!path.startsWith('/api/admin/dubbing'))return null;
+ requireUser(user);if(!isAdmin(env,user))fail(403,'관리자만 확인할 수 있습니다.');
+ if(path==='/api/admin/dubbing/script-credits'&&req.method==='GET'){
+  const name=str(new URL(req.url).searchParams.get('q'),100),search={name,key:name.normalize('NFKC').toLowerCase()};
+  const found=await rows(env,`SELECT u.id,${publicNameSQL()} name,h.normalized handle FROM users u
+   LEFT JOIN account_handles h ON h.user_id=u.id WHERE u.provider!='deleted'
+   AND (u.id=? OR h.normalized=? OR lower(trim(${publicNameSQL()}))=?) LIMIT 2`,search.name,search.key,search.key);
+  if(!found.length)fail(404,'일치하는 계정이 없습니다. 정확한 활동명 또는 계정 ID를 입력해 주세요.');
+  if(found.length>1)fail(409,'같은 이름의 계정이 있습니다. 계정 ID로 조회해 주세요.');
+  return json({account:found[0],quota:await dubbingQuota(env,found[0].id)});
+ }
+ if(path==='/api/admin/dubbing/script-credits'&&req.method==='POST'){
+  const body=await req.json(),requestId=str(body.requestId,36),userId=str(body.userId,100),reason=str(body.reason,200),amount=body.amount;
+  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestId)||!Number.isSafeInteger(amount)||amount<1||amount>20)fail(400,'지급 횟수는 1~20회 정수로 입력해 주세요.');
+  if(!await one(env,"SELECT id FROM users WHERE id=? AND provider!='deleted'",userId))fail(404,'계정을 찾을 수 없습니다.');
+  const at=now();
+  await env.DB.batch([
+   query(env,`INSERT INTO dubbing_script_credits(id,user_id,amount,issued_by,reason,created)
+    SELECT ?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted') ON CONFLICT(id) DO NOTHING`,requestId,userId,amount,user.id,reason,at,userId),
+   query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created)
+    SELECT 'dubbing-credit:'||id,issued_by,'dubbing-script-credit',json_object('creditId',id,'userId',user_id,'amount',amount,'reason',reason),created
+    FROM dubbing_script_credits WHERE id=? ON CONFLICT(id) DO NOTHING`,requestId)
+  ]);
+  const grant=await one(env,'SELECT id,user_id,amount,reason,created FROM dubbing_script_credits WHERE id=?',requestId);
+  if(!grant||grant.user_id!==userId||grant.amount!==amount||grant.reason!==reason)fail(409,'이미 사용된 지급 요청입니다. 지급 내역을 확인해 주세요.');
+  return json({grant,quota:await dubbingQuota(env,userId)});
+ }
+ if(path==='/api/admin/dubbing/pika-status'&&req.method==='GET'){
+  if(!env.PIKA_API_KEY)return json({configured:false});
+  // Read-only authentication probe; a random nonexistent job cannot generate or charge.
+  const r=await fetch(`${PIKA_ORIGIN}/v1/media/jobs/media_${id()}`,{headers:{'X-API-Key':env.PIKA_API_KEY},redirect:'manual',signal:AbortSignal.timeout(15000)});
+  let d;try{d=await r.json();}catch{}
+  return json({configured:true,httpStatus:r.status,code:typeof d?.error?.code==='string'&&/^[\w.-]{1,80}$/.test(d.error.code)?d.error.code:null});
+ }
+ if(path==='/api/admin/dubbing'&&req.method==='GET'){
+  const n=Number(new URL(req.url).searchParams.get('days')||30),days=[7,30,90].includes(n)?n:30,cutoff=now()-days*86400;
+  const [summary,generations,assets,gold,jobs,payments,settings]=await Promise.all([
+   one(env,`SELECT (SELECT COUNT(*) FROM dubbing_projects) projects,(SELECT COUNT(*) FROM dubbing_recordings WHERE state='submitted') submitted_roles,
+    (SELECT COUNT(*) FROM dubbing_projects WHERE state='complete') completed,(SELECT COUNT(*) FROM track_reports WHERE dubbing_id IS NOT NULL AND status IN ('pending','appealed')) open_reports,
+    (SELECT COUNT(*) FROM dubbing_script_rewards WHERE completed_at>=?) ad_rewards`,cutoff),
+   rows(env,`SELECT CASE WHEN input_hash LIKE 'sound-plan:%' THEN 'sound_plan' ELSE 'script' END kind,state,COUNT(*) count,
+    SUM(COALESCE(json_extract(usage_json,'$.inputTokens'),0)) input_tokens,SUM(COALESCE(json_extract(usage_json,'$.outputTokens'),0)) output_tokens FROM dubbing_generations WHERE created>=? GROUP BY kind,state`,cutoff),
+   one(env,`SELECT COUNT(DISTINCT a.provider_id) provider_jobs,COUNT(CASE WHEN a.state='submitting' AND a.provider_id IS NULL THEN 1 END) unconfirmed_requests,
+    COALESCE(SUM(CASE WHEN json_extract(a.billing_json,'$.state')='settled' THEN json_extract(a.billing_json,'$.chargeMicroUsd') ELSE 0 END),0) settled_micro_usd,
+    COALESCE(SUM(CASE WHEN json_extract(a.billing_json,'$.state')='settled' THEN json_extract(a.billing_json,'$.estimatedKrw') ELSE 0 END),0) estimated_krw,
+    COUNT(CASE WHEN a.state!='pending' AND (json_extract(a.billing_json,'$.state') IS NOT 'settled' OR json_extract(a.billing_json,'$.chargeMicroUsd') IS NULL) THEN 1 END) unsettled_costs,
+    COUNT(CASE WHEN json_extract(a.billing_json,'$.state')='settled' AND json_extract(a.billing_json,'$.estimatedKrw') IS NULL THEN 1 END) missing_fx
+    FROM dubbing_provider_usage a WHERE a.created>=?`,cutoff),
+   rows(env,`SELECT state,COUNT(*) count,SUM(gold) gold,COALESCE(SUM((SELECT SUM(refunded_gold) FROM dubbing_gold_lots l WHERE l.job_id=o.job_id)),0) refunded_gold FROM dubbing_gold_orders o WHERE created>=? GROUP BY state`,cutoff),
+   rows(env,`SELECT j.id,j.project_id,p.title,'sound' kind,j.state,j.mode,j.error,j.attempts,j.updated updated,0 can_retry FROM dubbing_sound_jobs j JOIN dubbing_projects p ON p.id=j.project_id WHERE j.state IN ('failed','unknown') AND j.script_key=p.script_key AND p.deleted_at=0
+    UNION ALL SELECT j.id,j.project_id,p.title,'final' kind,j.state,'mix' mode,j.error,j.attempts,j.updated updated,CASE WHEN ${dubbingVisibleSQL()} THEN 1 ELSE 0 END can_retry FROM dubbing_final_jobs j JOIN dubbing_projects p ON p.id=j.project_id WHERE j.state='failed' ORDER BY updated DESC LIMIT 100`),
+   rows(env,`SELECT o.job_id,o.project_id,COALESCE(p.title,'삭제된 작품') title,o.gold,o.state,o.reason,o.created,
+    COALESCE((SELECT SUM(refunded_gold) FROM dubbing_gold_lots l WHERE l.job_id=o.job_id),0) refunded_gold FROM dubbing_gold_orders o LEFT JOIN dubbing_projects p ON p.id=o.project_id ORDER BY o.created DESC LIMIT 100`),dubbingSettings(env)
+  ]);
+  return json({days,summary,generations,pika:assets,gold,jobs,payments,settings,flags:{enabled:env.DUBBING_ENABLED==='true',charging:env.DUBBING_GOLD_ENABLED==='true',paidAPI:env.DUBBING_PAID_API_ENABLED==='true'},costNote:'Pika 정산 완료 청구액 기준입니다. 원화는 생성 당시 환율 설정이 있는 건의 추정치이며 OpenAI 비용은 포함하지 않습니다.'});
+ }
+ if(path==='/api/admin/dubbing/settings'&&req.method==='PUT'){
+  const body=await req.json();if(!Number.isSafeInteger(body.soundGold)||body.soundGold<1||body.soundGold>10000||!Number.isSafeInteger(body.version)||body.version<0)fail(400,'가격은 1~10,000G 정수로 입력해 주세요.');
+  const at=now(),result=await env.DB.batch([
+   query(env,"INSERT INTO admin_audit(id,admin_id,action,target,created) SELECT ?,?,'dubbing-price',?,? WHERE COALESCE((SELECT version FROM dubbing_settings WHERE key='default'),0)=?",id(),user.id,JSON.stringify({soundGold:body.soundGold,fromVersion:body.version}),at,body.version),
+   query(env,`INSERT INTO dubbing_settings(key,sound_gold,version,updated,updated_by) SELECT 'default',?,1,?,? WHERE COALESCE((SELECT version FROM dubbing_settings WHERE key='default'),0)=?
+    ON CONFLICT(key) DO UPDATE SET sound_gold=excluded.sound_gold,version=dubbing_settings.version+1,updated=excluded.updated,updated_by=excluded.updated_by WHERE dubbing_settings.version=? RETURNING key`,body.soundGold,at,user.id,body.version,body.version)
+  ]);if(!result[1].results.length)fail(409,'가격 설정이 변경됐습니다. 새로고침 후 확인해 주세요.');return json({settings:await dubbingSettings(env)});
+ }
+ if(path==='/api/admin/dubbing/reconcile'&&req.method==='POST'){await reconcileDubbingGold(env);return json({ok:true});}
+ const soundReset=path.match(/^\/api\/admin\/dubbing\/sound\/([\w-]+)\/reset$/);
+ if(soundReset&&req.method==='POST'){
+  const body=await req.json(),note=str(body.note,500),jid=soundReset[1];
+  const job=await one(env,'SELECT j.*,p.script_key current_key,p.first_recorded_at FROM dubbing_sound_jobs j JOIN dubbing_projects p ON p.id=j.project_id WHERE j.id=?',jid);
+  if(!job||!['failed','unknown'].includes(job.state)||job.updated!==body.updated||job.script_key!==job.current_key||job.first_recorded_at)fail(409,'작업 상태가 변경되었습니다.');
+  if(job.state==='unknown'&&(body.unsubmittedConfirmed!==true||await one(env,'SELECT provider_id FROM dubbing_sound_assets WHERE job_id=? AND provider_id IS NOT NULL',jid)))fail(409,'접수 결과를 알 수 없는 요청은 초기화할 수 없습니다. 외부 요청이 전송되지 않았음을 확인해 주세요.');
+  await reconcileDubbingGold(env);
+  if(await one(env,"SELECT job_id FROM dubbing_gold_orders WHERE job_id=? AND state!='refunded'",jid))fail(409,'환급 완료 후 다시 확인해 주세요.');
+  // Detach only the failed attempt from the current script. Preserve all billing/audit rows.
+  const guard="id=? AND script_key=? AND updated=? AND state IN ('failed','unknown') AND (state!='unknown' OR NOT EXISTS(SELECT 1 FROM dubbing_sound_assets a WHERE a.job_id=dubbing_sound_jobs.id AND a.provider_id IS NOT NULL)) AND NOT EXISTS(SELECT 1 FROM dubbing_gold_orders o WHERE o.job_id=dubbing_sound_jobs.id AND o.state!='refunded') AND EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=dubbing_sound_jobs.project_id AND p.script_key=dubbing_sound_jobs.script_key AND p.first_recorded_at=0 AND p.deleted_at=0)";
+  const r=await env.DB.batch([
+   query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created) SELECT ?,?,'dubbing-sound-reset',?,? WHERE EXISTS(SELECT 1 FROM dubbing_sound_jobs WHERE ${guard})`,id(),user.id,JSON.stringify({job:jid,note,unsubmittedConfirmed:body.unsubmittedConfirmed===true}),now(),jid,job.script_key,body.updated),
+   query(env,`UPDATE dubbing_sound_jobs SET script_key=script_key||'#closed/'||id,state='failed',lease_token=NULL,lease_until=0,updated=? WHERE ${guard} RETURNING id`,now(),jid,job.script_key,body.updated)
+  ]);
+  if(!r[1].results.length)fail(409,'작업 상태가 변경되었습니다.');
+  return json({ok:true,reset:true});
+ }
+ const match=path.match(/^\/api\/admin\/dubbing\/final\/([\w-]+)\/retry$/);
+ if(match&&req.method==='POST'){
+  const body=await req.json(),note=str(body.note,500),at=now();
+  const allowed=`id=? AND state='failed' AND updated=? AND EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=dubbing_final_jobs.project_id AND p.script_key=dubbing_final_jobs.script_key AND ${dubbingVisibleSQL()}
+   AND (SELECT COUNT(*) FROM dubbing_recordings r WHERE r.project_id=p.id AND r.state='submitted')=p.role_count)`;
+  const result=await env.DB.batch([
+   query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created) SELECT ?,?,'dubbing-final-retry',?,? WHERE EXISTS(SELECT 1 FROM dubbing_final_jobs WHERE ${allowed})`,id(),user.id,JSON.stringify({job:match[1],note}),at,match[1],body.updated),
+   query(env,`UPDATE dubbing_final_jobs SET state='queued',attempts=0,lease_token=NULL,lease_until=0,error='',updated=? WHERE ${allowed} RETURNING id`,at,match[1],body.updated)
+  ]);if(!result[1].results.length)fail(409,'작업 상태나 참여자가 변경됐습니다.');return json({ok:true});
+ }
+ fail(404,'관리자 더빙 경로를 찾을 수 없습니다.');
+}

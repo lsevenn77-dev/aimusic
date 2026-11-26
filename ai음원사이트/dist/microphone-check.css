@@ -1,0 +1,12 @@
+.microphone-check{display:flex;align-items:center;gap:20px;padding:16px 0;margin:0 0 20px;border-top:1px solid var(--ds-line);border-bottom:1px solid var(--ds-line);min-width:0}
+.microphone-check-info{flex:1;min-width:0;display:grid;gap:4px}
+.microphone-check-info strong{font-size:14px;line-height:1.5}
+.microphone-check-info small,.microphone-check-input small{color:var(--ds-muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.microphone-check-info small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.microphone-check-input{flex:1;min-width:0;display:grid;gap:6px}
+.microphone-check-bars{display:flex;align-items:center;gap:4px;height:24px}
+.microphone-check-bars i{flex:1;max-width:10px;height:7px;border-radius:4px;background:var(--ds-line);transition:height .08s,background .08s}
+.microphone-check-bars i.is-active{height:20px;background:#8EDDD2}
+.microphone-check .small-button{flex-shrink:0;min-height:44px;min-width:112px}
+.web-studio>.microphone-check{grid-column:1/-1}
+@media(max-width:600px){.microphone-check{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;margin-bottom:16px}.microphone-check-input{grid-row:2;grid-column:1/-1}.microphone-check .small-button{grid-row:1;grid-column:2;min-width:104px}}

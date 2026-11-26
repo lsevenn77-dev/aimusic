@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -7,12 +8,13 @@ import * as duet from '../shared/duet-guide.js';
 const source=readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8');
 const words=[{s:0,w:[{t:'<내 목소리>',s:0,e:3}]},{s:6,w:[{t:'파트너 목소리',s:6,e:9}]}];
 function sandbox(extra={}){
- const context=vm.createContext({window:{AifectKaraoke:karaoke,addEventListener(){}},AifectDuetGuide:duet,esc:s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'),time:n=>String(n),icon:()=>'',...extra,document:{addEventListener(){},...extra.document}});
+ const context=nicknameContext({window:{AifectKaraoke:karaoke,addEventListener(){}},AifectDuetGuide:duet,esc:s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'),time:n=>String(n),icon:()=>'',paintPunchCountdown(){},...extra,document:{addEventListener(){},...extra.document}});
  vm.runInContext(source,context);return context;
 }
 test('manual duet assignments must cover both singers before recording; free takes and inherited guides remain usable',()=>{
  const c=sandbox();c.take={mode:'duet',data:{words},duetGuide:{mode:'lyrics',lines:['A','']}};
  assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/1줄/);
+ c.take.duetGuide.lines=['A','partial'];assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/1줄/);
  c.take.duetGuide.lines=['A','A'];assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/모두/);
  for(const lines of [['A','B'],['both','both']]){c.take.duetGuide.lines=lines;assert.equal(vm.runInContext('duetAssignmentIssue(take)',c),'');}
  c.take.duetGuide={mode:'free',lines:[]};assert.equal(vm.runInContext('duetAssignmentIssue(take)',c),'');
@@ -20,23 +22,133 @@ test('manual duet assignments must cover both singers before recording; free tak
 });
 test('duet editor escapes lyrics and leaves inherited parts read-only, with labels relative to the joining singer',()=>{
  const c=sandbox();c.take={mode:'duet',data:{words,track:{duration:12}},duetGuide:{mode:'lyrics',lines:['A','B']}};
- let html=vm.runInContext('duetEditorHTML(take)',c);assert.ok(html.includes('&lt;내 목소리&gt;'));assert.ok(!html.includes('<내 목소리>'));assert.equal((html.match(/data-duet-part=/g)||[]).length,6);
+ let html=vm.runInContext('duetEditorHTML(take)',c);assert.ok(html.includes('&lt;내 목소리&gt;'));assert.ok(!html.includes('<내 목소리>'));assert.equal((html.match(/data-duet-brush=/g)||[]).length,3);assert.equal((html.match(/data-duet-line=/g)||[]).length,2);
  c.take.parent='existing';html=vm.runInContext('duetEditorHTML(take)',c);assert.ok(!html.includes('data-duet-line='));assert.ok(!html.includes('data-duet-method='));assert.ok(!html.includes('data-duet-fill'));
- assert.ok(html.indexOf('duet-part-label">파트너')<html.indexOf('duet-part-label">내 파트'));
+ assert.ok(html.indexOf('&lt;내 목소리&gt; · 상대 파트')<html.indexOf('파트너 목소리 · 내 파트'));assert.equal((html.match(/ disabled/g)||[]).length,2);
 });
 test('browser monitoring uses the selected voice gain without a hidden 25% reduction, and stays separate from the dry take',async()=>{
  for(const enabled of [true,false]){
   const node=()=>({gain:{value:1,setTargetAtTime(v){this.value=v;}},port:{},connect(next){return next;},disconnect(){},start(){},stop(){}});
-  const ctx={currentTime:0,state:'running',destination:node(),resume:async()=>{},createGain:node,createMediaStreamSource:node,createBufferSource:node,audioWorklet:{addModule:async()=>{}}};
+  const ctx={currentTime:0,state:'running',destination:node(),resume:async()=>{},createGain:node,createDynamicsCompressor:()=>({...node(),threshold:{},knee:{},ratio:{},attack:{},release:{}}),createMediaStreamSource:node,createBufferSource:node,audioWorklet:{addModule:async()=>{}}};
   const input={readyState:'live',enabled:true,addEventListener(){},stop(){}},stream={getTracks:()=>[input],getAudioTracks:()=>[input]};
   const elements={'#sing-monitor':{checked:enabled},'#sing-panel':{innerHTML:''}};
   const c=sandbox({window:{AifectKaraoke:karaoke,AudioContext:function(){}},AudioWorkletNode:function(){return node();},navigator:{mediaDevices:{getUserMedia:async()=>stream}},document:{hidden:false},audio:{pause(){}},playSerial:0,requestAnimationFrame:()=>0,$:q=>elements[q]});c.context=ctx;
-  vm.runInContext("sing={id:'test',mode:'solo',state:'idle',cursor:0,ctx:context,mr:{duration:30},mix:K().defaultVocalMix()};stopPreview=()=>{};updateTransport=()=>{};setSingStatus=()=>{};prepareSing=async()=>context;bindMixControls=()=>{};drawLyrics=()=>{}",c);
+  vm.runInContext("sing={id:'test',mode:'solo',state:'idle',cursor:0,ctx:context,mr:{duration:30},mix:K().defaultVocalMix()};stopPreview=()=>{};updateTransport=()=>{};setSingStatus=()=>{};prepareSing=async()=>context;singingKey=()=>0;connectLiveBacking=()=>({close(){}});bindMixControls=()=>{};drawLyrics=()=>{}",c);
   await vm.runInContext('startSinging()',c);
-  assert.equal(vm.runInContext('sing.state',c),'singing');
+  assert.equal(vm.runInContext('sing.state',c),'preroll');
   assert.equal(vm.runInContext('sing.run.monitor.gain.value',c),enabled?1:0);
   assert.equal(vm.runInContext('sing.run.voiceGain.gain.value',c),1);
   assert.equal(vm.runInContext('sing.run.mute.gain.value',c),0,'dry recorder output never feeds the speakers');
-  assert.equal(vm.runInContext('sing.run.gain.gain.value',c),.8,'backing level is independent');
+  assert.equal(vm.runInContext('sing.run.gain.gain.value',c),1,'backing level is independent');
  }
+});
+
+
+test('part editor works on an isolated draft, preserves saved and inherited parts, and never guesses fresh assignments',()=>{
+ const c=sandbox();c.take={mode:'duet',data:{words,track:{duration:12}},duetGuide:{version:1,mode:'lyrics',lines:['A','B']}};
+ vm.runInContext("edit=duetEditorDraft(take);edit.duetGuide.lines[0]='both'",c);
+ assert.equal(c.take.duetGuide.lines[0],'A');
+ assert.equal(vm.runInContext('edit.duetGuide.lines[0]',c),'both');
+ c.take.duetGuide={version:1,mode:'free',lines:[]};
+ assert.equal(vm.runInContext('duetEditorDraft(take).duetGuide.mode',c),'lyrics');
+ assert.equal(vm.runInContext('duetEditorDraft(take).duetGuide.lines.length',c),0);
+ assert.equal(c.take.duetGuide.mode,'free');
+ c.take.parent='existing';assert.equal(vm.runInContext('duetEditorDraft(take).duetGuide.mode',c),'free');
+});
+
+test('standby monitor unlocks audio before microphone permission and never waits for backing download or pitch work',async()=>{
+ const calls=[],node=()=>({gain:{value:1},connect(n){return n;},disconnect(){}}),ctx={state:'running',destination:node(),resume(){calls.push('resume');return Promise.resolve();},audioWorklet:{addModule:async()=>{calls.push('worklet');}},createMediaStreamSource:node,createGain:node};
+ const track={stop(){calls.push('stop');}},stream={getTracks:()=>[track]};
+ const c=sandbox({window:{AifectKaraoke:karaoke,AudioContext:function(){return ctx;}},navigator:{mediaDevices:{getUserMedia(){calls.push('permission');return Promise.resolve(stream);}}},document:{hidden:false,querySelectorAll:()=>[]},$:()=>({checked:false}),fetch(){throw Error('monitor must not fetch an MR');}});
+ vm.runInContext("sing={state:'idle',mix:K().defaultVocalMix()};setSingStatus=()=>{};connectEffects=()=>[];prepareSing=()=>{throw Error('must not process a key')}",c);
+ await vm.runInContext('setMonitorEnabled(true)',c);assert(calls.indexOf('resume')<calls.indexOf('permission'));assert.equal(vm.runInContext('!!sing.standbyMonitor.mic',c),true);
+ await vm.runInContext('setMonitorEnabled(false)',c);assert.equal(vm.runInContext('sing.standbyMonitor',c),null);assert(calls.includes('stop'));
+});
+
+test('rerecord starts at the preceding lyric rather than a fixed three-second offset',()=>{
+ const c=sandbox();c.lines=[{s:2},{s:7},{s:15}];
+ assert.equal(vm.runInContext('recordingPrerollStart(lines,15)',c),7);
+ assert.equal(vm.runInContext('recordingPrerollStart(lines,7)',c),2);
+ assert.equal(vm.runInContext('recordingPrerollStart(lines,2)',c),0);
+ assert.equal(vm.runInContext('recordingPrerollStart([],20)',c),17);
+});
+
+test('audio-clock countdown lights all dots, extinguishes right to left, clears on cancel and restarts without another timer',()=>{
+ const dots=Array.from({length:3},()=>({on:false,classList:{toggle(_name,on){dots.find(dot=>dot.classList===this).on=on;}}}));
+ const number={dataset:{},setAttribute(){},querySelectorAll:()=>dots},header={querySelector:()=>({})},countdown={dataset:{},attrs:{},setAttribute(k,v){this.attrs[k]=v;},querySelector:()=>number};
+ const c=sandbox({$:q=>q==='.sing-punch-record-header'?header:countdown});
+ vm.runInContext(readFileSync(new URL('../dist/sing-punch.js',import.meta.url),'utf8'),c);
+ c.session={ctx:{currentTime:0}};c.run={recordClock:8};
+ for(const [clock,count] of [[0,0],[5,3],[5.99,3],[6,2],[6.99,2],[7,1],[7.99,1],[8,0]]){
+  c.session.ctx.currentTime=clock;vm.runInContext('paintPunchCountdown(session,run)',c);
+  assert.equal(number.dataset.count,String(count));assert.deepEqual(dots.map(dot=>dot.on),[0,1,2].map(i=>i<count));assert.equal(countdown.hidden,false);assert.equal(countdown.dataset.active,String(count>0));assert.equal(countdown.attrs['aria-hidden'],String(count===0));assert.equal(header.hidden,true);
+ }
+ vm.runInContext('paintPunchCountdown(session,null)',c);assert.equal(number.dataset.count,'0');assert.equal(countdown.hidden,false);
+ c.session.ctx.currentTime=5;vm.runInContext('paintPunchCountdown(session,run);paintPunchCountdown(session,run)',c);assert.deepEqual(dots.map(dot=>dot.on),[true,true,true]);
+ vm.runInContext('paintPunchCountdown(session,null)',c);assert.deepEqual(dots.map(dot=>dot.on),[false,false,false]);assert.equal(countdown.dataset.active,'false');
+ c.run.punchRange={start:12,end:18};c.preciseTime=String;
+ vm.runInContext('paintPunchCountdown(session,run)',c);assert.equal(header.hidden,false);assert.deepEqual(dots.map(dot=>dot.on),[true,true,true]);
+});
+
+test('mobile lyric window measures two previous, current and three following rows without removing data',()=>{
+ const rows=Array.from({length:10},(_,i)=>({offsetHeight:50,offsetTop:120+i*60+5})),styles=new Map();
+ const wheel={clientHeight:360,querySelectorAll:()=>rows,style:{setProperty(k,v){styles.set(k,v);},removeProperty(k){styles.delete(k);}}};
+ const c=sandbox({window:{AifectKaraoke:karaoke,matchMedia:()=>({matches:true})},getComputedStyle:()=>({marginTop:'5',marginBottom:'5'}),$:()=>({classList:{contains:()=>false}})});c.wheel=wheel;c.rows=rows;
+ vm.runInContext('sing={}',c);
+ assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[4])',c),240);assert.equal(styles.get('--record-window-height'),'360px');assert.equal(rows.length,10);
+ assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[0])',c),0);assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[9])',c),540);
+ wheel.clientHeight=180;assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[4])',c),300);
+ vm.runInContext('sing.punchPage="record"',c);assert.equal(vm.runInContext('recordingLyricWindow(wheel,rows[4])',c),null);assert.equal(styles.size,0);
+});
+
+test('part brush persists across consecutive lines and applies only after explicit save',()=>{
+ const make=dataset=>({dataset,attrs:{},setAttribute(k,v){this.attrs[k]=v;},closest(){return this;}});
+ const brushes=['A','B','both'].map(duetBrush=>make({duetBrush})),rows=[0,1].map(i=>make({duetLine:String(i)})),done={},note={},dlg={classList:{add(){},remove(){}},close(){this.closed=true;},addEventListener(){}};
+ const host={querySelectorAll:q=>q==='[data-duet-brush]'?brushes:q==='[data-duet-line]'?rows:[],querySelector:q=>q==='[data-duet-done]'?done:q==='[data-duet-note]'?note:null};
+ let writes=0;const c=sandbox({$:q=>q==='#dialog'?dlg:host,dialog(){},queueSingDraft(){writes++;}});
+ vm.runInContext("sing={mode:'duet',state:'idle',cursor:0,data:{words:[{s:0,w:[{t:'first'}]},{s:6,w:[{t:'second'}]}],track:{duration:12}},duetGuide:{version:1,mode:'lyrics',lines:['A','B']}};renderDuetGuide=()=>{};drawLyrics=()=>{}",c);
+ vm.runInContext('openDuetEditor()',c);brushes[2].onclick();rows[0].onpointerdown({pointerType:'mouse',button:0});rows[1].onpointerenter({pointerType:'mouse',buttons:1});rows[1].onpointerup();rows[1].onclick();
+ assert.equal(rows[0].dataset.partRole,'both');assert.equal(rows[1].dataset.partRole,'both');assert.equal(brushes[2].attrs['aria-pressed'],'true');
+ assert.equal(vm.runInContext('sing.duetGuide.lines.join()',c),'A,B');assert.equal(writes,0);
+ done.onclick();assert.equal(vm.runInContext('sing.duetGuide.lines.join()',c),'both,both');assert.equal(writes,1);assert.equal(dlg.closed,true);
+});
+
+test('phrase assignment groups adjacent lyrics, balances singers and preserves timing data',()=>{
+ const lines=Array.from({length:16},(_,i)=>({s:i*2,w:[{t:'phrase '+i,s:i*2,e:i*2+1.8}]})),before=JSON.stringify(lines);
+ const parts=duet.assignPhraseParts(lines,32,{bpm:120,random:()=>0});
+ assert.equal(parts.length,16);assert.equal(parts.join(''),'AAAABBBBAAAABBBB');
+ assert.equal(JSON.stringify(lines),before);
+ assert.deepEqual(duet.assignPhraseParts([],0),[]);
+ assert.deepEqual(duet.assignPhraseParts(lines.slice(0,2),4,{random:()=>1}),['B','A']);
+ const untimed=lines.map(line=>({...line,s:0,w:line.w.map(w=>({t:w.t}))}));
+ const fallback=duet.assignPhraseParts(untimed,60,{random:()=>0});
+ assert.ok(fallback.includes('A')&&fallback.includes('B'));assert.ok(fallback.some((part,i)=>i&&part===fallback[i-1]));
+ const sections=lines.map((line,i)=>({...line,section:i<4?'Verse 1':i<8?'Verse 2':i<12?'Chorus':'Bridge'}));
+ assert.deepEqual(duet.assignPhraseParts(sections,32,{bpm:120,random:()=>0}).slice(8,12),['both','both','both','both']);
+});
+
+test('final part picker exposes checkboxes and two modes, and removes the paused review shortcut',()=>{
+ const c=sandbox();c.take={data:{words,track:{duration:12}},duetGuide:{mode:'lyrics',lines:['A','B']}};
+ const html=vm.runInContext('duetEditorHTML(take)',c);
+ assert.equal((html.match(/role="checkbox"/g)||[]).length,2);
+ assert.equal((html.match(/aria-checked="true"/g)||[]).length,2);
+ assert.ok(html.includes('랜덤 지정'));assert.ok(html.includes('함께 부르기'));
+ assert.ok(!html.includes('자유롭게 부르기'));assert.ok(!source.includes('data-sing-review'));assert.ok(!source.includes('편집 화면으로 돌아가기'));
+});
+
+test('live space tiles keep preset IDs, remember adjusted strengths and restore the owner’s saved selection',()=>{
+ const storage=new Map();
+ const c=sandbox({localStorage:{getItem:key=>storage.get(key),setItem:(key,value)=>storage.set(key,value)}});
+ const run=code=>vm.runInContext(code,c);
+ run("canEditPaid=()=>true;sing={owner:'singer',mix:K().defaultVocalMix()};control={closest:()=>true}");
+ const html=run('spaceEffectsHTML(sing.mix,true)');
+ assert.deepEqual([...html.matchAll(/data-vocal-preset="([^"]+)"/g)].map(m=>m[1]),['original','studio','hall','karaoke','custom']);
+ assert.ok(html.includes('효과 없음'));
+ run("sing.mix=spacePreset(sing.mix,'hall',.78);sing.mix=spacePreset(sing.mix,'original');rememberRecordingSpace(control)");
+ assert.equal(run("preferredRecordingMix('singer').preset"),'original');
+ assert.equal(run("spacePreset(preferredRecordingMix('singer'),'hall').strength"),.78);
+ assert.equal(run("preferredRecordingMix('other').preset"),'studio');
+ run("sing.mix=K().editVocalMix(spacePreset(sing.mix,'custom'),'room',.64);sing.mix=K().editVocalMix(sing.mix,'tone',.21);sing.mix=spacePreset(sing.mix,'original');rememberRecordingSpace(control)");
+ const custom=run("spacePreset(preferredRecordingMix('singer'),'custom')");
+ assert.equal(custom.room,.64);assert.equal(custom.tone,.21);
 });

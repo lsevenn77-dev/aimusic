@@ -1,0 +1,299 @@
+/* Membership keeps the shared AIFECT page frame and payment behavior. */
+#main[data-route^="membership"] .membership-page {
+  display:grid;
+  gap:calc(24px);
+  min-width:0;
+}
+#main[data-route^="membership"] :is(.membership-grid,.billing-panel) {
+  width:100%;
+  max-width:none;
+  min-width:0;
+  margin:0;
+}
+#main[data-route^="membership"] .billing-panel {
+  padding:calc(24px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);
+  background:var(--ds-panel);
+  box-shadow:none;
+}
+#main[data-route^="membership"] .billing-heading {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:calc(24px);
+}
+#main[data-route^="membership"] .billing-status-copy {min-width:0;flex:1}
+#main[data-route^="membership"] .billing-status-copy>.eyebrow {
+  display:block;
+  font-size:var(--pc-font-caption,13px);
+  letter-spacing:0;
+  font-weight:500;
+  color:var(--ds-muted);
+}
+#main[data-route^="membership"] .billing-panel h2 {
+  margin:calc(6px) 0 calc(8px);
+  font-size:var(--pc-font-section,20px);
+  line-height:1.45;
+  color:var(--ds-text);
+}
+#main[data-route^="membership"] .billing-panel p {
+  margin:0;
+  font-size:var(--pc-font-body,15px);
+  line-height:1.65;
+  color:var(--ds-body);
+  overflow-wrap:anywhere;
+}
+#main[data-route^="membership"] .billing-status-copy>small {
+  display:block;
+  margin-top:calc(8px);
+  font-size:var(--pc-font-meta,14px);
+}
+#main[data-route^="membership"] .billing-actions {
+  justify-content:flex-end;
+  gap:calc(8px);
+  max-width:52%;
+  flex-shrink:0;
+}
+#main[data-route^="membership"] .billing-actions:empty {display:none}
+#main[data-route^="membership"] .billing-actions>.text-link {
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  padding:calc(8px) calc(10px);
+  border:1px solid transparent;
+  border-radius:var(--ds-radius-input);
+  background:transparent;
+  color:var(--ds-muted);
+  cursor:pointer;
+}
+#main[data-route^="membership"] .billing-actions>.text-link:not(:disabled):hover {
+  color:var(--ds-text);
+  background:var(--ds-soft);
+}
+#main[data-route^="membership"] .billing-panel>.billing-notice {
+  margin-top:calc(16px);
+  padding:calc(12px) calc(14px);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-soft);
+  font-size:var(--pc-font-meta,14px);
+  color:var(--ds-body);
+}
+#main[data-route^="membership"] .billing-unavailable {
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:space-between;
+  gap:calc(16px);
+}
+#main[data-route^="membership"] .membership-grid {
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:stretch;
+  gap:calc(20px);
+}
+#main[data-route^="membership"] .membership-card {
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+  padding:calc(24px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);
+  background:var(--ds-panel);
+  box-shadow:none;
+}
+#main[data-route^="membership"] .premium-card {
+  border-color:color-mix(in srgb,var(--ds-selected) 32%,var(--ds-panel));
+}
+#main[data-route^="membership"] .membership-card-top {
+  min-height:166px;
+  padding-bottom:calc(20px);
+  border-bottom:1px solid var(--ds-line);
+}
+#main[data-route^="membership"] .membership-card-top>.eyebrow {
+  display:block;
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.5;
+  color:var(--ds-muted);
+  letter-spacing:.08em;
+  font-weight:600;
+}
+#main[data-route^="membership"] .premium-card .membership-card-top>.eyebrow {color:var(--ds-selected)}
+#main[data-route^="membership"] .membership-card h2 {
+  margin:calc(8px) 0 0;
+  font-size:var(--pc-font-section,20px);
+  line-height:1.4;
+  color:var(--ds-text);
+}
+#main[data-route^="membership"] .membership-card .membership-plan-description {
+  margin:calc(10px) 0 0;
+  font-size:var(--pc-font-meta,14px);
+  line-height:1.65;
+  color:var(--ds-muted);
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+#main[data-route^="membership"] .membership-card .plan-price {
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:calc(8px);
+  margin:calc(14px) 0 0;
+  font-size:clamp(26px,2.2vw,30px);
+  font-weight:700;
+  line-height:1.25;
+  letter-spacing:-.025em;
+  color:var(--ds-text);
+  font-variant-numeric:tabular-nums;
+}
+#main[data-route^="membership"] .plan-price>span {white-space:nowrap}
+#main[data-route^="membership"] .plan-price small {
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.5;
+  font-weight:400;
+  letter-spacing:0;
+  color:var(--ds-muted);
+}
+#main[data-route^="membership"] .membership-card .membership-benefits {
+  display:grid;
+  align-content:start;
+  gap:calc(13px);
+  flex:1;
+  list-style:none;
+  padding:0;
+  margin:calc(22px) 0;
+  font-size:var(--pc-font-body,15px);
+  line-height:1.65;
+  color:var(--ds-body);
+}
+#main[data-route^="membership"] .membership-benefits li {
+  position:relative;
+  min-width:0;
+  padding-left:calc(24px);
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+#main[data-route^="membership"] .membership-benefits li::before {
+  content:'✓';
+  position:absolute;
+  left:0;
+  top:0;
+  margin:0;
+  color:var(--ds-muted);
+}
+#main[data-route^="membership"] .premium-card .membership-benefits li::before {color:var(--ds-selected)}
+#main[data-route^="membership"] .membership-card-footer {
+  padding-top:calc(16px);
+  border-top:1px solid var(--ds-line);
+}
+#main[data-route^="membership"] .plan-state {
+  display:inline-flex;
+  align-items:center;
+  max-width:100%;
+  min-height:32px;
+  padding:calc(6px) calc(12px);
+  border-radius:var(--ds-radius-sm);
+  background:var(--ds-soft);
+  color:var(--ds-body);
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.5;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+#main[data-route^="membership"] .plan-state.is-current {color:var(--ds-selected)}
+#main[data-route^="membership"] .membership-support {
+  min-width:0;
+  padding:0 calc(2px);
+}
+#main[data-route^="membership"] .membership-support>.field-help {
+  margin:0;
+  color:var(--ds-muted);
+  line-height:1.75;
+  word-break:keep-all;
+  overflow-wrap:anywhere;
+}
+#main[data-route^="membership"] .membership-support-actions {
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:calc(16px);
+  flex-wrap:wrap;
+  margin-top:calc(16px);
+}
+#main[data-route^="membership"] .plan-summary-links {
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:calc(4px) calc(20px);
+  margin:0;
+}
+#main[data-route^="membership"] .plan-summary-links a {
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  font-size:var(--pc-font-meta,14px);
+  color:var(--ds-body);
+  text-underline-offset:4px;
+}
+#main[data-route^="membership"] .plan-summary-links a:hover {color:var(--ds-selected)}
+#main[data-route^="membership"] .billing-history {
+  margin:calc(16px) 0 calc(8px);
+  max-width:100%;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scrollbar-width:thin;
+  scrollbar-color:var(--ds-border) transparent;
+}
+#main[data-route^="membership"] .billing-history table {
+  width:100%;
+  min-width:620px;
+  border-collapse:collapse;
+  font-size:var(--pc-font-meta,14px);
+  line-height:1.6;
+  font-variant-numeric:tabular-nums;
+}
+#main[data-route^="membership"] .billing-history :is(th,td) {
+  padding:calc(14px) calc(12px);
+  border-bottom:1px solid var(--ds-line);
+  color:var(--ds-body);
+  vertical-align:top;
+}
+#main[data-route^="membership"] .billing-history th {
+  background:var(--ds-soft);
+  color:var(--ds-muted);
+  font-size:var(--pc-font-caption,13px);
+  font-weight:500;
+}
+#main[data-route^="membership"] .billing-history :is(th,td):nth-child(3) {text-align:right;white-space:nowrap}
+#main[data-route^="membership"] .billing-history td:nth-child(3) {color:var(--ds-text)}
+#main[data-route^="membership"] .billing-history small {
+  margin-top:calc(4px);
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.5;
+}
+#main[data-route^="membership"] .billing-order {max-width:240px;overflow-wrap:anywhere}
+#main[data-route^="membership"] .billing-history-panel>.text-link {
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+}
+@media(max-width:1000px) {
+  #main[data-route^="membership"] .billing-heading {align-items:flex-start;flex-direction:column;gap:calc(16px)}
+  #main[data-route^="membership"] .billing-actions {max-width:100%;justify-content:flex-start}
+}
+@media(max-width:800px) {
+  #main[data-route^="membership"] .membership-page {gap:calc(20px)}
+  #main[data-route^="membership"] .membership-grid {grid-template-columns:1fr;gap:calc(16px)}
+  #main[data-route^="membership"] :is(.membership-card,.billing-panel) {padding:calc(20px)}
+  #main[data-route^="membership"] .membership-card-top {min-height:0;padding-bottom:calc(18px)}
+  #main[data-route^="membership"] .membership-card .membership-benefits {gap:calc(12px);margin:calc(18px) 0}
+  #main[data-route^="membership"] .billing-actions {width:100%}
+  #main[data-route^="membership"] .billing-actions>.primary-button {width:100%}
+  #main[data-route^="membership"] .membership-support-actions {align-items:flex-start;gap:calc(12px)}
+  #main[data-route^="membership"] .membership-support-actions>:is(.primary-button,.small-button) {width:100%}
+  #main[data-route^="membership"] .plan-summary-links {column-gap:calc(16px)}
+}
+@media(max-width:360px) {
+  #main[data-route^="membership"] :is(.membership-card,.billing-panel) {padding:calc(16px)}
+  #main[data-route^="membership"] .billing-actions>.small-button {width:100%}
+}

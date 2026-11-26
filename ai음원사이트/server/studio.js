@@ -1,3 +1,6 @@
+import * as AifectMessages from '../shared/system-messages.js';
+import {trackArtworkSQL} from './track-artwork.js';
+import {productionCreditFields} from '../shared/production-credits.js';
 import {classificationFields,coverClassificationWrites} from './music-classification.js';
 import {trackClassification} from '../shared/genres.js';
 import {nickname,nicknameBatch} from './nicknames.js';
@@ -12,12 +15,26 @@ import {alignmentStatus,alignmentWrite} from './alignment.js';
 import {karaokeQueue,karaokeStatus} from './karaoke.js';
 
 export async function studioRoute(req,env,path,user){
+ if(path==='/api/studio/artists'&&req.method==='POST'){
+  requireUser(user);await rate(env,'artist-create:'+user.id,20,3600);
+  const producer=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id);
+  if(!producer)fail(409,'프로필을 먼저 저장해 주세요.');
+  const b=await req.json(),name=str(b.name,60);
+  if(!hasArtistName(name))fail(400,'아티스트 이름을 입력해 주세요.');
+  if(!validGenre(b.genre))fail(400,'장르를 선택해 주세요.');
+  const artist=await chooseArtist(env,producer.id,{artist:name,artist_bio:str(b.bio||'',1000,false)},b.genre);
+  return json({ok:true,id:artist.id},201);
+ }
  const m=path.match(/^\/api\/studio\/(artists|producers|tracks)\/([\w-]+)(\/image|\/banner)?$/);if(!m)return null;
  requireUser(user);const [,,entityId]=m,table=m[1],kind={artists:'artist',producers:'producer',tracks:'track'}[table];
  const entity=await one(env,table==='artists'?'SELECT a.* FROM artists a JOIN producers p ON p.id=a.producer_id WHERE a.id=? AND p.user_id=?':`SELECT * FROM ${table} WHERE id=? AND user_id=?`,entityId,user.id);
  if(!entity||(table==='tracks'&&entity.status==='deleted')||(table==='artists'&&!hasArtistName(entity.name)))fail(404,'내 스튜디오 항목을 찾을 수 없습니다.');
  if(m[3]){
-  if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
+  if(req.method==='DELETE'&&m[3]==='/image'&&table==='tracks'&&entity.kind==='cover'){
+   await run(env,"UPDATE tracks SET has_cover=0,cover_version='',cover_type='' WHERE id=? AND user_id=? AND status!='deleted'",entityId,user.id);
+   return json({ok:true});
+  }
+  if(req.method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
   await rate(env,'image:'+user.id,60,3600);
   if(m[3]==='/banner'){
    // The wide image at the top of a person's profile; only people (producers) have one.
@@ -31,32 +48,66 @@ export async function studioRoute(req,env,path,user){
   else await run(env,`UPDATE ${table} SET image_version=?,image_type=? WHERE id=?`,image.version,image.type,entityId);
   return json({ok:true,version:image.version});
  }
- if(req.method==='GET')return json({profile:table==='tracks'?trackClassification(entity):entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
- if(req.method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
+ if(req.method==='GET')return json({profile:table==='tracks'?trackClassification({...entity,...await one(env,`SELECT ${trackArtworkSQL()},o.has_cover original_has_cover,o.cover_version original_cover_version FROM tracks t LEFT JOIN tracks o ON o.id=t.original_id WHERE t.id=?`,entity.id)}):entity,...(table==='tracks'?{alignment:await alignmentStatus(env,entity.id),karaoke:await karaokeStatus(env,entity.id)}:{})});
+ if(req.method==='DELETE'&&table==='artists'){
+  const b=await req.json();
+  if(b.confirmation!==entityId||b.name!==entity.name)fail(409,'아티스트 정보를 다시 확인한 뒤 삭제해 주세요.');
+  await rate(env,'artist-delete:'+user.id,20,3600);
+  // A single guarded write prevents cascading deletion of existing creative or social data.
+  // Profile image objects are retained; this action never deletes stored media.
+  const result=await env.DB.batch([
+   query(env,`DELETE FROM artists WHERE id=? AND producer_id=? AND name=?
+    AND NOT EXISTS(SELECT 1 FROM tracks WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_photos WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_fan_posts WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_fan_settings WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_fan_operators WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM artist_follow_blocks WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM follows WHERE kind='artist' AND target_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM activity_notifications WHERE artist_id=artists.id)
+    AND NOT EXISTS(SELECT 1 FROM gift_sources WHERE source_type='artist' AND source_id=artists.id)
+    RETURNING id`,entityId,entity.producer_id,entity.name),
+   query(env,`UPDATE profile_artist_pins SET ids_json=(SELECT json_group_array(value) FROM json_each(profile_artist_pins.ids_json) WHERE value!=?)
+    WHERE producer_id=? AND NOT EXISTS(SELECT 1 FROM artists WHERE id=?)`,entityId,entity.producer_id,entityId)
+  ]);
+  if(!result[0].results?.length)fail(409,'음원·팬페이지·팔로우 등 연결된 데이터가 있어 삭제할 수 없습니다. 기존 데이터는 유지됩니다.');
+  return json({ok:true,id:entityId});
+ }
+ if(req.method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
  const b=await req.json();
+ const release=table==='tracks'?releaseDate(b.release_date,entity.release_date):'';
  if(table==='tracks'&&entity.kind==='cover'){
-  // A cover takes its title, genre and credits from the original; the singer edits the note and artwork.
-  await run(env,'UPDATE tracks SET description=? WHERE id=?',str(b.description||'',1000,false),entityId);
+  // A cover takes its title, genre and credits from the original; the singer edits the note independently of artwork.
+  await run(env,'UPDATE tracks SET description=?,release_date=? WHERE id=?',str(b.description||'',1000,false),release,entityId);
   return json({ok:true,id:entityId});
  }
  if(table==='tracks'){
-  const performance=b.performance_mode??entity.performance_mode;if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해주세요.');
+  const credit=productionCreditFields(b,entity);
+  const performance=b.performance_mode??entity.performance_mode;if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해 주세요.');
   const lyricData=lyricsFields(b,entity);
   const classification=classificationFields(b,entity);b.genre=classification.genres[0];
-  if(!validGenre(b.genre))fail(400,'장르를 선택해주세요.');
+  if(!validGenre(b.genre))fail(400,'장르를 선택해 주세요.');
   const artist=await chooseArtist(env,entity.producer_id,{artist_id:b.artist_id||'none'},b.genre);
   const jobWrites=await alignmentWrite(env,entityId,user.id,lyricData,b);
   const guard=b.lyrics_job_id?" AND EXISTS(SELECT 1 FROM lyric_jobs WHERE track_id=tracks.id AND id=? AND state='ready')":'';
-  await env.DB.batch([query(env,'UPDATE tracks SET title=?,genre=?,genres_json=?,moods_json=?,classification_source=?,classification_revision=classification_revision+1,tags=?,description=?,ai_tool=?,participation=?,artist_id=?,lyrics=?,lyrics_mode=?,performance_mode=? WHERE id=?'+guard,str(b.title,120),b.genre,JSON.stringify(classification.genres),JSON.stringify(classification.moods),(JSON.stringify(classification.genres)===entity.genres_json&&JSON.stringify(classification.moods)===entity.moods_json)?entity.classification_source:'manual',str(b.tags||'',300,false),str(b.description||'',4000,false),str(b.ai_tool,100),str(b.participation||'',100,false),artist.id,lyricData.lyrics,lyricData.mode,performance,entityId,...(b.lyrics_job_id?[b.lyrics_job_id]:[])),...jobWrites,...coverClassificationWrites(env,{originalId:entityId})]);
-  if(b.lyrics_job_id&&!await one(env,"SELECT id FROM lyric_jobs WHERE track_id=? AND id=? AND state='applied'",entityId,b.lyrics_job_id))fail(409,'자동 싱크 결과가 변경됐습니다. 최신 결과를 다시 불러와주세요.');
+  await env.DB.batch([query(env,'UPDATE tracks SET title=?,genre=?,genres_json=?,moods_json=?,classification_source=?,classification_revision=classification_revision+1,tags=?,description=?,ai_tool=?,is_ai=?,participation=?,artist_id=?,lyrics=?,lyrics_mode=?,performance_mode=?,release_date=? WHERE id=?'+guard,str(b.title,120),b.genre,JSON.stringify(classification.genres),JSON.stringify(classification.moods),(JSON.stringify(classification.genres)===entity.genres_json&&JSON.stringify(classification.moods)===entity.moods_json)?entity.classification_source:'manual',str(b.tags||'',300,false),str(b.description||'',4000,false),credit.ai_tool,credit.is_ai,str(b.participation||'',100,false),artist.id,lyricData.lyrics,lyricData.mode,performance,release,entityId,...(b.lyrics_job_id?[b.lyrics_job_id]:[])),...jobWrites,...coverClassificationWrites(env,{originalId:entityId})]);
+  if(b.lyrics_job_id&&!await one(env,"SELECT id FROM lyric_jobs WHERE track_id=? AND id=? AND state='applied'",entityId,b.lyrics_job_id))fail(409,'자동 싱크 결과가 변경됐습니다. 최신 결과를 다시 불러와 주세요.');
   // Changed lyrics need new word timings; the MR itself is kept.
   const karaoke=await karaokeQueue(env,await one(env,'SELECT * FROM tracks WHERE id=?',entityId));if(karaoke.length)await env.DB.batch(karaoke);
  }else{
   const name=str(b.name,60),bio=str(b.bio||'',1000,false);
   if(table==='artists'){
-   if(!validGenre(b.genre))fail(400,'장르를 선택해주세요.');
+   if(!validGenre(b.genre))fail(400,'장르를 선택해 주세요.');
    await run(env,'UPDATE artists SET name=?,bio=?,genre=? WHERE id=?',name,bio,b.genre,entityId);
-  }else {const chosen=nickname(name).name;await nicknameBatch(env,user.id,chosen,[query(env,'UPDATE producers SET name=?,bio=?,nickname_confirmed=1 WHERE id=?',chosen,bio,entityId)]);}
+  }else {const chosen=name;await nicknameBatch(env,user.id,chosen,[query(env,'UPDATE producers SET name=?,bio=?,nickname_confirmed=1 WHERE id=?',chosen,bio,entityId)]);}
  }
  return json({ok:true,id:entityId});
+}
+
+function releaseDate(value,current=''){
+ if(value===undefined)return current||'';
+ if(value==='')return '';
+ if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value)||value<'1900-01-01'||value>'2199-12-31')fail(400,'올바른 발매일을 선택해 주세요.');
+ const date=new Date(value+'T00:00:00Z');if(!Number.isFinite(date.getTime())||date.toISOString().slice(0,10)!==value)fail(400,'올바른 발매일을 선택해 주세요.');
+ return value;
 }

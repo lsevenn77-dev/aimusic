@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -7,12 +8,17 @@ const source=readFileSync(new URL('../dist/community.js',import.meta.url),'utf8'
 function context(api=async()=>({tracks:[],singers:[]})){
  const calls=[],played=[],remembered=[];
  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const c=vm.createContext({URLSearchParams,genres:['전체','K-POP','Ballad','R&B'],esc,number:n=>String(n||0),giftButton:()=>'',icon:()=>'',cover:()=>'',portrait:()=>'',liked:()=>false,followed:()=>false,
+ const c=nicknameContext({URLSearchParams,genres:['전체','K-POP','Ballad','R&B'],esc,number:n=>String(n||0),giftButton:()=>'',icon:()=>'',cover:()=>'',portrait:()=>'',liked:()=>false,followed:()=>false,
   me:null,location:{hash:'#community'},heading:s=>'<h1>'+s+'</h1>',gate:()=>'<p>LOGIN</p>',empty:()=>'<p>EMPTY</p>',communityFeed:()=>'<p>FEED</p>',renderId:1,routeTracks:[],
   remember:items=>remembered.push(...items),accountReady:Promise.resolve(),play:async(id,queue)=>played.push({id,queue}),toast:()=>{},
   api:async path=>{calls.push(path);return api(path);}
  });
  vm.runInContext(source,c);
+ vm.runInContext(readFileSync(new URL('../dist/community-v3.js',import.meta.url),'utf8'),c);
+ vm.runInContext(readFileSync(new URL('../dist/voice-room-template.js',import.meta.url),'utf8'),c);
+ vm.runInContext(readFileSync(new URL('../dist/voice-rooms.js',import.meta.url),'utf8'),c);c.voiceRequest=async()=>({enabled:false});
+ vm.runInContext(readFileSync(new URL('../dist/social-layouts.js',import.meta.url),'utf8'),c);
+ vm.runInContext(readFileSync(new URL('../dist/release-refinements.js',import.meta.url),'utf8'),c);
  return {c,calls,played,remembered};
 }
 function host(){return {isConnected:true,innerHTML:'',attributes:{},button:{},setAttribute(k,v){this.attributes[k]=v;},querySelector(){return this.button;}};}
@@ -27,14 +33,10 @@ test('cover deep links validate values and preserve Unicode query, genre and ori
  const invalid=c.coverRankOptions('community/rankings?period=no&kind=admin&genre=no&original_id=%3Cscript%3E');
  assert.equal(invalid.period,'today');assert.equal(invalid.kind,'tracks');assert.equal(invalid.genre,'전체');assert.equal(invalid.original_id,'');
 });
-test('community entry renders all four ranking links without blocking on four ranking requests',async()=>{
- const {c,calls}=context(async()=>({tracks:[]}));
- const home=await c.communityView('community',undefined,'community');
- for(const period of ['today','week','month','all'])assert.match(home.html,new RegExp('period='+period));
- assert.equal(home.coverRanking,undefined);assert.match(home.html,/#community\/crews/);
- assert.deepEqual(calls,['/api/community']);
- const rank=await c.communityView('community','rankings','community/rankings?period=all');
- assert.equal(rank.coverRanking.limit,50);assert.deepEqual(calls,['/api/community']);
+test('community defaults to talking rooms and ranking exposes four categories with one request',async()=>{
+ const {c,calls}=context(async()=>({rows:[],from:0,until:1,updated_at:1}));
+ const home=await c.communityView('community',undefined,'community');assert.match(home.html,/토킹룸/);assert.match(home.html,/href="#crew"/);assert.deepEqual(calls,[]);
+ const rank=await c.communityView('community','rankings','community/rankings');for(const name of ['AI 아티스트','크루 랭킹','커버 랭킹','더빙 랭킹'])assert.ok(rank.html.includes(name));assert.doesNotMatch(rank.html,/관계 랭킹|월간/);assert.equal(calls.length,1);assert.match(calls[0],/category=aiArtist&period=week/);
 });
 test('ranking requests use the shared API filters and playback uses ranked songs only',async()=>{
  const items=[track('two'),track('one')],{c,calls,played}=context(async()=>({tracks:items}));

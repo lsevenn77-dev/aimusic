@@ -1,0 +1,256 @@
+/* Settlement presentation only. Shared wallet renderers keep their other uses. */
+#main .payout-management {
+  display:grid;
+  gap:calc(24px);
+  min-width:0;
+  color:var(--ds-body);
+  font-size:var(--pc-font-body,15px);
+  line-height:1.65;
+}
+#main .payout-management :is(.surface,.payout-history-panel) {
+  min-width:0;
+  max-width:100%;
+  margin:0;
+}
+#main .payout-management .surface {
+  padding:calc(24px);
+  background:var(--ds-panel);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card,16px);
+  box-shadow:none;
+}
+#main .payout-management :is(.payout-card-heading,.payout-history-panel>.section-heading) {
+  display:flex;
+  align-items:center;
+  gap:calc(12px);
+  margin:0 0 calc(16px);
+}
+#main .payout-management :is(.payout-card-heading h2,.payout-history-panel>.section-heading h2,.payout-activity h2) {
+  margin:0;
+  color:var(--ds-text);
+  font-size:var(--pc-font-section,19px);
+  font-weight:600;
+  line-height:1.5;
+  letter-spacing:-.02em;
+}
+#main .payout-management .field-help {
+  margin:calc(12px) 0;
+  color:var(--ds-muted);
+  line-height:1.7;
+}
+#main .payout-management .field-help:last-child {margin-bottom:0}
+#main .payout-management .form-error:empty {display:none}
+#main .payout-management :is(p,small,dd,.form-field,.checkbox-line) {overflow-wrap:anywhere}
+
+/* A single balance, then two equal actions with matched input/preview rows. */
+#main .payout-management .diamond-wallet-head {
+  align-items:flex-start;
+  gap:calc(20px);
+}
+#main .payout-management .diamond-wallet-head>div {min-width:0}
+#main .payout-management .diamond-wallet .eyebrow {
+  display:block;
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,14px);
+  letter-spacing:0;
+}
+#main .payout-management .diamond-wallet h2 {
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:calc(8px);
+  margin:calc(6px) 0;
+  color:var(--ds-text);
+  line-height:1.35;
+}
+#main .payout-management .diamond-balance-amount {
+  min-width:0;
+  max-width:100%;
+  font-size:clamp(27px,3vw,34px);
+  font-variant-numeric:tabular-nums;
+  overflow-wrap:anywhere;
+  letter-spacing:-.035em;
+}
+#main .payout-management .diamond-wallet h2 .diamond-emoji {font-size:var(--pc-font-section,22px)}
+#main .payout-management .diamond-wallet h2 small {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,14px);
+  font-weight:400;
+}
+#main .payout-management .diamond-wallet-head p {margin:calc(6px) 0 0;color:var(--ds-muted)}
+#main .payout-management .partner-badge {
+  flex:none;
+  padding:calc(5px) calc(10px);
+  margin:calc(2px) 0 0;
+  border:0;
+  background:color-mix(in srgb,var(--ds-selected) 12%,transparent);
+  color:var(--ds-selected);
+  font-size:var(--pc-font-caption,13px);
+  font-weight:400;
+}
+#main .payout-management .diamond-wallet>.field-help:last-child {
+  border-top:1px solid var(--ds-line);
+  margin-top:calc(20px);
+  padding-top:calc(16px);
+}
+#main .payout-management .diamond-actions {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  align-items:stretch;
+  gap:calc(16px);
+  margin-top:calc(20px);
+}
+#main .payout-management .diamond-actions .upload-form {
+  display:grid;
+  align-content:start;
+  gap:calc(12px);
+  padding:calc(20px);
+  margin:0;
+  min-width:0;
+  background:var(--ds-bg);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input,12px);
+}
+#main .payout-management .diamond-actions h3 {
+  margin:0 0 calc(2px);
+  color:var(--ds-text);
+  font-size:var(--pc-font-card,16px);
+  font-weight:600;
+  line-height:1.5;
+}
+#main .payout-management .diamond-actions .form-field {margin:0}
+#main .payout-management .diamond-preview {
+  display:flex;
+  align-items:flex-start;
+  min-height:3.3em;
+  margin:0;
+  color:var(--ds-body);
+  font-size:var(--pc-font-meta,14px);
+  font-variant-numeric:tabular-nums;
+}
+#main .payout-management .diamond-actions small {
+  display:block;
+  color:var(--ds-muted);
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.7;
+}
+#main .payout-management .diamond-actions .form-error {margin:0}
+
+/* Keep the actual stream split while reducing the oversized chart. */
+#main .payout-management .payout-overview {
+  display:grid;
+  grid-template-columns:minmax(220px,.8fr) minmax(0,1.4fr);
+  gap:calc(32px);
+  align-items:start;
+}
+#main .payout-management .payout-activity {gap:calc(16px);min-width:0}
+#main .payout-management .payout-donut {
+  width:170px;
+  max-width:100%;
+  padding:calc(12px);
+  background:conic-gradient(var(--ds-social) var(--original-share),var(--ds-progress) 0);
+}
+#main .payout-management .payout-donut.is-empty {background:var(--ds-line)}
+#main .payout-management .payout-donut>div {background:var(--ds-panel);gap:calc(4px)}
+#main .payout-management .payout-donut strong {
+  color:var(--ds-text);
+  font-size:var(--pc-font-page,25px);
+  font-weight:600;
+}
+#main .payout-management .payout-donut span {color:var(--ds-muted);font-size:var(--pc-font-caption,13px)}
+#main .payout-management .payout-legend {
+  gap:calc(8px) calc(16px);
+  font-size:var(--pc-font-meta,14px);
+  color:var(--ds-muted);
+}
+#main .payout-management .payout-legend strong {color:var(--ds-text);font-weight:500}
+#main .payout-management .payout-legend i {background:var(--ds-social)}
+#main .payout-management .payout-legend .cover {background:var(--ds-progress)}
+#main .payout-management .payout-summary {min-width:0}
+#main .payout-management .payout-period {margin:0 0 calc(12px);font-size:var(--pc-font-meta,14px);color:var(--ds-muted)}
+#main .payout-management .payout-counts {
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:calc(16px);
+  margin:0 0 calc(20px);
+}
+#main .payout-management .payout-counts>div {min-width:0}
+#main .payout-management .payout-counts dt {font-size:var(--pc-font-meta,14px);color:var(--ds-muted)}
+#main .payout-management .payout-counts dd {margin:calc(6px) 0 0;color:var(--ds-text);font-size:var(--pc-font-page,24px);line-height:1.4;font-weight:600}
+#main .payout-management .payout-counts dd span {font-size:var(--pc-font-meta,14px);color:var(--ds-muted)}
+#main .payout-management .payout-schedule {padding-top:calc(16px);border-color:var(--ds-line)}
+#main .payout-management .payout-schedule h3 {margin:0 0 calc(8px);font-size:var(--pc-font-card,16px);color:var(--ds-text);font-weight:500}
+#main .payout-management .payout-schedule p {margin:0 0 calc(8px)}
+#main .payout-management .payout-schedule small {color:var(--ds-muted);font-size:var(--pc-font-caption,13px)}
+
+/* Tables scroll within their own panel, retaining every monetary column. */
+#main .payout-management .table-scroll {width:100%;min-width:0;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;border-radius:var(--ds-radius-sm,8px)}
+#main .payout-management .earnings-table {width:100%;min-width:600px;border-collapse:collapse;font-size:var(--pc-font-meta,14px);text-align:left;font-variant-numeric:tabular-nums}
+#main .payout-management .earnings-table :is(th,td) {padding:calc(14px) calc(16px);border-bottom:1px solid var(--ds-line);line-height:1.6;white-space:nowrap;vertical-align:top}
+#main .payout-management .earnings-table th {background:var(--ds-bg);color:var(--ds-muted);font-weight:500}
+#main .payout-management .earnings-table td {color:var(--ds-body)}
+#main .payout-management .earnings-table tbody tr:last-child td {border-bottom:0}
+#main .payout-management .earnings-table td:last-child {white-space:normal;min-width:150px}
+#main .payout-management .payout-rules {margin-top:calc(20px);padding-top:calc(8px);border-top:1px solid var(--ds-line)}
+#main .payout-management .payout-rules summary {font-size:var(--pc-font-control,14px);font-weight:400;color:var(--ds-body)}
+#main .payout-management .payout-rules[open]>summary {margin-bottom:calc(12px)}
+#main .payout-management .payout-rules :is(p,li) {color:var(--ds-muted);font-size:var(--pc-font-meta,14px);line-height:1.75}
+#main .payout-management .payout-rules h3 {color:var(--ds-text);margin:calc(20px) 0 calc(8px)}
+#main .payout-management .payout-history-panel>.section-heading {margin-bottom:calc(12px)}
+#main .payout-management .gift-history {padding:0 calc(24px)}
+#main .payout-management .gift-row {display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:calc(20px);align-items:center;padding:calc(16px) 0;margin:0;border-bottom:1px solid var(--ds-line);font-size:var(--pc-font-meta,14px)}
+#main .payout-management .gift-row:last-child {border-bottom:0}
+#main .payout-management .gift-row>span {min-width:0;color:var(--ds-text)}
+#main .payout-management .gift-row small {display:block;margin-top:calc(4px);color:var(--ds-muted);font-size:var(--pc-font-caption,13px);overflow-wrap:anywhere}
+#main .payout-management .gift-row>strong {color:var(--ds-text);font-weight:500;font-size:var(--pc-font-body,15px);font-variant-numeric:tabular-nums;overflow-wrap:anywhere;text-align:right}
+#main .payout-management .gift-row time {color:var(--ds-muted);font-size:var(--pc-font-caption,13px);white-space:nowrap}
+
+/* Registered details and editable fields share one clear reading order. */
+#main .payout-management .payout-account-summary {display:grid;grid-template-columns:minmax(0,1.5fr) repeat(2,minmax(0,1fr));gap:calc(20px);margin:0 0 calc(20px);padding:calc(16px);border-radius:var(--ds-radius-input,12px);background:var(--ds-bg)}
+#main .payout-management .payout-account-summary>div {min-width:0}
+#main .payout-management .payout-account-summary dt {font-size:var(--pc-font-caption,13px);color:var(--ds-muted)}
+#main .payout-management .payout-account-summary dd {margin:calc(5px) 0 0;font-size:var(--pc-font-body,15px);color:var(--ds-text)}
+#main .payout-management .payout-account-summary strong {font-weight:500}
+#main .payout-management .payout-account details {margin:0}
+#main .payout-management .payout-account summary {font-weight:400;margin:0;color:var(--ds-body)}
+#main .payout-management #payout-form {max-width:840px;padding:calc(12px) 0 0;margin:0}
+#main .payout-management .payout-account-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:calc(16px)}
+#main .payout-management .payout-account-fields .form-field {margin:0;min-width:0}
+#main .payout-management #payout-form>.rights-check {align-items:flex-start;margin:calc(20px) 0;color:var(--ds-muted);font-size:var(--pc-font-meta,14px);line-height:1.75}
+#main .payout-management #payout-form>.rights-check input {flex:none;margin-top:calc(5px)}
+#main .payout-management #payout-form>.rights-check>span {min-width:0}
+#main .payout-management #payout-form>.primary-button {width:auto;min-width:150px;max-width:100%}
+#main .payout-management .payout-account>.field-help:last-child {padding-top:calc(16px);margin-top:calc(20px);border-top:1px solid var(--ds-line)}
+#main .payout-management .empty-note {text-align:center;margin:calc(16px) 0;padding:calc(24px) calc(16px);border-radius:var(--ds-radius-input,12px);background:var(--ds-bg);color:var(--ds-muted);font-size:var(--pc-font-body,15px)}
+
+@media(max-width:1100px) and (min-width:801px) {
+  #main .payout-management .payout-overview {grid-template-columns:minmax(190px,.75fr) minmax(0,1.4fr);gap:calc(24px)}
+  #main .payout-management .diamond-actions .upload-form {padding:calc(16px)}
+  #main .payout-management .payout-account-summary {grid-template-columns:1fr 1fr}
+  #main .payout-management .payout-account-summary>div:first-child {grid-column:1/-1}
+}
+@media(max-width:700px) {
+  #main .payout-management {gap:calc(20px)}
+  #main .payout-management .surface {padding:calc(20px)}
+  #main .payout-management .diamond-wallet-head {flex-direction:column;gap:calc(12px)}
+  #main .payout-management .diamond-wallet-head .partner-badge {margin:0}
+  #main .payout-management .diamond-actions {grid-template-columns:1fr;gap:calc(12px);margin-top:calc(16px)}
+  #main .payout-management .diamond-actions .upload-form {padding:calc(16px)}
+  #main .payout-management .diamond-preview {min-height:0}
+  #main .payout-management .payout-overview {grid-template-columns:1fr;gap:calc(24px)}
+  #main .payout-management .payout-donut {width:156px}
+  #main .payout-management .payout-counts {gap:calc(12px)}
+  #main .payout-management .gift-history {padding:0 calc(20px)}
+  #main .payout-management .gift-row {grid-template-columns:minmax(0,1fr) minmax(0,auto);gap:calc(8px) calc(16px)}
+  #main .payout-management .gift-row time {grid-column:1/-1}
+  #main .payout-management .payout-account-summary {grid-template-columns:1fr;gap:calc(12px);padding:calc(14px)}
+  #main .payout-management .payout-account-fields {grid-template-columns:1fr;gap:calc(16px)}
+  #main .payout-management #payout-form>.primary-button {width:100%}
+}
+@media(max-width:380px) {
+  #main .payout-management .surface {padding:calc(16px)}
+  #main .payout-management .diamond-actions .upload-form {padding:calc(14px)}
+  #main .payout-management .payout-counts {grid-template-columns:1fr}
+  #main .payout-management .gift-history {padding:0 calc(16px)}
+  #main .payout-management .gift-row {grid-template-columns:1fr}
+  #main .payout-management .gift-row>strong {text-align:left}
+  #main .payout-management .empty-note {padding:calc(20px) calc(12px)}
+}

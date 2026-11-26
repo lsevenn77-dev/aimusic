@@ -4,7 +4,7 @@
 /* Give unused player space back to the page, including the mobile sidebar. */
 body{--player-height:96px;--player-space:0px}
 body.has-player{--player-space:var(--player-height)}
-.page-wrap{padding-bottom:var(--player-space)}
+.page-wrap{padding-bottom:max(var(--player-space),env(safe-area-inset-bottom,0px))}
 .sidebar{bottom:var(--player-space)}
 .toast{bottom:calc(var(--player-space) + 20px + env(safe-area-inset-bottom,0px))}
 @media(max-width:800px){body{--player-height:110px}}

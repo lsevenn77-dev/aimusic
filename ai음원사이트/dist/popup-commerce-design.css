@@ -1,0 +1,480 @@
+/* AIFECT popup families: commerce, member profiles and crew management.
+   The shared popup system supplies the shell and ordinary control states.
+   These rules keep each family's existing dimensions, grids, scrolling,
+   artwork, currency colors and action semantics. */
+
+/* Gift selection: keep the measured product rows and the 3 × 2 footer. */
+#dialog.gift-sheet:has(.gift-dialog--compact) {
+  --gift-dialog-line: var(--ds-line);
+  --gift-dialog-card: var(--ds-panel);
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-card);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-recipient {
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-panel);
+  color: var(--ds-text);
+  box-shadow: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-category-tabs {
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-panel);
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-category-tabs button {
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-body);
+  box-shadow: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-category-tabs [aria-pressed="true"] {
+  background: var(--ds-soft);
+  color: var(--ds-selected);
+  box-shadow: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-choice {
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-panel);
+  box-shadow: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-choice:is(.selected,[aria-pressed="true"]) {
+  border-color: var(--ds-selected);
+  background: var(--ds-soft);
+  box-shadow: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-dialog-footer {
+  border: 0;
+  border-radius: 0;
+  background: var(--ds-panel);
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-footer-grid > * {
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  box-shadow: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-footer-grid :is(.gift-charge-button,.gift-silver-button) {
+  border-color: var(--ds-line);
+  background: var(--ds-panel);
+  color: var(--ds-body);
+}
+#dialog.gift-sheet .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-charge-button,
+#dialog.gift-sheet .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-charge-button:hover {
+  color: #8EDDD2;
+}
+#dialog:not(.shop-dialog) .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button:not(:disabled),
+#dialog.shop-dialog .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button:not(:disabled) {
+  border-color: transparent;
+  background: var(--ds-gradient);
+  color: var(--ds-ink);
+  box-shadow: none;
+}
+/* Shop checkout retains the approved shop accent. */
+#dialog.shop-dialog .shop-checkout .shop-checkout-actions > .primary-button:not(:disabled) {
+  border-color: var(--ds-selected);
+  background: var(--shop-purple);
+  color: var(--ds-ink);
+  box-shadow: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-footer-grid .gift-send-button:disabled,
+#dialog .gift-dialog.gift-dialog--compact .gift-footer-grid :is(.gift-charge-button,.gift-silver-button):disabled,
+#dialog .gift-dialog.gift-dialog--compact .gift-category-tabs button:disabled,
+#dialog .gift-dialog.gift-dialog--compact .gift-choice:disabled {
+  border-color: var(--ds-line);
+  background: var(--ds-panel);
+  color: var(--ds-disabled);
+  box-shadow: none;
+  filter: none;
+}
+#dialog .gift-dialog.gift-dialog--compact .gift-extra-detail select {
+  border-color: var(--ds-line);
+  background: var(--ds-bg);
+  color: var(--ds-text);
+}
+#dialog .gift-dialog.gift-dialog--compact .form-error {
+  color: var(--ds-error);
+}
+
+/* Recipient search and stored gifts use the same neutral list treatment.
+   Names and product/currency artwork continue to inherit their own styles. */
+#dialog :is(.gift-recipient-dialog,.decoration-dialog) .gift-target,
+#dialog.shop-dialog .shop-recipient {
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-panel);
+  color: var(--ds-text);
+  box-shadow: none;
+}
+#dialog :is(.gift-recipient-dialog,.decoration-dialog) .gift-target[aria-pressed="true"],
+#dialog.shop-dialog .shop-recipient[aria-pressed="true"] {
+  border-color: var(--ds-selected);
+  background: var(--ds-soft);
+  box-shadow: none;
+}
+#dialog :is(.gift-recipient-dialog,.decoration-dialog) .gift-target small,
+#dialog.shop-dialog .shop-recipient :is(small,.shop-recipient-state) {
+  color: var(--ds-muted);
+}
+#dialog :is(.gift-recipient-dialog,.decoration-dialog) .gift-target:disabled {
+  border-color: var(--ds-line);
+  background: var(--ds-panel);
+  color: var(--ds-disabled);
+  box-shadow: none;
+  filter: none;
+}
+#dialog :is(#gift-recipient-search,#mp-inventory-buy,#mp-inventory-recipient,#stored-decoration-form) :is(label,.form-field) {
+  color: var(--ds-body);
+  line-height: 1.5;
+}
+#dialog :is(#gift-recipient-search,#mp-inventory-buy,#mp-inventory-recipient,#stored-decoration-form) input:not([type="checkbox"],[type="radio"],[type="file"]) {
+  min-height: 44px;
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-input);
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-size: 16px;
+}
+#dialog :is(#mp-inventory-buy,#mp-inventory-recipient,#mp-recipient-confirm,#stored-decoration-form) .field-help {
+  color: var(--ds-muted);
+  line-height: 1.55;
+}
+#dialog .gift-success .gift-celebration {
+  box-shadow: none;
+}
+#dialog.shop-dialog .shop-theme-preview .shop-preview-info {
+  color: var(--ds-text);
+}
+#dialog.shop-dialog .shop-theme-preview h2 {
+  color: var(--ds-text);
+}
+#dialog.shop-dialog .shop-checkout .shop-review dt,
+#dialog.shop-dialog .shop-checkout .shop-receiver small {
+  color: var(--ds-body);
+}
+#dialog.shop-dialog .shop-checkout .shop-review dd {
+  color: var(--ds-text);
+}
+
+/* Gold and Premium: style the site's summary and form, never payment SDK UI. */
+#dialog .billing-checkout-summary {
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius-input);
+  background: var(--ds-panel);
+  box-shadow: none;
+}
+#dialog .billing-checkout-summary > strong,
+#dialog .billing-checkout-summary b {
+  color: var(--ds-text);
+  font-variant-numeric: tabular-nums;
+}
+#dialog .billing-checkout-summary p {
+  color: var(--ds-body);
+  line-height: 1.6;
+}
+#dialog .billing-notice {
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-panel);
+  color: var(--ds-body);
+  line-height: 1.55;
+}
+#dialog #billing-checkout-form .billing-fields label {
+  color: var(--ds-body);
+  line-height: 1.5;
+}
+#dialog #billing-checkout-form .billing-fields input {
+  min-height: 44px;
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-input);
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font-size: 16px;
+}
+#dialog :is(#billing-checkout-form,#gold-checkout-form) .checkbox-line {
+  align-items: flex-start;
+  color: var(--ds-body);
+  line-height: 1.55;
+}
+#dialog :is(#billing-checkout-form,#gold-checkout-form) input[type="checkbox"] {
+  flex: none;
+  accent-color: var(--ds-selected);
+}
+#dialog #billing-checkout-form .billing-consents :is(a,summary) {
+  color: var(--ds-body);
+  text-underline-offset: 3px;
+}
+#dialog #billing-checkout-form .billing-consents pre {
+  padding: 12px;
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-bg);
+  color: var(--ds-body);
+  line-height: 1.6;
+}
+
+/* Profile preview keeps its portrait frame, member name, action grid and
+   responsive placement. The report/block tools remain subdued text controls. */
+dialog.profile-preview {
+  border-color: var(--ds-line);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+}
+dialog.profile-preview .profile-preview-tools :is(button:not(.profile-preview-close),span) {
+  color: var(--ds-muted);
+}
+dialog.profile-preview .profile-preview-tools button:not(.profile-preview-close):is(:hover,:focus-visible) {
+  color: var(--ds-text);
+}
+dialog.profile-preview .profile-preview-stats > * + * {
+  border-color: var(--ds-line);
+}
+dialog.profile-preview .profile-preview-actions > :is(button,a) {
+  border: 1px solid var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-panel);
+  color: var(--ds-body);
+  box-shadow: none;
+}
+dialog.profile-preview .profile-preview-actions > .primary-button:not(:disabled) {
+  border-color: transparent;
+  background: var(--ds-gradient);
+  color: var(--ds-ink);
+}
+dialog.profile-preview .profile-preview-actions > [data-follow][aria-pressed="true"]:not(:disabled) {
+  border-color: var(--ds-line);
+  background: var(--ds-soft);
+  color: var(--ds-selected);
+}
+dialog.profile-preview .profile-preview-actions > :disabled {
+  background: var(--ds-panel);
+  color: var(--ds-disabled);
+  border-color: var(--ds-line);
+  box-shadow: none;
+  filter: none;
+}
+
+/* Own-profile editor has an explicitly approved transparent backdrop. */
+:is(#dialog,dialog).profile-edit-dialog.compact-popup {
+  border-color: var(--ds-line);
+  background: var(--ds-panel);
+  color: var(--ds-text);
+}
+:is(#dialog,dialog).profile-edit-dialog::backdrop {
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+:is(#dialog,dialog).profile-edit-dialog :is(.form-field,.profile-edit-label) {
+  color: var(--ds-body);
+  line-height: 1.5;
+}
+:is(#dialog,dialog).profile-edit-dialog.compact-popup :is(input[name="name"],textarea[name="bio"]) {
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-input);
+  background: var(--ds-bg);
+  color: var(--ds-text);
+}
+:is(#dialog,dialog).profile-edit-dialog .field-help {
+  color: var(--ds-muted);
+}
+:is(#dialog,dialog).profile-edit-dialog :is(.profile-edit-photo-actions,.profile-edit-banner-actions,.profile-edit-actions) > .small-button:not(:disabled) {
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-panel);
+  color: var(--ds-body);
+  box-shadow: none;
+}
+:is(#dialog,dialog).profile-edit-dialog .profile-edit-actions > .primary-button:not(:disabled) {
+  border-color: transparent;
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-gradient);
+  color: var(--ds-ink);
+  box-shadow: none;
+}
+
+/* Follow management's confirmation has a dedicated confirm action even
+   though its existing markup uses the small-button class for both buttons. */
+#dialog .fm-confirm > .small-button {
+  min-height: 44px;
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-panel);
+  color: var(--ds-body);
+  box-shadow: none;
+}
+#dialog .fm-confirm > [data-fm="confirm"]:not(:disabled) {
+  border-color: transparent;
+  background: var(--ds-gradient);
+  color: var(--ds-ink);
+}
+
+/* Crew dialogs preserve their fixed header/footer and scrollable body.
+   Photo cropping controls are deliberately outside these selectors. */
+dialog.crew-action-dialog {
+  border-color: var(--ds-line);
+  background: var(--ds-surface);
+  color: var(--ds-text);
+}
+dialog.crew-action-dialog > :is(header,footer),
+dialog.crew-action-dialog :is(.crew-manage-row,.crew-audit-event) {
+  border-color: var(--ds-line);
+}
+dialog.crew-action-dialog :is(.crew-action-tools > input,.crew-row-actions > select),
+dialog.crew-action-dialog #crew-settings-form > .form-field > :is(input:not([type="file"],[type="range"],[type="checkbox"],[type="radio"]),textarea,select),
+#dialog :is(#crew-form,#crew-notice-form,#crew-role-form,#mp-artist-create,#profile-gallery-upload) > .form-field > :is(input:not([type="file"],[type="range"],[type="checkbox"],[type="radio"]),textarea,select) {
+  border-color: var(--ds-line);
+  border-radius: var(--ds-radius-input);
+  background: var(--ds-bg);
+  color: var(--ds-text);
+}
+dialog.crew-action-dialog :is(.crew-activity-tabs,.crew-row-actions) > :is(button,select),
+dialog.crew-action-dialog > footer > :is(.small-button,.primary-button) {
+  border-radius: var(--ds-radius-sm);
+  box-shadow: none;
+}
+dialog.crew-action-dialog .crew-activity-tabs > button {
+  background: var(--ds-panel);
+  color: var(--ds-body);
+}
+dialog.crew-action-dialog .crew-activity-tabs > [aria-selected="true"] {
+  border-color: var(--ds-selected);
+  background: var(--ds-soft);
+  color: var(--ds-selected);
+}
+dialog.crew-action-dialog .crew-row-actions > .small-button:not(:disabled),
+dialog.crew-action-dialog > footer > .small-button:not(:disabled) {
+  border-color: var(--ds-line);
+  background: var(--ds-panel);
+  color: var(--ds-body);
+}
+dialog.crew-action-dialog > footer > .primary-button:not(:disabled),
+#dialog:has(#crew-form) #crew-form > .primary-button:not(:disabled) {
+  border-color: transparent;
+  background: var(--ds-gradient);
+  color: var(--ds-ink);
+  box-shadow: none;
+}
+
+/* Family selectors above are intentionally more specific than shared fields;
+   their disabled state must win at the same specificity while requests run. */
+#dialog :is(#gift-recipient-search,#mp-inventory-buy,#mp-inventory-recipient,#stored-decoration-form) input:not([type="checkbox"],[type="radio"],[type="file"]):disabled,
+#dialog #billing-checkout-form .billing-fields input:disabled,
+:is(#dialog,dialog).profile-edit-dialog.compact-popup :is(input[name="name"],textarea[name="bio"]):disabled,
+dialog.crew-action-dialog :is(.crew-action-tools > input,.crew-row-actions > select):disabled,
+dialog.crew-action-dialog #crew-settings-form > .form-field > :is(input:not([type="file"],[type="range"],[type="checkbox"],[type="radio"]),textarea,select):disabled,
+#dialog :is(#crew-form,#crew-notice-form,#crew-role-form,#mp-artist-create,#profile-gallery-upload) > .form-field > :is(input:not([type="file"],[type="range"],[type="checkbox"],[type="radio"]),textarea,select):disabled,
+#dialog:has(#crew-form) #crew-form > .primary-button:disabled,
+#dialog .fm-confirm > .small-button:disabled {
+  border-color: var(--ds-line);
+  background: var(--ds-panel);
+  color: var(--ds-disabled);
+  box-shadow: none;
+  filter: none;
+  cursor: not-allowed;
+}
+
+/* In a talking room the same gift dialog has a deliberately smaller layout.
+   Match the existing portal scope for color only: four columns, 36px footer
+   rows, back control, half-room height limit and scroll ownership stay intact. */
+#main .voice-room #voice-content .voice-chat-panel #dialog.room-popup.gift-sheet {
+  & .gift-category-tabs button {
+    border-color: var(--ds-line);
+    background: var(--ds-panel);
+    color: var(--ds-body);
+    box-shadow: none;
+  }
+  & .gift-category-tabs [aria-pressed="true"] {
+    border-color: var(--ds-line);
+    background: var(--ds-soft);
+    color: var(--ds-selected);
+  }
+  & .gift-options .gift-choice {
+    border-color: var(--ds-line);
+    background: var(--ds-panel);
+    box-shadow: none;
+  }
+  & .gift-options .gift-choice:is(.selected,[aria-pressed="true"]) {
+    border-color: var(--ds-selected);
+    background: var(--ds-soft);
+    box-shadow: none;
+  }
+  & .gift-footer-grid .gift-send-button:not(:disabled) {
+    border-color: transparent;
+    background: var(--shop-purple,var(--ds-gradient));
+    color: var(--ds-ink);
+    box-shadow: none;
+  }
+  & .room-wallet-view {
+    color: var(--ds-text);
+  }
+  & .room-wallet-view :is([data-wallet-back],header strong) {
+    color: var(--ds-text);
+  }
+  & .room-wallet-balance,
+  & .room-wallet-view [data-wallet-status],
+  & .room-wallet-pack small,
+  & .room-wallet-mission small {
+    color: var(--ds-muted);
+  }
+  & .room-wallet-pack {
+    border-color: var(--ds-line);
+    border-radius: var(--ds-radius-input);
+    background: var(--ds-panel);
+    color: var(--ds-text);
+    box-shadow: none;
+  }
+  & .room-wallet-pack[aria-pressed="true"] {
+    border-color: var(--ds-selected);
+    background: var(--ds-soft);
+  }
+  & .room-wallet-pack::after {
+    border-color: var(--ds-muted);
+  }
+  & .room-wallet-pack[aria-pressed="true"]::after {
+    border-color: var(--ds-selected);
+    color: var(--ds-selected);
+  }
+  & .room-wallet-pack > :nth-child(2),
+  & .room-wallet-mission strong {
+    color: var(--ds-text);
+  }
+  & .room-wallet-mission {
+    border-color: var(--ds-line);
+  }
+  & :is(.room-wallet-confirm,.room-wallet-mission button):not(:disabled) {
+    border-color: transparent;
+    border-radius: var(--ds-radius-sm);
+    background: var(--ds-gradient);
+    color: var(--ds-ink);
+    box-shadow: none;
+  }
+  & :is(.room-wallet-confirm,.room-wallet-mission button):disabled {
+    border-color: var(--ds-line);
+    background: var(--ds-panel);
+    color: var(--ds-disabled);
+    box-shadow: none;
+    filter: none;
+  }
+}
+
+@media (hover:hover) {
+  #dialog .gift-dialog.gift-dialog--compact .gift-choice:not(:disabled):hover,
+  #dialog .gift-dialog.gift-dialog--compact .gift-footer-grid :is(.gift-charge-button,.gift-silver-button):not(:disabled):hover,
+  #dialog :is(.gift-recipient-dialog,.decoration-dialog) .gift-target:not(:disabled):hover,
+  dialog.profile-preview .profile-preview-actions > .small-button:not(:disabled):hover {
+    border-color: var(--ds-selected);
+    background: var(--ds-soft);
+    color: var(--ds-text);
+    box-shadow: none;
+  }
+}
+@media (max-width:800px) {
+  :is(#dialog,dialog).profile-edit-dialog.compact-popup :is(input[name="name"],textarea[name="bio"]),
+  dialog.crew-action-dialog :is(.crew-action-tools > input,.crew-row-actions > select),
+  dialog.crew-action-dialog #crew-settings-form > .form-field > :is(input:not([type="file"],[type="range"],[type="checkbox"],[type="radio"]),textarea,select),
+  #dialog :is(#crew-form,#crew-notice-form,#crew-role-form,#mp-artist-create,#profile-gallery-upload) > .form-field > :is(input:not([type="file"],[type="range"],[type="checkbox"],[type="radio"]),textarea,select) {
+    font-size: 16px;
+  }
+}

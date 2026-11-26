@@ -1,0 +1,30 @@
+/* Shared input geometry and validation. Focus is drawn by focus.css. */
+:is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],
+  [type=reset],[type=image],[type=color]),textarea,select,[role=textbox],[role=combobox],[contenteditable=true]) {
+ box-shadow:none!important;
+}
+.form-field:has(> :is(input,textarea,select)) {border:0!important;outline:0!important;box-shadow:none!important}
+
+/* The shell holds the border for composite inputs. */
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search):has(input) {
+ box-shadow:none!important;filter:none!important;
+}
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search) input,
+:is([role=textbox],[role=combobox],[data-input-shell]) :is(input,textarea,select,[contenteditable=true]) {
+ border:0!important;box-shadow:none!important;
+}
+:is([role=textbox],[role=combobox],[data-input-shell]):has(:is(input,textarea,select,[contenteditable=true])) {
+ box-shadow:none!important;
+}
+:where([contenteditable=true],[role=textbox],[role=combobox],[data-input-shell]):not(input,textarea,select) {
+ border:1px solid transparent;
+}
+:is(.dm-chat-panel,.crew-chat-panel) #chat-compose textarea {
+ border:1px solid transparent;padding:11px 13px;
+}
+
+:is(input,textarea,select,[role=textbox],[role=combobox],[contenteditable=true]):is([aria-invalid=true],:user-invalid),
+:is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,.play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,.cover-rank-search,.admin-search,[role=textbox],[role=combobox],[data-input-shell]):has(:is([aria-invalid=true],:user-invalid)) {
+ border-color:var(--ds-error,#f87171)!important;
+}
+.aifect-dropdown:has(>.aifect-dropdown-trigger) {border:0;outline:0;box-shadow:none}

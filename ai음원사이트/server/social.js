@@ -1,27 +1,71 @@
+import * as AifectMessages from '../shared/system-messages.js';
+import {storedCrewTags, includesCrewTags, crewTagsForWrite, findCrews} from './crew-directory.js';
+import {dubbingPosterSQL} from './dubbing-poster.js';
+import {legacyCrewNoticeDisplaySQL} from './crew-notice-display.js';
+import {noticeConversations} from './welcome-notices.js';
+import {officialNoticeChannel} from './official-notices.js';
+import {crewGameCatalog} from './crew-game-catalog.js';
+import {profileCoverParticipation,dubRecruitingSQL,finished as dubFinishedSQL,dubAudioReadySQL} from './profile-works.js';
+import {syncCrewGrowth,crewGrowthSnapshot,crewMissionQuery,crewCapacitySQL} from './crew-growth.js';
+import {CREW_ROLE_LIMITS,CREW_ROLE_ALIAS,crewSettings,assertCrewLevel,auditCrew} from './crew-v3.js';
+import {dubbingCreatorRestrictedSQL,dubbingVisibleSQL} from './dubbing-access.js';
+import {CASTING_TTL,castingUnblockedSQL} from './dubbing-casting.js';
+import {dubbingPlayCountSQL} from './dubbing-plays.js';
+import {recordingEnabled} from './dubbing-recording.js';
+import {comparePublicWorks,dubbingLikesSQL,dubbingPublishedAtSQL} from './play.js';
 import {playerColumnsSQL} from './player.js';
 import {assertUnblocked} from './account-safety.js';
-import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
-import {requireUser} from './auth.js';
-import {publicCrewNameSQL as publicNameSQL,memberNameSQL as producerNameSQL} from './identity.js';
+import {one,rows,query,run,now,id,str,fail,json,rate,rateQuery} from './db.js';
+import {requireUser,isAdmin} from './auth.js';
+import {publicNameSQL,producerNameSQL} from './identity.js';
 import {nicknameBatch} from './nicknames.js';
-import {trackList,VISIBLE} from './catalog.js';
-import {CREW_LEVELS,CREW_REWARDS,CREW_ROLES,crewLevel} from '../shared/crews.js';
-import {chatSettings,chatSummary} from './chat-features.js';
+import {trackList,trackListQuery,VISIBLE} from './catalog.js';
+import {trackClassification} from '../shared/genres.js';
+import {DM_BODY_LIMIT} from '../shared/chat-sticker-body.js';
+import {CREW_LEVELS,CREW_REWARDS,CREW_ROLES,crewBadgeUrl,crewLevel} from '../shared/crews.js';
+import {chatSummary} from './chat-features.js';
+import {assertDmBody} from './dm-body.js';
 import {giftDay} from '../shared/gifts.js';
 
 const xpSQL="COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id),0)";
 const crewSelect=`SELECT c.*,${xpSQL} xp,(SELECT count(*) FROM crew_members m WHERE m.crew_id=c.id) members FROM crews c`;
-const present=c=>({...c,...crewLevel(c.xp),xp:c.xp});
-const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해주세요.');return b.request_id;};
-async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT * FROM crew_members WHERE crew_id=? AND user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있어요.');return m;}
-async function syncXp(env,crewId){
- // One published track can reward only one crew, after its author joined. Re-joining never farms XP.
- const tracks=query(env,`INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT 'track:'||t.id,m.crew_id,t.user_id,?,? FROM tracks t JOIN crew_members m ON m.user_id=t.user_id WHERE m.crew_id=? AND t.created>=m.joined AND ${VISIBLE()}`,CREW_REWARDS.publishedTrack,now(),crewId);
- // A cover's performer receives the gift; original gifts belong to their creator.
- // One gift rewards one crew once, so moving crews cannot re-award it.
- const gifts=query(env,`INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT 'gift:'||g.id,m.crew_id,p.user_id,g.gold*?,? FROM gifts g JOIN producers p ON p.id=COALESCE(g.singer_profile_id,g.creator_profile_id) JOIN crew_members m ON m.user_id=p.user_id WHERE m.crew_id=? AND g.created>=m.joined`,CREW_REWARDS.receivedGold,now(),crewId);
- await env.DB.batch([tracks,gifts]);
+const CREW_RENAME_INTERVAL=30*86400;
+const nameChangeAvailableAt=c=>c.name_changed_at?c.name_changed_at+CREW_RENAME_INTERVAL:0;
+function present(c){
+ const growth=crewLevel(c.xp,c.highest_level,c.growth_started);
+ return {...c,...storedCrewTags(c),...growth,xp:c.xp,badge_url:crewBadgeUrl(growth.level),name_change_available_at:nameChangeAvailableAt(c),can_rename:now()>=nameChangeAvailableAt(c)};
 }
+const requestId=b=>{if(typeof b.request_id!=='string'||!/^[\w-]{16,64}$/.test(b.request_id))fail(400,'전송 요청을 다시 시작해 주세요.');return b.request_id;};
+const dmSongShareLabel='곡을 공유했습니다.';
+// Only this server creates DM IDs. The namespace keeps typed shares distinct
+// from user text while existing clients can still read the plain message body.
+const sharedSongId=message=>/^song-share:[a-f0-9-]{36}:([\w-]{1,128})$/.exec(message.id)?.[1]||null;
+async function resolveDmSongCards(env,messages){
+ const ids=[...new Set(messages.map(sharedSongId).filter(Boolean))];
+ if(!ids.length)return messages;
+ const tracks=await trackList(env,`${VISIBLE()} AND t.id IN (SELECT value FROM json_each(?))`,[JSON.stringify(ids)],'t.id',ids.length);
+ const cards=new Map(tracks.map(({id,title,artist,artwork_id,cover_version})=>[id,{id,title,artist,artwork_id,cover_version}]));
+ return messages.map(message=>{
+  const trackId=sharedSongId(message);
+  return trackId?{...message,shared_track:cards.get(trackId)||null}:message;
+ });
+}
+const dmRecipientSuggestionsSQL=`WITH recent AS (
+ SELECT CASE WHEN d.sender_id=?1 THEN d.recipient_id ELSE d.sender_id END peer_id,
+  max(d.rowid) recent_sequence
+ FROM direct_messages d
+ WHERE (d.sender_id=?1 OR d.recipient_id=?1) AND d.rowid>COALESCE(
+  (SELECT s.cleared_sequence FROM dm_settings s WHERE s.user_id=?1
+   AND s.peer_id=CASE WHEN d.sender_id=?1 THEN d.recipient_id ELSE d.sender_id END),0)
+ GROUP BY peer_id ORDER BY recent_sequence DESC LIMIT 24
+), follow_profiles AS (
+ SELECT f.target_id id FROM follows f WHERE f.user_id=?1 AND f.kind='producer'
+ UNION SELECT a.producer_id id FROM follows f JOIN artists a ON a.id=f.target_id WHERE f.user_id=?1 AND f.kind='artist'
+ UNION SELECT p.id FROM follows f JOIN producers p ON p.user_id=f.user_id
+  WHERE f.kind='producer' AND f.target_id=(SELECT id FROM producers WHERE user_id=?1)
+)`;
+async function member(env,crewId,user){requireUser(user);const m=await one(env,'SELECT m.*,c.name crew_name,c.image_version crew_image_version FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.crew_id=? AND m.user_id=?',crewId,user.id);if(!m)fail(403,'크루에 가입한 멤버만 이용할 수 있습니다.');return m;}
+async function syncXp(env,crewId){await syncCrewGrowth(env,crewId);}
 function crewNotice(env,cid,userId,body){return query(env,"INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) VALUES(?,?,?,?,?,?,'system')",id(),cid,userId,body,'system:'+id(),now());}
 async function memberName(env,userId){return (await one(env,`SELECT ${producerNameSQL()} name FROM producers p WHERE p.user_id=?`,userId))?.name||'크루원';}
 async function ensureSocialProfile(env,user){
@@ -30,97 +74,172 @@ async function ensureSocialProfile(env,user){
 }
 async function crewHistory(env,cid,url,membership){
  const before=url.searchParams.get('before'),after=url.searchParams.get('after');
- if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해주세요.');
+ if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해 주세요.');
  const direction=after?'ASC':'DESC',cursor=before||after;
  const [messages,member_roles]=await Promise.all([
- rows(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,p.id profile_id,p.image_version,${playerColumnsSQL('u.id')},${publicNameSQL()} name,COALESCE(cm.role,m.author_role) role FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id LEFT JOIN crew_members cm ON cm.crew_id=m.crew_id AND cm.user_id=m.user_id WHERE m.crew_id=? AND m.rowid>=viewer.joined_sequence AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=viewer.user_id AND b.blocked_id=m.user_id) OR (b.blocked_id=viewer.user_id AND b.user_id=m.user_id))${cursor?` AND m.rowid${before?'<':'>'}?`:''} ORDER BY m.rowid ${direction} LIMIT 101`,membership.user_id,cid,...(cursor?[Number(cursor)]:[])),
+ rows(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,${legacyCrewNoticeDisplaySQL('m')} display_body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,p.id profile_id,p.image_version,${playerColumnsSQL('u.id')},${publicNameSQL()} name,${publicNameSQL()} chat_nickname,COALESCE(cm.role,m.author_role) role FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id LEFT JOIN crew_members cm ON cm.crew_id=m.crew_id AND cm.user_id=m.user_id WHERE m.crew_id=? AND m.rowid>=viewer.joined_sequence AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=viewer.user_id AND b.blocked_id=m.user_id) OR (b.blocked_id=viewer.user_id AND b.user_id=m.user_id))${cursor?` AND m.rowid${before?'<':'>'}?`:''} ORDER BY m.rowid ${direction} LIMIT 101`,membership.user_id,cid,...(cursor?[Number(cursor)]:[])),
  rows(env,'SELECT p.id profile_id,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=?',cid)]);
  const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
- return json({messages,has_more,membership,member_roles,roles:CREW_ROLES});
+ return json({messages,has_more,membership,member_roles,roles:CREW_ROLES,crew:{id:cid,name:membership.crew_name,image_version:membership.crew_image_version}});
 }
-async function crewDetail(env,cid,user){
- await syncXp(env,cid);
- const [c,membership,members,tracks,ban]=await Promise.all([
- one(env,`${crewSelect} WHERE c.id=?`,cid),
- user?one(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id):null,
- rows(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,m.role FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined LIMIT 150`,cid),
- trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)`,[cid],'t.created DESC',60),
- user?one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user.id):null]);
- if(!c)fail(404,'크루를 찾을 수 없어요.');const banned=!!ban;
- return {crew:present(c),membership,members,tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
+function crewDubbingQuery(env,cid,uid,webWorks){
+ const webFields=webWorks?`,
+  (SELECT id FROM producers WHERE user_id=p.owner_id) owner_profile_id,${dubbingLikesSQL} likes,${dubbingPlayCountSQL()} plays,
+  ${dubbingPublishedAtSQL} published_at,(${dubFinishedSQL}) work_finished,
+  (${castingUnblockedSQL('p','?1')} AND NOT ${dubbingCreatorRestrictedSQL('?1')}
+   AND (p.root_id IS NULL OR (EXISTS(SELECT 1 FROM dubbing_combinations combo
+    WHERE combo.project_id=p.id AND combo.root_id=p.root_id AND combo.expired_at=0 AND combo.last_participation>unixepoch()-${CASTING_TTL})
+    AND EXISTS(SELECT 1 FROM dubbing_projects root WHERE root.id=p.root_id AND root.visibility='public'
+     AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=?1 AND b.blocked_id=root.owner_id) OR (b.blocked_id=?1 AND b.user_id=root.owner_id))
+     AND ${castingUnblockedSQL('root','?1')})
+    AND NOT EXISTS(SELECT 1 FROM dubbing_recordings vr WHERE vr.project_id=p.id AND vr.user_id=?1)))) casting_available`:'';
+ return query(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.root_id,p.owner_id,p.title,p.updated,p.created,p.state,p.visibility,
+  ${dubAudioReadySQL} audio_ready,'dubbing' kind,${publicNameSQL('du')} owner_name,
+  EXISTS(SELECT 1 FROM dubbing_role_claims vc WHERE vc.project_id=p.id AND vc.user_id=?1) viewer_claimed,
+  (${dubRecruitingSQL()}) recruiting${webFields}
+  FROM dubbing_projects p JOIN users du ON du.id=p.owner_id
+  WHERE du.provider!='deleted' AND p.visibility='public' AND ${dubbingVisibleSQL()}
+  AND ((${dubFinishedSQL}) OR (${dubRecruitingSQL()}))
+  AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=?1 AND b.blocked_id=p.owner_id) OR (b.blocked_id=?1 AND b.user_id=p.owner_id))
+  AND (p.owner_id IN (SELECT user_id FROM crew_members WHERE crew_id=?2)
+   OR EXISTS(SELECT 1 FROM dubbing_role_claims dc JOIN crew_members cm ON cm.user_id=dc.user_id WHERE dc.project_id=p.id AND cm.crew_id=?2))
+  ORDER BY p.updated DESC`,uid,cid);
 }
-async function peer(env,pid,user){requireUser(user);const p=await one(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version FROM producers p WHERE p.id=?`,pid);if(!p)fail(404,'프로필을 찾을 수 없어요.');assertUnblocked(env,p.user_id);if(p.user_id===user.id)fail(400,'다른 이용자에게 메시지를 보내주세요.');return p;}
+async function crewDetail(env,cid,user,webWorks=false){
+ await syncCrewGrowth(env,cid);
+ // One DB round trip after XP synchronization: read the entire live snapshot.
+ // Do not cache membership, bans, or viewer-filtered music between requests.
+ const result=await env.DB.batch([
+ query(env,`${crewSelect} WHERE c.id=?`,cid),
+ query(env,'SELECT role,joined,joined_sequence,muted FROM crew_members WHERE crew_id=? AND user_id=?',cid,user?.id||''),
+ query(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,m.role,${producerNameSQL()} profile_name,(SELECT count(*) FROM follows f WHERE kind='producer' AND target_id=p.id) followers FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? ORDER BY (m.role='owner') DESC,m.joined,m.rowid LIMIT 150`,cid),
+ trackListQuery(env,`${VISIBLE()} AND (t.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?) OR (t.duet_parent_id IS NOT NULL AND dt.user_id IN (SELECT user_id FROM crew_members WHERE crew_id=?)) OR EXISTS(SELECT 1 FROM tracks child JOIN crew_members cm ON cm.user_id=child.user_id WHERE child.duet_parent_id=t.id AND cm.crew_id=? AND ${VISIBLE('child')} AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=child.user_id) OR (b.blocked_id=? AND b.user_id=child.user_id))))`,[cid,cid,cid,user?.id||'',user?.id||''],'t.created DESC',-1,false,webWorks),
+ query(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user?.id||''),
+ crewDubbingQuery(env,cid,user?.id||'',webWorks),
+ crewMissionQuery(env,cid),query(env,'SELECT 1 FROM crew_members WHERE user_id=? LIMIT 1',user?.id||'')]);
+ const c=result[0].results[0],membership=result[1].results[0]||null,members=result[2].results,tracks=result[3].results.map(trackClassification),ban=result[4].results[0];
+ if(!c)fail(404,'크루를 찾을 수 없습니다.');if(c.join_policy==='invite_only'&&!membership)fail(403,'크루 회원만 볼 수 있습니다.');const banned=!!ban;
+ const canRecord=webWorks&&env.DUBBING_ENABLED==='true'&&recordingEnabled(env);
+ const dubbings=result[5].results.map(({casting_available,...p})=>({...p,
+  can_join:!!user&&!!p.recruiting&&!p.viewer_claimed&&(!webWorks||canRecord&&p.owner_id!==user.id&&!!casting_available)
+ }));
+ await profileCoverParticipation(env,tracks,user);
+ if(webWorks){
+  const ordered=[...tracks,...dubbings].map(work=>({work,id:work.id,likes:work.likes,plays:work.plays,publishedAt:work.published_at}));
+  ordered.sort((a,b)=>comparePublicWorks(a,b,true));
+  ordered.forEach(({work},rank)=>{work.popular_rank=rank;});
+ }
+ const otherCrew=!membership&&user?result[7].results[0]:null;
+ return {other_crew:!!otherCrew,growth:crewGrowthSnapshot(c,result[6].results),dubbings,crew:present(c),membership:membership?{...membership,fishing_preview:true,game_catalog:await crewGameCatalog(env,cid),canonical_role:CREW_ROLE_ALIAS[membership.role]}:null,members:members.map(m=>({...m,canonical_role:CREW_ROLE_ALIAS[m.role]})),tracks,banned,rules:{levels:CREW_LEVELS,...CREW_REWARDS},roles:CREW_ROLES};
+}
+async function peer(env,pid,user,withSettings=false){requireUser(user);const p=await one(env,`SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,${producerNameSQL()} chat_nickname,p.image_version${withSettings?',COALESCE((SELECT muted FROM dm_settings WHERE user_id=? AND peer_id=p.user_id),0) muted,COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=p.user_id),0) cleared_sequence':''} FROM producers p WHERE p.id=?`,...(withSettings?[user.id,user.id,pid]:[pid]));if(!p)fail(404,'프로필을 찾을 수 없습니다.');assertUnblocked(env,p.user_id);if(p.user_id===user.id)fail(400,'다른 이용자에게 메시지를 보내 주세요.');return p;}
 export async function socialRoute(req,env,path,user){
  if(!path.startsWith('/api/crews')&&!path.startsWith('/api/dm'))return null;
  const method=req.method,url=new URL(req.url);
+ const gameMenu=path.match(/^\/api\/crews\/([\w-]+)\/games$/);
+ if(gameMenu){if(method!=='GET')fail(405,AifectMessages.unsupportedRequest);await member(env,gameMenu[1],user);return json(await crewGameCatalog(env,gameMenu[1]));}
  if(path==='/api/crews'){
   if(method==='GET'){
-   const mine=user?await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',user.id):null;
+   const mine=user?await one(env,'SELECT m.crew_id,c.name FROM crew_members m JOIN crews c ON c.id=m.crew_id WHERE m.user_id=?',user.id):null;
+   if(mine&&url.searchParams.get('home')==='1')return json({mine:mine.crew_id,detail:await crewDetail(env,mine.crew_id,user,url.searchParams.get('web')==='1')});
+   if(url.searchParams.get('directory')==='1'){
+    const result=await findCrews(env,url.searchParams,crewSelect,present);
+    const rankings=url.searchParams.get('summary')==='1'?await rows(env,`${crewSelect} ORDER BY xp DESC,c.created ASC,c.id ASC LIMIT 5`):null;
+    return json({...result,mine:mine?.crew_id||null,mine_name:mine?.name||null,rankings:rankings?.map(present)});
+   }
    if(mine)await syncXp(env,mine.crew_id);
    const q=(url.searchParams.get('q')||'').slice(0,80);
-   const [crews,interests,tracks]=await Promise.all([
+   // Level is a monotonic function of total XP, so this orders by level then XP
+   // across every crew, independently of discovery's search and 100-row limit.
+   const [crews,interests,tracks,rankings]=await Promise.all([
     rows(env,`${crewSelect} WHERE c.name LIKE ? OR c.interests LIKE ? ORDER BY (c.id=?) DESC,c.recruiting DESC,c.created DESC LIMIT 100`,'%'+q+'%','%'+q+'%',mine?.crew_id||''),
     user?rows(env,'SELECT t.genre FROM likes l JOIN tracks t ON t.id=l.track_id WHERE l.user_id=? GROUP BY t.genre ORDER BY count(*) DESC LIMIT 5',user.id):[],
-    trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members${mine?' WHERE crew_id=?':''})`,mine?[mine.crew_id]:[],'t.created DESC',30)]);
+    url.searchParams.get('summary')==='1'?[]:trackList(env,`${VISIBLE()} AND t.user_id IN (SELECT user_id FROM crew_members${mine?' WHERE crew_id=?':''})`,mine?[mine.crew_id]:[],'t.created DESC',30),
+    rows(env,`${crewSelect} ORDER BY xp DESC,c.created ASC,c.id ASC LIMIT 5`)]);
    const scored=crews.map(c=>({...present(c),match:interests.filter(g=>c.interests.toLowerCase().includes(g.genre.toLowerCase())).length})).sort((a,b)=>(b.id===mine?.crew_id)-(a.id===mine?.crew_id)||b.match-a.match||b.recruiting-a.recruiting);
-   return json({crews:scored,tracks,mine:mine?.crew_id||null,rules:{levels:CREW_LEVELS,...CREW_REWARDS}});
+   return json({crews:scored,rankings:rankings.map(present),tracks,mine:mine?.crew_id||null,rules:{levels:CREW_LEVELS,...CREW_REWARDS}});
   }
-  requireUser(user);if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
-  if(await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id))fail(409,'이미 가입한 크루가 있어요.');
-  await rate(env,'crew-create:'+user.id,3,86400);const b=await req.json(),cid=id(),name=str(b.name,40),description=str(b.description||'',1000,false),interests=str(b.interests||'',160,false);
+  requireUser(user);if(method!=='POST')fail(405,AifectMessages.unsupportedRequest);
+  if(await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id))fail(409,'이미 가입한 크루가 있습니다.');
+  await rate(env,'crew-create:'+user.id,3,86400);const b=await req.json(),settings=crewSettings(b),cid=id(),name=str(b.name,40),description=str(b.description||'',1000,false),interests=str(b.interests||'',160,false);
+  const tagValues=crewTagsForWrite(b,null,url.searchParams.get('tags')==='1'||includesCrewTags(b));
   await ensureSocialProfile(env,user);
   try{await env.DB.batch([
-   query(env,'INSERT INTO crews(id,owner_id,name,description,interests,recruiting,created) VALUES(?,?,?,?,?,?,?)',cid,user.id,name,description,interests,b.recruiting===false?0:1,now()),
+   query(env,'INSERT INTO crews(id,owner_id,name,description,interests,recruiting,created,join_policy,minimum_level,growth_started,notice,primary_activity,additional_activities,music_genres) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',cid,user.id,name,description,interests,b.recruiting===false?0:1,now(),settings.join_policy,settings.minimum_level,now(),settings.notice,...tagValues),
    query(env,"INSERT INTO crew_members(crew_id,user_id,role,joined,joined_sequence) VALUES(?,?,'owner',?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=?),0)+1)",cid,user.id,now(),cid),
    crewNotice(env,cid,user.id,(await memberName(env,user.id))+'님이 크루를 만들었습니다.')
-  ]);}catch(e){if(/UNIQUE/i.test(e.message))fail(409,'크루 이름 또는 가입 상태를 확인해주세요.');throw e;}
+  ]);}catch(e){if(/UNIQUE/i.test(e.message))fail(409,'크루 이름 또는 가입 상태를 확인해 주세요.');throw e;}
   return json(await crewDetail(env,cid,user),201);
  }
  let m=path.match(/^\/api\/crews\/([\w-]+)\/members\/([\w-]+)$/);
  if(m){
   const cid=m[1],actor=await member(env,cid,user);
-  if(actor.role!=='owner')fail(403,'크루장만 직책을 변경하거나 멤버를 강퇴할 수 있어요.');
+  if(actor.role!=='owner'&&!(method==='DELETE'&&actor.role==='deputy'))fail(403,'크루장만 직책을 변경하고 크루장·부크루장만 강퇴할 수 있습니다.');
   const target=await one(env,`SELECT m.*,${producerNameSQL()} name FROM crew_members m JOIN producers p ON p.user_id=m.user_id WHERE m.crew_id=? AND p.id=?`,cid,m[2]);
-  if(!target)fail(404,'크루원을 찾을 수 없어요.');
-  if(target.role==='owner')fail(400,'크루장 본인의 직책을 변경하거나 강퇴할 수 없어요.');
+  if(!target)fail(404,'크루원을 찾을 수 없습니다.');
+  if(actor.role==='deputy'&&target.role==='deputy')fail(403,'동급 운영진은 강퇴할 수 없습니다.');
+  if(target.role==='owner')fail(400,'크루장 본인의 직책을 변경하거나 강퇴할 수 없습니다.');
   if(method==='PATCH'){
-   const b=await req.json();if(!['member','deputy','operator','manager'].includes(b.role))fail(400,'직책을 선택해주세요.');
-   if(b.role!==target.role)await env.DB.batch([query(env,'UPDATE crew_members SET role=? WHERE crew_id=? AND user_id=?',b.role,cid,target.user_id),crewNotice(env,cid,user.id,`${target.name}님의 직책이 ${CREW_ROLES[b.role]}(으)로 변경되었습니다.`)]);
+   const b=await req.json();if(b.role==='operator')b.role='manager';if(!['member','deputy','manager'].includes(b.role))fail(400,'직책을 선택해 주세요.');
+   if(b.role!==target.role){
+    const cap=CREW_ROLE_LIMITS[b.role]||150;
+    const updated=await one(env,'UPDATE crew_members SET role=? WHERE crew_id=? AND user_id=? AND role=? AND (SELECT count(*) FROM crew_members WHERE crew_id=? AND role=?)<? RETURNING user_id',b.role,cid,target.user_id,target.role,cid,b.role,cap);
+    if(!updated)fail(409,'직책 정원이 가득 찼거나 멤버 정보가 변경되었습니다.');
+    await env.DB.batch([crewNotice(env,cid,user.id,`${target.name}님의 직책이 ${CREW_ROLES[b.role]}(으)로 변경되었습니다.`),auditCrew(env,cid,user.id,'role_changed',target.user_id+':'+b.role)]);
+   }
   }else if(method==='DELETE'){
-   await env.DB.batch([query(env,'INSERT OR IGNORE INTO crew_bans(crew_id,user_id,created) VALUES(?,?,?)',cid,target.user_id,now()),query(env,'DELETE FROM crew_members WHERE crew_id=? AND user_id=?',cid,target.user_id),crewNotice(env,cid,user.id,`${target.name}님이 크루에서 내보내졌습니다.`)]);
-  }else fail(405,'지원하지 않는 요청입니다.');
+   await env.DB.batch([query(env,'INSERT OR IGNORE INTO crew_bans(crew_id,user_id,created) VALUES(?,?,?)',cid,target.user_id,now()),query(env,'DELETE FROM crew_members WHERE crew_id=? AND user_id=?',cid,target.user_id),auditCrew(env,cid,user.id,'member_removed',target.user_id),crewNotice(env,cid,user.id,`${target.name}님이 크루에서 내보내졌습니다.`)]);
+  }else fail(405,AifectMessages.unsupportedRequest);
   return json(await crewDetail(env,cid,user));
  }
  m=path.match(/^\/api\/crews\/([\w-]+)(?:\/(join|leave|messages))?$/);
  if(m){
   const cid=m[1],action=m[2];
-  if(!action&&method==='GET')return json(await crewDetail(env,cid,user));
+  if(!action&&method==='GET')return json(await crewDetail(env,cid,user,url.searchParams.get('web')==='1'));
   if(action==='messages'&&method==='GET')return crewHistory(env,cid,url,await member(env,cid,user));
-  const c=await one(env,'SELECT * FROM crews WHERE id=?',cid);if(!c)fail(404,'크루를 찾을 수 없어요.');
+  const c=await one(env,'SELECT * FROM crews WHERE id=?',cid);if(!c)fail(404,'크루를 찾을 수 없습니다.');
   requireUser(user);
   if(action==='join'&&method==='POST'){
-   if(await one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user.id))fail(403,'이 크루에 다시 가입할 수 없어요.');
+   if(await one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,user.id))fail(403,'이 크루에 다시 가입할 수 없습니다.');
    if(await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id))return json(await crewDetail(env,cid,user));
-   await ensureSocialProfile(env,user);
+   await ensureSocialProfile(env,user);await assertCrewLevel(env,c,user.id);
+   if(await one(env,'SELECT 1 FROM crew_members WHERE user_id=?',user.id))fail(409,'한 번에 하나의 크루에 가입할 수 있습니다.');
+   if(c.join_policy==='invite_only'&&!await one(env,'SELECT 1 FROM direct_messages WHERE recipient_id=? AND crew_invite_id=?',user.id,cid))fail(403,'초대받은 회원만 가입할 수 있습니다.');
+   if(c.join_policy==='approval'){
+    await run(env,"INSERT INTO crew_applications(crew_id,user_id,state,created) VALUES(?,?,'pending',?) ON CONFLICT(crew_id,user_id) DO UPDATE SET state='pending',created=excluded.created WHERE crew_applications.state='rejected'",cid,user.id,now());
+    return json({pending:true,message:'가입 신청을 보냈습니다.'},202);
+   }
    await syncXp(env,cid);
-   const capacity=`CASE ${[...CREW_LEVELS].reverse().map(l=>`WHEN ${xpSQL}>=${l.xp} THEN ${l.capacity}`).join(' ')} END`;
+   const capacity=crewCapacitySQL();
    const joiningName=await memberName(env,user.id);
    try{await env.DB.batch([
     // Capture the next sequence atomically: timestamps alone leak earlier messages in the same second.
     query(env,`INSERT INTO crew_members(crew_id,user_id,role,joined,joined_sequence) SELECT c.id,?,'member',?,COALESCE((SELECT max(rowid) FROM crew_messages WHERE crew_id=c.id),0)+1 FROM crews c WHERE c.id=? AND c.recruiting=1 AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?) AND (SELECT count(*) FROM crew_members WHERE crew_id=c.id)<(${capacity})`,user.id,now(),cid,user.id),
-    query(env,"INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) SELECT ?,?,?,?,?,?,'system' WHERE changes()>0",id(),cid,user.id,joiningName+'님이 크루에 참여하였습니다.','system:'+id(),now())
-   ]);}catch(e){if(/UNIQUE/i.test(e.message)){if(await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id))return json(await crewDetail(env,cid,user));fail(409,'한 번에 하나의 크루에 가입할 수 있어요.');}throw e;}
-   if(!await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id))fail(409,'모집이 닫혔거나 정원이 가득 찼어요.');
+    query(env,"INSERT INTO crew_messages(id,crew_id,user_id,body,request_id,created,kind) SELECT ?,?,?,?,?,?,'system' WHERE changes()>0",id(),cid,user.id,joiningName+'님이 크루에 참여했습니다. 인사를 나눠 보세요.','system:'+id(),now())
+   ]);}catch(e){if(/UNIQUE/i.test(e.message)){if(await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id))return json(await crewDetail(env,cid,user));fail(409,'한 번에 하나의 크루에 가입할 수 있습니다.');}throw e;}
+   if(!await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id))fail(409,'모집이 닫혔거나 정원이 가득 찼습니다.');
    return json(await crewDetail(env,cid,user));
   }
   const membership=await member(env,cid,user);
   if(!action&&method==='PATCH'){
-   if(membership.role!=='owner')fail(403,'크루장만 소개를 수정할 수 있어요.');
-   const b=await req.json();await run(env,'UPDATE crews SET description=?,interests=?,recruiting=? WHERE id=?',str(b.description??c.description,1000,false),str(b.interests??c.interests,160,false),b.recruiting===undefined?c.recruiting:b.recruiting===false?0:1,cid);
+   if(!['owner','deputy','manager','operator'].includes(membership.role))fail(403,'크루 운영진만 설정할 수 있습니다.');
+   const b=await req.json(),settings=crewSettings(b,c),name=b.name===undefined?c.name:str(b.name,40),changed=name!==c.name,t=now();
+   if(membership.role!=='owner'&&(includesCrewTags(b)||changed||b.join_policy!==undefined&&b.join_policy!==c.join_policy||b.minimum_level!==undefined&&Number(b.minimum_level)!==c.minimum_level))fail(403,'이 설정은 크루장만 변경할 수 있습니다.');
+   const cooldown=()=>fail(409,`${Math.max(1,Math.ceil((nameChangeAvailableAt(c)-t)/86400))}일 뒤에 수정 가능합니다. 크루 이름은 변경 후 30일에 한 번 수정할 수 있습니다.`);
+   if(changed&&t<nameChangeAvailableAt(c))cooldown();
+   if(b.version!==undefined&&b.version!==c.version)fail(409,'크루 정보가 변경되었습니다. 다시 열어 주세요.');
+   const tagValues=crewTagsForWrite(b,c,false);
+   const details=[...tagValues,settings.join_policy,settings.minimum_level,settings.notice,str(b.description??c.description,1000,false),str(b.interests??c.interests,160,false),b.recruiting===undefined?c.recruiting:b.recruiting===false?0:1];
+   try{
+    // The cooldown and ownership are checked in the write too, so two requests cannot rename twice.
+    const updated=changed?await one(env,'UPDATE crews SET name=?,name_changed_at=?,primary_activity=?,additional_activities=?,music_genres=?,join_policy=?,minimum_level=?,notice=?,description=?,interests=?,recruiting=?,version=version+1 WHERE id=? AND owner_id=? AND version=? AND name=? AND (name_changed_at=0 OR name_changed_at<=?) RETURNING id',name,t,...details,cid,user.id,c.version,c.name,t-CREW_RENAME_INTERVAL):await one(env,'UPDATE crews SET primary_activity=?,additional_activities=?,music_genres=?,join_policy=?,minimum_level=?,notice=?,description=?,interests=?,recruiting=?,version=version+1 WHERE id=? AND owner_id=? AND version=? RETURNING id',...details,cid,c.owner_id,c.version);
+    if(!updated)fail(409,'크루 정보가 변경되었습니다. 새로고침 후 다시 확인해 주세요.');
+    await auditCrew(env,cid,user.id,'settings_changed').run();
+   }catch(e){if(/UNIQUE.*crews.name/i.test(e.message))fail(409,'이미 사용 중인 크루 이름입니다. 다른 이름을 입력해 주세요.');throw e;}
    return json(await crewDetail(env,cid,user));
   }
   if(action==='leave'&&method==='POST'){
-   // Transfer ownership to the longest-serving member; remove an empty crew, preserving no private chats.
+   if(membership.role==='owner')fail(409,'크루장을 위임한 후 탈퇴해 주세요.');
    const next=await one(env,'SELECT user_id FROM crew_members WHERE crew_id=? AND user_id!=? ORDER BY joined,user_id LIMIT 1',cid,user.id);
    const writes=[query(env,'DELETE FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id)];
    if(next)writes.push(crewNotice(env,cid,user.id,(await memberName(env,user.id))+'님이 크루에서 나갔습니다.'));
@@ -134,50 +253,123 @@ export async function socialRoute(req,env,path,user){
    if(method==='GET')return crewHistory(env,cid,url,membership);
    if(method==='POST'){
     const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,body=imageId?'사진':str(b.body,2000);
-    if(imageId&&(typeof imageId!=='string'||!/^[-\w]{1,80}$/.test(imageId)))fail(400,'이미지 정보를 확인해주세요.');
-    if(imageId&&!await one(env,'SELECT id FROM crew_chat_images WHERE id=? AND crew_id=? AND sender_id=? AND deleted=0 AND expires>? AND created>=?',imageId,cid,user.id,now(),membership.joined))fail(400,'다시 이미지를 선택해주세요.');
-    await rate(env,'chat:'+user.id,60,60);
-    const previous=await one(env,'SELECT rowid sequence,crew_id,body,image_id FROM crew_messages WHERE user_id=? AND request_id=?',user.id,rid);
+    if(imageId&&(typeof imageId!=='string'||!/^[-\w]{1,80}$/.test(imageId)))fail(400,'이미지 정보를 확인해 주세요.');
+    if(imageId&&!await one(env,'SELECT id FROM crew_chat_images WHERE id=? AND crew_id=? AND sender_id=? AND deleted=0 AND expires>? AND created>=?',imageId,cid,user.id,now(),membership.joined))fail(400,'다시 이미지를 선택해 주세요.');
+    const [limit,prior]=await env.DB.batch([rateQuery(env,'chat:'+user.id,60),query(env,'SELECT rowid sequence,crew_id,body,image_id FROM crew_messages WHERE user_id=? AND request_id=?',user.id,rid)]);
+    if(limit.results[0].count>60)fail(429,'요청이 많습니다. 잠시 후 다시 시도해 주세요.');
+    const previous=prior.results[0];
     if(previous&&(previous.crew_id!==cid||previous.body!==body||previous.image_id!==imageId))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
-    if(previous&&previous.sequence<membership.joined_sequence)fail(409,'이미 사용된 전송 요청입니다. 새 메시지로 다시 보내주세요.');
-    await env.DB.batch([
+    if(previous&&previous.sequence<membership.joined_sequence)fail(409,'이미 사용된 전송 요청입니다. 새 메시지로 다시 보내 주세요.');
+    const sent=await env.DB.batch([
      query(env,'INSERT OR IGNORE INTO crew_messages(id,crew_id,user_id,body,request_id,created,author_role,image_id) SELECT ?,?,?,?,?,?,role,? FROM crew_members WHERE crew_id=? AND user_id=?',id(),cid,user.id,body,rid,now(),imageId,cid,user.id),
-     query(env,'INSERT OR IGNORE INTO crew_xp(id,crew_id,user_id,amount,created) SELECT ?,?,?,?,? WHERE EXISTS(SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?)','chat:'+user.id+':'+giftDay(now()),cid,user.id,CREW_REWARDS.dailyChat,now(),cid,user.id)
+     query(env,'SELECT 1'),
+     query(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,m.author_role role,p.id profile_id,p.image_version,${playerColumnsSQL('u.id')},${publicNameSQL()} name,${publicNameSQL()} chat_nickname FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id WHERE m.user_id=? AND m.request_id=? AND m.rowid>=viewer.joined_sequence`,user.id,user.id,rid)
     ]);
-    const message=await one(env,`SELECT m.rowid sequence,m.id,m.request_id,m.body,m.created,m.user_id,m.kind,m.image_id,(SELECT expires FROM crew_chat_images WHERE id=m.image_id) image_expires,m.author_role role,p.id profile_id,p.image_version,${playerColumnsSQL('u.id')},${publicNameSQL()} name FROM crew_messages m JOIN users u ON u.id=m.user_id JOIN crew_members viewer ON viewer.crew_id=m.crew_id AND viewer.user_id=? LEFT JOIN producers p ON p.user_id=m.user_id WHERE m.user_id=? AND m.request_id=? AND m.rowid>=viewer.joined_sequence`,user.id,user.id,rid);
-    if(!message)fail(403,'크루에 가입한 멤버만 전송할 수 있어요.');
+    const message=sent[2].results[0];
+    if(!message)fail(403,'크루에 가입한 멤버만 전송할 수 있습니다.');
     return json({ok:true,message},201);
    }
   }
-  fail(405,'지원하지 않는 요청입니다.');
+  fail(405,AifectMessages.unsupportedRequest);
  }
  requireUser(user);
+ m=path.match(/^\/api\/dm\/([\w-]+)\/crew-invite$/);
+ if(m){
+  if(method!=='POST')fail(405,AifectMessages.unsupportedRequest);
+  const p=await peer(env,m[1],user),b=await req.json(),rid=requestId(b),cid=str(b.crew_id,80);
+  const previous=await one(env,'SELECT id,recipient_id,crew_invite_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid);
+  if(previous){
+   if(previous.recipient_id!==p.user_id||previous.crew_invite_id!==cid)fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+   return json({ok:true,peer_id:p.id,message_id:previous.id});
+  }
+  await member(env,cid,user);
+  const c=await one(env,`${crewSelect} WHERE c.id=?`,cid);
+  if(!c)fail(404,'크루를 찾을 수 없습니다.');
+  if(!c.recruiting||c.members>=present(c).capacity)fail(409,'모집 중이며 정원이 남은 크루만 초대할 수 있습니다.');
+  if(await one(env,'SELECT 1 FROM crew_members WHERE crew_id=? AND user_id=?',cid,p.user_id))fail(409,'이미 같은 크루의 멤버입니다.');
+  if(await one(env,'SELECT 1 FROM crew_bans WHERE crew_id=? AND user_id=?',cid,p.user_id))fail(403,'이 크루에 가입할 수 없는 이용자입니다.');
+  await ensureSocialProfile(env,user);
+  await rate(env,'dm:'+user.id,30,60);
+  const body=`「${c.name}」 크루에 초대합니다! 함께 음악을 듣고 이야기합니다.\n크루 둘러보기: https://aifect.co.kr/#crew/${cid}`;
+  await run(env,`INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,crew_invite_id) SELECT ?,?,?,?,?,?,c.id FROM crews c JOIN crew_members cm ON cm.crew_id=c.id AND cm.user_id=? WHERE c.id=? AND c.recruiting=1 AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?) AND NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?))`,id(),user.id,p.user_id,body,rid,now(),user.id,cid,p.user_id,user.id,p.user_id,p.user_id,user.id);
+  const sent=await one(env,'SELECT id,recipient_id,crew_invite_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid);
+  if(!sent)fail(409,'초대할 수 없는 상태로 변경되었습니다. 크루와 대화 상대를 다시 확인해 주세요.');
+  if(sent.recipient_id!==p.user_id||sent.crew_invite_id!==cid)fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+  return json({ok:true,peer_id:p.id,message_id:sent.id},201);
+ }
+ if(path==='/api/dm/recipients/search'&&method==='GET'){
+  requireUser(user);
+  const term=(url.searchParams.get('q')||'').trim().slice(0,100),suggested=url.searchParams.get('suggested')==='1';
+  if(!term&&!suggested)return json({members:[]});
+  const members=await rows(env,`${suggested?dmRecipientSuggestionsSQL:''} SELECT p.id,p.user_id,${producerNameSQL()} AS nickname,p.image_version,m.code AS public_id
+   FROM producers p JOIN users u ON u.id=p.user_id JOIN public_profile_ids m ON m.user_id=u.id
+   ${suggested?'LEFT JOIN recent r ON r.peer_id=u.id LEFT JOIN follow_profiles f ON f.id=p.id':''}
+   WHERE u.id<>?1 AND u.provider<>'deleted' AND u.account_type='human'
+    AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=?1 AND b.blocked_id=u.id) OR (b.user_id=u.id AND b.blocked_id=?1))
+    AND (${suggested?"(?2='' AND (r.peer_id IS NOT NULL OR f.id IS NOT NULL)) OR ":''}instr(lower(${producerNameSQL()}),lower(NULLIF(?2,'')))>0 OR instr(lower(m.code),lower(NULLIF(?2,'')))>0)
+   ORDER BY ${suggested?'r.recent_sequence DESC,(f.id IS NOT NULL) DESC,':''} m.code=?2 COLLATE NOCASE DESC,nickname=?2 COLLATE NOCASE DESC,nickname COLLATE NOCASE,p.id LIMIT 40`,user.id,term);
+  return json({members});
+ }
  if(path==='/api/dm'&&method==='GET'){
-  const summary=await chatSummary(env,user);return json({...summary,conversations:await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)});
+  const summary=await chatSummary(env,user);
+  const conversations=(await rows(env,`WITH mine AS (SELECT rowid sequence,d.*,CASE WHEN sender_id=? THEN recipient_id ELSE sender_id END peer_id FROM direct_messages d WHERE (sender_id=? OR recipient_id=?) AND d.rowid>COALESCE((SELECT cleared_sequence FROM dm_settings WHERE user_id=? AND peer_id=CASE WHEN d.sender_id=? THEN d.recipient_id ELSE d.sender_id END),0)),latest AS (SELECT *,row_number() OVER(PARTITION BY peer_id ORDER BY sequence DESC) position,sum(CASE WHEN recipient_id=? AND read_at=0 THEN 1 ELSE 0 END) OVER(PARTITION BY peer_id) unread FROM mine) SELECT p.id,p.user_id,${playerColumnsSQL('p.user_id')},${producerNameSQL()} name,${producerNameSQL()} chat_nickname,p.image_version,COALESCE(s.muted,0) muted,d.body last_message,d.created updated,d.unread FROM latest d JOIN producers p ON p.user_id=d.peer_id LEFT JOIN dm_settings s ON s.user_id=? AND s.peer_id=d.peer_id WHERE d.position=1 ORDER BY d.sequence DESC LIMIT 100`,user.id,user.id,user.id,user.id,user.id,user.id,user.id)).map(p=>({...p,is_notice:isAdmin(env,{id:p.user_id})}));
+  if(url.searchParams.get('notices')==='unified'){
+   const notice=await officialNoticeChannel(env,user.id);
+   return json({...summary,conversations:[notice,...conversations.filter(p=>!p.is_notice)]});
+  }
+  return json({...summary,conversations:conversations.concat(await noticeConversations(env,user.id))});
  }
  m=path.match(/^\/api\/dm\/([\w-]+)$/);
  if(m){
-  const p=await peer(env,m[1],user),settings=await chatSettings(env,user.id,p.user_id);
+  const p=await peer(env,m[1],user,true),settings={muted:p.muted,cleared_sequence:p.cleared_sequence};
   if(method==='GET'){
    const before=url.searchParams.get('before'),after=url.searchParams.get('after'),cursor=before||after;
-   if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해주세요.');
-   const messages=await rows(env,`SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND rowid>?${cursor?` AND rowid${before?'<':'>'}?`:''} ORDER BY rowid ${after?'ASC':'DESC'} LIMIT 101`,user.id,p.user_id,p.user_id,user.id,settings.cleared_sequence,...(cursor?[Number(cursor)]:[]));
+   if((before&&after)||[before,after].some(v=>v!==null&&!/^[1-9]\d{0,14}$/.test(v)))fail(400,'대화 위치를 확인해 주세요.');
+   const historyQuery=query(env,`SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE ((sender_id=? AND recipient_id=?) OR (sender_id=? AND recipient_id=?)) AND rowid>?${cursor?` AND rowid${before?'<':'>'}?`:''} ORDER BY rowid ${after?'ASC':'DESC'} LIMIT 101`,user.id,p.user_id,p.user_id,user.id,settings.cleared_sequence,...(cursor?[Number(cursor)]:[]));
+   const [history,receipt]=await env.DB.batch([historyQuery,query(env,'SELECT rowid sequence,read_at FROM direct_messages WHERE sender_id=? AND recipient_id=? AND read_at>0 ORDER BY rowid DESC LIMIT 1',user.id,p.user_id)]);
+   const messages=history.results,read_receipt=receipt.results[0]||{sequence:0,read_at:0};
    const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
-   const read_receipt=await one(env,'SELECT rowid sequence,read_at FROM direct_messages WHERE sender_id=? AND recipient_id=? AND read_at>0 ORDER BY rowid DESC LIMIT 1',user.id,p.user_id)||{sequence:0,read_at:0};
-   return json({peer:{id:p.id,name:p.name,image_version:p.image_version},settings,messages,has_more,read_receipt});
+   return json({peer:{id:p.id,user_id:p.user_id,name:p.name,chat_nickname:p.chat_nickname,image_version:p.image_version,premium_style_until:p.premium_style_until,premium_default_frame:p.premium_default_frame},settings,messages:await resolveDmSongCards(env,messages),has_more,read_receipt});
   }
-  if(method==='PATCH'){await run(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0',now(),p.user_id,user.id);return json({ok:true});}
+  if(method==='PATCH'){
+   // Bound acknowledgements to history the client actually received. A message
+   // arriving between GET and PATCH must remain unread until the next GET.
+   const b=await req.json().catch(()=>({})),sequence=b.sequence;
+   if(sequence!==undefined&&(!Number.isSafeInteger(sequence)||sequence<0))fail(400,'읽음 위치를 확인해 주세요.');
+   await run(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0'+(sequence===undefined?'':' AND rowid<=?'),now(),p.user_id,user.id,...(sequence===undefined?[]:[sequence]));return json({ok:true});
+  }
   if(method==='POST'){
-   if(!await one(env,'SELECT id FROM producers WHERE user_id=?',user.id))fail(409,'보관함에서 닉네임을 먼저 저장해주세요.');
-   const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,body=imageId?'사진':str(b.body,2000);
-   if(imageId&&(typeof imageId!=='string'||!/^[-\w]{1,80}$/.test(imageId)))fail(400,'이미지 정보를 확인해주세요.');
-   if(imageId&&!await one(env,'SELECT id FROM chat_images WHERE id=? AND sender_id=? AND recipient_id=? AND expires>? AND deleted=0',imageId,user.id,p.user_id,now()))fail(400,'다시 이미지를 선택해주세요.');
-   await rate(env,'dm:'+user.id,30,60);
-   const previous=await one(env,'SELECT recipient_id,body,image_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid);
-   if(previous&&(previous.recipient_id!==p.user_id||previous.body!==body||previous.image_id!==imageId))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
-   await run(env,'INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id) VALUES(?,?,?,?,?,?,?)',id(),user.id,p.user_id,body,rid,now(),imageId);
-   return json({ok:true,message:await one(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)},201);
+   const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,trackId=b.track_id??null;
+   if(trackId!==null&&(imageId||typeof trackId!=='string'||!/^[\w-]{1,128}$/.test(trackId)))fail(400,'공유할 곡을 확인해 주세요.');
+   const body=trackId?dmSongShareLabel:imageId?'사진':str(b.body,DM_BODY_LIMIT);
+   if(imageId&&(typeof imageId!=='string'||!/^[-\w]{1,80}$/.test(imageId)))fail(400,'이미지 정보를 확인해 주세요.');
+   if(imageId&&!await one(env,'SELECT id FROM chat_images WHERE id=? AND sender_id=? AND recipient_id=? AND expires>? AND deleted=0',imageId,user.id,p.user_id,now()))fail(400,'다시 이미지를 선택해 주세요.');
+   const [profile,limit,prior]=await env.DB.batch([query(env,'SELECT id FROM producers WHERE user_id=?',user.id),rateQuery(env,'dm:'+user.id,60),query(env,'SELECT id,recipient_id,body,image_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
+   if(!profile.results.length)fail(409,'보관함에서 닉네임을 먼저 저장해 주세요.');if(limit.results[0].count>30)fail(429,'요청이 많습니다. 잠시 후 다시 시도해 주세요.');
+   const previous=prior.results[0];
+   const matches=message=>message.recipient_id===p.user_id&&message.body===body&&message.image_id===imageId&&sharedSongId(message)===trackId;
+   if(previous&&!matches(previous))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+   if(!previous&&!trackId)assertDmBody(body);
+   let shareGuard='',shareArgs=[];
+   if(trackId){
+    const recipient="SELECT 1 FROM users WHERE id=? AND provider<>'deleted' AND account_type='human'";
+    if(!await one(env,recipient,p.user_id))fail(403,'메시지를 받을 수 없는 이용자입니다.');
+    const eligible=trackListQuery(env,`t.id=? AND ${VISIBLE()}`,[trackId],'t.id',1);
+    if(!previous&&!(await eligible.first()))fail(404,'공개된 곡을 찾을 수 없습니다.');
+    shareGuard=` AND EXISTS(${recipient}) AND EXISTS(SELECT 1 FROM tracks t WHERE t.id=? AND ${VISIBLE()})`;
+    shareArgs=[p.user_id,trackId];
+   }
+   const messageId=trackId?'song-share:'+id()+':'+trackId:id();
+   const result=await env.DB.batch([
+    query(env,`INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id)
+     SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?))${shareGuard}`,messageId,user.id,p.user_id,body,rid,now(),imageId,user.id,p.user_id,p.user_id,user.id,...shareArgs),
+    query(env,'SELECT rowid sequence,id,request_id,sender_id,recipient_id,body,created,read_at,crew_invite_id,image_id,(SELECT expires FROM chat_images WHERE id=direct_messages.image_id) image_expires FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)
+   ]);
+   const message=result[1].results[0];
+   if(!message)fail(403,trackId?'곡 또는 메시지 수신 상태가 변경되었습니다.':'차단된 이용자와는 소통할 수 없습니다.');
+   if(!matches(message))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
+   return json({ok:true,message:(await resolveDmSongCards(env,[message]))[0]},201);
   }
  }
- fail(404,'대화를 찾을 수 없어요.');
+ fail(404,'대화를 찾을 수 없습니다.');
 }

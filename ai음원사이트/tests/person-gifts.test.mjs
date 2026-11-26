@@ -52,11 +52,11 @@ test('profile fan ranking combines personal and song gifts and returns only the 
  const r=await profileGifts({DB:f.DB},'person');assert.equal(r.ranking.length,50);assert.equal(r.ranking[0].gold,55);assert.equal(r.ranking[0].profile_id,'fan-profile');assert.equal(r.ranking[0].image_version,'v1');assert.equal(r.ranking[49].gold,6);assert.equal(r.ranking[49].rank,50);
  assert.equal((await profileGifts({DB:f.DB},'producer')).ranking.length,0);
 });
-test('crew names are display-only and mute is per member without hiding unread messages',async t=>{
+test('profile labels contain only the nickname and mute is per member without hiding unread messages',async t=>{
  const f=await setup(t),cid=(await f.call('/api/crews','POST',{name:'양꼬치'})).body.crew.id,path='/api/crews/'+cid;
  assert.equal((await f.call(path+'/settings','PUT',{muted:true},'other')).status,403);
  await f.call(path+'/join','POST',{},'other');
- const p=(await f.call('/api/producers/person')).body.profile;assert.equal(p.name,'코코');assert.equal(p.display_name,'코코(양꼬치)');
+ const p=(await f.call('/api/producers/person')).body.profile;assert.equal(p.name,'코코');assert.equal(p.display_name,'코코');
  assert.equal(f.sql.prepare("SELECT name FROM producers WHERE id='person'").get().name,'코코');
  assert.equal((await f.call(path+'/settings','PUT',{muted:'yes'},'other')).status,400);
  assert.equal((await f.call(path+'/settings','PUT',{muted:true},'other')).body.muted,true);

@@ -8,7 +8,7 @@ test('playlist selection saves atomically with privacy and persistent playback o
  const ids=async()=> (await call(path)).body.tracks.map(x=>x.id);
  assert.deepEqual(await ids(),['three','one','two']);
  assert.equal((await call(path,'GET',null,null)).status,404);
- assert.equal((await call(path+'/order','PUT',{track_ids:['one','two','three']},'other')).status,403);
+ assert.equal((await call(path+'/order','PUT',{track_ids:['one','two','three']},'other')).status,404);
  assert.equal((await call(path+'/order','PUT',{track_ids:['one','one','three']})).status,400);
  assert.equal((await call(path+'/order','PUT',{track_ids:['one','three']})).status,409);
  assert.equal((await call(path+'/order','PUT',{track_ids:['one','hidden','three']})).status,409);
@@ -35,35 +35,30 @@ test('reordering published songs retains hidden members and their relative slots
  assert.deepEqual((await call(path)).body.tracks.map(x=>x.id),['three','two','one']);
 });
 
-test('public playlist discovery and bookmarks respect privacy, ownership, publication and idempotency',async t=>{
- const {call,sql}=await fixture(t);sql.exec("UPDATE tracks SET duration=90 WHERE id='one'");
- const a=await call('/api/playlists','POST',{name:'공개 드라이브',description:'밤의 산책',is_public:true,track_ids:['one']});const pid=a.body.id,path='/api/playlists/'+pid;
+test('public playlist discovery keeps privacy, ownership and current track visibility',async t=>{
+ const {call,sql}=await fixture(t);
+ const pid=(await call('/api/playlists','POST',{name:'공개 드라이브',is_public:true,track_ids:['one']})).body.id,path='/api/playlists/'+pid;
  await call('/api/playlists','POST',{name:'비밀 드라이브',track_ids:['two']});
  assert.equal((await call('/api/playlists','GET',null,null)).body.playlists.length,1);
- assert.equal((await call(path+'/save','PUT',null,null)).status,401);
- assert.equal((await call(path+'/save','PUT')).status,400);
- for(let i=0;i<2;i++)assert.equal((await call(path+'/save','PUT',null,'other')).status,200);
- let d=(await call('/api/library','GET',null,'other')).body;assert.equal(d.saved.length,1);assert.equal(d.saved[0].duration,90);assert.equal(d.saved[0].covers[0].id,'one');assert.equal(d.saved[0].description,'밤의 산책');
- assert.equal((await call(path,'PATCH',{name:'변경된 제목',description:'소개 변경',is_public:true},'other')).status,403);
+ assert.equal((await call(path,'PATCH',{name:'변경',is_public:true},'other')).status,403);
  await call(path+'/tracks/two','PUT');assert.equal((await call(path,'GET',null,'other')).body.tracks.length,2);
- sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");d=(await call(path,'GET',null,'other')).body;assert.equal(d.playlist.tracks,1);assert.equal(d.playlist.covers.length,1);assert.equal(d.playlist.covers[0].id,'two');
- await call(path,'PATCH',{name:'이제 비공개',is_public:false});
- assert.equal((await call(path,'GET',null,'other')).status,404);assert.equal((await call('/api/library','GET',null,'other')).body.saved.length,0);assert.equal((await call('/api/playlists','GET',null,null)).body.playlists.length,0);
- assert.equal((await call(path+'/save','PUT',null,'other')).status,404);assert.equal((await call(path+'/save','DELETE',null,'other')).status,200);
+ sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");
+ assert.deepEqual((await call(path,'GET',null,'other')).body.playlist.covers.map(t=>t.id),['two']);
+ await call(path,'PATCH',{name:'비공개',is_public:false});
+ assert.equal((await call(path,'GET',null,'other')).status,404);
+ assert.equal((await call('/api/playlists','GET',null,null)).body.playlists.length,0);
 });
-
-test('library playlist pin and custom order persist per account and reject foreign memberships',async t=>{
- const {call,sql}=await fixture(t);sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");const ids=[];for(const name of ['목록 1','목록 2','목록 3'])ids.push((await call('/api/playlists','POST',{name,is_public:true,track_ids:['one']})).body.id);
- assert.equal((await call('/api/library/playlists/'+ids[0],'PATCH',{pinned:true},'other')).status,404);
- assert.equal((await call('/api/library/playlists/'+ids[0],'PATCH',{pinned:'true'})).status,400);
+test('custom library order persists without honoring historical pins or foreign saves',async t=>{
+ const {call,sql}=await fixture(t);sql.exec("UPDATE users SET premium_until=unixepoch()+3600 WHERE id='owner'");
+ const ids=[];for(const name of ['목록 1','목록 2','목록 3'])ids.push((await call('/api/playlists','POST',{name,is_public:true,track_ids:['one']})).body.id);
+ sql.prepare("INSERT INTO playlist_preferences(user_id,playlist_id,pinned) VALUES('owner',?,1)").run(ids[0]);
+ sql.prepare("INSERT INTO playlist_saves VALUES('other',?,0)").run(ids[1]);
  assert.equal((await call('/api/library/playlists/order','PUT',{playlist_ids:[ids[0],ids[1]]})).status,409);
  assert.equal((await call('/api/library/playlists/order','PUT',{playlist_ids:[ids[0],ids[0],ids[1]]})).status,400);
+ assert.equal((await call('/api/library/playlists/order','PUT',{playlist_ids:[ids[1]]},'other')).status,200);
  await call('/api/library/playlists/order','PUT',{playlist_ids:[ids[2],ids[1],ids[0]]});
  assert.deepEqual((await call('/api/library')).body.collections.map(p=>p.id),[ids[2],ids[1],ids[0]]);
- await call('/api/library/playlists/'+ids[0],'PATCH',{pinned:true});assert.equal((await call('/api/library')).body.collections[0].id,ids[0]);
- await call('/api/playlists/'+ids[1]+'/save','PUT',null,'other');await call('/api/library/playlists/'+ids[1],'PATCH',{pinned:true},'other');
- assert.equal((await call('/api/library')).body.collections.find(p=>p.id===ids[1]).pinned,0);
- await call('/api/library/playlists/'+ids[0],'PATCH',{pinned:false});assert.deepEqual((await call('/api/library')).body.collections.map(p=>p.id),[ids[2],ids[1],ids[0]]);
+ assert.deepEqual((await call('/api/me/music-library?section=playlists&sort=custom')).body.items.map(p=>p.id),[ids[2],ids[1],ids[0]]);
 });
 
 test('mood discovery uses classified moods and following/search return only public matching content',async t=>{

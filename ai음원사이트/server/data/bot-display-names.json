@@ -1,0 +1,2687 @@
+{
+  "version": 1,
+  "verified_at": "2026-11-04",
+  "gender_source": "Read-only Saigram characters.gender / bot_accounts.gender matched by source ID; null stays unknown.",
+  "items": [
+    {
+      "source_key": "saigram:character:han_seoyun",
+      "source_id": "F-MAIN-01",
+      "gender": "female",
+      "original_name": "한서윤",
+      "name": "한서윤",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:character:yoon_yujin",
+      "source_id": "F-MAIN-02",
+      "gender": "female",
+      "original_name": "윤유진",
+      "name": "petalpop",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kang_minji",
+      "source_id": "F-MAIN-03",
+      "gender": "female",
+      "original_name": "강민지",
+      "name": "lemonpie",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_jieun",
+      "source_id": "F-SY-01",
+      "gender": "female",
+      "original_name": "김지은",
+      "name": "daldal",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:lee_jihyun",
+      "source_id": "F-YJ-01",
+      "gender": "female",
+      "original_name": "이지현",
+      "name": "살구빛",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:jung_jihye",
+      "source_id": "F-YJ-02",
+      "gender": "female",
+      "original_name": "정지혜",
+      "name": "정지혜",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:character:jang_seohyun",
+      "source_id": "F-YJ-03",
+      "gender": "female",
+      "original_name": "장서현",
+      "name": "버터쿠키",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:lim_yoonseo",
+      "source_id": "F-YJ-04",
+      "gender": "female",
+      "original_name": "임윤서",
+      "name": "모닝커피",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:shin_chaewon",
+      "source_id": "F-YJ-05",
+      "gender": "female",
+      "original_name": "신채원",
+      "name": "tangerin",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:oh_jia",
+      "source_id": "F-YJ-06",
+      "gender": "female",
+      "original_name": "오지아",
+      "name": "dearmei",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:park_jiwon",
+      "source_id": "F-MJ-01",
+      "gender": "female",
+      "original_name": "박지원",
+      "name": "omurice",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_eunji",
+      "source_id": "F-MJ-02",
+      "gender": "female",
+      "original_name": "김은지",
+      "name": "버찌한알",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:park_jiyoung",
+      "source_id": "F-MJ-03",
+      "gender": "female",
+      "original_name": "박지영",
+      "name": "dayoff7",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:choi_soojin",
+      "source_id": "F-SY-02",
+      "gender": "female",
+      "original_name": "최수진",
+      "name": "고요한창가",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:lee_soobin",
+      "source_id": "F-SY-03",
+      "gender": "female",
+      "original_name": "이수빈",
+      "name": "그날의온도",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:choi_yeeun",
+      "source_id": "F-SY-04",
+      "gender": "female",
+      "original_name": "최예은",
+      "name": "산책갈래요",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_haeun",
+      "source_id": "F-SY-05",
+      "gender": "female",
+      "original_name": "김하은",
+      "name": "수다쟁이",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:park_jiwoo",
+      "source_id": "F-SY-06",
+      "gender": "female",
+      "original_name": "박지우",
+      "name": "chia_8",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_seoyeon",
+      "source_id": "F-MJ-04",
+      "gender": "female",
+      "original_name": "김서연",
+      "name": "ha_rin",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:lee_minseo",
+      "source_id": "F-MJ-05",
+      "gender": "female",
+      "original_name": "이민서",
+      "name": "pompom",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kwon_jimin",
+      "source_id": "F-MJ-06",
+      "gender": "female",
+      "original_name": "권지민",
+      "name": "새벽편지",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.window",
+      "source_id": "bot_user_0001",
+      "gender": "female",
+      "original_name": "김다혜",
+      "name": "한입만요",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.mood",
+      "source_id": "bot_user_0004",
+      "gender": "female",
+      "original_name": "지다인",
+      "name": "눈꽃라떼",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.moment",
+      "source_id": "bot_user_0006",
+      "gender": "female",
+      "original_name": "안시아",
+      "name": "곰돌이잠옷",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.garden",
+      "source_id": "bot_user_0007",
+      "gender": "female",
+      "original_name": "이한별",
+      "name": "눈부신날",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.log",
+      "source_id": "bot_user_0008",
+      "gender": "female",
+      "original_name": "심은서",
+      "name": "밤하늘산책",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.mood",
+      "source_id": "bot_user_0010",
+      "gender": "female",
+      "original_name": "문서현",
+      "name": "뽀짝뽀짝",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.moment",
+      "source_id": "bot_user_0017",
+      "gender": "female",
+      "original_name": "손하윤",
+      "name": "커피는연하게",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.album",
+      "source_id": "bot_user_0018",
+      "gender": "female",
+      "original_name": "공수연",
+      "name": "lilypop",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.note",
+      "source_id": "bot_user_0019",
+      "gender": "female",
+      "original_name": "채나윤",
+      "name": "말랑콩떡",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.garden",
+      "source_id": "bot_user_0020",
+      "gender": "female",
+      "original_name": "정청아",
+      "name": "정청아",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:bot:light.garden",
+      "source_id": "bot_user_0021",
+      "gender": "female",
+      "original_name": "남리아",
+      "name": "포도젤리",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.walk",
+      "source_id": "bot_user_0027",
+      "gender": "female",
+      "original_name": "배재윤",
+      "name": "bo_mi",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.market",
+      "source_id": "bot_user_0028",
+      "gender": "female",
+      "original_name": "류유나",
+      "name": "cherrypi",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.frame",
+      "source_id": "bot_user_0030",
+      "gender": "female",
+      "original_name": "안가온",
+      "name": "냥냥펀치",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.mood",
+      "source_id": "bot_user_0032",
+      "gender": "female",
+      "original_name": "임온유",
+      "name": "오월의밤",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.walk",
+      "source_id": "bot_user_0033",
+      "gender": "female",
+      "original_name": "안지연",
+      "name": "크림도넛",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.corner",
+      "source_id": "bot_user_0034",
+      "gender": "female",
+      "original_name": "김현서",
+      "name": "da_on",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.diary",
+      "source_id": "bot_user_0035",
+      "gender": "female",
+      "original_name": "장예준",
+      "name": "은은한빛",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.garden",
+      "source_id": "bot_user_0036",
+      "gender": "female",
+      "original_name": "박가온",
+      "name": "멍때리는중",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.mood",
+      "source_id": "bot_user_0038",
+      "gender": "female",
+      "original_name": "변온유",
+      "name": "망고젤리",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.frame",
+      "source_id": "bot_user_0040",
+      "gender": "female",
+      "original_name": "강유진",
+      "name": "조약돌한개",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.shelf",
+      "source_id": "bot_user_0043",
+      "gender": "female",
+      "original_name": "방지혜",
+      "name": "누룽지냥",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.studio",
+      "source_id": "bot_user_0045",
+      "gender": "female",
+      "original_name": "박수연",
+      "name": "루루랄라",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.letter",
+      "source_id": "bot_user_0047",
+      "gender": "female",
+      "original_name": "안은영",
+      "name": "밤산책",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.table",
+      "source_id": "bot_user_0048",
+      "gender": "female",
+      "original_name": "이소율",
+      "name": "honeybee",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.moment",
+      "source_id": "bot_user_0050",
+      "gender": "female",
+      "original_name": "이예린",
+      "name": "lilacday",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.street",
+      "source_id": "bot_user_0051",
+      "gender": "female",
+      "original_name": "차수현",
+      "name": "poppyday",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.log",
+      "source_id": "bot_user_0052",
+      "gender": "female",
+      "original_name": "여라온",
+      "name": "soeun04",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.mood",
+      "source_id": "bot_user_0053",
+      "gender": "female",
+      "original_name": "남가영",
+      "name": "rainyday",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.room",
+      "source_id": "bot_user_0057",
+      "gender": "female",
+      "original_name": "권채원",
+      "name": "jiyu_8",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.cafe60",
+      "source_id": "bot_user_0058",
+      "gender": "female",
+      "original_name": "김윤서",
+      "name": "cloudlet",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.log",
+      "source_id": "bot_user_0066",
+      "gender": "female",
+      "original_name": "천나은",
+      "name": "햇살한스푼",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.film",
+      "source_id": "bot_user_0067",
+      "gender": "female",
+      "original_name": "염은유",
+      "name": "낮잠요정",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.film22",
+      "source_id": "bot_user_0068",
+      "gender": "female",
+      "original_name": "김병훈",
+      "name": "하루한곡",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.shelf",
+      "source_id": "bot_user_0070",
+      "gender": "female",
+      "original_name": "정하영",
+      "name": "ni_nu",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.garden",
+      "source_id": "bot_user_0073",
+      "gender": "female",
+      "original_name": "원미르",
+      "name": "yena_27",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.note",
+      "source_id": "bot_user_0074",
+      "gender": "female",
+      "original_name": "최라온",
+      "name": "느긋한오후",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.market",
+      "source_id": "bot_user_0075",
+      "gender": "female",
+      "original_name": "오지혜",
+      "name": "옆집언니",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.corner",
+      "source_id": "bot_user_0076",
+      "gender": "female",
+      "original_name": "김은비",
+      "name": "토끼발자국",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.album31",
+      "source_id": "bot_user_0077",
+      "gender": "female",
+      "original_name": "김수빈",
+      "name": "yuzucup",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.window",
+      "source_id": "bot_user_0079",
+      "gender": "female",
+      "original_name": "이하영",
+      "name": "여름한쪽",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.album",
+      "source_id": "bot_user_0080",
+      "gender": "female",
+      "original_name": "김슬기",
+      "name": "솜사탕구름",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.studio",
+      "source_id": "bot_user_0081",
+      "gender": "female",
+      "original_name": "추시온",
+      "name": "퇴근요정",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.album",
+      "source_id": "bot_user_0082",
+      "gender": "female",
+      "original_name": "김예서",
+      "name": "김예서",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:bot:calm.mood",
+      "source_id": "bot_user_0083",
+      "gender": "female",
+      "original_name": "김윤아",
+      "name": "softwave",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.corner",
+      "source_id": "bot_user_0084",
+      "gender": "female",
+      "original_name": "박연우",
+      "name": "minttea",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.room",
+      "source_id": "bot_user_0085",
+      "gender": "female",
+      "original_name": "노루아",
+      "name": "작은서랍",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:faint.moment",
+      "source_id": "bot_user_0086",
+      "gender": "female",
+      "original_name": "고리아",
+      "name": "모찌모찌",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.letter14",
+      "source_id": "bot_user_0087",
+      "gender": "female",
+      "original_name": "차소희",
+      "name": "snowdrop",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.shelf",
+      "source_id": "bot_user_0088",
+      "gender": "female",
+      "original_name": "이루아",
+      "name": "라일락향",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.film",
+      "source_id": "bot_user_0092",
+      "gender": "female",
+      "original_name": "하지우",
+      "name": "yul_22",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.street",
+      "source_id": "bot_user_0093",
+      "gender": "female",
+      "original_name": "이소리",
+      "name": "nari_oo",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.log",
+      "source_id": "bot_user_0094",
+      "gender": "female",
+      "original_name": "차세아",
+      "name": "오늘도맑음",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.walk",
+      "source_id": "bot_user_0095",
+      "gender": "female",
+      "original_name": "방찬희",
+      "name": "tiny_yu",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.note",
+      "source_id": "bot_user_0096",
+      "gender": "female",
+      "original_name": "전은유",
+      "name": "momo_72",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.table",
+      "source_id": "bot_user_0097",
+      "gender": "female",
+      "original_name": "노미르",
+      "name": "bonbon",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.note",
+      "source_id": "bot_user_0098",
+      "gender": "female",
+      "original_name": "전나윤",
+      "name": "복실복실",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.table",
+      "source_id": "bot_user_0099",
+      "gender": "female",
+      "original_name": "허한별",
+      "name": "blossom",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.moment",
+      "source_id": "bot_user_0101",
+      "gender": "female",
+      "original_name": "황소희",
+      "name": "빵순이등장",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.cafe90",
+      "source_id": "bot_user_0102",
+      "gender": "female",
+      "original_name": "여은서",
+      "name": "chae_7",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.diary",
+      "source_id": "bot_user_0103",
+      "gender": "female",
+      "original_name": "장은유",
+      "name": "peachy",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.studio",
+      "source_id": "bot_user_0104",
+      "gender": "female",
+      "original_name": "이다현",
+      "name": "초록메모",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.table",
+      "source_id": "bot_user_0106",
+      "gender": "female",
+      "original_name": "이미르",
+      "name": "라떼한잔",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.corner",
+      "source_id": "bot_user_0110",
+      "gender": "female",
+      "original_name": "성지현",
+      "name": "오렌지빛",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.garden82",
+      "source_id": "bot_user_0112",
+      "gender": "female",
+      "original_name": "양지혜",
+      "name": "yogurty",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.letter",
+      "source_id": "bot_user_0113",
+      "gender": "female",
+      "original_name": "신채은",
+      "name": "여름향기",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.note",
+      "source_id": "bot_user_0115",
+      "gender": "female",
+      "original_name": "고수빈",
+      "name": "napping",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.garden68",
+      "source_id": "bot_user_0116",
+      "gender": "female",
+      "original_name": "김가은",
+      "name": "밀크구름",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.garden",
+      "source_id": "bot_user_0117",
+      "gender": "female",
+      "original_name": "장혜원",
+      "name": "creamie",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.garden39",
+      "source_id": "bot_user_0118",
+      "gender": "female",
+      "original_name": "이수연",
+      "name": "min_ya",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:faint.table",
+      "source_id": "bot_user_0119",
+      "gender": "female",
+      "original_name": "이나윤",
+      "name": "meringue",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.window",
+      "source_id": "bot_user_0120",
+      "gender": "female",
+      "original_name": "김하윤",
+      "name": "보랏빛밤",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.note",
+      "source_id": "bot_user_0122",
+      "gender": "female",
+      "original_name": "정보경",
+      "name": "별수집가",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.street28",
+      "source_id": "bot_user_0124",
+      "gender": "female",
+      "original_name": "한유나",
+      "name": "은빛구름",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.diary",
+      "source_id": "bot_user_0125",
+      "gender": "female",
+      "original_name": "조시현",
+      "name": "oneday8",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.frame",
+      "source_id": "bot_user_0129",
+      "gender": "female",
+      "original_name": "박가영",
+      "name": "고양이집사",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.frame",
+      "source_id": "bot_user_0130",
+      "gender": "female",
+      "original_name": "김지현",
+      "name": "설레는오후",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.diary87",
+      "source_id": "bot_user_0131",
+      "gender": "female",
+      "original_name": "김예나",
+      "name": "유자소다",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:faint.film",
+      "source_id": "bot_user_0132",
+      "gender": "female",
+      "original_name": "민하은",
+      "name": "포근한담요",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.frame",
+      "source_id": "bot_user_0134",
+      "gender": "female",
+      "original_name": "권채린",
+      "name": "euni_3",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.table",
+      "source_id": "bot_user_0136",
+      "gender": "female",
+      "original_name": "남온유",
+      "name": "쿠키부스러기",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.album",
+      "source_id": "bot_user_0137",
+      "gender": "female",
+      "original_name": "박하영",
+      "name": "ricecake",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.album",
+      "source_id": "bot_user_0141",
+      "gender": "female",
+      "original_name": "홍채은",
+      "name": "hazelnut",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.room74",
+      "source_id": "bot_user_0142",
+      "gender": "female",
+      "original_name": "주이든",
+      "name": "blueyu",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.market",
+      "source_id": "bot_user_0143",
+      "gender": "female",
+      "original_name": "오하람",
+      "name": "비오는수요일",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.room",
+      "source_id": "bot_user_0144",
+      "gender": "female",
+      "original_name": "심소연",
+      "name": "nami_17",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.diary",
+      "source_id": "bot_user_0146",
+      "gender": "female",
+      "original_name": "구재이",
+      "name": "suzy_04",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.garden",
+      "source_id": "bot_user_0150",
+      "gender": "female",
+      "original_name": "허서하",
+      "name": "yu_ri",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.window54",
+      "source_id": "bot_user_0151",
+      "gender": "female",
+      "original_name": "엄윤서",
+      "name": "riya_6",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.log",
+      "source_id": "bot_user_0153",
+      "gender": "female",
+      "original_name": "지지우",
+      "name": "봄볕한줌",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.shelf13",
+      "source_id": "bot_user_0154",
+      "gender": "female",
+      "original_name": "정시아",
+      "name": "민트초코",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.studio95",
+      "source_id": "bot_user_0155",
+      "gender": "female",
+      "original_name": "양시아",
+      "name": "커피우유",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.garden32",
+      "source_id": "bot_user_0156",
+      "gender": "female",
+      "original_name": "김나은",
+      "name": "slowmood",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.studio",
+      "source_id": "bot_user_0157",
+      "gender": "female",
+      "original_name": "이윤아",
+      "name": "물드는밤",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.moment",
+      "source_id": "bot_user_0158",
+      "gender": "female",
+      "original_name": "최유진",
+      "name": "티라미수",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.table",
+      "source_id": "bot_user_0159",
+      "gender": "female",
+      "original_name": "안이든",
+      "name": "sora_26",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.studio",
+      "source_id": "bot_user_0160",
+      "gender": "female",
+      "original_name": "여지안",
+      "name": "햇살보관함",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.market32",
+      "source_id": "bot_user_0161",
+      "gender": "female",
+      "original_name": "박다은",
+      "name": "내일도휴일",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.table98",
+      "source_id": "bot_user_0162",
+      "gender": "female",
+      "original_name": "현소희",
+      "name": "딸기케이크",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.window",
+      "source_id": "bot_user_0163",
+      "gender": "female",
+      "original_name": "현은채",
+      "name": "현은채",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:bot:lofi.moment",
+      "source_id": "bot_user_0165",
+      "gender": "female",
+      "original_name": "손세아",
+      "name": "lena_22",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.garden87",
+      "source_id": "bot_user_0167",
+      "gender": "female",
+      "original_name": "정은서",
+      "name": "apricot",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.cafe20",
+      "source_id": "bot_user_0170",
+      "gender": "female",
+      "original_name": "백선우",
+      "name": "seafoam",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.moment",
+      "source_id": "bot_user_0173",
+      "gender": "female",
+      "original_name": "이하은",
+      "name": "cocolet",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.street",
+      "source_id": "bot_user_0176",
+      "gender": "female",
+      "original_name": "오예원",
+      "name": "mynote",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.window",
+      "source_id": "bot_user_0177",
+      "gender": "female",
+      "original_name": "정은유",
+      "name": "hayoon9",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.mood18",
+      "source_id": "bot_user_0179",
+      "gender": "female",
+      "original_name": "서혜원",
+      "name": "반짝구슬",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.film",
+      "source_id": "bot_user_0181",
+      "gender": "female",
+      "original_name": "여윤슬",
+      "name": "fluffy",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.room94",
+      "source_id": "bot_user_0182",
+      "gender": "female",
+      "original_name": "곽은영",
+      "name": "주말기다림",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.shelf73",
+      "source_id": "bot_user_0184",
+      "gender": "female",
+      "original_name": "박가은",
+      "name": "달빛메모",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.walk",
+      "source_id": "bot_user_0185",
+      "gender": "female",
+      "original_name": "이가영",
+      "name": "감자떡이",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.table14",
+      "source_id": "bot_user_0190",
+      "gender": "female",
+      "original_name": "배지혜",
+      "name": "mochiya",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.room24",
+      "source_id": "bot_user_0196",
+      "gender": "female",
+      "original_name": "진온유",
+      "name": "hicoco",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.window51",
+      "source_id": "bot_user_0197",
+      "gender": "female",
+      "original_name": "이예나",
+      "name": "청포도에이드",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.corner",
+      "source_id": "bot_user_0198",
+      "gender": "female",
+      "original_name": "심예나",
+      "name": "치즈케익",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.corner",
+      "source_id": "bot_user_0200",
+      "gender": "female",
+      "original_name": "박세아",
+      "name": "여운한줄",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.log76",
+      "source_id": "bot_user_0201",
+      "gender": "female",
+      "original_name": "유소희",
+      "name": "리본매듭",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.walk",
+      "source_id": "bot_user_0202",
+      "gender": "female",
+      "original_name": "심빛나",
+      "name": "폴짝폴짝",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.cafe",
+      "source_id": "bot_user_0203",
+      "gender": "female",
+      "original_name": "염청아",
+      "name": "동그란달",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.diary",
+      "source_id": "bot_user_0205",
+      "gender": "female",
+      "original_name": "신다현",
+      "name": "tinystar",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.window",
+      "source_id": "bot_user_0206",
+      "gender": "female",
+      "original_name": "변다현",
+      "name": "mellowme",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.frame",
+      "source_id": "bot_user_0209",
+      "gender": "female",
+      "original_name": "천지현",
+      "name": "luna_r",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.room",
+      "source_id": "bot_user_0210",
+      "gender": "female",
+      "original_name": "박은유",
+      "name": "새벽세시",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.street",
+      "source_id": "bot_user_0212",
+      "gender": "female",
+      "original_name": "권예나",
+      "name": "구름사탕",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.street64",
+      "source_id": "bot_user_0213",
+      "gender": "female",
+      "original_name": "안하늘",
+      "name": "jellyjam",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.room",
+      "source_id": "bot_user_0214",
+      "gender": "female",
+      "original_name": "임예은",
+      "name": "가을편지",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.log49",
+      "source_id": "bot_user_0215",
+      "gender": "female",
+      "original_name": "공아린",
+      "name": "su_a92",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.garden77",
+      "source_id": "bot_user_0217",
+      "gender": "female",
+      "original_name": "한나윤",
+      "name": "집순이모드",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.shelf67",
+      "source_id": "bot_user_0219",
+      "gender": "female",
+      "original_name": "곽민서",
+      "name": "milkyday",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.log",
+      "source_id": "bot_user_0220",
+      "gender": "female",
+      "original_name": "허다현",
+      "name": "소소한기쁨",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.street66",
+      "source_id": "bot_user_0221",
+      "gender": "female",
+      "original_name": "강예은",
+      "name": "plumtea",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.letter",
+      "source_id": "bot_user_0222",
+      "gender": "female",
+      "original_name": "김하율",
+      "name": "latte_2",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.room29",
+      "source_id": "bot_user_0223",
+      "gender": "female",
+      "original_name": "우지현",
+      "name": "sujin7",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.window12",
+      "source_id": "bot_user_0224",
+      "gender": "female",
+      "original_name": "우나은",
+      "name": "포근한밤",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.shelf",
+      "source_id": "bot_user_0225",
+      "gender": "female",
+      "original_name": "추예은",
+      "name": "sorbet",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.corner35",
+      "source_id": "bot_user_0226",
+      "gender": "female",
+      "original_name": "차다연",
+      "name": "복숭아티",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.moment71",
+      "source_id": "bot_user_0229",
+      "gender": "female",
+      "original_name": "김예은",
+      "name": "oatmilk",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.studio",
+      "source_id": "bot_user_0230",
+      "gender": "female",
+      "original_name": "심소율",
+      "name": "보송보송",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.cafe",
+      "source_id": "bot_user_0231",
+      "gender": "female",
+      "original_name": "한예원",
+      "name": "딸기우유",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.room",
+      "source_id": "bot_user_0232",
+      "gender": "female",
+      "original_name": "윤현우",
+      "name": "roha_11",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.moment92",
+      "source_id": "bot_user_0234",
+      "gender": "female",
+      "original_name": "박서현",
+      "name": "오후세시",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.mood67",
+      "source_id": "bot_user_0235",
+      "gender": "female",
+      "original_name": "백라온",
+      "name": "halfmoon",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.room",
+      "source_id": "bot_user_0239",
+      "gender": "female",
+      "original_name": "이새로",
+      "name": "요거트볼",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.window",
+      "source_id": "bot_user_0240",
+      "gender": "female",
+      "original_name": "염가은",
+      "name": "morii",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.mood",
+      "source_id": "bot_user_0246",
+      "gender": "female",
+      "original_name": "양채은",
+      "name": "소금빵",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.garden17",
+      "source_id": "bot_user_0248",
+      "gender": "female",
+      "original_name": "김수연",
+      "name": "해질무렵",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.room",
+      "source_id": "bot_user_0249",
+      "gender": "female",
+      "original_name": "노라온",
+      "name": "치즈냥",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.diary",
+      "source_id": "bot_user_0252",
+      "gender": "female",
+      "original_name": "지나윤",
+      "name": "모래알",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.street41",
+      "source_id": "bot_user_0253",
+      "gender": "female",
+      "original_name": "정채은",
+      "name": "rinrin2",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.moment",
+      "source_id": "bot_user_0255",
+      "gender": "female",
+      "original_name": "황하은",
+      "name": "황하은",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:bot:light.garden81",
+      "source_id": "bot_user_0256",
+      "gender": "female",
+      "original_name": "백채원",
+      "name": "보라별",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.moment50",
+      "source_id": "bot_user_0259",
+      "gender": "female",
+      "original_name": "여예진",
+      "name": "하늘조각",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.studio44",
+      "source_id": "bot_user_0261",
+      "gender": "female",
+      "original_name": "조서연",
+      "name": "lazybean",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.corner",
+      "source_id": "bot_user_0263",
+      "gender": "female",
+      "original_name": "강서현",
+      "name": "dodo_31",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.moment",
+      "source_id": "bot_user_0268",
+      "gender": "female",
+      "original_name": "공서율",
+      "name": "두부한모",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:faint.street",
+      "source_id": "bot_user_0269",
+      "gender": "female",
+      "original_name": "박선우",
+      "name": "solly91",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.diary",
+      "source_id": "bot_user_0270",
+      "gender": "female",
+      "original_name": "강수현",
+      "name": "무화과잼",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.garden36",
+      "source_id": "bot_user_0271",
+      "gender": "female",
+      "original_name": "김소연",
+      "name": "어쩌다휴일",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.note22",
+      "source_id": "bot_user_0272",
+      "gender": "female",
+      "original_name": "문새로",
+      "name": "웃는하루",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.corner21",
+      "source_id": "bot_user_0273",
+      "gender": "female",
+      "original_name": "오서영",
+      "name": "rosiee",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.table49",
+      "source_id": "bot_user_0274",
+      "gender": "female",
+      "original_name": "채유진",
+      "name": "작은우주",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.corner52",
+      "source_id": "bot_user_0277",
+      "gender": "female",
+      "original_name": "김소희",
+      "name": "피크닉중",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.market19",
+      "source_id": "bot_user_0278",
+      "gender": "female",
+      "original_name": "송지안",
+      "name": "토리토리",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.letter",
+      "source_id": "bot_user_0280",
+      "gender": "female",
+      "original_name": "성은서",
+      "name": "눈웃음",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.diary",
+      "source_id": "bot_user_0283",
+      "gender": "female",
+      "original_name": "신수빈",
+      "name": "butterme",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.market",
+      "source_id": "bot_user_0285",
+      "gender": "female",
+      "original_name": "윤연우",
+      "name": "밍기적밍기적",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.letter15",
+      "source_id": "bot_user_0286",
+      "gender": "female",
+      "original_name": "강재이",
+      "name": "둥근마음",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.shelf88",
+      "source_id": "bot_user_0287",
+      "gender": "female",
+      "original_name": "주새봄",
+      "name": "cottony",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.mood",
+      "source_id": "bot_user_0293",
+      "gender": "female",
+      "original_name": "진소연",
+      "name": "sleepyy",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_doyoon",
+      "source_id": "M-MAIN-01",
+      "gender": "male",
+      "original_name": "김도윤",
+      "name": "김도윤",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:character:yoo_hyunwoo",
+      "source_id": "M-MAIN-02",
+      "gender": "male",
+      "original_name": "유현우",
+      "name": "푸른저녁",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:seo_junho",
+      "source_id": "M-MAIN-03",
+      "gender": "male",
+      "original_name": "서준호",
+      "name": "주먹밥이",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_jihoon",
+      "source_id": "M-DY-01",
+      "gender": "male",
+      "original_name": "김지훈",
+      "name": "bassline",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:park_junyoung",
+      "source_id": "M-DY-02",
+      "gender": "male",
+      "original_name": "박준영",
+      "name": "혼자걷기",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:jung_sungmin",
+      "source_id": "M-DY-03",
+      "gender": "male",
+      "original_name": "정성민",
+      "name": "정성민",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:character:park_minsu",
+      "source_id": "M-DY-04",
+      "gender": "male",
+      "original_name": "박민수",
+      "name": "동네산책",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_yejun",
+      "source_id": "M-DY-05",
+      "gender": "male",
+      "original_name": "김예준",
+      "name": "책상구석",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:ahn_seojun",
+      "source_id": "M-DY-06",
+      "gender": "male",
+      "original_name": "안서준",
+      "name": "hiker22",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:lee_donghyun",
+      "source_id": "M-HW-01",
+      "gender": "male",
+      "original_name": "이동현",
+      "name": "weekend",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_sunghyun",
+      "source_id": "M-HW-02",
+      "gender": "male",
+      "original_name": "김성현",
+      "name": "퇴근중",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:moon_seunghyun",
+      "source_id": "M-HW-03",
+      "gender": "male",
+      "original_name": "문승현",
+      "name": "yejun_6",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:jang_geonwoo",
+      "source_id": "M-HW-04",
+      "gender": "male",
+      "original_name": "장건우",
+      "name": "slowlane",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:hwang_hyunjun",
+      "source_id": "M-HW-05",
+      "gender": "male",
+      "original_name": "황현준",
+      "name": "옆집청년",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:song_dohyun",
+      "source_id": "M-HW-06",
+      "gender": "male",
+      "original_name": "송도현",
+      "name": "seojun8",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:choi_jaehyun",
+      "source_id": "M-JH-01",
+      "gender": "male",
+      "original_name": "최재현",
+      "name": "비오는퇴근길",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kim_minjun",
+      "source_id": "M-JH-02",
+      "gender": "male",
+      "original_name": "김민준",
+      "name": "검은후드",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:lee_junseo",
+      "source_id": "M-JH-03",
+      "gender": "male",
+      "original_name": "이준서",
+      "name": "털보곰",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:kwon_woojin",
+      "source_id": "M-JH-04",
+      "gender": "male",
+      "original_name": "권우진",
+      "name": "minsoo7",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:ryu_joowon",
+      "source_id": "M-JH-05",
+      "gender": "male",
+      "original_name": "류주원",
+      "name": "밥먹고듣자",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:character:bae_siwoo",
+      "source_id": "M-JH-06",
+      "gender": "male",
+      "original_name": "배시우",
+      "name": "버스창가",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.room",
+      "source_id": "bot_user_0002",
+      "gender": "male",
+      "original_name": "지상우",
+      "name": "무한반복",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.room",
+      "source_id": "bot_user_0003",
+      "gender": "male",
+      "original_name": "이이든",
+      "name": "runday",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.garden",
+      "source_id": "bot_user_0005",
+      "gender": "male",
+      "original_name": "성유진",
+      "name": "느린걸음",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.letter",
+      "source_id": "bot_user_0009",
+      "gender": "male",
+      "original_name": "권선우",
+      "name": "han_28",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.letter",
+      "source_id": "bot_user_0011",
+      "gender": "male",
+      "original_name": "임연우",
+      "name": "호빵맨",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.street",
+      "source_id": "bot_user_0012",
+      "gender": "male",
+      "original_name": "김채원",
+      "name": "midnight",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.film",
+      "source_id": "bot_user_0013",
+      "gender": "male",
+      "original_name": "임혜원",
+      "name": "땅콩버터",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.shelf",
+      "source_id": "bot_user_0014",
+      "gender": "male",
+      "original_name": "이서영",
+      "name": "지나가던곰",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.cafe",
+      "source_id": "bot_user_0015",
+      "gender": "male",
+      "original_name": "남루아",
+      "name": "heybuddy",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.street",
+      "source_id": "bot_user_0016",
+      "gender": "male",
+      "original_name": "최형준",
+      "name": "최형준",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:bot:daily.walk",
+      "source_id": "bot_user_0022",
+      "gender": "male",
+      "original_name": "송가온",
+      "name": "방구석관객",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.mood",
+      "source_id": "bot_user_0023",
+      "gender": "male",
+      "original_name": "송태호",
+      "name": "양말짝짝",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.album",
+      "source_id": "bot_user_0024",
+      "gender": "male",
+      "original_name": "공예서",
+      "name": "joonie",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.window",
+      "source_id": "bot_user_0025",
+      "gender": "male",
+      "original_name": "김수현",
+      "name": "sundayz",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.street",
+      "source_id": "bot_user_0026",
+      "gender": "male",
+      "original_name": "백태호",
+      "name": "onemore",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.cafe",
+      "source_id": "bot_user_0029",
+      "gender": "male",
+      "original_name": "송윤슬",
+      "name": "bluehour",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.letter",
+      "source_id": "bot_user_0031",
+      "gender": "male",
+      "original_name": "문미르",
+      "name": "심심한사람",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.garden",
+      "source_id": "bot_user_0037",
+      "gender": "male",
+      "original_name": "남빛나",
+      "name": "도시야경",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:faint.mood",
+      "source_id": "bot_user_0039",
+      "gender": "male",
+      "original_name": "엄가온",
+      "name": "일단재생",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.cafe",
+      "source_id": "bot_user_0041",
+      "gender": "male",
+      "original_name": "송서하",
+      "name": "식빵굽는곰",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.table",
+      "source_id": "bot_user_0042",
+      "gender": "male",
+      "original_name": "민지율",
+      "name": "오래된노트",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.shelf",
+      "source_id": "bot_user_0044",
+      "gender": "male",
+      "original_name": "김다현",
+      "name": "구름구경",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.moment63",
+      "source_id": "bot_user_0046",
+      "gender": "male",
+      "original_name": "이청아",
+      "name": "orbit_9",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.room",
+      "source_id": "bot_user_0049",
+      "gender": "male",
+      "original_name": "함대현",
+      "name": "min_93",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.log",
+      "source_id": "bot_user_0054",
+      "gender": "male",
+      "original_name": "정아린",
+      "name": "참치마요",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.log",
+      "source_id": "bot_user_0055",
+      "gender": "male",
+      "original_name": "함준혁",
+      "name": "야식대장",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.garden",
+      "source_id": "bot_user_0056",
+      "gender": "male",
+      "original_name": "염상우",
+      "name": "만년초보",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.album",
+      "source_id": "bot_user_0059",
+      "gender": "male",
+      "original_name": "염정우",
+      "name": "hyun_22",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.mood",
+      "source_id": "bot_user_0060",
+      "gender": "male",
+      "original_name": "신재윤",
+      "name": "coolmint",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.album",
+      "source_id": "bot_user_0061",
+      "gender": "male",
+      "original_name": "이지민",
+      "name": "오늘도출근",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.diary",
+      "source_id": "bot_user_0062",
+      "gender": "male",
+      "original_name": "박빛나",
+      "name": "아이스아메",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.shelf29",
+      "source_id": "bot_user_0063",
+      "gender": "male",
+      "original_name": "방하늘",
+      "name": "juno_88",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.room",
+      "source_id": "bot_user_0064",
+      "gender": "male",
+      "original_name": "안세아",
+      "name": "먼지한톨",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.walk",
+      "source_id": "bot_user_0065",
+      "gender": "male",
+      "original_name": "유유진",
+      "name": "jun_91",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.room72",
+      "source_id": "bot_user_0069",
+      "gender": "male",
+      "original_name": "이현준",
+      "name": "후드집업",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.album",
+      "source_id": "bot_user_0071",
+      "gender": "male",
+      "original_name": "진가영",
+      "name": "jiho_04",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.album",
+      "source_id": "bot_user_0072",
+      "gender": "male",
+      "original_name": "이시현",
+      "name": "소리수집",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.table",
+      "source_id": "bot_user_0078",
+      "gender": "male",
+      "original_name": "엄한별",
+      "name": "playlist",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.garden21",
+      "source_id": "bot_user_0089",
+      "gender": "male",
+      "original_name": "진은채",
+      "name": "소금감자",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.log52",
+      "source_id": "bot_user_0090",
+      "gender": "male",
+      "original_name": "이하준",
+      "name": "늦잠꾸러기",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.mood66",
+      "source_id": "bot_user_0091",
+      "gender": "male",
+      "original_name": "천종현",
+      "name": "offbeat",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.mood67",
+      "source_id": "bot_user_0100",
+      "gender": "male",
+      "original_name": "여시현",
+      "name": "얼죽아회원",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.studio48",
+      "source_id": "bot_user_0105",
+      "gender": "male",
+      "original_name": "정찬우",
+      "name": "재생목록왕",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.note",
+      "source_id": "bot_user_0107",
+      "gender": "male",
+      "original_name": "윤서하",
+      "name": "윤서하",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:bot:still.corner",
+      "source_id": "bot_user_0108",
+      "gender": "male",
+      "original_name": "차민준",
+      "name": "cafein",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.moment",
+      "source_id": "bot_user_0109",
+      "gender": "male",
+      "original_name": "손시온",
+      "name": "soulman",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.log",
+      "source_id": "bot_user_0111",
+      "gender": "male",
+      "original_name": "추소리",
+      "name": "장작불",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.market",
+      "source_id": "bot_user_0114",
+      "gender": "male",
+      "original_name": "노준혁",
+      "name": "yun_03",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.cafe",
+      "source_id": "bot_user_0121",
+      "gender": "male",
+      "original_name": "김윤슬",
+      "name": "동네형",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.walk69",
+      "source_id": "bot_user_0123",
+      "gender": "male",
+      "original_name": "오지율",
+      "name": "hisnote",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.garden92",
+      "source_id": "bot_user_0126",
+      "gender": "male",
+      "original_name": "허유진",
+      "name": "nightowl",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.walk",
+      "source_id": "bot_user_0127",
+      "gender": "male",
+      "original_name": "김은채",
+      "name": "mrbeans",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.garden69",
+      "source_id": "bot_user_0128",
+      "gender": "male",
+      "original_name": "여하람",
+      "name": "woolhat",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.note",
+      "source_id": "bot_user_0133",
+      "gender": "male",
+      "original_name": "박유진",
+      "name": "newday",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.mood",
+      "source_id": "bot_user_0135",
+      "gender": "male",
+      "original_name": "진이든",
+      "name": "고양이아빠",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.walk24",
+      "source_id": "bot_user_0138",
+      "gender": "male",
+      "original_name": "송대현",
+      "name": "나무그늘",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.market",
+      "source_id": "bot_user_0139",
+      "gender": "male",
+      "original_name": "박다현",
+      "name": "leo_27",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:faint.garden",
+      "source_id": "bot_user_0140",
+      "gender": "male",
+      "original_name": "김미르",
+      "name": "집에가는길",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.market",
+      "source_id": "bot_user_0145",
+      "gender": "male",
+      "original_name": "장선우",
+      "name": "no_plan",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.frame",
+      "source_id": "bot_user_0147",
+      "gender": "male",
+      "original_name": "이윤슬",
+      "name": "잠깐쉬는중",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.window",
+      "source_id": "bot_user_0148",
+      "gender": "male",
+      "original_name": "송경민",
+      "name": "grayhood",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:faint.studio",
+      "source_id": "bot_user_0149",
+      "gender": "male",
+      "original_name": "윤한별",
+      "name": "doyun9",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.shelf",
+      "source_id": "bot_user_0152",
+      "gender": "male",
+      "original_name": "서시현",
+      "name": "심야버스",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.diary",
+      "source_id": "bot_user_0164",
+      "gender": "male",
+      "original_name": "곽시현",
+      "name": "고장난시계",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.diary15",
+      "source_id": "bot_user_0166",
+      "gender": "male",
+      "original_name": "유미르",
+      "name": "dustyday",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.note",
+      "source_id": "bot_user_0168",
+      "gender": "male",
+      "original_name": "황온유",
+      "name": "새벽감성",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.film",
+      "source_id": "bot_user_0169",
+      "gender": "male",
+      "original_name": "윤은채",
+      "name": "무명리스너",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.mood96",
+      "source_id": "bot_user_0171",
+      "gender": "male",
+      "original_name": "방가온",
+      "name": "노래듣는중",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.film",
+      "source_id": "bot_user_0172",
+      "gender": "male",
+      "original_name": "정시현",
+      "name": "물먹는하마",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.film57",
+      "source_id": "bot_user_0174",
+      "gender": "male",
+      "original_name": "문우진",
+      "name": "한곡더",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.log",
+      "source_id": "bot_user_0175",
+      "gender": "male",
+      "original_name": "문대현",
+      "name": "커피중독",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.mood43",
+      "source_id": "bot_user_0178",
+      "gender": "male",
+      "original_name": "김서영",
+      "name": "iceblack",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.mood70",
+      "source_id": "bot_user_0180",
+      "gender": "male",
+      "original_name": "정동현",
+      "name": "반박자늦게",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.market",
+      "source_id": "bot_user_0183",
+      "gender": "male",
+      "original_name": "차하람",
+      "name": "이어폰필수",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.frame71",
+      "source_id": "bot_user_0186",
+      "gender": "male",
+      "original_name": "김재호",
+      "name": "느린주말",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.note49",
+      "source_id": "bot_user_0187",
+      "gender": "male",
+      "original_name": "문라온",
+      "name": "loafing",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.moment46",
+      "source_id": "bot_user_0188",
+      "gender": "male",
+      "original_name": "곽온유",
+      "name": "이불밖추움",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:faint.cafe",
+      "source_id": "bot_user_0189",
+      "gender": "male",
+      "original_name": "강한별",
+      "name": "구석자리",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.street",
+      "source_id": "bot_user_0191",
+      "gender": "male",
+      "original_name": "구하늘",
+      "name": "echo_7",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.log86",
+      "source_id": "bot_user_0192",
+      "gender": "male",
+      "original_name": "이지우",
+      "name": "이지우",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:bot:pale.shelf44",
+      "source_id": "bot_user_0193",
+      "gender": "male",
+      "original_name": "추미르",
+      "name": "여행가고싶다",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.walk",
+      "source_id": "bot_user_0194",
+      "gender": "male",
+      "original_name": "전재이",
+      "name": "deepblue",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.moment29",
+      "source_id": "bot_user_0195",
+      "gender": "male",
+      "original_name": "민태호",
+      "name": "바람구경",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.room",
+      "source_id": "bot_user_0199",
+      "gender": "male",
+      "original_name": "차루아",
+      "name": "인생은랜덤",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.frame82",
+      "source_id": "bot_user_0204",
+      "gender": "male",
+      "original_name": "강성호",
+      "name": "nomad",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.market",
+      "source_id": "bot_user_0207",
+      "gender": "male",
+      "original_name": "홍성호",
+      "name": "sidewalk",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.letter",
+      "source_id": "bot_user_0211",
+      "gender": "male",
+      "original_name": "고정우",
+      "name": "파란운동화",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.street44",
+      "source_id": "bot_user_0216",
+      "gender": "male",
+      "original_name": "조상현",
+      "name": "허밍하는곰",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.mood",
+      "source_id": "bot_user_0218",
+      "gender": "male",
+      "original_name": "이세훈",
+      "name": "tae_17",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.film",
+      "source_id": "bot_user_0227",
+      "gender": "male",
+      "original_name": "조승현",
+      "name": "동네백수",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.mood29",
+      "source_id": "bot_user_0228",
+      "gender": "male",
+      "original_name": "김성민",
+      "name": "rainybus",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.diary",
+      "source_id": "bot_user_0233",
+      "gender": "male",
+      "original_name": "하건우",
+      "name": "노을사진",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.room",
+      "source_id": "bot_user_0236",
+      "gender": "male",
+      "original_name": "채시윤",
+      "name": "daywalk",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.studio69",
+      "source_id": "bot_user_0237",
+      "gender": "male",
+      "original_name": "변대현",
+      "name": "geon_8",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.table",
+      "source_id": "bot_user_0238",
+      "gender": "male",
+      "original_name": "지다현",
+      "name": "weekdays",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.moment70",
+      "source_id": "bot_user_0241",
+      "gender": "male",
+      "original_name": "심찬희",
+      "name": "자전거타는날",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.frame",
+      "source_id": "bot_user_0242",
+      "gender": "male",
+      "original_name": "김시윤",
+      "name": "오늘뭐듣지",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:quiet.window",
+      "source_id": "bot_user_0243",
+      "gender": "male",
+      "original_name": "민성준",
+      "name": "chan_7",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.street",
+      "source_id": "bot_user_0244",
+      "gender": "male",
+      "original_name": "이정우",
+      "name": "멍한오후",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:light.walk",
+      "source_id": "bot_user_0245",
+      "gender": "male",
+      "original_name": "차시온",
+      "name": "moonwalk",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:soft.street86",
+      "source_id": "bot_user_0247",
+      "gender": "male",
+      "original_name": "우지율",
+      "name": "jinwoo5",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.table68",
+      "source_id": "bot_user_0250",
+      "gender": "male",
+      "original_name": "임새로",
+      "name": "달리는감자",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.diary",
+      "source_id": "bot_user_0251",
+      "gender": "male",
+      "original_name": "함지우",
+      "name": "기타치는곰",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:muted.table18",
+      "source_id": "bot_user_0254",
+      "gender": "male",
+      "original_name": "홍재윤",
+      "name": "회색모자",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.diary",
+      "source_id": "bot_user_0257",
+      "gender": "male",
+      "original_name": "박재이",
+      "name": "kyle_01",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.film",
+      "source_id": "bot_user_0258",
+      "gender": "male",
+      "original_name": "장지우",
+      "name": "woojin2",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.letter22",
+      "source_id": "bot_user_0260",
+      "gender": "male",
+      "original_name": "방은채",
+      "name": "river_3",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:calm.album11",
+      "source_id": "bot_user_0262",
+      "gender": "male",
+      "original_name": "장시우",
+      "name": "overtime",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:warm.walk51",
+      "source_id": "bot_user_0264",
+      "gender": "male",
+      "original_name": "방루아",
+      "name": "woody",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:slow.market",
+      "source_id": "bot_user_0265",
+      "gender": "male",
+      "original_name": "한루아",
+      "name": "오래된라디오",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.shelf",
+      "source_id": "bot_user_0266",
+      "gender": "male",
+      "original_name": "전태경",
+      "name": "lazybear",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:cozy.diary27",
+      "source_id": "bot_user_0267",
+      "gender": "male",
+      "original_name": "임하람",
+      "name": "무심한듯",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:clear.mood12",
+      "source_id": "bot_user_0275",
+      "gender": "male",
+      "original_name": "남이든",
+      "name": "brownfox",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:plain.window92",
+      "source_id": "bot_user_0276",
+      "gender": "male",
+      "original_name": "박예서",
+      "name": "jake_94",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:daily.album",
+      "source_id": "bot_user_0279",
+      "gender": "male",
+      "original_name": "진라온",
+      "name": "zzzbear",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:still.note51",
+      "source_id": "bot_user_0281",
+      "gender": "male",
+      "original_name": "변시윤",
+      "name": "doodler",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:lofi.walk85",
+      "source_id": "bot_user_0282",
+      "gender": "male",
+      "original_name": "노지민",
+      "name": "moodyman",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dim.album93",
+      "source_id": "bot_user_0284",
+      "gender": "male",
+      "original_name": "신태윤",
+      "name": "duskman",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:mellow.table",
+      "source_id": "bot_user_0288",
+      "gender": "male",
+      "original_name": "서건우",
+      "name": "감자칩",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:fresh.shelf27",
+      "source_id": "bot_user_0289",
+      "gender": "male",
+      "original_name": "하찬우",
+      "name": "하찬우",
+      "keep_original": true
+    },
+    {
+      "source_key": "saigram:bot:pale.shelf61",
+      "source_id": "bot_user_0290",
+      "gender": "male",
+      "original_name": "서현우",
+      "name": "greenlog",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:dusky.letter28",
+      "source_id": "bot_user_0291",
+      "gender": "male",
+      "original_name": "김지민",
+      "name": "noobear",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:misty.studio",
+      "source_id": "bot_user_0292",
+      "gender": "male",
+      "original_name": "염병훈",
+      "name": "내일의나",
+      "keep_original": false
+    },
+    {
+      "source_key": "saigram:bot:pale.shelf23",
+      "source_id": "bot_user_0208",
+      "gender": "unknown",
+      "original_name": "류시온",
+      "name": "책갈피한장",
+      "keep_original": false
+    }
+  ]
+}

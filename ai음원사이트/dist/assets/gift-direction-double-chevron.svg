@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 26 18" width="13" height="9" fill="none" role="img" aria-label="선물 전달 방향">
+  <defs>
+    <linearGradient id="gift-direction-gradient" x1="0" y1="0" x2="26" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D7A5F5"/>
+      <stop offset="1" stop-color="#85DDEB"/>
+    </linearGradient>
+  </defs>
+  <path d="M1 1H6L13 9L6 17H1L8 9Z" fill="url(#gift-direction-gradient)"/>
+  <path d="M13 1H18L25 9L18 17H13L20 9Z" fill="url(#gift-direction-gradient)"/>
+</svg>

@@ -1,0 +1,614 @@
+/* AIFECT room and recording popups.
+   Existing room positioning, viewport measurements, scroll containers and media
+   controls remain owned by their feature styles. No room/studio page selectors. */
+
+/* Tokens stop at the sheet boundary; the live stage and chat keep their theme. */
+#main .voice-room[data-voice-room] dialog.voice-sheet,
+#main .voice-room[data-voice-room] #talk-dock-member-tools {
+  --popup-button-height:44px;
+  --room-popup-title:20px;
+  --room-popup-body:15px;
+  --room-popup-control:14px;
+  --room-popup-caption:13px;
+  color:var(--ds-text);
+  border-color:var(--ds-line);
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet:not(.talk-docked) {
+  background:var(--ds-surface);
+  border-color:var(--ds-line);
+  box-shadow:none;
+}
+/* Anchored sheets already use the shared flat panel and have !important
+   viewport geometry in room-bubbles.css; retain all of those declarations. */
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet > :is(h2,.popup-prompt),
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet .voice-sheet-heading h2,
+#main .voice-room[data-voice-room] #voice-members #voice-members-count {
+  color:var(--ds-text);
+  font-size:var(--room-popup-title);
+  font-weight:700;
+  line-height:1.4;
+  letter-spacing:-.025em;
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.voice-sheet-heading,.voice-members-header,.voice-results-heading,.voice-queue-heading) {
+  border-color:var(--ds-line);
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.voice-sheet-heading p,.voice-audio-card > p,.voice-playlist-empty p,.voice-music-rights,.field-help,.quiet),
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet > p:not(.popup-prompt,.form-error),
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(#voice-settings-readonly,#room-share-count,#room-share-result,#voice-gift-result) {
+  color:var(--ds-body);
+  font-size:var(--room-popup-caption);
+  line-height:1.6;
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.voice-audio-card h3,.voice-results-heading h3,.voice-queue-heading h3,.voice-playlist-empty h3) {
+  color:var(--ds-text);
+  font-size:var(--room-popup-body);
+  font-weight:650;
+  line-height:1.5;
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.voice-results-heading small,.voice-queue-heading small,.voice-queue-info small,.voice-notice-input output) {
+  color:var(--ds-muted);
+  font-size:var(--room-popup-caption);
+  line-height:1.5;
+}
+
+/* Ordinary sheet fields. Search bars, switches, sliders and the message composer
+   have dedicated structures and are intentionally absent from this selector. */
+#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#voice-invite-form,#voice-gift-form) :is(label,legend),
+#main .voice-room[data-voice-room] #voice-content #voice-sound :is(label,summary),
+#main .voice-room[data-voice-room] #room-inbox .room-dm-query {
+  color:var(--ds-body);
+  font-size:var(--room-popup-control);
+  line-height:1.5;
+}
+#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#voice-invite-form,#voice-gift-form) :is(input:not([type=hidden],[type=checkbox],[type=radio],[type=range],[type=file]),select,textarea),
+#main .voice-room[data-voice-room] #voice-sound select,
+#main .voice-room[data-voice-room] #room-inbox .room-dm-query input {
+  min-height:44px;
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);
+  color:var(--ds-text);
+  font-family:inherit;
+  font-size:var(--room-popup-control);
+  line-height:1.5;
+  box-shadow:none;
+  caret-color:var(--ds-selected);
+}
+#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#voice-invite-form,#voice-gift-form) :is(input,textarea)::placeholder,
+#main .voice-room[data-voice-room] #room-inbox .room-dm-query input::placeholder {
+  color:var(--ds-muted);
+  opacity:1;
+}
+#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#voice-invite-form,#voice-gift-form) :is(input:not([type=hidden],[type=checkbox],[type=radio],[type=range],[type=file]),select,textarea):disabled {
+  border-color:var(--ds-line);
+  background:var(--ds-secondary);
+  color:var(--ds-disabled);
+  cursor:not-allowed;
+}
+
+/* Keep each footer's existing arrangement; unify only ordinary action controls. */
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.primary-button,.small-button):not(.voice-dialog-close),
+#main .voice-room[data-voice-room] #voice-content :is(#talk-theme-choices,#talk-leave) footer > button,
+#main .voice-room[data-voice-room] #voice-sound .room-echo-buttons button,
+#main .voice-room[data-voice-room] #live-search-sheet .live-search-tabs button {
+  min-height:44px;
+  font-family:inherit;
+  font-size:var(--room-popup-control);
+  font-weight:600;
+  line-height:1.4;
+  border-radius:var(--ds-radius-input);
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet .small-button:not(.voice-dialog-close),
+#main .voice-room[data-voice-room] #voice-content :is(#talk-theme-choices,#talk-leave) footer > button:not(.primary-button),
+#main .voice-room[data-voice-room] #voice-sound .room-echo-buttons button,
+#main .voice-room[data-voice-room] #live-search-sheet .live-search-tabs button {
+  border:1px solid var(--ds-line);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet .primary-button,
+#main .voice-room[data-voice-room] #talk-dock .voice-settings-save {
+  border:1px solid transparent;
+  border-radius:999px;
+  background:var(--ds-gradient);
+  color:var(--ds-ink);
+  font-weight:700;
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.primary-button,.small-button):disabled {
+  border-color:var(--ds-line);
+  background:var(--ds-secondary);
+  color:var(--ds-muted);
+  opacity:.6;
+  cursor:not-allowed;
+}
+/* Preserve the compact title generator's icon-only field position. */
+#main .voice-room[data-voice-room] #voice-settings-form .live-title-row [data-auto-title] {
+  min-height:0;
+  border:0;
+  background:transparent;
+  color:var(--ds-selected);
+}
+
+/* Settings selections use lavender; mode icons retain their semantic accents. */
+#main .voice-room[data-voice-room] #voice-settings-form .live-mode .live-type-icon {
+  display:inline-block;
+  flex:none;
+  width:18px;
+  height:18px;
+  background:currentColor;
+  mask:var(--live-mask) center / contain no-repeat;
+  -webkit-mask:var(--live-mask) center / contain no-repeat;
+}
+#main .voice-room[data-voice-room] #voice-settings-form .live-mode .live-type-karaoke {
+  --live-mask:url('/assets/icons/aifect-mic-mask.png');
+}
+#main .voice-room[data-voice-room] #voice-settings-form .live-mode .live-type-talk {
+  --live-mask:url('/assets/icons/aifect-talk-bubble.svg');
+}
+#main .voice-room[data-voice-room] #voice-settings-form :is(.live-mode,.voice-visibility) label {
+  border-color:var(--ds-line);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+  border-radius:var(--ds-radius-input);
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] #voice-settings-form :is(.live-mode,.voice-visibility) label:has(:checked),
+#main .voice-room[data-voice-room] #voice-settings-form .live-capacity-presets button[aria-pressed=true],
+#main .voice-room[data-voice-room] #voice-sound .room-echo-buttons button[aria-pressed=true]:not(:disabled),
+#main .voice-room[data-voice-room] #live-search-sheet .live-search-tabs button[aria-selected=true]:not(:disabled),
+#main .voice-room[data-voice-room] #voice-invite-sheet .room-share-person:has(:checked) {
+  border-color:var(--ds-selected);
+  background:var(--ds-soft);
+  color:var(--ds-text);
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] #voice-settings-form :is(.live-mode,.voice-visibility) label:has(input:disabled),
+#main .voice-room[data-voice-room] #voice-sound .room-echo-buttons button:disabled,
+#main .voice-room[data-voice-room] #live-search-sheet .live-search-tabs button:disabled {
+  border-color:var(--ds-line);
+  background:var(--ds-secondary);
+  color:var(--ds-disabled);
+  cursor:not-allowed;
+}
+#main .voice-room[data-voice-room] #voice-settings-form .live-mode label:has(input[value=karaoke]) :is(svg,.live-type-icon) {
+  color:var(--ds-accent-pink);
+}
+#main .voice-room[data-voice-room] #voice-settings-form .live-mode label:has(input[value=talk]) :is(svg,.live-type-icon) {
+  color:var(--ds-accent-mint);
+}
+#main .voice-room[data-voice-room] #voice-settings-form .voice-visibility strong {
+  font-size:var(--room-popup-control);
+  font-weight:600;
+}
+#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#talk-theme-choices) .voice-backgrounds label {
+  border-color:var(--ds-line);
+}
+#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#talk-theme-choices) .voice-backgrounds label:has(:checked) {
+  border-color:var(--ds-selected);
+  outline:2px solid var(--ds-selected);
+  outline-offset:-2px;
+}
+#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#talk-theme-choices) .voice-backgrounds :is(span,small) {
+  color:var(--ds-text);
+}
+#main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#talk-theme-choices) .voice-backgrounds input,
+#main .voice-room[data-voice-room] #voice-invite-sheet .room-share-person input {
+  accent-color:var(--ds-selected);
+}
+
+/* Lists and nested member menus retain their avatar and action grids. */
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet :is(.voice-audio-card,.voice-audio-extra,.voice-member-row,.voice-queue-row,.room-share-person) {
+  border-color:var(--ds-line);
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet .voice-audio-card {
+  background:transparent;
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet .voice-queue-row.is-current {
+  border-color:var(--ds-selected);
+  background:var(--ds-soft);
+}
+#main .voice-room[data-voice-room] #voice-members .voice-member-info strong,
+#main .voice-room[data-voice-room] #room-inbox [data-room-peer] strong {
+  font-size:var(--room-popup-body);
+  line-height:1.5;
+}
+#main .voice-room[data-voice-room] #voice-content dialog.voice-sheet .voice-queue-info strong,
+#main .voice-room[data-voice-room] #voice-invite-sheet .room-share-summary strong {
+  color:var(--ds-text);
+  font-size:var(--room-popup-body);
+  line-height:1.5;
+}
+#main .voice-room[data-voice-room] #voice-members .voice-member-info small,
+#main .voice-room[data-voice-room] #room-inbox [data-room-peer] :is(small,time),
+#main .voice-room[data-voice-room] #voice-invite-sheet .room-share-summary span {
+  color:var(--ds-muted);
+  font-size:var(--room-popup-caption);
+  line-height:1.5;
+}
+#main .voice-room[data-voice-room] :is(#voice-member-tools,#talk-dock-member-tools) {
+  background:var(--ds-panel);
+  border-color:var(--ds-line);
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] :is(#voice-member-tools,#talk-dock-member-tools) .voice-member-tools button {
+  min-height:44px;
+  color:var(--ds-body);
+  background:var(--ds-bg);
+  border-color:var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  font-size:14px;
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] :is(#voice-member-tools,#talk-dock-member-tools) .voice-member-tools button:is([data-voice=ask-kick],[data-voice=ask-ban-day],[data-voice=ban-day]) {
+  color:var(--ds-error);
+}
+#main .voice-room[data-voice-room] #voice-content #voice-kick-confirm [data-voice=confirm-kick]:not(:disabled) {
+  background:var(--ds-error);
+  color:var(--ds-ink);
+}
+#main .voice-room[data-voice-room] #voice-invite-sheet .room-share-person {
+  color:var(--ds-body);
+  background:var(--ds-bg);
+  border-radius:var(--ds-radius-input);
+  font-size:var(--room-popup-control);
+}
+#main .voice-room[data-voice-room] #room-inbox [data-room-peer] {
+  border-color:var(--ds-line);
+  background:transparent;
+}
+#main .voice-room[data-voice-room] #room-inbox [data-room-peer]:is(:hover,:focus-visible),
+#main .voice-room[data-voice-room] #voice-invite-sheet .room-share-person:hover {
+  background:var(--ds-soft);
+}
+#main .voice-room[data-voice-room] #voice-seat-picker button.voice-member-row,
+#main .voice-room[data-voice-room] #voice-music-sheet .voice-music-result,
+#main .voice-room[data-voice-room] #live-search-sheet .live-result {
+  border-color:var(--ds-line);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] #voice-music-sheet .voice-music-result strong,
+#main .voice-room[data-voice-room] #live-search-sheet .live-result strong {
+  color:var(--ds-text);
+  font-size:var(--room-popup-body);
+  line-height:1.5;
+}
+#main .voice-room[data-voice-room] #voice-music-sheet .voice-music-result :is(small,time,.voice-consent),
+#main .voice-room[data-voice-room] #live-search-sheet .live-result small {
+  color:var(--ds-body);
+  font-size:var(--room-popup-caption);
+  line-height:1.5;
+}
+#main .voice-room[data-voice-room] #voice-music-sheet .voice-music-result button {
+  min-width:44px;
+}
+
+/* Both song search sheets keep the existing one-line, scroll-safe search form. */
+#main .voice-room[data-voice-room] #voice-content :is(#live-search-sheet,#voice-music-sheet) .room-song-search {
+  border-color:var(--ds-selected);
+  background:var(--ds-bg);
+  border-radius:var(--ds-radius-input);
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] #voice-content :is(#live-query,#voice-music-query) {
+  color:var(--ds-text);
+  font-family:inherit;
+  font-size:var(--room-popup-control);
+}
+#main .voice-room[data-voice-room] #voice-content :is(#live-query,#voice-music-query)::placeholder {
+  color:var(--ds-muted);
+  opacity:1;
+}
+#main .voice-room[data-voice-room] #voice-content :is(#live-search-sheet,#voice-music-sheet) .room-song-search > button:not(:disabled) {
+  border-color:transparent;
+  background:var(--ds-gradient);
+  color:var(--ds-ink);
+  font-weight:700;
+}
+
+/* The singer's start invitation is a popup inside the stage. Leave its live
+   countdown size, timeout, inset and action container unchanged. */
+#main .voice-room[data-voice-room] #live-invite.live-start-popup {
+  background:var(--ds-panel);
+  border-color:var(--ds-line);
+  color:var(--ds-text);
+  box-shadow:none;
+  backdrop-filter:none;
+}
+#main .voice-room[data-voice-room] #live-invite.live-start-popup p {
+  color:var(--ds-body);
+  font-size:14px;
+  line-height:1.5;
+}
+#main .voice-room[data-voice-room] #live-invite.live-start-popup #room-turn-action button {
+  min-height:44px;
+  border:1px solid transparent;
+  background:var(--ds-gradient);
+  color:var(--ds-ink);
+  font-size:14px;
+  font-weight:700;
+  box-shadow:none;
+}
+#main .voice-room[data-voice-room] #live-invite.live-start-popup #room-turn-action button:disabled {
+  background:var(--ds-secondary);
+  color:var(--ds-muted);
+  opacity:.6;
+}
+
+/* Recording/editor dialogs: preserve waveform, role colors and scrolling. */
+#dialog:is(.record-settings-dialog,.recording-settings-dialog,.duet-editor-dialog),
+:is(#sing-exit-dialog,#recording-mode-dialog) {
+  --popup-button-height:44px;
+  color:var(--ds-text);
+  border-color:var(--ds-line);
+  box-shadow:none;
+}
+/* Feature styles already mark the studio and duet backgrounds !important. */
+#dialog:is(.record-settings-dialog,.recording-settings-dialog,.duet-editor-dialog) {
+  background:var(--ds-surface)!important;
+}
+:is(#sing-exit-dialog,#recording-mode-dialog) {
+  background:var(--ds-surface);
+}
+#dialog :is(.studio-settings,.recording-settings,.duet-editor) > h2,
+#recording-mode-dialog > h2 {
+  color:var(--ds-text);
+  font-size:20px;
+  font-weight:700;
+  line-height:1.4;
+  letter-spacing:-.025em;
+}
+#dialog :is(.studio-settings,.recording-settings) :is(.studio-setting-card > h2,h3),
+#dialog .dubbing-page > h2 {
+  color:var(--ds-text);
+  font-size:15px;
+  font-weight:650;
+  line-height:1.5;
+}
+#dialog :is(.studio-settings,.recording-settings) :is(.field-help,.studio-side-note,.studio-ticks,.sing-monitor small,[data-mic-hint]),
+#dialog .duet-editor [data-duet-note],
+#sing-exit-dialog #sing-exit-note {
+  color:var(--ds-body);
+  font-size:13px;
+  line-height:1.6;
+}
+#dialog :is(.studio-settings,.recording-settings) :is(.studio-control-name,.studio-key,.studio-size,.sing-monitor,.microphone-check-info strong,summary) {
+  color:var(--ds-body);
+  font-size:14px;
+  line-height:1.5;
+}
+#dialog :is(.studio-settings,.recording-settings) .studio-range output {
+  color:var(--ds-body);
+  font-size:13px;
+  font-variant-numeric:tabular-nums;
+}
+#dialog :is(.studio-tabs,.recording-setting-tabs,.duet-methods) {
+  border-color:var(--ds-line);
+  background:var(--ds-bg);
+}
+#dialog :is(.studio-tabs,.recording-setting-tabs,.duet-methods) button {
+  min-height:44px;
+  font-family:inherit;
+  font-size:14px;
+  line-height:1.4;
+  background:transparent;
+  color:var(--ds-body);
+  box-shadow:none;
+}
+#dialog :is(.studio-tabs,.recording-setting-tabs,.duet-methods) button[aria-selected=true] {
+  background:var(--ds-soft);
+  color:var(--ds-selected);
+  font-weight:700;
+}
+#dialog :is(.studio-settings,.recording-settings) .studio-preset-tile {
+  border-color:var(--ds-line);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+  font-size:13px;
+  box-shadow:none;
+}
+#dialog :is(.studio-settings,.recording-settings) .studio-preset-tile[aria-pressed=true] {
+  border-color:var(--ds-selected);
+  background:var(--ds-soft);
+  color:var(--ds-selected);
+}
+#dialog :is(.studio-settings,.recording-settings) :is(.studio-setting-card,.sing-effect-details,.microphone-check,.studio-key-stepper) {
+  border-color:var(--ds-line);
+}
+#dialog :is(.studio-settings,.recording-settings) :is(.studio-key-actions button,[data-mic-toggle]) {
+  min-height:44px;
+  border-color:var(--ds-line);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+  font-size:13px;
+  box-shadow:none;
+}
+#dialog :is(.studio-settings,.recording-settings) > .primary-button,
+#dialog .duet-editor-footer [data-duet-done],
+#sing-exit-dialog [data-choice=save] {
+  min-height:44px;
+  border:1px solid transparent;
+  border-radius:999px;
+  background:var(--ds-gradient);
+  color:var(--ds-ink);
+  font-size:14px;
+  font-weight:700;
+  box-shadow:none;
+}
+#dialog .duet-editor-footer [data-duet-reset],
+#sing-exit-dialog [data-choice=stay],
+#recording-mode-dialog .recording-mode-choices [data-sing-mode] {
+  border-color:var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+  font-size:14px;
+  box-shadow:none;
+}
+#sing-exit-dialog [data-choice=discard] {
+  border-color:var(--ds-line);
+  background:var(--ds-bg);
+  color:var(--ds-accent-pink);
+}
+#recording-mode-dialog .recording-mode-choices [data-sing-mode]:hover {
+  border-color:var(--ds-selected);
+  background:var(--ds-soft);
+  color:var(--ds-text);
+}
+
+/* Legacy punch-completion dialog skin. The current recorder renders its result
+   inline; retaining this scope also covers the existing cleanup/modal contract. */
+:is(#dialog,dialog).punch-complete-dialog {
+  background:var(--ds-surface);
+  border-color:var(--ds-line);
+  color:var(--ds-text);
+  box-shadow:none;
+}
+:is(#dialog,dialog).punch-complete-dialog .punch-complete-icon {
+  background:var(--ds-soft);
+  color:var(--ds-selected);
+}
+:is(#dialog,dialog).punch-complete-dialog .punch-complete-actions .small-button {
+  border-color:var(--ds-line);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+  box-shadow:none;
+}
+:is(#dialog,dialog).punch-complete-dialog .punch-complete-actions .primary-button:not(:disabled) {
+  border-color:transparent;
+  background:var(--ds-gradient);
+  color:var(--ds-ink);
+  box-shadow:none;
+}
+:is(#dialog,dialog).punch-complete-dialog .punch-complete-actions button:disabled {
+  border-color:var(--ds-line);
+  background:var(--ds-secondary);
+  color:var(--ds-disabled);
+  opacity:.6;
+}
+
+/* Dubbing confirmations and reports, never the dubbing editor/page. */
+#dialog .dubbing-page {
+  --db-panel:var(--ds-panel);
+  --db-border:var(--ds-line);
+  color:var(--ds-body);
+}
+#dialog .dubbing-page > :is(h2,.popup-prompt) {
+  color:var(--ds-text);
+  font-size:20px;
+  font-weight:700;
+  line-height:1.4;
+}
+#dialog .dubbing-page :is(label,select,input:not([type=checkbox]),textarea) {
+  font-size:14px;
+  line-height:1.5;
+}
+#dialog .dubbing-page :is(select,input:not([type=checkbox],[type=hidden]),textarea) {
+  min-height:44px;
+  border-color:var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);
+  color:var(--ds-text);
+  box-shadow:none;
+}
+#dialog .dubbing-page input[type=checkbox] {
+  accent-color:var(--ds-selected);
+}
+#dialog .dubbing-page .dubbing-quota {
+  border-color:var(--ds-line);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+}
+#dialog .dubbing-page .dubbing-quota :is(strong,b) {
+  color:var(--ds-text);
+}
+#dialog .dubbing-page :is(.dubbing-quota small,.dubbing-feedback) {
+  color:var(--ds-muted);
+  font-size:13px;
+  line-height:1.6;
+}
+#dialog .dubbing-page .primary-button {
+  min-height:44px;
+  border-radius:999px;
+  background:var(--ds-gradient);
+  color:var(--ds-ink);
+}
+#dialog .dubbing-page .small-button {
+  min-height:44px;
+  border-color:var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);
+  color:var(--ds-body);
+}
+#dialog :is(.studio-settings,.recording-settings,.dubbing-page) :is(.primary-button,.small-button,.studio-preset-tile):disabled,
+#dialog .duet-editor-footer button:disabled,
+#sing-exit-dialog .sing-exit-actions button:disabled {
+  border-color:var(--ds-line);
+  background:var(--ds-secondary);
+  color:var(--ds-muted);
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+/* The lyric reader is a popover. Its actual lyric rows and current line are
+   left untouched, including the user's reading size and playback markers. */
+.song-main-column #expanded-song-lyrics.expanded-song-lyrics {
+  border-color:var(--ds-line);
+  background:var(--ds-surface);
+  box-shadow:none;
+}
+#expanded-song-lyrics.expanded-song-lyrics > header h2 {
+  color:var(--ds-text);
+  font-size:20px;
+  font-weight:700;
+  line-height:1.4;
+}
+#expanded-song-lyrics.expanded-song-lyrics .expanded-lyrics-close {
+  color:var(--ds-body);
+}
+
+@media (min-width:801px) {
+  #main .voice-room[data-voice-room] dialog.voice-sheet {
+    --room-popup-title:var(--pc-font-section,20px);
+    --room-popup-body:var(--pc-font-body,15px);
+    --room-popup-control:var(--pc-font-control,14px);
+    --room-popup-caption:var(--pc-font-caption,13px);
+  }
+  #dialog :is(.studio-settings,.recording-settings,.duet-editor,.dubbing-page) > h2,
+  #expanded-song-lyrics.expanded-song-lyrics > header h2 {
+    font-size:var(--pc-font-section,20px);
+  }
+  /* The play hub deliberately zooms these children by 1.25 for layout. */
+  .page-wrap:has(> #main > .play-page[data-play-mode]) ~ #recording-mode-dialog > h2 {
+    font-size:calc(var(--pc-font-section,20px) / var(--play-section-zoom,1.25));
+  }
+  .page-wrap:has(> #main > .play-page[data-play-mode]) ~ #recording-mode-dialog .recording-mode-choices [data-sing-mode] {
+    font-size:calc(var(--pc-font-control,14px) / var(--play-section-zoom,1.25));
+  }
+}
+@media (max-width:800px) {
+  #main .voice-room[data-voice-room] dialog.voice-sheet {
+    --room-popup-title:18px;
+    --room-popup-body:14px;
+  }
+  /* The existing room mobile rule marks text inputs !important; match it only
+     for editable popup fields. Composer height/scrolling stays feature-owned. */
+  #main .voice-room[data-voice-room] #voice-content :is(#voice-settings-form,#voice-invite-form,#voice-gift-form) :is(input:not([type=hidden],[type=checkbox],[type=radio],[type=range],[type=file]),select,textarea),
+  #main .voice-room[data-voice-room] #voice-sound select,
+  #main .voice-room[data-voice-room] #room-inbox .room-dm-query input,
+  #main .voice-room[data-voice-room] #voice-content :is(#live-query,#voice-music-query) {
+    font-size:16px!important;
+  }
+  #dialog :is(.studio-settings,.recording-settings,.dubbing-page) :is(select,textarea,input:not([type=checkbox],[type=radio],[type=range],[type=hidden])) {
+    font-size:16px;
+  }
+  #dialog :is(.studio-settings,.recording-settings,.duet-editor,.dubbing-page) > h2,
+  #expanded-song-lyrics.expanded-song-lyrics > header h2,
+  #recording-mode-dialog > h2 {
+    font-size:18px;
+  }
+}

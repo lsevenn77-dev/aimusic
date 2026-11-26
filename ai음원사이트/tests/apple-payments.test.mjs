@@ -34,17 +34,17 @@ test('refund removes remaining gold and stale delivery cannot restore it',async 
  assert.equal((await f.call('/api/gold')).body.balance,0);
  assert.equal(f.sql.prepare('SELECT refund_review FROM apple_transactions').get().refund_review,1);
 });
-test('Apple premium respects server limits and refund preserves independent web entitlement',async t=>{
+test('Apple premium refund preserves web entitlement and unlimited playlists',async t=>{
  const f=await setup(t),end=Date.now()+86400000;
  const tx={...f.transaction,productId:premium,type:'Auto-Renewable Subscription',expiresDate:end};
- await f.fulfill(tx);assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,10);
+ await f.fulfill(tx);assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,null);
  for(let i=0;i<3;i++)assert.equal((await f.call('/api/playlists','POST',{name:'Apple '+i})).status,201);
  f.sql.exec('UPDATE users SET premium_until=unixepoch()+3600 WHERE id=\'owner\'');
  await f.fulfill({...tx,revocationDate:Date.now(),signedDate:Date.now()});
  assert.equal((await f.call('/api/membership')).body.membership.plan,'premium');
  f.sql.exec('UPDATE users SET premium_until=0 WHERE id=\'owner\'');
- assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,2);
- assert.equal((await f.call('/api/playlists','POST',{name:'Blocked'})).status,409);
+ assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,null);
+ assert.equal((await f.call('/api/playlists','POST',{name:'After expiry'})).status,201);
 });
 test('new renewal survives older revocation and sandbox premium never unlocks production',async t=>{
  const f=await setup(t),tx={...f.transaction,productId:premium,type:'Auto-Renewable Subscription',expiresDate:Date.now()+86400000};
@@ -52,6 +52,23 @@ test('new renewal survives older revocation and sandbox premium never unlocks pr
  await f.fulfill(tx);await f.fulfill({...tx,transactionId:'12346',expiresDate:Date.now()+172800000});
  await f.fulfill({...tx,revocationDate:Date.now(),signedDate:Date.now()});
  assert.equal((await f.call('/api/membership')).body.membership.plan,'premium');
+});
+
+test('StoreKit restore reports this transaction entitlement and preserves spent consumables',async t=>{
+ const f=await setup(t),time=Date.now();
+ const tx={...f.transaction,productId:premium,type:'Auto-Renewable Subscription',expiresDate:time-200};
+ assert.equal((await f.fulfill(tx)).entitlement_active,false);
+ const active={...tx,transactionId:'20',expiresDate:time+86400000};
+ assert.equal((await f.fulfill(active)).entitlement_active,true);
+ assert.equal((await f.fulfill({...tx,transactionId:'21',revocationDate:time,signedDate:time})).entitlement_active,false);
+ const purchase={...f.transaction,transactionId:'30',originalTransactionId:'30'};
+ await f.fulfill(purchase);
+ f.sql.exec('UPDATE gold_purchases SET used=gold');
+ await Promise.all([f.fulfill(purchase),f.fulfill(purchase)]);
+ assert.equal((await f.call('/api/gold')).body.balance,0);
+ const history=(await f.call('/api/account/payments?kind=gold')).body;
+ assert.equal(history.payments[0].amount,5000);
+ assert.deepEqual(history.store_history,['app_store']);
 });
 test('verified refund reversal restores only unspent gold; duplicate and older refunds are harmless',async t=>{
  const f=await setup(t),base=Date.now()-10000,tx={...f.transaction,purchaseDate:base-1000,signedDate:base};

@@ -1,0 +1,505 @@
+/* Inventory presentation only. Product artwork, state and actions stay owned by
+   the existing inventory, player and decoration components. */
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory {
+  min-width:0;
+  color:var(--ds-body);
+  font-size:var(--pc-font-body,15px);
+  line-height:1.65;
+  overflow-wrap:anywhere;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .page-heading {
+  margin-bottom:calc(8px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory > .text-link,
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-section > .text-link {
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  font-size:var(--pc-font-control,14px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.player-equipped-preview,.player-item,.mp-stock-item,.decoration-inventory-item,.inventory-purchase,.inventory-level) {
+  min-width:0;
+  background:var(--ds-panel);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);
+  box-shadow:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview {
+  gap:calc(20px);
+  margin:calc(16px) 0 calc(24px);
+  padding:calc(16px) calc(20px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview > .inventory-frame-original {
+  flex:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview > div {
+  min-width:0;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview h2 {
+  margin:0 0 calc(6px);
+  font-size:var(--pc-font-section,18px);
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview p {
+  margin:0;
+  color:var(--ds-muted);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.7;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs {
+  gap:calc(20px);
+  margin:0 0 calc(24px);
+  padding:calc(2px) calc(2px) 0;
+  border-bottom:1px solid var(--ds-line);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs > button {
+  min-height:48px;
+  gap:calc(8px);
+  padding:calc(10px) calc(8px);
+  border:0;
+  border-bottom:2px solid transparent;
+  border-radius:0;
+  background:transparent;
+  color:var(--ds-muted);
+  font-size:var(--pc-font-control,14px);
+  font-weight:500;
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs > button[aria-selected="true"] {
+  color:var(--ds-selected);
+  border-bottom-color:var(--ds-selected);
+  font-weight:600;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs > button span {
+  min-width:24px;
+  padding:calc(2px) calc(7px);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-soft);
+  font-size:var(--pc-font-caption,13px);
+  line-height:1.5;
+  opacity:1;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid {
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));
+  gap:calc(20px);
+  margin:0 0 calc(24px);
+  align-items:stretch;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > :is(.player-item,.mp-stock-item) {
+  margin:0;
+  padding:calc(20px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .player-item {
+  gap:calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-preview {
+  padding:0;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-status {
+  display:inline-flex;
+  align-items:center;
+  padding:calc(2px) calc(8px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  color:var(--ds-body);
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.6;
+  letter-spacing:0;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .is-equipped .player-item-status {
+  background:var(--ds-soft);
+  color:var(--ds-selected);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-copy h2 {
+  margin:calc(10px) 0 calc(8px);
+  color:var(--ds-text);
+  font-size:var(--pc-font-card,16px)!important;
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-copy p {
+  margin:0 0 calc(12px);
+  color:var(--ds-body);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.7;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-copy small {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.75;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-copy .inventory-reason {
+  margin-top:calc(8px);
+  padding-left:calc(10px);
+  border-left:2px solid var(--ds-line);
+  color:var(--ds-body);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-item-actions {
+  flex-direction:row;
+  gap:calc(8px);
+  padding-top:calc(4px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-item-actions > :is(button,a) {
+  flex:1 1 140px;
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  padding:calc(10px) calc(12px);
+  font-size:var(--pc-font-control,14px);
+  line-height:1.5;
+  text-align:center;
+  white-space:normal;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.primary-button,.small-button):disabled {
+  background:var(--ds-bg);
+  border-color:var(--ds-line);
+  color:var(--ds-muted);
+  opacity:1;
+  filter:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item {
+  min-width:0;
+  align-items:stretch;
+  gap:calc(8px);
+  text-align:left;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item > img {
+  align-self:center;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item h3 {
+  margin:calc(4px) 0 0;
+  color:var(--ds-text);
+  font-size:var(--pc-font-card,16px);
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item p {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.7;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-stock-item button {
+  width:100%;
+  min-width:0;
+  min-height:44px;
+  margin-top:auto;
+  font-size:var(--pc-font-control,14px);
+  white-space:normal;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item {
+  gap:calc(20px);
+  margin:0 0 calc(16px);
+  padding:calc(20px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item > img {
+  flex:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item h3 {
+  font-size:var(--pc-font-card,16px);
+  line-height:1.5;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item p {
+  margin:calc(8px) 0;
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.75;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-actions {
+  flex-wrap:wrap;
+  gap:calc(8px);
+  margin-top:calc(12px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item :is(button,a.small-button) {
+  min-height:44px;
+  max-width:100%;
+  font-size:var(--pc-font-control,14px);
+  white-space:normal;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-section > h2 {
+  margin:calc(28px) 0 calc(12px);
+  font-size:var(--pc-font-section,20px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-section > h2 span {
+  color:var(--ds-muted);
+  font-size:var(--pc-font-meta,14px);
+  font-weight:400;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-section > .field-help {
+  margin:0 0 calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.inventory-purchase,.inventory-level) {
+  margin-top:calc(24px);
+  padding:calc(16px) calc(24px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.inventory-purchase,.inventory-level) > summary {
+  min-height:44px;
+  padding-block:calc(8px);
+  color:var(--ds-text);
+  font-size:var(--pc-font-card,16px);
+  font-weight:600;
+  line-height:1.6;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.inventory-purchase,.inventory-level)[open] > summary {
+  margin-bottom:calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase > section.mp-card {
+  margin-top:calc(24px);
+  padding:0;
+  border:0;
+  background:transparent;
+  box-shadow:none;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-section-head {
+  margin-bottom:calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-grid {
+  grid-template-columns:repeat(auto-fill,minmax(min(100%,140px),1fr));
+  gap:calc(12px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-item {
+  padding:calc(16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-form-note {
+  margin:calc(16px) 0;
+  padding:calc(16px);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.75;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase details.mp-card {
+  margin-top:calc(24px);
+  padding:calc(16px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  background:transparent;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-card {
+  margin:calc(16px) 0;
+  padding:calc(16px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-input);
+  background:var(--ds-bg);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-title {
+  flex-wrap:wrap;
+  gap:calc(12px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-title h2 {
+  margin:calc(4px) 0 calc(12px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-title > strong {
+  font-size:var(--pc-font-card,16px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-xp-track {
+  background:var(--ds-line);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-xp-track > span {
+  background:var(--ds-progress);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-progress-caption {
+  flex-wrap:wrap;
+  gap:calc(8px);
+  font-size:var(--pc-font-meta,13px);
+  line-height:1.7;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-level :is(p,li) {
+  font-size:var(--pc-font-body,14px);
+  line-height:1.8;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-level ul {
+  margin:calc(16px) 0;
+  padding-left:calc(20px);
+  color:var(--ds-body);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-empty {
+  margin:calc(16px) 0;
+  padding:calc(24px);
+  border:1px solid var(--ds-line);
+  border-radius:var(--ds-radius-card);
+  background:var(--ds-panel);
+  color:var(--ds-muted);
+  font-size:var(--pc-font-body,14px);
+  line-height:1.75;
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-empty[role="alert"] {
+  color:var(--ds-body);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory [data-inventory-retry] {
+  display:inline-flex;
+  align-items:center;
+  min-height:44px;
+  padding:0 calc(8px);
+}
+#main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-browse {
+  margin-bottom:0;
+}
+@media(max-width:600px) {
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-equipped-preview {
+    gap:calc(16px);
+    padding:calc(16px);
+    margin-bottom:calc(20px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .ml-tabs {
+    gap:calc(12px);
+    margin-bottom:calc(20px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid {
+    grid-template-columns:minmax(0,1fr);
+    gap:calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .player-item {
+    display:grid;
+    grid-template-columns:80px minmax(0,1fr);
+    align-items:start;
+    gap:calc(16px) calc(12px);
+    padding:calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .player-item-preview {
+    width:auto;
+    height:auto;
+    align-self:start;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-item-actions {
+    grid-column:1 / -1;
+    padding-top:0;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .mp-stock-item {
+    display:grid;
+    grid-template-columns:80px minmax(0,1fr);
+    align-items:start;
+    gap:calc(6px) calc(12px);
+    padding:calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .mp-stock-item > img {
+    grid-column:1;
+    grid-row:1 / span 4;
+    align-self:start;
+    justify-self:center;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .mp-stock-item > :not(img):not(button) {
+    grid-column:2;
+    min-width:0;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-grid > .mp-stock-item > button {
+    grid-column:1 / -1;
+    margin-top:calc(8px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item {
+    gap:calc(12px);
+    padding:calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-actions > button {
+    flex:1 1 130px;
+    min-width:0;
+    width:100%;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .decoration-inventory-item > div > :is(button,a.small-button) {
+    width:100%;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory :is(.inventory-purchase,.inventory-level) {
+    margin-top:calc(20px);
+    padding:calc(12px) calc(16px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-item {
+    padding:calc(12px) calc(8px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-stock-item h3 {
+    font-size:14px;
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .inventory-purchase .mp-form-note {
+    padding:calc(12px);
+  }
+  #main:is([data-route="inventory"],[data-route^="inventory?"]) .unified-inventory .mp-empty {
+    padding:calc(20px) calc(16px);
+  }
+}
+
+.rental-status{display:inline-block;font-size:12px;line-height:1.5;color:var(--ds-body);margin:0 6px 2px 0}
+.rental-status[data-status="UNUSED"],.rental-status.is-applied{color:#8EDDD2}
+.rental-status.is-expiring{color:var(--ds-accent-pink)}
+.rental-confirm{width:min(440px,calc(100% - 32px));padding:24px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);background:var(--ds-panel);color:var(--ds-body);box-shadow:none;font:inherit}
+.rental-confirm::backdrop{background:rgba(0,0,0,.5)}
+.rental-confirm h2{margin:0 0 12px;font-size:20px;color:var(--ds-text)}
+.rental-confirm p{font-size:15px;line-height:1.65;margin:8px 0 16px}
+.rental-confirm-product{display:flex;gap:16px;align-items:center;margin:20px 0}
+.rental-confirm-product img{width:72px;height:72px;object-fit:contain;background:var(--ds-bg);border-radius:var(--ds-radius-input)}
+.rental-confirm-product strong{color:var(--ds-text);font-size:16px}
+.rental-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.rental-confirm-actions button{min-height:44px;font-size:15px;background:var(--ds-soft);color:var(--ds-text);border:0;border-radius:var(--ds-radius-input)}
+.rental-confirm-actions .rental-start{color:#8EDDD2}
+.voice-backgrounds .decoration-theme-choice>img{object-fit:contain}
+.voice-backgrounds .decoration-theme-choice small{display:block;line-height:1.5;color:var(--ds-muted);font-size:12px}
+.voice-backgrounds .rental-status{font-size:12px}
+
+@media(max-width:800px){
+ .rental-confirm{box-sizing:border-box;position:fixed;inset:auto 0 0;margin:0;width:100%;max-width:none;max-height:50dvh;overflow:auto;padding:20px 20px calc(20px + env(safe-area-inset-bottom));border-radius:var(--ds-radius-card) var(--ds-radius-card) 0 0}
+}
+#unified-inventory .inventory-heading {
+ display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 22px;
+}
+#unified-inventory .inventory-heading h1 {margin:0;font-size:var(--pc-font-page,25px)}
+#unified-inventory .inventory-heading a {min-height:36px}
+#inventory-products [data-stock-section] + [data-stock-section] {margin-top:24px}
+#inventory-products [data-stock-section] h2 {margin:0 0 10px;font-size:var(--pc-font-section,20px);color:var(--ds-text)}
+#inventory-products .inventory-product-grid {
+ display:grid;grid-template-columns:repeat(auto-fill, minmax(150px, 160px));gap:12px;justify-content:start;align-items:stretch;
+}
+#inventory-products .inventory-product {
+ display:flex;flex-direction:column;align-items:stretch;gap:5px;min-width:0;padding:10px;
+ text-align:center;color:var(--ds-text);background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:8px;
+}
+#inventory-products .inventory-product.is-equipped {border-color:#8EDDD2}
+#inventory-products .inventory-product-art {display:grid;place-items:center;min-width:0;height:76px;}
+#inventory-products .inventory-product-art img {display:block;width:76px;height:76px;max-width:100%;object-fit:contain}
+#inventory-products [data-stock-section="gifts"] .inventory-product-art,
+#inventory-products [data-stock-section="gifts"] .inventory-product-art img {height:58px}
+#inventory-products [data-stock-section="themes"] .inventory-product-art {height:auto;aspect-ratio:16/9;overflow:hidden;border-radius:4px}
+#inventory-products [data-stock-section="themes"] .inventory-product-art img {width:100%;height:100%;object-fit:cover}
+#inventory-products .stock-title {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;line-height:1.4}
+#inventory-products .stock-meta,#inventory-products .stock-quantity {margin:0;color:var(--ds-muted);font-size:12px;line-height:1.5}
+#inventory-products .stock-equipped {color:#8EDDD2}
+#inventory-products .stock-actions {display:flex;gap:4px;align-items:stretch;margin-top:auto;padding-top:3px}
+#inventory-products .stock-actions :is(a,button) {
+ display:grid;place-items:center;flex:1 1 0;min-width:0;min-height:30px;padding:3px;
+ border:1px solid var(--ds-line);border-radius:5px;background:var(--ds-soft);color:#8EDDD2;font:inherit;font-size:12px;
+ line-height:1.35;text-decoration:none;white-space:nowrap;cursor:pointer;
+}
+#inventory-products .stock-actions .stock-gift {color:var(--pink);background:color-mix(in srgb,var(--pink) 9%,var(--ds-panel))}
+#inventory-products .stock-actions :disabled {opacity:.55;cursor:default}
+#unified-inventory .inventory-empty {padding:48px 16px;text-align:center;color:var(--ds-muted)}
+#unified-inventory .inventory-empty p {margin:0 0 16px}
+#dialog:has(.stock-recipient) {width:min(420px,calc(100% - 24px));max-height:calc(100dvh - 32px);overflow:auto}
+.stock-recipient h2 {margin:0 0 16px;color:var(--ds-text)}
+.stock-selection {display:flex;align-items:center;gap:12px;margin:0 0 16px}
+.stock-selection img {width:56px;height:56px;object-fit:contain}
+.stock-selection strong,.stock-selection small,.stock-person strong,.stock-person small {display:block}
+.stock-selection small,.stock-person small {color:var(--ds-muted);font-size:12px}
+#stock-recipient-form {display:grid;gap:12px}
+.stock-field {display:grid;gap:5px;font-size:14px}
+.stock-field input {min-width:0;width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-text)}
+.stock-field input[type="number"] {width:88px}
+.stock-people {display:grid;gap:4px;max-height:min(28dvh,190px);overflow:auto}
+.stock-person {display:flex;align-items:center;gap:10px;width:100%;min-height:46px;padding:6px 10px;text-align:left;color:var(--ds-text);background:var(--ds-soft);border:1px solid transparent;border-radius:8px}
+.stock-person[aria-pressed="true"] {border-color:var(--pink)}
+.stock-avatar {position:relative;width:34px;height:34px;flex:none}
+.stock-avatar>.profile-avatar-image {width:100%;height:100%;border-radius:50%;object-fit:cover}
+#stock-recipient-form .form-error:empty {display:none}
+#stock-recipient-form .primary-button {min-height:44px}
+@media(max-width:800px) {
+ #unified-inventory .inventory-heading {margin-bottom:16px}
+ #unified-inventory .inventory-heading h1 {font-size:22px}
+ #inventory-products .inventory-product-grid {grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #inventory-products [data-stock-section="gifts"] .inventory-product-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+ #inventory-products .inventory-product {padding:8px}
+ #inventory-products .stock-actions :is(a,button) {min-height:44px}
+}
+@media(min-width:560px) and (max-width:800px) {
+ #inventory-products .inventory-product-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+ #inventory-products [data-stock-section="gifts"] .inventory-product-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@media(max-width:350px) {
+ #inventory-products .inventory-product {padding:6px}
+ #inventory-products .stock-actions {gap:2px}
+}
+

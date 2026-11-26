@@ -1,3 +1,4 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -7,11 +8,13 @@ const source=name=>readFileSync(new URL('../dist/'+name,import.meta.url),'utf8')
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
 const response=(value,status=200)=>({ok:status>=200&&status<300,status,json:async()=>value});
 const track=title=>({id:title,title,genre:'Rock',duration:30});
+// Six fixture columns reserve two rows, rounded up to a sixteen-slot request.
+const homeDiscoveryPath='/api/discovery?home=1&slots=16';
 
 function client(fetch){
  let now=1_790_000_000_000;
  class Clock extends Date {static now(){return now;}}
- const context=vm.createContext({fetch,structuredClone,URL,URLSearchParams,Map,Date:Clock,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[]}});
+ const context=nicknameContext({fetch,AbortController,structuredClone,URL,URLSearchParams,Map,Date:Clock,console,AifectGenres:{GENRES:[]},window:{},Audio:class{},sessionStorage:{getItem:()=>null},document:{querySelectorAll:()=>[],addEventListener(){}}});
  vm.runInContext(source('app.js'),context);
  vm.runInContext("toast=()=>{};me={id:'owner'};",context);
  return {context,run:code=>vm.runInContext(code,context),advance:ms=>{now+=ms;}};
@@ -22,13 +25,13 @@ function renderer(fetch){
  const dispatch=event=>{for(const listener of listeners.get(event.type)||[])listener(event);};
  const document={activeElement:null,addEventListener(type,listener){const list=listeners.get(type)||[];listeners.set(type,[...list,listener]);},removeEventListener(type,listener){listeners.set(type,(listeners.get(type)||[]).filter(item=>item!==listener));},querySelector:selector=>selector==='#main'?main:selector==='#reload-page'?retry:null,querySelectorAll:()=>[]};
  const retry={onclick:null};
- const main={dataset:{},fields:[],attributes:new Map(),classList:{add(){},remove(){}},addEventListener:document.addEventListener,removeEventListener:document.removeEventListener,
+ const main={dataset:{},fields:[],attributes:new Map(),classList:{add(){},remove(){},toggle(){}},addEventListener:document.addEventListener,removeEventListener:document.removeEventListener,
   setAttribute(name,value){this.attributes.set(name,value);},getAttribute(name){return this.attributes.get(name);},removeAttribute(name){this.attributes.delete(name);},contains(node){return node===this||this.fields.includes(node);},
   querySelectorAll(selector){return /input|textarea|select/.test(selector)?this.fields:[];},querySelector(selector){return this.querySelectorAll(selector)[0]||null;},matches(selector){return selector===':focus-within'&&this.contains(document.activeElement);},focus(){document.activeElement=this;},scrollTop:0,
   get innerHTML(){return this.html||'';},set innerHTML(html){this.html=html;writes.push(html);this.fields=[];for(const match of html.matchAll(/<input\b[^>]*name="([^"]*)"[^>]*value="([^"]*)"[^>]*>/g)){const input={tagName:'INPUT',nodeName:'INPUT',name:match[1],value:match[2],type:'text',checked:false,isContentEditable:false,dataset:{},focus(){document.activeElement=this;},matches:selector=>/input|textarea|select|contenteditable/i.test(selector),closest:()=>main,dispatchEvent:event=>{event.target=input;dispatch(event);return true;}};this.fields.push(input);}}
  };
  const window={scrollX:0,scrollY:0,addEventListener:document.addEventListener,removeEventListener:document.removeEventListener,scrollTo(options,y){const top=typeof options==='number'?y:options.top;this.scrollY=top||0;scrolls.push(top||0);},dispatchEvent:dispatch};
- Object.assign(c.context,{document,window,location:{hash:'#history'},clearInterval(){},setTimeout,clearTimeout,requestAnimationFrame:callback=>callback(),sing:null,socialTimer:null,socialCleanup:null,icon:()=>'',setMobileMenu(){},cleanupLyricsEditor(){},cleanupSing(){},updateBrowseNavigation(){},playerView:async()=>null,improvementsView:async()=>null,browseView:async()=>null,explorerView:async()=>null,bindForms(){},bindGiftClaims(){},bindExplorer(){},bindBrowse(){},bindImprovements(){},listenNav:()=>'',libraryProfileHTML:async()=>''});
+ Object.assign(c.context,{document,window,location:{hash:'#history'},clearInterval(){},setTimeout,clearTimeout,requestAnimationFrame:callback=>callback(),sing:null,socialTimer:null,socialCleanup:null,icon:()=>'',setMobileMenu(){},cleanupLyricsEditor(){},cleanupSing(){},updateBrowseNavigation(){},notificationsView:async()=>null,bindNotifications(){},playerView:async()=>null,improvementsView:async()=>null,browseView:async()=>null,explorerView:async()=>null,bindForms(){},bindGiftClaims(){},bindExplorer(){},bindBrowse(){},bindImprovements(){},listenNav:()=>'',libraryProfileHTML:async()=>''});
  c.run("list=tracks=>tracks.map(track=>'<article>'+esc(track.title)+'</article>').join('');");
  vm.runInContext(source('views.js'),c.context);
  return {...c,main,document,window,writes,scrolls,navigate(route){c.context.location.hash='#'+route;return c.run('render()');},input(value){const field=main.fields[0];assert.ok(field,'the route must contain an editable control');field.focus();field.value=value;field.dispatchEvent({type:'input'});return field;},scroll(top){window.scrollY=top;window.dispatchEvent({type:'scroll'});}};
@@ -38,16 +41,188 @@ function homeRenderer(fetch){
  const c=renderer(fetch),sections=new Map(),oldHTML=Object.getOwnPropertyDescriptor(c.main,'innerHTML'),select=c.document.querySelector;
  Object.defineProperty(c.main,'innerHTML',{get:oldHTML.get,set(html){
   oldHTML.set.call(c.main,html);for(const node of sections.values())node.isConnected=false;sections.clear();
-  for(const match of html.matchAll(/id="(home-[^"]+)"/g)){const node={innerHTML:'HOME_LOADING',hidden:false,isConnected:true,attributes:new Map(),setAttribute(name,value){this.attributes.set(name,value);},removeAttribute(name){this.attributes.delete(name);},querySelector:()=>({onclick:null})};sections.set(match[1],node);}
+  for(const match of html.matchAll(/id="(home-[^"]+)"/g)){const node={innerHTML:'HOME_LOADING',hidden:false,isConnected:true,attributes:new Map(),setAttribute(name,value){this.attributes.set(name,value);},removeAttribute(name){this.attributes.delete(name);},querySelectorAll:()=>[],querySelector:()=>({onclick:null})};sections.set(match[1],node);}
  }});
- c.document.querySelector=selector=>sections.get(selector.slice(1))||select(selector);
- Object.assign(c.context,{homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
+ c.context.getComputedStyle=e=>({gridTemplateColumns:Array(e.section==='home-curations'?3:6).fill('100px').join(' ')});
+ c.document.querySelector=selector=>selector.includes('>.')?{section:selector.split('>')[0].slice(1)}:sections.get(selector.slice(1))||select(selector);
+ Object.assign(c.context,{AbortController,homeBrowseObserver:null,musicListeningShortcuts:()=>'',playlistSaveButton:()=>'',musicTrackCard:t=>'<article>'+t.title+'</article>',collectionGrid:items=>items.map(item=>item.name).join(','),playlistArt:()=>''});
+ const explorer=source('explorer.js');vm.runInContext(explorer.slice(explorer.indexOf('function recommendedPlaylistCard'),explorer.indexOf('function discoveryTabs')),c.context);
  vm.runInContext(source('home.js'),c.context);
- c.run("icons=()=>{};updateAccount=()=>{};setMembership=()=>{};refreshLibrary=async()=>{};");
+ c.run("audio.addEventListener=()=>{};icons=()=>{};updateAccount=()=>{};setMembership=()=>{};refreshLibrary=async()=>{};");
  const boot=source('actions.js').match(/async function boot\(\)\{[\s\S]*?\r?\n\}\r?\n/);
  assert.ok(boot,'the startup function must remain independently testable');vm.runInContext(boot[0],c.context);
  return {...c,section:id=>sections.get(id)};
 }
+
+test('an obsolete route stops the provider chain before starting another page read',async()=>{
+ const held=deferred(),started=deferred(),c=homeRenderer(async()=>response({tracks:[],playlists:[]}));let staleCalls=0;
+ c.context.improvementsView=async base=>{if(base==='history'){started.resolve();await held.promise;}return null;};
+ c.context.browseView=async base=>{if(base==='history')staleCalls++;return null;};
+ const first=c.navigate('history');await started.promise;await c.navigate('home');held.resolve();await first;
+ assert.equal(staleCalls,0);assert.match(c.main.innerHTML,/listening-home/);
+});
+
+test('song core is playable while comments, covers and gifts are still pending',async()=>{
+ const held=deferred(),started=deferred(),c=renderer(async path=>{
+  if(path==='/api/tracks/song')return response({track:track('CORE SONG')});
+  started.resolve();await held.promise;
+  return response(path.endsWith('/comments')?{comments:[]}:{});
+ });
+ Object.assign(c.context,{songDetailHeaderHTML:t=>'<article>'+t.title+'</article>',coversPanelHTML:()=>'',commentsHTML:()=>'',songDetailLyricsHTML:()=>'',giftsPanelHTML:()=>'',songCreditCardHTML:()=>'',bindSongCoverList(){}});
+ const opening=c.navigate('song/song');await started.promise;await new Promise(resolve=>setImmediate(resolve));
+ assert.match(c.main.innerHTML,/CORE SONG/);assert.match(c.main.innerHTML,/이야기와 참여 작품을 불러오는 중/);
+ assert.doesNotMatch(c.main.innerHTML,/<h1\b[^>]*>\s*곡 이야기\s*<\/h1>/);
+ assert.equal(c.run('routeTracks[0].title'),'CORE SONG');held.resolve();await opening;
+ assert.match(c.main.innerHTML,/comments-panel/);assert.doesNotMatch(c.main.innerHTML,/이야기와 참여 작품을 불러오는 중/);
+ for(const html of c.writes)assert.doesNotMatch(html,/<h1\b[^>]*>\s*곡 이야기\s*<\/h1>/,'The removed page heading must stay absent from loading, core and final renders');
+});
+
+test('late studio data cannot overwrite the active studio state after navigation',async()=>{
+ const held=deferred(),started=deferred(),c=homeRenderer(async path=>{if(path==='/api/studio'){started.resolve();return held.promise;}return response({tracks:[],playlists:[]});});
+ c.context.studioData={name:'CURRENT'};c.context.uploadHTML=()=>'<p>Upload</p>';
+ const first=c.navigate('upload');await started.promise;await c.navigate('home');held.resolve(response({name:'OBSOLETE'}));await first;
+ assert.equal(c.context.studioData.name,'CURRENT');assert.match(c.main.innerHTML,/listening-home/);
+});
+
+test('rapid search changes abort the old request and ignore its late result',async()=>{
+ const held=deferred(),started=deferred();let signal;
+ const c=renderer(async(path,options)=>{if(path.includes('q=first')){signal=options.signal;started.resolve();return held.promise;}return response({tracks:[track('Second search result')]});});
+ const first=c.navigate('search/first');await started.promise;await c.navigate('search/second');
+ assert.equal(signal?.aborted,true);held.resolve(response({tracks:[track('Obsolete search result')]}));await first;
+ assert.match(c.main.innerHTML,/Second search result/);assert.doesNotMatch(c.main.innerHTML,/Obsolete search result/);
+});
+
+test('route changes close page overlays and release inline previews without touching the global player',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));let closed=0,paused=0,loaded=0,globalPauses=0;
+ c.run('audio.pause=()=>globalPause();');c.context.globalPause=()=>globalPauses++;
+ const query=c.main.querySelectorAll;c.main.querySelectorAll=selector=>selector==='audio,video'?[{pause(){paused++;},removeAttribute(){},load(){loaded++;}}]:query.call(c.main,selector);
+ c.document.querySelectorAll=selector=>selector==='dialog[open]'?[{close(){closed++;}}]:[];
+ c.main.dataset.route='playlist/previous';await c.navigate('history');
+ assert.equal(closed,1);assert.equal(paused,1);assert.equal(loaded,1);assert.equal(globalPauses,0);
+});
+
+test('profile previews use their closer so document scrolling is restored',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));let restored=0;
+ c.document.querySelectorAll=()=>[{matches:selector=>selector==='.profile-preview',close(){throw Error('The custom closer must restore scrolling');}}];
+ c.context.closeProfilePreview=()=>restored++;await c.navigate('history');assert.equal(restored,1);
+});
+
+test('new navigation releases page observers but preserves a matching voice connection',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));let observers=0,voiceLeaves=0;
+ c.context.searchResizeCleanup=()=>observers++;c.context.discoverCleanup=()=>observers++;
+ c.context.playBannerCleanup=()=>observers++;c.context.cleanupVoiceRoute=(base,id)=>{if(base!=='voice'||id!=='same')voiceLeaves++;};
+ c.context.voiceView=async()=>({html:'<p>SAME VOICE ROOM</p>'});await c.navigate('voice/same');
+ assert.equal(observers,3);assert.equal(voiceLeaves,0);assert.match(c.main.innerHTML,/SAME VOICE ROOM/);
+});
+
+test('late-loaded components register cleanup without accessing their uninitialized globals',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));let cleaned=0;c.context.lateCleanup=()=>cleaned++;
+ // typeof a lexical binding in its temporal dead zone must never be evaluated.
+ const script=new vm.Script("render();let shopLayoutCleanup;let shopPreviewCleanup;");
+ await script.runInContext(c.context);c.run('registerRouteCleanup(lateCleanup)');await c.navigate('history');
+ assert.equal(cleaned,1);await c.navigate('history');assert.equal(cleaned,1);
+});
+
+test('home replaces the outgoing page before a delayed voice leave acknowledgement',{timeout:3000},async()=>{
+ const leaving=deferred(),discovery=deferred();
+ const c=homeRenderer(async path=>path===homeDiscoveryPath?discovery.promise:response({tracks:[],playlists:[]}));
+ c.main.innerHTML='<article>OUTGOING ROOM</article>';
+ c.context.cleanupVoiceRoute=()=>leaving.promise;
+ // The real app always installs these async fast paths, even on home.
+ c.context.refreshMusicLibraryRoute=async()=>false;c.context.refreshMyPageRoute=async()=>false;c.context.dubbingRefreshList=async()=>false;
+ const opening=c.navigate('home');
+ try{
+  assert.match(c.main.innerHTML,/listening-home/,'home must paint in the navigation task, without waiting for a network acknowledgement');
+  assert.doesNotMatch(c.main.innerHTML,/OUTGOING ROOM/);
+ }finally{leaving.resolve();discovery.resolve(response({tracks:[]}));await opening;}
+});
+
+test('a superseded async fast path cannot dispose or replace the newly mounted home',async()=>{
+ const held=deferred();let cleanups=0;
+ const c=homeRenderer(async()=>response({tracks:[],playlists:[]}));
+ c.context.refreshMusicLibraryRoute=raw=>raw==='history'?held.promise:Promise.resolve(false);
+ c.context.cleanupVoiceRoute=()=>{cleanups++;};
+ const old=c.navigate('history');await c.navigate('home');
+ held.resolve(false);await old;
+ assert.equal(cleanups,1);assert.equal(c.main.dataset.route,'home');assert.match(c.main.innerHTML,/listening-home/);
+});
+
+test('leaving home cancels its requests and late completions cannot change the next visit',async()=>{
+ const held=[],signals=[];let delayed=true;
+ const c=homeRenderer(async(path,options)=>{
+  if(!options.signal||path==='/api/history')return response({tracks:[]});
+  signals.push(options.signal);
+  if(delayed){const read=deferred();held.push(read);return read.promise;}
+  return response({tracks:[track('CURRENT HOME')],playlists:[]});
+ });
+ const first=c.navigate('home');const previous=c.section('home-recommended');
+ await c.navigate('history');assert.ok(signals.every(signal=>signal.aborted));
+ delayed=false;await c.navigate('home');
+ for(const read of held)read.resolve(response({tracks:[track('STALE HOME')],playlists:[]}));
+ await first;await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(previous.isConnected,false);assert.match(c.section('home-recommended').innerHTML,/CURRENT HOME/);
+ assert.doesNotMatch(c.section('home-recommended').innerHTML,/STALE HOME/);
+});
+
+test('the open event renders before music reads and remains visible after a discovery failure',{timeout:3000},async()=>{
+ const discovery=deferred(),calls=[];
+ const c=homeRenderer(async path=>{calls.push(path);return path===homeDiscoveryPath?discovery.promise:response({tracks:[],playlists:[]});});
+ const opening=c.navigate('home');
+ try{
+  const banner=c.section('home-release'),html=banner.innerHTML;
+  assert.match(html,/data-home-banner="open-event"/);
+  assert.match(html,/<source media="\(min-width: 801px\)" srcset="[^"]+aifect_open_event_refined_pc_2400x460\.webp" width="2400" height="460"/);
+  assert.match(html,/<img class="home-promo-original" src="[^"]+aifect_open_event_refined_mobile_1170x672\.webp" width="1170" height="672"[^>]+loading="eager" fetchpriority="high"/);
+  const slide=html.match(/<div class="home-feature-slide home-event-banner"[\s\S]*?<\/picture><\/div>/)?.[0];
+  assert.ok(slide);assert.doesNotMatch(slide,/<a\b|<button\b|onclick=|tabindex=/i);
+  assert.match(slide,/<picture class="home-promo-picture">/);
+  assert.doesNotMatch(slide,/--event-(?:mobile|desktop)-art|border-image|home-promo-scenery/);
+  assert.doesNotMatch(html,/HOME_LOADING|음악을 불러오는 중/);
+  discovery.resolve(response({error:'offline'},503));await opening;await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.section('home-release').innerHTML,html,'music network failures must not overwrite the event');
+  assert.match(c.section('home-recommended').innerHTML,/다시 시도/);
+  assert.ok(!calls.includes('/api/catalog?section=tracks&limit=12'),'the replaced featured-song banner must not start an unused catalog read');
+ }finally{discovery.resolve(response({tracks:[]}));await opening;}
+});
+
+test('the first home paint at midnight KST omits the open event and its preloads',async()=>{
+ const c=homeRenderer(async()=>response({tracks:[],playlists:[]}));
+ c.advance(Date.parse('2027-01-01T00:00:00+09:00')-c.run('Date.now()'));
+ await c.navigate('home');
+ const html=c.section('home-release').innerHTML;
+ assert.match(html,/data-home-banner="app-download"/);
+ assert.doesNotMatch(html,/open-event|오픈 이벤트/);
+});
+
+test('aborting a home read does not cancel an independent reader of the same resource',async()=>{
+ const requests=[];const c=client((path,options)=>new Promise((resolve,reject)=>{
+  requests.push({resolve,signal:options.signal});options.signal?.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});
+ }));
+ c.context.AbortController=AbortController;c.run('var controller=new AbortController();');
+ const home=c.run("api('/api/discovery?','GET',undefined,{signal:controller.signal})");
+ const independent=c.run("api('/api/discovery?')");assert.equal(requests.length,2);
+ c.run('controller.abort()');await assert.rejects(home,/aborted/);
+ requests[1].resolve(response({tracks:[track('Independent')]}));assert.equal((await independent).tracks[0].title,'Independent');
+});
+
+test('home image error listeners stay bounded across repeated visits',async()=>{
+ const c=homeRenderer(async()=>response({tracks:[],playlists:[]})),listeners=new Set();
+ c.main.addEventListener=(event,listener)=>{if(event==='error')listeners.add(listener);};
+ c.main.removeEventListener=(event,listener)=>{if(event==='error')listeners.delete(listener);};
+ for(let i=0;i<8;i++){
+  await c.navigate('home');assert.equal(listeners.size,1);
+  await c.navigate('history');assert.equal(listeners.size,0);
+ }
+});
+
+test('hidden optional home bridge does not issue singing or community requests',async()=>{
+ const calls=[];const c=homeRenderer(async path=>{calls.push(path);return response({tracks:[],playlists:[]});});
+ const original=Object.getOwnPropertyDescriptor(c.main,'innerHTML');
+ Object.defineProperty(c.main,'innerHTML',{get:original.get,set(html){original.set.call(c.main,html);if(c.section('home-bridge'))c.section('home-bridge').hidden=true;}});
+ await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
+ assert.equal(calls.length,5);assert.ok(calls.includes('/api/discovery/profiles?kind=artist&sort=popular'));assert.ok(calls.includes('/api/discovery/profiles?kind=producer&sort=popular'));assert.ok(!calls.includes('/api/karaoke'));assert.ok(!calls.includes('/api/community?kind=cover'));
+ assert.ok(calls.includes('/api/playlists?sort=recent&home=1'),'the visible playlist section must remain available');
+});
 
 test('readonly history, followers and public detail reads expose isolated cache snapshots',async()=>{
  const calls=[];
@@ -88,22 +263,26 @@ test('a mutation finishing during navigation retries the current route instead o
  assert.equal(reads,2);assert.match(c.main.innerHTML,/Current history/);assert.doesNotMatch(c.main.innerHTML,/Superseded history|불러오는 중/);assert.equal(c.main.getAttribute('aria-busy'),undefined);
 });
 
-test('community tabs paint before account initialization and cached API feeds warm first visits',{timeout:3000},async()=>{
- const held=deferred();const c=renderer(async()=>held.promise);
- Object.assign(c.context,{coverCollectionHTML:tracks=>tracks.map(t=>t.title).join(','),communityFeed:tracks=>tracks.map(t=>t.title).join(','),musicIsOpenDuet:()=>false});
- vm.runInContext(source('community.js'),c.context);c.run('browseView=(base,param,raw)=>base===\'community\'?communityView(base,param,raw):null;');
- const account=deferred();c.context.accountReady=account.promise;
- const opening=c.navigate('community');assert.match(c.main.innerHTML,/music-community-tabs/);assert.match(c.main.innerHTML,/#community\/crews/);
- account.resolve();held.resolve(response({tracks:[track('Fresh community')]}));await opening;
- assert.match(c.main.innerHTML,/Fresh community/);
- // No HTML snapshot for this route: reuse only its safely scoped API data.
- c.run('navigationSnapshots.clear();');c.context.location.hash='#history';c.advance(10001);
- let release;c.context.fetch=async()=>new Promise(resolve=>release=resolve);
- const reopening=c.navigate('community');assert.match(c.main.innerHTML,/Fresh community/);await Promise.resolve();await Promise.resolve();
- for(let n=0;n<10&&!release;n++)await Promise.resolve();assert.ok(release);
- release(response({tracks:[track('Updated community')]}));await reopening;assert.match(c.main.innerHTML,/Updated community/);
+test('community tabs paint before account initialization and public room data stays live',async()=>{
+ const c=renderer(async()=>response({tracks:[]}));vm.runInContext(source('community.js'),c.context);
+ // This string-only renderer has no template/fragment DOM. Isolate painting and
+ // hidden hash targets, while exercising the real partial route/account lifecycle.
+ Object.assign(c.main,{style:{},isConnected:true});c.context.communityRouteTargetsHTML=()=>'';
+ c.context.paintCommunityRoute=(view,raw)=>{
+  c.main.innerHTML=c.context.communityNavigation(c.context.communityTabSelection(raw).tab)+view.html;
+  c.main._communityView=view;c.main.dataset.route=raw;c.main.removeAttribute('aria-busy');return c.main;
+ };
+ let calls=0;c.context.voiceView=async base=>['live','voice'].includes(base)?{html:'<p>Live rooms '+(++calls)+'</p>'}:null;
+ const account=deferred();c.context.accountReady=account.promise;const opening=c.navigate('community');
+ try{
+  assert.match(c.main.innerHTML,/music-community-tabs/);assert.match(c.main.innerHTML,/data-community-content aria-busy="true"/);
+  assert.equal(calls,0,'the visible tab shell must not start room reads before account initialization');
+ }finally{account.resolve();await opening;}
+ assert.match(c.main.innerHTML,/Live rooms 1/);assert.equal(calls,1);
+ assert.equal(c.run('navigationSnapshots.has(navigationKey("community"))'),false,'the live directory must not become a whole-page snapshot');
+ await c.navigate('history');await c.navigate('community');
+ assert.match(c.main.innerHTML,/Live rooms 2/);assert.equal(calls,2,'an immediate return must enter the live directory lifecycle again');
 });
-
 test('money, membership, permissions, recording, editors and private chat never expose completed navigation caches',async()=>{
  let calls=0;const c=client(async()=>response({value:++calls}));
  for(const path of ['/api/gold','/api/gifts/free/claim','/api/membership','/api/studio','/api/studio/earnings','/api/studio/tracks/song','/api/auth/google/nonce','/api/me?state=1','/api/account/nickname','/api/tracks/song','/api/playlists/mix','/api/karaoke/song','/api/duets/cover','/api/dm','/api/dm/singer','/api/chat/events','/api/crews/crew','/api/crews/crew/messages']){
@@ -172,8 +351,8 @@ for(const status of [401,403])test('HTTP '+status+' invalidates cached API data 
 
 test('only browse routes can restore whole-page snapshots',()=>{
  const c=renderer(async()=>response({tracks:[]}));
- for(const route of ['charts?period=month','discover/genres?g=Rock','search/hello','collections?sort=recent','artists','producers','artist/voice','following','history','library/likes','library/playlists','library/artists','library/producers','library/following','library/followers','community','community/covers','community/latest','community/duets','community/following'])assert.equal(c.run(`canCacheRoute(${JSON.stringify(route)})`),true,route);
- for(const route of ['gold','gifts','membership','account','profile','profile/edit','producer/singer','playlist/mix','song/song','karaoke','sing/song','studio','manage/song','upload','admin','payouts','rewards','library/covers','library/originals','dm','dm/singer','crew/crew','community/crews','community/rankings'])assert.equal(c.run(`canCacheRoute(${JSON.stringify(route)})`),false,route);
+ for(const route of ['charts?period=month','discover/genres?g=Rock','search/hello','artists','producers','artist/voice','following','history','library/likes','library/artists','library/producers','library/following','library/followers','community','community/covers','community/latest','community/duets','community/following'])assert.equal(c.run(`canCacheRoute(${JSON.stringify(route)})`),true,route);
+ for(const route of ['collections?sort=recent','search/hello?type=playlists','library/playlists','gold','gifts','membership','account','profile','profile/edit','producer/singer','playlist/mix','song/song','karaoke','sing/song','studio','manage/song','upload','admin','payouts','rewards','library/covers','library/originals','dm','dm/singer','crew/crew','community/crews','community/rankings'])assert.equal(c.run(`canCacheRoute(${JSON.stringify(route)})`),false,route);
 });
 
 test('an exact cached route paints synchronously and then updates without resetting scroll',{timeout:3000},async()=>{
@@ -285,56 +464,59 @@ test('route snapshots evict old pages and expire after sixty seconds',async()=>{
 
 test('home hydrates playable shelves from display snapshots while expired reads refresh',{timeout:3000},async()=>{
  const paths=new Map([
-  ['/api/catalog?section=tracks&limit=12',{tracks:[track('Cached release')]}],
+  [homeDiscoveryPath,{tracks:[track('Cached recommendation')]}],
   ['/api/karaoke',{tracks:[track('Cached sing')]}],
   ['/api/community?kind=cover',{tracks:[track('Cached cover')]}],
-  ['/api/playlists?sort=popular',{playlists:[{id:'selection',name:'Cached selection',tracks:1}]}]
+  ['/api/playlists?sort=recent&home=1',{playlists:[{id:'selection',name:'Cached selection',tracks:1,is_public:1}]}]
  ]),held=new Map([...paths.keys()].map(path=>[path,deferred()]));let refreshing=false;
  const calls=[];const c=homeRenderer(async path=>{if(!paths.has(path))return response({tracks:[]});calls.push(path);return refreshing?held.get(path).promise:response(paths.get(path));});
  for(const path of paths.keys())await c.run(`api(${JSON.stringify(path)})`);
  c.advance(10001);refreshing=true;
  const opening=c.navigate('home');
  try{
-  for(const [id,title] of [['home-release','Cached release'],['home-sing','Cached sing'],['home-conversations','Cached cover'],['home-curations','Cached selection']])assert.match(c.section(id).innerHTML,new RegExp(title),'the '+id+' shelf should render synchronously from its display cache');
+  for(const [id,title] of [['home-recommended','Cached recommendation'],['home-sing','Cached sing'],['home-conversations','Cached cover']])assert.match(c.section(id).innerHTML,new RegExp(title),'the '+id+' shelf should render synchronously from its display cache');
   assert.equal(calls.length,8,'every expired shelf must refresh despite being displayed from cache');
-  held.get('/api/catalog?section=tracks&limit=12').resolve(response({error:'offline'},503));
+  held.get(homeDiscoveryPath).resolve(response({error:'offline'},503));
   held.get('/api/karaoke').resolve(response({tracks:[track('Fresh sing')]}));
   held.get('/api/community?kind=cover').resolve(response({tracks:[track('Fresh cover')]}));
-  held.get('/api/playlists?sort=popular').resolve(response({error:'offline'},503));
+  held.get('/api/playlists?sort=recent&home=1').resolve(response({error:'offline'},503));
   await opening;await new Promise(resolve=>setImmediate(resolve));
-  assert.match(c.section('home-release').innerHTML,/Cached release/);assert.match(c.section('home-curations').innerHTML,/Cached selection/);
+  assert.match(c.section('home-recommended').innerHTML,/Cached recommendation/);assert.doesNotMatch(c.section('home-curations').innerHTML,/Cached selection/,'permission-sensitive playlists never display stale cached metadata');
   assert.match(c.section('home-sing').innerHTML,/Fresh sing/);assert.match(c.section('home-conversations').innerHTML,/Fresh cover/);
  }finally{for(const control of held.values())control.resolve(response({tracks:[],playlists:[]}));await opening;}
 });
 
-test('home startup remains playable when the account resolves before the guest catalog',{timeout:3000},async()=>{
- const account=deferred(),guestCatalog=deferred();let ownerCatalogCalls=0;
+test('home startup remains playable when the account resolves before guest recommendations',{timeout:3000},async()=>{
+ const account=deferred(),guestDiscovery=deferred();let ownerDiscoveryCalls=0;
  const c=homeRenderer(async path=>{
   if(path==='/api/me?state=1')return account.promise;
-  if(path==='/api/catalog?section=tracks&limit=12'){
-   if(!c.run('me'))return guestCatalog.promise;
-   ownerCatalogCalls++;return response({tracks:[track('Owner playable song')]});
+  if(path===homeDiscoveryPath){
+   if(!c.run('me'))return guestDiscovery.promise;
+   ownerDiscoveryCalls++;return response({tracks:[track('Owner playable song')]});
   }
-  if(path==='/api/playlists?sort=popular')return response({playlists:[]});
+  if(path==='/api/playlists?sort=recent&home=1')return response({playlists:[]});
   return response({tracks:[]});
  });
  c.run('me=null;');c.context.location.hash='#home';const startup=c.run('boot()');
  try{
   account.resolve(response({user:{id:'owner'},interaction_state:{likes:[{id:'liked'}],follows:[]},membership:{}}));
   await new Promise(resolve=>setImmediate(resolve));
-  guestCatalog.resolve(response({tracks:[track('Late guest catalog')]}));await startup;await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(c.run('me.id'),'owner');assert.ok(ownerCatalogCalls>0,'resolving the account must restart the account-scoped home reads');
-  assert.match(c.section('home-release').innerHTML,/Owner playable song/);assert.doesNotMatch(c.section('home-release').innerHTML,/Late guest catalog/);
+  guestDiscovery.resolve(response({tracks:[track('Late guest recommendations')]}));await startup;await new Promise(resolve=>setImmediate(resolve));
+  assert.equal(c.run('me.id'),'owner');assert.ok(ownerDiscoveryCalls>0,'resolving the account must restart the account-scoped home reads');
+  assert.match(c.section('home-recommended').innerHTML,/Owner playable song/);assert.doesNotMatch(c.section('home-recommended').innerHTML,/Late guest recommendations/);
   assert.equal(c.section('home-personal'),undefined,'home shortcuts must not be duplicated by an extra personal shelf');
- }finally{account.resolve(response({user:null}));guestCatalog.resolve(response({tracks:[]}));await startup;}
+ }finally{account.resolve(response({user:null}));guestDiscovery.resolve(response({tracks:[]}));await startup;}
 });
 
 test('home continues down through full music grids and optional discovery sections',async()=>{
  const tracks=Array.from({length:12},(_,i)=>({...track('Song '+i),id:'song-'+i}));
- const c=homeRenderer(async path=>response(path.includes('playlists')?{playlists:[]}:{tracks}));
- c.context.card=t=>'<article>'+t.title+'</article>';
+ const c=homeRenderer(async path=>response(path.includes('playlists')?{playlists:[]}:{tracks,releases:tracks.map(t=>t.id)}));
+ c.context.card=t=>'<article>'+t.title+'</article>';c.context.chartMovementHTML=()=>'';
  await c.navigate('home');await new Promise(resolve=>setImmediate(resolve));
  assert.match(c.section('home-more').innerHTML,/home-music-grid/);assert.match(c.section('home-more').innerHTML,/Song 11/);
- for(const id of ['home-popular','home-duets','home-crew-music']){assert.equal(c.section(id).hidden,false);assert.match(c.section(id).innerHTML,/Song 11/);}
+ assert.equal(c.section('home-popular').hidden,false);assert.match(c.section('home-popular').innerHTML,/Song 6/);assert.doesNotMatch(c.section('home-popular').innerHTML,/Song 7|Song 11/);
+ assert.equal(c.section('home-discovery').hidden,false);assert.match(c.section('home-discovery').innerHTML,/Song 11/);
+ assert.match(c.section('home-recommended').innerHTML,/Song 5/);
+ const html=c.main.innerHTML;assert.ok(html.indexOf('id="home-popular"')<html.indexOf('id="home-more"'));assert.ok(html.indexOf('id="home-conversations"')<html.indexOf('id="home-library"'));
  assert.doesNotMatch(c.section('home-more').innerHTML,/browse-rail/);
 });

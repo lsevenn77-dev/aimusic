@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {finalizeGiftDiamonds,assertDiamondReady} from './diamonds.js';
 import {one,rows,run,query,now,id,fail,str,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
@@ -23,29 +24,29 @@ async function unseal(env,sealed,binding){
 
 export function residentNumber(value,today=new Date()){
  const d=String(value||'').replace(/[\s-]/g,'');
- if(!/^\d{13}$/.test(d))fail(400,'주민등록번호 13자리를 확인해주세요.');
- const g=Number(d[6]);if(g<1||g>8)fail(400,'주민등록번호를 확인해주세요.');
+ if(!/^\d{13}$/.test(d))fail(400,'주민등록번호 13자리를 확인해 주세요.');
+ const g=Number(d[6]);if(g<1||g>8)fail(400,'주민등록번호를 확인해 주세요.');
  const year=([1,2,5,6].includes(g)?1900:2000)+Number(d.slice(0,2)),month=Number(d.slice(2,4)),day=Number(d.slice(4,6)),birth=new Date(Date.UTC(year,month-1,day));
- if(birth.getUTCFullYear()!==year||birth.getUTCMonth()!==month-1||birth.getUTCDate()!==day)fail(400,'주민등록번호를 확인해주세요.');
+ if(birth.getUTCFullYear()!==year||birth.getUTCMonth()!==month-1||birth.getUTCDate()!==day)fail(400,'주민등록번호를 확인해 주세요.');
  const local=new Date(today.getTime()+9*3600*1000);
  let age=local.getUTCFullYear()-year;if(local.getUTCMonth()+1<month||(local.getUTCMonth()+1===month&&local.getUTCDate()<day))age--;
  // Minors need a legal guardian's consent to receive payouts; that is handled with customer support.
- if(age<19)fail(400,'만 19세 미만은 법정대리인 동의 확인이 필요해요. 고객센터로 문의해주세요.');
+ if(age<19)fail(400,'만 19세 미만은 법정대리인 동의 확인이 필요합니다. 고객센터로 문의해 주세요.');
  return d;
 }
 
 const nextMonthDay=(month,day)=>{const [y,m]=month.split('-').map(Number);return new Date(Date.UTC(y,m,day)).toISOString().slice(0,10);};
 const accountSummary=row=>row?{holder:row.holder,bank:row.bank,account:'****'+row.account_last4,resident:row.resident_hint,updated:row.updated}:null;
 async function profileOf(env,userId){return one(env,'SELECT id FROM producers WHERE user_id=?',userId);}
-async function hasEarnings(env,userId){if(await one(env,"SELECT 1 FROM diamond_ledger WHERE user_id=? AND kind IN ('gift','stream') LIMIT 1",userId))return true;const p=await profileOf(env,userId);return !!p&&!!await one(env,'SELECT 1 FROM gifts WHERE (singer_profile_id=? AND singer_mw>0) OR (creator_profile_id=? AND creator_mw>0) LIMIT 1',p.id,p.id);}
+async function hasEarnings(env,userId){return !!await one(env,"SELECT 1 FROM diamond_ledger WHERE user_id=? AND kind IN ('gift','stream') UNION ALL SELECT 1 FROM gifts g JOIN producers p ON (g.singer_profile_id=p.id AND g.singer_mw>0) OR (g.creator_profile_id=p.id AND g.creator_mw>0) WHERE p.user_id=? LIMIT 1",userId,userId);}
 
 // What the studio shows: statements already issued, the account on file, and whether registration is open yet.
 export async function creatorPayouts(env,userId){
- const [account,statements,earning]=await Promise.all([
+ const [account,statements,earning,period]=await Promise.all([
   one(env,'SELECT * FROM payout_accounts WHERE user_id=?',userId),
   rows(env,'SELECT id,period,from_month,gross_krw,income_tax_krw,local_tax_krw,net_krw,status,due_on,paid_at FROM payout_statements WHERE user_id=? ORDER BY period DESC LIMIT 36',userId),
-  hasEarnings(env,userId)]);
- return {account:accountSummary(account),can_register:earning,statements,banks:BANKS,last_period:(await one(env,"SELECT max(period) p FROM payout_periods")).p||null};
+  hasEarnings(env,userId),one(env,"SELECT max(period) p FROM payout_periods")]);
+ return {account:accountSummary(account),can_register:earning,statements,banks:BANKS,last_period:period.p||null};
 }
 
 async function audit(env,admin,action,target){await run(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',id(),admin.id,action,target,now());}
@@ -55,18 +56,19 @@ async function audit(env,admin,action,target){await run(env,'INSERT INTO admin_a
 export const closePeriod=finalizeGiftDiamonds;
 
 export async function payoutRoute(req,env,path,user){
+ if(user&&(path==='/api/studio/payout-account'||path.startsWith('/api/admin/payout'))&&(await one(env,'SELECT account_type FROM users WHERE id=?',user.id))?.account_type==='ai_bot')fail(403,'서비스 계정은 정산 대상이 아닙니다.');
  const method=req.method;
  if(path==='/api/studio/payout-account'){
   requireUser(user);
   if(method==='GET')return json(await creatorPayouts(env,user.id));
-  if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
+  if(method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
   await rate(env,'payout-account:'+user.id,10,86400);
-  if(!await hasEarnings(env,user.id))fail(409,'받은 선물 수익이 생기면 정산 정보를 등록할 수 있어요.');
+  if(!await hasEarnings(env,user.id))fail(409,'받은 선물 수익이 생기면 정산 정보를 등록할 수 있습니다.');
   const b=await req.json();
-  if(b.consent!==true)fail(400,'정산 정보 처리 안내를 확인하고 동의해주세요.');
-  const holder=str(b.holder,40);if(holder.length<2)fail(400,'예금주 이름을 확인해주세요.');
-  if(!BANKS.includes(b.bank))fail(400,'은행을 선택해주세요.');
-  const account=String(b.account||'').replace(/[\s-]/g,'');if(!/^\d{10,16}$/.test(account))fail(400,'계좌번호를 숫자로 확인해주세요.');
+  if(b.consent!==true)fail(400,'정산 정보 처리 안내를 확인하고 동의해 주세요.');
+  const holder=str(b.holder,40);if(holder.length<2)fail(400,'예금주 이름을 확인해 주세요.');
+  if(!BANKS.includes(b.bank))fail(400,'은행을 선택해 주세요.');
+  const account=String(b.account||'').replace(/[\s-]/g,'');if(!/^\d{10,16}$/.test(account))fail(400,'계좌번호를 숫자로 확인해 주세요.');
   const resident=residentNumber(b.resident_number),at=now();
   await run(env,`INSERT INTO payout_accounts(user_id,holder,bank,account_last4,account_cipher,resident_hint,resident_cipher,consent_at,updated) VALUES(?,?,?,?,?,?,?,?,?)
    ON CONFLICT(user_id) DO UPDATE SET holder=excluded.holder,bank=excluded.bank,account_last4=excluded.account_last4,account_cipher=excluded.account_cipher,resident_hint=excluded.resident_hint,resident_cipher=excluded.resident_cipher,consent_at=excluded.consent_at,updated=excluded.updated`,
@@ -76,7 +78,7 @@ export async function payoutRoute(req,env,path,user){
   return json(await creatorPayouts(env,user.id));
  }
  if(!path.startsWith('/api/admin/'))return null;
- requireUser(user);if(!isAdmin(env,user))fail(404,'페이지를 찾을 수 없습니다.');
+ requireUser(user);if(!isAdmin(env,user))fail(404,AifectMessages.notFound);
  if(path==='/api/admin/payouts'&&method==='GET'){
   const periods=(await rows(env,'SELECT period,max(closed_at) closed_at FROM (SELECT period,closed_at FROM payout_periods UNION ALL SELECT period,created closed_at FROM payout_statements) GROUP BY period ORDER BY period DESC LIMIT 36'));
   const lastClose=await one(env,'SELECT max(period) p FROM payout_periods');
@@ -88,7 +90,7 @@ export async function payoutRoute(req,env,path,user){
    unpaid:(await one(env,"SELECT count(*) n,COALESCE(sum(net_krw),0) krw FROM payout_statements WHERE status IN ('scheduled','held')"))});
  }
  if(path==='/api/admin/payouts/close'&&method==='POST'){const b=await req.json();return json(await closePeriod(env,user,String(b.period||'')),201);}
- const m=path.match(/^\/api\/admin\/payouts\/([\w-]+)\/(account|paid)$/);if(!m)fail(404,'페이지를 찾을 수 없습니다.');
+ const m=path.match(/^\/api\/admin\/payouts\/([\w-]+)\/(account|paid)$/);if(!m)fail(404,AifectMessages.notFound);
  const s=await one(env,'SELECT s.*,a.holder,a.bank,a.account_last4,a.account_cipher,a.resident_cipher FROM payout_statements s LEFT JOIN payout_accounts a ON a.user_id=s.user_id WHERE s.id=?',m[1]);if(!s)fail(404,'정산서를 찾을 수 없습니다.');
  if(m[2]==='account'&&method==='GET'){
   if(!s.account_cipher)fail(404,'등록된 정산 계좌가 없습니다.');
@@ -97,13 +99,13 @@ export async function payoutRoute(req,env,path,user){
   return json({holder:s.holder,bank:s.bank,account:await unseal(env,s.account_cipher,s.user_id+':account'),resident_number:await unseal(env,s.resident_cipher,s.user_id+':resident')});
  }
  if(m[2]==='paid'&&method==='POST'){
-  if(await one(env,"SELECT 1 FROM gold_orders WHERE state='refund_review' UNION ALL SELECT 1 FROM apple_transactions WHERE refund_review=1 LIMIT 1"))fail(409,'환불된 골드의 배분 내역을 확인한 후 지급 처리해주세요.');
-  await assertDiamondReady(env);if((await one(env,'SELECT COALESCE(sum(amount_mw),0) mw FROM diamond_ledger WHERE user_id=?',s.user_id)).mw<0)fail(409,'제외된 수익을 먼저 조정해주세요.');
-  if(s.status!=='scheduled')fail(409,'지급 예정인 정산서만 지급 완료로 바꿀 수 있어요.');
+  if(await one(env,"SELECT 1 FROM gold_orders WHERE state='refund_review' UNION ALL SELECT 1 FROM apple_transactions WHERE refund_review=1 LIMIT 1"))fail(409,'환불된 골드의 배분 내역을 확인한 후 지급 처리해 주세요.');
+  await assertDiamondReady(env);if((await one(env,'SELECT COALESCE(sum(amount_mw),0) mw FROM diamond_ledger WHERE user_id=?',s.user_id)).mw<0)fail(409,'제외된 수익을 먼저 조정해 주세요.');
+  if(s.status!=='scheduled')fail(409,'지급 예정인 정산서만 지급 완료로 바꿀 수 있습니다.');
   const b=await req.json(),ref=str(b.ref||'',100,false);
   await run(env,"UPDATE payout_statements SET status='paid',paid_at=?,paid_ref=?,paid_by=?,account_snapshot=? WHERE id=? AND status='scheduled'",now(),ref,user.id,`${s.bank} ****${s.account_last4} ${s.holder}`,s.id);
   await audit(env,user,'payout_paid',s.id);
   return json({ok:true});
  }
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }

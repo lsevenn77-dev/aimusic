@@ -8,17 +8,18 @@
  const call=(method,...args)=>{try{const r=native?native[method](...args):null;r?.catch?.(()=>{});}catch{}};
  const absolute=path=>new URL(path,location.origin).href;
  function artwork(t){
-  const art=t.has_cover?[t.id,t.cover_version]:t.original_has_cover?[t.original_id,t.original_cover_version]:null;
-  return [{src:art?absolute(`/media/${art[0]}/cover?v=${art[1]||'original'}`):absolute('/assets/aifect-mark.svg'),sizes:'512x512',type:art?'image/jpeg':'image/svg+xml'}];
+  const src=trackArtworkPath(t);
+  return [{src:absolute(src||'/assets/brand/20261117/aifect-icon-512.png'),sizes:'512x512',...(src && src!=='/assets/brand/20261117/aifect-icon-512.png'?{}:{type:'image/png'})}];
  }
  let shownId=null,lastPosition=0;
  window.addEventListener('aifect-ad-start',()=>{if(web){web.metadata=new MediaMetadata({title:'음성광고',artist:'AIFECT',album:'무료 음악 감상'});try{web.setPositionState();}catch{}web.playbackState='playing';}});
  window.addEventListener('aifect-ad-end',()=>{shownId=null;metadata();state('paused');});
  function metadata(){
-  if(!current||current.id===shownId)return;shownId=current.id;
+  if(!current)return;const key=current.id+'|'+trackArtworkPath(current);if(key===shownId)return;shownId=key;
   const data={title:current.title,artist:current.artist||'',album:'AIFECT',artwork:artwork(current)};
   if(native)call('setMetadata',data);else web.metadata=new MediaMetadata(data);
  }
+ window.addEventListener('aifect-artwork-change',metadata);
  function state(value){if(native)call('setPlaybackState',{playbackState:value});else web.playbackState=value;}
  function position(force=false){
   if(window.AifectAudioAds?.active)return;
@@ -45,7 +46,7 @@
  };
  const guarded=handler=>(...args)=>{if(window.AifectAudioAds?.active)return;return handler(...args);};
  for(const action of ['previoustrack','nexttrack','seekto','seekbackward','seekforward'])handlers[action]=guarded(handlers[action]);
- handlers.play=()=>window.AifectAudioAds?.active?window.AifectAudioAds.resume():audio.play().catch(()=>{});
+ handlers.play=()=>$('#play-toggle').click();
  handlers.pause=()=>window.AifectAudioAds?.active?window.AifectAudioAds.pause():audio.pause();
  handlers.stop=closePlayer;
  for(const [action,handler] of Object.entries(handlers)){

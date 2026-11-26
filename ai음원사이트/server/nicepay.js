@@ -11,9 +11,9 @@ export const niceConfigured=env=>!!(env.NICEPAY_CLIENT_ID&&env.NICEPAY_SECRET_KE
 export const checkoutEnabled=env=>niceConfigured(env)&&env.BILLING_CHECKOUT_ENABLED==='true';
 export function cardCredentials(input){
  const card=input||{},checks={cardNo:/^\d{14,16}$/,expYear:/^\d{2}$/,expMonth:/^(0[1-9]|1[0-2])$/,idNo:/^(\d{6}|\d{10})$/,cardPw:/^\d{2}$/};
- for(const [key,pattern] of Object.entries(checks))if(typeof card[key]!=='string'||!pattern.test(card[key]))fail(400,'카드번호, 유효기간, 생년월일 또는 사업자번호, 비밀번호 앞 2자리를 확인해주세요.');
+ for(const [key,pattern] of Object.entries(checks))if(typeof card[key]!=='string'||!pattern.test(card[key]))fail(400,'카드번호, 유효기간, 생년월일 또는 사업자번호, 비밀번호 앞 2자리를 확인해 주세요.');
  const expiry=new Date(Date.UTC(2000+Number(card.expYear),Number(card.expMonth),1));
- if(expiry.getTime()<=Date.now())fail(400,'카드 유효기간을 확인해주세요.');
+ if(expiry.getTime()<=Date.now())fail(400,'카드 유효기간을 확인해 주세요.');
  return Object.fromEntries(Object.keys(checks).map(key=>[key,card[key]]));
 }
 // NICE's documented A2 wire format. Raw card data is never persisted.
@@ -49,12 +49,12 @@ export async function niceRequest(env,path,body){
    throw new Error('NICE unavailable');
   }
   return await r.json();
- }catch{fail(503,path.startsWith('/v1/terms?')?'결제 약관 연결을 확인 중입니다. 아직 카드 등록이나 결제는 시작되지 않았어요. 잠시 후 다시 시도해주세요.':'결제 결과를 확인 중입니다. 다시 결제하지 말고 잠시 후 구독 내역을 확인해주세요.');}
+ }catch{fail(503,path.startsWith('/v1/terms?')?'결제 약관 연결을 확인 중입니다. 아직 카드 등록이나 결제는 시작되지 않았습니다. 잠시 후 다시 시도해 주세요.':'결제 결과를 확인 중입니다. 다시 결제하지 말고 잠시 후 구독 내역을 확인해 주세요.');}
 }
 export async function issueBillingKey(env,card,orderId){
  const ediDate=new Date().toISOString(),encData=await encryptCard(card,env.NICEPAY_SECRET_KEY);
  const data=await niceRequest(env,'/v1/subscribe/regist',{orderId,encData,encMode:'A2',ediDate,signData:await digest(orderId+ediDate+env.NICEPAY_SECRET_KEY)});
- if(data.resultCode!=='0000'||typeof data.bid!=='string'||data.orderId!==orderId)fail(400,'카드를 등록하지 못했습니다. 입력 정보와 카드의 정기결제 가능 여부를 확인해주세요.');
+ if(data.resultCode!=='0000'||typeof data.bid!=='string'||data.orderId!==orderId)fail(400,'카드를 등록하지 못했습니다. 입력 정보와 카드의 정기결제 가능 여부를 확인해 주세요.');
  return {bid:data.bid,cardName:String(data.cardName||'등록한 카드').slice(0,40)};
 }
 export const orderDate=seconds=>new Date((seconds+9*3600)*1000).toISOString().slice(0,10).replaceAll('-','');

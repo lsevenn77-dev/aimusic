@@ -17,7 +17,7 @@ function fixture(t,extra={}){
  for(const file of readdirSync(new URL('../drizzle/',import.meta.url)).filter(x=>x.endsWith('.sql')).sort())sqlite.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8'));
  t.after(()=>sqlite.close());
  const DB={prepare(sql){return {bind(...args){const stmt=sqlite.prepare(sql);return {
-  async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};},async run(){stmt.run(...args);return {success:true};}
+  async first(){return stmt.get(...args)||null;},async all(){return {results:stmt.all(...args)};},async run(){const results=stmt.columns().length?stmt.all(...args):(stmt.run(...args),[]);return {success:true,results};}
  };}};},async batch(statements){return Promise.all(statements.map(s=>s.run()));}};
  const env={DB,GOOGLE_CLIENT_ID:client,...extra};
  const send=(path,{body,cookie,from=origin,method='POST',type='application/x-www-form-urlencoded'}={})=>worker.fetch(new Request(origin+path,{method,headers:{Origin:from,'Content-Type':type,...(cookie?{Cookie:cookie}:{})},body:body===undefined?undefined:body}),env,{waitUntil(p){p.catch(()=>{});}});

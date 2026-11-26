@@ -1,0 +1,70 @@
+{
+  "revision": "seam-20261110",
+  "id": "karaoke",
+  "scope": "Desktop only: lower the duplicated backrest lip immediately left of the man to meet the original cushion height; preserve the existing wall trim and its separation from the upholstery. Sofa left end, all other scene areas, original people, live copy and mobile photo are retained.",
+  "tool": "image_gen",
+  "source_url": "/assets/home-banners/mobile-20261109/karaoke-1536.webp",
+  "source_sha256": "f7fe983124f55d981e0b9e95b55510536d3ce21612ca7f954558e999f7a3e387",
+  "base_overlay_url": "/assets/home-banners/pc-refresh-20261109/karaoke-background-overlay-1536.webp",
+  "base_overlay_sha256": "80940557d6ca51bdd2471c72fa2d3184540d6fc7b685053984374e4f49c2b13e",
+  "input": {
+    "filename": "image-edit-target-aa6c624508b5e3e6.png",
+    "sha256": "bea00be87b4c19dcc5b33f92fb3321a6dd6a2febfdfcb065878ae048209a6477",
+    "width": 1191,
+    "height": 294
+  },
+  "generated": {
+    "filename": "generated-local.png",
+    "sha256": "f6cc47bccc19db551b7a6edfd75a11ea1d7573769d3e73663900a7fea8556ac0",
+    "width": 2172,
+    "height": 724
+  },
+  "prompt": "Use case: precise-object-edit.\nImage 1 is the EXACT edit target: the 1191x294 karaoke banner screenshot. Image 2 is a high-resolution reference photograph for the correct ORIGINAL sofa height and wall trim; do not change its people.\nMake ONE small photographic repair in image 1, approximately screenshot x510..635,y151..198, immediately LEFT of the man. The extended sofa has a raised doubled blue lip at x545..575,y151..165. REMOVE that raised extra strip by LOWERING it to match the existing original cushion at its RIGHT. The correct single sofa top here is at about screenshot y158..160 (source photo y415..425), NOT y140..150. The original wall trim must stay continuous, narrow and straight across the entire area, about screenshot y145..149. Preserve the dark gap BETWEEN that metal wall trim and the lower sofa top. Never lift the sofa to the trim and never erase the trim.\nProduce one continuous softly rounded navy velvet backrest, at the LOWER original right-hand cushion height. Carry the left cushion naturally down into that height with no second lip, no height step, no floating strip, no widening highlight. Match the original photograph's dense velvet grain, lighting and cushion thickness. Keep the existing vertical upholstery channels and the finite rounded left sofa end at screenshot x330 exactly in place.\nEverything else in screenshot 1 must stay visually identical: original screenshot bounds, title and Korean text, CTA, arrows, dots, people, faces, clothes, hands, furniture beyond this small area. Do not zoom, recenter, extend the sofa, redesign its left end, add an armrest, raise any backrest, or remove wall architecture. Output the edited screenshot, not a mockup, without annotations.",
+  "registration": {
+    "screenshot": {
+      "left": 14,
+      "top": 10,
+      "width": 1170,
+      "height": 272,
+      "photoLeft": 438.8
+    },
+    "crop": {
+      "left": 26,
+      "top": 110,
+      "width": 2133,
+      "height": 494
+    },
+    "generatedShift": {
+      "x": 0,
+      "y": 0
+    }
+  },
+  "correction": {
+    "native_bounds": {
+      "left": 185,
+      "top": 396,
+      "right": 500,
+      "bottom": 550
+    },
+    "left_feather": 40,
+    "right_feather": 20,
+    "top_feather": 7,
+    "bottom_feather": 35,
+    "wall_trim_guard": "All native rows y<=396 remain unchanged; top feather is seven native pixels.",
+    "original_wall_retention": "Within the correction mask the original high-resolution photo wall is preserved through y414, blending into generated upholstery over y414..424.",
+    "changed_overlay_pixels": 47791,
+    "protected_portrait_pixels_changed": 0,
+    "pixels_changed_outside_local_mask": 0
+  },
+  "outputs": [
+    {
+      "filename": "karaoke-background-overlay-1536.webp",
+      "url": "/assets/home-banners/seam-20261110/karaoke-background-overlay-1536.webp",
+      "width": 1536,
+      "height": 768,
+      "bytes": 139398,
+      "sha256": "e501dc45973e67d5b5dd25f68214800e3cf80225339a544ce9362c8ff7d823c5",
+      "mime_type": "image/webp"
+    }
+  ]
+}

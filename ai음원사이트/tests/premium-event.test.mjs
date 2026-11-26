@@ -1,0 +1,92 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {fixture} from './fixture.mjs';
+import {gameLimits} from '../server/crew-game-limits.js';
+import {dubbingQuota} from '../server/dubbing-quota.js';
+
+const midnight=Date.parse('2027-01-01T00:00:00+09:00');
+const end=midnight/1000;
+
+test('the same session gains all event privileges and expires at the KST boundary, preserving accounts and paid access',async t=>{
+ let clock=midnight-1;
+ t.mock.method(Date,'now',()=>clock);
+ const f=await fixture(t,{ADMIN_USER_IDS:'owner'},end-86400);
+ const env={DB:f.DB};
+ f.sql.prepare("UPDATE users SET premium_until=? WHERE id='other'").run(end+86400);
+ f.sql.prepare("INSERT INTO billing_subscriptions(id,user_id,state,anchor_day,consent_version,consent_at,price,period_end,created,updated) VALUES('sub','other','active',1,'v1',?,5900,?,?,?)").run(end-10,end+86400,end-10,end-10);
+ f.sql.exec("UPDATE tracks SET lyrics='첫 소절' WHERE id='one'");
+ const snapshot=()=>['users','billing_subscriptions','billing_payments','tracks'].map(table=>f.sql.prepare('SELECT * FROM '+table+' ORDER BY id').all());
+ const initial=snapshot();
+ const membership=async(uid='owner')=>(await f.call('/api/me','GET',null,uid)).body.membership;
+ const directory=async()=>(await f.call('/api/admin/dashboard/members?group=event')).body.members;
+ const track=async()=>(await f.call('/api/tracks/one')).body.track;
+ let member=await membership();
+ assert.equal(member.plan,'premium');
+ assert.equal(member.event_premium_until,end);
+ assert.equal(member.premium_until,end);
+ assert.equal(member.upload_quota.limit,10);
+ assert.equal((await membership('other')).premium_until,end+86400);
+ assert.equal((await membership(null)).plan,'free');
+ assert.equal((await track()).lyrics_access,'full');
+ assert.equal((await dubbingQuota(env,'owner')).freeDaily,3);
+ assert.equal((await gameLimits(env,'owner',clock)).premiumBonus,1);
+ assert.equal((await f.call('/api/billing/status')).body.subscription,null);
+ assert.deepEqual((await directory()).map(m=>[m.id,m.event_premium_until,m.other_premium]),[['owner',end,0],['other',end,1]]);
+ clock=midnight;
+ member=await membership();
+ assert.equal(member.plan,'free');
+ assert.equal(member.event_premium_until,null);
+ assert.equal(member.premium_until,null);
+ assert.equal(member.upload_quota.limit,3);
+ assert.equal((await track()).lyrics_access,'line');
+ assert.equal((await dubbingQuota(env,'owner')).freeDaily,1);
+ assert.equal((await gameLimits(env,'owner',clock)).premiumBonus,0);
+ const paid=await membership('other');
+ assert.equal(paid.plan,'premium');
+ assert.equal(paid.premium_until,end+86400);
+ assert.equal(paid.event_premium_until,null);
+ assert.deepEqual((await directory()).map(m=>[m.id,m.event_premium_until,m.premium]),[['owner',end,0],['other',end,1]]);
+ assert.deepEqual(snapshot(),initial);
+});
+
+test('signup uses the DB insertion clock and ignores forged signup, payment and expiry fields',async t=>{
+ let clock=midnight-1;
+ t.mock.method(Date,'now',()=>clock);
+ const f=await fixture(t,{AUTH_PEPPER:'test-only',ADMIN_USER_IDS:'owner'});
+ f.sql.function('unixepoch',()=>Math.floor(clock/1000));
+ const signup=async(n,forged)=>{
+  const r=await f.call('/api/auth/register','POST',{email:n+'@example.test',password:'fixture-only-password',name:n,created:forged,premium_until:end+86400,event_premium_until:end+86400},null);
+  assert.equal(r.status,200,JSON.stringify(r.body));
+  return r.body.user;
+ };
+ const last=await signup('마지막회원',end+1);
+ clock=midnight;
+ const late=await signup('새해회원',end-1);
+ assert.equal(last.premium_until,end);
+ assert.equal(late.premium_until,0);
+ const stored=id=>f.sql.prepare('SELECT created,premium_until,apple_premium_until FROM users WHERE id=?').get(id);
+ assert.deepEqual({...stored(last.id)},{created:end-1,premium_until:0,apple_premium_until:0});
+ assert.deepEqual({...stored(late.id)},{created:end,premium_until:0,apple_premium_until:0});
+ assert.deepEqual((await f.call('/api/admin/dashboard/members?group=event')).body.members.map(m=>m.id),[last.id]);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) AS n FROM billing_subscriptions').get().n,0);
+});
+
+test('refunding an independent entitlement leaves event access until midnight, including the atomic upload limit',async t=>{
+ let clock=midnight-1200;
+ t.mock.method(Date,'now',()=>clock);
+ const f=await fixture(t,{BUCKET:{head:async()=>({size:128})}},end-86400);
+ f.sql.prepare("UPDATE users SET apple_premium_until=? WHERE id='owner'").run(end+86400);
+ const plan=async()=>(await f.call('/api/membership')).body.membership;
+ assert.equal((await plan()).premium_until,end+86400);
+ f.sql.exec("UPDATE users SET apple_premium_until=0 WHERE id='owner'");
+ assert.equal((await plan()).premium_until,end);
+ f.sql.prepare("UPDATE tracks SET uploaded_at=? WHERE id IN ('one','two','three')").run(end-60);
+ const payload={title:'네 번째 제작곡',artist:'QA',producer:'QA',ai_tool:'QA',rights:true,is_ai:true,karaoke:true,genre:'Rock',extension:'wav',bytes:128};
+ const draft=await f.call('/api/uploads','POST',payload);
+ assert.equal(draft.status,201);
+ const complete=await f.call('/api/uploads/'+draft.body.id+'/complete','POST');
+ assert.equal(complete.status,200);
+ assert.equal(complete.body.show_upload_ad,false);
+ clock=midnight;
+ assert.equal((await plan()).plan,'free');
+});

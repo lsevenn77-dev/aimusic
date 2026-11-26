@@ -295,6 +295,496 @@
       "when": 1791725927652,
       "tag": "0041_cuddly_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "6",
+      "when": 1791732164829,
+      "tag": "0042_goofy_risque",
+      "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1791868733359,
+      "tag": "0043_ambiguous_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1792050710347,
+      "tag": "0044_fluffy_rogue",
+      "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1792056066452,
+      "tag": "0045_lowly_rocket_racer",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "6",
+      "when": 1792063941752,
+      "tag": "0046_overconfident_falcon",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1792070139278,
+      "tag": "0047_silver_gifts_and_quantities",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "6",
+      "when": 1792072596290,
+      "tag": "0048_activity_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1792226351384,
+      "tag": "0049_crew_names_and_invites",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "6",
+      "when": 1792312087164,
+      "tag": "0050_furry_butterfly",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "6",
+      "when": 1792488037199,
+      "tag": "0051_voice_music_permissions",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "6",
+      "when": 1792488037200,
+      "tag": "0052_silky_puff_adder",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "6",
+      "when": 1792492751052,
+      "tag": "0053_woozy_bill_hollister",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1792494395448,
+      "tag": "0054_unknown_war_machine",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1792496063854,
+      "tag": "0055_spooky_lilith",
+      "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "6",
+      "when": 1792497583488,
+      "tag": "0056_outstanding_spyke",
+      "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "6",
+      "when": 1792498068834,
+      "tag": "0057_curvy_maximus",
+      "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "6",
+      "when": 1792500103665,
+      "tag": "0058_stormy_tomas",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "6",
+      "when": 1792500791081,
+      "tag": "0059_cold_surge",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "6",
+      "when": 1792506058954,
+      "tag": "0060_slippery_gamma_corps",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "6",
+      "when": 1792540482994,
+      "tag": "0061_smooth_shadow_king",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "6",
+      "when": 1792583501177,
+      "tag": "0062_first_franklin_richards",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1792584496038,
+      "tag": "0063_restore_comment_triggers",
+      "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1792730017627,
+      "tag": "0064_public_member_ids",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1792730264025,
+      "tag": "0065_profile_activity_systems",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "6",
+      "when": 1792730882167,
+      "tag": "0066_profile_photo_privacy",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1792731358122,
+      "tag": "0067_profile_social_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1792740801569,
+      "tag": "0068_slow_hammerhead",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1792741686939,
+      "tag": "0069_brief_beyonder",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "6",
+      "when": 1792742749236,
+      "tag": "0070_chilly_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "6",
+      "when": 1792766957197,
+      "tag": "0071_parched_talos",
+      "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1792776312834,
+      "tag": "0072_medical_madame_masque",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1792777070837,
+      "tag": "0073_tan_karen_page",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1792837070013,
+      "tag": "0074_lean_hedge_knight",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "6",
+      "when": 1792837102378,
+      "tag": "0075_perfect_vulcan",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1792852915611,
+      "tag": "0076_repair_confirmed_solo_covers",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "6",
+      "when": 1792989843812,
+      "tag": "0077_cute_drax",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "6",
+      "when": 1793015652210,
+      "tag": "0078_public_music_descriptions",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "6",
+      "when": 1793099896551,
+      "tag": "0079_rare_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "6",
+      "when": 1793337980093,
+      "tag": "0080_artist_fanpage",
+      "breakpoints": true
+    },
+    {
+      "idx": 81,
+      "version": "6",
+      "when": 1793338521689,
+      "tag": "0081_artist_fan_operators",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "6",
+      "when": 1793358187256,
+      "tag": "0082_notification_integration",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "6",
+      "when": 1793361604686,
+      "tag": "0083_unique_the_stranger",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "6",
+      "when": 1793463236164,
+      "tag": "0084_military_stark_industries",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "6",
+      "when": 1793467702059,
+      "tag": "0085_follow_management",
+      "breakpoints": true
+    },
+    {
+      "idx": 86,
+      "version": "6",
+      "when": 1793629401857,
+      "tag": "0086_crew_jump_runs",
+      "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "6",
+      "when": 1793633570849,
+      "tag": "0087_gift_sources",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "6",
+      "when": 1793719821712,
+      "tag": "0088_colossal_la_nuit",
+      "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "6",
+      "when": 1793747627820,
+      "tag": "0089_crew_fishing",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "6",
+      "when": 1793755443646,
+      "tag": "0090_magical_silver_samurai",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "6",
+      "when": 1793778311856,
+      "tag": "0091_naive_starfox",
+      "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "6",
+      "when": 1793779585413,
+      "tag": "0092_bot_personality_comments",
+      "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "6",
+      "when": 1793781484187,
+      "tag": "0093_refresh_bot_comments_20261104",
+      "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "6",
+      "when": 1793786186125,
+      "tag": "0094_bot_display_nicknames",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "6",
+      "when": 1793790238897,
+      "tag": "0095_optional_original_recording",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "6",
+      "when": 1794149439027,
+      "tag": "0096_fixed_gambit",
+      "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "6",
+      "when": 1794572017977,
+      "tag": "0097_dubbing_play_starts",
+      "breakpoints": true
+    },
+    {
+      "idx": 98,
+      "version": "6",
+      "when": 1794578208720,
+      "tag": "0098_official_dubbing_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "6",
+      "when": 1794581586115,
+      "tag": "0099_official_episode01_voice_revision",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "6",
+      "when": 1794585023969,
+      "tag": "0100_official_episode01_doyun",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "6",
+      "when": 1794585024851,
+      "tag": "0101_retire_legacy_dubbings",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "6",
+      "when": 1794585786177,
+      "tag": "0102_dubbing_project_poster",
+      "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "6",
+      "when": 1794586540268,
+      "tag": "0103_official_episode01_balanced_mix",
+      "breakpoints": true
+    },
+    {
+      "idx": 104,
+      "version": "6",
+      "when": 1794812158396,
+      "tag": "0104_crew_activity_tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "6",
+      "when": 1794970505934,
+      "tag": "0105_wet_junta",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "6",
+      "when": 1794989662930,
+      "tag": "0106_careless_mephistopheles",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "6",
+      "when": 1794993133563,
+      "tag": "0107_first_smasher",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "6",
+      "when": 1795349188202,
+      "tag": "0108_signup_source",
+      "breakpoints": true
+    },
+    {
+      "idx": 109,
+      "version": "6",
+      "when": 1795454391492,
+      "tag": "0109_daily_visitors",
+      "breakpoints": true
+    },
+    {
+      "idx": 110,
+      "version": "6",
+      "when": 1795508120900,
+      "tag": "0110_unified_playlists",
+      "breakpoints": true
+    },
+    {
+      "idx": 111,
+      "version": "6",
+      "when": 1795525295972,
+      "tag": "0111_retire_nice_review",
+      "breakpoints": true
     }
   ]
 }

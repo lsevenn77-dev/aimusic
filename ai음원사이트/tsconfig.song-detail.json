@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.play.json",
+  "files": ["dist/song-detail.js", "tests/song-detail-globals.d.ts"]
+}

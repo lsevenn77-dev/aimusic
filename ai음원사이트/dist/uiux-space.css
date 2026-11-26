@@ -1,0 +1,196 @@
+/* Approved browsing surfaces only. No selectors target sing, dubbing editors,
+   global navigation, player, purchase dialogs or recording state. */
+
+
+/* Flatten only the extra section frames, not their interactive contents. */
+#main .mypage-layout .mp-main>.mp-moments-card,
+#main .mypage-layout #mp-content>.mp-card,
+#main .mypage-layout #mp-aside-content>.mp-card,
+#main .mypage-layout:not(.mp-own)>.mp-aside>.mp-card:not(.mp-studio){
+ background:transparent;border:0;border-top:1px solid var(--ds-line);
+ border-radius:0;box-shadow:none;padding:16px 0;margin-bottom:12px;
+}
+/* Only the first section in each column meets the profile header. */
+#main .mp-member-page .mp-main>.mp-moments-card{border-top:0;padding-top:8px}
+@media(min-width:1101px){
+ #main .mp-member-page #mp-aside-content>.mp-card:first-child,
+ #main .mp-member-page:not(.mp-own)>.mp-aside>.mp-card:first-child:not(.mp-studio){border-top:0;padding-top:8px}
+}
+#main .mypage-layout .mp-profile-bio{font-size:13px;line-height:1.6;color:var(--ds-body);white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0}
+#main .mypage-layout .mp-profile-actions{flex-wrap:wrap}
+#main .mypage-layout .mp-profile-actions>:is(.primary-button,.small-button){min-width:0;min-height:44px;height:auto;padding:8px 12px}
+#main .mypage-layout .mp-profile-actions>.mp-more{width:44px;height:44px;min-width:44px}
+#main .mypage-layout .mp-moments{grid-auto-columns:calc((100% - 36px)/4)}
+#main .mypage-layout .mp-moments button{min-height:64px}
+
+/* Reuse the current row controls and artwork, at a common 44px hit area. */
+#main .mypage-layout .mp-work-list .song-cover-row,
+#main[data-route^="song/"] .song-cover-row{min-height:72px;padding:10px 0;gap:4px}
+#main .mypage-layout .song-cover-more,
+#main[data-route^="song/"] .song-cover-more{width:44px;height:44px;min-width:44px;padding:0;color:var(--ds-body);display:inline-flex;align-items:center;justify-content:center}
+#main .mypage-layout .song-cover-more svg,
+#main[data-route^="song/"] .song-cover-more svg{width:20px;height:20px;stroke-width:1.6}
+#main .mypage-layout .song-cover-expand,
+#main[data-route^="song/"] .song-cover-expand{min-width:44px;min-height:44px;justify-content:center}
+#main .mypage-layout .mp-work-participants{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+#main .mypage-layout .song-cover-meta,
+#main[data-route^="song/"] .song-cover-meta{font-size:11px}
+#main[data-route^="song/"] .song-cover-join-icon{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;padding:0;background:transparent;color:var(--ds-body);border:0}
+#main[data-route^="song/"] .song-cover-join-icon svg{box-sizing:content-box;width:20px;height:20px;padding:5px;border:1px solid currentColor;border-radius:50%;stroke-width:1.6}
+
+/* MR rows keep the existing detail URL and recording link. Only recorded duets
+   have playback. No new player or recording implementation is introduced. */
+#main .play-page .play-song-row{display:flex;gap:8px;min-height:72px;padding:10px 0}
+#main .play-page .play-song-detail{display:flex;align-items:center;gap:12px;min-width:0;flex:1;color:var(--ds-text)}
+#main .play-page .play-song-detail .play-song-art{flex:0 0 48px;width:48px;height:48px}
+#main .play-page .play-song-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#main .play-page .play-song-producer,
+#main .play-page .play-song-artist{width:14%;flex-shrink:0}
+#main .play-page .play-song-count{min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+#main .play-page .play-row-icon{width:44px;height:44px;min-width:44px;min-height:44px;flex:none;display:inline-flex;align-items:center;justify-content:center;padding:0;border:0;background:transparent;color:var(--ds-body)}
+#main .play-page .play-row-icon svg{width:20px;height:20px;stroke-width:1.6}
+#main .play-page .play-row-icon .audio-play-icon{width:36px;height:36px}
+#main .play-page .play-row-record svg{box-sizing:content-box;padding:5px;border:1px solid currentColor;border-radius:50%}
+#main .play-page .play-project-list{gap:0}
+#main .play-page .play-project-row{padding:12px 0;gap:12px}
+#main .play-page .play-project-row h2{margin-bottom:4px}
+#main .play-page .play-empty{padding:28px 12px}
+
+/* Community retains its tabs, room/crew cards, search and room actions. */
+#main:is([data-route="community"],[data-route^="community/"]) .v3-empty{padding:24px 12px;border:0;border-top:1px solid var(--ds-line);border-radius:0;background:transparent}
+#main:is([data-route="community"],[data-route^="community/"]) .v3-toolbar{margin-top:18px}
+
+/* Product cards and all checkout dialogs retain their original boundaries. */
+
+/* Song: remove wrapper duplication while preserving lyrics/player boundaries. */
+#main[data-route^="song/"] .song-covers-panel,
+#main[data-route^="song/"] .comments-panel{border:0;border-top:1px solid var(--ds-line);border-radius:0;padding:16px 0;background:transparent;box-shadow:none}
+#main[data-route^="song/"] .song-introduction{border:0;border-top:1px solid var(--ds-line);border-radius:0;background:transparent;padding:12px 0;box-shadow:none}
+
+/* Notifications: keep unread states, dates and gift artwork in lighter rows. */
+#main[data-route^="notifications"] .activity-row{border:0;border-bottom:1px solid var(--ds-line);border-radius:0;margin:0;padding:16px 4px;background:transparent;box-shadow:none}
+#main[data-route^="notifications"] .activity-row.is-unread{background:transparent}
+#main[data-route^="notifications"] .activity-copy>p{margin:5px 0}
+#main[data-route^="notifications"] .activity-open{margin-top:6px;min-height:44px}
+#main[data-route^="notifications"] .activity-tools button{min-height:44px}
+#main[data-route^="notifications"] .activity-empty{padding:32px 12px}
+
+@media(max-width:767px){
+ #main:is([data-route="home"],[data-route^="karaoke"],[data-route="community"],[data-route^="community/"],[data-route="gifts"],[data-route="profile"],[data-route^="profile?"],[data-route^="producer/"],[data-route^="song/"],[data-route="studio"],[data-route^="notifications"]):before{display:none}
+ /* Mobile titles remain in the accessibility tree. These headings contain
+    only a title, explanatory copy and a decorative free-listening badge. */
+ #main .play-page>.page-heading,
+ #main .mypage-layout .mp-heading,
+ #main[data-route^="notifications"] .activity-heading,
+ #main:is([data-route="community"],[data-route^="community/"],[data-route="studio"],[data-route^="song/"])>.page-heading{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);clip-path:inset(50%);white-space:nowrap;border:0;
+ }
+ #main:is([data-route="home"],[data-route^="karaoke"],[data-route="community"],[data-route^="community/"],[data-route="gifts"],[data-route="profile"],[data-route^="profile?"],[data-route^="producer/"],[data-route^="song/"],[data-route="studio"],[data-route^="notifications"]){padding-inline:14px;padding-top:12px}
+ #main .play-page .play-main-tabs{margin:0 0 12px}
+ #main .play-page .play-subbar{gap:12px;margin-bottom:12px}
+ #main .play-page .play-category-tabs{gap:4px}
+ #main .play-page .play-category-tabs .tab{min-height:52px;padding:6px 2px;gap:4px;border:0;border-radius:0;background:transparent;font-size:12px}
+ #main .play-page .play-category-tabs .tab.active{background:var(--ds-soft);border-radius:var(--ds-radius-sm)}
+ #main .play-page .play-category-tabs .tab svg{width:18px;height:18px}
+ #main .play-page .play-search{margin-bottom:12px}
+ #main .play-page .play-song-producer,#main .play-page .play-song-artist{display:none}
+ #main .play-page .play-song-row{gap:0;min-height:68px}
+ #main .play-page .play-song-detail{gap:8px}
+ #main .play-page .play-song-detail .play-song-art{width:44px;height:44px;flex-basis:44px}
+ #main .play-page .play-project-row{gap:8px}
+ #main .play-page .play-project-row>.small-button{padding:8px;font-size:11px}
+ #main .play-page .play-project-row p{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ #main .play-page .play-project-row small{font-size:11px}
+ #main:is([data-route="community"],[data-route^="community/"])>.music-community-tabs{margin:0 0 12px}
+ #main:is([data-route="community"],[data-route^="community/"]) .v3-toolbar{margin:12px 0}
+ #main .mypage-layout .mp-profile{padding:8px 0 16px;gap:12px}
+ #main .mypage-layout .mp-profile-actions{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;gap:6px;justify-content:stretch;margin:0}
+ #main .mypage-layout.mp-own .mp-profile-actions{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #main .mypage-layout .mp-profile-actions>:is(.primary-button,.small-button){width:100%;min-width:0;padding:8px 4px;font-size:12px}
+ #main .mypage-layout:not(.mp-own) .mp-identity{padding-right:24px}
+ #main .mypage-layout .mp-profile-actions>.mp-more{right:0;top:0}
+ #main .mypage-layout .mp-moments{grid-auto-columns:84px;gap:8px}
+ #main .mypage-layout .mp-moments button{aspect-ratio:1.15}
+ #main .mypage-layout .mp-section-head{margin-bottom:10px}
+ #main .mypage-layout .mp-section-head h2{font-size:17px}
+ #main .mypage-layout .mp-all{min-height:44px}
+ #main .mypage-layout .mp-work-list .song-cover-row{display:flex;gap:0;min-height:68px}
+ #main .mypage-layout .mp-work-list .song-cover-detail{flex:1;min-width:0;grid-template-columns:44px minmax(0,1fr);gap:8px}
+ #main .mypage-layout .mp-work-list .song-cover-row:has(.song-cover-join){flex-wrap:wrap}
+ #main .mypage-layout .mp-work-list .song-cover-row:has(.song-cover-join)>.song-cover-detail{flex-basis:calc(100% - 48px)}
+ #main .mypage-layout .mp-work-list .song-cover-row:has(.song-cover-join)>.song-cover-play{margin-left:auto}
+ #main .mypage-layout .mp-work-list .song-cover-copy strong{font-size:13px}
+ #main .mypage-layout .mp-work-list .song-cover-meta{font-size:10px}
+ #main[data-route^="song/"] .song-detail-refined{padding:0 0 16px}
+ #main[data-route^="song/"] .song-covers-panel{margin-inline:0}
+ #main[data-route^="song/"] .song-cover-group>.song-cover-row{display:flex;gap:0}
+ #main[data-route^="song/"] .song-cover-group>.song-cover-row>.song-cover-detail{flex:1;min-width:0}
+ #main[data-route^="song/"] .song-covers-panel .section-heading,
+ #main[data-route^="song/"] .song-covers-panel .covers-sort{margin-inline:0}
+ #main[data-route="studio"]>.surface{border:0;border-top:1px solid var(--ds-line);border-radius:0;padding:16px 0;background:transparent;box-shadow:none}
+ #main[data-route="studio"]>.section-heading{margin-top:20px}
+ #main[data-route^="notifications"] .activity-toolbar{flex-wrap:wrap;gap:0}
+ #main[data-route^="notifications"] .activity-toolbar .tabs{width:100%;display:flex;justify-content:space-between}
+ #main[data-route^="notifications"] .activity-toolbar .tab{min-height:44px;font-size:13px;padding-inline:4px}
+ #main[data-route^="notifications"] .activity-tools{margin-left:auto;gap:16px}
+ #main[data-route^="notifications"] .activity-tools button{font-size:11px}
+ #main[data-route^="notifications"] .activity-day{margin:18px 0 6px}
+ #main[data-route^="notifications"] .activity-row{gap:10px;padding:12px 0}
+ #main[data-route^="notifications"] .activity-copy>p{font-size:13px}
+ #main[data-route^="notifications"] .activity-note{margin:8px 0}
+}
+/* Notification-only layout: shared shell and player remain unchanged. */
+#main[data-route^="notifications"]:has(> .activity-page .activity-toolbar){
+ --main-frame-top:0px;
+ --activity-text-size:16px;
+ --activity-meta-size:13px;
+ --activity-dot-inset:18px;
+}
+.page-wrap:has(>#main[data-route^="notifications"]>.activity-inbox)::before{content:none}
+/* Give the toolbar the available column width, independent of its labels. */
+#main>.activity-inbox{width:100%;max-width:100%}
+.activity-inbox #activity-list,.activity-inbox .activity-error{contain:inline-size}
+#main[data-route^="notifications"] .activity-toolbar{position:static;display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-end;width:100%;min-width:0;background:transparent;border:0}
+.activity-toolbar .activity-settings-trigger{display:inline-flex;align-items:center;justify-content:center;gap:6px;flex:none;height:44px;min-height:44px;margin:0 0 0 auto;padding:0 10px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-sm);background:var(--ds-panel);color:var(--ds-body);font:inherit;font-size:var(--activity-meta-size);line-height:1.5;white-space:nowrap;cursor:pointer;transition:background .15s,border-color .15s,color .15s}
+.activity-settings-trigger>svg{display:block;flex:none;width:18px;height:18px}
+.activity-settings-trigger:hover{border-color:var(--ds-lilac);background:var(--ds-soft);color:var(--ds-text)}
+#main[data-route^="notifications"] .activity-day{font-size:var(--activity-meta-size);margin:14px 0 0;padding:0 0 6px var(--activity-dot-inset);border-bottom:1px solid var(--ds-line);color:var(--ds-muted)}
+#main[data-route^="notifications"] .activity-row{--list-row-inset:var(--activity-dot-inset);display:flex;align-items:center;flex-wrap:nowrap;gap:14px;min-height:72px;padding-block:10px;transition:background .15s}
+#main[data-route^="notifications"] a.activity-row:hover{background:var(--ds-soft)}
+#main[data-route^="notifications"] .activity-avatar{width:50px;height:50px;margin-inline-start:calc(var(--activity-dot-size) + 9px)}
+#main[data-route^="notifications"] .activity-avatar>.activity-dot{
+ position:absolute;inset-inline-end:calc(100% + 9px);top:50%;transform:translateY(-50%);pointer-events:none;
+}
+#main[data-route^="notifications"] .activity-meta{flex-wrap:nowrap;gap:5px;font-size:var(--activity-meta-size);white-space:nowrap}
+#main[data-route^="notifications"] .activity-meta time{font-size:calc(var(--activity-meta-size) - 1px);color:var(--activity-time-color);font-variant-numeric:tabular-nums}
+#main[data-route^="notifications"] .activity-copy>p{margin:3px 0;font-size:var(--activity-text-size);line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
+#main[data-route^="notifications"] .activity-detail{display:flex;flex-wrap:nowrap;gap:8px;font-size:12px;overflow:hidden}
+#main[data-route^="notifications"] .activity-detail>span{min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#main[data-route^="notifications"] .activity-arrow{flex:none;color:var(--ds-muted)}
+#main[data-route^="notifications"] .activity-arrow svg{width:16px;height:16px}
+@media(max-width:800px){
+ #main[data-route^="notifications"]:has(> .activity-page .activity-toolbar){--activity-text-size:14px;--activity-meta-size:12px;--main-frame-gutter:12px}
+}
+@media(max-width:767px){
+ #main[data-route^="notifications"] .activity-settings-trigger{width:44px;padding:0}
+ #main[data-route^="notifications"] .activity-settings-trigger>span{display:none}
+}
+@media(max-width:600px){
+ #main[data-route^="notifications"]:has(> .activity-inbox .activity-toolbar){--activity-dot-inset:calc(16px - var(--main-frame-gutter))}
+}
+@media(max-width:600px){#main[data-route^="notifications"] .activity-row{gap:10px}}
+@media(prefers-reduced-motion:reduce){#main[data-route^="notifications"] .activity-row{transition:none}}
+/* Desktop inbox reading scale; preserve the compact mobile layout. */
+@media(min-width:801px){
+ #main[data-route^="notifications"]>.activity-inbox{width:100%;max-width:1120px;min-width:0}
+ #main[data-route^="notifications"]:has(> .activity-inbox .activity-toolbar){
+  --activity-text-size:17px;--activity-meta-size:14px;
+ }
+ #main[data-route^="notifications"] .activity-inbox .activity-settings-trigger{font-size:14px}
+ #main[data-route^="notifications"] .activity-inbox .activity-day{margin-top:24px;padding-bottom:10px;line-height:1.6}
+ #main[data-route^="notifications"] .activity-inbox .activity-row{min-height:92px;padding-block:16px;gap:18px}
+ #main[data-route^="notifications"] .activity-inbox .activity-copy>p{margin-block:5px;line-height:1.65}
+ #main[data-route^="notifications"] .activity-inbox .activity-meta{gap:7px;line-height:1.5}
+ #main[data-route^="notifications"] .activity-inbox .activity-detail{font-size:14px;line-height:1.6;gap:10px}
+ #main[data-route^="notifications"] .activity-inbox .activity-more{font-size:15px;min-height:44px}
+}

@@ -1,0 +1,145 @@
+// Public crew/community layouts use the existing catalog, membership and action hooks.
+function publicMusicDate(created){return created?new Date(Number(created)*1000).toLocaleDateString('ko-KR',{month:'long',day:'numeric',timeZone:'Asia/Seoul'}):'';}
+function crewPicture(c,cls='crew-hero-picture'){return '<span class="'+cls+'">'+(c.image_version?'<img src="/media/crew/'+esc(c.id)+'?v='+esc(c.image_version)+'" alt="'+esc(c.name)+'">':icon('users'))+'</span>';}
+function crewNameHTML(c){return '<span class="crew-name-color">'+esc(c.name)+'</span>';}
+function usesCrewNameBadges(){
+ return !((typeof inApp!=='undefined'&&inApp)||/AIFECT-Mobile\//i.test(window.navigator?.userAgent||''));
+}
+function crewNameBadgeSrc(c){return c.badge_url||'/assets/crew-badges/lv1.webp';}
+function crewNameWithBadgeHTML(c){
+ return `<span class="crew-badged-name" title="${esc(c.name)}"><img class="crew-name-badge" src="${esc(crewNameBadgeSrc(c))}" alt="">${crewNameHTML(c)}</span>`;
+}
+function canManageCrew(membership){
+ return ['owner','deputy','manager','operator'].includes(membership?.role);
+}
+function crewHeroHTML(c,m){
+ const frame=c.level>=10?4:c.level>=8?3:c.level>=5?2:c.level>=3?1:0;
+ const settings=canManageCrew(m)?`<div class="crew-settings-anchor"><button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="menu" aria-expanded="false" aria-controls="crew-settings-menu" title="크루 설정">${icon('settings',22)}</button><div id="crew-settings-menu" class="fan-settings-menu" role="menu" aria-label="크루 관리" hidden></div></div>`:'';
+ const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
+ const next=c.next_xp==null?'최고 레벨 달성':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
+ const name=usesCrewNameBadges()?crewNameWithBadgeHTML(c):crewNameHTML(c);
+ const activities=crewActivities(c);
+ return `<header class="crew-detail-header crew-frame-${frame}">
+   <div class="crew-detail-top">
+    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy">
+    <h1 title="${esc(c.name)}">${name}<small class="crew-level">Lv.${number(c.level)}</small></h1>
+    <span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span>
+    ${activities.length?'<ul class="crew-activities" aria-label="활동 방향">'+activities.map(tag=>'<li>'+esc(tag)+'</li>').join('')+'</ul>':''}
+    </div></div>${settings}${game}
+   </div>
+   <div class="crew-detail-xp"><div><span>${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div>
+   <progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>
+ </header>`;
+}
+function crewMusicRows(tracks){return tracks.length?songTable(tracks):'<p class="social-empty">조건에 맞는 음악이 없습니다. 검색어나 필터를 바꿔 보세요.</p>';}
+function crewHomeLayout(d,intro){
+ const c=d.crew,tracks=d.tracks||[],members=d.members||[],gs=[...new Set(tracks.map(t=>t.genre).filter(Boolean))].sort();
+ return '<div class="crew-home-layout"><div class="crew-home-main">'+(d.membership?'<a class="crew-chat-entry" href="#dm/crew/'+esc(c.id)+'">'+icon('message')+'<span><strong>크루 채팅방 들어가기</strong><small>크루원들과 음악과 이야기를 나눠 보세요.</small></span>'+icon('chevron')+'</a>':'<p class="social-empty">크루에 가입하면 함께 대화할 수 있습니다.</p>')+
+ '<form id="crew-music-filter" class="crew-music-filter"><label class="crew-music-search">'+icon('search')+'<input name="q" type="search" maxlength="100" aria-label="크루 음악 검색" placeholder="크루 곡에서 검색하기…"></label><select data-dropdown="md" name="sort" aria-label="크루 음악 정렬"><option value="recent">최신순</option><option value="plays">재생순</option><option value="likes">좋아요순</option></select><select data-dropdown="md" name="genre" aria-label="크루 음악 장르"><option value="">모든 장르</option>'+gs.map(g=>'<option>'+esc(g)+'</option>').join('')+'</select><select data-dropdown="sm" name="period" aria-label="공개 기간"><option value="all">전체 기간</option><option value="week">최근 7일</option><option value="month">최근 30일</option></select></form><div class="section-heading"><h2>크루의 최신 음악</h2><span id="crew-music-count" role="status">'+number(tracks.length)+'곡</span></div><div id="crew-music-results">'+(tracks.length?crewMusicRows(tracks):'<p class="social-empty">아직 공개한 크루 음악이 없습니다.</p>')+'</div><p class="field-help">최근 공개된 최대 60곡에서 검색하고 정렬합니다.</p></div><aside class="social-side-column"><section class="social-side-card"><div class="section-heading"><h2>크루 소개</h2><a href="#crew/'+esc(c.id)+'?tab=about">더보기 '+icon('chevron')+'</a></div>'+intro+'</section><section class="social-side-card"><div class="section-heading"><h2>크루원 <small>'+number(c.members)+'명</small></h2><a href="#crew/'+esc(c.id)+'?tab=members">전체보기 '+icon('chevron')+'</a></div><div class="crew-member-preview">'+members.slice(0,5).map(p=>'<a href="#producer/'+esc(p.id)+'">'+portrait(p,'producer')+'<strong>'+userNickname(p.name,{profileId:p.id,userId:p.user_id})+'</strong><small>'+esc(crewRoleLabels[p.role]||'크루원')+'</small></a>').join('')+'</div></section><section class="social-side-card"><h2>최근 공개 활동</h2><div class="crew-activity">'+(tracks.length?tracks.slice(0,4).map(t=>'<a data-list-row href="#song/'+esc(t.id)+'">'+cover(t,'mini-cover')+'<span><strong>'+trackNickname(t,'producer')+'</strong>님의 '+(t.kind==='cover'?'커버':'새 음악')+'<b>'+esc(t.title)+'</b></span></a>').join(''):'<p class="field-help">새로 공개한 음악이 여기에 표시됩니다.</p>')+'</div></section></aside></div>';
+}
+function filterCrewMusic(tracks,{q='',sort='recent',genre='',period='all'}={},now=Date.now()){
+ const term=q.trim().toLocaleLowerCase(),cutoff=period==='week'?now/1000-7*86400:period==='month'?now/1000-30*86400:0;
+ return tracks.filter(t=>(!genre||t.genre===genre)&&(!cutoff||Number(t.created)>=cutoff)&&(!term||[t.title,t.producer,t.artist].some(v=>String(v||'').toLocaleLowerCase().includes(term)))).sort((a,b)=>(sort==='plays'?Number(b.plays||0)-Number(a.plays||0):sort==='likes'?Number(b.likes||0)-Number(a.likes||0):0)||Number(b.created||0)-Number(a.created||0));
+}
+function bindCrewHome(view){
+ const form=$('#crew-music-filter');if(!form)return;
+ const update=()=>{const value=n=>form.elements[n].value,items=filterCrewMusic(view.tracks,{q:value('q'),sort:value('sort'),genre:value('genre'),period:value('period')});$('#crew-music-results').innerHTML=crewMusicRows(items);$('#crew-music-count').textContent=number(items.length)+'곡';routeTracks=items;};
+ form.onsubmit=e=>{e.preventDefault();update();};form.addEventListener('input',update);form.addEventListener('change',update);
+}
+function communityLandingHTML(tracks,data,tab='all',{open=false,login=false}={}){
+ const tags=[['커버','#community/covers'],['듀엣','#community/duets'],['크루','#community/crews?browse=1'],['플레이리스트','#collections']];
+ const genreCounts=new Map();tracks.forEach(t=>{if(t.genre)genreCounts.set(t.genre,(genreCounts.get(t.genre)||0)+1);});
+ const genreTags=[...genreCounts].sort((a,b)=>b[1]-a[1]).slice(0,4).map(([g])=>[g,'#discover/genres?g='+encodeURIComponent(g)]);
+ const subtitle=tab==='covers'?'새로 공개된 커버':tab==='duets'?(open?'함께 부를 목소리를 기다립니다':'함께 완성한 듀엣'):tab==='following'?'팔로잉의 새 음악':tab==='originals'?'새로 공개된 제작곡':'';
+ const feed=login?gate():!data?'<div class="route-loading" role="status">새 음악을 불러오는 중…</div>':tracks.length?'<div class="music-feed">'+tracks.map(communityConceptCard).join('')+'</div>':empty('아직 공개된 음악이 없습니다.','새로운 음악과 목소리를 기다리고 있습니다.','#karaoke','부를 곡 찾기');
+ return '<div class="community-landing-layout community-redesign"><div class="community-feed-column">'+communityNavigation(tab)+''+(subtitle?'<div class="community-feed-heading"><h2>'+subtitle+'</h2>'+(tab==='duets'?'<nav aria-label="듀엣 종류"><a href="#community/duets" '+(!open?'aria-current="page"':'')+'>듀엣 감상</a><a href="#community/duets?open=1" '+(open?'aria-current="page"':'')+'>참여 대기</a></nav>':'')+'</div>':'')+feed+'</div><aside class="social-side-column community-side-column"><div id="community-crew-preview" class="community-side-crews"><p class="social-side-card" role="status">크루를 불러오는 중…</p></div><section class="social-side-card"><h2>음악으로 이어지는 관심사</h2><p class="field-help">좋아하는 장르로 더 찾아보세요.</p><nav class="community-tag-cloud" aria-label="커뮤니티 음악 탐색">'+[...tags,...genreTags].map(([label,href])=>'<a href="'+esc(href)+'">#'+esc(label)+'</a>').join('')+'</nav></section><section class="community-side-invitation"><span class="community-orbit" aria-hidden="true"></span><p>당신의 음악이<br><strong>누군가의 하루를 바꿀 수 있습니다.</strong></p><a href="#upload">음원 올리기 '+icon('chevron')+'</a></section><section class="social-side-card community-cover-rank-links"><h2>커버 랭킹</h2><nav class="community-tag-cloud" aria-label="커버 랭킹 기간">'+[['today','오늘'],['week','이번 주'],['month','이달'],['all','명예의 전당']].map(([key,label])=>'<a href="#community/rankings?period='+key+'">'+label+'</a>').join('')+'</nav></section></aside></div>';
+}
+
+function communityCrewSidebarHTML(d){
+ const crews=[...(d.crews||[])].sort((a,b)=>Number(b.xp||0)-Number(a.xp||0)).slice(0,5);
+ return '<section class="social-side-card"><div class="section-heading"><h2>추천 크루</h2><a href="#community/crews?browse=1">더보기 '+icon('chevron')+'</a></div><div class="community-crew-circles">'+crews.map(c=>'<a href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<strong>'+crewNameHTML(c)+'</strong><small>'+number(c.members)+'명</small></a>').join('')+(crews.length?'':'<p class="field-help">첫 크루를 만나보세요.</p>')+'</div><div class="community-crew-invite"><span>'+icon('mic')+'</span><h3>좋은 음악은,<br>좋은 사람들과 더 멀리.</h3><p>크루와 함께 더 특별한 음악을 만듭니다.</p><a class="small-button" href="#community/crews?browse=1">크루 둘러보기 '+icon('arrow')+'</a></div></section>'+crewRankingSidebarHTML(d.rankings);
+}
+function crewRankingSidebarHTML(rankings){
+ const items=[...(rankings||[])].sort((a,b)=>Number(b.level||1)-Number(a.level||1)||Number(b.xp||0)-Number(a.xp||0)).slice(0,5);
+ return '<section class="social-side-card crew-ranking-card"><div class="section-heading"><h2>크루 랭킹</h2><span class="crew-ranking-label">TOP 5</span></div><p class="crew-ranking-rule">레벨순 · 같은 레벨은 누적 XP순</p>'+(items.length?'<ol class="community-crew-ranking">'+items.map((c,i)=>'<li><a href="#crew/'+esc(c.id)+'"><span class="crew-rank-position">'+(i+1)+'<span class="sr-only">위</span></span>'+crewPicture(c,'crew-rank-picture')+'<span class="crew-rank-copy"><strong>'+crewNameHTML(c)+'</strong><small>'+number(c.members)+'명</small></span><span class="crew-rank-stats"><b>LV '+number(c.level)+'</b><small>'+number(c.xp)+' XP</small></span></a></li>').join('')+'</ol>':'<p class="field-help">'+(rankings?'아직 등록된 크루가 없습니다.':'크루 랭킹을 불러오는 중…')+'</p>')+'</section>';
+}
+
+// The app artwork is flattened on a 1086 × 362 matte. Clip to each plaque's
+// own outline, including the characters that extend above the rhythm and jump plaques.
+const crewBannerCrops={
+ racing:{view:'16 72 1054 222',outline:'M54 72H1032Q1070 72 1070 110V256Q1070 294 1032 294H54Q16 294 16 256V110Q16 72 54 72Z'},
+ fishing:{view:'12 77 1062 217',outline:'M61 77H1024Q1074 77 1074 127V245Q1074 294 1024 294H61Q12 294 12 245V127Q12 77 61 77Z'},
+ jump:{view:'15 23 1056 303',outline:'M63 42H575Q591 22 625 24Q649 24 665 42H758L761 34L778 42H1022Q1071 42 1071 91V277Q1071 326 1022 326H63Q15 326 15 278V91Q15 42 63 42Z'},
+ rhythm:{view:'3 9 1080 318',outline:'M49 35H752Q776 9 824 10Q857 9 890 35H982Q988 24 997 22Q1005 15 1014 24Q1027 23 1034 35H1037Q1083 35 1083 82V280Q1083 327 1037 327L49 324Q3 324 3 278V82Q3 35 49 35Z'}
+};
+function crewGameMenuHTML(catalog,now=Date.now()){
+ if(!catalog?.banner_ends_at || now>=catalog.banner_ends_at*1000 ||
+    now<Date.parse(catalog.week_start+'T00:00:00+09:00'))return '';
+ const game=catalog.games.find(game=>game.id===catalog.active_game_id);
+ if(!game)return '<span class="field-help">이번 주 크루 경쟁 게임을 준비 중입니다.</span>';
+ const crop=crewBannerCrops[game.id];
+ if(!crop)return '';
+ const clipId='crew-banner-'+game.id;
+ return `<a class="crew-game-entry" href="${esc(game.href)}" aria-label="이번 주 크루 경쟁 게임: ${esc(game.banner_title)}. 플레이">
+  <svg viewBox="${crop.view}" aria-hidden="true" focusable="false"><defs><clipPath id="${clipId}"><path d="${crop.outline}"/></clipPath></defs>
+   <image href="${esc(game.banner_art)}" width="1086" height="362" clip-path="url(#${clipId})"/></svg></a>`;
+}
+function bindCrewGameMenu(initialCatalog){
+ const root=document.querySelector('[data-crew-games]');
+ if(!root||root.dataset.bound)return;
+ root.dataset.bound='1';
+ const account=me?.id;
+ const crew=root.dataset.crewGames,controller=new AbortController();
+ let alive=true,busy=false,boundary,catalog=initialCatalog,lastMarkup=crewGameMenuHTML(initialCatalog);
+ let rankingWeek=null,rankingCheck=0,rankingPending=false;
+ const current=()=>alive&&root.isConnected&&account===me?.id;
+ function expire(){
+  if(catalog?.banner_ends_at&&Date.now()>=catalog.banner_ends_at*1000&&root.firstChild){
+   root.replaceChildren();lastMarkup='';rankingWeek=null;
+  }
+ }
+ function schedule(){
+  clearTimeout(boundary);
+  const now=Date.now(),close=(catalog?.banner_ends_at||0)*1000,weekEnd=(catalog?.ends_at||0)*1000,next=close>now?close:weekEnd;
+  if(next>now)boundary=setTimeout(refresh,next-now);
+ }
+ async function loadRacingSummary(){
+  if(catalog?.active_game_id!=='racing'||!root.querySelector('.crew-game-entry')||document.hidden||rankingPending)return;
+  const week=catalog.week;
+  if(rankingWeek===week&&Date.now()-rankingCheck<120000)return;
+  rankingPending=true;
+  try{
+   const data=await api('/api/crew-racing/lobby','GET',undefined,{fresh:true,signal:controller.signal});
+   if(!current()||catalog.week!==week||catalog.active_game_id!=='racing'||!root.querySelector('.crew-game-entry'))return;
+   rankingWeek=week;rankingCheck=Date.now();
+   root.querySelector('.crew-game-summary')?.remove();
+   const standing=data.week===week&&data.crew===crew&&data.ranking?.find(row=>row.crew_id===crew);
+   if(standing&&[standing.place,standing.members,standing.points].every(Number.isFinite)&&standing.members>0){
+    root.insertAdjacentHTML('beforeend',`<p class="crew-game-summary" title="이번 주 멤버별 최고 점수 상위 10명 집계">
+    <span>주간 ${number(standing.place)}위</span><span>참여 ${number(standing.members)}명</span><span>누적 ${number(standing.points)}점</span></p>`);
+   }
+  }catch(error){
+   if(current()&&[401,403].includes(error.status))root.querySelector('.crew-game-summary')?.remove();
+  }finally{rankingPending=false;}
+ }
+ async function refresh(){
+  if(!alive)return;
+  expire();
+  if(busy||document.hidden)return;
+  busy=true;
+  try{
+   const data=await api('/api/crews/'+encodeURIComponent(crew)+'/games','GET',undefined,{fresh:true,signal:controller.signal});
+   if(!current())return;
+   catalog=data;
+   const markup=crewGameMenuHTML(data);
+   if(markup!==lastMarkup){root.innerHTML=markup;lastMarkup=markup;rankingWeek=null;}
+   void loadRacingSummary();
+  }catch(e){
+   if(alive&&[401,403].includes(e.status)){root.replaceChildren();lastMarkup='';}
+  }finally{busy=false;if(alive)schedule();}
+ }
+ const timer=setInterval(refresh,30000);
+ document.addEventListener('visibilitychange',refresh);
+ registerRouteCleanup(()=>{alive=false;controller.abort();clearInterval(timer);clearTimeout(boundary);document.removeEventListener('visibilitychange',refresh);});
+ schedule();void loadRacingSummary();
+}

@@ -1,0 +1,677 @@
+/* Scoped layout only; home tokens, card controls and the global shell remain authoritative. */
+.play-page[data-play-mode="song"],.play-page .dub-hub-tabs{--play-accent:#FF75B4}
+.play-page[data-play-mode="dubbing"]{--play-accent:#B7A0FF}
+.play-page[data-play-mode="browse"]{--play-accent:#80E0D3}
+/* Geometry for the shared AuroraBackdrop. Content and banner layout are separate. */
+.page-wrap:has(> #main > .play-page){
+ --play-wash-height:780px;
+ --play-wash-purple:ellipse 40% 48% at 13% 8%;
+ --play-wash-mint:ellipse 38% 48% at 22% 6%;
+ --play-wash-teal:ellipse 48% 52% at 50% 8%;
+ --play-wash-right:ellipse 40% 50% at 90% 6%;
+ --play-wash-blue:ellipse 36% 48% at 100% 12%;
+}
+@media(max-width:800px){
+ .page-wrap:has(> #main > .play-page){
+  --play-wash-height:620px;
+  --play-wash-purple:ellipse 78% 48% at 20% 4%;
+  --play-wash-mint:ellipse 72% 48% at 40% 5%;
+  --play-wash-teal:ellipse 85% 52% at 53% 6%;
+  --play-wash-right:ellipse 75% 50% at 88% 4%;
+  --play-wash-blue:ellipse 70% 48% at 100% 10%;
+ }
+}
+.play-page .play-tabs{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);overflow:visible;white-space:nowrap}
+.play-page .play-tabs .tab{min-width:0;min-height:48px;display:flex;align-items:center;justify-content:center;text-decoration:none}
+.play-page .play-main-tabs{margin:22px 0 20px;gap:0;border-bottom:1px solid var(--ds-line)}
+.play-page .play-main-tabs .tab{padding:14px 8px;border:0;border-bottom:3px solid transparent;border-radius:0;background:transparent;color:var(--ds-muted);font-weight:650}
+.play-page .play-main-tabs .tab.active{color:var(--play-accent);border-image:none;border-bottom-color:var(--play-accent)}
+.play-page .play-subbar{display:grid;gap:20px;margin:0 0 24px;min-width:0}
+.play-page .play-category-tabs{gap:12px;margin:0;border:0}
+.play-page .play-category-tabs .tab{flex-direction:column;gap:8px;min-height:88px;padding:12px 8px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-card);background:var(--ds-panel);color:var(--ds-muted);font-size:14px;font-weight:650}
+.play-page .play-category-tabs .tab svg{width:24px;height:24px;flex-shrink:0;stroke-width:1.6}
+.play-page .play-category-tabs .tab.active{border-color:var(--play-accent);background:color-mix(in srgb,var(--play-accent) 8%,var(--ds-panel));color:var(--play-accent)}
+.play-page .play-category-tabs .tab:hover{color:var(--ds-text)}
+.play-page .play-search{max-width:none;width:100%;margin:0 0 24px;display:flex;align-items:center;gap:12px}
+.play-page .play-search input{width:100%;min-width:0}
+.play-page .play-search button{white-space:nowrap;min-height:0}
+.play-page .play-type-filter{display:flex;align-items:center;white-space:nowrap}
+.play-page .play-type-filter select{height:var(--compact-search-height);padding:0 12px;border:1px solid var(--ds-border);border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-text);font:inherit}
+.play-song-list{display:grid;min-width:0}
+.play-page .play-song-row{display:grid;grid-template-columns:52px minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) max-content;align-items:center;gap:16px;min-height:84px;padding:16px 0;border-bottom:1px solid var(--ds-line);color:var(--ds-text);text-decoration:none}
+.play-song-row:hover{background:var(--ds-soft)}
+.play-song-row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.play-song-row .play-song-art{width:52px;height:52px;aspect-ratio:1;border-radius:var(--ds-radius-input);overflow:hidden;display:grid;place-items:center;background:var(--ds-panel)}
+.play-song-art img{width:100%;height:100%;object-fit:cover}
+.play-song-title{font-weight:650}
+.play-song-producer,.play-song-artist,.play-song-count{font-size:13px;color:var(--ds-muted)}
+.play-song-count{text-align:right}
+.play-dubbing-icon{position:relative}.play-dubbing-icon svg+svg{position:absolute;width:11px;height:11px;left:4px;top:3px}
+.play-page .play-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:24px}
+.play-page .play-song-mobile{display:none}
+.play-page .play-record-link{margin-top:12px;min-height:44px;display:flex;justify-content:center}
+.play-page .play-work-title{display:flex;align-items:center;justify-content:flex-start;gap:6px;min-width:0}
+.play-work-title>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.play-type-icon{display:inline-flex;align-items:center;flex:0 0 20px;width:20px;height:20px;color:var(--ds-muted);vertical-align:middle}
+.play-type-icon svg{width:18px;height:18px;flex-shrink:0}
+.play-duet-icon{gap:0;flex-basis:25px;width:25px}.play-duet-icon svg{width:15px;height:18px}.play-duet-icon svg+svg{margin-left:-5px}
+.play-page .play-dubbing-art{background:var(--ds-panel);color:var(--ds-muted);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:14px;aspect-ratio:1}
+img.play-dubbing-art{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:cover}.play-dubbing-art svg{width:42px;height:42px}.play-dubbing-art span{font-size:12px}
+.play-project-list{display:grid;gap:12px}
+.play-project-row{display:flex;align-items:center;gap:16px;padding:20px 0;border-bottom:1px solid var(--ds-line);min-width:0}
+.play-project-symbol{width:52px;height:52px;flex:0 0 52px;border-radius:var(--ds-radius-input);background:var(--ds-panel);display:grid;place-items:center;color:var(--ds-muted)}
+.play-project-symbol svg{width:24px;height:24px}img.play-project-symbol{object-fit:cover}.play-project-row>div{flex:1;min-width:0}
+.play-project-row h2{display:flex;align-items:center;gap:6px;font-size:17px;margin:0 0 8px;min-width:0}
+.play-project-row h2>span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.play-project-row p,.play-project-row small{color:var(--ds-muted);font-size:13px;margin:0 0 5px}
+.play-project-row>.small-button{flex-shrink:0;min-height:44px}
+.play-empty{padding:48px 16px;text-align:center;color:var(--ds-muted)}.play-empty h2{font-size:19px;color:var(--ds-text)}.play-empty p{line-height:1.7}
+.play-more{display:block;margin:24px auto;min-height:44px}.play-more[hidden]{display:none}
+.play-community .music-community-tabs{overflow-x:auto;white-space:nowrap}
+@media(max-width:1100px){.play-page .play-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:600px){
+ .play-page .play-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px}
+ .play-page .play-main-tabs .tab{font-size:16px}
+ .play-page .play-category-tabs{gap:8px}
+ .play-page .play-category-tabs .tab{min-height:76px;padding:10px 4px;font-size:12px;gap:6px}
+ .play-page .play-category-tabs .tab svg{width:22px;height:22px}
+ .play-page .play-subbar{gap:16px;margin-bottom:20px}
+ .play-page .play-search{gap:8px;margin-bottom:20px}.play-page .play-search button{padding-inline:12px}
+ .play-page .play-song-desktop{display:none}.play-page .play-song-mobile{display:grid}
+ .play-page .play-song-row{grid-template-columns:36px minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) max-content;gap:8px;min-height:68px;padding:12px 0;font-size:13px}
+ .play-song-row .play-song-art{width:36px;height:36px;border-radius:var(--ds-radius-sm)}
+ .play-song-producer,.play-song-artist,.play-song-count{font-size:11px}
+ .play-project-row{gap:10px;padding:16px 0}.play-project-symbol{width:40px;height:40px;flex-basis:40px}
+ .play-project-row>.small-button{font-size:12px;padding-inline:8px}
+ .play-project-row p,.play-project-row small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .play-project-row h2{font-size:15px}.play-project-row p{font-size:12px}
+ .play-page .draft-toolbar{flex-wrap:wrap}.play-page .draft-toolbar .inline-actions{flex-wrap:wrap}
+}
+
+/* Compact browse controls; category navigation stays unchanged. */
+.play-discovery-tools{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:var(--ds-space-3);margin-bottom:24px}
+.play-page .play-discovery-tools .play-search{margin:0}
+/* The same flat row rhythm as songs and dubbing; draft actions use existing delegates. */
+.play-draft-toolbar{display:flex;align-items:center;justify-content:space-between;gap:var(--ds-space-3)}
+.play-draft-toolbar h2{margin:0;font-size:16px;color:var(--ds-text)}
+.play-draft-toolbar h2 span{margin-left:8px;color:var(--ds-muted);font-weight:500}
+.play-draft-toolbar>button{min-height:44px}
+.play-draft-note{margin:12px 0;color:var(--ds-muted);font-size:12px;line-height:1.7}
+.play-draft-list{display:grid;min-width:0}
+.play-page .play-draft-row{display:grid;grid-template-columns:52px minmax(0,1fr) auto 44px;align-items:center;gap:16px;min-height:84px;padding:16px 0;border-bottom:1px solid var(--ds-line)}
+.play-draft-row:hover{background:var(--ds-soft)}
+.play-draft-art{display:grid;place-items:center;width:52px;height:52px;border-radius:var(--ds-radius-input);background:var(--ds-panel);color:var(--ds-muted)}
+.play-draft-art svg{width:22px;height:22px}
+.play-draft-copy{min-width:0}
+.play-draft-copy h3{margin:0 0 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:16px;font-weight:650;color:var(--ds-text)}
+.play-draft-copy p{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0;color:var(--ds-muted);font-size:13px;line-height:1.5}
+.play-draft-copy p span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%}
+.play-draft-row .play-draft-resume{min-height:44px;white-space:nowrap}
+.play-draft-row .play-draft-delete{width:44px;height:44px;color:var(--ds-body)}
+@media(max-width:600px){
+ .play-discovery-tools{gap:8px;margin-bottom:20px}
+ .play-page .play-draft-row{grid-template-columns:36px minmax(0,1fr) auto 44px;gap:8px;min-height:68px;padding:12px 0}
+ .play-draft-art{width:36px;height:36px;border-radius:var(--ds-radius-sm)}
+ .play-draft-art svg{width:18px;height:18px}
+ .play-draft-copy h3{font-size:13px;margin-bottom:4px}
+ .play-draft-copy p{font-size:11px;gap:2px 8px}
+ .play-draft-copy p span:first-child{flex-basis:100%}
+ .play-draft-row .play-draft-resume{font-size:12px;padding:8px}
+ .play-draft-resume svg{display:none}
+}
+
+/* Narrow phones give metadata the full row width instead of adding a third line. */
+@media(max-width:380px){
+ .play-draft-copy{display:contents}
+ .play-draft-copy h3{grid-column:2;grid-row:1;min-width:0}
+ .play-draft-copy p{grid-column:2/-1;grid-row:2}
+ .play-draft-art{grid-column:1;grid-row:1/3}
+ .play-draft-resume{grid-column:3;grid-row:1}
+ .play-draft-delete{grid-column:4;grid-row:1}
+}
+/* Keep existing menu implementations; remove only the play-page controls and slots. */
+#main .play-page :is([data-track-menu],.card-more){display:none!important}
+#main .play-page .list-actions{gap:var(--control-gap)}
+/* 20% smaller numbers; 32px visual pill with the existing 44px touch target. */
+#main .play-page .count-dropdown,#main .play-page .song-cover-row>.count-dropdown{min-width:60px;height:44px;min-height:44px;padding:0 10px;gap:6px;font-size:14.4px}
+#main .play-page .count-dropdown:before{inset-block:6px}
+@media(max-width:600px){#main .play-page .count-dropdown{font-size:13.6px}}
+
+/* Only the hub produced by playShell has data-play-mode. */
+#main > .play-page[data-play-mode] {
+  --ui-type-scale: 1;
+  --play-heading-size: 24px;
+  --play-section-size: 19px;
+  --ui-control-height: 44px;
+  font-size: 14px;
+  line-height: 1.55;
+
+  > :is(.play-main-tabs, .play-subbar, .play-content) {
+    max-width: 944px;
+    margin-inline: auto;
+    min-width: 0;
+  }
+  .play-tabs {
+    grid-auto-columns: minmax(max-content, 1fr);
+    overflow-x: auto;
+    scrollbar-width: thin;
+  }
+  .play-tabs .tab {
+    padding: 6px 8px;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+  .play-main-tabs { margin-block: 8px 12px; }
+  .play-main-tabs .tab { min-height: 44px; font-size: 14px; }
+  .play-subbar { gap: 10px; margin-bottom: 12px; }
+  .play-category-tabs .tab {
+    min-height: 54px;
+    gap: 4px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .play-category-tabs .tab svg { width: 18px; height: 18px; }
+  /* Reuse the topbar's brand-search shell without the legacy boxed-search skin. */
+  :is(.play-search,.play-type-filter) { zoom:calc(1 / var(--play-section-zoom)); --ui-control-height:0px; }
+  .play-search { height:var(--compact-search-height); min-height:0; gap:8px; padding-block:0; margin-bottom:12px; }
+  .play-type-filter .aifect-dropdown { --dropdown-height:var(--compact-search-height); min-height:0; }
+  .play-search :is(input, button) { min-height: 0; font-size: 14px; }
+  .play-discovery-tools { margin-bottom: 12px; }
+  .play-discovery-tools .play-search { margin: 0; }
+  .play-song-row {
+    min-height: 64px;
+    padding-block: 6px;
+    align-items: center;
+  }
+  .play-song-row > .play-song-count {
+    margin-inline-end: 8px;
+    font-size: 14px;
+  }
+  :is(.play-row-sing, .play-duet-play, .play-duet-expand) {
+    width: auto;
+    min-width: 96px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 12px;
+    gap: 7px;
+    border: 1px solid var(--ds-line);
+    border-radius: var(--ds-radius-input);
+    background: var(--ds-panel);
+    color: var(--ds-text);
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  :is(.play-row-sing, .play-duet-play) > svg,
+  .play-duet-play .song-cover-play-art svg,
+  .play-duet-expand [data-cover-arrow] svg {
+    flex: 0 0 var(--play-action-icon, 20px);
+    width: var(--play-action-icon, 20px) !important;
+    height: var(--play-action-icon, 20px) !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0;
+    background: none;
+  }
+  .play-row-sing > span { white-space: nowrap; }
+  :is(.play-row-sing, .play-duet-play, .play-duet-expand):not(:disabled):is(:hover, :active) {
+    border-color: var(--ds-accent-pink);
+    color: var(--ds-accent-pink);
+  }
+  .play-duet-actions { gap: 8px; }
+  .play-duet-actions > .play-row-sing { margin-inline-start: 8px; }
+  .play-duet-play { width: 44px; min-width: 44px; padding: 0; }
+  .song-cover-play.play-duet-play {
+    border: 1px solid var(--ds-line) !important;
+    background: var(--ds-panel) !important;
+  }
+  .song-cover-play.play-duet-play:is(:hover, :active) {
+    border-color: var(--ds-accent-pink) !important;
+  }
+  .play-duet-play .song-cover-play-art { width: var(--play-action-icon, 20px); height: var(--play-action-icon, 20px); }
+  .play-duet-play .song-cover-pause {
+    inset: 0;
+    border-radius: 0;
+    background: none;
+    color: inherit;
+  }
+  .play-duet-children { margin: 0 0 12px 20px; padding-inline-start: 12px; }
+  .play-duet-child {
+    flex-wrap: nowrap;
+    min-height: 64px;
+    padding-block: 6px;
+  }
+  .play-duet-child .song-cover-detail { flex: 1 1 0; min-width: 0; }
+  .play-duet-child .list-actions { flex: none; margin: 0; }
+  .play-duet-expand {
+    min-width: 60px;
+    padding-inline: 10px;
+    gap: 6px;
+    border: 1px solid var(--ds-line) !important;
+    background: var(--ds-panel) !important;
+  }
+  .play-duet-expand::before { content: none; }
+  .play-duet-expand [data-cover-arrow] svg {
+    width: var(--play-expand-icon, 16px) !important;
+    height: var(--play-expand-icon, 16px) !important;
+    flex-basis: var(--play-expand-icon, 16px);
+  }
+  .play-duet-expand:not(:disabled):is(:hover, :active) {
+    border-color: var(--ds-accent-pink) !important;
+  }
+  :is(.play-song-title, .album-title, .play-draft-copy h3, .play-project-row h2,
+      .dc-script strong, .dc-work-header h2, .song-cover-copy strong) {
+    font-size: 15px;
+    line-height: 1.4;
+    font-weight: 600;
+  }
+  :is(.play-song-uploader, .play-song-artist, .album-artist, .play-project-row p,
+      .dc-script small, .dc-work-header p, .dc-role b, .dc-members b, .dc-line b,
+      .dc-choice > strong, .song-cover-meta) { font-size: 13px; }
+  :is(.play-draft-copy p, .play-project-row small, .dc-script-meta,
+      .dc-script-meta em, .dc-stage-tabs span, .dc-section-heading small,
+      .dc-catalog h2 small, .dc-line-index, .dc-line small, .dc-members small,
+      .dc-choice > small, .dc-role small, .dc-role-letter, .dc-footnote) { font-size: 12px; }
+  :is(.play-draft-toolbar h2, .dc-section-heading h3, .dc-catalog h2,
+      .play-empty h2, .play-empty h3, .dc-note h3) {
+    font-size: var(--play-section-size);
+    font-weight: 650;
+    line-height: 1.4;
+  }
+  :is(.play-empty p, .play-draft-note, .dc-note, .dc-help, .dc-line > span > span) {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  :is(.play-content .small-button, .dc-record, #play-more) {
+    font-size: 13px;
+    line-height: 1.35;
+    padding-block: 5px;
+    min-height: var(--play-small-button-height, 44px);
+    align-items: center;
+    justify-content: center;
+  }
+  .dc-script > button { min-height: 58px; }
+  .dc-script > button > span { overflow-wrap: anywhere; }
+  .dc-work-header h2, .dc-members b, .dc-role b { overflow-wrap: anywhere; }
+  .dc-section-heading, .play-draft-toolbar { flex-wrap: wrap; }
+  .dc-catalog > header { gap: 6px; }
+
+  @media (max-width: 800px) {
+    --play-heading-size: 22px;
+    --play-section-size: 18px;
+    :is(.dc-mine-tabs, .dc-stage-tabs) {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: thin;
+    }
+    .dc-mine-tabs a, .dc-stage-tabs button { flex-shrink: 0; white-space: nowrap; }
+  }
+  @media (max-width: 600px) {
+    --play-heading-size: 21px;
+    /* Song controls render at 1.25x inside the hub, giving a 45px touch target. */
+    &[data-play-mode="song"] {
+      --play-action-size: 36px;
+      --play-action-icon: 16px;
+      --play-expand-icon: 13px;
+    }
+    .play-tabs .tab { padding-inline: 6px; }
+    .play-category-tabs .tab { min-height: 48px; }
+    .play-search input { font-size: 16px; }
+    .play-search button { min-width:36px; }
+    .play-song-row {
+      --list-row-inset: 2px;
+      flex-wrap: nowrap;
+      min-height: 48px;
+      gap: 5px;
+    }
+    .play-song-row .play-song-detail { flex: 1 1 0; min-width: 0; gap: 6px; }
+    .play-song-row .list-actions { flex: none; margin: 0; }
+    .play-song-count { min-width: 2ch; width: auto; flex: none; }
+    .play-song-row .play-song-detail .play-song-copy {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 2px;
+    }
+    :is(.play-song-row, .play-duet-child) { --list-thumb-size: 36px; }
+    :is(.play-row-sing, .play-duet-play, .play-duet-expand, .play-draft-delete),
+    .play-drafts :is(.play-draft-resume, [data-delete-all-drafts]) {
+      --play-small-button-height: var(--play-action-size);
+      height: var(--play-action-size);
+      min-height: var(--play-action-size);
+      min-width: var(--play-action-size);
+    }
+    :is(.play-row-sing, .play-duet-play, .play-draft-delete) {
+      width: var(--play-action-size);
+      padding: 0;
+    }
+    .play-drafts :is(.play-draft-delete, [data-delete-all-drafts]) svg {
+      width: var(--play-action-icon) !important;
+      height: var(--play-action-icon) !important;
+      flex-basis: var(--play-action-icon);
+    }
+    .play-draft-row { grid-template-columns: 36px minmax(0, 1fr) auto var(--play-action-size); }
+    .play-duet-actions { gap: 4px; }
+    .play-duet-actions > .play-row-sing { margin-inline-start: 0; }
+    .play-duet-expand { padding-inline: 5px; gap: 3px; }
+    .play-song-row .play-row-sing > span { display: none; }
+    .play-duet-children { margin-inline-start: 8px; padding-inline-start: 6px; }
+    .play-duet-child { --list-row-inset: 2px; --list-text-gap: 6px; min-height: 48px; }
+    .dc-script > button { min-height: 48px; }
+    .dc-script > .small-button { padding-inline: 6px; white-space: nowrap; }
+  }
+}
+
+/* The shared home carousel owns the frame, controls and horizontal motion. */
+#main > .play-page[data-play-mode] > .play-banner {
+  --ui-type-scale: 1;
+  --play-label-size: 16px;
+  --play-title-size: clamp(28px, 3.45cqi, 36px);
+  --play-body-size: 16px;
+
+  .home-feature {
+    container: play-frame / size;
+    margin-block-end: calc(30px * var(--ui-space-scale, 1));
+  }
+  /* The frame supplies the home section gap before the hub's scaled tab row. */
+  + .play-main-tabs { margin-block-start: 0; }
+  .play-banner-art {
+    --art: var(--desktop-art);
+    background: #101421 var(--art) 48% 35% / cover no-repeat;
+  }
+  .play-banner-art::after {
+    background: linear-gradient(90deg, #080e1c55, #080e1c26 34%, transparent 56%);
+  }
+  .play-banner-link {
+    --ui-space-scale: 1;
+    display: flex;
+    align-items: center;
+    padding: 12px 0 32px max(68px, 7cqi);
+    color: var(--ds-text);
+    text-decoration: none;
+  }
+  .play-banner-link[data-play-banner="song"] { --play-accent: #f09ac7; }
+  .play-banner-link:is([data-play-banner="dubbing"], [data-play-banner="script"]) { --play-accent: #bca2f4; }
+  .play-banner-link[data-play-banner="browse"] { --play-accent: #8eddd2; }
+  .home-feature-copy { position: relative; width: max-content; max-width: 46cqi; word-break: keep-all; overflow-wrap: anywhere; }
+  .play-banner-art[data-play-art="script"] { background-position: center; border-image: none; }
+  .play-banner-link[data-play-banner="script"] {
+    .home-feature-copy, .home-feature-description { max-width: none; }
+    .home-feature-copy :is(h2, p) > span { display: block; white-space: nowrap; }
+  }
+  .home-feature-label {
+    display: block;
+    color: var(--play-accent);
+    font-size: var(--play-label-size);
+    font-weight: 700;
+    letter-spacing: 0;
+    line-height: 1.35;
+  }
+  .home-feature-copy h2 {
+    margin: 6px 0 0;
+    font-size: var(--play-title-size);
+    font-weight: 750;
+    letter-spacing: -.035em;
+    line-height: 1.22;
+    overflow: visible;
+  }
+  .home-feature-copy h2 span { display: block; }
+  .home-feature-description {
+    display: block;
+    margin: 9px 0 0;
+    max-height: none;
+    max-width: 18em;
+    color: #e1e2e8;
+    font-size: var(--play-body-size);
+    line-height: 1.45;
+    overflow: visible;
+    -webkit-line-clamp: unset;
+    text-wrap: balance;
+  }
+  .home-feature-pagination { --feature-step: 32px; }
+  .home-feature-dots button::after { opacity: .9; }
+  .home-feature-dots button[aria-pressed="true"]::after { opacity: 1; }
+
+  @container play-frame (max-width: 790px) {
+    .play-banner-art[data-play-art="script"] { --art: var(--mobile-art); }
+    .play-banner-link { padding-left: 64px; }
+    .home-feature-copy { --play-label-size: 14px; --play-title-size: 26px; --play-body-size: 14px; }
+  }
+
+  @container (max-width: 540px) {
+    .home-feature { margin-block-end: calc(26px * var(--ui-space-scale, 1)); }
+  }
+  @container play-frame (max-width: 690px) {
+    .play-banner-art { background-position-x: 62%; }
+    .play-banner-link { padding-left: 4.5cqi; }
+    .home-feature-copy { --play-title-size: 22px; max-width: 38cqi; }
+    .home-feature-arrow { top: auto; bottom: 0; }
+  }
+  @container play-frame (max-height: 180px) {
+    .play-banner-link { padding: 5px 0 30px 5cqi; }
+    .home-feature-copy { --play-label-size: 12px; --play-title-size: 20px; --play-body-size: 12px; }
+    .home-feature-copy h2 { margin-top: 3px; }
+    .home-feature-description { margin-top: 5px; }
+  }
+
+  @media (min-width: 801px) {
+    .play-banner-link { padding-left: 11cqi; }
+    .play-banner-link[data-play-banner="song"] .home-feature-description { text-wrap: wrap; }
+    .play-banner-link[data-play-banner="song"] .home-feature-description > span:first-child { display: block; }
+    /* Soften the copy-side scenery gradually while preserving the photo crop
+       and the sharp person. Both layers use the same background geometry. */
+    .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"])::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      background: inherit;
+      filter: blur(2px);
+      mask-image: linear-gradient(90deg, #000 0%, #000 32%, transparent 57%);
+      -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 32%, transparent 57%);
+    }
+    .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"])::after {
+      z-index: 1;
+      background: linear-gradient(90deg, #080e1cb3 0%, #080e1ca3 28%, #080e1c70 42%, #080e1c29 54%, transparent 63%);
+    }
+    .play-banner-art[data-play-art="dubbing"]::after {
+      background: linear-gradient(90deg, #080e1cd6 0%, #080e1ccc 28%, #080e1c99 42%, #080e1c29 54%, transparent 63%);
+    }
+    /* Lower the camera framing without losing the top of either person's hair.
+       A small height reserve lets narrower PC frames crop their top as well. */
+    .play-banner-art:is([data-play-art="song"], [data-play-art="dubbing"]) {
+      --play-photo-height: max(108cqh, 33.333333cqi);
+      --play-photo-head-y: .213;
+      --play-photo-head-gap: 16px;
+      background-size: auto var(--play-photo-height);
+      background-position-y: max(
+        calc(100cqh - var(--play-photo-height)),
+        calc((100cqh - var(--play-photo-height)) * .35 - 18px),
+        calc(var(--play-photo-head-gap) - var(--play-photo-height) * var(--play-photo-head-y))
+      );
+    }
+    .play-banner-art[data-play-art="dubbing"] {
+      --play-photo-head-y: .192;
+      --play-photo-head-gap: 12px;
+    }
+  }
+
+  @media (max-width: 800px) {
+    .home-feature { margin-block-end: 16px; }
+    .play-banner-art { --art: var(--mobile-art); background-position: center; }
+    .play-banner-art[data-play-art="script"] { background-position-x: 70%; }
+    .play-banner-art::after {
+      background: linear-gradient(90deg, #090d1a66 0%, #090d1a55 28%, #090d1a2b 42%, transparent 57%);
+    }
+    .play-banner-link { padding: 10px 0 32px 5cqi; }
+    .home-feature-pagination { --feature-step: 44px; }
+    .home-feature-dots button::after { transform: translateY(7px); }
+    .home-feature-dots button:first-child::after { justify-self: end; margin-right: 1px; }
+    .home-feature-dots button:last-child::after { justify-self: start; margin-left: 1px; }
+    .home-feature-dots button[aria-pressed="true"]::after { width: 15px; }
+    /* In wider home frames, extend only the empty left edge. The other 657
+       pixels of the 822 × 482 photograph scale uniformly with frame height. */
+    @container play-frame (min-aspect-ratio: 822/482) {
+      .play-banner-art {
+        border-image: var(--art) 0 0 0 165 fill / 0 0 0 calc(100% - 136.3071cqh) stretch;
+      }
+    }
+    @container play-frame (max-width: 540px) {
+      .home-feature-copy {
+        --play-label-size: clamp(12px, 3.25cqi, 13px);
+        --play-title-size: clamp(18px, 5.55cqi, 23px);
+        --play-body-size: clamp(12px, 3.24cqi, 13px);
+        max-width: 50cqi;
+      }
+      .home-feature-copy h2 { margin-top: 5px; line-height: 1.26; }
+      .home-feature-description { margin-top: 7px; line-height: 1.42; text-wrap: wrap; }
+      .home-feature-description span { display: block; }
+    }
+    @container play-frame (max-width: 350px) {
+      .play-banner-link { padding-left: 4cqi; }
+      .home-feature-copy { --play-title-size: 18px; max-width: 54cqi; }
+      .home-feature-description span { display: inline; }
+      .home-feature-description { max-width: 10em; text-wrap: balance; }
+    }
+  }
+}
+
+/* These two dialogs are mounted outside #main by the existing hub actions. */
+.page-wrap:has(> #main > .play-page[data-play-mode]) ~ :is(
+  #recording-mode-dialog, #dialog:has(.draft-delete-dialog)
+) {
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  h2 { font-size: 19px; line-height: 1.4; }
+  .draft-delete-dialog p { font-size: 14px; line-height: 1.55; }
+  .draft-delete-dialog .inline-actions { gap: 8px; flex-wrap: wrap; }
+  :is([data-sing-mode], .draft-delete-dialog .inline-actions button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding-block: 6px;
+    font-size: 14px;
+    line-height: 1.4;
+  }
+  @media (max-width: 600px) {
+    h2 { font-size: 18px; }
+  }
+}
+
+/* Enlarge the hub sections independently so the carousel and shell keep their geometry. */
+#main > .play-page[data-play-mode] > :is(.play-main-tabs, .play-subbar, .play-content),
+.page-wrap:has(> #main > .play-page[data-play-mode]) ~ #recording-mode-dialog > :is(h2, .recording-mode-choices),
+.page-wrap:has(> #main > .play-page[data-play-mode]) ~ #dialog .draft-delete-dialog,
+.page-wrap:has(> #main > .play-page[data-play-mode] .aifect-dropdown-trigger[aria-expanded=true]) ~ .aifect-dropdown-menu > [role=option] {
+  --play-section-zoom: 1.25;
+  zoom: var(--play-section-zoom);
+}
+@media (max-width: 375px) {
+  #main > .play-page[data-play-mode] .dc-script { flex-wrap: wrap; }
+  #main > .play-page[data-play-mode] .dc-script > button { flex-basis: 100%; }
+  #main > .play-page[data-play-mode] .dc-script > .small-button { margin-left: auto; }
+}
+
+/* PLAY_PC_TYPE_START
+   Remove this block to restore the hub's original desktop typography.
+   Its content is zoomed for layout. Divide the target size by the existing
+   section zoom so thumbnails, controls and hit targets retain their scale. */
+@media (min-width: 801px) {
+  #main > .play-page[data-play-mode] {
+    > :is(.play-main-tabs, .play-subbar, .play-content) {
+      --play-pc-page: calc(var(--pc-font-page) / var(--play-section-zoom));
+      --play-pc-section: calc(21px / var(--play-section-zoom));
+      --play-pc-title: calc(var(--pc-font-card) / var(--play-section-zoom));
+      --play-pc-body: calc(var(--pc-font-body) / var(--play-section-zoom));
+      --play-pc-control: calc(var(--pc-font-control) / var(--play-section-zoom));
+      --play-pc-meta: calc(var(--pc-font-caption) / var(--play-section-zoom));
+    }
+
+    /* The carousel has its own responsive display headline and no section zoom. */
+    > .play-banner .home-feature-label { font-size: var(--pc-font-caption); }
+    > .play-banner .home-feature-description { font-size: var(--pc-font-body); }
+
+    .page-heading h1 { font-size: var(--play-pc-page) !important; }
+    :is(.dc-catalog h2, .dc-section-heading h3, .play-draft-toolbar h2,
+        .play-empty h2, .play-empty h3, .empty-design h2, .dc-note h3) {
+      font-size: var(--play-pc-section) !important;
+    }
+    :is(.play-song-title, .album-title, .play-draft-copy h3, .play-project-row h2,
+        .dc-script strong, .dc-work-header h2, .dc-choice > strong) {
+      font-size: var(--play-pc-title) !important;
+    }
+    :is(.play-song-uploader, .play-song-producer, .play-song-artist, .album-artist,
+        .play-project-row p, .play-draft-copy p > :first-child, .play-duet-child .song-cover-copy strong,
+        .dc-script small, .dc-work-header p, .dc-role b, .dc-role small, .dc-members b,
+        .dc-line b, .dc-line > span > span, .dc-note, .dc-help, .dc-feedback,
+        .play-empty p, .empty-design p, .empty-note, .field-help, .play-load-error, .play-draft-note) {
+      font-size: var(--play-pc-body) !important;
+    }
+    :is(.play-tabs .tab, .small-button, .primary-button, .play-row-sing,
+        .dc-stage-tabs button, .dc-script-meta em, .dc-footnote a,
+        .dc-catalog select, .dc-catalog .aifect-dropdown-trigger) {
+      font-size: var(--play-pc-control) !important;
+    }
+    :is(.play-song-count, .play-duet-expand > span, .play-project-row small, .cover-mini,
+        .play-draft-copy p, .play-draft-toolbar h2 span, .dc-catalog h2 small, .dc-script-meta,
+        .dc-work-header p > span, .dc-stage-tabs b, .dc-stage-tabs span, .dc-section-heading small,
+        .dc-choice > small, .dc-members small, .dc-line-index, .dc-line small, .dc-role-letter,
+        .dc-footnote, .page-heading .eyebrow, .page-heading .free-badge) {
+      font-size: var(--play-pc-meta) !important;
+    }
+    /* Search and the browse filter already cancel their parent's zoom. */
+    :is(.play-search input, .play-search button, .play-type-filter .aifect-dropdown-trigger) {
+      font-size: var(--pc-font-control) !important;
+    }
+    :is(.play-song-copy .play-song-title, .play-work-title > span:last-child,
+        .play-project-row h2 > span:last-child, .dc-script strong, .play-draft-copy h3) {
+      white-space: normal !important;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  /* Only the open hub filter owns these portaled options. */
+  .page-wrap:has(> #main > .play-page[data-play-mode] .aifect-dropdown-trigger[aria-expanded=true])
+    ~ .aifect-dropdown-menu:not([hidden]) > [role=option] {
+    font-size: calc(var(--pc-font-control) / var(--play-section-zoom));
+  }
+
+  .page-wrap:has(> #main > .play-page[data-play-mode]) ~ #dialog .draft-delete-dialog {
+    p { font-size: calc(var(--pc-font-body) / var(--play-section-zoom)) !important; }
+    .inline-actions button { font-size: calc(var(--pc-font-control) / var(--play-section-zoom)) !important; }
+  }
+}
+/* PLAY_PC_TYPE_END */
+
+/* One desktop content width for Song, Dubbing and Browse. Keep the existing
+   section zoom for controls/type; only remove its independent 944px cap.
+   Spacing below is in final CSS pixels, outside the regional scale pass. */
+@media (min-width: 801px) {
+  #main > .play-page[data-play-mode] {
+    --play-layout-gap: 16px;
+
+    > :is(.play-subbar, .play-content) {
+      width: auto;
+      max-width: none;
+      margin-inline: 0;
+    }
+    > .play-banner .home-feature {
+      margin-block-end: calc(var(--play-layout-gap) * 1.5);
+    }
+    > .play-main-tabs { margin-block: 0 var(--play-layout-gap); }
+    > .play-subbar {
+      margin-block: 0 calc(var(--play-layout-gap) / var(--play-section-zoom));
+    }
+    .play-category-tabs {
+      grid-auto-columns: minmax(0, 1fr);
+      gap: calc(var(--play-layout-gap) / var(--play-section-zoom));
+    }
+    .play-search { margin-bottom: var(--play-layout-gap); }
+    .play-discovery-tools {
+      gap: calc(var(--play-layout-gap) / var(--play-section-zoom));
+      margin-bottom: calc(var(--play-layout-gap) / var(--play-section-zoom));
+    }
+    .play-discovery-tools .play-search { margin: 0; }
+  }
+}

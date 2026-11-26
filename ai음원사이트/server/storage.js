@@ -1,3 +1,4 @@
+import {imageGrant,wantsImageGrant} from './image-mirror.js';
 import {fail} from './db.js';
 export const MAX_AUDIO=80*1024*1024;
 export const originalKey=track=>track.original_key||`original/${track.id}.${track.original_ext}`;
@@ -14,7 +15,7 @@ export function parseRange(value,size){
  if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>=size||end<start)return false;
  end=Math.min(end,size-1);return {offset:start,length:end-start+1};
 }
-function imageCacheControl(req,isPublic,imageVersion){
+export function imageCacheControl(req,isPublic,imageVersion){
  if(!isPublic)return 'private, no-store';
  if(!imageVersion)return 'public, max-age=3600';
  const requestedVersion=new URL(req.url).searchParams.get('v');
@@ -25,9 +26,21 @@ function imageCacheControl(req,isPublic,imageVersion){
 function matchesEtag(value,etag){
  return value?.split(',').some(tag=>tag.trim()==='*'||tag.trim().replace(/^W\//,'')===etag);
 }
-export async function objectResponse(req,env,key,type,isPublic=false,{imageVersion}={}){
+export async function objectResponse(req,env,key,type,isPublic=false,{imageVersion,allowMirror=true}={}){
  const head=await env.BUCKET.head(key);if(!head)fail(404,'파일을 찾을 수 없습니다.');
  const image=type.startsWith('image/'),headers={'content-type':type,'accept-ranges':'bytes','cache-control':image?imageCacheControl(req,isPublic,imageVersion):isPublic?'public, max-age=3600':'private, no-store','x-content-type-options':'nosniff'};
+ if(image){
+  headers.vary='X-Aifect-Image-Mirror';
+  if(allowMirror&&wantsImageGrant(req,env)){
+   const grant=await imageGrant(req,env,head,type);
+   if(grant){
+    // Only a public, exact-version image already eligible for immutable HTTP caching
+    // may reuse its grant. The browser varies it by session and authorization.
+    if(isPublic && headers['cache-control'].includes('immutable'))grant.headers.set('cache-control','private, max-age=60');
+    return grant;
+   }
+  }
+ }
  if(image&&isPublic){
   const etag=head.httpEtag||(head.etag?`"${head.etag}"`:null);
   if(etag){

@@ -1,0 +1,224 @@
+/* Popup-only AIFECT styles for standalone games and the admin document.
+   The game canvas, HUD, countdown, lobby and product artwork keep their styles.
+   Layout, scrolling and open/close behavior remain with each feature. */
+
+/* These overlays do not inherit the main app's tokens. Use the same verified
+   values locally, without importing page-wide design-system rules. */
+:is(#race,#play) :is(#pauseOv,#resultOv) > .panel {
+  --popup-surface:var(--ds-surface,linear-gradient(130deg,#19222f,#111922 75%));
+  --popup-panel:var(--ds-panel,#131b26);
+  --popup-bg:var(--ds-bg,#0c121b);
+  --popup-text:var(--ds-text,#F8FAFC);
+  --popup-body:var(--ds-body,#BEC1C9);
+  --popup-muted:var(--ds-muted,#9CA3AF);
+  --popup-disabled:var(--ds-disabled,#6B7280);
+  --popup-ink:var(--ds-ink,#101722);
+  --popup-line:var(--ds-line,rgba(183,182,255,.16));
+  --popup-selected:var(--ds-selected,#D3BAFF);
+  --popup-progress:var(--ds-progress,#AFE5E3);
+  --popup-gradient:var(--ds-gradient,linear-gradient(105deg,#d6baff,#b7b6ff 48%,#aeebdf));
+  background:var(--popup-surface);
+  color:var(--popup-text);
+  border:1px solid var(--popup-line);
+  border-radius:var(--ds-radius-feature,20px);
+  box-shadow:none;
+  backdrop-filter:none;
+  font-family:inherit;
+  font-size:15px;
+  line-height:1.55;
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) {
+  background:rgba(6,11,20,.72);
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) > .panel::before {
+  content:none;
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) .panel h2 {
+  color:var(--popup-text);
+  font-size:20px;
+  font-weight:600;
+  line-height:1.4;
+  letter-spacing:-.02em;
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) :is(.muted,.res-meta,.res3 span,.rule) {
+  color:var(--popup-body);
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) :is(small,.song .meta > .muted,.result-song > div > span) {
+  color:var(--popup-muted);
+  font-size:13px;
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) :is(.result-song,.res3 > div) {
+  border-color:var(--popup-line);
+  background:var(--popup-panel);
+  box-shadow:none;
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) .notice {
+  border-color:var(--popup-line);
+  background:var(--popup-panel);
+  color:var(--popup-body);
+  font-size:13px;
+  line-height:1.6;
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) .res-score {
+  background:none;
+  color:var(--popup-text);
+  text-shadow:none;
+}
+#race #resultOv :is(.resscore,#resState) {
+  color:var(--popup-progress);
+}
+/* Large scores, numeric typefaces and judgement colors are game information. */
+:is(#race,#play) :is(#pauseOv,#resultOv) .btnrow > :is(.cta,.iconbtn),
+dialog#rules.compact-popup .primary {
+  min-height:44px;
+  border:1px solid var(--popup-line);
+  border-radius:999px;
+  background:var(--popup-panel);
+  color:var(--popup-body);
+  box-shadow:none;
+  font-family:inherit;
+  font-size:14px;
+  font-weight:600;
+  line-height:1.4;
+  text-shadow:none;
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) .btnrow > .cta:not(.alt,:disabled),
+dialog#rules.compact-popup .primary:not(:disabled) {
+  border-color:transparent;
+  background:var(--popup-gradient);
+  color:var(--popup-ink);
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) .sync button {
+  border-color:var(--popup-line);
+  border-radius:var(--ds-radius-sm,8px);
+  background:var(--popup-bg);
+  color:var(--popup-text);
+  box-shadow:none;
+}
+:is(#race,#play) :is(#pauseOv,#resultOv) .btnrow > button:disabled,
+dialog#rules.compact-popup .primary:disabled,
+#garageDialog .garage-action:disabled,
+dialog.jump-dialog .arc-look-actions > button:disabled {
+  background:var(--popup-panel);
+  color:var(--popup-disabled);
+  border-color:var(--popup-line);
+  box-shadow:none;
+  filter:none;
+}
+
+/* Native game dialogs also inherit the local aliases from the shared core. */
+dialog#rules.compact-popup,
+dialog#garageDialog.cgl-store-dialog,
+dialog.jump-dialog.compact-popup {
+  background:var(--popup-surface);
+  color:var(--popup-text);
+  border-color:var(--popup-line);
+  border-radius:var(--popup-radius);
+  box-shadow:none;
+}
+dialog#rules.compact-popup h2,
+dialog#garageDialog.cgl-store-dialog h2,
+dialog.jump-dialog.compact-popup h2 {
+  color:var(--popup-text);
+  font-size:var(--popup-title-size);
+  font-weight:600;
+  line-height:1.4;
+  letter-spacing:-.02em;
+}
+dialog#rules.compact-popup p,
+dialog.jump-dialog.compact-popup p {
+  color:var(--popup-body);
+  font-size:15px;
+  line-height:1.6;
+}
+dialog#rules.compact-popup small,
+dialog#garageDialog.cgl-store-dialog :is(.cgl-eyebrow,.muted),
+dialog.jump-dialog.compact-popup :is(.arc-look-note,.arc-fitting small) {
+  color:var(--popup-muted);
+  font-size:var(--popup-caption-size);
+  letter-spacing:normal;
+}
+dialog#garageDialog.cgl-store-dialog :is(.garage-wallet,.garage-views),
+dialog.jump-dialog.arc-store-dialog .arc-look {
+  background:var(--popup-panel);
+  border-color:var(--popup-line);
+  box-shadow:none;
+}
+dialog#garageDialog.cgl-store-dialog .garage-stage {
+  background:var(--popup-bg);
+  border-color:var(--popup-line);
+}
+dialog#garageDialog.cgl-store-dialog .garage-views button {
+  color:var(--popup-body);
+  font-size:var(--popup-control-size);
+  font-weight:600;
+}
+dialog#garageDialog.cgl-store-dialog .garage-views button[aria-pressed=true] {
+  background:var(--ds-soft,rgba(183,182,255,.10));
+  color:var(--popup-selected);
+}
+dialog#garageDialog.cgl-store-dialog .carcard {
+  color:var(--popup-text);
+  background:var(--popup-panel);
+  border-color:var(--popup-line);
+  box-shadow:none;
+}
+dialog#garageDialog.cgl-store-dialog .carcard.on:not([aria-pressed=true]) {
+  border-color:var(--popup-progress);
+}
+dialog#garageDialog.cgl-store-dialog .carcard[aria-pressed=true],
+dialog.jump-dialog.arc-store-dialog .arc-look[aria-pressed=true] {
+  border-color:var(--popup-selected);
+  outline:2px solid var(--popup-selected);
+  outline-offset:-2px;
+  box-shadow:none;
+}
+dialog#garageDialog.cgl-store-dialog :is(.nm,.stage-info h3),
+dialog.jump-dialog.arc-store-dialog :is(.arc-fitting h3,.arc-outfit-group h3) {
+  color:var(--popup-text);
+  font-size:16px;
+  font-weight:600;
+  line-height:1.5;
+}
+dialog#garageDialog.cgl-store-dialog :is(.stage-speed,.car-speed) {
+  color:var(--popup-body);
+}
+dialog#garageDialog.cgl-store-dialog .stage-info small {
+  color:var(--popup-muted);
+}
+dialog#garageDialog.cgl-store-dialog .garage-action:not(:disabled),
+dialog.jump-dialog.compact-popup .primary-button:not(:disabled) {
+  border-color:transparent;
+  border-radius:999px;
+  background:var(--popup-gradient);
+  color:var(--popup-ink);
+  font-size:var(--popup-control-size);
+  font-weight:600;
+  box-shadow:none;
+}
+dialog.jump-dialog.compact-popup .small-button {
+  border-color:var(--popup-line);
+  background:var(--popup-panel);
+  color:var(--popup-body);
+  box-shadow:none;
+}
+
+/* Admin uses a separate document. Keep the form layout and existing single X. */
+dialog#admin-dialog {
+  background:var(--popup-surface);
+  color:var(--popup-text);
+  border-color:var(--popup-line);
+  border-radius:var(--popup-radius);
+  box-shadow:none;
+}
+#admin-dialog #admin-dialog-content :is(h2,h3) {
+  color:var(--popup-text);
+  font-size:var(--popup-title-size);
+  font-weight:600;
+  line-height:1.4;
+}
+#admin-dialog #admin-dialog-content :is(p,label) {
+  color:var(--popup-body);
+  font-size:15px;
+  line-height:1.6;
+}

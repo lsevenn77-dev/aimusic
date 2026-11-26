@@ -1,0 +1,219 @@
+/* Only the artist directories opt into this layout. The profile dashboard
+   below keeps its own image geometry. */
+#main .artist-directory {
+ --ui-type-scale:1;
+ --ui-space-scale:1;
+ --ui-icon-scale:1;
+ --artist-action-height:36px;
+ --artist-info-rows:minmax(22px,auto) 20px 20px minmax(var(--artist-action-height),auto);
+ container:artist-directory / inline-size;
+ min-width:0;
+ color:var(--ds-text);
+}
+.artist-directory .directory-heading {
+ display:flex; align-items:center; justify-content:space-between;
+ flex-wrap:wrap; gap:12px 20px; margin:0 0 16px;
+}
+.artist-directory h1 {margin:0 0 4px; font-size:var(--pc-font-page,26px); line-height:1.3; letter-spacing:-.7px}
+.artist-directory .directory-heading p {margin:0; color:var(--ds-body); font-size:var(--pc-font-body,14px); line-height:1.5}
+.artist-directory .directory-controls {display:flex; align-items:center; justify-content:flex-end; gap:12px; margin-left:auto; font-size:var(--pc-font-meta,14px)}
+.artist-directory .directory-controls>span {white-space:nowrap; color:var(--ds-body); font-variant-numeric:tabular-nums}
+#main .artist-directory .directory-add {min-height:42px; padding:8px 16px; gap:8px; font-size:var(--pc-font-control,14px); border-radius:10px; white-space:nowrap}
+#main .artist-directory .directory-add>svg {width:18px; height:18px}
+#main .artist-directory select {min-height:40px; width:126px; padding:8px 14px; border:1px solid var(--ds-border); border-radius:24px; background:var(--ds-bg); color:var(--ds-text); font:inherit}
+
+.artist-directory .directory-grid {
+ display:grid;
+ grid-template-columns:repeat(6,minmax(0,1fr));
+ grid-auto-rows:1fr;
+ align-items:stretch;
+ gap:14px;
+}
+.artist-directory .directory-artist {
+ --artist-active-border:color-mix(in srgb,var(--ds-mint) 36%,var(--ds-line));
+ display:flex; flex-direction:column; min-width:0; box-sizing:border-box;
+ padding:0; margin:0; border:1px solid var(--ds-line); border-radius:12px;
+ background:color-mix(in srgb,var(--ds-panel) 78%,transparent);
+ color:var(--ds-text); text-align:center;
+}
+@media (min-width:801px) and (hover:hover) and (pointer:fine) {
+ .artist-directory .directory-artist:hover {
+  border-color:var(--artist-active-border);
+  box-shadow:0 6px 16px rgb(0 0 0 / 22%);
+ }
+ @media (prefers-reduced-motion:no-preference) {
+  .artist-directory .directory-artist {
+   --artist-lift:4px;
+   position:relative;
+   transition:transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
+  }
+  .artist-directory .directory-artist:hover {transform:translateY(calc(-1 * var(--artist-lift)))}
+  /* Keep the original bottom edge under the mouse while the card rises. */
+  .artist-directory .directory-artist:hover > :is(.directory-card-info,.directory-add-content)::after {
+   content:""; position:absolute; top:100%; inset-inline:0; height:calc(var(--artist-lift) + 1px);
+  }
+ }
+}
+.artist-directory .directory-photo,
+.artist-directory .directory-add-card::before {
+ display:block; box-sizing:border-box; flex:none; width:100%; aspect-ratio:4 / 3;
+}
+.artist-directory .directory-photo {
+ position:relative; overflow:hidden; border-radius:11px 11px 0 0;
+ background:var(--ds-secondary);
+}
+#main .artist-directory .directory-photo>img {
+ position:absolute; inset:0; display:block; width:100%; height:100%;
+ max-width:none; max-height:none; margin:0; border:0; border-radius:0;
+ object-fit:cover; object-position:50% 28%;
+}
+#main .artist-directory .directory-photo>img[src="/assets/default-avatar.svg"] {
+ content:url('/assets/aifect_default_avatar_refined.svg');
+ object-fit:contain; object-position:center;
+ background:linear-gradient(135deg,#2A2E3F,#272B3B);
+}
+.artist-directory .directory-card-info,
+.artist-directory .directory-add-card::after {
+ box-sizing:border-box; display:grid; flex:1; grid-template-rows:var(--artist-info-rows);
+ gap:4px; padding:10px 8px; min-width:0;
+}
+.artist-directory .directory-name,
+.artist-directory .artist-ui-affiliation {
+ min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.artist-directory .directory-name {font-size:var(--pc-font-card,16px); line-height:22px; font-weight:600; color:var(--ds-text)}
+.artist-directory .artist-ui-affiliation {margin:0; color:#BB9AD7; font-size:var(--pc-font-meta,13px); line-height:20px}
+.artist-directory .directory-stats {
+ grid-row:3; display:flex; justify-content:center; align-items:center; gap:4px;
+ min-width:0; color:var(--ds-body); font-size:var(--pc-font-meta,13px); line-height:20px;
+ font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.artist-directory .directory-stats>[aria-hidden] {color:var(--ds-muted)}
+.artist-directory .directory-stats>:is(span:first-child,.directory-followers) {
+ min-width:0; overflow:hidden; text-overflow:ellipsis;
+}
+.artist-directory .directory-follow,
+.artist-directory .directory-card-actions {grid-row:4; align-self:end}
+.artist-directory .directory-card-actions {display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px}
+.artist-directory :is(.directory-follow,.directory-card-action) {
+ position:relative; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+ box-sizing:border-box; min-width:0; min-height:var(--artist-action-height); margin:0;
+ padding:4px 8px; border:1px solid var(--ds-line); border-radius:var(--ds-radius-sm);
+ background:var(--ds-bg); color:var(--ds-body); font:inherit;
+ font-size:var(--pc-font-control,14px); font-weight:600; cursor:pointer;
+}
+.artist-directory .directory-follow {
+ width:100%; background:var(--ds-gradient); color:var(--ds-ink); border-color:transparent;
+}
+.artist-directory .directory-follow svg {width:14px; height:14px}
+.artist-directory .directory-card-action[data-directory-edit] {background:var(--ds-soft); color:var(--ds-selected)}
+.artist-directory :is(.directory-follow,.directory-card-action):disabled {opacity:.65; cursor:wait}
+.artist-directory .directory-add-card {position:relative; width:100%; font:inherit; cursor:pointer}
+.artist-directory .directory-add-card::before,.artist-directory .directory-add-card::after {content:""; pointer-events:none}
+.artist-directory .directory-add-content {
+ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+ justify-content:center; gap:8px; padding:12px; word-break:keep-all;
+}
+.artist-directory .directory-add-symbol {display:grid; place-items:center; color:var(--ds-mint)}
+.artist-directory .directory-add-symbol svg {width:36px; height:36px}
+.artist-directory .directory-add-content strong {font-size:var(--pc-font-card,16px); font-weight:600}
+.artist-directory .directory-add-content>span:last-child {font-size:var(--pc-font-meta,13px); line-height:1.5; color:var(--ds-body)}
+.artist-directory .directory-empty {padding:32px 16px; text-align:center; color:var(--ds-body); font-size:14px}
+.artist-directory .directory-pagination {display:flex; justify-content:center; gap:12px; margin-top:24px}
+@container artist-directory (max-width:1039px) {
+ .artist-directory .directory-grid {grid-template-columns:repeat(5,minmax(0,1fr))}
+}
+@container artist-directory (max-width:849px) {
+ .artist-directory .directory-grid {grid-template-columns:repeat(4,minmax(0,1fr))}
+}
+@container artist-directory (max-width:699px) {
+ .artist-directory .directory-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+/* When the sidebar collapses the content widens; keep the tablet at three columns. */
+@media (max-width:800px) {
+ .artist-directory .directory-grid {grid-template-columns:repeat(3,minmax(0,1fr))}
+ @container artist-directory (max-width:539px) {
+  .artist-directory .directory-grid {grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+  .artist-directory .directory-controls {gap:8px}
+ }
+}
+@media (pointer:coarse) {
+ #main .artist-directory {--artist-action-height:44px}
+ #main .artist-directory .directory-followers {min-height:0}
+}
+
+/* Profile dashboard gallery. */
+/* Only fallback images use this filled silhouette; uploaded photos stay intact. */
+#main .mp-artists-card .artist-ui-card .profile-avatar:has(>img[src="/assets/default-avatar.svg"]){background:linear-gradient(135deg,#2A2E3F,#272B3B)}
+#main .mp-artists-card .artist-ui-card .profile-avatar>img[src="/assets/default-avatar.svg"]{content:url('/assets/aifect_default_avatar_refined.svg');border-radius:10px;object-fit:contain;object-position:center;background:linear-gradient(135deg,#2A2E3F,#272B3B)}
+#main .mp-artists-card .artist-ui-card{container-type:inline-size;box-sizing:border-box;min-width:0;border:1px solid var(--ds-line);border-radius:12px;background:color-mix(in srgb,var(--ds-panel) 78%,transparent);background-image:none;box-shadow:none;transition:background-color .18s ease,border-color .18s ease;color:var(--ds-text)}
+#main .mp-artists-card .artist-ui-card:hover{background-color:color-mix(in srgb,var(--ds-panel) 92%,transparent);border-color:color-mix(in srgb,var(--ds-body) 25%,transparent);box-shadow:none;transform:none}
+#main .mp-artists-card .artist-ui-card::before,#main .mp-artists-card .artist-ui-card::after{content:none;display:none}
+#main .mp-artists-card{container-type:inline-size;container-name:artist-dashboard}
+#main .mp-artists-card .mp-artists{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:1fr;gap:10px;align-items:stretch}
+#main .mp-artists-card .artist-ui-card{display:flex;flex-direction:column;align-items:center;padding:0 0 8px;text-align:center;min-height:0;font:inherit}
+#main .mp-artists-card .mp-artists .artist-portrait{width:100%;height:auto;max-width:none;aspect-ratio:4/5;border-radius:10px;overflow:hidden;margin:0;border:0;box-shadow:none;background:var(--ds-secondary)}
+#main .mp-artists-card .mp-artists .artist-portrait::before,#main .mp-artists-card .mp-artists .artist-portrait::after{display:none}
+#main .mp-artists-card .mp-artists .artist-portrait :is(img,.identity-avatar){width:100%;height:100%;object-fit:cover;border-radius:10px;border:0;box-shadow:none}
+#main .mp-artists-card strong{max-width:100%;color:var(--ds-text);font-size:16px;font-weight:700;line-height:28px}
+#main .mp-artists-card .mp-artist-add{justify-content:center;cursor:pointer;min-height:160px}
+#main .mp-artists-card .mp-artist-add>svg{width:42px;height:42px;stroke-width:1;color:var(--ds-body)}
+@media(max-width:600px){#main .mp-artists-card .mp-artists{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container artist-dashboard (max-width:239px){#main .mp-artists-card .mp-artists{grid-template-columns:minmax(0,1fr)}}
+/* The approved 846px card uses a 46px inset measured from its outer border. Compact cards scale the same
+   explicit ratio against their OWN inline size, never the directory width.
+   One wrapper owns all three insets, so top/left/right cannot drift apart. */
+#main .mp-artists-card .artist-ui-card{--artist-avatar-inset:clamp(6px,calc(46 * (100cqi + 2px) / 846 - 1px),45px)}
+#main .mp-artists-card .artist-avatar-wrapper{box-sizing:border-box;flex:none;width:100%;padding:var(--artist-avatar-inset) var(--artist-avatar-inset) 0;margin:0 0 6px}
+/* In the two-column profile the gallery sets the row height. Give the portrait
+   the space left inside that row after the artist name. */
+@media (width > 1100px){
+ #main .mp-profile-collections>.mp-artists-card{display:grid;grid-template-rows:auto minmax(0,1fr)}
+ #main .mp-profile-collections .mp-artists{contain:size;grid-template-rows:minmax(0,1fr)}
+ #main .mp-profile-collections .mp-artist-add{min-height:0}
+ #main .mp-profile-collections .artist-avatar-wrapper{flex:1;min-height:0}
+ #main .mp-profile-collections .mp-artists .artist-portrait{height:100%;aspect-ratio:auto}
+}
+#main .mp-artists-card .artist-ui-card .artist-portrait{display:grid;place-items:center;flex:none;position:relative;min-height:0}
+#main .mp-artists-card .artist-ui-card .profile-avatar>img{position:static;inset:auto;display:block;width:100%;height:100%;margin:0;padding:0;object-position:center}
+
+/* This editor owns a native top-layer dialog, independent of shared popup layouts. */
+#directory-editor{position:fixed;inset:0;margin:auto;box-sizing:border-box;width:min(500px,calc(100vw - 24px));max-width:calc(100vw - 24px);height:fit-content;min-height:0;max-height:calc(100dvh - 24px);padding:20px;overflow:auto;overscroll-behavior:contain;border-radius:var(--ds-radius-card);color:var(--ds-text);font-size:14px}
+#directory-editor::backdrop{background:rgba(0,0,0,.65);backdrop-filter:none}
+body:has(#directory-editor[open]){overflow:hidden}
+#directory-editor>header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+#directory-editor h2{font-size:20px;margin:0;line-height:1.4}
+#directory-editor .dialog-close{position:static;width:44px;height:44px;min-height:44px;flex:none;margin:-10px -10px -10px 0;font-size:26px}
+#directory-editor .upload-form{display:grid;gap:12px;margin:0;padding:0;min-width:0}
+#directory-editor .form-field{display:flex;flex-direction:column;gap:6px;margin:0;min-width:0;font-size:13px}
+#directory-editor :is(input:not([type=checkbox]),select,textarea){box-sizing:border-box;width:100%;min-width:0;max-width:100%;font-size:14px;line-height:1.5;margin:0;padding:8px 10px}
+#directory-editor :is(input:not([type=checkbox]),select){height:42px;min-height:42px}
+#directory-editor textarea{height:76px;min-height:76px;resize:vertical}
+#directory-editor .field-help{font-size:11px;line-height:1.5;margin:0;color:var(--ds-body)}
+#directory-editor .image-field{display:grid;grid-template-columns:76px minmax(0,1fr);align-items:center;gap:12px;padding:0;border:0;background:none;margin:0}
+#directory-editor .image-preview{width:76px;height:76px;min-width:0;margin:0;flex:none}
+#directory-editor .image-preview img{width:100%;height:100%;object-fit:cover}
+#directory-editor .image-field-controls{min-width:0;display:grid;gap:6px}
+#directory-editor input[type=file]{padding:4px;line-height:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#directory-editor input[type=file]::file-selector-button{box-sizing:border-box;height:32px;min-height:0;padding:0 8px;margin:0 8px 0 0;vertical-align:top;font:inherit;line-height:30px;border-radius:6px}
+#directory-editor .image-selection:empty{display:none}
+#directory-editor .image-selection{font-size:11px;overflow-wrap:anywhere}
+#directory-editor .genre-field{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 12px}
+#directory-editor .genre-field>.field-help{grid-column:1/-1}
+#directory-editor .directory-editor-pins{display:grid;gap:6px;min-width:0}
+#directory-editor .checkbox-line{display:flex;align-items:center;gap:8px;min-height:32px;margin:0;font-size:13px}
+#directory-editor input[type=checkbox]{width:16px;height:16px;min-height:0;flex:none;margin:0}
+#directory-editor .directory-editor-pin-row{display:flex;align-items:center;gap:6px;min-width:0}
+#directory-editor .directory-editor-pin-row>span{min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+#directory-editor .directory-editor-pin-row button{width:auto;min-height:36px;flex:none;padding:4px 8px;margin:0;font-size:12px}
+#directory-editor .form-error{margin:0;font-size:12px}
+#directory-editor .form-error:empty{display:none}
+#directory-editor footer{display:flex;justify-content:flex-end;padding:0;margin:0}
+#directory-editor footer .primary-button{width:auto;min-width:100px;min-height:42px;height:42px;padding:8px 16px;margin:0;font-size:14px}
+@media(max-width:600px){#directory-editor{padding:16px}#directory-editor .image-field{grid-template-columns:60px minmax(0,1fr);gap:10px}#directory-editor .image-preview{width:60px;height:60px}#directory-editor .genre-field{grid-template-columns:minmax(0,1fr)}#directory-editor .directory-editor-pin-row button{min-height:44px}}
+
+#directory-editor .directory-editor-pins{margin:0;padding:0}
+#directory-editor .directory-discard{position:sticky;bottom:0;padding:12px;border:1px solid var(--ds-line);border-radius:12px;background:var(--ds-panel);font-size:13px}
+#directory-editor .directory-discard p{margin:0 0 10px}
+#directory-editor .directory-discard>div{display:flex;justify-content:flex-end;gap:8px}
+#directory-editor .directory-discard button{width:auto;min-height:44px}

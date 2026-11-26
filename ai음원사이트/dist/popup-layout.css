@@ -1,0 +1,93 @@
+/* Ordinary dialogs only. Gift/shop flows and recording-mode selection never opt in. */
+:is(#dialog, dialog).compact-popup {
+  --ui-type-scale: 1; --ui-space-scale: 1; --ui-icon-scale: 1;
+  --popup-button-height: 38px; --popup-body-size: 15px;
+  box-sizing: border-box; width: fit-content; min-width: 0;
+  max-width: min(560px, calc(100% - 32px)); height: fit-content; min-height: 0;
+  max-height: calc(100dvh - 32px); margin: auto; padding: 20px;
+  font-size: var(--popup-body-size); line-height: 1.6; overflow: auto;
+}
+:is(#dialog, dialog).compact-popup:has(.popup-prompt) { max-width: min(460px, calc(100% - 32px)); }
+#sing-exit-dialog.compact-popup:has(.popup-prompt) { max-width: min(560px, calc(100% - 32px)); }
+:is(#dialog, dialog).compact-popup :is(#dialog-content, .mypage-dialog, .draft-delete-dialog, .dubbing-page) {
+  min-width: 0; min-height: 0; width: auto; max-width: 100%; padding: 0; margin: 0;
+}
+:is(#dialog, dialog).compact-popup :is(p, label, input, select, textarea) { font-size: var(--popup-body-size); line-height: 1.6; }
+:is(#dialog, dialog).compact-popup p { margin: 0 0 12px; color: var(--ds-body); font-weight: 400; overflow-wrap: anywhere; }
+:is(#dialog, dialog).compact-popup :is(.field-help, .quiet, small, .studio-confirm-detail) { font-size: 13px; line-height: 1.6; }
+:is(#dialog, dialog).compact-popup h2 { font-size: 19px; font-weight: 600; line-height: 1.5; margin: 0 0 12px; padding: 0; }
+:is(#dialog, dialog).compact-popup .popup-prompt { color: var(--ds-text); font-size: var(--popup-body-size); font-weight: 500; line-height: 1.6; margin: 0 0 16px; text-align: start; }
+/* Reserve close-button space only on the title. A gutter on the first wrapper
+   narrows every tab, field and footer below it and cannot be reset by its skin. */
+#dialog.compact-popup #dialog-content > :is(h2, .popup-prompt):first-of-type,
+#dialog.compact-popup #dialog-content > :is(form, section, div):first-child > :is(h2, .popup-prompt):first-of-type { padding-inline-end: 44px; }
+:is(#dialog, dialog).compact-popup:has(> .voice-dialog-close) > :is(h2, .popup-prompt):first-of-type { padding-inline-end: 32px; }
+:is(#dialog, dialog).compact-popup :is(.dialog-close, .voice-dialog-close, .activity-settings-close) { top: 8px; right: 8px; }
+:is(#dialog, dialog).compact-popup :is(button, a.primary-button, a.small-button, label.small-button):not(:where(.dialog-close, .voice-dialog-close, .activity-settings-close, .profile-preview-close, .profile-preview-photo, .cgl-close, [data-directory-close], #v3-close-create)) {
+  box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; width: fit-content; min-width: 0; max-width: 100%;
+  height: var(--popup-button-height); min-height: var(--popup-button-height);
+  padding: 0 13px; margin-block: 0; font-size: 14px; line-height: 1.4;
+  border-radius: var(--ds-radius-sm, 8px); vertical-align: middle; white-space: normal; overflow-wrap: anywhere; transform: none;
+}
+:is(#dialog, dialog).compact-popup :is(.inline-actions, .sing-exit-actions, .fm-confirm, .dubbing-form-actions, .profile-preview-actions, footer, .directory-discard > div) {
+  display: flex; flex-flow: row wrap; justify-content: flex-end; align-items: center;
+  gap: 8px; padding: 0; margin: 16px 0 0; border: 0;
+}
+:is(#dialog, dialog).compact-popup .popup-prompt + :is(.inline-actions, .sing-exit-actions, footer) { margin-top: 0; }
+:is(#dialog, dialog).compact-popup :is(form:not(.room-song-search), #dialog-content, .studio-settings, .recording-settings, .mypage-dialog, .dubbing-page) > :is(button.primary-button, button.small-button, a.primary-button, a.small-button):not(.dialog-close) {
+  display: flex; margin: 16px 0 0 auto;
+}
+:is(#dialog, dialog).compact-popup :is(.form-error, .studio-progress, [role="status"]):empty { display: none; }
+:is(#dialog, dialog).compact-popup :is(.form-error, .studio-progress):not(:empty) { margin: 12px 0 0; }
+:is(#dialog, dialog).compact-popup :is(#dialog-content, form) > p:last-child { margin-bottom: 0; }
+:is(#dialog, dialog).compact-popup input:not([type="checkbox"], [type="radio"], [type="range"]),
+:is(#dialog, dialog).compact-popup :is(select, textarea) { min-width: 0; max-width: 100%; box-sizing: border-box; }
+:is(#dialog, dialog).compact-popup .form-field { margin-bottom: 12px; }
+:is(#dialog, dialog).compact-popup .draft-delete-dialog { text-align: start; }
+:is(#dialog, dialog).compact-popup [hidden] { display: none !important; }
+#activity-preferences.compact-popup { --pref-gutter: 0px; }
+:is(#dialog, dialog).compact-popup > header { padding: 0; margin: 0 0 12px; }
+:is(#dialog, dialog).compact-popup > header h2 { margin-bottom: 0; padding-inline-end: 44px; }
+/* Rich editors retain their usable workspace; only their controls use this scale. */
+:is(#dialog, dialog).compact-popup.photo-crop-dialog { max-width: min(480px, calc(100% - 32px)); }
+:is(#dialog, dialog).compact-popup .carcard button { display: flex; margin-inline-start: auto; }
+:is(#dialog, dialog).compact-popup .photo-crop-tools { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+:is(#dialog, dialog).compact-popup form[method="dialog"] > button:last-child { display: flex; margin: 16px 0 0 auto; }
+:is(#dialog, dialog).compact-popup.duet-editor-dialog { max-width: min(1000px, calc(100% - 32px)); }
+:is(#dialog, dialog).compact-popup.voice-panel-docked { margin: 0; max-height: 100%; }
+@media (max-width: 800px) {
+  :is(#dialog, dialog).compact-popup { --popup-button-height: 44px; --popup-body-size: 14px; padding: 18px; }
+  :is(#dialog, dialog).compact-popup h2 { font-size: 18px; }
+  :is(#dialog, dialog).compact-popup :is(.field-help, small, .studio-confirm-detail) { font-size: 13px; }
+}
+
+/* Song menus keep one icon, label and chevron column. Compact form buttons and
+   inline music counters must not resize or center individual menu items. */
+#dialog.compact-popup:has(.track-options) {
+ /* This menu has no title: keep the close target above its full-width rows. */
+ width:min(360px,calc(100vw - 32px));max-width:360px;padding:56px 12px 12px;
+}
+#dialog.compact-popup #dialog-content>.track-options {
+ padding:0;margin:0;
+ max-height:calc(100dvh - 104px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));
+}
+:is(#dialog,#chart-track-menu) .track-options>.track-option {
+ box-sizing:border-box;display:grid!important;
+ grid-template-columns:20px minmax(0,1fr) 18px;align-items:center;
+ justify-content:initial;gap:12px;width:100%!important;min-width:0;
+ min-height:44px!important;height:auto!important;padding:10px 8px!important;margin:0;
+ text-align:left;white-space:normal;line-height:1.5;
+}
+:is(#dialog,#chart-track-menu) .track-options>.track-option>span {
+ min-width:0;display:block;font-size:14px!important;font-weight:400!important;
+ line-height:1.5;overflow-wrap:anywhere;
+}
+:is(#dialog,#chart-track-menu) .track-options>.track-option>svg {
+ width:20px!important;height:20px!important;margin:0!important;
+ justify-self:center;flex:none;padding:0!important;border:0!important;
+ border-radius:0!important;background:none!important;
+}
+:is(#dialog,#chart-track-menu) .track-options>.track-option>svg:last-child {
+ width:16px!important;height:16px!important;color:var(--ds-muted);
+}

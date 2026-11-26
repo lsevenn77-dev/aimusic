@@ -1,3 +1,4 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,run,query,now,id,fail,json} from './db.js';
 import {MAX_AUDIO,objectResponse,originalKey} from './storage.js';
 
@@ -8,7 +9,7 @@ export async function originalArchiveRoute(req,env,path){
  if(!path.startsWith('/internal/archives/'))return null;
  if(path==='/internal/archives/claim'&&req.method==='POST'){
   await run(env,"INSERT OR IGNORE INTO original_archives(track_id,source_key,source_bytes,state,updated) SELECT id,'original/'||id||'.wav',original_bytes,'queued',? FROM tracks WHERE original_ext='wav' AND original_key='' AND status IN ('published','hidden')",now());
-  const token=id(),job=await query(env,`UPDATE original_archives SET lease_token=?,lease_until=?,attempts=attempts+1,updated=? WHERE track_id=(SELECT a.track_id FROM original_archives a JOIN tracks t ON t.id=a.track_id WHERE a.lease_until<? AND ((a.state IN ('queued','processing') AND a.attempts<3 AND t.original_ext='wav' AND t.status IN ('published','hidden')) OR a.state='committed') ORDER BY CASE WHEN a.state='committed' THEN 0 ELSE 1 END,a.updated LIMIT 1) RETURNING *`,token,now()+900,now(),now()).first();
+  const token=id(),job=await query(env,`UPDATE original_archives SET lease_token=?,lease_until=?,attempts=attempts+1,updated=? WHERE track_id=(SELECT a.track_id FROM original_archives a JOIN tracks t ON t.id=a.track_id WHERE a.lease_until<? AND ((a.state IN ('queued','processing') AND a.attempts<3 AND t.original_ext='wav' AND t.status IN ('published','hidden') AND NOT EXISTS(SELECT 1 FROM cover_compressions c WHERE c.track_id=a.track_id AND c.state IN ('processing','committed'))) OR a.state='committed') ORDER BY CASE WHEN a.state='committed' THEN 0 ELSE 1 END,a.updated LIMIT 1) RETURNING *`,token,now()+900,now(),now()).first();
   if(job&&job.state!=='committed'){
    job.state='processing';job.output_key=`archive/${job.track_id}/${token}.flac`;
    await run(env,"UPDATE original_archives SET state='processing',output_key=?,output_sha='',output_bytes=0,pcm_sha='' WHERE track_id=? AND lease_token=?",job.output_key,job.track_id,token);
@@ -59,5 +60,5 @@ export async function originalArchiveRoute(req,env,path){
   if(originalKey(await one(env,'SELECT * FROM tracks WHERE id=?',job.track_id))!==job.output_key)await env.BUCKET.delete(job.output_key);
   return json({ok:true});
  }
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }

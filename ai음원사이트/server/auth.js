@@ -1,28 +1,46 @@
+import * as AifectMessages from '../shared/system-messages.js';
+import {sourceFromRequest} from './signup-source.js';
 import {rememberAppleToken} from './account-safety.js';
+import {ensureWelcomeReceipt} from './welcome-notices.js';
 import {nickname,nicknameBatch} from './nicknames.js';
-import {publicUser,producerNameSQL,publicCrewNameSQL} from './identity.js';
+import {publicUser,producerNameSQL,publicNameSQL} from './identity.js';
 import {createRemoteJWKSet,jwtVerify,SignJWT,importPKCS8} from 'jose';
 import {one,run,query,now,id,fail,str,json,rate} from './db.js';
 import {membership} from './membership.js';
+import {reviewAccount} from './billing-review.js';
+import {eventUntilSQL,resolvePremiumUntil} from './premium-event.js';
 import {applyPremiumGrant} from './premium-grant.js';
 import {mobileAuthRoute,finishMobile} from './mobile-auth.js';
 import {nativeAuthRoute} from './native-auth.js';
+import {isConsoleAdmin} from './admin-session.js';
+import {isMcpAdmin} from './admin-mcp-auth.js';
 const enc=new TextEncoder();
 export const hash=async s=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(s))),x=>x.toString(16).padStart(2,'0')).join('');
 const cookie=(name,value,age,secure=true)=>`${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${age}${secure?'; Secure':''}`;
 export function cookies(req){return Object.fromEntries((req.headers.get('cookie')||'').split(';').map(x=>x.trim().split('=')));}
 // Operators are listed by user id in ADMIN_USER_IDS; there is no self-service admin role.
-export const isAdmin=(env,user)=>!!user&&(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
+export const configuredAdminIds=env=>(env.ADMIN_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean);
+export const isAdmin=(env,user)=>isConsoleAdmin(user)||isMcpAdmin(user)||!!user&&configuredAdminIds(env).includes(user.id);
 // Moderation operators have no access to payout accounts or other administrator data.
 export const isTrackModerator=(env,user)=>isAdmin(env,user)||!!user&&(env.TRACK_REVIEW_USER_IDS||'').split(',').map(s=>s.trim()).filter(Boolean).includes(user.id);
+// Request-local security context, never serialized or reused across requests.
+const viewerBlocks=new WeakMap(),viewerArtistBlocks=new WeakMap();
+export const viewerBlockedArtists=user=>viewerArtistBlocks.get(user);
+export const viewerBlockedIds=user=>viewerBlocks.get(user);
 export async function viewer(req,env){
  const token=cookies(req).aifect_session;if(!token)return null;
  // Resolve the session and public nickname together on every request; no auth cache.
- const user=await one(env,`SELECT u.id,u.email,u.provider,u.premium_until,u.apple_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicCrewNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted'`,await hash(token),now());
+ const record=await one(env,`SELECT u.id,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,u.email,u.provider,u.premium_until,u.apple_premium_until,${eventUntilSQL} event_premium_until,COALESCE(${producerNameSQL()},CASE WHEN u.provider='email' THEN u.name ELSE '리스너 '||substr(u.id,1,8) END) name,${publicNameSQL()} display_name,p.id profile_id,COALESCE(p.image_version,'') image_version,(SELECT json_group_array(CASE WHEN b.user_id=u.id THEN b.blocked_id ELSE b.user_id END) FROM user_blocks b WHERE b.user_id=u.id OR b.blocked_id=u.id) blocked_ids,(SELECT json_group_array(ab.artist_id) FROM artist_follow_blocks ab WHERE ab.user_id=u.id AND ab.direction='artist') blocked_artists FROM sessions s JOIN users u ON u.id=s.user_id LEFT JOIN producers p ON p.user_id=u.id WHERE s.token=? AND s.expires>? AND u.provider!='deleted' AND u.account_type='human'`,await hash(token),now());
+ if(!record)return null;
+ const {blocked_ids,blocked_artists,...user}=record;
+ if(reviewAccount(env,user))user.billing_review_retired=!!await one(env,'SELECT 1 FROM admin_audit WHERE id=?','billing-review-retired:'+user.id);
  const granted=await applyPremiumGrant(env,user);
- return granted?{...granted,base_premium_until:granted.premium_until,premium_until:Math.max(granted.premium_until,granted.apple_premium_until||0)}:null;
+ const resolved={...granted,base_premium_until:granted.premium_until,premium_until:resolvePremiumUntil(granted,now())};
+ viewerBlocks.set(resolved,JSON.parse(blocked_ids||'[]'));
+ viewerArtistBlocks.set(resolved,JSON.parse(blocked_artists||'[]'));
+ return resolved;
 }
-export const requireUser=u=>{if(!u)fail(401,'로그인 후 이용해주세요.');return u;};
+export const requireUser=u=>{if(!u)fail(401,AifectMessages.signIn);return u;};
 async function passwordHash(password,salt,env){
  if(!env.AUTH_PEPPER)fail(503,'로그인 설정을 준비하고 있습니다.');
  const key=await crypto.subtle.importKey('raw',enc.encode(password+env.AUTH_PEPPER),'PBKDF2',false,['deriveBits']);
@@ -45,7 +63,8 @@ export async function authRoute(req,env,path,user){
  const mobile=await mobileAuthRoute(req,env,path,user);if(mobile)return mobile;
  const native=await nativeAuthRoute(req,env,path);if(native)return native;
  if(path==='/api/me'){
-  const [plan,state]=await Promise.all([membership(env,user),user&&url.searchParams.get('state')==='1'?one(env,`SELECT (SELECT json_group_array(track_id) FROM likes WHERE user_id=?) likes,(SELECT json_group_array(json_object('kind',kind,'target_id',target_id)) FROM follows WHERE user_id=?) follows`,user.id,user.id):null]);
+  if(user)await ensureWelcomeReceipt(env,user.id);
+  const [plan,state]=await Promise.all([membership(env,user),user&&url.searchParams.get('state')==='1'?one(env,`SELECT (SELECT json_group_array(track_id) FROM likes WHERE user_id=? AND track_id IS NOT NULL) likes,(SELECT json_group_array(json_object('kind',kind,'target_id',target_id)) FROM follows WHERE user_id=?) follows`,user.id,user.id):null]);
   return json({user,admin:isAdmin(env,user),track_moderator:isTrackModerator(env,user),membership:plan,providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER,...(state?{interaction_state:{likes:JSON.parse(state.likes).map(id=>({id})),follows:JSON.parse(state.follows)}}:{})});
  }
  if(path==='/api/auth/google/nonce'&&req.method==='POST'){
@@ -59,7 +78,7 @@ export async function authRoute(req,env,path,user){
  if((path==='/api/auth/google/token'||path==='/api/auth/google/callback')&&req.method==='POST'){
   const isRedirect=path.endsWith('/callback'),jar=cookies(req);
   const b=isRedirect?Object.fromEntries(new URLSearchParams(await req.text())):await req.json();
-  if(isRedirect&&(!jar.g_csrf_token||!b.g_csrf_token||!equal(jar.g_csrf_token,b.g_csrf_token)))fail(403,'로그인 요청을 확인할 수 없습니다. 다시 시도해주세요.');
+  if(isRedirect&&(!jar.g_csrf_token||!b.g_csrf_token||!equal(jar.g_csrf_token,b.g_csrf_token)))fail(403,'로그인 요청을 확인할 수 없습니다. 다시 시도해 주세요.');
   const state=jar.aifect_google_oauth||'';
   const st=await query(env,"DELETE FROM oauth_states WHERE state=? AND provider='google-id' AND expires>? RETURNING *",await hash(state),now()).first();
   if(!st||!env.GOOGLE_CLIENT_ID)fail(400,'로그인 요청이 만료됐습니다.');
@@ -67,7 +86,7 @@ export async function authRoute(req,env,path,user){
   let payload;try{({payload}=await jwtVerify(str(b.credential,10000),jwks,{issuer:['https://accounts.google.com','accounts.google.com'],audience:env.GOOGLE_CLIENT_ID}));}catch{fail(401,'Google 인증을 확인할 수 없습니다.');}
   if(payload.nonce!==st.nonce||payload.email_verified!==true||!payload.email||!payload.sub)fail(401,'Google 인증 정보가 일치하지 않습니다.');
   let u=await one(env,"SELECT id,name,email,provider FROM users WHERE provider='google' AND subject=?",payload.sub);
-  if(!u){u={id:id(),name:String(payload.name||'AIFECT 리스너').slice(0,40),email:payload.email,provider:'google'};await run(env,'INSERT INTO users(id,email,name,provider,subject,created) VALUES(?,?,?,?,?,?)',u.id,u.email,u.name,'google',payload.sub,now());}
+  if(!u){u={id:id(),name:String(payload.name||'AIFECT 리스너').slice(0,40),email:payload.email,provider:'google'};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',u.id,u.email,u.name,'google',payload.sub,sourceFromRequest(req));}
   const appResult=await finishMobile(req,env,u,null,!isRedirect);if(appResult)return appResult;
   const headers=new Headers({'cache-control':'no-store'});
   headers.append('set-cookie',await session(env,u,secure));
@@ -80,10 +99,24 @@ export async function authRoute(req,env,path,user){
   const token=cookies(req).aifect_session;if(token)await run(env,'DELETE FROM sessions WHERE token=?',await hash(token));
   return json({ok:true},200,{'set-cookie':cookie('aifect_session','',0,secure)});
  }
+ if(path==='/api/account/logout-others'&&req.method==='POST'){
+  requireUser(user);
+  const current=await hash(cookies(req).aifect_session);
+  // The caller must still own a live session when the transaction starts.
+  const live='EXISTS(SELECT 1 FROM sessions WHERE user_id=? AND token=? AND expires>?)';
+  const args=[user.id,current,user.id,current,now()];
+  const result=await env.DB.batch([
+   query(env,'SELECT 1 AS live FROM sessions WHERE user_id=? AND token=? AND expires>?',user.id,current,now()),
+   query(env,'DELETE FROM push_devices WHERE user_id=? AND session_token<>? AND '+live,...args),
+   query(env,'DELETE FROM sessions WHERE user_id=? AND token<>? AND '+live,...args)
+  ]);
+  if(!result[0].results.length)fail(401,AifectMessages.signIn);
+  return json({ok:true});
+ }
  if(path==='/api/account/password'&&req.method==='PUT'){
-  requireUser(user);if(user.provider!=='email')fail(400,'소셜 로그인 비밀번호는 해당 서비스에서 변경해주세요.');
+  requireUser(user);if(user.provider!=='email')fail(400,'소셜 로그인 비밀번호는 해당 서비스에서 변경해 주세요.');
   await rate(env,'password-change:'+user.id,8,900);const b=await req.json(),current=str(b.current_password,128),next=str(b.new_password,128);
-  if(next.length<12||next===current)fail(400,'현재 비밀번호와 다른 12자 이상의 새 비밀번호를 입력해주세요.');
+  if(next.length<12||next===current)fail(400,'현재 비밀번호와 다른 12자 이상의 새 비밀번호를 입력해 주세요.');
   const stored=await one(env,"SELECT password FROM users WHERE id=? AND provider='email'",user.id),[salt,saved]=(stored?.password||'invalid:invalid').split(':');
   if(!saved||!equal(await passwordHash(current,salt,env),saved))fail(403,'현재 비밀번호가 올바르지 않습니다.');
   const newSalt=id(),encoded=newSalt+':'+await passwordHash(next,newSalt,env),token=id()+id();
@@ -92,18 +125,18 @@ export async function authRoute(req,env,path,user){
    query(env,'DELETE FROM sessions WHERE user_id=? AND EXISTS(SELECT 1 FROM users WHERE id=? AND password=?)',user.id,user.id,encoded),
    query(env,'INSERT INTO sessions(token,user_id,expires) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM users WHERE id=? AND password=?)',await hash(token),user.id,now()+86400*30,user.id,encoded)
   ]);
-  if(!await one(env,'SELECT token FROM sessions WHERE token=?',await hash(token)))fail(409,'계정 정보가 변경됐습니다. 다시 로그인해주세요.');
+  if(!await one(env,'SELECT token FROM sessions WHERE token=?',await hash(token)))fail(409,'계정 정보가 변경됐습니다. 다시 로그인해 주세요.');
   return json({ok:true},200,{'set-cookie':cookie('aifect_session',token,86400*30,secure)});
  }
  if(['/api/auth/register','/api/auth/login'].includes(path)&&req.method==='POST'){
   const body=await req.json(),email=str(body.email,254).toLowerCase(),password=str(body.password,128);
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<12)fail(400,'이메일과 12자 이상의 비밀번호를 입력해주세요.');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<12)fail(400,'이메일과 12자 이상의 비밀번호를 입력해 주세요.');
   await rate(env,'auth-email:'+await hash(email),12,900);
   let u=await one(env,"SELECT * FROM users WHERE email=? AND provider='email'",email);
   if(path.endsWith('/register')){
-   if(u)fail(409,'이미 가입된 이메일입니다. 로그인해주세요.');
-   const salt=id(),name=nickname(str(body.name,40)).name,uid=id();
-   await nicknameBatch(env,uid,name,[query(env,'INSERT INTO users(id,email,name,password,provider,subject,created) VALUES(?,?,?,?,?,?,?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,now())]);
+   if(u)fail(409,'이미 가입된 이메일입니다. 로그인해 주세요.');
+   const salt=id(),name=nickname(body.name).name,uid=id();
+   await nicknameBatch(env,uid,name,[query(env,'INSERT INTO users(id,email,name,password,provider,subject,created,signup_source) VALUES(?,?,?,?,?,?,unixepoch(),?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,sourceFromRequest(req))]);
    u={id:uid,email,name,provider:'email'};
   }else{
    const [salt,saved]=(u?.password||'invalid:invalid').split(':');
@@ -129,7 +162,7 @@ export async function authRoute(req,env,path,user){
  }
  const params=req.method==='POST'?new URLSearchParams(await req.text()):url.searchParams;
  const state=params.get('state')||'',code=params.get('code');
- if(!state||cookies(req).aifect_oauth!==state||!code)fail(400,'로그인이 취소되었거나 만료됐습니다. 다시 시도해주세요.');
+ if(!state||cookies(req).aifect_oauth!==state||!code)fail(400,'로그인이 취소되었거나 만료됐습니다. 다시 시도해 주세요.');
  const st=await query(env,'DELETE FROM oauth_states WHERE state=? AND provider=? AND expires>? RETURNING *',await hash(state),p,now()).first();
  if(!st)fail(400,'로그인 요청이 만료됐습니다.');
  const tokenURL={google:'https://oauth2.googleapis.com/token',kakao:'https://kauth.kakao.com/oauth/token',apple:'https://appleid.apple.com/auth/token'}[p];
@@ -149,7 +182,7 @@ export async function authRoute(req,env,path,user){
   identity={sub:payload.sub,name:name||'AIFECT 리스너',email:[true,'true'].includes(payload.email_verified)?payload.email:null};
  }
  let u=await one(env,'SELECT id FROM users WHERE provider=? AND subject=?',p,identity.sub);
- if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created) VALUES(?,?,?,?,?,?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,now());}
+ if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,sourceFromRequest(req));}
  if(p==='apple')await rememberAppleToken(env,u.id,token.refresh_token);
  const appResult=await finishMobile(req,env,u,null);if(appResult)return appResult;
  return new Response(null,{status:303,headers:{location:'/#account?welcome=1','set-cookie':await session(env,u,secure),'cache-control':'no-store'}});

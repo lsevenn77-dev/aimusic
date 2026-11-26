@@ -38,7 +38,7 @@ test('ranking uses like time, not cover upload time; ties and active votes are s
 });
 test('ranking filters genre, literal search and original; singers aggregate visible public covers only',async t=>{
  const f=await setup(t),at=Math.floor(Date.now()/1000);
- f.sql.prepare('INSERT INTO likes VALUES(?,?,?)').run('owner','cover-a',at);
+ f.sql.prepare('INSERT INTO likes(user_id,track_id,created) VALUES(?,?,?)').run('owner','cover-a',at);
  for(const params of ['genre=EDM','q=missing','q=%25','original_id=two'])assert.deepEqual((await f.call('/api/cover-rankings?period=all&'+params)).body.tracks,[]);
  assert.equal((await f.call('/api/cover-rankings?period=all&q=Singer&genre=Rock&original_id=one')).body.tracks.length,1);
  let r=await f.call('/api/cover-rankings?period=all&kind=singers');assert.equal(r.body.singers[0].id,'performer');assert.equal(r.body.singers[0].rank_likes,1);
@@ -47,7 +47,7 @@ test('ranking filters genre, literal search and original; singers aggregate visi
  assert.deepEqual((await f.call('/api/cover-rankings?period=all&kind=singers')).body.singers,[]);
  for(const args of ['period=bad','genre='+('x'.repeat(81)),'kind=bad','original_id=cover-a'])assert.ok((await f.call('/api/cover-rankings?'+args)).status>=400);
 });
-test('cover uploader may remove another comment but cannot edit it or moderate a different cover',async t=>{
+test('only the writer and the specific track owner may delete a comment',async t=>{
  const f=await setup(t),c=(await f.call('/api/tracks/cover-a/comments','POST',{body:'A comment'},'owner')).body.id;
  assert.equal((await f.call('/api/comments/'+c,'PATCH',{body:'changed'},'other')).status,403);
  assert.equal((await f.call('/api/comments/'+c,'DELETE',null,'third')).status,403);
@@ -59,7 +59,28 @@ test('cover uploader may remove another comment but cannot edit it or moderate a
  assert.deepEqual((await f.call('/api/tracks/cover-a/comments')).body.comments,[],'removed comments are omitted');
  assert.equal((await f.call('/api/tracks/cover-a')).body.track.comments,0);
  const original=(await f.call('/api/tracks/one/comments','POST',{body:'Original comment'},'third')).body.id;
- assert.equal((await f.call('/api/comments/'+original,'DELETE',null,'owner')).status,403,'original uploader gains no new moderation power');
+ assert.equal((await f.call('/api/comments/'+original,'DELETE',null,null)).status,401);
+ assert.equal((await f.call('/api/tracks/one/comments','GET',null,null)).body.comments[0].can_delete,false);
+ assert.equal((await f.call('/api/comments/'+original,'DELETE',null,'other')).status,403,'unrelated user cannot delete');
+ assert.equal((await f.call('/api/comments/'+original,'PATCH',{body:'not yours'},'owner')).status,403,'post owner cannot edit someone else comment');
+ assert.equal((await f.call('/api/tracks/one/comments','GET',null,'owner')).body.comments[0].can_delete,true,'post owner sees delete');
+ assert.equal((await f.call('/api/tracks/one/comments','GET',null,'other')).body.comments[0].can_delete,false,'other user does not see delete');
+ assert.equal((await f.call('/api/comments/'+original,'DELETE',null,'owner')).status,200,'original post owner can delete');
+});
+test('reply authors can edit and delete, and track owner deletion preserves other replies',async t=>{
+ const f=await setup(t),list='/api/tracks/one/comments';
+ const root=(await f.call(list,'POST',{body:'Parent'},'third')).body.id;
+ const reply=(await f.call(list,'POST',{body:'Reply',parent_id:root},'other')).body.id;
+ const endpoint='/api/comments/'+reply;
+ assert.equal((await f.call(endpoint,'PATCH',{body:'Edited reply'},'other')).status,200);
+ assert.equal((await f.call(endpoint+'/like','PUT',null,'third')).status,200);
+ assert.equal((await f.call(list,'GET',null,'third')).body.comments.find(x=>x.id===reply).likes,1);
+ assert.equal((await f.call(endpoint+'/like','DELETE',null,'third')).status,200);
+ assert.equal((await f.call('/api/comments/'+root,'DELETE',null,'owner')).status,200);
+ const remaining=(await f.call(list)).body.comments;
+ assert.deepEqual(remaining.map(c=>[c.id,c.body,c.parent_id,c.likes]),[[reply,'Edited reply',null,0]]);
+ assert.equal((await f.call(endpoint,'DELETE',null,'other')).status,200);
+ assert.equal((await f.call('/api/tracks/one')).body.track.comments,0);
 });
 test('reports are authenticated, deduplicated, private and reviewable with audited admin decisions',async t=>{
  const f=await setup(t),c=(await f.call('/api/tracks/cover-a/comments','POST',{body:'Reported body'},'other')).body.id,path='/api/comments/'+c+'/report',body={reason:'spam',details:'Repeated promotion'};

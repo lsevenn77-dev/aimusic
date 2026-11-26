@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
-import {KARAOKE_TERMS_VERSION} from '../shared/site-info.js';
+import {KARAOKE_TERMS_VERSION,ORIGINAL_UPLOAD_TERMS_VERSION} from '../shared/site-info.js';
 import {publicPage} from '../server/public-pages.js';
 
 const upload={title:'노래방 동의',artist:'AI',producer:'Creator',genre:'Rock',ai_tool:'QA',extension:'wav',bytes:128,rights:true,is_ai:true};
@@ -16,6 +16,19 @@ test('upload requires the karaoke MR and cover consent and records its version',
  const row=f.sql.prepare('SELECT karaoke_terms,karaoke_at FROM tracks WHERE id=?').get(ok.body.id);
  assert.equal(row.karaoke_terms,KARAOKE_TERMS_VERSION);
  assert.ok(row.karaoke_at>0);
+});
+
+test('new original upload records the combined license only after explicit agreement',async t=>{
+ const f=await fixture(t);
+ const body={...upload,karaoke:true,upload_consent_version:ORIGINAL_UPLOAD_TERMS_VERSION};
+ for(const invalid of [{rights:false},{karaoke:false},{is_ai:false},{upload_consent_version:null},{upload_consent_version:'unknown'}]){
+  assert.equal((await f.call('/api/uploads','POST',{...body,...invalid})).status,400);
+ }
+ const ok=await f.call('/api/uploads','POST',body);
+ assert.equal(ok.status,201);
+ const track=f.sql.prepare('SELECT karaoke_terms,karaoke_at,rights_accepted FROM tracks WHERE id=?').get(ok.body.id);
+ assert.equal(track.karaoke_terms,ORIGINAL_UPLOAD_TERMS_VERSION);
+ assert.ok(track.karaoke_at>0 && track.rights_accepted>0);
 });
 
 test('tracks uploaded before the clause opt in once, only by their owner',async t=>{

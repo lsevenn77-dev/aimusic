@@ -1,0 +1,244 @@
+/* Scoped row controls. Colors, glyphs and playback artwork come from AIFECT. */
+.list-actions,.list-action,.music-collection.layout-list,.queue-panel{
+ --list-action-hit:44px;--list-icon-size:28px;--list-icon-padding:4px;--list-action-gap:8px;
+}
+:is(#main,#dialog) .list-actions{display:flex;align-items:center;justify-content:flex-end;gap:var(--list-action-gap);flex:none;flex-wrap:nowrap;margin-left:auto}
+:is(#main,#dialog) .list-action{
+ box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+ min-width:var(--list-action-hit);min-height:var(--list-action-hit);height:var(--list-action-hit);
+ padding:0 8px;gap:var(--list-action-gap);vertical-align:middle;line-height:1;white-space:nowrap;
+ border-radius:var(--ds-radius-sm);
+}
+:is(#main,#dialog) .list-action:is(.play-row-icon,.song-cover-play,.song-cover-more,.song-cover-join,.home-play,.home-menu,.song-table-play,.icon-button){width:var(--list-action-hit);padding:0;border:0;background:transparent;box-shadow:none;color:var(--ds-body)}
+/* Beat legacy full-button artwork sizes, within opted-in rows only. */
+:is(#main,#dialog) .list-action svg,:is(#main,#dialog) .list-action:has(>.audio-play-icon)>.audio-play-icon{
+ box-sizing:border-box!important;display:block;flex:0 0 var(--list-icon-size);width:var(--list-icon-size)!important;height:var(--list-icon-size)!important;
+ max-width:none;max-height:none;margin:0;padding:var(--list-icon-padding)!important;border:2px solid var(--ds-muted)!important;border-radius:50%;fill:none;stroke-width:1.8;
+}
+:is(#main,#dialog) .list-action svg.audio-play-icon,:is(#main,#dialog) .list-action:has(>.audio-play-icon)>.audio-play-icon{padding:0!important;border:0!important}
+:is(#main,#dialog) .list-action[aria-pressed=true],:is(#main,#dialog) .list-action.is-active{color:var(--ds-social)}
+:is(#main,#dialog) .list-action[aria-pressed=true] svg:not(.audio-play-icon){border-color:currentColor!important}
+:is(#main,#dialog) .list-action:disabled{cursor:default;opacity:.5}
+#main .song-cover-play-art{width:var(--list-icon-size,28px);height:var(--list-icon-size,28px)}
+#main .song-cover-pause{inset:0;border-radius:50%}
+#main .home-row .home-pause{inset:0;align-items:center;justify-content:center}
+#main .song-cover-row{flex-wrap:wrap}
+#main :is(.song-covers-panel,.mp-work-list) .song-cover-row{gap:8px}
+#main .song-cover-row .song-cover-like{display:inline-flex;width:auto;min-width:44px}
+#main .song-cover-row .song-cover-detail{min-width:120px}
+#main .song-cover-row .song-cover-expand{white-space:nowrap}
+#main .song-cover-row .list-actions{position:relative;z-index:1}
+#main .song-cover-row .list-actions>.list-action{position:relative;z-index:1}
+#main .ml-song-actions,#main .song-table-tools{display:flex;align-items:center;gap:8px;flex-shrink:0}
+/* Duration is absent from list markup, so there is no empty grid column. */
+#main .song-table-head,#main .song-table-row{grid-template-columns:28px minmax(0,1fr) 64px 64px 64px 44px auto;gap:8px}
+#main .song-table-chart .song-table-head,#main .song-table-chart .song-table-row{grid-template-columns:28px minmax(0,1fr) 64px 64px 64px 48px 48px 44px auto}
+#main .song-table-head>span,#main .song-table-row .song-table-comments{display:flex;align-items:center;justify-content:center}
+#main .song-table-head>span:nth-child(2){justify-content:flex-start}
+#main .song-table-comments{min-width:44px;min-height:44px;gap:8px}
+#main .song-table-comments svg{width:18px;height:18px;flex-shrink:0}
+/* The optional collection list shares sizes; the grid variant keeps its CSS. */
+#main .layout-list :is(.cover-collection-actions,.cover-collection-social){display:flex;align-items:center;justify-content:flex-end;gap:var(--list-action-gap);flex-wrap:wrap}
+#main .layout-list :is(.cover-collection-actions,.cover-collection-social)>:is(button,a){display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;gap:8px}
+#main .layout-list :is(.cover-collection-actions,.cover-collection-social) svg{width:var(--list-icon-size);height:var(--list-icon-size);flex-shrink:0}
+/* Queue is a list inside a dialog; its player toolbar keeps existing geometry. */
+#dialog .queue-row-tools{display:flex;align-items:center;justify-content:flex-end;gap:var(--list-action-gap);flex-shrink:0}
+#dialog .queue-row-tools button{min-width:44px;min-height:44px;width:44px;height:44px}
+#dialog .queue-play-hint svg{width:var(--list-icon-size);height:var(--list-icon-size)}
+@media(max-width:1100px){
+ #main .song-table-head{display:none}
+ #main .song-table-row,#main .song-table-chart .song-table-row{display:flex;flex-wrap:wrap;padding:12px;gap:8px}
+ #main .song-table-row .song-table-info{flex:1 1 calc(100% - 36px);min-width:120px}
+ #main .song-table-row .song-table-position{width:20px}
+ #main .song-table-row .song-table-plays,#main .song-table-row .song-table-previous{display:none}
+ #main .song-table-row .song-table-like{margin-left:auto}
+ #main .song-table-row .song-table-play{margin-left:0}
+ #main .song-table-row .song-table-like span{display:inline}
+}
+@media(max-width:600px){
+ .list-actions,.list-action,.music-collection.layout-list,.queue-panel{--list-icon-size:24px;--list-icon-padding:2px;--list-action-gap:6px}
+ #main .play-page .play-song-row{flex-wrap:wrap;gap:6px}
+ #main .play-page .play-song-detail{flex:1 1 calc(100% - 60px)}
+ #main .play-page .play-song-count{margin-left:auto}
+ #main .play-page .play-song-row>.list-actions{flex-basis:100%}
+ #main .song-cover-row .song-cover-detail{flex:1 1 calc(100% - 100px)}
+ #main .song-cover-row .list-actions{flex-basis:100%}
+ #main .song-cover-row .song-cover-plays{display:none}
+ #main :is(.song-covers-panel,.mp-work-list) .song-cover-row{gap:6px}
+ #main .song-cover-group>.song-cover-row{display:flex}
+ #main .ml-song{flex-wrap:wrap;gap:6px}
+ #main .ml-song>.song-table-info{flex:1 1 100%}
+ #main .ml-song-actions{margin-left:auto;gap:6px}
+ #main .song-table-tools{gap:6px}
+ #main .play-project-row{flex-wrap:wrap}
+ #main .play-project-row>.small-button{margin-left:auto}
+ #main .home-row .list-action{min-width:44px;min-height:44px}
+ #dialog .queue-edit-row{flex-wrap:wrap}
+ #dialog .queue-row-tools{margin-left:auto}
+}
+
+:is(#main,#dialog) .list-action svg path{vector-effect:non-scaling-stroke}
+
+#main .mypage-layout #mp-recordings .song-cover-join{background:transparent!important;color:var(--ds-body)!important}
+#main .cover-ranked-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-shrink:0}
+#main .cover-ranked-art .audio-play-icon{width:28px!important;height:28px!important}
+@media(max-width:600px){
+ #main .cover-ranked-row{display:flex;flex-wrap:wrap;gap:6px}
+ #main .cover-ranked-info{min-width:0;flex:1}
+ #main .cover-ranked-actions{flex-basis:100%;gap:6px}
+ #main .cover-ranked-art .audio-play-icon{width:24px!important;height:24px!important}
+ #dialog .queue-panel .queue-edit-row{grid-template-columns:18px minmax(0,1fr)}
+ #dialog .queue-row-tools{grid-column:2;justify-self:end;gap:6px}
+}
+#main .play-page .play-song-row{min-width:0;width:100%}
+
+/* The final row contract is deliberately scoped; card grids and detail headers opt out. */
+:where([data-list-row],.layout-list .cover-collection-item){--list-row-inset:12px;--list-thumb-size:48px;--list-text-gap:12px;--list-action-gap:8px;--list-icon-size:28px;--list-icon-padding:4px}
+:is(#main,#dialog) [data-list-row],#main .layout-list .cover-collection-item{
+ box-sizing:border-box;min-width:0;max-width:100%;padding-inline:var(--list-row-inset)!important;align-items:center;column-gap:var(--list-action-gap);
+}
+:is(#main,#dialog) [data-list-row] :is(.play-song-detail,.song-table-info,.home-row-detail){gap:var(--list-text-gap);min-width:0}
+#main [data-list-row] .song-cover-detail{column-gap:var(--list-text-gap)}
+:is(#main,#dialog) [data-list-row] :is(.mini-cover,.play-song-art,.home-art,.song-cover-art,.play-project-symbol){
+ box-sizing:border-box!important;flex-shrink:0!important;width:var(--list-thumb-size)!important;height:var(--list-thumb-size)!important;min-width:var(--list-thumb-size)!important;flex-basis:var(--list-thumb-size)!important;aspect-ratio:1;object-fit:cover;margin-inline:0;
+}
+#main [data-list-row] .song-cover-art>.cover{width:100%!important;height:100%!important;min-width:0!important}
+#main [data-list-row] .song-cover-detail{grid-template-columns:var(--list-thumb-size) minmax(0,1fr)}
+#main [data-list-row] .song-cover-detail.is-ranked{grid-template-columns:24px var(--list-thumb-size) minmax(0,1fr)}
+#main [data-list-row] :is(.play-song-art,.home-art,.mini-cover,.song-cover-art)>img{display:block;width:100%;height:100%;object-fit:cover;aspect-ratio:1}
+#main .play-song-copy{display:flex;flex:1;flex-direction:column;min-width:0;gap:4px}
+#main .play-song-copy :is(.play-song-title,.play-song-uploader){display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;max-width:100%}
+#main .play-song-uploader{font-size:12px;font-weight:400;color:var(--ds-muted);line-height:1.5}
+#main .play-page .play-song-producer{display:none}
+#main .play-duet-expand{border:0;background:transparent;color:var(--ds-body);width:auto;white-space:nowrap;gap:3px;padding:0 4px}
+#main .play-duet-children{margin:0 0 12px;padding:0;border-left:1px solid var(--ds-line)}
+#main .play-duet-children[hidden]{display:none}
+#main .home-row>.list-action,#main .home-row-stats .list-action{position:relative;z-index:1}
+#main [data-list-row] :is(.home-row-stats,.cover-ranked-actions,.ml-song-actions,.song-table-tools){align-items:center;justify-content:flex-end;gap:var(--list-action-gap)}
+#main .collection-list-icon{display:none}
+#main .layout-list .collection-grid-icon{display:none}
+#main .layout-list .collection-list-icon{display:inline-flex}
+#main .layout-list :is(.cover-collection-actions,.cover-collection-social) svg,#main .cover-ranked-art svg,#dialog .queue-play-hint svg{
+ box-sizing:border-box;width:var(--list-icon-size)!important;height:var(--list-icon-size)!important;border:2px solid var(--ds-muted);border-radius:50%;padding:var(--list-icon-padding);fill:none;stroke-width:1.8;
+}
+#main .layout-list :is(.cover-collection-actions,.cover-collection-social) svg path,#main .cover-ranked-art svg path,#dialog .queue-play-hint svg path{vector-effect:non-scaling-stroke}
+#main .layout-list .cover-collection-item{column-gap:var(--list-text-gap)}
+#main .layout-list .cover-collection-art{width:var(--list-thumb-size);height:var(--list-thumb-size);flex:none;aspect-ratio:1;margin:0}
+#main .layout-list .cover-collection-art .cover{width:100%;height:100%}
+#dialog .queue-play-hint{width:var(--list-icon-size);height:var(--list-icon-size);background:transparent;right:0;bottom:0}
+#dialog .queue-row-tools button{position:relative;border:0;background:transparent;font-size:16px}
+#dialog .queue-row-tools button:before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--list-icon-size);height:var(--list-icon-size);box-sizing:border-box;border:2px solid var(--ds-muted);border-radius:50%;pointer-events:none}
+@media(max-width:600px){
+ :where([data-list-row],.layout-list .cover-collection-item){--list-row-inset:10px;--list-thumb-size:44px;--list-text-gap:10px;--list-action-gap:6px;--list-icon-size:24px;--list-icon-padding:2px}
+ #main .play-song-uploader{display:block;font-size:11px}
+ #main .play-page .play-song-row .play-song-detail{flex:1 1 calc(100% - 56px)}
+ #main [data-list-row] .song-cover-detail.is-ranked{grid-template-columns:18px var(--list-thumb-size) minmax(0,1fr)}
+ #main .home-row{flex-wrap:wrap}
+ #main .home-row-detail{flex:1 1 calc(100% - 30px)}
+ #main .home-row>.home-play{margin-left:auto}
+ #main .home-row-stats{order:1;flex-basis:100%}
+ #main .layout-list .cover-collection-item{min-width:0;flex-wrap:wrap}
+}
+
+:is(#main,#dialog) .list-action svg{stroke-width:1.8!important}
+#main .home-row>.list-actions{position:relative;z-index:1}
+#main .home-row .home-row-stats{display:flex!important;align-items:center;gap:var(--list-action-gap);flex:none;order:0}
+#main .home-row .home-row-stats>.list-action{display:inline-flex!important}
+#main .home-row .home-row-stats>.list-action span{display:inline}
+@media(max-width:600px){
+ #main .home-row>.list-actions{flex-basis:100%}
+ #main .home-row .home-row-stats{gap:6px;flex-basis:auto}
+}
+
+#main .song-table-head{padding-inline:12px!important}
+
+/* Home formerly switched to a three-column mobile grid. Its nested action
+   cluster now owns layout, so that old grid must not create implicit columns. */
+#main .home-row[data-list-row]{display:flex!important;flex-wrap:wrap}
+#main .home-row[data-list-row]>.list-actions{min-width:0}
+#main .home-row .home-row-stats>.list-action{padding:0;gap:4px}
+
+:is(#main,#dialog) [data-list-row]>.small-button{min-height:44px}
+:is(#main,#dialog) :is(.v3-crew-work,.own-music-row,.hub-song-tile,.cover-ranked-row,.mp-manage-row,.likes-pick-row,.activity-row,.conversation-row){column-gap:var(--list-text-gap)}
+#dialog .playlist-order-row{grid-template-columns:22px minmax(0,1fr) 44px 44px;column-gap:var(--list-action-gap)}
+#dialog .playlist-order-row .list-action{position:relative;width:44px;padding:0;background:transparent;border:0;font-size:16px}
+#dialog .playlist-order-row .list-action:before{content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:var(--list-icon-size);height:var(--list-icon-size);box-sizing:border-box;border:2px solid var(--ds-muted);border-radius:50%;pointer-events:none}
+#main :is(.activity-row,.conversation-row)[data-list-row] :is(.profile-avatar,.crew-inbox-art){flex-shrink:0;aspect-ratio:1}
+#main :is(.activity-row,.conversation-row)[data-list-row] img{object-fit:cover;aspect-ratio:1}
+#dialog :is(.likes-pick-row,.playlist-order-row) strong,#dialog :is(.likes-pick-row,.playlist-order-row) small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#main .mp-manage-row>a:not(.mp-mini-avatar){flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+#main[data-route^="dm"] .conversation-row[data-list-row]{padding:12px var(--list-row-inset)!important;column-gap:var(--list-text-gap)}
+
+#main .sing-duet-row>[data-list-row]>svg{box-sizing:border-box;flex:none;width:var(--list-icon-size);height:var(--list-icon-size);padding:var(--list-icon-padding);border:2px solid var(--ds-muted);border-radius:50%;stroke-width:1.8}
+#main .sing-duet-row>[data-list-row]>svg path{vector-effect:non-scaling-stroke}
+
+/* Music identity uses intrinsic text widths, not viewport/device breakpoints.
+   Flex collects max-content items before shrinking: only a pair that cannot fit
+   wraps. Each individual item can then ellipsize within the remaining column.
+   Scope excludes album cards, detail headers and collection grid views. */
+:is(#main,#dialog) :is([data-list-row],.layout-list .cover-collection-item) :is(.song-table-info>div,.song-cover-copy,.play-song-copy,.ml-song-copy,.cover-ranked-info,.track-info,.queue-row-copy,.cover-collection-copy,.karaoke-browse-info,.karaoke-participant-list article>div,.hub-song-tile>div,.hub-popular li>div,.playlist-order-row:has([data-order-index])>div,.likes-pick-row>span){
+ display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;align-content:center;
+ flex:1 1 0;min-width:0;max-width:100%;column-gap:var(--list-text-gap,12px);row-gap:4px;
+}
+:is(#main,#dialog) :is([data-list-row],.layout-list .cover-collection-item) :is(.song-table-info>div,.song-cover-copy,.play-song-copy,.ml-song-copy,.cover-ranked-info,.track-info,.queue-row-copy,.cover-collection-copy,.karaoke-browse-info,.karaoke-participant-list article>div,.hub-song-tile>div,.hub-popular li>div,.playlist-order-row:has([data-order-index])>div,.likes-pick-row>span)>:is(a,span,strong,small,h3){
+ display:block;flex:0 1 auto;min-width:0;max-width:100%;width:auto;margin:0;
+ white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* Supporting metadata keeps its own line and every existing action stays put. */
+:is(#main,#dialog) :is([data-list-row],.layout-list .cover-collection-item) :is(.cover-ranked-info,.queue-row-copy,.cover-collection-copy,.karaoke-browse-info,.karaoke-participant-list article>div)>:nth-child(n+3){flex-basis:100%}
+
+/* The table wrapper measures the actual list beside sidebars and spotlights.
+   Keep the shared subgrid/stat columns at full width; reuse the existing compact
+   row arrangement when those fixed controls would starve the identity column. */
+#main .music-list-region{container:music-list / inline-size;min-width:0;width:100%}
+@container music-list (max-width:620px){
+ #main .music-list-region .song-table{display:block}
+ #main .music-list-region .song-table .song-table-head{display:none}
+ #main .music-list-region .song-table .song-table-row{display:grid;grid-template-columns:20px repeat(4,minmax(0,1fr)) 44px max-content;gap:4px}
+ #main .music-list-region .song-table .song-table-row>*{grid-column:auto;grid-row:auto;margin:0}
+ #main .music-list-region .song-table .song-table-row .song-table-position{grid-column:1;grid-row:1;width:auto}
+ #main .music-list-region .song-table .song-table-row .song-table-info{grid-column:2/6;grid-row:1;min-width:0}
+ #main .music-list-region .song-table .song-table-row .song-table-play{grid-column:6;grid-row:1;justify-self:center}
+ #main .music-list-region .song-table .song-table-row .song-table-tools{grid-column:7;grid-row:1;justify-self:end}
+ #main .music-list-region .song-table .song-table-row .song-table-like{grid-column:1/3;grid-row:2;display:inline-flex}
+ #main .music-list-region .song-table .song-table-row .song-table-comments{grid-column:3/5;grid-row:2;display:inline-flex}
+ #main .music-list-region .song-table .song-table-row .song-table-plays{grid-column:5/7;grid-row:2;display:inline-flex}
+ #main .music-list-region .song-table .song-table-row .chart-movement{grid-column:7;grid-row:2;display:flex;justify-content:center}
+}
+/* Extremely narrow embedded lists reserve the first row for the identity. */
+@container music-list (max-width:320px){
+ #main .music-list-region .song-table .song-table-row{grid-template-columns:20px repeat(4,minmax(0,1fr)) 44px}
+ #main .music-list-region .song-table .song-table-row .song-table-info{grid-column:2/-1}
+ #main .music-list-region .song-table .song-table-row .song-table-play{grid-column:5/7;grid-row:3;justify-self:end}
+ #main .music-list-region .song-table .song-table-row .song-table-tools{grid-column:1/-1;grid-row:4}
+ #main .music-list-region .song-table .song-table-row .chart-movement{grid-column:1/3;grid-row:3}
+ #main .music-list-region .song-table-chart .song-table-row .song-table-play{grid-column:3/6;grid-row:3;justify-self:end}
+ #main .music-list-region .song-table-chart .song-table-row .song-table-tools{grid-column:6;grid-row:3}
+}
+/* Subgrid edge padding must not pull the final 44px control over playback. */
+#main .music-list-region .song-table-tools{justify-content:flex-start}
+
+/* Fan-page music only: fixed credit starts on desktop, two compact lines on mobile. */
+#main .artist-music-list{container-type:inline-size;container-name:artist-music;min-width:0}
+#main .artist-music-row{display:grid;grid-template-columns:20px 42px minmax(0,1fr) auto;gap:12px;align-items:center;padding:6px 0;--list-row-inset:0px;--list-thumb-size:42px;--list-action-gap:4px;border-bottom:1px solid var(--ds-line)}
+#main .artist-music-position{color:var(--ds-muted);font-variant-numeric:tabular-nums;text-align:center}
+#main .artist-music-cover,#main .artist-music-cover .mini-cover{display:block;width:42px;height:42px;min-width:0}
+#main .artist-music-info{display:grid;grid-template-columns:minmax(0,220px) 90px 110px;gap:12px;align-items:center;min-width:0}
+#main .artist-music-credits{display:contents}
+#main .artist-music-info a,#main .artist-music-info>span,#main .artist-music-credits>span:not(.artist-music-separator){display:block;min-width:0;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+#main .artist-music-title{font-weight:650;color:var(--ds-text)}
+#main .artist-music-singer,#main .artist-music-producer{color:var(--ds-muted);font-size:13px}
+#main .artist-music-separator{display:none}
+#main .artist-music-row>.artist-music-actions{gap:0;margin-left:0}
+#main .artist-music-actions .artist-music-like-count{max-width:5ch;overflow:hidden;text-overflow:ellipsis;font-variant-numeric:tabular-nums}
+@container artist-music (max-width:700px){
+ #main .artist-music-row{grid-template-columns:20px 40px minmax(0,1fr) auto;gap:6px;padding-block:4px;--list-thumb-size:40px}
+ #main .artist-music-cover,#main .artist-music-cover .mini-cover{width:40px;height:40px}
+ #main .artist-music-info{display:flex;flex-direction:column;align-items:stretch;gap:1px;line-height:1.2}
+ #main .artist-music-credits{display:flex;align-items:center;gap:4px;min-width:0;font-size:13px;line-height:1.2}
+ #main .artist-music-credits>:is(a,span):not(.artist-music-separator){flex:0 1 auto;min-width:0}
+ #main .artist-music-credits .artist-music-separator{display:block;flex:none;color:var(--ds-muted)}
+ #main .artist-music-actions .list-action{width:44px;min-width:44px;padding:0}
+ #main .artist-music-actions .artist-music-like-count{display:none}
+}

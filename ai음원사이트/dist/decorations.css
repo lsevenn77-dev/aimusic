@@ -1,0 +1,93 @@
+.decoration-nav{margin:20px 0}.decoration-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}.decoration-card{padding:18px;border-radius:var(--ds-radius-card,16px);background:var(--surface-wash)}.decoration-product-image{width:100%;aspect-ratio:16/9;object-fit:cover;border-radius:12px}.decoration-product-image.is-frame{object-fit:contain;aspect-ratio:1;max-height:220px}.decoration-card h2{font-size:18px;margin:16px 0 8px}.decoration-card label{display:grid;gap:8px;font-size:13px}.decoration-card select{width:100%;min-height:44px;padding:10px 12px;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-border);border-radius:var(--ds-radius-input)}.decoration-owned{min-height:36px;color:var(--ds-muted);font-size:12px;line-height:1.6}.decoration-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.decoration-actions button{min-height:44px;flex:1;white-space:nowrap}.decoration-actions button:first-child{flex-basis:100%}.decoration-detail-image{display:block;max-width:100%;max-height:210px;object-fit:contain;margin:0 auto 16px}.decoration-dialog .gift-options{padding:12px 4px}.decoration-dialog .gift-options p{font-size:13px;line-height:1.6;color:var(--ds-muted)}.decoration-dialog .form-field{display:grid;gap:8px;margin:12px 0}.decoration-dialog input,.decoration-dialog select{min-height:44px;max-width:100%}.decoration-inventory-item{display:flex;gap:16px;padding:20px;margin:12px 0;background:var(--surface-wash);border-radius:16px}.decoration-inventory-item img{width:120px;object-fit:cover;border-radius:10px;aspect-ratio:16/9;align-self:start}.decoration-inventory-item h3{margin:0;font-size:16px}.decoration-inventory-item p{font-size:12px;color:var(--ds-muted);line-height:1.6}.voice-backgrounds .decoration-theme-choice{position:relative;overflow:hidden;min-height:96px;isolation:isolate}.decoration-theme-choice>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:-1;filter:brightness(.48)}.decoration-theme-choice small{display:block;font-size:10px;margin-top:5px}.decoration-theme-choice.is-locked{opacity:.65}.decoration-theme-choice span{white-space:normal}.voice-backgrounds{flex-wrap:wrap}.voice-backgrounds label{min-height:44px}.v3-room-art[data-paid-theme]{background-image:var(--decoration-card);background-size:cover;background-position:center}.voice-room[data-paid-theme],[data-voice-room][data-paid-theme]{background-image:linear-gradient(#0c121b55,#0c121b77),var(--decoration-desktop);background-size:cover;background-position:center}.decoration-avatar-host{position:relative;overflow:visible}.decoration-avatar-overlay{position:absolute!important;object-fit:contain!important;border:0!important;border-radius:0!important;background:transparent!important;max-width:none!important;pointer-events:none!important;z-index:2}.decoration-avatar-host:has(>.decoration-avatar-overlay)>img.player-frame-artwork{visibility:hidden}
+@media(max-width:900px){.decoration-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.decoration-card{padding:14px}}
+@media(max-width:800px){[data-voice-room][data-paid-theme]{background-image:linear-gradient(#0c121b55,#0c121b77),var(--decoration-mobile)}}
+@media(max-width:480px){.decoration-grid{grid-template-columns:1fr}.decoration-card{padding:16px}.decoration-card .decoration-product-image{max-height:200px}.decoration-inventory-item{padding:16px;gap:12px}.decoration-inventory-item img{width:86px}.decoration-nav{gap:4px}.decoration-nav a{padding:10px;min-height:44px}.voice-backgrounds{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
+.decoration-inventory-sections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px;margin:16px 0 24px}.decoration-inventory-section{min-width:0}.decoration-inventory-section>h2{font-size:20px;margin:16px 0 8px}.decoration-inventory-section>.field-help{min-height:48px;margin:0 0 16px;line-height:1.7}.decoration-inventory-item>div{flex:1;min-width:0}.decoration-inventory-item img.is-frame{object-fit:contain;aspect-ratio:1}.decoration-inventory-item .small-button,.decoration-inventory-item .primary-button{min-height:44px}.decoration-empty{padding:24px;background:var(--surface-wash);border-radius:var(--ds-radius-card);color:var(--ds-muted)}.decoration-ended{margin:20px 0;color:var(--ds-muted)}.decoration-ended summary{min-height:44px;cursor:pointer}.decoration-recipient-list{margin-top:16px;max-height:240px}.decoration-recipient-list .gift-target{min-height:64px;background:var(--ds-panel);border-color:var(--ds-border)}.decoration-recipient-list .gift-target[aria-pressed=true]{background:var(--ds-soft);border-color:var(--ds-mint)}.decoration-recipient-list img{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:none}.decoration-recipient-list strong{white-space:nowrap}.decoration-recipient-list small{color:var(--ds-muted)}
+@media(max-width:1000px){.decoration-inventory-sections{grid-template-columns:1fr}.decoration-inventory-section>.field-help{min-height:0}}
+@media(max-width:480px){.decoration-inventory-item img{width:68px}.decoration-inventory-item h3{overflow-wrap:anywhere}.decoration-inventory-item .decoration-actions{gap:6px}.decoration-inventory-item .decoration-actions button{padding:8px}.decoration-inventory-sections{gap:12px}}
+
+/* Reserved layouts already include the normalized 1.50D canvas. */
+.profile-frame-canvas{
+ --profile-frame-base-limit:1.35;--profile-frame-effect-limit:1.45;--profile-frame-layout:1.50;
+ --profile-frame-safe-inset:calc((var(--profile-frame-layout) - var(--profile-frame-effect-limit)) / 2);
+ --profile-frame-center:50%;
+ --avatar-frame-x:var(--profile-frame-center);--avatar-frame-y:var(--profile-frame-center);
+ --avatar-frame-width:100%;--avatar-frame-height:100%
+}
+/* Photo and equipped art share one positioned host, including popup photos.
+   Frame geometry must not inherit generic portrait img max-width/crop rules. */
+.player-avatar,.avatar-frame-host{position:relative;isolation:isolate}
+.avatar-frame-host,.profile-preview-photo.player-avatar{overflow:visible!important}
+:is(.player-avatar,.avatar-frame-host)>img:is(.player-frame-artwork,.decoration-avatar-overlay,.frame-fx-layer){
+ position:absolute!important;left:var(--avatar-frame-x,50%)!important;top:var(--avatar-frame-y,50%)!important;right:auto!important;bottom:auto!important;
+ width:var(--avatar-frame-width,150%)!important;height:var(--avatar-frame-height,150%)!important;max-width:none!important;max-height:none!important;min-width:0!important;min-height:0!important;
+ transform:translate(-50%,-50%)!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;object-fit:contain!important;object-position:center!important;aspect-ratio:auto!important;
+ background:transparent!important;box-shadow:none!important;pointer-events:none!important;
+}
+.profile-frame-layout{margin-left:var(--frame-left,0px)!important;margin-right:var(--frame-right,0px)!important;margin-bottom:var(--frame-bottom,0px)!important;margin-top:var(--photo-align,0px)!important;overflow:visible!important}
+.avatar-frame-host>img.frame-fx-layer{z-index:3}
+.shop-product-summary>.frame-detail-layers{position:relative;display:block;flex:none;width:120px;height:100px}
+.shop-product-summary>.frame-detail-layers>img{position:absolute;inset:0;width:100%;height:100%;max-width:none;object-fit:contain;pointer-events:none;background:transparent;border:0;border-radius:0;padding:0;margin:0}
+#public-profile-form .profile-frame-layout,.profile-preview-photo.profile-frame-layout{margin-top:var(--frame-top,0px)!important}
+.profile-preview-card:has(.profile-frame-layout){grid-template-columns:max-content minmax(0,1fr)}
+.gift-shop-heading{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin:12px 0 24px}
+.gift-shop-heading h1{margin:0}.gift-dashboard{min-width:0;max-width:100%}
+.gift-dashboard .gift-catalog{display:flex;gap:14px;overflow-x:auto;overscroll-behavior-x:contain;scroll-snap-type:x proximity;scrollbar-width:thin;padding:8px 2px 14px;max-width:100%;min-width:0}
+.gift-dashboard .gift-shop-product{flex:0 0 136px;min-width:0;scroll-snap-align:start;text-align:center}
+.gift-dashboard .gift-shop-product .gift-choice{width:100%;min-width:0;height:auto;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px}
+.gift-dashboard .gift-shop-product .gift-art{width:100%;height:auto;aspect-ratio:1;object-fit:contain}
+.gift-dashboard .gift-shop-product strong{font-size:13px;white-space:normal}.gift-shop-product>.text-link{min-height:44px}
+.gift-dashboard .decoration-shop-row .gift-art:not(.is-frame){object-fit:cover;border-radius:var(--ds-radius-input)}
+.gift-dashboard .gift-section-heading{flex-wrap:wrap}.gift-dashboard .gift-section-heading>p{display:none}
+#dialog:has(.compact-purchase),#dialog:has(#decoration-order){width:min(508px,calc(100vw - 16px));max-width:none;max-height:78dvh;height:auto;padding:20px;overflow:auto}
+#dialog:has(#decoration-order) .gift-dialog,#dialog:has(#decoration-order) #dialog-content{height:auto;min-height:0;max-height:none;overflow:visible}
+#dialog:has(#decoration-order) .gift-options{height:auto;min-height:0;max-height:none;overflow:visible;padding:0;display:block}
+#dialog:has(#decoration-order) .gift-checkout{padding:10px 0 0;border-top:1px solid var(--ds-line)}
+.compact-purchase h2,.decoration-dialog h2{font-size:18px;margin:0 36px 16px 0}
+.compact-product{display:flex;align-items:center;gap:14px;margin:8px 0 12px}.compact-product>img,.compact-product .decoration-detail-image{width:100px;height:100px;aspect-ratio:1;object-fit:contain;margin:0;flex:none;border-radius:var(--ds-radius-input)}
+.compact-product h3{font-size:16px;margin:0 0 6px}.compact-product p{font-size:12px;color:var(--ds-muted);line-height:1.5;margin:0}
+.compact-periods{border:0;padding:0;margin:12px 0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.compact-periods legend{font-size:13px;margin-bottom:8px}.compact-periods label{position:relative;display:block;min-width:0;cursor:pointer}
+.compact-periods input{position:absolute;opacity:0;width:1px;min-height:0!important;height:1px}
+.compact-periods span{display:grid;gap:6px;text-align:center;padding:10px 4px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-sm);background:var(--ds-panel);font-size:12px}
+.compact-periods strong{font-size:12px}.compact-periods :checked+span{border-color:var(--ds-lavender);background:var(--ds-soft)}
+.compact-actions{display:flex;gap:8px;margin-top:12px}.compact-actions>.primary-button{flex:1}.compact-actions>*{min-height:44px}
+.compact-purchase input{min-height:44px;width:100%;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);padding:10px}
+.gift-category-tabs{display:flex;gap:6px;margin:12px 0}.gift-category-tabs button{flex:1;padding:8px;min-width:0;min-height:44px}.gift-category-tabs [aria-pressed=true]{background:var(--ds-soft);border-color:var(--ds-lavender)}
+.gift-dialog [hidden]{display:none!important}.gift-decoration-checkout select{min-height:44px;margin:8px;max-width:100%;background:var(--ds-panel);color:var(--ds-text)}
+@media(max-width:600px){
+ #dialog:has(.compact-purchase),#dialog:has(#decoration-order){max-height:84dvh;inset:0;margin:auto;padding:16px 16px calc(16px + env(safe-area-inset-bottom));border-radius:var(--ds-radius-card)}
+ .gift-shop-heading .inline-actions{width:100%;gap:8px}.gift-shop-heading .inline-actions a{flex:1;padding:8px;font-size:12px}
+ .gift-dashboard .gift-shop-product{flex-basis:112px}.gift-shop-heading h1{font-size:24px}
+ .compact-product>img,.compact-product .decoration-detail-image{width:88px;height:88px}
+}
+
+#dialog:has(#decoration-order),#dialog:has(.compact-purchase){height:fit-content!important;min-height:0!important;inset:0;margin:auto}
+#dialog:has(#decoration-order) #dialog-content{display:block;height:auto!important}
+.gift-dashboard .gift-shop-product>.text-link{background:none;border:0;color:var(--ds-body);font:inherit;font-size:12px;cursor:pointer;padding:8px}
+#dialog:has(.gift-category-tabs){width:min(560px,calc(100vw - 16px));height:auto;max-height:84dvh;inset:0;margin:auto}
+#dialog:has(.gift-category-tabs) .gift-dialog{max-height:calc(84dvh - 48px)}
+#dialog:has(.gift-category-tabs) .gift-category-tabs{flex-shrink:0}
+#dialog:has(.gift-category-tabs) .gift-options{max-height:260px;min-height:110px}
+@media(max-width:600px){#dialog:has(.gift-category-tabs) .gift-catalog{grid-template-columns:repeat(5,minmax(0,1fr));gap:4px}#dialog:has(.gift-category-tabs) .gift-choice{min-height:82px;padding:4px 2px}#dialog:has(.gift-category-tabs) .gift-art{width:40px;height:40px}#dialog:has(.gift-category-tabs) .gift-choice strong,#dialog:has(.gift-category-tabs) .gift-choice>span{font-size:9px}#dialog:has(.gift-category-tabs) .gift-options{max-height:180px}}
+
+#dialog:has(#decoration-order) .compact-actions .primary-button{margin-top:0}
+#dialog:has(#decoration-order) .gift-checkout .gift-fineprint{margin:8px 0!important;line-height:1.5}
+/* Storefront and shop popup presentation is maintained in shop.css. */
+.unified-inventory .inventory-frame-original{display:block;width:100px;height:100px;max-width:100%;object-fit:contain;background:transparent}
+@media(max-width:600px){.unified-inventory .inventory-frame-original{width:80px;height:80px}}
+#dialog:has(.gift-dialog) :is(button:not(.gift-choice),a.small-button,a.primary-button){display:inline-flex;align-items:center;justify-content:center;text-align:center;box-sizing:border-box;line-height:1.2;gap:6px}
+#dialog:has(.gift-dialog) button>svg{flex:none}
+
+/* Premium artwork layers use the existing photo center without adding layout space. */
+[data-premium-style] {color:#F5C66F!important}
+[data-premium-style]::after {content:"";display:inline-block;width:.92em;height:.92em;margin-inline-start:.18em;vertical-align:-.07em;background:url("/assets/premium/gold-star.png") center/contain no-repeat;pointer-events:none}
+/* Keep centered seat names on their original text coordinates. */
+#voice-seats .voice-person strong:has([data-premium-style]),
+:is(#live-current,#live-queue) strong:has([data-premium-style]) {position:relative;overflow:visible!important}
+#voice-seats .voice-person strong [data-premium-style]::after,
+:is(#live-current,#live-queue) strong [data-premium-style]::after {position:absolute;inset-block-start:50%;transform:translateY(-50%)}
+:is(.player-avatar,.avatar-frame-host,.profile-frame-canvas)>img.premium-default-overlay {
+ width:calc(var(--avatar-frame-width,150%) * .87333)!important;
+ height:calc(var(--avatar-frame-height,150%) * .87333)!important;
+}

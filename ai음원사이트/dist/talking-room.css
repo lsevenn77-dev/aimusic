@@ -1,0 +1,186 @@
+/* The room shell supplies the measured viewport, safe areas, theme and chat scroll owner. */
+#main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
+  --talk-volume-fill: #f5f5f5;
+  --talk-inactive-track: rgb(255 255 255 / .25);
+  &[data-ui-mode="light"] { --talk-volume-fill: #494949; --talk-inactive-track: rgb(0 0 0 / .22); }
+  --talk-play-size: 44px;
+  --talk-player-height: 60px;
+  --room-seat: clamp(64px, 5.1vw, 72px);
+  &:not([data-room-pc-controls]) #voice-seats { order: 0; }
+  &:not([data-room-pc-controls]) .talk-seat-controls { order: 1; }
+  &:not([data-room-pc-controls]) .voice-stage > #voice-music-player { order: 2; }
+  & .voice-stage > #voice-music-player {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+    box-sizing: border-box; flex: 0 0 var(--talk-player-height);
+    height: var(--talk-player-height); min-height: var(--talk-player-height); max-height: none;
+    gap: 8px; margin: 0; padding: 5px clamp(8px, 1.2vw, 18px);
+  }
+  & #voice-music-player > div { display: flex; align-items: center; justify-content: flex-end; width: auto; gap: clamp(2px, .5vw, 9px); flex-wrap: nowrap; }
+  & .voice-stage > #voice-music-player.talk-host-player { grid-template-columns: minmax(0, 1fr) minmax(min-content, 52%); }
+  & #voice-music-player.talk-host-player > div { justify-content: space-between; }
+  & #voice-music-player .talk-track { flex: 1; width: auto; min-width: 0; }
+  & #voice-music-player .talk-track strong,
+  & #voice-music-player .talk-track.is-overflowing strong {
+    width: auto; max-width: 100%; font-size: 16px; line-height: 1.3; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; animation: none; transform: none;
+  }
+  & #voice-music-player > div > button { display: grid; place-items: center; width: 36px; min-width: 0; height: 44px; min-height: 0; padding: 0; }
+  & #voice-music-player > div > button svg { width: 20px; height: 20px; }
+  & #voice-music-player > div > :is([data-voice="music-play"], [data-voice="music-pause"]) {
+    box-sizing: border-box; width: var(--talk-play-size); height: var(--talk-play-size); aspect-ratio: 1;
+    border: 0; border-radius: 0; background: none; box-shadow: none; outline-offset: 1px;
+  }
+  & #voice-music-player button:disabled svg { opacity: .53; }
+  & #voice-music-player #voice-mini-volume {
+    appearance: none; box-sizing: border-box; width: clamp(58px, 7.8vw, 126px); max-width: none; min-width: 0;
+    height: 36px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none;
+  }
+  & #voice-music-player #voice-mini-volume::-webkit-slider-runnable-track {
+    height: 6px; border: 0; border-radius: 999px;
+    background: linear-gradient(var(--talk-volume-fill), var(--talk-volume-fill)) left / var(--range-fill, 0%) 100% no-repeat, var(--talk-inactive-track);
+  }
+  & #voice-music-player #voice-mini-volume::-moz-range-track { height: 6px; border-radius: 999px; background: var(--talk-inactive-track); }
+  & #voice-music-player #voice-mini-volume::-moz-range-progress { height: 6px; border-radius: 999px; background: var(--talk-volume-fill); }
+  & #voice-music-player #voice-mini-volume::-webkit-slider-thumb {
+    appearance: none; width: 16px; height: 16px; margin-top: -5px; border: 1px solid #aaa;
+    border-radius: 50%; background: #fafafa; box-shadow: none;
+  }
+  & #voice-music-player #voice-mini-volume::-moz-range-thumb { width: 16px; height: 16px; border: 1px solid #aaa; border-radius: 50%; background: #fafafa; }
+
+  & #voice-seats {
+    --seat-caption: 22px;
+    grid-template-columns: repeat(4, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr));
+    align-items: center; gap: 0; padding: 0 5%; margin: 0;
+  }
+  & #voice-seats .voice-seat { display: grid; grid-template: auto / minmax(0, 1fr); place-items: center; align-content: center; }
+  & #voice-seats .voice-seat-occupant, & #voice-seats .voice-seat-empty {
+    position: relative; inset: auto; align-self: center; width: 100%; height: calc(var(--room-seat) + var(--seat-caption)); max-height: none; margin: 0;
+  }
+  & #voice-seats .voice-person, & #voice-seats .voice-seat-empty {
+    display: grid; grid-template-rows: var(--room-seat) var(--seat-caption); place-items: center;
+    align-content: start; gap: 0; width: 100%; min-width: 0; padding: 0;
+  }
+  & #voice-seats .room-member-photo, & #voice-seats .seat-disc {
+    box-sizing: border-box; width: var(--room-seat); height: var(--room-seat); aspect-ratio: 1; margin: 0; border-radius: 50%;
+  }
+  & #voice-seats .voice-person strong { display: flex; margin: 0; align-self: center; min-width: 0; min-height: 0; height: auto; line-height: 1.25; }
+  & #voice-seats .voice-person strong > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  & #voice-seats .room-follow-add { top: calc(var(--room-seat) - 15px); left: calc(50% + var(--room-seat) / 2 - 10px); }
+
+  /* Preserve the original mobile stage composition; desktop artwork belongs to the room. */
+  @media (max-width: 800px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  &[data-theme-sku="basic_dark"] {
+    --talk-photo: url("/assets/talking-room/turntable-desktop.webp");
+    --talk-photo-position: center calc(100% + 23cqw - clamp(50px, 5.9vh, 68px) - 10px);
+    --talk-photo-top: calc(100% - 53.84cqw - clamp(50px, 5.9vh, 68px) - 10px);
+    --room-page: #080c14;
+  }
+  &[data-theme-sku="basic_dark"]::before { content: none; display: none!important; }
+  &[data-theme-sku="basic_dark"] .voice-stage {
+    isolation: isolate; background: transparent;
+  }
+  &[data-theme-sku="basic_dark"] .voice-stage::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: #030407 var(--talk-photo) var(--talk-photo-position) / 100% auto no-repeat;
+    mask-image: linear-gradient(90deg, transparent, black 2.5%, black 98%, transparent),
+      linear-gradient(transparent max(0%, var(--talk-photo-top)), black max(9%, calc(var(--talk-photo-top) + 5cqw)), black 94%, transparent);
+    mask-composite: intersect;
+  }
+  }
+}
+@media (min-width: 801px) {
+  #main[data-room-entered] .voice-room[data-voice-room][data-room-design] {
+    --room-column: clamp(230px, 36.5%, 540px); --room-gap: clamp(14px, 1.5vw, 26px);
+    padding: clamp(10px, 2.2vh, 24px) max(1.3%, calc((100% - 1540px) / 2))
+      clamp(12px, 8vh, 96px) max(2.8%, calc((100% - 1540px) / 2));
+    & .room-header { min-height: 44px; margin-bottom: clamp(7px, 1.5vh, 16px); }
+    & .room-heading h1 { font-size: clamp(24px, 1.7vw, 26px); }
+    & .room-header nav button { min-width: 0; }
+    @media (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+      & .room-header nav button svg { width: 21px; height: 21px; }
+    }
+    & #voice-chat .voice-chat-message :is(b, p) { font-size: 15px; line-height: 1.4; }
+    & #voice-chat .voice-chat-system p { font-size: 14px; }
+    @media (min-height:501px), (pointer:fine) { --room-panel-max:555px; }
+  }
+  #main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
+    @media (min-height: 501px), (pointer: fine) {
+      --talk-player-height: 50px;
+      &[data-room-pc-controls] {
+        --talk-player-height: 60px;
+        & #voice-music-player > div > button svg { width: 22px; height: 22px; }
+        & #voice-seats .voice-person strong { font-size: 15px; }
+        & #voice-seats .room-host-crown svg { width: 15px; height: 15px; }
+        & #voice-seats {
+          --room-seat: clamp(44px, 22cqw, 82px);
+          flex-basis: clamp(314px, 38vh, 358px); row-gap: 14px;
+          padding-block-start: max(0px, calc(clamp(4px, 3.8vh, 38px) - 8px));
+        }
+      }
+      & #voice-seats {
+        --room-seat: clamp(44px, 19cqw, 80px); --seat-caption: 24px;
+        flex: 0 1 308px; min-height: calc(2 * (var(--room-seat) + var(--seat-caption)));
+        padding-block-start: clamp(4px, 3.8vh, 38px);
+      }
+      & #voice-seats .room-member-photo { display: grid; place-items: center; overflow: visible; }
+      /* Equipped artwork uses a normalized canvas 1.5 times the actual portrait. */
+      & #voice-seats .room-member-photo:has(> :is(.player-frame-artwork,.decoration-avatar-overlay)) > .profile-avatar-image {
+        width: calc(var(--room-seat) / 1.5); height: calc(var(--room-seat) / 1.5);
+      }
+      & #voice-seats .voice-person { width: 100%; max-width: 100%; }
+    }
+    & .voice-stage { min-height: 0; }
+  }
+}
+@media (max-width: 800px), (pointer: coarse) and (orientation: landscape) and (max-height: 500px) {
+  #main[data-room-entered] .voice-room[data-voice-room][data-room-design] {
+    &[data-room-chat-active] .voice-columns { grid-template-rows: minmax(0, 24%) minmax(0, 1fr); }
+    & #voice-chat-form #voice-message { font-size: 16px!important; }
+  }
+  #main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
+    --talk-player-height: 52px; --talk-play-size: 38px; --room-seat: clamp(44px, 12vw, 56px);
+    &[data-theme-sku="basic_dark"] {
+      --talk-photo: url("/assets/talking-room/turntable-mobile.webp");
+      --talk-photo-position: center calc(100% + 8cqw - 44px);
+      --talk-photo-top: calc(100% - 69.17cqw - 44px);
+    }
+    & .voice-stage > #voice-music-player { gap: 4px; padding-inline: 8px; }
+    & .voice-stage > #voice-music-player.talk-host-player { grid-template-columns: minmax(0, 1fr) minmax(min-content, 62%); }
+    & #voice-music-player > div { gap: 0; }
+    & #voice-music-player > div > button { width: clamp(26px, 8vw, 38px); height: 40px; }
+    & #voice-music-player .talk-track strong { font-size: 14px; }
+    & #voice-music-player #voice-mini-volume { width: clamp(40px, 18vw, 84px); }
+    & #voice-seats { --seat-caption: 19px; flex: 1 0 auto; min-height: calc(2 * (var(--room-seat) + var(--seat-caption))); height: auto; padding: 0 1%; }
+
+  }
+}
+
+/* A rotated phone has enough width for separate panes and little height for stacked panes. */
+@media (pointer: coarse) and (orientation: landscape) and (min-width: 560px) and (max-height: 500px) {
+  #main[data-room-entered] .voice-room[data-voice-room][data-room-design] {
+    padding-block: max(4px, env(safe-area-inset-top)) max(5px, env(safe-area-inset-bottom));
+    & .room-header { margin-bottom: 4px; }
+    & #voice-content .voice-columns {
+      grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr); gap: 8px;
+    }
+    & .voice-columns > .voice-stage {
+      display: flex; flex-direction: column; height: 100%; min-height: 0; overflow-y: auto;
+    }
+    & #voice-content .voice-chat-panel { height: 100%; min-height: 0; align-self: stretch; }
+  }
+  #main[data-room-entered] .talking-room[data-voice-room][data-room-design] {
+    --room-seat: clamp(40px, 11vh, 46px);
+    --talk-player-height: 48px; --talk-play-size: 36px;
+    & #voice-seats { --seat-caption: 17px; min-height: calc(2 * (var(--room-seat) + var(--seat-caption))); }
+    & #voice-music-player #voice-mini-volume { width: clamp(40px, 6vw, 62px); }
+  }
+}
+
+.talking-room #voice-seats .voice-person::before,
+.talking-room #voice-seats .voice-person::after { content: none; }
+.talking-room #voice-seats .room-member-photo { position: relative; overflow: visible; }
+.talking-room #voice-seats .is-speaking .room-member-photo::after {
+  content: ""; position: absolute; inset: -2px; border: 1px solid currentColor;
+  border-radius: 50%; opacity: clamp(.4,var(--voice-level,1),1); pointer-events: none;
+}

@@ -1,0 +1,85 @@
+{
+  "created_at_utc": "2026-11-09T02:55:15.515390+00:00",
+  "tool": "built-in image_gen.imagegen",
+  "purpose": "Crew-joining mobile and desktop banner photography",
+  "encoding": {
+    "software": "Pillow",
+    "software_version": "13.0.0",
+    "libwebp_version": "1.6.0",
+    "format": "WEBP",
+    "mime_type": "image/webp",
+    "quality": 92,
+    "method": 6,
+    "resize_filter": "LANCZOS",
+    "crop": false,
+    "color_adjustments": false,
+    "target_widths": [
+      1536,
+      768
+    ]
+  },
+  "assets": [
+    {
+      "id": "crew",
+      "variant": "mobile",
+      "reference": "/assets/home-banners/mobile-20261109/talking-1536.webp",
+      "source": {
+        "filename": "exec-f8b91a7a-2652-4d12-8b90-b59675027436.png",
+        "sha256": "c6c295d09b3f075f933a0d88b6476ad9c44dc7e33181a8af9c518bf4c6ca965f",
+        "width": 1774,
+        "height": 887
+      },
+      "prompt": "Use case: identity-preserve.\nAsset type: premium youthful photoreal mobile music-platform crew-joining banner, clean photography with no graphics.\nImage 1 is the exact casting and visual-quality reference. Keep the recognizable faces, natural facial proportions, skin texture, hairstyles and youthful charm of these same THREE adult friends: the handsome dark wavy-haired man, the long silver-lavender-haired woman with a small star hair clip, and the dark-haired woman with her hair casually tied back. Do not substitute generic new faces, age them up, exaggerate their eyes, or make them glossy/plastic.\n\nCreate a NEW candid moment and NEW physical room for their music crew. They sit close together in a tasteful forest-green and soft sage music-club lounge with dark green upholstered seating, a natural walnut table, warm amber practical lamps, restrained real acoustic wall details, shelving with a few real records and one small potted plant. It is a real spacious interior with believable perspective, foreground/midground/background depth and soft photographic light. The warm forest/sage palette must be distinct from a blue karaoke room or teal rehearsal room. No neon graphic effects.\n\nGive them fresh contemporary casual outfits: man in an ivory overshirt over a navy T-shirt; silver-lavender-haired woman in a soft sage cardigan over a simple light top; dark-haired woman in a muted blue zip jacket over a light top. No headphones worn or around necks. No microphones.\n\nAction: they are cheerfully leaning toward one another, smiling and making ONE simple low three-person team fist-bump just above their small table, celebrating joining the same music crew. Each person's one forearm must connect clearly to their own body and their one closed fist. Exactly three separate ordinary closed hands gently touch knuckles at the center; no interlaced fingers, no stacked hands, no hidden extra arm, no high raised gesture. Their other hands rest naturally and unobtrusively by their own lap or on the table. The man smiles toward the middle woman; the middle woman looks naturally toward the woman on the right; the right woman smiles back at her. Their facial expressions are warm, lively and candid, never a posed stare at the camera. On the table put exactly one unobtrusive phone lying flat and one open slim laptop turned toward the friends; neither has readable UI or a logo. Keep the fist-bump visibly above and separate from those objects.\n\nComposition: landscape 1536 x 768, exact 2:1 aspect ratio. This is a photograph, not a mockup. Leave roughly the left 42 percent as continuous calm, softly lit real room, seamlessly joined to the rest of the scene, for later HTML text. Place the three face centers roughly at 55%, 72%, and 87% of image width; keep all three heads completely inside the frame with a little breathing room. Show upper bodies, their collaboration action, and enough table/room to understand what they are doing. Faces should be clear, attractive and well-lit at mobile scale. Use a natural editorial camera angle and realistic anatomy.\nNo text, no letters, no logos, no branding, no pill button, no interface, no borders, no panels, no gradient block, no floating symbols, no star/heart particles, no fake flare, no vignette. Preserve photographic sophistication of the reference while changing only this new scene, clothing and team-celebration action as specified.",
+      "outputs": [
+        {
+          "filename": "crew-1536.webp",
+          "url": "/assets/home-banners/mobile-20261109/crew-1536.webp",
+          "sha256": "6bf556de084140fb8145d884f22b9a7ffb4de9360eb2be77ff05f9a4054ef9c4",
+          "bytes": 217102,
+          "width": 1536,
+          "height": 768,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "crew-768.webp",
+          "url": "/assets/home-banners/mobile-20261109/crew-768.webp",
+          "sha256": "54485037832ebf2fae2a02bf5a5cf2811035265460bf8e9eed23860551742ffe",
+          "bytes": 76410,
+          "width": 768,
+          "height": 384,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "crew",
+      "variant": "desktop",
+      "reference": "exec-f8b91a7a-2652-4d12-8b90-b59675027436.png",
+      "source": {
+        "filename": "exec-0e442667-cf33-4404-ac4c-de32fcbf832c.png",
+        "sha256": "767d971cd7cad90c10db4dbace3ee97973944d614d9ec635492b7cf356520137",
+        "width": 2172,
+        "height": 724
+      },
+      "prompt": "Use case: identity-preserve.\nAsset type: clean desktop music-platform home-banner panorama.\nImage 1 is the exact approved crew photograph to adapt, not a loose inspiration.\nCreate the matching PC panorama from this exact scene. Output 2172 x 724, exact 3:1 landscape ratio. Preserve the SAME three adults' recognizable faces, expressions, hairstyles, natural skin, eye contact, current ivory/navy, sage and muted-blue outfits, and the clear low three-person fist-bump. Keep each fist attached to its own visible forearm, no extra hands, no fused fingers. Preserve one phone and one open laptop on the same walnut table. No headphones or microphones.\n\nExpand the actual forest/sage music-club lounge into a wider continuous architectural panorama. Extend real room on BOTH sides of the group, with meaningful space to their right as well as their left; around55% of added room on the left and45% on the right. Continue the actual dark forest-green walls, acoustic wood details, velvet seating, restrained records/turntable shelving, warm amber practical lamps, and natural potted greenery with coherent perspective. No duplicate people or duplicate electronics. Do not paste a flat panel or blur/gradient fill over an edge. The entire scene must be one convincing photograph.\n\nLayout for a shallow desktop banner: position the group's visual center around72–75% of total image width, with the rightmost woman comfortably inside the frame, not touching the edge. Keep roughly the left45% as quiet continuous real interior suitable for later HTML copy. The three face centers should be around62%,75%,87% of width; keep expressions and faces clear and sufficiently large, similar to the approved camera relationship. Recompose camera distance and room extension only as needed for this panorama; do not change the subjects' identities or action. Heads should start near25% of image height, and the joined fists should sit near60–65% of height. Keep all head tops, faces, every participating fist, enough of the connected forearms, and recognizable laptop/phone within the middle part of the frame so that a shallow272px-high crop can show what the friends are doing. Preserve realistic seated upper-body proportions and foreground table perspective. Leave continuous room above/below for flexible responsive cropping. No tiny distant people, no giant close-up faces and no subject pushed against the right edge.\n\nKeep the reference's tasteful photoreal youthful editorial style, warm forest/sage palette, nuanced skin texture and photographic lighting. Do not add dark overlays, new blur, haze, stylized effects, a vignette, text, letters, logos, UI, buttons, borders or frames. This is clean photographic artwork only.",
+      "outputs": [
+        {
+          "filename": "crew-2172.webp",
+          "url": "/assets/home-banners/desktop-20261109/crew-2172.webp",
+          "sha256": "43a9afa30f6ab07c37fa727f542183906e23b9af1d64690d8fddd2b5195e2de4",
+          "bytes": 341650,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    }
+  ],
+  "review": {
+    "mobile": "Clean 2:1 scene; three distinct low fist-bump hands, mutual eye contact, one laptop and one phone. No text/buttons/effects.",
+    "desktop": "Continuous 3:1 room. Group center about72%; full photographic asset includes heads, fists, phone and laptop. For shallow PC crop start object-position:right35% with no extra zoom at widest frame to retain head tops and fist-bump. Full phone/laptop at table bottom cannot both remain visible in the widest272px crop with full heads; central fist-bump action does remain visible."
+  }
+}

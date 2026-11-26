@@ -1,0 +1,110 @@
+/* Focus belongs to the visible control, including the shell of a composite control. */
+@layer aifect-focus {
+  :root {
+    --ds-focus-width: 1px;
+    --ds-focus-offset: 1px;
+    --ds-focus-outset: calc(var(--ds-focus-width) + var(--ds-focus-offset) + 1px);
+    --ds-focus-color: rgb(142 221 210 / 50%);
+  }
+
+  :where(
+    :focus-visible,
+    :is(input:not([type]), input:is([type=text],[type=search],[type=email],[type=password],
+      [type=url],[type=tel],[type=number],[type=date],[type=datetime-local],[type=month],[type=time],[type=week]),
+      textarea, [role=textbox], [contenteditable]:not([contenteditable=false])):focus,
+    :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,
+      .play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,
+      .cover-rank-search,.admin-search,.discover-search,.directory-search,.dm-search,.mp-work-search,
+      .shop-item-search,.room-song-search,.chat-ui-field,[role=textbox],[role=combobox],[data-input-shell]):has(
+      :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],
+        [type=reset],[type=image],[type=color],[type=hidden]), textarea, [contenteditable]:not([contenteditable=false])):focus,
+      select:focus-visible
+    ),
+    :is(.compact-periods,.shop-periods,.dubbing-chips,.directory-activity-filter,.crew-tag-group,
+      .discover-kinds,.voice-switch,.classification-options:not(.production-ai-field .classification-options))
+      input:focus-visible + span,
+    :is(.live-mode,.voice-visibility,.voice-backgrounds,.production-ai-field .classification-options)
+      label:has(input:is([type=radio],[type=checkbox]):focus-visible),
+    .home-feature:has(:is(.home-promo-link,.home-app-hitarea,.play-banner-link,.shop-banner-link):focus-visible),
+    :is(.album-art-wrap,.chart-art-wrap):has(> a:focus-visible)
+  ) {
+    /* The layer takes precedence over component resets, including borderless inputs. */
+    outline: var(--ds-focus-width) solid var(--ds-focus-system-color, var(--ds-focus-color)) !important;
+    outline-offset: var(--ds-focus-offset) !important;
+  }
+
+  :where(.brand-search:has(input:focus, button:focus-visible)) {
+    --brand-search-edge: var(--brand-search-fill);
+  }
+
+  /* Keep the translucent outline legible when the underlying image is bright. */
+  :where(
+    .home-feature :is(.home-feature-arrow,.home-feature-pagination button,.home-app-store-link):focus-visible,
+    .album-art-wrap .card-play:focus-visible,
+    .chart-art-wrap .chart-cover-play:focus-visible,
+    #global-search:has(input:focus)
+  ) {
+    position: relative;
+    isolation: isolate;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: calc(0px - var(--ds-focus-outset));
+      z-index: -1;
+      background: #0c121b;
+      border-radius: inherit;
+      pointer-events: none;
+    }
+  }
+
+  @supports (overflow-clip-margin: 3px) {
+    :where(
+      .home-feature:has(:is(.home-feature-arrow,.home-feature-pagination button):focus-visible),
+      .album-art-wrap:has(.card-play:focus-visible)
+    ) {
+      overflow: clip !important;
+      overflow-clip-margin: var(--ds-focus-outset);
+    }
+  }
+
+  /* A single perimeter for composite fields, custom choices, and clipped artwork. */
+  :where(
+    html, body, #main, dialog, [role=dialog], [role=alertdialog], .room-popup,
+    :is(#global-search,.brand-search,.aifect-search,.search-large,.search-box,.ml-search-box,
+      .play-search,.crew-discovery-search,.crew-music-search,.sing-collection-search,.hub-search,
+      .cover-rank-search,.admin-search,.discover-search,.directory-search,.dm-search,.mp-work-search,
+      .shop-item-search,.room-song-search,.chat-ui-field,[role=textbox],[role=combobox],[data-input-shell])
+      :is(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=button],[type=submit],
+        [type=reset],[type=image],[type=color],[type=hidden]), textarea, select, [contenteditable]:not([contenteditable=false])),
+    :is(.compact-periods,.shop-periods,.dubbing-chips,.directory-activity-filter,.crew-tag-group,
+      .discover-kinds,.voice-switch,.classification-options) input:has(+ span),
+    :is(.live-mode,.voice-visibility,.voice-backgrounds,.production-ai-field .classification-options)
+      label input:is([type=radio],[type=checkbox]),
+    .home-feature :is(.home-promo-link,.home-app-hitarea,.play-banner-link,.shop-banner-link),
+    :is(.album-art-wrap,.chart-art-wrap) > a
+  ):focus {
+    outline-style: none !important;
+  }
+
+  /* The browser can mark an autofocused dialog control visible after a pointer opens it. */
+  @media (forced-colors: none) and (prefers-contrast: no-preference) {
+    :where(:root[data-aifect-input=pointer] :is(dialog,[role=dialog],[role=alertdialog]))
+      :where(button,a,summary,select,input:is([type=button],[type=submit],[type=reset],[type=checkbox],[type=radio],[type=range]),
+        [role=button],[role=tab],[role=option],[role=menuitem]):focus-visible {
+      outline-style: none !important;
+    }
+    :where(:root[data-aifect-input=pointer] :is(dialog,[role=dialog],[role=alertdialog]))
+      :where(label:has(input:is([type=radio],[type=checkbox]):focus-visible), input:is([type=radio],[type=checkbox]):focus-visible + span) {
+      outline-style: none !important;
+    }
+  }
+
+  @media (prefers-contrast: more) {
+    :root { --ds-focus-color: #8eddd2; }
+  }
+
+  @media (forced-colors: active) {
+    :root { --ds-focus-system-color: Highlight; }
+  }
+}

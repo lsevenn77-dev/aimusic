@@ -1,18 +1,21 @@
+import {nicknameContext} from './nickname-context.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 
 function fixture(open){
- const panel={innerHTML:''},ctx=vm.createContext({playSerial:0,inApp:false,window:{Capacitor:{isNativePlatform:()=>true,Plugins:{AifectKaraoke:{open}}}},document:{addEventListener(){}},audio:{pause(){}},$:()=>panel,esc:s=>s,icon:()=>'',toast(){},location:{hash:''}});
+ const panel={innerHTML:'',classList:{toggle(){}}},ctx=nicknameContext({playSerial:0,inApp:false,window:{Capacitor:{isNativePlatform:()=>true,Plugins:{AifectKaraoke:{open}}}},document:{addEventListener(){}},audio:{pause(){}},$:()=>panel,esc:s=>s,icon:()=>'',toast(){},location:{hash:''}});
  vm.runInContext(readFileSync(new URL('../dist/karaoke.js',import.meta.url),'utf8'),ctx);
- vm.runInContext("sing={id:'song',state:'idle'}",ctx);
+ vm.runInContext("sing={id:'song',state:'idle'};updateTransport=()=>{}",ctx);
  return {ctx,panel,run:()=>vm.runInContext('startSinging()',ctx),state:()=>vm.runInContext('sing.state',ctx)};
 }
 test('new Android builds open the native room once without opening a WebView microphone',async()=>{
  let done,calls=0;const f=fixture(({trackId})=>{assert.equal(trackId,'song');calls++;return new Promise(r=>done=r);});
- const run=f.run();await f.run();assert.equal(calls,1);assert.equal(f.state(),'loading');done({uploadedId:null});await run;
+ vm.runInContext('sing.preparationOpen=true',f.ctx);
+ const run=f.run();await f.run();assert.equal(calls,1);assert.equal(f.state(),'loading');assert.equal(vm.runInContext('singPreparationVisible(sing)',f.ctx),false);done({uploadedId:null});await run;
  assert.equal(f.state(),'idle');assert.match(f.panel.innerHTML,/에코 · 룸 리버브/);
+ assert.equal(vm.runInContext('sing.preparationOpen',f.ctx),true);assert.equal(vm.runInContext('singPreparationVisible(sing)',f.ctx),true);
 });
 test('native permission/launch failure returns to a retryable song page',async()=>{
  const f=fixture(async()=>{throw new Error('다시 로그인해주세요.');});await f.run();assert.equal(f.state(),'idle');assert.match(f.panel.innerHTML,/다시 로그인/);

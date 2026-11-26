@@ -1,0 +1,1 @@
+CREATE INDEX `crew_growth_member_day` ON `crew_growth_events` (`user_id`,`created`);

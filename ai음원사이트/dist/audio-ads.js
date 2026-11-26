@@ -35,7 +35,7 @@
  }
  function playingUI(paused){
   if(!active)return;active.paused=paused;
-  $('#play-toggle').innerHTML=paused?icon('play'):'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"/></svg>';
+  $('#play-toggle').innerHTML=paused?icon('player-play'):icon('player-pause');
   $('#play-toggle').setAttribute('aria-label',paused?'광고 이어 듣기':'광고 일시정지');
   if('mediaSession' in navigator)navigator.mediaSession.playbackState=paused?'paused':'playing';
  }
@@ -48,7 +48,7 @@
   try{loader?.contentComplete();}catch{}
   panel.classList.remove('audio-ad-active');controls.forEach((s,i)=>$(s).disabled=item.disabled[i]);
   $('#now-playing').innerHTML=item.markup;$('#listen-mode').textContent=item.mode;
-  $('#play-toggle').innerHTML=icon('play');$('#play-toggle').setAttribute('aria-label','재생');
+  $('#play-toggle').innerHTML=icon('player-play');$('#play-toggle').setAttribute('aria-label','재생');
   window.dispatchEvent(new Event('aifect-ad-end'));item.resolve();
  }
  function managerLoaded(event){
@@ -90,7 +90,7 @@
   const item={id:++requestId,paused:false,progressAt:Date.now(),remaining:null,markup:$('#now-playing').innerHTML,mode:$('#listen-mode').textContent,disabled:controls.map(s=>$(s).disabled)};
   item.promise=new Promise(resolve=>item.resolve=resolve);active=item;
   audio.pause();setPlayerVisible(true);panel.classList.add('audio-ad-active');controls.forEach(s=>$(s).disabled=true);
-  $('#now-playing').innerHTML='<span class="audio-ad-label">광고</span><div><strong>AIFECT 무료 음악 감상</strong><span id="audio-ad-status" role="status">음성광고를 준비하고 있어요</span></div><button type="button" id="audio-ad-skip" hidden>광고 건너뛰기</button>';
+  $('#now-playing').innerHTML='<span class="audio-ad-label">광고</span><div><strong>AIFECT 무료 음악 감상</strong><span id="audio-ad-status" role="status">음성광고를 준비하고 있습니다</span></div><button type="button" id="audio-ad-skip" hidden>광고 건너뛰기</button>';
   $('#listen-mode').textContent='음성광고';$('#play-toggle').setAttribute('aria-label','광고 일시정지');
   $('#audio-ad-skip').onclick=()=>{if(item.manager?.getAdSkippableState())item.manager.skip();};
   window.dispatchEvent(new Event('aifect-ad-start'));

@@ -1,0 +1,27 @@
+/* Gold-specific controls. Shared standalone checkout styles remain the baseline. */
+.checkout-gold-site .checkout-products {min-width:0;margin:0;padding:0;border:0}
+.checkout-gold-site .checkout-products legend {padding:0;margin:0;font-size:1.25rem;font-weight:700;color:var(--ds-text);line-height:1.5;letter-spacing:-.035em}
+.checkout-gold-site .checkout-gold-intro {display:flex;align-items:center;gap:16px;margin-bottom:24px}
+.checkout-gold-site .checkout-gold-intro .checkout-product-image {width:32px;height:32px;margin:0;flex:none}
+.checkout-gold-site .checkout-gold-intro h2 {margin:0 0 4px;font-size:1.25rem;color:var(--ds-text)}
+.checkout-gold-site .checkout-gold-intro p {margin:0;font-size:.8125rem;color:var(--ds-muted)}
+.checkout-gold-site .checkout-pack-list {display:grid;gap:12px;margin-top:16px}
+.checkout-gold-site .checkout-pack {display:flex;align-items:center;gap:14px;min-height:88px;padding:16px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);cursor:pointer;background:var(--ds-panel)}
+.checkout-gold-site .checkout-pack:hover {border-color:var(--ds-muted)}
+.checkout-gold-site .checkout-pack:has(input:checked) {border-color:var(--ds-selected);background:var(--ds-soft)}
+.checkout-gold-site .checkout-pack input {flex:none;width:20px;height:20px;margin:0;accent-color:var(--ds-selected)}
+.checkout-gold-site .checkout-pack-copy {display:flex;flex:1;min-width:0;flex-direction:column;gap:2px}
+.checkout-gold-site .checkout-pack-copy strong {color:var(--ds-text);font-size:1.25rem;line-height:1.4;font-weight:700;white-space:nowrap}
+.checkout-gold-site .checkout-pack-copy small {font-size:.875rem;font-weight:500}
+.checkout-gold-site .checkout-pack-copy>span {font-size:.75rem;color:var(--ds-muted);line-height:1.5}
+.checkout-gold-site .checkout-pack-price {flex:none;color:var(--ds-text);font-size:.9375rem;line-height:1.5;font-weight:600;white-space:nowrap}
+.checkout-gold-site .checkout-total-gold dd {font-size:1.5rem;font-weight:700}
+.checkout-gold-site .checkout-summary .checkout-test-charge {margin-top:16px;color:var(--ds-muted);font-size:.8125rem}
+.checkout-gold-site .checkout-summary .checkout-test-charge dd {color:var(--ds-text)}
+@media(max-width:360px){
+ .checkout-gold-site .checkout-pack {gap:10px;padding:14px 12px}
+ .checkout-gold-site .checkout-pack-copy strong {font-size:1.125rem}
+ .checkout-gold-site .checkout-pack-price {font-size:.875rem}
+ .checkout-gold-site .checkout-gold-intro {gap:12px}
+ .checkout-gold-site .checkout-gold-intro .checkout-product-image {width:32px;height:32px}
+}

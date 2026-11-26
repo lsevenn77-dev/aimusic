@@ -1,0 +1,265 @@
+/* Notifications presentation only. Reading, pagination, destinations and the
+   inline preferences dialog remain owned by the existing notifications UI. */
+.page-wrap:has(> #main:is([data-route="notifications"],[data-route^="notifications?"])) {
+  background:var(--ds-bg);
+}
+.page-wrap:has(> #main:is([data-route="notifications"],[data-route^="notifications?"]))::before,
+#main[data-route]:is([data-route="notifications"],[data-route^="notifications?"])::before {
+  display:none;content:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-inbox {
+  min-width:0;padding-top:calc(20px);margin-bottom:calc(32px);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-toolbar {
+  position:static;inset:auto;z-index:auto;min-height:44px;
+  gap:calc(12px);margin:0 0 calc(16px);padding:0;
+  background:transparent;border:0;border-radius:0;box-shadow:none;
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-toolbar > .activity-title {
+  flex:1;min-width:0;margin:0;color:var(--ds-text);
+  font-size:var(--pc-font-page,23px);font-weight:600;line-height:1.4;letter-spacing:-.035em;
+  text-align:left;text-shadow:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-toolbar > .activity-settings-trigger {
+  min-width:44px;min-height:44px;height:44px;padding:0 calc(14px);gap:calc(8px);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  background:var(--ds-panel);color:var(--ds-body);box-shadow:none;
+  font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-toolbar > .activity-settings-trigger:hover {
+  background:var(--ds-soft);border-color:var(--ds-lavender);color:var(--ds-text);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > #activity-list {
+  min-width:0;padding:0;
+  background:transparent;border:0;border-radius:0;
+  box-shadow:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-day {
+  margin:calc(24px) 0 0;padding:0 0 calc(12px);
+  border-bottom:1px solid var(--ds-line);color:var(--ds-muted);
+  font-size:var(--pc-font-meta,13px)!important;font-weight:500;line-height:1.6;
+  letter-spacing:0;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-day:first-child {
+  margin-top:0;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
+  --list-row-inset:0px;
+  display:flex;align-items:center;flex-wrap:nowrap;gap:calc(16px);
+  min-width:0;min-height:92px;margin:0;padding-block:calc(18px);
+  background:transparent;border:0;border-bottom:1px solid var(--ds-line);border-radius:0;box-shadow:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row:last-child {
+  border-bottom:0;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row.is-unread {
+  background:transparent;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox a.activity-row:hover {
+  background:var(--ds-soft);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-avatar {
+  flex:none;width:48px;height:48px;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-avatar > img {
+  display:block;background:var(--ds-bg);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy {
+  min-width:0;flex:1;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta {
+  align-items:center;gap:calc(6px);min-width:0;
+  color:var(--ds-muted);font-size:var(--pc-font-meta,13px);font-weight:400;line-height:1.5;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > span {
+  color:var(--ds-muted);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta time {
+  flex:none;color:var(--ds-muted);font-size:var(--pc-font-caption,12px);
+  font-variant-numeric:tabular-nums;line-height:1.5;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > p {
+  margin:calc(6px) 0;color:var(--ds-body);
+  font-size:var(--pc-font-body,14px);font-weight:400;line-height:1.7;
+  word-break:keep-all;overflow-wrap:anywhere;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > p > strong {
+  color:var(--ds-text);font-weight:600;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-detail {
+  min-width:0;max-width:100%;gap:calc(8px);color:var(--ds-muted);
+  font-size:var(--pc-font-meta,13px);line-height:1.6;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-detail:empty {
+  display:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail {
+  flex:1;min-width:0;max-width:100%;align-items:center;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-source {
+  flex:1;line-height:1.6;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-art {
+  width:28px;height:28px;object-fit:contain;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-more {
+  display:flex;align-items:center;justify-content:center;
+  width:max-content;min-width:180px;max-width:100%;min-height:44px;
+  margin:calc(24px) auto 0;padding:calc(10px) calc(16px);
+  background:var(--ds-soft);border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
+  color:var(--ds-text);box-shadow:none;
+  font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-more[hidden] {
+  display:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-more:hover {
+  border-color:var(--ds-lavender);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-more:disabled {
+  background:var(--ds-panel);color:var(--ds-disabled);border-color:var(--ds-line);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-error:empty {
+  display:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-error:not(:empty) {
+  margin:calc(16px) 0 0;padding:calc(12px) calc(16px);
+  background:var(--ds-panel);border-left:2px solid var(--ds-error);border-radius:var(--ds-radius-sm);
+  color:var(--ds-error);font-size:var(--pc-font-meta,13px);line-height:1.7;overflow-wrap:anywhere;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-empty {
+  padding:calc(56px) calc(16px);color:var(--ds-muted);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-empty > svg {
+  width:36px;height:36px;color:var(--ds-muted);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-empty h2 {
+  margin:calc(20px) 0 calc(12px);color:var(--ds-text);
+  font-size:var(--pc-font-section,18px);font-weight:600;line-height:1.5;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-empty p {
+  max-width:42ch;margin:0 auto;color:var(--ds-muted);font-size:var(--pc-font-body,14px);line-height:1.8;
+}
+/* Existing login/unavailable/request states use the same flat page surfaces. */
+#main:is([data-route="notifications"],[data-route^="notifications?"]) > .page-heading {
+  margin:0 0 calc(24px);padding:0;background:none;border:0;border-radius:0;box-shadow:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) > .page-heading h1 {
+  margin:0;font-size:var(--pc-font-page,23px);line-height:1.4;letter-spacing:-.035em;text-shadow:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) > :is(.empty-design,.activity-page:not(.activity-inbox)) {
+  min-width:0;padding:calc(28px);background:var(--ds-panel);
+  border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);box-shadow:none;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) > :is(.empty-design,.activity-page:not(.activity-inbox)) > p {
+  color:var(--ds-body);font-size:var(--pc-font-body,14px);line-height:1.8;overflow-wrap:anywhere;
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-page:not(.activity-inbox) {
+  display:flex;flex-wrap:wrap;align-items:center;gap:calc(12px);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-page:not(.activity-inbox) > p {
+  flex-basis:100%;margin:0 0 calc(4px);
+}
+#main:is([data-route="notifications"],[data-route^="notifications?"]) > :is(.empty-design,.activity-page:not(.activity-inbox)) > :is(.primary-button,.small-button) {
+  display:inline-flex;align-items:center;justify-content:center;min-height:44px;max-width:100%;
+  padding:calc(10px) calc(16px);border-radius:var(--ds-radius-input);box-shadow:none;
+  font-size:var(--pc-font-control,14px);font-weight:500;line-height:1.5;
+}
+/* Approved desktop inbox: separate message, amount, source, type and time columns.
+   Keep the original DOM order and the stacked layout on smaller screens. */
+@media(min-width:1024px) {
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-inbox {
+    width:100%;max-width:1360px;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
+    min-height:72px;padding-block:calc(14px);gap:calc(16px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-avatar {
+    width:40px;height:40px;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy {
+    display:grid;grid-template-columns:minmax(0,1.4fr) 80px minmax(0,1fr) 120px 62px;
+    align-items:center;gap:0 calc(32px);padding-inline-end:calc(40px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > p {
+    grid-column:1;grid-row:1;min-width:0;margin:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.5;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-detail {
+    grid-column:3;grid-row:1;min-width:0;align-items:center;flex-wrap:nowrap;
+    overflow:hidden;white-space:nowrap;line-height:1.5;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-meta {
+    display:contents;white-space:nowrap;font-size:var(--pc-font-caption,13px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > span:first-child {
+    grid-column:4;grid-row:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > time {
+    grid-column:5;grid-row:1;justify-self:end;white-space:nowrap;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta > [aria-hidden],
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail > .activity-gift-separator {
+    display:none;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-detail:has(> .activity-gift-detail),
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy > .activity-detail > .activity-gift-detail {
+    display:contents;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail > .activity-value {
+    grid-column:2;grid-row:1;min-width:0;text-align:right;font-variant-numeric:tabular-nums;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.5;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-gift-detail > .activity-gift-source {
+    grid-column:3;grid-row:1;min-width:0;line-height:1.5;
+  }
+}
+@media(min-width:1024px) and (max-width:1279px) {
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-copy {
+    grid-template-columns:minmax(0,1.7fr) 64px minmax(0,1fr) 96px 46px;
+    column-gap:calc(12px);
+  }
+}
+@media(max-width:800px) {
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) > .activity-inbox {
+    padding-top:calc(16px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
+    min-height:80px;padding-block:calc(16px);gap:calc(12px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-avatar {
+    width:40px;height:40px;
+  }
+}
+@media(max-width:767px) {
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-toolbar > .activity-settings-trigger {
+    width:44px;padding:0;
+  }
+}
+@media(max-width:600px) {
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox > .activity-toolbar {
+    margin-bottom:calc(12px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-day {
+    margin-top:calc(20px);padding-bottom:calc(10px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-day:first-child {
+    margin-top:0;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-row {
+    gap:calc(10px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta {
+    flex-wrap:wrap;gap:calc(4px);white-space:normal;font-size:12px;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-meta time {
+    white-space:nowrap;
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) .activity-inbox .activity-empty {
+    padding:calc(40px) calc(4px);
+  }
+  #main:is([data-route="notifications"],[data-route^="notifications?"]) > :is(.empty-design,.activity-page:not(.activity-inbox)) {
+    padding:calc(20px);
+  }
+}

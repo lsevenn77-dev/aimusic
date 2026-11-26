@@ -1,0 +1,66 @@
+/* 100% browser baseline. Tokens opt in per region, never on body/:root.
+   Fixed legacy typography/spacing is compiled by ui-region-tokens.mjs. */
+@media(min-width:801px){
+ :root{--pc-font-page:25px;--pc-font-section:20px;--pc-font-card:16px;--pc-font-body:15px;--pc-font-control:14px;--pc-font-meta:14px;--pc-font-caption:13px}
+ .sidebar,.topbar{--ui-type-scale:1.1;--ui-space-scale:1.1;--ui-icon-scale:1.1;font-size:var(--pc-font-control)}
+ #main{--ui-type-scale:1.25;--ui-space-scale:1.125;--ui-icon-scale:1.25;--ui-control-height:50px;font-size:var(--pc-font-body);min-width:0}
+ .sidebar{width:calc(var(--sidebar) * 1.1)}
+ .page-wrap{margin-left:calc(var(--sidebar) * 1.1);width:calc(100% - var(--sidebar) * 1.1);max-width:none}
+ .sidebar .aifect-wordmark-logo{width:162.8px;height:39.6px;max-width:100%}
+ .sidebar>.nav-primary{margin-top:16px}
+ .sidebar .nav-link{min-height:49.5px;gap:15.4px}
+ .sidebar .nav-link>i>svg{width:22px;height:22px}
+ .sidebar nav[aria-label="음악 탐색"] .nav-link{padding-inline:8px;gap:11px;white-space:nowrap}
+ .sidebar .profile>.avatar,.sidebar .profile .identity-avatar{width:37.4px;height:37.4px;flex-shrink:0}
+ .sidebar .profile>span:not(.avatar){min-width:0}
+ .sidebar .profile strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+ .topbar{height:88px;align-items:center;gap:19.8px}
+ .topbar #global-search{height:46.2px;min-width:180px;flex:1 1 440px;max-width:475px;margin-left:0}
+ .topbar #global-search input{min-width:0;width:100%}
+ .topbar .search-submit{min-height:35.2px;flex:none}
+ .topbar .top-actions{align-items:center;flex-shrink:0;gap:19.8px}
+ .topbar :is(.header-login,.header-messages,.header-activity){display:inline-flex;align-items:center;justify-content:center;min-height:44px}
+ .topbar :is(.header-login,.header-messages,.upload-button){font-family:inherit;font-size:var(--pc-font-control);font-weight:400}
+ /* Preserve the measured desktop message hit area while normalizing its text. */
+ .topbar .header-messages{width:81.359375px;flex-shrink:0}
+ .topbar .upload-button{display:flex;align-items:center;justify-content:center;gap:calc(8px * var(--ui-space-scale));padding:calc(8px * var(--ui-space-scale)) calc(14px * var(--ui-space-scale));min-height:44px;height:auto;line-height:1.4}
+ .topbar :is(.header-messages,.header-activity,.upload-button)>i{display:flex;align-items:center;justify-content:center;line-height:1}
+ .topbar :is(.header-messages,.header-activity)>i>svg{width:22px;height:22px}
+ .topbar .upload-button svg{width:16.5px;height:16.5px}
+ #main :is(.primary-button,.small-button,.submit-button,.form-submit):not(#sing.web-studio *,.dubbing-record-layout *){min-height:var(--ui-control-height);height:auto;white-space:normal}
+ #main :is(input:not([type=range],[type=checkbox],[type=radio],[type=color],[type=file]),select):not(#sing.web-studio *,.dubbing-record-layout *){min-height:var(--ui-control-height);max-width:100%;min-width:0}
+ #main textarea{max-width:100%;min-width:0}
+ #main :is(.primary-button,.small-button,.text-link)>svg:not(.aifect-control-icon){width:calc(16px * var(--ui-icon-scale));height:calc(16px * var(--ui-icon-scale))}
+ #main :is(.section-heading>a,.tab)>svg:not(.aifect-control-icon){width:calc(16px * var(--ui-icon-scale));height:calc(16px * var(--ui-icon-scale))}
+ #main :is(.section-heading,.page-heading){align-items:center}
+ #main .home-content-refresh .home-music-grid{grid-template-columns:repeat(var(--home-grid-fill,auto-fit),minmax(180px,1fr));gap:25px 20px}
+ #main .charts-final .chart-toolbar .chart-action{height:44px;min-height:44px}
+ #main .song-table-row{min-height:79px}
+ /* Existing recording/editing geometry, lyric-size preferences and maxima win. */
+ #main :is(#sing.web-studio,.dubbing-record-layout,.studio-edit-panel,.studio-edit-workspace){--ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;--ui-control-height:44px}
+ #main .dubbing-record-layout{font-size:1.0833125rem}
+ /* Semantic roles win over accumulated page-specific sizes. Only typography
+    is normalized here; surfaces, spacing, icons and user-sized lyrics remain. */
+ :is(#main,#dialog) h2:where(:not(.home-feature-copy h2,[class*="-card"] h2)){font-size:var(--pc-font-section)!important}
+ :is(#main,#dialog) h3{font-size:var(--pc-font-card)!important}
+ :is(#main,#dialog) :is(.page-heading h1,.page-heading h2,.page-title,.play-heading h1,.shop-heading h1){font-size:var(--pc-font-page)!important}
+ :is(#main,#dialog) h1:not(.song-title){font-size:var(--pc-font-page)!important}
+ :is(#main,#dialog) :is(.section-heading h2,.section-heading h3,.mp-section-head h2,.song-support-rank h2,.song-credit-card h3,.song-introduction h3){font-size:var(--pc-font-section)!important}
+ #main :is(.album-title,.song-table-title,.song-cover-copy strong,.play-song-copy strong,.card-title,.playlist-card h3,.artist-card h3,.song-credits a,.song-producer-name){font-size:var(--pc-font-card)!important}
+ :is(#main,#dialog) :is(.song-description,.cover-introduction,.page-heading p,.field-help,.form-error,.song-comment-body,.mp-profile-bio){font-size:var(--pc-font-body)!important}
+ :is(#main,#dialog,.sidebar,.topbar) :is(button,.primary-button,.small-button,.text-link,.tab,.nav-link,.aifect-dropdown-trigger,input:not([type=range],[type=checkbox],[type=radio],[type=color]),select,textarea){font-size:var(--pc-font-control)!important}
+ /* Only the eight upper sidebar labels grow; retain the existing row and icon geometry. */
+ #sidebar>.nav-primary>.nav-link,#sidebar>.nav-link[data-view="studio"]{font-size:calc(var(--pc-font-control) + 2px)!important;line-height:22px}
+ :is(#main,#dialog) :is(.song-release-date,.song-track-meta,.song-metrics,.song-like-count,.comment-age,.song-support-caption,.song-cover-meta,.song-support-gifts,.production-info){font-size:var(--pc-font-meta)!important}
+ :is(#main,#dialog) :is(.song-credits>div>span,.song-description-toggle){font-size:var(--pc-font-caption)!important}
+}
+@media(min-width:801px) and (max-width:1150px){
+ .topbar{padding-inline:24px;gap:14px}
+ .topbar .top-actions{gap:12px}
+ .topbar #global-search{flex-basis:280px;min-width:140px}
+ #main .home-content-refresh .home-music-grid{gap:22px 16px}
+}
+/* Mobile keeps the approved independent layout and font sizes. */
+@media(max-width:800px){
+ #main,.sidebar,.topbar{--ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1}
+}

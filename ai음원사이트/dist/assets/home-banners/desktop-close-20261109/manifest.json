@@ -1,0 +1,81 @@
+{
+  "purpose": "Close-up PC photographs for the home carousel. The approved mobile artwork is unchanged.",
+  "generation": "image_gen built-in reference editing",
+  "provenance": "docs/home-banner-pc-close-20261109.json",
+  "encoding": {
+    "software": "Pillow",
+    "format": "WEBP",
+    "quality": 94,
+    "method": 6,
+    "resize": false,
+    "crop": false,
+    "sharpen": false,
+    "color_adjustments": false
+  },
+  "assets": [
+    {
+      "id": "studio",
+      "file": "studio-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 161036,
+      "sha256": "ef18fb56c26ed8817fb695d01528a06cee426c08acb26d3a292c946f6f17a9b4"
+    },
+    {
+      "id": "play",
+      "file": "play-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 147402,
+      "sha256": "670e4496023c24e1d47b630e17b5ad550e619b505bd0a113fae23040ac9d6148"
+    },
+    {
+      "id": "participate",
+      "file": "participate-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 186808,
+      "sha256": "bbb2ae7c53a2fe6bc45f6619866e382d8c39f240a16ecb7f5ea04d34cef4f514"
+    },
+    {
+      "id": "artists",
+      "file": "artists-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 168862,
+      "sha256": "fa51af33642348ad0ced6db77e50583f886d14dd717dbcb87663657882d686db"
+    },
+    {
+      "id": "karaoke",
+      "file": "karaoke-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 203460,
+      "sha256": "64d618f280712c04a322327517eb6ac81071d5ef59e659687e8f019e10ed009c"
+    },
+    {
+      "id": "talking",
+      "file": "talking-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 318780,
+      "sha256": "82ee6a2ef30db73fd232540d6a99ced5f069dcb14318383d30a0005c9f11e9f5"
+    },
+    {
+      "id": "crew",
+      "file": "crew-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 305216,
+      "sha256": "162e13037230c9da7c9b5fd50c5cd7de5ffc0f9e1d8018b2fb8390eca53a00b5"
+    },
+    {
+      "id": "premium",
+      "file": "premium-2172.webp",
+      "width": 2172,
+      "height": 724,
+      "bytes": 242248,
+      "sha256": "304d58017bd7a78d05508c0f1755d08df62c6cde5f6e3c13072f81d5270b0965"
+    }
+  ]
+}

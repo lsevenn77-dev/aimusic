@@ -5,6 +5,18 @@ import {cleanupChatImages,CHAT_IMAGE_TTL} from '../server/chat-features.js';
 import {fixture} from './fixture.mjs';
 const msg=body=>({body,request_id:crypto.randomUUID()});
 async function setup(t){const f=await fixture(t);const p=(await f.call('/api/me/profile','PUT',{name:'Moon'},'other')).body.profile.id;return {...f,p};}
+
+test('bounded DM read acknowledgement leaves messages arriving after history unread',async t=>{
+ const f=await setup(t),path='/api/dm/'+f.p;
+ await f.call('/api/dm/producer','POST',msg('seen'),'other');
+ const history=(await f.call(path)).body.messages;
+ await f.call('/api/dm/producer','POST',msg('arrived later'),'other');
+ assert.equal((await f.call(path,'PATCH',{sequence:history.at(-1).sequence})).status,200);
+ const latest=(await f.call(path)).body.messages;assert.ok(latest[0].read_at);assert.equal(latest[1].read_at,0);
+ assert.equal((await f.call('/api/dm/summary')).body.unread,1);
+ assert.equal((await f.call(path,'PATCH',{sequence:-1})).status,400);
+ await f.call(path,'PATCH',{sequence:latest.at(-1).sequence});assert.equal((await f.call('/api/dm/summary')).body.unread,0);
+});
 test('per-account deletion hides old pages while preserving the recipient and new messages',async t=>{
  const f=await setup(t),path='/api/dm/'+f.p;
  await f.call(path,'POST',msg('one'));await f.call('/api/dm/producer','POST',msg('two'),'other');
@@ -20,6 +32,24 @@ test('per-account deletion hides old pages while preserving the recipient and ne
  assert.equal((await f.call('/api/dm','DELETE')).status,200);
  assert.equal((await f.call('/api/dm/summary')).body.unread,0);
 });
+test('clearing one room preserves other rooms, recipient history, and future messages',async t=>{
+ const f=await setup(t),path='/api/dm/'+f.p;
+ f.sql.exec("INSERT INTO users(id,email,name,created) VALUES('third','third@example.test','Third',0);INSERT INTO producers(id,user_id,name,created) VALUES('third-profile','third','Third',0)");
+ await f.call(path,'POST',msg('old outgoing'));
+ await f.call('/api/dm/producer','POST',msg('old incoming'),'other');
+ await f.call('/api/dm/third-profile','POST',msg('keep other room'));
+ assert.equal((await f.call(path,'DELETE')).status,200);
+ assert.equal((await f.call(path,'DELETE')).status,200,'repeated clear is safe');
+ for(const suffix of ['', '?before=999', '?after=1']) {
+  const response=await f.call(path+suffix);assert.equal(response.status,200);
+  assert.deepEqual(response.body.messages,[]);
+ }
+ assert.deepEqual((await f.call('/api/dm/third-profile')).body.messages.map(m=>m.body),['keep other room']);
+ assert.deepEqual((await f.call('/api/dm/producer','GET',null,'other')).body.messages.map(m=>m.body),['old outgoing','old incoming']);
+ await f.call('/api/dm/producer','POST',msg('new incoming'),'other');
+ assert.deepEqual((await f.call(path)).body.messages.map(m=>m.body),['new incoming']);
+});
+
 test('mute persists by peer and crew unread respects joining and read boundaries',async t=>{
  const f=await setup(t),path='/api/dm/'+f.p;
  await f.call(path,'POST',msg('hi'));assert.equal((await f.call(path+'/settings','PUT',{muted:true})).status,200);
@@ -89,4 +119,18 @@ test('crew photos enforce membership, join boundary, ownership, expiry and priva
  await assert.rejects(cleanupChatImages({...env,BUCKET:{delete:async()=>{throw Error('retry')}}}));
  assert.equal(f.sql.prepare('SELECT count(*) n FROM crew_chat_images WHERE deleted=0').get().n,2);
  await cleanupChatImages(env);assert.equal(objects.size,0);
+});
+import {socialRoute} from '../server/social.js';
+test('DM history uses two database round trips with settings and receipts preserved',async t=>{
+ const f=await setup(t),path='/api/dm/'+f.p;await f.call(path,'POST',msg('quick'));
+ let roundTrips=0;const DB={prepare(sql){return {bind(...args){const q=f.DB.prepare(sql).bind(...args);return {...q,first(){roundTrips++;return q.first();}};}};},batch(statements){roundTrips++;return f.DB.batch(statements);}};
+ const r=await socialRoute(new Request('https://aifect.test'+path),{DB,AIFECT_BLOCKED:[]},path,{id:'owner'}),d=await r.json();assert.equal(roundTrips,2);assert.equal(d.messages[0].body,'quick');assert.deepEqual(d.settings,{muted:0,cleared_sequence:0});assert.deepEqual(d.read_receipt,{sequence:0,read_at:0});
+});
+test('crew chat returns its header without querying crew home or updating XP',async t=>{
+ const f=await setup(t),created=await f.call('/api/crews','POST',{name:'Quick crew',description:'Chat',interests:'Rock'});const cid=created.body.crew.id;const sql=[];const prepare=f.DB.prepare;f.DB.prepare=q=>{sql.push(q);return prepare(q);};const r=await f.call('/api/crews/'+cid+'/messages');assert.equal(r.status,200);assert.equal(r.body.crew.name,'Quick crew');assert.equal(r.body.membership.role,'owner');assert.ok(!sql.some(q=>q.includes('INSERT OR IGNORE INTO crew_xp')));
+});
+test('text DM sends take three DB round trips and retries stay idempotent',async t=>{
+ const f=await setup(t),path='/api/dm/'+f.p;let roundTrips=0;const DB={prepare(sql){return {bind(...args){const q=f.DB.prepare(sql).bind(...args);return {...q,first(){roundTrips++;return q.first();}};}};},batch(statements){roundTrips++;return f.DB.batch(statements);}};
+ const env={DB,AIFECT_BLOCKED:[]},body=msg('fast send'),send=b=>socialRoute(new Request('https://aifect.test'+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}),env,path,{id:'owner'});
+ const result=await (await send(body)).json();assert.equal(roundTrips,3);assert.equal(result.message.body,'fast send');const retry=await (await send(body)).json();assert.equal(retry.message.id,result.message.id);await assert.rejects(send({...body,body:'changed'}),e=>e.status===409);
 });

@@ -57,10 +57,13 @@ test('monthly billing retains the signup day across February and uses Korean cal
  assert.equal(new Date(nextBillingMonth(feb,31)*1000).toISOString(),'2028-03-30T15:15:00.000Z');
 });
 test('concurrent subscription requests charge once at the server price and never store raw card data',async t=>{
- const f=await setup(t);const results=await Promise.all([f.subscribe(),f.subscribe()]);
+ const f=await setup(t);
+ f.sql.exec("UPDATE users SET created=0 WHERE id='owner'"); // Promotional access never becomes a paid baseline.
+ const results=await Promise.all([f.subscribe(),f.subscribe()]);
  assert.equal(results.filter(r=>r.status===200).length,1);assert.equal(results.filter(r=>r.status===409).length,1);
  const charges=f.calls.filter(c=>c.path.endsWith('/payments'));assert.equal(charges.length,1);assert.equal(charges[0].body.amount,4900);
  const p=f.sql.prepare('SELECT * FROM billing_payments').get(),s=f.sql.prepare('SELECT * FROM billing_subscriptions').get();
+ assert.equal(s.baseline_until,0);
  assert.equal(p.status,'paid');assert.equal(f.sql.prepare("SELECT premium_until FROM users WHERE id='owner'").get().premium_until,p.period_end);
  const stored=JSON.stringify([s,p]);for(const sensitive of [CARD.cardNo,CARD.idNo,'private-billing-key'])assert.equal(stored.includes(sensitive),false);
  assert.equal(f.calls.find(c=>c.path==='/v1/subscribe/regist').body.encMode,'A2');

@@ -2,6 +2,48 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
 import {publicMusicRoute} from '../server/public-music.js';
+import worker from '../server/index.js';
+test('public trailing slash aliases redirect without querying storage and retain search filters',async()=>{
+ for(const method of ['GET','HEAD'])for(const path of ['/music/','/music/one/','/about/','/guide/recording/']){
+  const r=await worker.fetch(new Request('https://aifect.test'+path+'?genre=Rock',{method}),{},{});
+  assert.equal(r.status,308);assert.equal(r.headers.get('location'),path.slice(0,-1)+'?genre=Rock');assert.equal(await r.text(),'');
+ }
+});
+
+test('public documents load the existing design tokens and remain discoverable after app hydration',async t=>{
+ const f=await fixture(t),env={DB:f.DB};
+ for(const path of ['/music','/music/one','/music/absent','/about','/guide/listening','/guide/recording','/guide/community']){
+  const html=await (await publicMusicRoute(new Request('https://aifect.test'+path),env,path)).text();
+  assert.match(html,/<link rel="stylesheet" href="\/design-system\.css">/);
+  const footer=html.split('<footer')[1];
+  assert.match(footer,/href="\/music"/);assert.match(footer,/href="\/about"/);
+ }
+});
+
+test('out-of-range catalog pages are 404, while a real empty search remains 200 noindex',async t=>{
+ const f=await fixture(t),env={DB:f.DB};
+ const missing=await publicMusicRoute(new Request('https://aifect.test/music?page=500'),env,'/music');
+ assert.equal(missing.status,404);
+ const html=await missing.text();assert.match(html,/noindex,follow/);assert.match(html,/<title>공개 음악 · 500 페이지/);
+ const search=await publicMusicRoute(new Request('https://aifect.test/music?q=missing'),env,'/music');
+ assert.equal(search.status,200);assert.match(await search.text(),/noindex,follow/);
+});
+test('homepage and index use the separate shell and current public rows for GET and HEAD',async t=>{
+ const f=await fixture(t),requests=[],env={DB:f.DB,ASSETS:{async fetch(req){
+  requests.push(req);assert.equal(new URL(req.url).pathname,'/aifect-shell.txt');
+  assert.equal(req.method,'GET');assert.equal([...req.headers].length,0);
+  return new Response('<html><main id="main">old</main><script src="/app.js"></script></html>');
+ }}};
+ const get=path=>publicMusicRoute(new Request('https://aifect.test'+path,{headers:{cookie:'private-session',range:'bytes=0-20'}}),env,new URL('https://aifect.test'+path).pathname);
+ let result=await get('/?source=share');let html=await result.text();
+ assert.equal(result.status,200);assert.equal(result.headers.get('cache-control'),'no-store');
+ assert.match(html,/href="\/music\/one"/);assert.match(html,/<script src="\/app.js"><\/script>/);
+ f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");
+ html=await (await get('/index.html')).text();assert.doesNotMatch(html,/href="\/music\/one"/);assert.match(html,/href="\/music\/two"/);
+ const head=await publicMusicRoute(new Request('https://aifect.test/',{method:'HEAD'}),env,'/');
+ assert.equal(head.status,200);assert.equal(await head.text(),'');assert.equal(requests.length,3);
+});
+
 test('public music HTML and sitemap contain real visible tracks, escaped descriptions and no private songs',async t=>{
  const f=await fixture(t),env={DB:f.DB,ASSETS:{fetch:async()=>new Response('<html><main id="main"><noscript>old</noscript></main></html>')}};
  f.sql.prepare('UPDATE tracks SET description=? WHERE id=?').run('<script>alert(1)</script>','one');
@@ -12,4 +54,58 @@ test('public music HTML and sitemap contain real visible tracks, escaped descrip
  f.sql.prepare("UPDATE tracks SET status='removed' WHERE id='one'").run();assert.equal((await publicMusicRoute(req('/music/one'),env,'/music/one')).status,404);
  const xml=await (await publicMusicRoute(req('/sitemap.xml'),env,'/sitemap.xml')).text();assert.match(xml,/\/guide\/recording/);assert.match(xml,/\/music\/two/);assert.doesNotMatch(xml,/\/music\/(hidden|one)/);
  assert.equal(await publicMusicRoute(req('/api/me'),env,'/api/me'),null);
+});
+
+test('anonymous song pages expose only the public preview and registered creator content',async t=>{
+ const f=await fixture(t),env={DB:f.DB};
+ f.sql.prepare('UPDATE tracks SET description=?,participation=? WHERE id=?').run('The real story behind this song.','직접 작성한 가사와 편곡','one');
+ f.sql.prepare('UPDATE artists SET bio=? WHERE id=?').run('<script>private()</script>\n등록한 아티스트 이야기','artist');
+ const request=path=>publicMusicRoute(new Request('https://aifect.test'+path),env,path);
+ const html=await (await request('/music/one')).text();
+ assert.match(html,/<audio controls preload="none"[^>]*src="\/media\/one\/preview"/);
+ assert.doesNotMatch(html,/(?:src|href)="\/media\/one\/(?:stream|premium)/);
+ assert.match(html,/등록한 아티스트 이야기/);assert.match(html,/&lt;script&gt;private/);assert.doesNotMatch(html,/<script>private/);
+ assert.match(html,/직접 작성한 가사와 편곡/);
+ assert.match(html,/<meta name="description" content="The real story behind this song\."/);
+ f.sql.exec("UPDATE tracks SET status='hidden' WHERE id='one'");
+ const hidden=await request('/music/one');assert.equal(hidden.status,404);assert.doesNotMatch(await hidden.text(),/<audio|등록한 아티스트 이야기/);
+});
+
+test('placeholder descriptions are not passed off as song introductions and filtered pages are not indexed',async t=>{
+ const f=await fixture(t),env={DB:f.DB};
+ for(const value of ['0000','-','없음']){
+  f.sql.prepare('UPDATE tracks SET description=? WHERE id=?').run(value,'one');
+  const html=await (await publicMusicRoute(new Request('https://aifect.test/music/one'),env,'/music/one')).text();
+  assert.doesNotMatch(html,/<h2>창작자의 곡 소개<\/h2>/);
+ }
+ const html=await (await publicMusicRoute(new Request('https://aifect.test/music?q=absent'),env,'/music')).text();
+ assert.match(html,/<meta name="robots" content="noindex,follow">/);
+});
+
+test('media HEAD and GET tolerate the empty body stream exposed by ingress without granting full stream access',async t=>{
+ const f=await fixture(t),bytes=new Uint8Array([1,2,3,4]),env={DB:f.DB,BUCKET:{head:async()=>({size:bytes.length}),get:async()=>({body:bytes})}};
+ for(const method of ['HEAD','GET']){
+  const req=new Request('https://aifect.test/media/one/preview',{method,headers:{'content-length':'0'}});
+  // Workers ingress can expose this stream even though the Request constructor forbids it.
+  Object.defineProperty(req,'body',{value:new ReadableStream({start(c){c.close();}})});
+  const r=await worker.fetch(req,env,{waitUntil(p){p.catch(()=>{});}});
+  assert.equal(r.status,200);assert.equal(r.headers.get('content-type'),'audio/mp4');
+  assert.equal((await r.arrayBuffer()).byteLength,method==='HEAD'?0:4);
+ }
+ const denied=await worker.fetch(new Request('https://aifect.test/media/one/stream'),env,{waitUntil(p){p.catch(()=>{});}});
+ assert.equal(denied.status,401);
+ assert.equal(f.sql.prepare('SELECT count(*) n FROM listens').get().n,0);
+});
+test('public catalog filters, pagination and detail only use public, escaped content',async t=>{
+ const f=await fixture(t),env={DB:f.DB},request=p=>publicMusicRoute(new Request('https://aifect.test'+p),env,new URL('https://aifect.test'+p).pathname);
+ f.sql.prepare('UPDATE tracks SET title=?,description=?,has_cover=1,genres_json=? WHERE id=?').run('Small 100% song','A real story\nSecond line','["Rock","Jazz"]','one');
+ let html=await (await request('/music?q=100%25&genre=Jazz&kind=original')).text();
+ assert.match(html,/Small 100% song/);assert.doesNotMatch(html,/\/music\/(two|hidden)/);assert.match(html,/\/media\/one\/cover/);
+ html=await (await request('/music?q=%27%20OR%201%3D1--')).text();assert.match(html,/조건에 맞는 공개 음악이 없습니다/);
+ html=await (await request('/music/one')).text();assert.match(html,/창작자의 곡 소개/);assert.match(html,/A real story\nSecond line/);assert.match(html,/등록된 제작 도구/);
+ for(let i=0;i<23;i++)f.sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,0,'published')").run('extra-'+i,'Extra '+i);
+ html=await (await request('/music')).text();assert.equal((html.match(/class="music-card"/g)||[]).length,24);assert.match(html,/다음 페이지/);
+ html=await (await request('/music?page=2')).text();assert.equal((html.match(/class="music-card"/g)||[]).length,2);assert.doesNotMatch(html,/다음 페이지/);
+ assert.match(await (await request('/about')).text(),/AI 아티스트는/);
+ const head=await publicMusicRoute(new Request('https://aifect.test/music/one',{method:'HEAD'}),env,'/music/one');assert.equal(head.status,200);assert.equal(await head.text(),'');
 });

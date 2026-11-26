@@ -39,7 +39,7 @@ test('a block hides content and prevents messages in both directions, and can be
   assert.equal((await f.call(`/api/dm/${target}`,'GET',null,sender)).status,403);
  }
  assert.equal((await f.call('/api/catalog','GET',null,'other')).body.tracks.length,0);
- assert.equal((await f.call('/api/tracks/one','GET',null,'other')).status,403);
+ assert.equal((await f.call('/api/tracks/one','GET',null,'other')).status,200);
  assert.equal((await f.call('/api/blocks','GET',null,'other')).body.blocks[0].id,'owner');
  assert.equal((await f.call('/api/blocks/owner','DELETE',{},'other')).status,200);
  assert.equal((await f.call('/api/catalog','GET',null,'other')).body.tracks.length,3);

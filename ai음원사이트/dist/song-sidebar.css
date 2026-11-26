@@ -1,0 +1,34 @@
+/* Scoped to the song sidebar; profile rankings and settlement UI are unchanged. */
+.song-sidebar{min-width:0}
+.song-sidebar .song-support-rank,.song-sidebar .song-credit-card{min-width:0;margin:0;padding:20px;border:1px solid #b8c6dc24;border-radius:16px;background:var(--ds-panel,#182230);box-shadow:none}
+.song-sidebar .song-support-rank h2,.song-sidebar .song-credit-card h3{margin:0 0 10px;color:var(--ds-text);font-size:1.06rem;line-height:1.5}
+.song-support-caption{color:var(--ds-muted);font-size:.76rem;line-height:1.7;margin:0 0 16px}
+.song-support-ranking{display:grid;list-style:none;margin:0;padding:0;border-bottom:1px solid var(--ds-line)}
+.song-support-ranking li{display:grid;grid-template-columns:18px minmax(0,1fr) auto;align-items:center;gap:12px;min-width:0;padding:12px 4px;border:0;border-top:1px solid var(--ds-line);border-radius:0;background:transparent}
+.song-support-position{font-size:.9rem;color:var(--ds-body)}
+.song-support-person{min-width:0}.song-support-person>a,.song-support-person>strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ds-text);font-size:.8rem;font-weight:600;line-height:1.5}
+.song-support-gifts{max-width:132px;color:var(--ds-body);font-size:.76rem;line-height:1.6;text-align:right;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.song-support-gift{display:grid;gap:12px;min-width:0}
+.song-sidebar .song-support-card{display:grid;grid-template-columns:40px minmax(0,1fr) 16px;align-items:center;gap:14px;width:100%;min-width:0;min-height:92px;padding:16px;border:1px solid #b8c6dc24;border-radius:var(--ds-radius-card);background:var(--ds-panel);color:var(--ds-text);text-align:left;text-decoration:none;box-shadow:none;transition:border-color .15s ease}
+.song-sidebar .song-support-card:hover{border-color:var(--ds-muted);color:var(--ds-text)}
+.song-support-card-icon{display:flex;align-items:center;justify-content:center;min-width:0;color:var(--ds-body)}
+.song-support-card-icon svg{display:block;width:40px;height:40px;flex:none}
+.song-support-card--gift .song-support-card-icon{color:var(--ds-social)}
+.song-support-card-copy{display:block;min-width:0}
+.song-support-card-copy strong{display:block;color:var(--ds-text);font-size:.94rem;line-height:1.4;font-weight:700;word-break:keep-all;overflow-wrap:anywhere}
+.song-support-card-copy>span{display:block;margin-top:4px;color:var(--ds-body);font-size:.73rem;line-height:1.5;word-break:keep-all;overflow-wrap:anywhere}
+.song-support-card-arrow{display:flex;align-items:center;justify-content:center;color:var(--ds-body)}
+.song-support-card-arrow svg{display:block;width:16px;height:16px}
+.song-sidebar .song-credit-card .production-info{display:grid;grid-template-columns:minmax(68px,.8fr) minmax(0,1.6fr);gap:0;margin:14px 0 0;font-size:.76rem;line-height:1.8}
+.song-sidebar .song-credit-card .production-info>dt,.song-sidebar .song-credit-card .production-info>dd{min-width:0;margin:0;padding:10px 0;border-top:1px solid #b8c6dc19;color:var(--ds-body);overflow-wrap:anywhere}
+.song-sidebar .song-credit-card .production-info>dt{padding-right:12px}
+@media(max-width:420px){.song-sidebar .song-support-rank,.song-sidebar .song-credit-card{padding:16px}.song-support-ranking li{gap:8px;padding:11px 4px}.song-sidebar .song-support-card{grid-template-columns:36px minmax(0,1fr) 16px;gap:12px;padding:14px}.song-support-card-icon svg{width:36px;height:36px}.song-support-card-copy strong{font-size:.9rem}.song-support-card-copy>span{font-size:.7rem}}
+@media(prefers-reduced-motion:reduce){.song-sidebar .song-support-card{transition:none}}
+#song-lyrics #lyrics-follow.small-button{background:#111c29;color:var(--ds-body);border:1px solid #65708366;box-shadow:none}
+#song-lyrics #lyrics-follow.small-button[aria-pressed="true"]{background:linear-gradient(110deg,#d7b5fa,#9ce7e1);color:var(--ds-ink);border-color:transparent;box-shadow:none}
+#song-lyrics #lyrics-follow.small-button:disabled{background:#111c29;color:var(--ds-disabled);border-color:#65708344;cursor:default}
+
+/* Song actions share normal flow and wrap before long labels can collide. */
+.song-detail .song-actions{display:flex;flex-wrap:wrap;align-items:stretch;gap:var(--ds-space-3,12px)}
+.song-detail .song-actions>:is(button,a){min-width:0;max-width:100%;min-height:44px;white-space:normal;overflow-wrap:anywhere;margin:0}
+@media(max-width:600px){.song-detail .song-actions>.primary-button{flex:1 1 9rem}.song-detail .song-actions>.small-button{flex:0 1 auto}}

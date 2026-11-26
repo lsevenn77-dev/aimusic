@@ -1,0 +1,319 @@
+{
+  "created_at_utc": "2026-11-09T07:24:01.172734+00:00",
+  "purpose": "User-approved home-banner mobile-photo extensions, plus one new crew photo",
+  "approval": "Eight preview photographs approved for website application in the current conversation",
+  "encoding": {
+    "software": "Pillow",
+    "software_version": "13.0.0",
+    "libwebp_version": "1.6.0",
+    "format": "WEBP",
+    "mime_type": "image/webp",
+    "quality": 92,
+    "method": 6,
+    "resize_filter": "LANCZOS",
+    "crop": false,
+    "color_adjustments": false,
+    "sharpening": false,
+    "full_source_frame_preserved": true,
+    "desktop_widths": [
+      2172,
+      1448
+    ],
+    "crew_additional_widths": [
+      1536,
+      768
+    ],
+    "height_rounding": "nearest whole pixel for proportional resize"
+  },
+  "assets": [
+    {
+      "id": "studio",
+      "source": {
+        "filename": "exec-d8646592-d912-4a4f-bb6d-4c5291d4eda6.png",
+        "sha256": "58af660873a37c04dadb373139b69bbc814ba6bfcd02804efcd88cddc7e8194d",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png"
+      },
+      "outputs": [
+        {
+          "filename": "studio-2172.webp",
+          "url": "/assets/home-banners/approved-20261109/studio-2172.webp",
+          "sha256": "0bd7629917bb6f0f1c304063478866a967da35a9ea1a06bad4ff66f98e2b1ba5",
+          "bytes": 213230,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "studio-1448.webp",
+          "url": "/assets/home-banners/approved-20261109/studio-1448.webp",
+          "sha256": "dd1b0dbb789baa0473d359c04e43a9cee0f8f59bbde4f96c10ee023750261f97",
+          "bytes": 123738,
+          "width": 1448,
+          "height": 483,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "play",
+      "source": {
+        "filename": "exec-f368338c-e0bb-44da-9fe7-2458dfc2944f.png",
+        "sha256": "c4cf7225f656e2ef3b7083de7506ccc4581cfb1c366cc721ccc586dda73c27ee",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png"
+      },
+      "outputs": [
+        {
+          "filename": "play-2172.webp",
+          "url": "/assets/home-banners/approved-20261109/play-2172.webp",
+          "sha256": "b0f478e96105d6235faaf199131328ed0ce3ae2c7e83a9b63bac5017bb60021e",
+          "bytes": 151084,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "play-1448.webp",
+          "url": "/assets/home-banners/approved-20261109/play-1448.webp",
+          "sha256": "79d754f69ff327f8665e28d20f31df301063fbd4cc4bc021187094c6c1056f93",
+          "bytes": 87126,
+          "width": 1448,
+          "height": 483,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "participate",
+      "source": {
+        "filename": "exec-6d68227c-22e7-432d-85ef-c9ca5c542e3e.png",
+        "sha256": "c17f070fd7e8c205095ded743411458a88b139fc4d11c3e546a443884889ee49",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png"
+      },
+      "outputs": [
+        {
+          "filename": "participate-2172.webp",
+          "url": "/assets/home-banners/approved-20261109/participate-2172.webp",
+          "sha256": "c955bd1eb1d8d3decd75cadb1626bd73296c06c14a69536222c7c4be8efc86e5",
+          "bytes": 200264,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "participate-1448.webp",
+          "url": "/assets/home-banners/approved-20261109/participate-1448.webp",
+          "sha256": "89456de90264e5396e0cbd18a425b731882b367e23aa29d96dfd8afc5c033429",
+          "bytes": 119030,
+          "width": 1448,
+          "height": 483,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "artists",
+      "source": {
+        "filename": "exec-1b78a614-6bac-4523-bf4a-206b240d43cf.png",
+        "sha256": "766243d84313c0366aef1216b33ab1c893f1b64d42569843e9bca50aef1bbbb1",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png"
+      },
+      "outputs": [
+        {
+          "filename": "artists-2172.webp",
+          "url": "/assets/home-banners/approved-20261109/artists-2172.webp",
+          "sha256": "21f55feb8a2f6d76e30857f11d93645a5bc0510584f01579ec2cdb822913491f",
+          "bytes": 193440,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "artists-1448.webp",
+          "url": "/assets/home-banners/approved-20261109/artists-1448.webp",
+          "sha256": "cb2376d4c68f77e81b016c2b70815fe310c81dd8a8838a6662577d6ec438ca15",
+          "bytes": 115650,
+          "width": 1448,
+          "height": 483,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "karaoke",
+      "source": {
+        "filename": "exec-f83150e3-6364-46c0-ac06-d8664b84c5de.png",
+        "sha256": "45fa0ee9bbd9cc86ef5d34067ced4709dbcad9efe38e3bc8c805ef1d5fb4fb93",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png"
+      },
+      "outputs": [
+        {
+          "filename": "karaoke-2172.webp",
+          "url": "/assets/home-banners/approved-20261109/karaoke-2172.webp",
+          "sha256": "c77e2c4f8ed433d1bac0bc94bf4bbb519376819767960f465274ce325b95917b",
+          "bytes": 181160,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "karaoke-1448.webp",
+          "url": "/assets/home-banners/approved-20261109/karaoke-1448.webp",
+          "sha256": "f1dcc95d6fd3b098e0b4db29a81fc3f3709bb3043f050ae18950213a7e5c36c8",
+          "bytes": 102438,
+          "width": 1448,
+          "height": 483,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "talking",
+      "source": {
+        "filename": "exec-a1bc017a-3052-4865-bcf6-511b5f9dbaac.png",
+        "sha256": "6c8019d5096dd481e4d6d2bce454bf0f5851af179aee9455269a7f26efb32b23",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png"
+      },
+      "outputs": [
+        {
+          "filename": "talking-2172.webp",
+          "url": "/assets/home-banners/approved-20261109/talking-2172.webp",
+          "sha256": "f6b465fc8330acbff62ad8766c4f548443f58deaca40b1e9b9ac056c5f9e497c",
+          "bytes": 237796,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "talking-1448.webp",
+          "url": "/assets/home-banners/approved-20261109/talking-1448.webp",
+          "sha256": "279183c692fa302ed5095ead554c1673d1dd54c981998c4d597371e889f13a6f",
+          "bytes": 134420,
+          "width": 1448,
+          "height": 483,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "premium",
+      "source": {
+        "filename": "exec-eb9e6b30-89de-4ec3-b6d7-e945e16c52aa.png",
+        "sha256": "fdec7fc7d67bae36dd2206a7615906ddacf9ee38e7a438a5a050be78e40b29b1",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png"
+      },
+      "outputs": [
+        {
+          "filename": "premium-2172.webp",
+          "url": "/assets/home-banners/approved-20261109/premium-2172.webp",
+          "sha256": "c555f3820f21c8986901e0debc5f99e5a13e1af97fdfc7e6d39b7d69921deb04",
+          "bytes": 243308,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "premium-1448.webp",
+          "url": "/assets/home-banners/approved-20261109/premium-1448.webp",
+          "sha256": "9237d85b186157d9b2e0e83a477045aafbd9d28fa0524ca528828e2067a03100",
+          "bytes": 136584,
+          "width": 1448,
+          "height": 483,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    },
+    {
+      "id": "crew",
+      "source": {
+        "filename": "exec-69f08a71-3760-4a01-bb66-7e29159f8f71.png",
+        "sha256": "605feca2c9eebdf64970d7ecc9679c2a940f5de127d69082daedbee2efaf3b83",
+        "width": 2172,
+        "height": 724,
+        "format": "PNG",
+        "mime_type": "image/png"
+      },
+      "outputs": [
+        {
+          "filename": "crew-2172.webp",
+          "url": "/assets/home-banners/approved-20261109/crew-2172.webp",
+          "sha256": "b2dce1d1bfb530aae93acd1de347f316fbd696c4a156fb967ec6fd36a6fec31e",
+          "bytes": 242810,
+          "width": 2172,
+          "height": 724,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "crew-1448.webp",
+          "url": "/assets/home-banners/approved-20261109/crew-1448.webp",
+          "sha256": "4b60861aafbf0bd8fbfbe45c55cd27d9f874e705fbca320db1309436f8a7442f",
+          "bytes": 132938,
+          "width": 1448,
+          "height": 483,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "crew-1536.webp",
+          "url": "/assets/home-banners/approved-20261109/crew-1536.webp",
+          "sha256": "019bb2d74e2309871415f6cf050a41327d3d1131c09af56e6dc2f0e94977554d",
+          "bytes": 143948,
+          "width": 1536,
+          "height": 512,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        },
+        {
+          "filename": "crew-768.webp",
+          "url": "/assets/home-banners/approved-20261109/crew-768.webp",
+          "sha256": "77bb41a882a353d681e835c9249800bb670a841ee6411f1f3f476edcfcdf097f",
+          "bytes": 50658,
+          "width": 768,
+          "height": 256,
+          "format": "WEBP",
+          "mime_type": "image/webp"
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "webp_container_magic_verified": true,
+    "decoded_format_and_dimensions_verified": true,
+    "existing_mobile_files_unchanged": true
+  }
+}

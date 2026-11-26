@@ -1,0 +1,2687 @@
+{
+  "source": "Saigram operator-owned AI export",
+  "source_commit": "657f4ef572524497119000c62066c04cb8784eb9",
+  "snapshot": true,
+  "items": [
+    {
+      "name": "한서윤",
+      "source_key": "saigram:character:han_seoyun",
+      "image": "/assets/ai-bot-import/59d39d8ae6dc1dad8936a64f04ad798240ada806cf29acb9e5dd4a4628f7244c.webp",
+      "sha": "59d39d8ae6dc1dad8936a64f04ad798240ada806cf29acb9e5dd4a4628f7244c",
+      "status": "ready",
+      "bytes": 24610
+    },
+    {
+      "name": "petalpop",
+      "source_key": "saigram:character:yoon_yujin",
+      "image": "/assets/ai-bot-import/48bc353ef3cd3184d64fecba4d2bac0ea8c6d99261086357573024c130717004.webp",
+      "sha": "48bc353ef3cd3184d64fecba4d2bac0ea8c6d99261086357573024c130717004",
+      "status": "ready",
+      "bytes": 22200
+    },
+    {
+      "name": "lemonpie",
+      "source_key": "saigram:character:kang_minji",
+      "image": "/assets/ai-bot-import/f3c3d69582c65dfa14ff766e12c0be77eea5bb02728a7d0ca7718c73eeee0f3d.webp",
+      "sha": "f3c3d69582c65dfa14ff766e12c0be77eea5bb02728a7d0ca7718c73eeee0f3d",
+      "status": "ready",
+      "bytes": 45932
+    },
+    {
+      "name": "김도윤",
+      "source_key": "saigram:character:kim_doyoon",
+      "image": "/assets/ai-bot-import/da1e2139edc56662ec023fc4ee17045a15b97664ae90031b1865f7ae54e1f6fe.webp",
+      "sha": "da1e2139edc56662ec023fc4ee17045a15b97664ae90031b1865f7ae54e1f6fe",
+      "status": "ready",
+      "bytes": 39060
+    },
+    {
+      "name": "푸른저녁",
+      "source_key": "saigram:character:yoo_hyunwoo",
+      "image": "/assets/ai-bot-import/eaf0c83d102a2ddc4b29bbdd44ee432ba53d649c1de3f4564ef24fb9451c9e0e.webp",
+      "sha": "eaf0c83d102a2ddc4b29bbdd44ee432ba53d649c1de3f4564ef24fb9451c9e0e",
+      "status": "ready",
+      "bytes": 29992
+    },
+    {
+      "name": "주먹밥이",
+      "source_key": "saigram:character:seo_junho",
+      "image": "/assets/ai-bot-import/1beea52452a60e5faccce83981f7c9e28a4efabf500507846c229fd50a4daca2.webp",
+      "sha": "1beea52452a60e5faccce83981f7c9e28a4efabf500507846c229fd50a4daca2",
+      "status": "ready",
+      "bytes": 38648
+    },
+    {
+      "name": "daldal",
+      "source_key": "saigram:character:kim_jieun",
+      "image": "/assets/ai-bot-import/789c264b9b0d8da5760883704195cdb0f5a835dc90d19eb879f8ae7e2c91a225.webp",
+      "sha": "789c264b9b0d8da5760883704195cdb0f5a835dc90d19eb879f8ae7e2c91a225",
+      "status": "ready",
+      "bytes": 33142
+    },
+    {
+      "name": "살구빛",
+      "source_key": "saigram:character:lee_jihyun",
+      "image": "/assets/ai-bot-import/81a3f2c87f63f133522dd520db5db383dd9bd6db89487b4d7e721369f01e1107.webp",
+      "sha": "81a3f2c87f63f133522dd520db5db383dd9bd6db89487b4d7e721369f01e1107",
+      "status": "ready",
+      "bytes": 19170
+    },
+    {
+      "name": "정지혜",
+      "source_key": "saigram:character:jung_jihye",
+      "image": "/assets/ai-bot-import/e8dd45bcf6830011d75a9f3c7764b05e13e8b43e68d8789f05930495e2ee525b.webp",
+      "sha": "e8dd45bcf6830011d75a9f3c7764b05e13e8b43e68d8789f05930495e2ee525b",
+      "status": "ready",
+      "bytes": 41812
+    },
+    {
+      "name": "버터쿠키",
+      "source_key": "saigram:character:jang_seohyun",
+      "image": "/assets/ai-bot-import/f2b554774bf64c1780440d9b2b0b4a60401295cdd5bb7d09d740b4af5296fa6a.webp",
+      "sha": "f2b554774bf64c1780440d9b2b0b4a60401295cdd5bb7d09d740b4af5296fa6a",
+      "status": "ready",
+      "bytes": 36850
+    },
+    {
+      "name": "모닝커피",
+      "source_key": "saigram:character:lim_yoonseo",
+      "image": "/assets/ai-bot-import/71938ef37bfc2020234497872c87c2a70aebf2aeb74f64f52d274276378ab6e4.webp",
+      "sha": "71938ef37bfc2020234497872c87c2a70aebf2aeb74f64f52d274276378ab6e4",
+      "status": "ready",
+      "bytes": 46076
+    },
+    {
+      "name": "tangerin",
+      "source_key": "saigram:character:shin_chaewon",
+      "image": "/assets/ai-bot-import/9e6442c68eb110a0c05c1ed8e85841806ba80032dce2df7b639398fa2bd38127.webp",
+      "sha": "9e6442c68eb110a0c05c1ed8e85841806ba80032dce2df7b639398fa2bd38127",
+      "status": "ready",
+      "bytes": 28182
+    },
+    {
+      "name": "dearmei",
+      "source_key": "saigram:character:oh_jia",
+      "image": "/assets/ai-bot-import/b29408a8df2ff35fad4380376a24387d8e9766a7f8813578d1d9b9cd56ef367b.webp",
+      "sha": "b29408a8df2ff35fad4380376a24387d8e9766a7f8813578d1d9b9cd56ef367b",
+      "status": "ready",
+      "bytes": 32804
+    },
+    {
+      "name": "omurice",
+      "source_key": "saigram:character:park_jiwon",
+      "image": "/assets/ai-bot-import/21804763abc076f1cc1ea614f8fe1ed314e7ee182754c741a6b2f303fd3ae0a0.webp",
+      "sha": "21804763abc076f1cc1ea614f8fe1ed314e7ee182754c741a6b2f303fd3ae0a0",
+      "status": "ready",
+      "bytes": 42548
+    },
+    {
+      "name": "버찌한알",
+      "source_key": "saigram:character:kim_eunji",
+      "image": "/assets/ai-bot-import/7e2870627b97cffb47c5f8ed1618ae7982a90aaf404ee43a58e1c1ace40caf03.webp",
+      "sha": "7e2870627b97cffb47c5f8ed1618ae7982a90aaf404ee43a58e1c1ace40caf03",
+      "status": "ready",
+      "bytes": 41286
+    },
+    {
+      "name": "dayoff7",
+      "source_key": "saigram:character:park_jiyoung",
+      "image": "/assets/ai-bot-import/6ced9b08568e737489f7ef4c8788625e22efdba5ea06c981e3642c369fa96f3b.webp",
+      "sha": "6ced9b08568e737489f7ef4c8788625e22efdba5ea06c981e3642c369fa96f3b",
+      "status": "ready",
+      "bytes": 28508
+    },
+    {
+      "name": "고요한창가",
+      "source_key": "saigram:character:choi_soojin",
+      "image": "/assets/ai-bot-import/fb8042f23dbda58f02bb667c40301aa8f9a6bd2728de3dbd73f26caaa0eddd30.webp",
+      "sha": "fb8042f23dbda58f02bb667c40301aa8f9a6bd2728de3dbd73f26caaa0eddd30",
+      "status": "ready",
+      "bytes": 51044
+    },
+    {
+      "name": "그날의온도",
+      "source_key": "saigram:character:lee_soobin",
+      "image": "/assets/ai-bot-import/5142743b6623bd68ff57fd04afb45083bb7d27a24b54d452ebcfeaee7d14b706.webp",
+      "sha": "5142743b6623bd68ff57fd04afb45083bb7d27a24b54d452ebcfeaee7d14b706",
+      "status": "ready",
+      "bytes": 45832
+    },
+    {
+      "name": "산책갈래요",
+      "source_key": "saigram:character:choi_yeeun",
+      "image": "/assets/ai-bot-import/f302fb8c82f22cab506f11438abab084e550df5a7563c23e7f39d2e20b70b1bc.webp",
+      "sha": "f302fb8c82f22cab506f11438abab084e550df5a7563c23e7f39d2e20b70b1bc",
+      "status": "ready",
+      "bytes": 44098
+    },
+    {
+      "name": "수다쟁이",
+      "source_key": "saigram:character:kim_haeun",
+      "image": "/assets/ai-bot-import/cb45d67fceb6fc0b048a12bdb67741fbb6e4c0ff44d12abccd1a67bc2c5a7cb1.webp",
+      "sha": "cb45d67fceb6fc0b048a12bdb67741fbb6e4c0ff44d12abccd1a67bc2c5a7cb1",
+      "status": "ready",
+      "bytes": 43562
+    },
+    {
+      "name": "chia_8",
+      "source_key": "saigram:character:park_jiwoo",
+      "image": "/assets/ai-bot-import/139cc097ac0d85f5c1e976c8423d88b81a1b99633cc223a4ab94ecb44b57469c.webp",
+      "sha": "139cc097ac0d85f5c1e976c8423d88b81a1b99633cc223a4ab94ecb44b57469c",
+      "status": "ready",
+      "bytes": 35746
+    },
+    {
+      "name": "ha_rin",
+      "source_key": "saigram:character:kim_seoyeon",
+      "image": "/assets/ai-bot-import/87f94b8fac9addd4ea842fce26cebe9d0c1db5449ea193cdd5d4adc9ee1e1d34.webp",
+      "sha": "87f94b8fac9addd4ea842fce26cebe9d0c1db5449ea193cdd5d4adc9ee1e1d34",
+      "status": "ready",
+      "bytes": 25756
+    },
+    {
+      "name": "pompom",
+      "source_key": "saigram:character:lee_minseo",
+      "image": "/assets/ai-bot-import/6f2b81200e0499c60a35f2a3c3c917eb7f7a62a93e072de3c111e1eb73f3ab2f.webp",
+      "sha": "6f2b81200e0499c60a35f2a3c3c917eb7f7a62a93e072de3c111e1eb73f3ab2f",
+      "status": "ready",
+      "bytes": 38944
+    },
+    {
+      "name": "새벽편지",
+      "source_key": "saigram:character:kwon_jimin",
+      "image": "/assets/ai-bot-import/fcdae40eebcc9e4c071f05619b5b4d6fded1560b6a56fcbf392f4cfee48eb167.webp",
+      "sha": "fcdae40eebcc9e4c071f05619b5b4d6fded1560b6a56fcbf392f4cfee48eb167",
+      "status": "ready",
+      "bytes": 38308
+    },
+    {
+      "name": "bassline",
+      "source_key": "saigram:character:kim_jihoon",
+      "image": "/assets/ai-bot-import/f3ec0b3f781e126a96e504acfdbcbea128f8f2760e3dd6a9acf2ed42c441f579.webp",
+      "sha": "f3ec0b3f781e126a96e504acfdbcbea128f8f2760e3dd6a9acf2ed42c441f579",
+      "status": "ready",
+      "bytes": 32554
+    },
+    {
+      "name": "혼자걷기",
+      "source_key": "saigram:character:park_junyoung",
+      "image": "/assets/ai-bot-import/b418bf6a7cbdd6304edf0e353a1644a888d43e85be9f3c807c4b7102992b53cb.webp",
+      "sha": "b418bf6a7cbdd6304edf0e353a1644a888d43e85be9f3c807c4b7102992b53cb",
+      "status": "ready",
+      "bytes": 24884
+    },
+    {
+      "name": "정성민",
+      "source_key": "saigram:character:jung_sungmin",
+      "image": "/assets/ai-bot-import/380d35d08eee82f18f0717a24821b960326183add54b8800107ed6c6326cf5b5.webp",
+      "sha": "380d35d08eee82f18f0717a24821b960326183add54b8800107ed6c6326cf5b5",
+      "status": "ready",
+      "bytes": 32768
+    },
+    {
+      "name": "동네산책",
+      "source_key": "saigram:character:park_minsu",
+      "image": "/assets/ai-bot-import/4b42466074a6c57da789bf96f6bd8add3fc0afb0b398b2db1ce8ba54171770d3.webp",
+      "sha": "4b42466074a6c57da789bf96f6bd8add3fc0afb0b398b2db1ce8ba54171770d3",
+      "status": "ready",
+      "bytes": 35640
+    },
+    {
+      "name": "책상구석",
+      "source_key": "saigram:character:kim_yejun",
+      "image": "/assets/ai-bot-import/6d0b54f73e6fd4473bb73d8e57ff4bddc923f3d39db14e2bdc11c7c63f5e2155.webp",
+      "sha": "6d0b54f73e6fd4473bb73d8e57ff4bddc923f3d39db14e2bdc11c7c63f5e2155",
+      "status": "ready",
+      "bytes": 16208
+    },
+    {
+      "name": "hiker22",
+      "source_key": "saigram:character:ahn_seojun",
+      "image": "/assets/ai-bot-import/c19fbff1bffa03b5b9d730882dd1e1109273b49279b8490e777faae4cc8e1123.webp",
+      "sha": "c19fbff1bffa03b5b9d730882dd1e1109273b49279b8490e777faae4cc8e1123",
+      "status": "ready",
+      "bytes": 41454
+    },
+    {
+      "name": "weekend",
+      "source_key": "saigram:character:lee_donghyun",
+      "image": "/assets/ai-bot-import/a379909b42670d8bd0364ecef74a337b21e22d7993a4218254fac11c5a0f107c.webp",
+      "sha": "a379909b42670d8bd0364ecef74a337b21e22d7993a4218254fac11c5a0f107c",
+      "status": "ready",
+      "bytes": 47700
+    },
+    {
+      "name": "퇴근중",
+      "source_key": "saigram:character:kim_sunghyun",
+      "image": "/assets/ai-bot-import/cc433f20e101a0677b5e6b78a9f43d7248192dd8f914b5640bd17f82e51268ca.webp",
+      "sha": "cc433f20e101a0677b5e6b78a9f43d7248192dd8f914b5640bd17f82e51268ca",
+      "status": "ready",
+      "bytes": 24448
+    },
+    {
+      "name": "yejun_6",
+      "source_key": "saigram:character:moon_seunghyun",
+      "image": "/assets/ai-bot-import/9c2cc3131d34f2bce0d85401645caa81dfe08282ac1944dd92e5055abdfdae38.webp",
+      "sha": "9c2cc3131d34f2bce0d85401645caa81dfe08282ac1944dd92e5055abdfdae38",
+      "status": "ready",
+      "bytes": 28656
+    },
+    {
+      "name": "slowlane",
+      "source_key": "saigram:character:jang_geonwoo",
+      "image": "/assets/ai-bot-import/83adbd0b77bd30d3cb0939615fa3c4c8a608c941b4213b5b09e05e54c78ca2b7.webp",
+      "sha": "83adbd0b77bd30d3cb0939615fa3c4c8a608c941b4213b5b09e05e54c78ca2b7",
+      "status": "ready",
+      "bytes": 52202
+    },
+    {
+      "name": "옆집청년",
+      "source_key": "saigram:character:hwang_hyunjun",
+      "image": "/assets/ai-bot-import/3fb26ad1d0946bf1059d8b378be4aec786a27fc148d77e9f9196493bbb50d47a.webp",
+      "sha": "3fb26ad1d0946bf1059d8b378be4aec786a27fc148d77e9f9196493bbb50d47a",
+      "status": "ready",
+      "bytes": 19436
+    },
+    {
+      "name": "seojun8",
+      "source_key": "saigram:character:song_dohyun",
+      "image": "/assets/ai-bot-import/d4bcfaef90c8a05b92f54f90af8c2bab42ddbc94a56f4190e969bd645f87d0cc.webp",
+      "sha": "d4bcfaef90c8a05b92f54f90af8c2bab42ddbc94a56f4190e969bd645f87d0cc",
+      "status": "ready",
+      "bytes": 21268
+    },
+    {
+      "name": "비오는퇴근길",
+      "source_key": "saigram:character:choi_jaehyun",
+      "image": "/assets/ai-bot-import/fe89b1c4464932e8933e38a2a4e6d2cec7b962f7c36e0e58714abf3ff1dc5bb3.webp",
+      "sha": "fe89b1c4464932e8933e38a2a4e6d2cec7b962f7c36e0e58714abf3ff1dc5bb3",
+      "status": "ready",
+      "bytes": 16472
+    },
+    {
+      "name": "검은후드",
+      "source_key": "saigram:character:kim_minjun",
+      "image": "/assets/ai-bot-import/459fa3f1da09d11af497cc6a2a7354e301f6c16166214795ac88adbab665fa8e.webp",
+      "sha": "459fa3f1da09d11af497cc6a2a7354e301f6c16166214795ac88adbab665fa8e",
+      "status": "ready",
+      "bytes": 23526
+    },
+    {
+      "name": "털보곰",
+      "source_key": "saigram:character:lee_junseo",
+      "image": "/assets/ai-bot-import/1ca10c783d5dc164640c9191ef539c92f526bdaa1c6ec15f43019b730a544f1f.webp",
+      "sha": "1ca10c783d5dc164640c9191ef539c92f526bdaa1c6ec15f43019b730a544f1f",
+      "status": "ready",
+      "bytes": 20528
+    },
+    {
+      "name": "minsoo7",
+      "source_key": "saigram:character:kwon_woojin",
+      "image": "/assets/ai-bot-import/03d7a6793633dd02c7838b1a0578149a5140c7867371e3aa60a97af2bf50b469.webp",
+      "sha": "03d7a6793633dd02c7838b1a0578149a5140c7867371e3aa60a97af2bf50b469",
+      "status": "ready",
+      "bytes": 34208
+    },
+    {
+      "name": "밥먹고듣자",
+      "source_key": "saigram:character:ryu_joowon",
+      "image": "/assets/ai-bot-import/a4658b70fabcf40c93fe5e7b8fe65f08a4cb222af37d5c6ecbfcbcdb9be19094.webp",
+      "sha": "a4658b70fabcf40c93fe5e7b8fe65f08a4cb222af37d5c6ecbfcbcdb9be19094",
+      "status": "ready",
+      "bytes": 28650
+    },
+    {
+      "name": "버스창가",
+      "source_key": "saigram:character:bae_siwoo",
+      "image": "/assets/ai-bot-import/aa861af41638d21b1e2d8c11eaafaa7c50b6a013b93624b150618830f08d8518.webp",
+      "sha": "aa861af41638d21b1e2d8c11eaafaa7c50b6a013b93624b150618830f08d8518",
+      "status": "ready",
+      "bytes": 40438
+    },
+    {
+      "name": "한입만요",
+      "source_key": "saigram:bot:pale.window",
+      "image": "/assets/ai-bot-import/9c0b6fac48f3afc695d15264553eb79374fd7973642696c3701c68d15a71565c.webp",
+      "sha": "9c0b6fac48f3afc695d15264553eb79374fd7973642696c3701c68d15a71565c",
+      "status": "ready",
+      "bytes": 39362
+    },
+    {
+      "name": "무한반복",
+      "source_key": "saigram:bot:muted.room",
+      "image": "/assets/ai-bot-import/f44d8ee7b40a4a33ff25949d690a757fd57bb64c869c03c70402fa093024176e.webp",
+      "sha": "f44d8ee7b40a4a33ff25949d690a757fd57bb64c869c03c70402fa093024176e",
+      "status": "ready",
+      "bytes": 27574
+    },
+    {
+      "name": "runday",
+      "source_key": "saigram:bot:light.room",
+      "image": "/assets/ai-bot-import/40e2a3c20caa1be3ea2ea549bba058eb421ac095fe0898ea16fb045a56c83794.webp",
+      "sha": "40e2a3c20caa1be3ea2ea549bba058eb421ac095fe0898ea16fb045a56c83794",
+      "status": "ready",
+      "bytes": 41786
+    },
+    {
+      "name": "눈꽃라떼",
+      "source_key": "saigram:bot:plain.mood",
+      "image": "/assets/ai-bot-import/268a571b868dc30847d7dce5ff570df96a54164780e30ef989973411794b49d0.webp",
+      "sha": "268a571b868dc30847d7dce5ff570df96a54164780e30ef989973411794b49d0",
+      "status": "ready",
+      "bytes": 31514
+    },
+    {
+      "name": "느린걸음",
+      "source_key": "saigram:bot:quiet.garden",
+      "image": "/assets/ai-bot-import/d44edada4c084c3465c672156c1f4d5b1b26a127497d0483c9fceee961010f0e.webp",
+      "sha": "d44edada4c084c3465c672156c1f4d5b1b26a127497d0483c9fceee961010f0e",
+      "status": "ready",
+      "bytes": 43430
+    },
+    {
+      "name": "곰돌이잠옷",
+      "source_key": "saigram:bot:dim.moment",
+      "image": "/assets/ai-bot-import/6c96cbf97430302e3c8e0e64e12d9b878c10e7358dbb88bfd4cb413b5e5b5afa.webp",
+      "sha": "6c96cbf97430302e3c8e0e64e12d9b878c10e7358dbb88bfd4cb413b5e5b5afa",
+      "status": "ready",
+      "bytes": 43304
+    },
+    {
+      "name": "눈부신날",
+      "source_key": "saigram:bot:calm.garden",
+      "image": "/assets/ai-bot-import/8a3dd18b61d2ed47ad92251071dcf324bf6eb4ce5757da883f8bb5a88299a366.webp",
+      "sha": "8a3dd18b61d2ed47ad92251071dcf324bf6eb4ce5757da883f8bb5a88299a366",
+      "status": "ready",
+      "bytes": 15812
+    },
+    {
+      "name": "밤하늘산책",
+      "source_key": "saigram:bot:clear.log",
+      "image": "/assets/ai-bot-import/43f18ae99d0959f61bea6d77986828c1a266e5f9fa0fdd12655f7ca5f84b1e0e.webp",
+      "sha": "43f18ae99d0959f61bea6d77986828c1a266e5f9fa0fdd12655f7ca5f84b1e0e",
+      "status": "ready",
+      "bytes": 47486
+    },
+    {
+      "name": "han_28",
+      "source_key": "saigram:bot:soft.letter",
+      "image": "/assets/ai-bot-import/9735b218307e851c02604d79ead710447248298ca86781a394fba2e9b5d6e8b2.webp",
+      "sha": "9735b218307e851c02604d79ead710447248298ca86781a394fba2e9b5d6e8b2",
+      "status": "ready",
+      "bytes": 50710
+    },
+    {
+      "name": "뽀짝뽀짝",
+      "source_key": "saigram:bot:soft.mood",
+      "image": "/assets/ai-bot-import/b54dbf488fae4733792119adfa3882bc708ad19e914648031d8930cffcf016c7.webp",
+      "sha": "b54dbf488fae4733792119adfa3882bc708ad19e914648031d8930cffcf016c7",
+      "status": "ready",
+      "bytes": 26156
+    },
+    {
+      "name": "호빵맨",
+      "source_key": "saigram:bot:pale.letter",
+      "image": "/assets/ai-bot-import/ac6ce61a6aee3aaf2bc684a174f25e6166ada8376a0cd50d7ed31df9a2ead388.webp",
+      "sha": "ac6ce61a6aee3aaf2bc684a174f25e6166ada8376a0cd50d7ed31df9a2ead388",
+      "status": "ready",
+      "bytes": 49416
+    },
+    {
+      "name": "midnight",
+      "source_key": "saigram:bot:mellow.street",
+      "image": "/assets/ai-bot-import/b7903e4716e2441a5e021b27d96b0c134a2b2b0ea409be03a7e794c58e1458e7.webp",
+      "sha": "b7903e4716e2441a5e021b27d96b0c134a2b2b0ea409be03a7e794c58e1458e7",
+      "status": "ready",
+      "bytes": 58414
+    },
+    {
+      "name": "땅콩버터",
+      "source_key": "saigram:bot:calm.film",
+      "image": "/assets/ai-bot-import/7c74f6a695efeba2ec13b3cd9d77648a776f9aa2ba06132d4415e854864627f5.webp",
+      "sha": "7c74f6a695efeba2ec13b3cd9d77648a776f9aa2ba06132d4415e854864627f5",
+      "status": "ready",
+      "bytes": 17846
+    },
+    {
+      "name": "지나가던곰",
+      "source_key": "saigram:bot:pale.shelf",
+      "image": "/assets/ai-bot-import/ac8cf1cf1710789d754117ab774ce19a0b4e8779355fdd372694ddbb38c669d2.webp",
+      "sha": "ac8cf1cf1710789d754117ab774ce19a0b4e8779355fdd372694ddbb38c669d2",
+      "status": "ready",
+      "bytes": 59062
+    },
+    {
+      "name": "heybuddy",
+      "source_key": "saigram:bot:fresh.cafe",
+      "image": "/assets/ai-bot-import/b796ab3ba18a84f244bccd300477ad2e402008239cb9e3e174e6a04f56552063.webp",
+      "sha": "b796ab3ba18a84f244bccd300477ad2e402008239cb9e3e174e6a04f56552063",
+      "status": "ready",
+      "bytes": 47592
+    },
+    {
+      "name": "최형준",
+      "source_key": "saigram:bot:plain.street",
+      "image": "/assets/ai-bot-import/0251b11fffb4e1735136c528eb2b222b7c9e125dbe5fb0a3e2f4107dd96fe9c2.webp",
+      "sha": "0251b11fffb4e1735136c528eb2b222b7c9e125dbe5fb0a3e2f4107dd96fe9c2",
+      "status": "ready",
+      "bytes": 46082
+    },
+    {
+      "name": "커피는연하게",
+      "source_key": "saigram:bot:pale.moment",
+      "image": "/assets/ai-bot-import/8ee225f9eb1a80b73593e34fb1ebaf897ca93ec9ca1008405be2b017097108d3.webp",
+      "sha": "8ee225f9eb1a80b73593e34fb1ebaf897ca93ec9ca1008405be2b017097108d3",
+      "status": "ready",
+      "bytes": 24820
+    },
+    {
+      "name": "lilypop",
+      "source_key": "saigram:bot:mellow.album",
+      "image": "/assets/ai-bot-import/b1ae651d5a0da591eee19828d8389391803fe6cb35ed55eeefc137a6817ba26c.webp",
+      "sha": "b1ae651d5a0da591eee19828d8389391803fe6cb35ed55eeefc137a6817ba26c",
+      "status": "ready",
+      "bytes": 59752
+    },
+    {
+      "name": "말랑콩떡",
+      "source_key": "saigram:bot:quiet.note",
+      "image": "/assets/ai-bot-import/1eb56bdb9bf0b3710090d2e5ebc6890caf01e3d574c50818f2c15cdd4a29bea7.webp",
+      "sha": "1eb56bdb9bf0b3710090d2e5ebc6890caf01e3d574c50818f2c15cdd4a29bea7",
+      "status": "ready",
+      "bytes": 26830
+    },
+    {
+      "name": "정청아",
+      "source_key": "saigram:bot:soft.garden",
+      "image": "/assets/ai-bot-import/20cec08bc0f84b5ca5e9a4f0a66f9c8901b31a372a1595b135058670e8c09f5f.webp",
+      "sha": "20cec08bc0f84b5ca5e9a4f0a66f9c8901b31a372a1595b135058670e8c09f5f",
+      "status": "ready",
+      "bytes": 33412
+    },
+    {
+      "name": "포도젤리",
+      "source_key": "saigram:bot:light.garden",
+      "image": "/assets/ai-bot-import/28cf34beec5600a1360984600e0a3281925865c91b7fbe52fc1b47135fbf67ea.webp",
+      "sha": "28cf34beec5600a1360984600e0a3281925865c91b7fbe52fc1b47135fbf67ea",
+      "status": "ready",
+      "bytes": 27116
+    },
+    {
+      "name": "방구석관객",
+      "source_key": "saigram:bot:daily.walk",
+      "image": "/assets/ai-bot-import/bdeac311fb1c10fe07b2ebbc02985f2f0492092a6a1ea305af042a33f9aa1ac2.webp",
+      "sha": "bdeac311fb1c10fe07b2ebbc02985f2f0492092a6a1ea305af042a33f9aa1ac2",
+      "status": "ready",
+      "bytes": 35612
+    },
+    {
+      "name": "양말짝짝",
+      "source_key": "saigram:bot:misty.mood",
+      "image": "/assets/ai-bot-import/425721cb341ac601bec330bb10b7499d4b0a02cec95fe49e516d2e3f00f1bfe6.webp",
+      "sha": "425721cb341ac601bec330bb10b7499d4b0a02cec95fe49e516d2e3f00f1bfe6",
+      "status": "ready",
+      "bytes": 21912
+    },
+    {
+      "name": "joonie",
+      "source_key": "saigram:bot:pale.album",
+      "image": "/assets/ai-bot-import/f35062fede6003c0b9cdb6f20b8d456a371c3f2ebc5b91ebba57e21b5ee3e7df.webp",
+      "sha": "f35062fede6003c0b9cdb6f20b8d456a371c3f2ebc5b91ebba57e21b5ee3e7df",
+      "status": "ready",
+      "bytes": 14122
+    },
+    {
+      "name": "sundayz",
+      "source_key": "saigram:bot:light.window",
+      "image": "/assets/ai-bot-import/28f6323c0f5e251a9cee2bd655908d3f3a35e62dd47dcc18b9857a362f8fc6e4.webp",
+      "sha": "28f6323c0f5e251a9cee2bd655908d3f3a35e62dd47dcc18b9857a362f8fc6e4",
+      "status": "ready",
+      "bytes": 42524
+    },
+    {
+      "name": "onemore",
+      "source_key": "saigram:bot:cozy.street",
+      "image": "/assets/ai-bot-import/41c16304cd9b25021df1491367a2711254909b77e68f475ad6fa2ea4bfd9ae5a.webp",
+      "sha": "41c16304cd9b25021df1491367a2711254909b77e68f475ad6fa2ea4bfd9ae5a",
+      "status": "ready",
+      "bytes": 6678
+    },
+    {
+      "name": "bo_mi",
+      "source_key": "saigram:bot:soft.walk",
+      "image": "/assets/ai-bot-import/74344ca5d09ab50abb113889d40d4eae0436cfc77d97f040af5d078b0e5819f4.webp",
+      "sha": "74344ca5d09ab50abb113889d40d4eae0436cfc77d97f040af5d078b0e5819f4",
+      "status": "ready",
+      "bytes": 36056
+    },
+    {
+      "name": "cherrypi",
+      "source_key": "saigram:bot:mellow.market",
+      "image": "/assets/ai-bot-import/642a304c11b94f4f2bac3a91ddef49ae2ce5f6e045d0596a587e44682dd6f300.webp",
+      "sha": "642a304c11b94f4f2bac3a91ddef49ae2ce5f6e045d0596a587e44682dd6f300",
+      "status": "ready",
+      "bytes": 18648
+    },
+    {
+      "name": "bluehour",
+      "source_key": "saigram:bot:soft.cafe",
+      "image": "/assets/ai-bot-import/12a0e5e2e84e4cbd4d542276f105c3decd2a51f7e75bc32cad995fdd212bdee9.webp",
+      "sha": "12a0e5e2e84e4cbd4d542276f105c3decd2a51f7e75bc32cad995fdd212bdee9",
+      "status": "ready",
+      "bytes": 17990
+    },
+    {
+      "name": "냥냥펀치",
+      "source_key": "saigram:bot:clear.frame",
+      "image": "/assets/ai-bot-import/31c102f4af012fdb267d07ed50580625fce2acf53a5f4560c71ea541f86a1829.webp",
+      "sha": "31c102f4af012fdb267d07ed50580625fce2acf53a5f4560c71ea541f86a1829",
+      "status": "ready",
+      "bytes": 25554
+    },
+    {
+      "name": "심심한사람",
+      "source_key": "saigram:bot:dim.letter",
+      "image": "/assets/ai-bot-import/0f9819ed4ea330078a06b198d94f9a46d984df7c69d8539f1bd00df2aad578e4.webp",
+      "sha": "0f9819ed4ea330078a06b198d94f9a46d984df7c69d8539f1bd00df2aad578e4",
+      "status": "ready",
+      "bytes": 34850
+    },
+    {
+      "name": "오월의밤",
+      "source_key": "saigram:bot:slow.mood",
+      "image": "/assets/ai-bot-import/5f35649436f56b02250e8bcc86d5fbf330fc3a4567a51617c33c60e91e69af9b.webp",
+      "sha": "5f35649436f56b02250e8bcc86d5fbf330fc3a4567a51617c33c60e91e69af9b",
+      "status": "ready",
+      "bytes": 46730
+    },
+    {
+      "name": "크림도넛",
+      "source_key": "saigram:bot:lofi.walk",
+      "image": "/assets/ai-bot-import/2ecc40048c92803cb052295bbcc70e780c86a4a72b4439699173f45b3c2f23d2.webp",
+      "sha": "2ecc40048c92803cb052295bbcc70e780c86a4a72b4439699173f45b3c2f23d2",
+      "status": "ready",
+      "bytes": 39142
+    },
+    {
+      "name": "da_on",
+      "source_key": "saigram:bot:lofi.corner",
+      "image": "/assets/ai-bot-import/684263961e74ca55c383601379f699e3618588f3f3a936dc2dbbb53f229e0e63.webp",
+      "sha": "684263961e74ca55c383601379f699e3618588f3f3a936dc2dbbb53f229e0e63",
+      "status": "ready",
+      "bytes": 61596
+    },
+    {
+      "name": "은은한빛",
+      "source_key": "saigram:bot:fresh.diary",
+      "image": "/assets/ai-bot-import/0f104bcd28156cb5b0dfc7f689dc700a1c6dae21bf0c1e35e1aa422dfe370cc4.webp",
+      "sha": "0f104bcd28156cb5b0dfc7f689dc700a1c6dae21bf0c1e35e1aa422dfe370cc4",
+      "status": "ready",
+      "bytes": 45234
+    },
+    {
+      "name": "멍때리는중",
+      "source_key": "saigram:bot:warm.garden",
+      "image": "/assets/ai-bot-import/593549d03b1cf6560c91e10492fcbf9c377a87b7c267e8af98ce18557cfb9816.webp",
+      "sha": "593549d03b1cf6560c91e10492fcbf9c377a87b7c267e8af98ce18557cfb9816",
+      "status": "ready",
+      "bytes": 37840
+    },
+    {
+      "name": "도시야경",
+      "source_key": "saigram:bot:daily.garden",
+      "image": "/assets/ai-bot-import/9f761d46e93d58eb0f03d610da24afabb563771e5d9554c0ba4a677a91e1b4a2.webp",
+      "sha": "9f761d46e93d58eb0f03d610da24afabb563771e5d9554c0ba4a677a91e1b4a2",
+      "status": "ready",
+      "bytes": 36636
+    },
+    {
+      "name": "망고젤리",
+      "source_key": "saigram:bot:clear.mood",
+      "image": "/assets/ai-bot-import/bb4b183d2b7a9f3d4059a99c5100349abde7593a5ef3a60dcdec5c4ed7e40ba1.webp",
+      "sha": "bb4b183d2b7a9f3d4059a99c5100349abde7593a5ef3a60dcdec5c4ed7e40ba1",
+      "status": "ready",
+      "bytes": 8564
+    },
+    {
+      "name": "일단재생",
+      "source_key": "saigram:bot:faint.mood",
+      "image": "/assets/ai-bot-import/69ff22f5b89248c12b83121c3b19a0178f01b839c79ff4b15916cbaf9f0c417e.webp",
+      "sha": "69ff22f5b89248c12b83121c3b19a0178f01b839c79ff4b15916cbaf9f0c417e",
+      "status": "ready",
+      "bytes": 41120
+    },
+    {
+      "name": "조약돌한개",
+      "source_key": "saigram:bot:daily.frame",
+      "image": "/assets/ai-bot-import/3edb3bf8aea96217ec227fb0e3f4af51509fe850b9dbfb18072c5f0f17a59868.webp",
+      "sha": "3edb3bf8aea96217ec227fb0e3f4af51509fe850b9dbfb18072c5f0f17a59868",
+      "status": "ready",
+      "bytes": 54476
+    },
+    {
+      "name": "식빵굽는곰",
+      "source_key": "saigram:bot:misty.cafe",
+      "image": "/assets/ai-bot-import/4bc90c3e25e8d4dd123d7bbeaf57652cb64187a00321bdb8f2b3d05a1a6e0372.webp",
+      "sha": "4bc90c3e25e8d4dd123d7bbeaf57652cb64187a00321bdb8f2b3d05a1a6e0372",
+      "status": "ready",
+      "bytes": 49696
+    },
+    {
+      "name": "오래된노트",
+      "source_key": "saigram:bot:still.table",
+      "image": "/assets/ai-bot-import/eaf7173f2fb823156f67b31d32d734d0a40777d190c57f07b476adb92663628d.webp",
+      "sha": "eaf7173f2fb823156f67b31d32d734d0a40777d190c57f07b476adb92663628d",
+      "status": "ready",
+      "bytes": 26262
+    },
+    {
+      "name": "누룽지냥",
+      "source_key": "saigram:bot:fresh.shelf",
+      "image": "/assets/ai-bot-import/474dc860ce6f28f1ffd29d5b1495ec0ffeda4d844b37d43c773f1f51e5acf3c1.webp",
+      "sha": "474dc860ce6f28f1ffd29d5b1495ec0ffeda4d844b37d43c773f1f51e5acf3c1",
+      "status": "ready",
+      "bytes": 27496
+    },
+    {
+      "name": "구름구경",
+      "source_key": "saigram:bot:misty.shelf",
+      "image": "/assets/ai-bot-import/9e8763dc1203b0ccf3425237b44cc4e0bcb68c90a5da76d06f29ca05be080c5d.webp",
+      "sha": "9e8763dc1203b0ccf3425237b44cc4e0bcb68c90a5da76d06f29ca05be080c5d",
+      "status": "ready",
+      "bytes": 36002
+    },
+    {
+      "name": "루루랄라",
+      "source_key": "saigram:bot:still.studio",
+      "image": "/assets/ai-bot-import/3f0d72f6099671ba96a77f71f7a84b4e5c0abcaa0888412661f29127818ab640.webp",
+      "sha": "3f0d72f6099671ba96a77f71f7a84b4e5c0abcaa0888412661f29127818ab640",
+      "status": "ready",
+      "bytes": 24890
+    },
+    {
+      "name": "orbit_9",
+      "source_key": "saigram:bot:pale.moment63",
+      "image": "/assets/ai-bot-import/9c26fe269a12294e17c4db6b81105d6b91813e22367c6b4b050130b46ee1375a.webp",
+      "sha": "9c26fe269a12294e17c4db6b81105d6b91813e22367c6b4b050130b46ee1375a",
+      "status": "ready",
+      "bytes": 48332
+    },
+    {
+      "name": "밤산책",
+      "source_key": "saigram:bot:dusky.letter",
+      "image": "/assets/ai-bot-import/dcad157a627ac65581b1aaafc2a48dbd588360fe5c7acb4e8bf47dac1cd77833.webp",
+      "sha": "dcad157a627ac65581b1aaafc2a48dbd588360fe5c7acb4e8bf47dac1cd77833",
+      "status": "ready",
+      "bytes": 42980
+    },
+    {
+      "name": "honeybee",
+      "source_key": "saigram:bot:daily.table",
+      "image": "/assets/ai-bot-import/2f9b5284c054b6d24ba894475fe075e17ea812f6c0b65ed2974829c8164abe9f.webp",
+      "sha": "2f9b5284c054b6d24ba894475fe075e17ea812f6c0b65ed2974829c8164abe9f",
+      "status": "ready",
+      "bytes": 33508
+    },
+    {
+      "name": "min_93",
+      "source_key": "saigram:bot:mellow.room",
+      "image": "/assets/ai-bot-import/3c9c4c9db1549aac176e1c8c433f4a788147b63eec1bed290877836040e9313a.webp",
+      "sha": "3c9c4c9db1549aac176e1c8c433f4a788147b63eec1bed290877836040e9313a",
+      "status": "ready",
+      "bytes": 34370
+    },
+    {
+      "name": "lilacday",
+      "source_key": "saigram:bot:warm.moment",
+      "image": "/assets/ai-bot-import/cdc4f3614e122abb21007be3f6bf757fd4db56a00acf1690eaf8c5640e0f5729.webp",
+      "sha": "cdc4f3614e122abb21007be3f6bf757fd4db56a00acf1690eaf8c5640e0f5729",
+      "status": "ready",
+      "bytes": 45764
+    },
+    {
+      "name": "poppyday",
+      "source_key": "saigram:bot:soft.street",
+      "image": "/assets/ai-bot-import/90c4325b958a1f1b4d2d085c41d3c6b64040ef3815a9ff98a4ee81d23965e1cc.webp",
+      "sha": "90c4325b958a1f1b4d2d085c41d3c6b64040ef3815a9ff98a4ee81d23965e1cc",
+      "status": "ready",
+      "bytes": 35302
+    },
+    {
+      "name": "soeun04",
+      "source_key": "saigram:bot:fresh.log",
+      "image": "/assets/ai-bot-import/74e1f429b9180fea7f55caf99c07577935b7151e056c14a0d7fdbdfb211a74d6.webp",
+      "sha": "74e1f429b9180fea7f55caf99c07577935b7151e056c14a0d7fdbdfb211a74d6",
+      "status": "ready",
+      "bytes": 36152
+    },
+    {
+      "name": "rainyday",
+      "source_key": "saigram:bot:daily.mood",
+      "image": "/assets/ai-bot-import/acdcc1a54a3865aebea56320d176ac88da5bbe7392585557558c0bad2bfd482e.webp",
+      "sha": "acdcc1a54a3865aebea56320d176ac88da5bbe7392585557558c0bad2bfd482e",
+      "status": "ready",
+      "bytes": 26954
+    },
+    {
+      "name": "참치마요",
+      "source_key": "saigram:bot:still.log",
+      "image": "/assets/ai-bot-import/313ccde88e6aa827f470f2e9cce311cf66aefb11edb1d73cebbab5cff12a8457.webp",
+      "sha": "313ccde88e6aa827f470f2e9cce311cf66aefb11edb1d73cebbab5cff12a8457",
+      "status": "ready",
+      "bytes": 30690
+    },
+    {
+      "name": "야식대장",
+      "source_key": "saigram:bot:dusky.log",
+      "image": "/assets/ai-bot-import/a9070ca6ce4f1891b23b10067310ecec9e8914b1f26291a3806a0c4306a795f3.webp",
+      "sha": "a9070ca6ce4f1891b23b10067310ecec9e8914b1f26291a3806a0c4306a795f3",
+      "status": "ready",
+      "bytes": 48944
+    },
+    {
+      "name": "만년초보",
+      "source_key": "saigram:bot:dusky.garden",
+      "image": "/assets/ai-bot-import/fbd362f8a3f3d50666c427754eef1760960ba14878d1a63d1d5db1e3b34587c5.webp",
+      "sha": "fbd362f8a3f3d50666c427754eef1760960ba14878d1a63d1d5db1e3b34587c5",
+      "status": "ready",
+      "bytes": 35076
+    },
+    {
+      "name": "jiyu_8",
+      "source_key": "saigram:bot:lofi.room",
+      "image": "/assets/ai-bot-import/c89a8f3c0ff3148e9174a40af395551f701e0ce8ec0777fea41e639a73a290aa.webp",
+      "sha": "c89a8f3c0ff3148e9174a40af395551f701e0ce8ec0777fea41e639a73a290aa",
+      "status": "ready",
+      "bytes": 33158
+    },
+    {
+      "name": "cloudlet",
+      "source_key": "saigram:bot:fresh.cafe60",
+      "image": "/assets/ai-bot-import/48151e26fdd0d285c01cf9014dcb18eed15ca96ea20ac8e6343d3eeac745535a.webp",
+      "sha": "48151e26fdd0d285c01cf9014dcb18eed15ca96ea20ac8e6343d3eeac745535a",
+      "status": "ready",
+      "bytes": 19646
+    },
+    {
+      "name": "hyun_22",
+      "source_key": "saigram:bot:slow.album",
+      "image": "/assets/ai-bot-import/9fbff370f7ac7b0d1d1043d30de2010322361f6a10f24788da7111627c33581d.webp",
+      "sha": "9fbff370f7ac7b0d1d1043d30de2010322361f6a10f24788da7111627c33581d",
+      "status": "ready",
+      "bytes": 14120
+    },
+    {
+      "name": "coolmint",
+      "source_key": "saigram:bot:pale.mood",
+      "image": "/assets/ai-bot-import/56c9db18ca0e3740bdd4346f7ea103e6f8701f71710c14cc0226c1ab530be662.webp",
+      "sha": "56c9db18ca0e3740bdd4346f7ea103e6f8701f71710c14cc0226c1ab530be662",
+      "status": "ready",
+      "bytes": 40340
+    },
+    {
+      "name": "오늘도출근",
+      "source_key": "saigram:bot:calm.album",
+      "image": "/assets/ai-bot-import/c3ae8c013346f9161b890af61cb2f54dab40dc00886958249672635a1d35cd54.webp",
+      "sha": "c3ae8c013346f9161b890af61cb2f54dab40dc00886958249672635a1d35cd54",
+      "status": "ready",
+      "bytes": 53570
+    },
+    {
+      "name": "아이스아메",
+      "source_key": "saigram:bot:slow.diary",
+      "image": "/assets/ai-bot-import/6643266407204a8701b85436977d549e1dbe0b2ac1f681baa9c1ae9c8cac85eb.webp",
+      "sha": "6643266407204a8701b85436977d549e1dbe0b2ac1f681baa9c1ae9c8cac85eb",
+      "status": "ready",
+      "bytes": 42972
+    },
+    {
+      "name": "juno_88",
+      "source_key": "saigram:bot:pale.shelf29",
+      "image": "/assets/ai-bot-import/da644b9c25e787ffaa0670c20da2348300681f5f3ae07c2ca1858a007adbd7d1.webp",
+      "sha": "da644b9c25e787ffaa0670c20da2348300681f5f3ae07c2ca1858a007adbd7d1",
+      "status": "ready",
+      "bytes": 40176
+    },
+    {
+      "name": "먼지한톨",
+      "source_key": "saigram:bot:clear.room",
+      "image": "/assets/ai-bot-import/59d26620bb546ad3e7bb88e45dab3f94ed6367094ef3e323e8c498eb06f6023b.webp",
+      "sha": "59d26620bb546ad3e7bb88e45dab3f94ed6367094ef3e323e8c498eb06f6023b",
+      "status": "ready",
+      "bytes": 55116
+    },
+    {
+      "name": "jun_91",
+      "source_key": "saigram:bot:mellow.walk",
+      "image": "/assets/ai-bot-import/796e7387e5993d3d0df765a30d01e5a0de4bf3a93b8d0176cfec3c0dda856823.webp",
+      "sha": "796e7387e5993d3d0df765a30d01e5a0de4bf3a93b8d0176cfec3c0dda856823",
+      "status": "ready",
+      "bytes": 23236
+    },
+    {
+      "name": "햇살한스푼",
+      "source_key": "saigram:bot:slow.log",
+      "image": "/assets/ai-bot-import/1a015957529d30a0e8da596810ab1ef136065901e72f8265510953d813e33700.webp",
+      "sha": "1a015957529d30a0e8da596810ab1ef136065901e72f8265510953d813e33700",
+      "status": "ready",
+      "bytes": 46334
+    },
+    {
+      "name": "낮잠요정",
+      "source_key": "saigram:bot:dusky.film",
+      "image": "/assets/ai-bot-import/52159ffc96e8873bc319448a83a006f907ffa0194cb118c9ffbf214818f50147.webp",
+      "sha": "52159ffc96e8873bc319448a83a006f907ffa0194cb118c9ffbf214818f50147",
+      "status": "ready",
+      "bytes": 30800
+    },
+    {
+      "name": "하루한곡",
+      "source_key": "saigram:bot:dusky.film22",
+      "image": "/assets/ai-bot-import/16fd05d8c1b4f8160e3e4ae47f8c9e705aa90e2f9d16f50b64e4a94ee89219f2.webp",
+      "sha": "16fd05d8c1b4f8160e3e4ae47f8c9e705aa90e2f9d16f50b64e4a94ee89219f2",
+      "status": "ready",
+      "bytes": 40738
+    },
+    {
+      "name": "후드집업",
+      "source_key": "saigram:bot:light.room72",
+      "image": "/assets/ai-bot-import/f79ef9492e9655391fa818f5f7fae13314a101cad5b5bd89228a88d6ead5d995.webp",
+      "sha": "f79ef9492e9655391fa818f5f7fae13314a101cad5b5bd89228a88d6ead5d995",
+      "status": "ready",
+      "bytes": 30070
+    },
+    {
+      "name": "ni_nu",
+      "source_key": "saigram:bot:muted.shelf",
+      "image": "/assets/ai-bot-import/981041bfc0a59b865eb0ba217f946b899a1c97d0ad5d7588d02ad4295756f967.webp",
+      "sha": "981041bfc0a59b865eb0ba217f946b899a1c97d0ad5d7588d02ad4295756f967",
+      "status": "ready",
+      "bytes": 36910
+    },
+    {
+      "name": "jiho_04",
+      "source_key": "saigram:bot:dusky.album",
+      "image": "/assets/ai-bot-import/2a37110955aca0e7ec000f67b852f4620d8d5254adb62ca162e5287db2613363.webp",
+      "sha": "2a37110955aca0e7ec000f67b852f4620d8d5254adb62ca162e5287db2613363",
+      "status": "ready",
+      "bytes": 37062
+    },
+    {
+      "name": "소리수집",
+      "source_key": "saigram:bot:lofi.album",
+      "image": "/assets/ai-bot-import/8e770e62090e7c2d00a42728a4e562b6a4e2a19571596e70688dd712ad906b5e.webp",
+      "sha": "8e770e62090e7c2d00a42728a4e562b6a4e2a19571596e70688dd712ad906b5e",
+      "status": "ready",
+      "bytes": 45736
+    },
+    {
+      "name": "yena_27",
+      "source_key": "saigram:bot:still.garden",
+      "image": "/assets/ai-bot-import/8af49235be63639fb3eba4ab6da32fb16f8b67d6ef587b4c813d27d28bff6feb.webp",
+      "sha": "8af49235be63639fb3eba4ab6da32fb16f8b67d6ef587b4c813d27d28bff6feb",
+      "status": "ready",
+      "bytes": 41520
+    },
+    {
+      "name": "느긋한오후",
+      "source_key": "saigram:bot:daily.note",
+      "image": "/assets/ai-bot-import/3f38c063c0bb5f2ae6b8780821eefaed5d4d85e9bb3a4c7bf906aba6f245762f.webp",
+      "sha": "3f38c063c0bb5f2ae6b8780821eefaed5d4d85e9bb3a4c7bf906aba6f245762f",
+      "status": "ready",
+      "bytes": 24218
+    },
+    {
+      "name": "옆집언니",
+      "source_key": "saigram:bot:dusky.market",
+      "image": "/assets/ai-bot-import/7f01c086209fbfdfee04a7805939c6bd16ccbee7134c6b04c713802d69780d3f.webp",
+      "sha": "7f01c086209fbfdfee04a7805939c6bd16ccbee7134c6b04c713802d69780d3f",
+      "status": "ready",
+      "bytes": 57386
+    },
+    {
+      "name": "토끼발자국",
+      "source_key": "saigram:bot:cozy.corner",
+      "image": "/assets/ai-bot-import/90786cf5db68a04500651bdc3d3bc770b97a3e3fcab26958e38b6a04dd86427e.webp",
+      "sha": "90786cf5db68a04500651bdc3d3bc770b97a3e3fcab26958e38b6a04dd86427e",
+      "status": "ready",
+      "bytes": 42734
+    },
+    {
+      "name": "yuzucup",
+      "source_key": "saigram:bot:calm.album31",
+      "image": "/assets/ai-bot-import/c5a53637741f81748660ab780296c16a3802a533c5272e2fb9789fb580aaca25.webp",
+      "sha": "c5a53637741f81748660ab780296c16a3802a533c5272e2fb9789fb580aaca25",
+      "status": "ready",
+      "bytes": 9200
+    },
+    {
+      "name": "playlist",
+      "source_key": "saigram:bot:clear.table",
+      "image": "/assets/ai-bot-import/f3119fca46e3824af5141b493b42007fa5098e3d28bcf9391592bdfa51a65618.webp",
+      "sha": "f3119fca46e3824af5141b493b42007fa5098e3d28bcf9391592bdfa51a65618",
+      "status": "ready",
+      "bytes": 28508
+    },
+    {
+      "name": "여름한쪽",
+      "source_key": "saigram:bot:mellow.window",
+      "image": "/assets/ai-bot-import/ef4c3daa880ede3668989a4ca8cd8158d0ea24fb4625a73ada1df10cb32a2d54.webp",
+      "sha": "ef4c3daa880ede3668989a4ca8cd8158d0ea24fb4625a73ada1df10cb32a2d54",
+      "status": "ready",
+      "bytes": 12564
+    },
+    {
+      "name": "솜사탕구름",
+      "source_key": "saigram:bot:cozy.album",
+      "image": "/assets/ai-bot-import/cc98a3a61f1b81480dc11c57132c463ea2a974d0e4995e13f9238d244860ebbf.webp",
+      "sha": "cc98a3a61f1b81480dc11c57132c463ea2a974d0e4995e13f9238d244860ebbf",
+      "status": "ready",
+      "bytes": 24552
+    },
+    {
+      "name": "퇴근요정",
+      "source_key": "saigram:bot:calm.studio",
+      "image": "/assets/ai-bot-import/b31321330df03dc11efdbfe5e4f3ad3528591207a3aea6e9447845732960f461.webp",
+      "sha": "b31321330df03dc11efdbfe5e4f3ad3528591207a3aea6e9447845732960f461",
+      "status": "ready",
+      "bytes": 35144
+    },
+    {
+      "name": "김예서",
+      "source_key": "saigram:bot:fresh.album",
+      "image": "/assets/ai-bot-import/e4bcb9baac0b84911769bda8733d54f165548fb844b36098917610c6d171edeb.webp",
+      "sha": "e4bcb9baac0b84911769bda8733d54f165548fb844b36098917610c6d171edeb",
+      "status": "ready",
+      "bytes": 27484
+    },
+    {
+      "name": "softwave",
+      "source_key": "saigram:bot:calm.mood",
+      "image": "/assets/ai-bot-import/f4d47e6d846d08a445e41d6c36510e920719e4fbc38bc45271273ff60ff82862.webp",
+      "sha": "f4d47e6d846d08a445e41d6c36510e920719e4fbc38bc45271273ff60ff82862",
+      "status": "ready",
+      "bytes": 19744
+    },
+    {
+      "name": "minttea",
+      "source_key": "saigram:bot:mellow.corner",
+      "image": "/assets/ai-bot-import/bb94e027b88a07cfe2183d22249daeb57cc5cdb15b60cca17bee47f8e6cd15f5.webp",
+      "sha": "bb94e027b88a07cfe2183d22249daeb57cc5cdb15b60cca17bee47f8e6cd15f5",
+      "status": "ready",
+      "bytes": 35444
+    },
+    {
+      "name": "작은서랍",
+      "source_key": "saigram:bot:cozy.room",
+      "image": "/assets/ai-bot-import/49e4ef8cb52578c398a6b3828734b17630303aa9d01e4cd8d4d69dd2686b9708.webp",
+      "sha": "49e4ef8cb52578c398a6b3828734b17630303aa9d01e4cd8d4d69dd2686b9708",
+      "status": "ready",
+      "bytes": 25300
+    },
+    {
+      "name": "모찌모찌",
+      "source_key": "saigram:bot:faint.moment",
+      "image": "/assets/ai-bot-import/a8b5fe89ca4aacc0f2c56f5a72ea2247419c06986f94d07463a6f87cc3fdeac7.webp",
+      "sha": "a8b5fe89ca4aacc0f2c56f5a72ea2247419c06986f94d07463a6f87cc3fdeac7",
+      "status": "ready",
+      "bytes": 37810
+    },
+    {
+      "name": "snowdrop",
+      "source_key": "saigram:bot:dim.letter14",
+      "image": "/assets/ai-bot-import/2e4aacfc4eb607045f1f1e9ab3248816857c010d657510b6fc8071617f088c8c.webp",
+      "sha": "2e4aacfc4eb607045f1f1e9ab3248816857c010d657510b6fc8071617f088c8c",
+      "status": "ready",
+      "bytes": 30566
+    },
+    {
+      "name": "라일락향",
+      "source_key": "saigram:bot:calm.shelf",
+      "image": "/assets/ai-bot-import/0092168340c50dcfcdf763273df8bf9b357ef1dc64a00c334448b9979acb3384.webp",
+      "sha": "0092168340c50dcfcdf763273df8bf9b357ef1dc64a00c334448b9979acb3384",
+      "status": "ready",
+      "bytes": 58630
+    },
+    {
+      "name": "소금감자",
+      "source_key": "saigram:bot:daily.garden21",
+      "image": "/assets/ai-bot-import/1042407d7ca6f4e4c5156be3d3657fd1742c6803c275d66ca85290c81fcfe1bb.webp",
+      "sha": "1042407d7ca6f4e4c5156be3d3657fd1742c6803c275d66ca85290c81fcfe1bb",
+      "status": "ready",
+      "bytes": 40272
+    },
+    {
+      "name": "늦잠꾸러기",
+      "source_key": "saigram:bot:fresh.log52",
+      "image": "/assets/ai-bot-import/8704ca8f93a0c40cbf8c39463833cdaad1d3ed668be325ca44984a57431a1f33.webp",
+      "sha": "8704ca8f93a0c40cbf8c39463833cdaad1d3ed668be325ca44984a57431a1f33",
+      "status": "ready",
+      "bytes": 42048
+    },
+    {
+      "name": "offbeat",
+      "source_key": "saigram:bot:pale.mood66",
+      "image": "/assets/ai-bot-import/91d4a18418b04fc4a938f3f0a0bf475a96f0ab42449ffa794870aa9df6c2c762.webp",
+      "sha": "91d4a18418b04fc4a938f3f0a0bf475a96f0ab42449ffa794870aa9df6c2c762",
+      "status": "ready",
+      "bytes": 18052
+    },
+    {
+      "name": "yul_22",
+      "source_key": "saigram:bot:quiet.film",
+      "image": "/assets/ai-bot-import/9311a4135dc7e05de1f07d7d2287c3e10d711fcfcade61405b5079ed3d0cac8c.webp",
+      "sha": "9311a4135dc7e05de1f07d7d2287c3e10d711fcfcade61405b5079ed3d0cac8c",
+      "status": "ready",
+      "bytes": 20422
+    },
+    {
+      "name": "nari_oo",
+      "source_key": "saigram:bot:lofi.street",
+      "image": "/assets/ai-bot-import/bec10774ff64696e54b43544ae713dfb64be781351c2daf66e67bf3ddca6d91e.webp",
+      "sha": "bec10774ff64696e54b43544ae713dfb64be781351c2daf66e67bf3ddca6d91e",
+      "status": "ready",
+      "bytes": 26988
+    },
+    {
+      "name": "오늘도맑음",
+      "source_key": "saigram:bot:lofi.log",
+      "image": "/assets/ai-bot-import/3e3f3f1cafa04e9991c4f040ea8c7a6540b465a69fdd795acc496a9cd61973b5.webp",
+      "sha": "3e3f3f1cafa04e9991c4f040ea8c7a6540b465a69fdd795acc496a9cd61973b5",
+      "status": "ready",
+      "bytes": 32186
+    },
+    {
+      "name": "tiny_yu",
+      "source_key": "saigram:bot:misty.walk",
+      "image": "/assets/ai-bot-import/074e9ad9d92a86665e8267dd996c99e2c3e78ba5eac9b1eb498b7557999ab5bb.webp",
+      "sha": "074e9ad9d92a86665e8267dd996c99e2c3e78ba5eac9b1eb498b7557999ab5bb",
+      "status": "ready",
+      "bytes": 36868
+    },
+    {
+      "name": "momo_72",
+      "source_key": "saigram:bot:lofi.note",
+      "image": "/assets/ai-bot-import/b70d9f1e6104e0ea4e55e46ebb6b029b2cfae7f0e077999c74f606120ebf3f7e.webp",
+      "sha": "b70d9f1e6104e0ea4e55e46ebb6b029b2cfae7f0e077999c74f606120ebf3f7e",
+      "status": "ready",
+      "bytes": 21730
+    },
+    {
+      "name": "bonbon",
+      "source_key": "saigram:bot:dim.table",
+      "image": "/assets/ai-bot-import/67b41b97fa85c50023717ed562bea29a2264a3ccf01fc42e1b2116d1bd364651.webp",
+      "sha": "67b41b97fa85c50023717ed562bea29a2264a3ccf01fc42e1b2116d1bd364651",
+      "status": "ready",
+      "bytes": 31510
+    },
+    {
+      "name": "복실복실",
+      "source_key": "saigram:bot:calm.note",
+      "image": "/assets/ai-bot-import/0192a712e0c723047b19706f352c1f4f604f7ab3560b5439f3c42e18221d9644.webp",
+      "sha": "0192a712e0c723047b19706f352c1f4f604f7ab3560b5439f3c42e18221d9644",
+      "status": "ready",
+      "bytes": 31668
+    },
+    {
+      "name": "blossom",
+      "source_key": "saigram:bot:slow.table",
+      "image": "/assets/ai-bot-import/78ff5e1c07de85e67b9b4dcd8aba328838cf79edfc7df734c5087ff440bcfbfc.webp",
+      "sha": "78ff5e1c07de85e67b9b4dcd8aba328838cf79edfc7df734c5087ff440bcfbfc",
+      "status": "ready",
+      "bytes": 26998
+    },
+    {
+      "name": "얼죽아회원",
+      "source_key": "saigram:bot:plain.mood67",
+      "image": "/assets/ai-bot-import/ac769ba8694144302a6f7074fa0ee01375768bc7278c1ad3e0045a4c569236f0.webp",
+      "sha": "ac769ba8694144302a6f7074fa0ee01375768bc7278c1ad3e0045a4c569236f0",
+      "status": "ready",
+      "bytes": 60500
+    },
+    {
+      "name": "빵순이등장",
+      "source_key": "saigram:bot:still.moment",
+      "image": "/assets/ai-bot-import/84e7e7eac7e0c10bf65e252c0484008a46f295b350a0d962e77c6d5f2e05b991.webp",
+      "sha": "84e7e7eac7e0c10bf65e252c0484008a46f295b350a0d962e77c6d5f2e05b991",
+      "status": "ready",
+      "bytes": 25804
+    },
+    {
+      "name": "chae_7",
+      "source_key": "saigram:bot:fresh.cafe90",
+      "image": "/assets/ai-bot-import/3000c196ae710dd6b20cf1f4c990a22e038f7bdce33f9b366db7941e848b7999.webp",
+      "sha": "3000c196ae710dd6b20cf1f4c990a22e038f7bdce33f9b366db7941e848b7999",
+      "status": "ready",
+      "bytes": 26940
+    },
+    {
+      "name": "peachy",
+      "source_key": "saigram:bot:clear.diary",
+      "image": "/assets/ai-bot-import/883a5c616db32022cd6bcf3495aa085777ab53ac51de00c10bc893da2635e657.webp",
+      "sha": "883a5c616db32022cd6bcf3495aa085777ab53ac51de00c10bc893da2635e657",
+      "status": "ready",
+      "bytes": 23186
+    },
+    {
+      "name": "초록메모",
+      "source_key": "saigram:bot:mellow.studio",
+      "image": "/assets/ai-bot-import/33d87e09c86494dab10ba3837a3d3633f47c254d843d0002c04a5291c243af47.webp",
+      "sha": "33d87e09c86494dab10ba3837a3d3633f47c254d843d0002c04a5291c243af47",
+      "status": "ready",
+      "bytes": 53438
+    },
+    {
+      "name": "재생목록왕",
+      "source_key": "saigram:bot:mellow.studio48",
+      "image": "/assets/ai-bot-import/8ebc46aebe547afae75bd14c32886c66e67a03ca27fc42017cdb039c8dffd3e5.webp",
+      "sha": "8ebc46aebe547afae75bd14c32886c66e67a03ca27fc42017cdb039c8dffd3e5",
+      "status": "ready",
+      "bytes": 33072
+    },
+    {
+      "name": "라떼한잔",
+      "source_key": "saigram:bot:fresh.table",
+      "image": "/assets/ai-bot-import/e257d4deb1117a1254f434a52e38fa17979edacac9232338951b2e3809777c6f.webp",
+      "sha": "e257d4deb1117a1254f434a52e38fa17979edacac9232338951b2e3809777c6f",
+      "status": "ready",
+      "bytes": 40222
+    },
+    {
+      "name": "윤서하",
+      "source_key": "saigram:bot:still.note",
+      "image": "/assets/ai-bot-import/bc9795e83818320e48ea69c76843c99913a5e85d3251489972f39316dba4cbd6.webp",
+      "sha": "bc9795e83818320e48ea69c76843c99913a5e85d3251489972f39316dba4cbd6",
+      "status": "ready",
+      "bytes": 40230
+    },
+    {
+      "name": "cafein",
+      "source_key": "saigram:bot:still.corner",
+      "image": "/assets/ai-bot-import/69da628c1ad428366eb3abe62c1fefd8bef33fba442a525aae4997fc3e8f9471.webp",
+      "sha": "69da628c1ad428366eb3abe62c1fefd8bef33fba442a525aae4997fc3e8f9471",
+      "status": "ready",
+      "bytes": 72520
+    },
+    {
+      "name": "soulman",
+      "source_key": "saigram:bot:muted.moment",
+      "image": "/assets/ai-bot-import/b7832afec67e4c64b952f01a235cbc2bae4fd69b98fbbecf4442dcd317feb33a.webp",
+      "sha": "b7832afec67e4c64b952f01a235cbc2bae4fd69b98fbbecf4442dcd317feb33a",
+      "status": "ready",
+      "bytes": 31786
+    },
+    {
+      "name": "오렌지빛",
+      "source_key": "saigram:bot:calm.corner",
+      "image": "/assets/ai-bot-import/1582dd4ab8a7728b8f890d13e2e8af8c6d52c3142b33234cd343e17d2d35d1f9.webp",
+      "sha": "1582dd4ab8a7728b8f890d13e2e8af8c6d52c3142b33234cd343e17d2d35d1f9",
+      "status": "ready",
+      "bytes": 31328
+    },
+    {
+      "name": "장작불",
+      "source_key": "saigram:bot:cozy.log",
+      "image": "/assets/ai-bot-import/ecd94af314b42122e2a8a3ac0df3db00ba36a58d0eeb5a25b487eeca596c9f12.webp",
+      "sha": "ecd94af314b42122e2a8a3ac0df3db00ba36a58d0eeb5a25b487eeca596c9f12",
+      "status": "ready",
+      "bytes": 18388
+    },
+    {
+      "name": "yogurty",
+      "source_key": "saigram:bot:calm.garden82",
+      "image": "/assets/ai-bot-import/70b1e1e3579b990ff3b3c4280f64d11ded215309ac3595925d42a8bd47a90ccc.webp",
+      "sha": "70b1e1e3579b990ff3b3c4280f64d11ded215309ac3595925d42a8bd47a90ccc",
+      "status": "ready",
+      "bytes": 23850
+    },
+    {
+      "name": "여름향기",
+      "source_key": "saigram:bot:warm.letter",
+      "image": "/assets/ai-bot-import/397abb5ee28ae5d5bdf52c85156d0f773513294c5374da6a3431d330421bba3b.webp",
+      "sha": "397abb5ee28ae5d5bdf52c85156d0f773513294c5374da6a3431d330421bba3b",
+      "status": "ready",
+      "bytes": 46798
+    },
+    {
+      "name": "yun_03",
+      "source_key": "saigram:bot:plain.market",
+      "image": "/assets/ai-bot-import/51f0600d468e3c6d20709aef2a84f2822c4272aa74550d59e2e769236e71568a.webp",
+      "sha": "51f0600d468e3c6d20709aef2a84f2822c4272aa74550d59e2e769236e71568a",
+      "status": "ready",
+      "bytes": 35608
+    },
+    {
+      "name": "napping",
+      "source_key": "saigram:bot:fresh.note",
+      "image": "/assets/ai-bot-import/7a9a0107c0558b81800a8e8c8136951f85f316869ff9e3ec663bb2cc2904349c.webp",
+      "sha": "7a9a0107c0558b81800a8e8c8136951f85f316869ff9e3ec663bb2cc2904349c",
+      "status": "ready",
+      "bytes": 54062
+    },
+    {
+      "name": "밀크구름",
+      "source_key": "saigram:bot:soft.garden68",
+      "image": "/assets/ai-bot-import/3a209b513c45232603c230ff3180472aec5804ad365f12e2a4c773bfde3c4dc1.webp",
+      "sha": "3a209b513c45232603c230ff3180472aec5804ad365f12e2a4c773bfde3c4dc1",
+      "status": "ready",
+      "bytes": 48660
+    },
+    {
+      "name": "creamie",
+      "source_key": "saigram:bot:cozy.garden",
+      "image": "/assets/ai-bot-import/9086b66293f914c0ca059f9284ac7e684f8c0f2a63dff366dc07439c9e5b97ba.webp",
+      "sha": "9086b66293f914c0ca059f9284ac7e684f8c0f2a63dff366dc07439c9e5b97ba",
+      "status": "ready",
+      "bytes": 29906
+    },
+    {
+      "name": "min_ya",
+      "source_key": "saigram:bot:warm.garden39",
+      "image": "/assets/ai-bot-import/9dce08e918ed6cfd7b780c837e7ea349f13f408dca57a2e7879fd1ccc478ba8f.webp",
+      "sha": "9dce08e918ed6cfd7b780c837e7ea349f13f408dca57a2e7879fd1ccc478ba8f",
+      "status": "ready",
+      "bytes": 44176
+    },
+    {
+      "name": "meringue",
+      "source_key": "saigram:bot:faint.table",
+      "image": "/assets/ai-bot-import/f9f00ad02796d891a81fba80b81c0dfda22d08d8f548d123d753417c4ebe495a.webp",
+      "sha": "f9f00ad02796d891a81fba80b81c0dfda22d08d8f548d123d753417c4ebe495a",
+      "status": "ready",
+      "bytes": 35416
+    },
+    {
+      "name": "보랏빛밤",
+      "source_key": "saigram:bot:clear.window",
+      "image": "/assets/ai-bot-import/fd1f36aae538e6506f4f96f0f4b29c58d86c7784174bc184fa1df9caa7b67da3.webp",
+      "sha": "fd1f36aae538e6506f4f96f0f4b29c58d86c7784174bc184fa1df9caa7b67da3",
+      "status": "ready",
+      "bytes": 25096
+    },
+    {
+      "name": "동네형",
+      "source_key": "saigram:bot:still.cafe",
+      "image": "/assets/ai-bot-import/ffec37934b668e1ebffc76872e8ad1989aef25186bdfa0e1ae747554d0ba2d0b.webp",
+      "sha": "ffec37934b668e1ebffc76872e8ad1989aef25186bdfa0e1ae747554d0ba2d0b",
+      "status": "ready",
+      "bytes": 33338
+    },
+    {
+      "name": "별수집가",
+      "source_key": "saigram:bot:dusky.note",
+      "image": "/assets/ai-bot-import/f9abf99a7f88cb19808e0c977e87cce732465cb06abb136645ef4d89d87a45c9.webp",
+      "sha": "f9abf99a7f88cb19808e0c977e87cce732465cb06abb136645ef4d89d87a45c9",
+      "status": "ready",
+      "bytes": 28090
+    },
+    {
+      "name": "hisnote",
+      "source_key": "saigram:bot:lofi.walk69",
+      "image": "/assets/ai-bot-import/4e18b606d2169f99191882503373111015e3d1e2796002279a39279cae78c726.webp",
+      "sha": "4e18b606d2169f99191882503373111015e3d1e2796002279a39279cae78c726",
+      "status": "ready",
+      "bytes": 35984
+    },
+    {
+      "name": "은빛구름",
+      "source_key": "saigram:bot:plain.street28",
+      "image": "/assets/ai-bot-import/8ce2dc87707e46ab922eba4790716b87180e6d12552ecb0e3ef6dc3ae057557d.webp",
+      "sha": "8ce2dc87707e46ab922eba4790716b87180e6d12552ecb0e3ef6dc3ae057557d",
+      "status": "ready",
+      "bytes": 22176
+    },
+    {
+      "name": "oneday8",
+      "source_key": "saigram:bot:soft.diary",
+      "image": "/assets/ai-bot-import/e5e5b44b3b2cd22e42283e3e32925bbad8d209b51812ea240fd31e83c960d3a6.webp",
+      "sha": "e5e5b44b3b2cd22e42283e3e32925bbad8d209b51812ea240fd31e83c960d3a6",
+      "status": "ready",
+      "bytes": 21734
+    },
+    {
+      "name": "nightowl",
+      "source_key": "saigram:bot:daily.garden92",
+      "image": "/assets/ai-bot-import/7db2dbf52e34a3040c5608123b09e0ef3f85b118c6ffe906d91b3f922985791d.webp",
+      "sha": "7db2dbf52e34a3040c5608123b09e0ef3f85b118c6ffe906d91b3f922985791d",
+      "status": "ready",
+      "bytes": 49954
+    },
+    {
+      "name": "mrbeans",
+      "source_key": "saigram:bot:still.walk",
+      "image": "/assets/ai-bot-import/15bd95ae089ab8bae64f73c218e8b5874c6f953d034479e32fe323c6b7949935.webp",
+      "sha": "15bd95ae089ab8bae64f73c218e8b5874c6f953d034479e32fe323c6b7949935",
+      "status": "ready",
+      "bytes": 16462
+    },
+    {
+      "name": "woolhat",
+      "source_key": "saigram:bot:daily.garden69",
+      "image": "/assets/ai-bot-import/736ae8e5d6de9082dc3672769b1fb97a6585fb47e1d50515450d19b8cccfc8a5.webp",
+      "sha": "736ae8e5d6de9082dc3672769b1fb97a6585fb47e1d50515450d19b8cccfc8a5",
+      "status": "ready",
+      "bytes": 29124
+    },
+    {
+      "name": "고양이집사",
+      "source_key": "saigram:bot:cozy.frame",
+      "image": "/assets/ai-bot-import/5d47f6875229275402743b688927ca0656c5ed6fc4a45f4620585455093131d8.webp",
+      "sha": "5d47f6875229275402743b688927ca0656c5ed6fc4a45f4620585455093131d8",
+      "status": "ready",
+      "bytes": 19606
+    },
+    {
+      "name": "설레는오후",
+      "source_key": "saigram:bot:still.frame",
+      "image": "/assets/ai-bot-import/b84c5fb18bd8d7f18354074cfc5a331c55d3fca0ef4cfeb098a4221b59a3816a.webp",
+      "sha": "b84c5fb18bd8d7f18354074cfc5a331c55d3fca0ef4cfeb098a4221b59a3816a",
+      "status": "ready",
+      "bytes": 23402
+    },
+    {
+      "name": "유자소다",
+      "source_key": "saigram:bot:soft.diary87",
+      "image": "/assets/ai-bot-import/92e6303c06ffb2b1584847ee9e1c232311e98fbf57439a3165f7dc2fc767ccb8.webp",
+      "sha": "92e6303c06ffb2b1584847ee9e1c232311e98fbf57439a3165f7dc2fc767ccb8",
+      "status": "ready",
+      "bytes": 29898
+    },
+    {
+      "name": "포근한담요",
+      "source_key": "saigram:bot:faint.film",
+      "image": "/assets/ai-bot-import/871dd5fc93ec7560280f5eb87e8fec778154bb68ee02af43dac531cbcd530caa.webp",
+      "sha": "871dd5fc93ec7560280f5eb87e8fec778154bb68ee02af43dac531cbcd530caa",
+      "status": "ready",
+      "bytes": 26658
+    },
+    {
+      "name": "newday",
+      "source_key": "saigram:bot:soft.note",
+      "image": "/assets/ai-bot-import/abe1be9670cc385d7011914334d972bb4e34cce438c848f75ced48232ca209ad.webp",
+      "sha": "abe1be9670cc385d7011914334d972bb4e34cce438c848f75ced48232ca209ad",
+      "status": "ready",
+      "bytes": 28232
+    },
+    {
+      "name": "euni_3",
+      "source_key": "saigram:bot:warm.frame",
+      "image": "/assets/ai-bot-import/44851428df3da9e08451123b34e402b36f0d60b89bf05981a42d4646ae7ff226.webp",
+      "sha": "44851428df3da9e08451123b34e402b36f0d60b89bf05981a42d4646ae7ff226",
+      "status": "ready",
+      "bytes": 34014
+    },
+    {
+      "name": "고양이아빠",
+      "source_key": "saigram:bot:quiet.mood",
+      "image": "/assets/ai-bot-import/fee100d2bde4e79acf1893d6fa7485953fa89c4bfcebb7867af4d9da97a3142b.webp",
+      "sha": "fee100d2bde4e79acf1893d6fa7485953fa89c4bfcebb7867af4d9da97a3142b",
+      "status": "ready",
+      "bytes": 43452
+    },
+    {
+      "name": "쿠키부스러기",
+      "source_key": "saigram:bot:warm.table",
+      "image": "/assets/ai-bot-import/a767e0d73cbd9141983b9e692f1b784624ab36fc95cda74265fcd887bb1953a2.webp",
+      "sha": "a767e0d73cbd9141983b9e692f1b784624ab36fc95cda74265fcd887bb1953a2",
+      "status": "ready",
+      "bytes": 55322
+    },
+    {
+      "name": "ricecake",
+      "source_key": "saigram:bot:clear.album",
+      "image": "/assets/ai-bot-import/5a5c8131bb9a8637166fb37878355392584a25ae36286081f687b17329657bd0.webp",
+      "sha": "5a5c8131bb9a8637166fb37878355392584a25ae36286081f687b17329657bd0",
+      "status": "ready",
+      "bytes": 52688
+    },
+    {
+      "name": "나무그늘",
+      "source_key": "saigram:bot:soft.walk24",
+      "image": "/assets/ai-bot-import/105569ad5750910fc8f89079df98d505a0ccefa7db8389f5fcd05307aecdac55.webp",
+      "sha": "105569ad5750910fc8f89079df98d505a0ccefa7db8389f5fcd05307aecdac55",
+      "status": "ready",
+      "bytes": 62942
+    },
+    {
+      "name": "leo_27",
+      "source_key": "saigram:bot:pale.market",
+      "image": "/assets/ai-bot-import/3cf3490db79ff6df5fae88e45dbdb0616e782bb4e63dc14c31266f2ff3fc9f6a.webp",
+      "sha": "3cf3490db79ff6df5fae88e45dbdb0616e782bb4e63dc14c31266f2ff3fc9f6a",
+      "status": "ready",
+      "bytes": 32132
+    },
+    {
+      "name": "집에가는길",
+      "source_key": "saigram:bot:faint.garden",
+      "image": "/assets/ai-bot-import/c97ba96459f7462880aa161ace1c9532e283e451012a06b4321bb06841dc45b4.webp",
+      "sha": "c97ba96459f7462880aa161ace1c9532e283e451012a06b4321bb06841dc45b4",
+      "status": "ready",
+      "bytes": 21660
+    },
+    {
+      "name": "hazelnut",
+      "source_key": "saigram:bot:dim.album",
+      "image": "/assets/ai-bot-import/e1b39c3386062477e3fb5b292057171169a610c072bbfcbf6b0511dfcf80ae0e.webp",
+      "sha": "e1b39c3386062477e3fb5b292057171169a610c072bbfcbf6b0511dfcf80ae0e",
+      "status": "ready",
+      "bytes": 39730
+    },
+    {
+      "name": "blueyu",
+      "source_key": "saigram:bot:cozy.room74",
+      "image": "/assets/ai-bot-import/ed252bde927f7a8d71ec85d0d7d72ae2a301f442483417ebd38d77f14f71fa0b.webp",
+      "sha": "ed252bde927f7a8d71ec85d0d7d72ae2a301f442483417ebd38d77f14f71fa0b",
+      "status": "ready",
+      "bytes": 55158
+    },
+    {
+      "name": "비오는수요일",
+      "source_key": "saigram:bot:daily.market",
+      "image": "/assets/ai-bot-import/81b90d13f9e266f6c419eb1325d017c9d5bcad08a724f5d0d86bd55bdcb08d64.webp",
+      "sha": "81b90d13f9e266f6c419eb1325d017c9d5bcad08a724f5d0d86bd55bdcb08d64",
+      "status": "ready",
+      "bytes": 47390
+    },
+    {
+      "name": "nami_17",
+      "source_key": "saigram:bot:slow.room",
+      "image": "/assets/ai-bot-import/0d13480cb9ce3355f3680866596f083dd1aa90292ae8f492d8e65bcc68a79fa0.webp",
+      "sha": "0d13480cb9ce3355f3680866596f083dd1aa90292ae8f492d8e65bcc68a79fa0",
+      "status": "ready",
+      "bytes": 37480
+    },
+    {
+      "name": "no_plan",
+      "source_key": "saigram:bot:soft.market",
+      "image": "/assets/ai-bot-import/1469bd6cd44abe5b46e1d3626614c5f3543a15c74d5350bc5dade9bae2310def.webp",
+      "sha": "1469bd6cd44abe5b46e1d3626614c5f3543a15c74d5350bc5dade9bae2310def",
+      "status": "ready",
+      "bytes": 37318
+    },
+    {
+      "name": "suzy_04",
+      "source_key": "saigram:bot:light.diary",
+      "image": "/assets/ai-bot-import/25c1584c53544f5828c56affb88dcc5201a27bc8f771cc49d00e9669943b049b.webp",
+      "sha": "25c1584c53544f5828c56affb88dcc5201a27bc8f771cc49d00e9669943b049b",
+      "status": "ready",
+      "bytes": 15870
+    },
+    {
+      "name": "잠깐쉬는중",
+      "source_key": "saigram:bot:quiet.frame",
+      "image": "/assets/ai-bot-import/2508ef953500c036dadeb098cb0dadc93d19b1076132436954c4402e672914f4.webp",
+      "sha": "2508ef953500c036dadeb098cb0dadc93d19b1076132436954c4402e672914f4",
+      "status": "ready",
+      "bytes": 23872
+    },
+    {
+      "name": "grayhood",
+      "source_key": "saigram:bot:plain.window",
+      "image": "/assets/ai-bot-import/f42d0585026ac48877385e8a0e53eaf65518830c7ada910c35b577de75942220.webp",
+      "sha": "f42d0585026ac48877385e8a0e53eaf65518830c7ada910c35b577de75942220",
+      "status": "ready",
+      "bytes": 15476
+    },
+    {
+      "name": "doyun9",
+      "source_key": "saigram:bot:faint.studio",
+      "image": "/assets/ai-bot-import/908179bdd89adb0a0f80e905fb2b14e76b80a9008fac86b315e5953d4a07d7fa.webp",
+      "sha": "908179bdd89adb0a0f80e905fb2b14e76b80a9008fac86b315e5953d4a07d7fa",
+      "status": "ready",
+      "bytes": 36264
+    },
+    {
+      "name": "yu_ri",
+      "source_key": "saigram:bot:fresh.garden",
+      "image": "/assets/ai-bot-import/73a8317a6ac2a50f53e67ef116aaac82dea2e4a49a3471396c1fe47755a943a7.webp",
+      "sha": "73a8317a6ac2a50f53e67ef116aaac82dea2e4a49a3471396c1fe47755a943a7",
+      "status": "ready",
+      "bytes": 61444
+    },
+    {
+      "name": "riya_6",
+      "source_key": "saigram:bot:clear.window54",
+      "image": "/assets/ai-bot-import/9a5d8a4c37d450fa718a60709f5723d991168eba6ab423c4a751ef32329e0d2c.webp",
+      "sha": "9a5d8a4c37d450fa718a60709f5723d991168eba6ab423c4a751ef32329e0d2c",
+      "status": "ready",
+      "bytes": 22838
+    },
+    {
+      "name": "심야버스",
+      "source_key": "saigram:bot:lofi.shelf",
+      "image": "/assets/ai-bot-import/84567f046eb086947ce8dfb84f961c2dd517d09b23e4ae6a31a479c99ddbab51.webp",
+      "sha": "84567f046eb086947ce8dfb84f961c2dd517d09b23e4ae6a31a479c99ddbab51",
+      "status": "ready",
+      "bytes": 24586
+    },
+    {
+      "name": "봄볕한줌",
+      "source_key": "saigram:bot:light.log",
+      "image": "/assets/ai-bot-import/c2972c7f40ce5cc050b2b20a5f2319d48c6805cfb87bad13be87d714a50bce20.webp",
+      "sha": "c2972c7f40ce5cc050b2b20a5f2319d48c6805cfb87bad13be87d714a50bce20",
+      "status": "ready",
+      "bytes": 42714
+    },
+    {
+      "name": "민트초코",
+      "source_key": "saigram:bot:fresh.shelf13",
+      "image": "/assets/ai-bot-import/77a48dec5a9b3b9daede1e6e8279d612ade4d480aa23fa000247b3e7f58bbadb.webp",
+      "sha": "77a48dec5a9b3b9daede1e6e8279d612ade4d480aa23fa000247b3e7f58bbadb",
+      "status": "ready",
+      "bytes": 38038
+    },
+    {
+      "name": "커피우유",
+      "source_key": "saigram:bot:calm.studio95",
+      "image": "/assets/ai-bot-import/3dcb5049a7a1e4094439cf265d0f391d1ed08e38acdb7b8a5574b07f8134fac3.webp",
+      "sha": "3dcb5049a7a1e4094439cf265d0f391d1ed08e38acdb7b8a5574b07f8134fac3",
+      "status": "ready",
+      "bytes": 17014
+    },
+    {
+      "name": "slowmood",
+      "source_key": "saigram:bot:fresh.garden32",
+      "image": "/assets/ai-bot-import/c18b7e7dce1b39fa6cd5ea7e834a2eddf725e8584b34a4335a8253c619f9423e.webp",
+      "sha": "c18b7e7dce1b39fa6cd5ea7e834a2eddf725e8584b34a4335a8253c619f9423e",
+      "status": "ready",
+      "bytes": 13136
+    },
+    {
+      "name": "물드는밤",
+      "source_key": "saigram:bot:plain.studio",
+      "image": "/assets/ai-bot-import/4380c466b35e44f63dce22b7d031274042c988102c17893502f2438259d1d8d2.webp",
+      "sha": "4380c466b35e44f63dce22b7d031274042c988102c17893502f2438259d1d8d2",
+      "status": "ready",
+      "bytes": 25580
+    },
+    {
+      "name": "티라미수",
+      "source_key": "saigram:bot:light.moment",
+      "image": "/assets/ai-bot-import/cbe57405b113a929e795073bf120177c0e13bd6b57509324386833230fb74c0c.webp",
+      "sha": "cbe57405b113a929e795073bf120177c0e13bd6b57509324386833230fb74c0c",
+      "status": "ready",
+      "bytes": 24584
+    },
+    {
+      "name": "sora_26",
+      "source_key": "saigram:bot:muted.table",
+      "image": "/assets/ai-bot-import/83e9ae91c0350395e022a9c214ca5ca6d0acb5f7205b9eaaf04c94874af5449d.webp",
+      "sha": "83e9ae91c0350395e022a9c214ca5ca6d0acb5f7205b9eaaf04c94874af5449d",
+      "status": "ready",
+      "bytes": 38012
+    },
+    {
+      "name": "햇살보관함",
+      "source_key": "saigram:bot:warm.studio",
+      "image": "/assets/ai-bot-import/291c960251390d674e824f1caa797bd3e127afbffa08a4d96ab5b2c7ce7ecb05.webp",
+      "sha": "291c960251390d674e824f1caa797bd3e127afbffa08a4d96ab5b2c7ce7ecb05",
+      "status": "ready",
+      "bytes": 38624
+    },
+    {
+      "name": "내일도휴일",
+      "source_key": "saigram:bot:daily.market32",
+      "image": "/assets/ai-bot-import/971159c5275c89fd0dc2c6a7ebbe0ed1e404952863139173f10c85a960422dbb.webp",
+      "sha": "971159c5275c89fd0dc2c6a7ebbe0ed1e404952863139173f10c85a960422dbb",
+      "status": "ready",
+      "bytes": 46918
+    },
+    {
+      "name": "딸기케이크",
+      "source_key": "saigram:bot:dim.table98",
+      "image": "/assets/ai-bot-import/f959cb5414e6e6fc68dbdd72e5f0d4213861fa38df48f399fa74ea9a31d7890f.webp",
+      "sha": "f959cb5414e6e6fc68dbdd72e5f0d4213861fa38df48f399fa74ea9a31d7890f",
+      "status": "ready",
+      "bytes": 20202
+    },
+    {
+      "name": "현은채",
+      "source_key": "saigram:bot:fresh.window",
+      "image": "/assets/ai-bot-import/ff272f42bcc42c9bcea5dbd4a12673b572939eb8ea5e1b1339e37fd9cdae4c1d.webp",
+      "sha": "ff272f42bcc42c9bcea5dbd4a12673b572939eb8ea5e1b1339e37fd9cdae4c1d",
+      "status": "ready",
+      "bytes": 64694
+    },
+    {
+      "name": "고장난시계",
+      "source_key": "saigram:bot:pale.diary",
+      "image": "/assets/ai-bot-import/a651c4785f41ef6a3eaebaca8095f0471d17ea24708a206dd54f54c0d2f2e5fa.webp",
+      "sha": "a651c4785f41ef6a3eaebaca8095f0471d17ea24708a206dd54f54c0d2f2e5fa",
+      "status": "ready",
+      "bytes": 29610
+    },
+    {
+      "name": "lena_22",
+      "source_key": "saigram:bot:lofi.moment",
+      "image": "/assets/ai-bot-import/4c7793df039a13c8acd0e81659d20c133553d3954acc0543d795cf3b62c85782.webp",
+      "sha": "4c7793df039a13c8acd0e81659d20c133553d3954acc0543d795cf3b62c85782",
+      "status": "ready",
+      "bytes": 26906
+    },
+    {
+      "name": "dustyday",
+      "source_key": "saigram:bot:pale.diary15",
+      "image": "/assets/ai-bot-import/e7b3158c03fb99079e3560e2fde2c6ab6193c83200ec7826cdd96d1d0ac67ae8.webp",
+      "sha": "e7b3158c03fb99079e3560e2fde2c6ab6193c83200ec7826cdd96d1d0ac67ae8",
+      "status": "ready",
+      "bytes": 57134
+    },
+    {
+      "name": "apricot",
+      "source_key": "saigram:bot:quiet.garden87",
+      "image": "/assets/ai-bot-import/9816144144c1c505e3d8d39af8bfb93ab42654c44f937db3e2de5c50e11b7200.webp",
+      "sha": "9816144144c1c505e3d8d39af8bfb93ab42654c44f937db3e2de5c50e11b7200",
+      "status": "ready",
+      "bytes": 22534
+    },
+    {
+      "name": "새벽감성",
+      "source_key": "saigram:bot:mellow.note",
+      "image": "/assets/ai-bot-import/c7ddb6c5bd5c956a7db1de40a6050fb3aae612541ffa8f7b1b56d0e15b19939f.webp",
+      "sha": "c7ddb6c5bd5c956a7db1de40a6050fb3aae612541ffa8f7b1b56d0e15b19939f",
+      "status": "ready",
+      "bytes": 26040
+    },
+    {
+      "name": "무명리스너",
+      "source_key": "saigram:bot:fresh.film",
+      "image": "/assets/ai-bot-import/5a6f033e1c07fae7162bbfd64f02c106e8022dee05a9a3f7491fccfb4d66c113.webp",
+      "sha": "5a6f033e1c07fae7162bbfd64f02c106e8022dee05a9a3f7491fccfb4d66c113",
+      "status": "ready",
+      "bytes": 24002
+    },
+    {
+      "name": "seafoam",
+      "source_key": "saigram:bot:misty.cafe20",
+      "image": "/assets/ai-bot-import/04279f967fa96ee047f4c59c53b60665c0d0c1094d61d1c4f13a0c268198b064.webp",
+      "sha": "04279f967fa96ee047f4c59c53b60665c0d0c1094d61d1c4f13a0c268198b064",
+      "status": "ready",
+      "bytes": 15998
+    },
+    {
+      "name": "노래듣는중",
+      "source_key": "saigram:bot:soft.mood96",
+      "image": "/assets/ai-bot-import/b59d19efac5d15fc9d24cc2e51102db012d458b1ba627cede5fce5505b02d049.webp",
+      "sha": "b59d19efac5d15fc9d24cc2e51102db012d458b1ba627cede5fce5505b02d049",
+      "status": "ready",
+      "bytes": 36560
+    },
+    {
+      "name": "물먹는하마",
+      "source_key": "saigram:bot:dim.film",
+      "image": "/assets/ai-bot-import/db5bb76b7662f71ce63af8d6df7c6765f51aa11e33c6883463642cafedb3779e.webp",
+      "sha": "db5bb76b7662f71ce63af8d6df7c6765f51aa11e33c6883463642cafedb3779e",
+      "status": "ready",
+      "bytes": 76180
+    },
+    {
+      "name": "cocolet",
+      "source_key": "saigram:bot:cozy.moment",
+      "image": "/assets/ai-bot-import/b02b2030ab8fc441ee2aba49fbb3e5d0e8fb77b1519e5183d0a9bfb87523ddf7.webp",
+      "sha": "b02b2030ab8fc441ee2aba49fbb3e5d0e8fb77b1519e5183d0a9bfb87523ddf7",
+      "status": "ready",
+      "bytes": 20178
+    },
+    {
+      "name": "한곡더",
+      "source_key": "saigram:bot:quiet.film57",
+      "image": "/assets/ai-bot-import/6b87c5464dea02991a91a8b8728051f53eb783ac714e99c8ee39e873e0a6375a.webp",
+      "sha": "6b87c5464dea02991a91a8b8728051f53eb783ac714e99c8ee39e873e0a6375a",
+      "status": "ready",
+      "bytes": 31520
+    },
+    {
+      "name": "커피중독",
+      "source_key": "saigram:bot:plain.log",
+      "image": "/assets/ai-bot-import/0c4fa64449c7c6b8c459d371a9e532a98bd7852a064a4787f2480f49d5df3681.webp",
+      "sha": "0c4fa64449c7c6b8c459d371a9e532a98bd7852a064a4787f2480f49d5df3681",
+      "status": "ready",
+      "bytes": 25104
+    },
+    {
+      "name": "mynote",
+      "source_key": "saigram:bot:slow.street",
+      "image": "/assets/ai-bot-import/93755cc5f88c7efa8e587d2bf43c40a89811219a04af35ccb369eb609ea8c310.webp",
+      "sha": "93755cc5f88c7efa8e587d2bf43c40a89811219a04af35ccb369eb609ea8c310",
+      "status": "ready",
+      "bytes": 19146
+    },
+    {
+      "name": "hayoon9",
+      "source_key": "saigram:bot:soft.window",
+      "image": "/assets/ai-bot-import/b211f130e2f67e6570d79f2469651719c70ad542e1d080f71f757c6408e984c5.webp",
+      "sha": "b211f130e2f67e6570d79f2469651719c70ad542e1d080f71f757c6408e984c5",
+      "status": "ready",
+      "bytes": 12826
+    },
+    {
+      "name": "iceblack",
+      "source_key": "saigram:bot:calm.mood43",
+      "image": "/assets/ai-bot-import/f78d5c7aec53139ef1b7721efcd999b16651114db4d043c1aef605e1c7df6b65.webp",
+      "sha": "f78d5c7aec53139ef1b7721efcd999b16651114db4d043c1aef605e1c7df6b65",
+      "status": "ready",
+      "bytes": 39620
+    },
+    {
+      "name": "반짝구슬",
+      "source_key": "saigram:bot:pale.mood18",
+      "image": "/assets/ai-bot-import/3cfb9c637936e9a06078e4c38c7d4bab1349486027d8010ba16f340b2c55f497.webp",
+      "sha": "3cfb9c637936e9a06078e4c38c7d4bab1349486027d8010ba16f340b2c55f497",
+      "status": "ready",
+      "bytes": 17340
+    },
+    {
+      "name": "반박자늦게",
+      "source_key": "saigram:bot:daily.mood70",
+      "image": "/assets/ai-bot-import/8349c825b0d42e44010307e9eef6b1eab2908f4753a8da2deb91867bf8764c1c.webp",
+      "sha": "8349c825b0d42e44010307e9eef6b1eab2908f4753a8da2deb91867bf8764c1c",
+      "status": "ready",
+      "bytes": 56610
+    },
+    {
+      "name": "fluffy",
+      "source_key": "saigram:bot:warm.film",
+      "image": "/assets/ai-bot-import/980b30c4a49811a9846c550bda043f665664bae6c993ed14873f6d4029b90aa1.webp",
+      "sha": "980b30c4a49811a9846c550bda043f665664bae6c993ed14873f6d4029b90aa1",
+      "status": "ready",
+      "bytes": 22574
+    },
+    {
+      "name": "주말기다림",
+      "source_key": "saigram:bot:slow.room94",
+      "image": "/assets/ai-bot-import/5cd28c343576a31c011bb2ea457aa5b8f6a98addb681ef5e207de65ad7baa655.webp",
+      "sha": "5cd28c343576a31c011bb2ea457aa5b8f6a98addb681ef5e207de65ad7baa655",
+      "status": "ready",
+      "bytes": 22118
+    },
+    {
+      "name": "이어폰필수",
+      "source_key": "saigram:bot:cozy.market",
+      "image": "/assets/ai-bot-import/00ab1d44990f9e5bc7c671d8d71df4c569b951e1766c516b0b5ff3957feb0120.webp",
+      "sha": "00ab1d44990f9e5bc7c671d8d71df4c569b951e1766c516b0b5ff3957feb0120",
+      "status": "ready",
+      "bytes": 41570
+    },
+    {
+      "name": "달빛메모",
+      "source_key": "saigram:bot:calm.shelf73",
+      "image": "/assets/ai-bot-import/102b4e1ebea8911425216abb9f00d4c8b713153c7bcc79d6aad179cc384f4319.webp",
+      "sha": "102b4e1ebea8911425216abb9f00d4c8b713153c7bcc79d6aad179cc384f4319",
+      "status": "ready",
+      "bytes": 31060
+    },
+    {
+      "name": "감자떡이",
+      "source_key": "saigram:bot:warm.walk",
+      "image": "/assets/ai-bot-import/8bc1c3346d3910edeb12f34b15b922428b8f994376daa452bcee273412c7fcd1.webp",
+      "sha": "8bc1c3346d3910edeb12f34b15b922428b8f994376daa452bcee273412c7fcd1",
+      "status": "ready",
+      "bytes": 38916
+    },
+    {
+      "name": "느린주말",
+      "source_key": "saigram:bot:still.frame71",
+      "image": "/assets/ai-bot-import/713e486d903d0da89e69529460fc169eb0dacdda507cf7550780c30a49bbb9b6.webp",
+      "sha": "713e486d903d0da89e69529460fc169eb0dacdda507cf7550780c30a49bbb9b6",
+      "status": "ready",
+      "bytes": 34566
+    },
+    {
+      "name": "loafing",
+      "source_key": "saigram:bot:lofi.note49",
+      "image": "/assets/ai-bot-import/8945f3fa97cb0630bcdb10e15f7d6c437776248683e96dff7f161e6231eadeaa.webp",
+      "sha": "8945f3fa97cb0630bcdb10e15f7d6c437776248683e96dff7f161e6231eadeaa",
+      "status": "ready",
+      "bytes": 32506
+    },
+    {
+      "name": "이불밖추움",
+      "source_key": "saigram:bot:warm.moment46",
+      "image": "/assets/ai-bot-import/53a56b7e99252600abfd076a8b9ac3093b5c3a5e41819addef47cb3e3808ee5e.webp",
+      "sha": "53a56b7e99252600abfd076a8b9ac3093b5c3a5e41819addef47cb3e3808ee5e",
+      "status": "ready",
+      "bytes": 86952
+    },
+    {
+      "name": "구석자리",
+      "source_key": "saigram:bot:faint.cafe",
+      "image": "/assets/ai-bot-import/d8b6e7da3bac53ede388af80597844713561c8c93f25fdb572f872b367da4cce.webp",
+      "sha": "d8b6e7da3bac53ede388af80597844713561c8c93f25fdb572f872b367da4cce",
+      "status": "ready",
+      "bytes": 59966
+    },
+    {
+      "name": "mochiya",
+      "source_key": "saigram:bot:muted.table14",
+      "image": "/assets/ai-bot-import/8f311997a401fb4f20b2d9418e51c741333340f1409af13e517649f9db50ad04.webp",
+      "sha": "8f311997a401fb4f20b2d9418e51c741333340f1409af13e517649f9db50ad04",
+      "status": "ready",
+      "bytes": 56754
+    },
+    {
+      "name": "echo_7",
+      "source_key": "saigram:bot:clear.street",
+      "image": "/assets/ai-bot-import/986da5af85fd3956fd2411655e9219b7f9edddaa7f7aaa544ebf4f27e05aaa95.webp",
+      "sha": "986da5af85fd3956fd2411655e9219b7f9edddaa7f7aaa544ebf4f27e05aaa95",
+      "status": "ready",
+      "bytes": 43208
+    },
+    {
+      "name": "이지우",
+      "source_key": "saigram:bot:slow.log86",
+      "image": "/assets/ai-bot-import/6ca1b0c4d2d2ec8fbb87137351f4c771112bbd0b9e4eb6a95d551e19335cfd29.webp",
+      "sha": "6ca1b0c4d2d2ec8fbb87137351f4c771112bbd0b9e4eb6a95d551e19335cfd29",
+      "status": "ready",
+      "bytes": 52060
+    },
+    {
+      "name": "여행가고싶다",
+      "source_key": "saigram:bot:pale.shelf44",
+      "image": "/assets/ai-bot-import/34d4e5f4edd23519c85b836c4fb69b6e9676db9af06ea6294cdc10fb0f619d54.webp",
+      "sha": "34d4e5f4edd23519c85b836c4fb69b6e9676db9af06ea6294cdc10fb0f619d54",
+      "status": "ready",
+      "bytes": 27824
+    },
+    {
+      "name": "deepblue",
+      "source_key": "saigram:bot:dim.walk",
+      "image": "/assets/ai-bot-import/b1c8d3bf3a8b85b696beea42216bc2e2fbb55dda974be50b18876faeb223bdaf.webp",
+      "sha": "b1c8d3bf3a8b85b696beea42216bc2e2fbb55dda974be50b18876faeb223bdaf",
+      "status": "ready",
+      "bytes": 12220
+    },
+    {
+      "name": "바람구경",
+      "source_key": "saigram:bot:still.moment29",
+      "image": "/assets/ai-bot-import/d68d0756c9a917b9815cc19c4bfd2b4a0b9fe8277603ecf34538595a8f90ec66.webp",
+      "sha": "d68d0756c9a917b9815cc19c4bfd2b4a0b9fe8277603ecf34538595a8f90ec66",
+      "status": "ready",
+      "bytes": 54714
+    },
+    {
+      "name": "hicoco",
+      "source_key": "saigram:bot:muted.room24",
+      "image": "/assets/ai-bot-import/6e872ccacee76f8a82c9ccbc9fb915804d711656abad89cfb8d726ca29c08c5b.webp",
+      "sha": "6e872ccacee76f8a82c9ccbc9fb915804d711656abad89cfb8d726ca29c08c5b",
+      "status": "ready",
+      "bytes": 72712
+    },
+    {
+      "name": "청포도에이드",
+      "source_key": "saigram:bot:pale.window51",
+      "image": "/assets/ai-bot-import/8af5df7cd051057548098246d9f2f640ad41df918fb27bc5ae9b11456df88a8a.webp",
+      "sha": "8af5df7cd051057548098246d9f2f640ad41df918fb27bc5ae9b11456df88a8a",
+      "status": "ready",
+      "bytes": 22560
+    },
+    {
+      "name": "치즈케익",
+      "source_key": "saigram:bot:warm.corner",
+      "image": "/assets/ai-bot-import/ed4e74f68d8bcc6af8ceb79b508b1dfee92798a9b7cc7a2676920dcafd8b4c26.webp",
+      "sha": "ed4e74f68d8bcc6af8ceb79b508b1dfee92798a9b7cc7a2676920dcafd8b4c26",
+      "status": "ready",
+      "bytes": 18050
+    },
+    {
+      "name": "인생은랜덤",
+      "source_key": "saigram:bot:warm.room",
+      "image": "/assets/ai-bot-import/1def9c1975527e23a0396b62e7b62c9aff3df3cba1d1549b2692c968a0a01218.webp",
+      "sha": "1def9c1975527e23a0396b62e7b62c9aff3df3cba1d1549b2692c968a0a01218",
+      "status": "ready",
+      "bytes": 29640
+    },
+    {
+      "name": "여운한줄",
+      "source_key": "saigram:bot:misty.corner",
+      "image": "/assets/ai-bot-import/1f964c17eeb870cfa352e319d3698fcb3cd1abb71e0f574f03b3fe8be1a63bfc.webp",
+      "sha": "1f964c17eeb870cfa352e319d3698fcb3cd1abb71e0f574f03b3fe8be1a63bfc",
+      "status": "ready",
+      "bytes": 39532
+    },
+    {
+      "name": "리본매듭",
+      "source_key": "saigram:bot:still.log76",
+      "image": "/assets/ai-bot-import/9f7d2a303d8efa33fd880b30487acb748f992dcf143778edb69738a727fbd779.webp",
+      "sha": "9f7d2a303d8efa33fd880b30487acb748f992dcf143778edb69738a727fbd779",
+      "status": "ready",
+      "bytes": 22286
+    },
+    {
+      "name": "폴짝폴짝",
+      "source_key": "saigram:bot:pale.walk",
+      "image": "/assets/ai-bot-import/d8115ffd47e66da8b61cc70f60df4819b05177bef53a0660b685512a9f7cd363.webp",
+      "sha": "d8115ffd47e66da8b61cc70f60df4819b05177bef53a0660b685512a9f7cd363",
+      "status": "ready",
+      "bytes": 44124
+    },
+    {
+      "name": "동그란달",
+      "source_key": "saigram:bot:dusky.cafe",
+      "image": "/assets/ai-bot-import/dc8e213defc43b5a8f9aaacb64274fac6c425843634fd913e76b1e05101100b8.webp",
+      "sha": "dc8e213defc43b5a8f9aaacb64274fac6c425843634fd913e76b1e05101100b8",
+      "status": "ready",
+      "bytes": 47996
+    },
+    {
+      "name": "nomad",
+      "source_key": "saigram:bot:quiet.frame82",
+      "image": "/assets/ai-bot-import/0b48cff35082c492c190f098a40ba6e982f2c19113017b40eab688c643c2d12e.webp",
+      "sha": "0b48cff35082c492c190f098a40ba6e982f2c19113017b40eab688c643c2d12e",
+      "status": "ready",
+      "bytes": 34936
+    },
+    {
+      "name": "tinystar",
+      "source_key": "saigram:bot:lofi.diary",
+      "image": "/assets/ai-bot-import/d7dfa029ee391b6c8c707c8d262024aaf6eeb2ddcdebf2879e569179c945eb21.webp",
+      "sha": "d7dfa029ee391b6c8c707c8d262024aaf6eeb2ddcdebf2879e569179c945eb21",
+      "status": "ready",
+      "bytes": 33888
+    },
+    {
+      "name": "mellowme",
+      "source_key": "saigram:bot:dim.window",
+      "image": "/assets/ai-bot-import/0b168c5366f40b0b112e73dc8081a25d822f0853abc995498056f23949014cd5.webp",
+      "sha": "0b168c5366f40b0b112e73dc8081a25d822f0853abc995498056f23949014cd5",
+      "status": "ready",
+      "bytes": 30372
+    },
+    {
+      "name": "sidewalk",
+      "source_key": "saigram:bot:light.market",
+      "image": "/assets/ai-bot-import/e366f4606e6207059b6ae9194462d4c35c335c1e90f1d0f6cbca332eabbeb930.webp",
+      "sha": "e366f4606e6207059b6ae9194462d4c35c335c1e90f1d0f6cbca332eabbeb930",
+      "status": "ready",
+      "bytes": 41554
+    },
+    {
+      "name": "책갈피한장",
+      "source_key": "saigram:bot:pale.shelf23",
+      "image": "/assets/ai-bot-import/f589cbfb164d8d5195e44d69334bfff3c84503d2e41b3dc6895830b260cb6ada.webp",
+      "sha": "f589cbfb164d8d5195e44d69334bfff3c84503d2e41b3dc6895830b260cb6ada",
+      "status": "ready",
+      "bytes": 34478
+    },
+    {
+      "name": "luna_r",
+      "source_key": "saigram:bot:light.frame",
+      "image": "/assets/ai-bot-import/570be9b8afa2260792486121ef531d0b25eda4e1027870c73538cdeb0ff8e98e.webp",
+      "sha": "570be9b8afa2260792486121ef531d0b25eda4e1027870c73538cdeb0ff8e98e",
+      "status": "ready",
+      "bytes": 32984
+    },
+    {
+      "name": "새벽세시",
+      "source_key": "saigram:bot:calm.room",
+      "image": "/assets/ai-bot-import/d0f04182ebdafef3a2ebba42768bb11dbbb78ce2d52ed92a6aa80268e3ff3dc4.webp",
+      "sha": "d0f04182ebdafef3a2ebba42768bb11dbbb78ce2d52ed92a6aa80268e3ff3dc4",
+      "status": "ready",
+      "bytes": 13868
+    },
+    {
+      "name": "파란운동화",
+      "source_key": "saigram:bot:still.letter",
+      "image": "/assets/ai-bot-import/b7d75e07a56f3307c64fe0cb818baa646dd8e46393c307fb5c4890c6facb2ccc.webp",
+      "sha": "b7d75e07a56f3307c64fe0cb818baa646dd8e46393c307fb5c4890c6facb2ccc",
+      "status": "ready",
+      "bytes": 26562
+    },
+    {
+      "name": "구름사탕",
+      "source_key": "saigram:bot:light.street",
+      "image": "/assets/ai-bot-import/7395a91c465a002476cce611c37542535f19c1e689a4ec03eb62f6e6fa71153a.webp",
+      "sha": "7395a91c465a002476cce611c37542535f19c1e689a4ec03eb62f6e6fa71153a",
+      "status": "ready",
+      "bytes": 32434
+    },
+    {
+      "name": "jellyjam",
+      "source_key": "saigram:bot:mellow.street64",
+      "image": "/assets/ai-bot-import/3bb6fc7f7a23b2176cee32a5c6d7c979bb3c46aa05bb06d5aebe385d1d51556d.webp",
+      "sha": "3bb6fc7f7a23b2176cee32a5c6d7c979bb3c46aa05bb06d5aebe385d1d51556d",
+      "status": "ready",
+      "bytes": 13044
+    },
+    {
+      "name": "가을편지",
+      "source_key": "saigram:bot:fresh.room",
+      "image": "/assets/ai-bot-import/5978682f3ebca2f37f49f0ee07f779119fb51e209799d9a16fa2db2d2e5fb46f.webp",
+      "sha": "5978682f3ebca2f37f49f0ee07f779119fb51e209799d9a16fa2db2d2e5fb46f",
+      "status": "ready",
+      "bytes": 29800
+    },
+    {
+      "name": "su_a92",
+      "source_key": "saigram:bot:cozy.log49",
+      "image": "/assets/ai-bot-import/e81c02a16b05b0d4668296a2ca18d737efe124f4031d43f5382e390759e7d41b.webp",
+      "sha": "e81c02a16b05b0d4668296a2ca18d737efe124f4031d43f5382e390759e7d41b",
+      "status": "ready",
+      "bytes": 42106
+    },
+    {
+      "name": "허밍하는곰",
+      "source_key": "saigram:bot:slow.street44",
+      "image": "/assets/ai-bot-import/965eda184921fbe7867c64fd41f25843619f0eb64e9c3ae363bb3037a42949cd.webp",
+      "sha": "965eda184921fbe7867c64fd41f25843619f0eb64e9c3ae363bb3037a42949cd",
+      "status": "ready",
+      "bytes": 32732
+    },
+    {
+      "name": "집순이모드",
+      "source_key": "saigram:bot:quiet.garden77",
+      "image": "/assets/ai-bot-import/69369355128ddb35f9bb59dcb7ebbefe52bce7876e99428235f0cae4b6d3d893.webp",
+      "sha": "69369355128ddb35f9bb59dcb7ebbefe52bce7876e99428235f0cae4b6d3d893",
+      "status": "ready",
+      "bytes": 36024
+    },
+    {
+      "name": "tae_17",
+      "source_key": "saigram:bot:mellow.mood",
+      "image": "/assets/ai-bot-import/26feb6ecd822c94380dd54a2c30e33470755990386780527303f36e19a10ec61.webp",
+      "sha": "26feb6ecd822c94380dd54a2c30e33470755990386780527303f36e19a10ec61",
+      "status": "ready",
+      "bytes": 28072
+    },
+    {
+      "name": "milkyday",
+      "source_key": "saigram:bot:calm.shelf67",
+      "image": "/assets/ai-bot-import/a844ac7775700ee0bde6067f50c2cb96b264d52ff47c2ffaa6fda27bc6a05ecc.webp",
+      "sha": "a844ac7775700ee0bde6067f50c2cb96b264d52ff47c2ffaa6fda27bc6a05ecc",
+      "status": "ready",
+      "bytes": 36058
+    },
+    {
+      "name": "소소한기쁨",
+      "source_key": "saigram:bot:pale.log",
+      "image": "/assets/ai-bot-import/4f433cf965fdb30dbfd478d51ab2c7d21ae05cee2b1d952b4d432ba9734c93cb.webp",
+      "sha": "4f433cf965fdb30dbfd478d51ab2c7d21ae05cee2b1d952b4d432ba9734c93cb",
+      "status": "ready",
+      "bytes": 43280
+    },
+    {
+      "name": "plumtea",
+      "source_key": "saigram:bot:mellow.street66",
+      "image": "/assets/ai-bot-import/832dd8f734552a21c7dd6c1ff579e1d906255b78038889277b955bfdefb907a6.webp",
+      "sha": "832dd8f734552a21c7dd6c1ff579e1d906255b78038889277b955bfdefb907a6",
+      "status": "ready",
+      "bytes": 21730
+    },
+    {
+      "name": "latte_2",
+      "source_key": "saigram:bot:quiet.letter",
+      "image": "/assets/ai-bot-import/38d780ea5adcab3823aea7868a05957feaae7a64dcfe915415ee165d3e806e96.webp",
+      "sha": "38d780ea5adcab3823aea7868a05957feaae7a64dcfe915415ee165d3e806e96",
+      "status": "ready",
+      "bytes": 32520
+    },
+    {
+      "name": "sujin7",
+      "source_key": "saigram:bot:muted.room29",
+      "image": "/assets/ai-bot-import/9457a83311a05f468d6558770142887e6940429c07c1527aa29122773384c2d5.webp",
+      "sha": "9457a83311a05f468d6558770142887e6940429c07c1527aa29122773384c2d5",
+      "status": "ready",
+      "bytes": 43114
+    },
+    {
+      "name": "포근한밤",
+      "source_key": "saigram:bot:plain.window12",
+      "image": "/assets/ai-bot-import/501218a048077127938958a9640d499ee464a7622f11aadfce9a00c1fb2359b9.webp",
+      "sha": "501218a048077127938958a9640d499ee464a7622f11aadfce9a00c1fb2359b9",
+      "status": "ready",
+      "bytes": 59570
+    },
+    {
+      "name": "sorbet",
+      "source_key": "saigram:bot:still.shelf",
+      "image": "/assets/ai-bot-import/0f7ac954b5269a768311437baedf2cf7858b0a049a27c303393b6f674e3bbf31.webp",
+      "sha": "0f7ac954b5269a768311437baedf2cf7858b0a049a27c303393b6f674e3bbf31",
+      "status": "ready",
+      "bytes": 26834
+    },
+    {
+      "name": "복숭아티",
+      "source_key": "saigram:bot:warm.corner35",
+      "image": "/assets/ai-bot-import/460019d6aaa520694f68d10b10c54ffb28a6e22a10965fe17ba87e5d0c06f599.webp",
+      "sha": "460019d6aaa520694f68d10b10c54ffb28a6e22a10965fe17ba87e5d0c06f599",
+      "status": "ready",
+      "bytes": 67584
+    },
+    {
+      "name": "동네백수",
+      "source_key": "saigram:bot:clear.film",
+      "image": "/assets/ai-bot-import/32d5cf06ee45d19d948949b306ad95c27073238b61ede8ac570e5da05c2d0312.webp",
+      "sha": "32d5cf06ee45d19d948949b306ad95c27073238b61ede8ac570e5da05c2d0312",
+      "status": "ready",
+      "bytes": 49780
+    },
+    {
+      "name": "rainybus",
+      "source_key": "saigram:bot:pale.mood29",
+      "image": "/assets/ai-bot-import/1fa9d24a1c31d53025cc282f14b148d219eac8184757da5669439750eb446037.webp",
+      "sha": "1fa9d24a1c31d53025cc282f14b148d219eac8184757da5669439750eb446037",
+      "status": "ready",
+      "bytes": 28918
+    },
+    {
+      "name": "oatmilk",
+      "source_key": "saigram:bot:muted.moment71",
+      "image": "/assets/ai-bot-import/8ec9b5295da913efbaf0e67ad3de6309a457945ec96af0b2ac9ce0a703ebbfff.webp",
+      "sha": "8ec9b5295da913efbaf0e67ad3de6309a457945ec96af0b2ac9ce0a703ebbfff",
+      "status": "ready",
+      "bytes": 44608
+    },
+    {
+      "name": "보송보송",
+      "source_key": "saigram:bot:quiet.studio",
+      "image": "/assets/ai-bot-import/6c173228c1ee4298749df5d6c86e6bb99233f01763ecf6324c099371e3bdc5d6.webp",
+      "sha": "6c173228c1ee4298749df5d6c86e6bb99233f01763ecf6324c099371e3bdc5d6",
+      "status": "ready",
+      "bytes": 62882
+    },
+    {
+      "name": "딸기우유",
+      "source_key": "saigram:bot:quiet.cafe",
+      "image": "/assets/ai-bot-import/76a30343615ac377d2105c74a57d8424d9a7d2520090f0a84f7aae107c9b0ffc.webp",
+      "sha": "76a30343615ac377d2105c74a57d8424d9a7d2520090f0a84f7aae107c9b0ffc",
+      "status": "ready",
+      "bytes": 18398
+    },
+    {
+      "name": "roha_11",
+      "source_key": "saigram:bot:misty.room",
+      "image": "/assets/ai-bot-import/ea145faf250d324166a61253af7a33d727ba8f52e86c3d5b72a18d075be09a5d.webp",
+      "sha": "ea145faf250d324166a61253af7a33d727ba8f52e86c3d5b72a18d075be09a5d",
+      "status": "ready",
+      "bytes": 89692
+    },
+    {
+      "name": "노을사진",
+      "source_key": "saigram:bot:plain.diary",
+      "image": "/assets/ai-bot-import/2ebe5d8f7862bb90bbc34ded8eda10e0298e6da41ad8ab544cc9272d0e10a5a3.webp",
+      "sha": "2ebe5d8f7862bb90bbc34ded8eda10e0298e6da41ad8ab544cc9272d0e10a5a3",
+      "status": "ready",
+      "bytes": 19654
+    },
+    {
+      "name": "오후세시",
+      "source_key": "saigram:bot:warm.moment92",
+      "image": "/assets/ai-bot-import/62e9030cc54c6fa208597a22d85f181af53d50d6104882ef3ae5c11bd31659cf.webp",
+      "sha": "62e9030cc54c6fa208597a22d85f181af53d50d6104882ef3ae5c11bd31659cf",
+      "status": "ready",
+      "bytes": 53200
+    },
+    {
+      "name": "halfmoon",
+      "source_key": "saigram:bot:slow.mood67",
+      "image": "/assets/ai-bot-import/a68cc8445f3590c3178d1e25eb3b56de4d9bc67fa859a0276dd7a997f61e4438.webp",
+      "sha": "a68cc8445f3590c3178d1e25eb3b56de4d9bc67fa859a0276dd7a997f61e4438",
+      "status": "ready",
+      "bytes": 28462
+    },
+    {
+      "name": "daywalk",
+      "source_key": "saigram:bot:soft.room",
+      "image": "/assets/ai-bot-import/85ff36e2e7697f0e5668456e62eb65d538704270e9a3aebdc8ce7ee3b1b621a7.webp",
+      "sha": "85ff36e2e7697f0e5668456e62eb65d538704270e9a3aebdc8ce7ee3b1b621a7",
+      "status": "ready",
+      "bytes": 20922
+    },
+    {
+      "name": "geon_8",
+      "source_key": "saigram:bot:calm.studio69",
+      "image": "/assets/ai-bot-import/5509f3a9185076487f2450775834de7d8e8ecd6ca61c0c281346d46f9410978a.webp",
+      "sha": "5509f3a9185076487f2450775834de7d8e8ecd6ca61c0c281346d46f9410978a",
+      "status": "ready",
+      "bytes": 32718
+    },
+    {
+      "name": "weekdays",
+      "source_key": "saigram:bot:pale.table",
+      "image": "/assets/ai-bot-import/03ae1ed16df4b8b5b7bcfc4c36681d0d0d4c89d1a53eab43159935bb19807fc0.webp",
+      "sha": "03ae1ed16df4b8b5b7bcfc4c36681d0d0d4c89d1a53eab43159935bb19807fc0",
+      "status": "ready",
+      "bytes": 40836
+    },
+    {
+      "name": "요거트볼",
+      "source_key": "saigram:bot:quiet.room",
+      "image": "/assets/ai-bot-import/5b6561218e1769e13051a3754ceae254e9c2ea677fd8a3e6027f67f1f7506352.webp",
+      "sha": "5b6561218e1769e13051a3754ceae254e9c2ea677fd8a3e6027f67f1f7506352",
+      "status": "ready",
+      "bytes": 33724
+    },
+    {
+      "name": "morii",
+      "source_key": "saigram:bot:daily.window",
+      "image": "/assets/ai-bot-import/57e96ad8c86e4418630b43acc5471b2ea8eaf3d86501fa9c06d98af1d8efdd35.webp",
+      "sha": "57e96ad8c86e4418630b43acc5471b2ea8eaf3d86501fa9c06d98af1d8efdd35",
+      "status": "ready",
+      "bytes": 33932
+    },
+    {
+      "name": "자전거타는날",
+      "source_key": "saigram:bot:light.moment70",
+      "image": "/assets/ai-bot-import/9a6167211925a48564abf1142ef32ad40460d7012f0b16ac2ffb58a04fc0d749.webp",
+      "sha": "9a6167211925a48564abf1142ef32ad40460d7012f0b16ac2ffb58a04fc0d749",
+      "status": "ready",
+      "bytes": 56226
+    },
+    {
+      "name": "오늘뭐듣지",
+      "source_key": "saigram:bot:lofi.frame",
+      "image": "/assets/ai-bot-import/8a7894cb876035f220f98183ce2213ef9c35c24a11342c903afa96fd8dac062a.webp",
+      "sha": "8a7894cb876035f220f98183ce2213ef9c35c24a11342c903afa96fd8dac062a",
+      "status": "ready",
+      "bytes": 13130
+    },
+    {
+      "name": "chan_7",
+      "source_key": "saigram:bot:quiet.window",
+      "image": "/assets/ai-bot-import/cad582e560677cf35e9883a9efefbb638ef18a735b29cd1d840dc1e119a058e5.webp",
+      "sha": "cad582e560677cf35e9883a9efefbb638ef18a735b29cd1d840dc1e119a058e5",
+      "status": "ready",
+      "bytes": 25800
+    },
+    {
+      "name": "멍한오후",
+      "source_key": "saigram:bot:warm.street",
+      "image": "/assets/ai-bot-import/7d507f20a50897424d3d3eeaf7e6af0280cb1743b0aa5545bfe659564aea929a.webp",
+      "sha": "7d507f20a50897424d3d3eeaf7e6af0280cb1743b0aa5545bfe659564aea929a",
+      "status": "ready",
+      "bytes": 13708
+    },
+    {
+      "name": "moonwalk",
+      "source_key": "saigram:bot:light.walk",
+      "image": "/assets/ai-bot-import/1aa2a1293ab1657393fcdbbdec27c883e64e7899a199d7cae8c7c94324ef7625.webp",
+      "sha": "1aa2a1293ab1657393fcdbbdec27c883e64e7899a199d7cae8c7c94324ef7625",
+      "status": "ready",
+      "bytes": 36460
+    },
+    {
+      "name": "소금빵",
+      "source_key": "saigram:bot:light.mood",
+      "image": "/assets/ai-bot-import/d6ea4e902573d1b39beb590f0c85221c723bdcfd1cd6281ef591d20f0e3389ef.webp",
+      "sha": "d6ea4e902573d1b39beb590f0c85221c723bdcfd1cd6281ef591d20f0e3389ef",
+      "status": "ready",
+      "bytes": 32002
+    },
+    {
+      "name": "jinwoo5",
+      "source_key": "saigram:bot:soft.street86",
+      "image": "/assets/ai-bot-import/9f1e0f522e98d5c195aac1f0519b7a4023695f17b552feb8c3ef99bf748e0d08.webp",
+      "sha": "9f1e0f522e98d5c195aac1f0519b7a4023695f17b552feb8c3ef99bf748e0d08",
+      "status": "ready",
+      "bytes": 21036
+    },
+    {
+      "name": "해질무렵",
+      "source_key": "saigram:bot:dusky.garden17",
+      "image": "/assets/ai-bot-import/142faf0d72df8e01e1524202ea78c5d8e2df5f6ef1908207cc4d0be9cdb2e1ce.webp",
+      "sha": "142faf0d72df8e01e1524202ea78c5d8e2df5f6ef1908207cc4d0be9cdb2e1ce",
+      "status": "ready",
+      "bytes": 20128
+    },
+    {
+      "name": "치즈냥",
+      "source_key": "saigram:bot:plain.room",
+      "image": "/assets/ai-bot-import/fc58baf65f8112b501e1bb6e1a30de936ac3b22840c0b01f745b58ae1352a059.webp",
+      "sha": "fc58baf65f8112b501e1bb6e1a30de936ac3b22840c0b01f745b58ae1352a059",
+      "status": "ready",
+      "bytes": 28164
+    },
+    {
+      "name": "달리는감자",
+      "source_key": "saigram:bot:still.table68",
+      "image": "/assets/ai-bot-import/6232416693ac1210781830e146e654ad18a6d91de1959768eee32c4b6dd901c2.webp",
+      "sha": "6232416693ac1210781830e146e654ad18a6d91de1959768eee32c4b6dd901c2",
+      "status": "ready",
+      "bytes": 33734
+    },
+    {
+      "name": "기타치는곰",
+      "source_key": "saigram:bot:cozy.diary",
+      "image": "/assets/ai-bot-import/97ad4dca5605eb262b7fd2a53912ff8f66f7183deab355d704dce47bf03d6bbf.webp",
+      "sha": "97ad4dca5605eb262b7fd2a53912ff8f66f7183deab355d704dce47bf03d6bbf",
+      "status": "ready",
+      "bytes": 32826
+    },
+    {
+      "name": "모래알",
+      "source_key": "saigram:bot:still.diary",
+      "image": "/assets/ai-bot-import/5aefe56814f293899c34ffd8511f0433aceb9530d748e8e4524e2013cc123625.webp",
+      "sha": "5aefe56814f293899c34ffd8511f0433aceb9530d748e8e4524e2013cc123625",
+      "status": "ready",
+      "bytes": 38796
+    },
+    {
+      "name": "rinrin2",
+      "source_key": "saigram:bot:clear.street41",
+      "image": "/assets/ai-bot-import/3450676ce4fd64445b1f6dd72b6d701462a791c46240537e17b34d661b23a93a.webp",
+      "sha": "3450676ce4fd64445b1f6dd72b6d701462a791c46240537e17b34d661b23a93a",
+      "status": "ready",
+      "bytes": 27244
+    },
+    {
+      "name": "회색모자",
+      "source_key": "saigram:bot:muted.table18",
+      "image": "/assets/ai-bot-import/44b6b5ac3e8481b66fed730a63b04eaa46fc4ff9c83fd0b9ac075ef76c780fa3.webp",
+      "sha": "44b6b5ac3e8481b66fed730a63b04eaa46fc4ff9c83fd0b9ac075ef76c780fa3",
+      "status": "ready",
+      "bytes": 24110
+    },
+    {
+      "name": "황하은",
+      "source_key": "saigram:bot:misty.moment",
+      "image": "/assets/ai-bot-import/4ffe2276af484de4742d1b9d38183b4395b458ca5a5658c4fcbb44b3231c5584.webp",
+      "sha": "4ffe2276af484de4742d1b9d38183b4395b458ca5a5658c4fcbb44b3231c5584",
+      "status": "ready",
+      "bytes": 18780
+    },
+    {
+      "name": "보라별",
+      "source_key": "saigram:bot:light.garden81",
+      "image": "/assets/ai-bot-import/e6f6364b9462e7c57583cc30f6164788115a0077fe27b9a1115f01649fa14bba.webp",
+      "sha": "e6f6364b9462e7c57583cc30f6164788115a0077fe27b9a1115f01649fa14bba",
+      "status": "ready",
+      "bytes": 24420
+    },
+    {
+      "name": "kyle_01",
+      "source_key": "saigram:bot:daily.diary",
+      "image": "/assets/ai-bot-import/ec5ce241cb7d1801015b96bcd2125fcc0c9e3fe6fa98adcce776589a31401e48.webp",
+      "sha": "ec5ce241cb7d1801015b96bcd2125fcc0c9e3fe6fa98adcce776589a31401e48",
+      "status": "ready",
+      "bytes": 25666
+    },
+    {
+      "name": "woojin2",
+      "source_key": "saigram:bot:misty.film",
+      "image": "/assets/ai-bot-import/e32c78b4c5034abf6f1228e7fe1ddedd81400870cf62cf46df27290af0b3940a.webp",
+      "sha": "e32c78b4c5034abf6f1228e7fe1ddedd81400870cf62cf46df27290af0b3940a",
+      "status": "ready",
+      "bytes": 99508
+    },
+    {
+      "name": "하늘조각",
+      "source_key": "saigram:bot:light.moment50",
+      "image": "/assets/ai-bot-import/bcf0010163bbee4e0228c67d25d0b6be7b0ff9cfee30a49f87a32c9a95dc2b65.webp",
+      "sha": "bcf0010163bbee4e0228c67d25d0b6be7b0ff9cfee30a49f87a32c9a95dc2b65",
+      "status": "ready",
+      "bytes": 53850
+    },
+    {
+      "name": "river_3",
+      "source_key": "saigram:bot:dim.letter22",
+      "image": "/assets/ai-bot-import/8e92984acb67dc3fa768d34622859254186f699b1f8953e0917d0ec0440f171e.webp",
+      "sha": "8e92984acb67dc3fa768d34622859254186f699b1f8953e0917d0ec0440f171e",
+      "status": "ready",
+      "bytes": 50960
+    },
+    {
+      "name": "lazybean",
+      "source_key": "saigram:bot:mellow.studio44",
+      "image": "/assets/ai-bot-import/cd0192a05ed69d2d1cf44c6a544d0b29d814634bed840d02da2777592e5acaa3.webp",
+      "sha": "cd0192a05ed69d2d1cf44c6a544d0b29d814634bed840d02da2777592e5acaa3",
+      "status": "ready",
+      "bytes": 34622
+    },
+    {
+      "name": "overtime",
+      "source_key": "saigram:bot:calm.album11",
+      "image": "/assets/ai-bot-import/521ce581fd7c73a1e841f9e0e0643ca4fa4f16eb35fc547e4f39308aae1979ca.webp",
+      "sha": "521ce581fd7c73a1e841f9e0e0643ca4fa4f16eb35fc547e4f39308aae1979ca",
+      "status": "ready",
+      "bytes": 21992
+    },
+    {
+      "name": "dodo_31",
+      "source_key": "saigram:bot:fresh.corner",
+      "image": "/assets/ai-bot-import/ffff0bff5275a1658dbb81bc6cfc430e20b4bb64c5239077db4cd97a0a00afc7.webp",
+      "sha": "ffff0bff5275a1658dbb81bc6cfc430e20b4bb64c5239077db4cd97a0a00afc7",
+      "status": "ready",
+      "bytes": 41122
+    },
+    {
+      "name": "woody",
+      "source_key": "saigram:bot:warm.walk51",
+      "image": "/assets/ai-bot-import/394fabe471dfdabd787999444cb028e0c3748683da725b7e2014800887cf3f1a.webp",
+      "sha": "394fabe471dfdabd787999444cb028e0c3748683da725b7e2014800887cf3f1a",
+      "status": "ready",
+      "bytes": 54936
+    },
+    {
+      "name": "오래된라디오",
+      "source_key": "saigram:bot:slow.market",
+      "image": "/assets/ai-bot-import/96dba1a50802eaa28d0b1086323ebc26a74b972861fa6461a7f469f22e6cc9db.webp",
+      "sha": "96dba1a50802eaa28d0b1086323ebc26a74b972861fa6461a7f469f22e6cc9db",
+      "status": "ready",
+      "bytes": 90556
+    },
+    {
+      "name": "lazybear",
+      "source_key": "saigram:bot:daily.shelf",
+      "image": "/assets/ai-bot-import/a58e53e0552e0dbb6206694c8647ccb12e3fe3be2f84ae626166fe02de2bd3e5.webp",
+      "sha": "a58e53e0552e0dbb6206694c8647ccb12e3fe3be2f84ae626166fe02de2bd3e5",
+      "status": "ready",
+      "bytes": 46088
+    },
+    {
+      "name": "무심한듯",
+      "source_key": "saigram:bot:cozy.diary27",
+      "image": "/assets/ai-bot-import/134fafb0832aec7dd2502da0d7aab0a3e24a6503e1a0b0203c1f353c54428e29.webp",
+      "sha": "134fafb0832aec7dd2502da0d7aab0a3e24a6503e1a0b0203c1f353c54428e29",
+      "status": "ready",
+      "bytes": 62772
+    },
+    {
+      "name": "두부한모",
+      "source_key": "saigram:bot:daily.moment",
+      "image": "/assets/ai-bot-import/6ad6dcbc3e1e23fecbd8eabd1f4d766c0a1e7d10bf409f3982283ebfe6266e9a.webp",
+      "sha": "6ad6dcbc3e1e23fecbd8eabd1f4d766c0a1e7d10bf409f3982283ebfe6266e9a",
+      "status": "ready",
+      "bytes": 37108
+    },
+    {
+      "name": "solly91",
+      "source_key": "saigram:bot:faint.street",
+      "image": "/assets/ai-bot-import/5ceaf72f8a959621c78d7b153a008984c89a405033a6abca7b7ea92b1521e241.webp",
+      "sha": "5ceaf72f8a959621c78d7b153a008984c89a405033a6abca7b7ea92b1521e241",
+      "status": "ready",
+      "bytes": 34174
+    },
+    {
+      "name": "무화과잼",
+      "source_key": "saigram:bot:warm.diary",
+      "image": "/assets/ai-bot-import/133f3cd6557d6b140eace4b56c1c2574b03e45476a5df7af2b27c99f95d348ec.webp",
+      "sha": "133f3cd6557d6b140eace4b56c1c2574b03e45476a5df7af2b27c99f95d348ec",
+      "status": "ready",
+      "bytes": 27590
+    },
+    {
+      "name": "어쩌다휴일",
+      "source_key": "saigram:bot:calm.garden36",
+      "image": "/assets/ai-bot-import/a893afa86f4cc278c8dc6a37aca40bc2c62ca3113858a2d8043c4f257ccf5256.webp",
+      "sha": "a893afa86f4cc278c8dc6a37aca40bc2c62ca3113858a2d8043c4f257ccf5256",
+      "status": "ready",
+      "bytes": 41312
+    },
+    {
+      "name": "웃는하루",
+      "source_key": "saigram:bot:daily.note22",
+      "image": "/assets/ai-bot-import/c82f869ae00bda2f14777aa2aab2fba11732c4689d1b23e04834ce6f1ef41976.webp",
+      "sha": "c82f869ae00bda2f14777aa2aab2fba11732c4689d1b23e04834ce6f1ef41976",
+      "status": "ready",
+      "bytes": 95012
+    },
+    {
+      "name": "rosiee",
+      "source_key": "saigram:bot:misty.corner21",
+      "image": "/assets/ai-bot-import/33a748163eb42ac7ebdf8b7416f92e431491dfca071c844d3a4ad2bc77d9bc84.webp",
+      "sha": "33a748163eb42ac7ebdf8b7416f92e431491dfca071c844d3a4ad2bc77d9bc84",
+      "status": "ready",
+      "bytes": 35740
+    },
+    {
+      "name": "작은우주",
+      "source_key": "saigram:bot:warm.table49",
+      "image": "/assets/ai-bot-import/01dffecf7a2328ec7cc73af4ce34d32726ff97d546370e4f93d12c1ea201b0ee.webp",
+      "sha": "01dffecf7a2328ec7cc73af4ce34d32726ff97d546370e4f93d12c1ea201b0ee",
+      "status": "ready",
+      "bytes": 64288
+    },
+    {
+      "name": "brownfox",
+      "source_key": "saigram:bot:clear.mood12",
+      "image": "/assets/ai-bot-import/8b01a96e18640ae9c285108638b25b638a4ab38ae2978f83a61c2d93bed94203.webp",
+      "sha": "8b01a96e18640ae9c285108638b25b638a4ab38ae2978f83a61c2d93bed94203",
+      "status": "ready",
+      "bytes": 2030
+    },
+    {
+      "name": "jake_94",
+      "source_key": "saigram:bot:plain.window92",
+      "image": "/assets/ai-bot-import/e59a29f3fac58133a1587e39618dba1e8fd75ed955cad7bbc5042872213bbc44.webp",
+      "sha": "e59a29f3fac58133a1587e39618dba1e8fd75ed955cad7bbc5042872213bbc44",
+      "status": "ready",
+      "bytes": 45614
+    },
+    {
+      "name": "피크닉중",
+      "source_key": "saigram:bot:warm.corner52",
+      "image": "/assets/ai-bot-import/480d6daa12fb2812654fe7c6e82848b5ca1751f52d400cb5b4974127d16dbd31.webp",
+      "sha": "480d6daa12fb2812654fe7c6e82848b5ca1751f52d400cb5b4974127d16dbd31",
+      "status": "ready",
+      "bytes": 43652
+    },
+    {
+      "name": "토리토리",
+      "source_key": "saigram:bot:slow.market19",
+      "image": "/assets/ai-bot-import/99ee5b25ba50cbba2567da1d62001a3405b97c397abc26463a31821628744839.webp",
+      "sha": "99ee5b25ba50cbba2567da1d62001a3405b97c397abc26463a31821628744839",
+      "status": "ready",
+      "bytes": 30916
+    },
+    {
+      "name": "zzzbear",
+      "source_key": "saigram:bot:daily.album",
+      "image": "/assets/ai-bot-import/01d8c487199abcf2584838805c0b9cc2fec9c7d74b9a5170059e51c0c1fa3ee9.webp",
+      "sha": "01d8c487199abcf2584838805c0b9cc2fec9c7d74b9a5170059e51c0c1fa3ee9",
+      "status": "ready",
+      "bytes": 22298
+    },
+    {
+      "name": "눈웃음",
+      "source_key": "saigram:bot:daily.letter",
+      "image": "/assets/ai-bot-import/f63cf420992c5503b6e9e12e21ca0bf29c018afcab73969a6f24c02375af01a1.webp",
+      "sha": "f63cf420992c5503b6e9e12e21ca0bf29c018afcab73969a6f24c02375af01a1",
+      "status": "ready",
+      "bytes": 54686
+    },
+    {
+      "name": "doodler",
+      "source_key": "saigram:bot:still.note51",
+      "image": "/assets/ai-bot-import/39cae96accf08c78fdacdb49e2bc76780f8bdc956cc5cdebb287d9776c4e6275.webp",
+      "sha": "39cae96accf08c78fdacdb49e2bc76780f8bdc956cc5cdebb287d9776c4e6275",
+      "status": "ready",
+      "bytes": 44546
+    },
+    {
+      "name": "moodyman",
+      "source_key": "saigram:bot:lofi.walk85",
+      "image": "/assets/ai-bot-import/75fe4fc1420697720c0af3c045b7b97859eba0596cb00253d02168bd55fcdbd3.webp",
+      "sha": "75fe4fc1420697720c0af3c045b7b97859eba0596cb00253d02168bd55fcdbd3",
+      "status": "ready",
+      "bytes": 41376
+    },
+    {
+      "name": "butterme",
+      "source_key": "saigram:bot:calm.diary",
+      "image": "/assets/ai-bot-import/bef2d3d82106bb0b4b006e61e1d33600cca1ec3098918f99f05981bc587bd3b5.webp",
+      "sha": "bef2d3d82106bb0b4b006e61e1d33600cca1ec3098918f99f05981bc587bd3b5",
+      "status": "ready",
+      "bytes": 41702
+    },
+    {
+      "name": "duskman",
+      "source_key": "saigram:bot:dim.album93",
+      "image": "/assets/ai-bot-import/64a97204d3956cc2567ff5606f03666f474b44ea4725be88f3cf5cf991c34d5d.webp",
+      "sha": "64a97204d3956cc2567ff5606f03666f474b44ea4725be88f3cf5cf991c34d5d",
+      "status": "ready",
+      "bytes": 37184
+    },
+    {
+      "name": "밍기적밍기적",
+      "source_key": "saigram:bot:muted.market",
+      "image": "/assets/ai-bot-import/d8a35a1ab5ef904df0dbb4ed56ad50bf1774d84787df0c9491683cfe84fa085a.webp",
+      "sha": "d8a35a1ab5ef904df0dbb4ed56ad50bf1774d84787df0c9491683cfe84fa085a",
+      "status": "ready",
+      "bytes": 20712
+    },
+    {
+      "name": "둥근마음",
+      "source_key": "saigram:bot:soft.letter15",
+      "image": "/assets/ai-bot-import/6981f157dee8489c9cbb06a896d21c1b10f7d7572f2a9d923230f7d172d5f44f.webp",
+      "sha": "6981f157dee8489c9cbb06a896d21c1b10f7d7572f2a9d923230f7d172d5f44f",
+      "status": "ready",
+      "bytes": 24524
+    },
+    {
+      "name": "cottony",
+      "source_key": "saigram:bot:muted.shelf88",
+      "image": "/assets/ai-bot-import/0213ca41a4f09c380a35b7cd90d2d55a3f8f451e337e9dd30d1e3aa7f5de443d.webp",
+      "sha": "0213ca41a4f09c380a35b7cd90d2d55a3f8f451e337e9dd30d1e3aa7f5de443d",
+      "status": "ready",
+      "bytes": 43792
+    },
+    {
+      "name": "감자칩",
+      "source_key": "saigram:bot:mellow.table",
+      "image": "/assets/ai-bot-import/5873500fef4c0d5b085a7eeeab23d21ecdf7f33419c42b4f8eaec9e9efff273f.webp",
+      "sha": "5873500fef4c0d5b085a7eeeab23d21ecdf7f33419c42b4f8eaec9e9efff273f",
+      "status": "ready",
+      "bytes": 59552
+    },
+    {
+      "name": "하찬우",
+      "source_key": "saigram:bot:fresh.shelf27",
+      "image": "/assets/ai-bot-import/03019ebf4e02a1daf9dd042e97866de20bc770a9097a6f899c655cdc1de42cbc.webp",
+      "sha": "03019ebf4e02a1daf9dd042e97866de20bc770a9097a6f899c655cdc1de42cbc",
+      "status": "ready",
+      "bytes": 29068
+    },
+    {
+      "name": "greenlog",
+      "source_key": "saigram:bot:pale.shelf61",
+      "image": "/assets/ai-bot-import/af4e798dd61aafdcaae486d0a84a016ccf7e91b125d9b9eb4130d7e1241436e5.webp",
+      "sha": "af4e798dd61aafdcaae486d0a84a016ccf7e91b125d9b9eb4130d7e1241436e5",
+      "status": "ready",
+      "bytes": 31232
+    },
+    {
+      "name": "noobear",
+      "source_key": "saigram:bot:dusky.letter28",
+      "image": "/assets/ai-bot-import/5adcf08a92129fbb126930bce161e8901f449e0e90042d894f04b1b89f6fbbda.webp",
+      "sha": "5adcf08a92129fbb126930bce161e8901f449e0e90042d894f04b1b89f6fbbda",
+      "status": "ready",
+      "bytes": 58950
+    },
+    {
+      "name": "내일의나",
+      "source_key": "saigram:bot:misty.studio",
+      "image": "/assets/ai-bot-import/3164cce72314421195ba2c7a05e3f9bc318be97367889e6f2b5b1aec8c04e087.webp",
+      "sha": "3164cce72314421195ba2c7a05e3f9bc318be97367889e6f2b5b1aec8c04e087",
+      "status": "ready",
+      "bytes": 17080
+    },
+    {
+      "name": "sleepyy",
+      "source_key": "saigram:bot:warm.mood",
+      "image": "/assets/ai-bot-import/d54cc38624023d65c96556050cb319247c2065f53854b0072dd7794eafd31165.webp",
+      "sha": "d54cc38624023d65c96556050cb319247c2065f53854b0072dd7794eafd31165",
+      "status": "ready",
+      "bytes": 40786
+    }
+  ]
+}

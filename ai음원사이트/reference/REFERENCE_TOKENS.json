@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "AIFECT reference tokens (not auto-applied)",
+  "version": "1.0",
+  "important": "Only mint is user-fixed. Popup samples are previously approved approximate references. All production colors, fonts and sizes must be read from existing site source/computed CSS before implementation.",
+  "tokens": {
+    "brand.mint": {"value": "#8EDDD2", "status": "user_fixed", "scope": "global accent"},
+    "cta.profilePopup.background": {"value": "linear-gradient(100deg, #DCC6FF 0%, #BFCBF7 52%, #B8F1E3 100%)", "status": "approved_component_example_approx", "scope": "specific profile popup primary CTA; not global"},
+    "button.profilePopup.secondary.surface": {"value": "#1E2535", "status": "approved_component_example_approx", "scope": "profile popup secondary button"},
+    "button.profilePopup.secondary.border": {"value": "#2D364A", "status": "approved_component_example_approx", "scope": "profile popup secondary button"},
+    "brand.pink": {"value": null, "status": "measure_from_live_site"},
+    "surface.page": {"value": null, "status": "measure_from_live_site"},
+    "surface.sidebar": {"value": null, "status": "measure_from_live_site"},
+    "surface.card": {"value": null, "status": "measure_from_live_site"},
+    "text.primary": {"value": null, "status": "measure_from_live_site"},
+    "text.muted": {"value": null, "status": "measure_from_live_site"},
+    "font.family": {"value": null, "status": "measure_from_live_site"},
+    "radius.card": {"value": null, "status": "measure_from_live_site"},
+    "radius.button": {"value": null, "status": "measure_from_live_site"},
+    "spacing.scale": {"value": null, "status": "measure_from_live_site"}
+  }
+}

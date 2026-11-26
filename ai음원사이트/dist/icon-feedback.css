@@ -1,0 +1,45 @@
+/* Shared interaction for controls whose resting surface and glyph are unframed.
+   Keep sizes, border widths, positioning and keyboard outlines in their components. */
+:where(
+  .icon-button:not(.list-action, #refresh-button, .release-actions *, .home-sing-track > *, .sing-cover-shelf *):not(:has(.outline-gradient-action, .audio-play-icon)),
+  :is(button, a):has(> svg.aifect-icon-menu),
+  .topbar :is(.header-messages, .header-activity),
+  .brand-search > button, .search-back, .dm-thread-header .dm-back,
+  .fan-icon, .fan-carousel-arrow, .fan-carousel-controls button,
+  .directory-name [data-directory-edit], .crew-settings-trigger, [data-copy-public-id].text-link,
+  .home-feature-arrow, .home-rail-controls button, .discover-photo-layout .discover-carousel > button,
+  #dm-emoji-picker button, .cgl-store-dialog .cgl-close, .activity-settings-close,
+  dialog :is(.dialog-close, .profile-preview-close, .voice-dialog-close),
+  #v3-close-create, dialog.photo-lightbox > .small-button,
+  .voice-room .room-header button, #voice-music-player > div > button,
+  #voice-chat-form [data-voice=emoji],
+  .live-queue [data-voice=karaoke-cancel], .take-navigation [data-skip],
+  .studio-key-stepper [data-key-step]
+):not(:where([aria-pressed], [aria-selected], [role=switch], [role=tab], [aria-checked])) {
+  -webkit-tap-highlight-color: transparent;
+
+  &:not(:where(:disabled, [aria-disabled=true], [aria-expanded=true], [aria-current]:not([aria-current=false]), .active, .is-active, .selected, .is-selected)):is(:hover, :active) {
+    /* The room and popup skins also style generic buttons on pointer input. */
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+    color: var(--ds-accent-mint, #8EDDD2) !important;
+
+    & > :where(svg, i[data-icon]) { filter: brightness(.84); }
+  }
+}
+
+/* Color emoji use their own palette rather than currentColor. */
+#dm-emoji-picker button:not(:disabled):is(:hover, :active) {
+  filter: brightness(.84);
+}
+
+/* The desktop upload action has a border. Only its compact glyph uses flat feedback. */
+@media (max-width: 800px) {
+  .topbar .top-actions .upload-button { -webkit-tap-highlight-color: transparent; }
+  .topbar .top-actions .upload-button:is(:hover, :active) {
+    background: transparent;
+    border-color: transparent;
+    color: var(--ds-accent-mint);
+  }
+}

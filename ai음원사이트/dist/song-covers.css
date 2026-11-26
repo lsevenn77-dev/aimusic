@@ -1,0 +1,104 @@
+/* Only the song-page cover section; shared shell and recorder styles stay intact. */
+.song-covers-panel{min-width:0;container:song-covers / inline-size}
+.song-covers-panel .section-heading{gap:12px;flex-wrap:wrap}
+.song-covers-panel .section-heading>a{min-height:44px}
+.song-covers-panel .covers-sort{display:flex;gap:24px;overflow:visible;margin-bottom:8px}
+.song-covers-panel .covers-sort .tab{display:flex;align-items:center;gap:6px;min-height:44px;white-space:nowrap}
+.song-cover-tab-count{font-size:.75em;color:var(--ds-muted)}
+.song-cover-list{display:flex;flex-direction:column;min-width:0}
+.song-cover-row{position:relative;display:flex;align-items:center;gap:8px;min-width:0;min-height:84px;padding:12px 0;border-bottom:1px solid var(--ds-line);transition:background-color .15s ease}
+.song-cover-row:hover{background:var(--ds-panel)}
+.song-cover-detail{flex:1;min-width:0;display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;align-items:center;color:var(--ds-text)}
+.song-cover-detail.is-ranked{grid-template-columns:24px 52px minmax(0,1fr)}
+.song-cover-detail:after{content:"";position:absolute;inset:0}
+.song-cover-rank{font-size:14px;font-variant-numeric:tabular-nums;color:var(--ds-muted);text-align:center}
+.song-cover-art,.song-cover-art .cover{display:block;width:52px;height:52px;min-width:0;min-height:0;border-radius:var(--ds-radius-sm);overflow:hidden}
+.song-cover-art .cover img{width:100%;height:100%;object-fit:cover}
+.song-cover-copy{display:block;min-width:0;line-height:1.5}
+.song-cover-copy strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.song-cover-copy strong{font-size:14px;font-weight:700;color:var(--ds-text)}
+.song-cover-meta{font-size:12px;color:var(--ds-muted)}
+.song-cover-meta{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.song-cover-row>button,.song-cover-row>.song-cover-join{position:relative;z-index:1;flex-shrink:0}
+.song-cover-row>button{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;border:0;background:transparent;color:var(--ds-muted)}
+.song-cover-row>button svg{width:20px;height:20px}
+.song-cover-row .song-cover-play .audio-play-icon{width:36px;height:36px}
+.song-cover-play-art{position:relative;display:block;width:36px;height:36px}
+.song-cover-pause{position:absolute;inset:8px;background:#000;align-items:center;justify-content:center;color:var(--ds-selected)}
+.song-cover-pause:not([hidden]){display:flex}
+.song-cover-row .song-cover-join{min-height:44px;padding:8px 12px;font-size:12px;white-space:nowrap;background:var(--ds-gradient);color:var(--ds-ink)}
+.song-cover-plays{font-size:11px;color:var(--ds-muted);white-space:nowrap}
+.song-cover-like{gap:3px;font-size:11px}
+.song-cover-like[aria-pressed=true]{color:var(--ds-social)}
+.song-cover-row>.song-cover-expand{width:auto;min-width:0;max-width:120px;padding:0 4px;gap:4px;font-size:12px;white-space:nowrap;color:var(--ds-body)}
+.song-cover-row>.song-cover-expand:disabled{opacity:1;color:var(--ds-muted);cursor:default}
+
+.song-cover-children{margin:0 0 12px 20px;padding-left:12px;border-left:1px solid var(--ds-line)}
+.song-cover-child .song-cover-detail{grid-template-columns:40px minmax(0,1fr)}
+.song-cover-child .song-cover-art,.song-cover-child .cover{width:40px;height:40px}
+.song-cover-load{align-self:center;min-height:44px;margin-top:12px}
+@media(max-width:1200px){.song-cover-row .song-cover-like,.song-cover-plays{display:none}}
+@media(max-width:600px){
+ .song-covers-panel.surface{padding:12px}
+ .song-covers-panel .section-heading h2{font-size:18px}
+ .song-covers-panel .section-heading>a{padding:8px;font-size:12px}
+ .song-covers-panel .covers-sort{gap:20px}
+ .song-cover-row{gap:2px;min-height:80px}
+ .song-cover-detail{grid-template-columns:44px minmax(0,1fr);gap:6px}
+ .song-cover-detail.is-ranked{grid-template-columns:18px 44px minmax(0,1fr);gap:5px}
+ .song-cover-art,.song-cover-art .cover{width:44px;height:44px}
+ .song-cover-copy strong{font-size:13px}
+ .song-cover-meta{font-size:11px}
+
+ .song-cover-row .song-cover-join{padding:8px 6px;font-size:11px;border-radius:var(--ds-radius-sm)}
+
+ .song-cover-children{margin-left:8px;padding-left:6px}
+}
+@media(max-width:360px){
+ .song-covers-panel.surface{margin-inline:-12px;padding:12px 0}
+ .song-covers-panel .section-heading,.song-covers-panel .covers-sort{margin-inline:8px}
+ .song-cover-row{padding-inline:4px}
+
+}
+@media(prefers-reduced-motion:reduce){.song-cover-row{transition:none}}
+
+/* Only this list contains works for a single original. Give controls their
+   intrinsic width and let the performer link take the remaining space. */
+#main .song-covers-panel .song-cover-row{display:flex;flex-wrap:nowrap}
+#main .song-covers-panel .song-cover-row>.song-cover-detail{flex:1 1 0;min-width:0}
+#main .song-covers-panel .song-cover-row>.list-actions{flex:0 0 auto;margin:0}
+#main[data-route^="song/"] .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy{flex-wrap:nowrap}
+#main .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy>.song-cover-meta{flex:none}
+#main .song-covers-panel .song-cover-copy strong{min-width:0}
+@container song-covers (max-width:600px){
+ #main .song-covers-panel .song-cover-row{
+  --list-row-inset:0px;--list-thumb-size:36px;--list-text-gap:6px;
+  min-height:56px;padding-block:6px;gap:2px
+ }
+ #main .song-covers-panel .song-cover-row>.list-actions{gap:2px}
+ #main .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy{display:block}
+ #main .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy>.song-cover-meta,
+ #main .song-covers-panel .song-cover-row>.song-cover-plays{display:none}
+ #main .song-covers-panel .song-cover-row>.count-dropdown{min-width:44px;max-width:none;padding:0 4px;gap:2px;font-size:13px;margin:0}
+}
+@container song-covers (max-width:360px){
+ /* The same permission-gated join link is offered in this row's track menu. */
+ #main .song-covers-panel :is(.list-actions,.song-story-cover-row)>.song-cover-join{display:none}
+}
+
+#main .song-covers-panel .song-story-cover-row>.song-story-cover-actions{
+ --chart-stat-align:flex-start;
+ --song-cover-count-width:min(64px,calc((100cqi - 124px) / 3));
+ display:grid;grid-template-columns:repeat(3,var(--song-cover-count-width)) repeat(2,44px);
+ gap:calc(4px);flex:none;min-width:0;
+}
+.song-story-cover-actions .song-table-stat>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+@container song-covers (max-width:600px){
+ #main[data-route^="song/"] .song-covers-panel .song-story-cover-row{
+  display:grid;grid-template-columns:minmax(0,1fr) auto auto;row-gap:0;
+ }
+ #main .song-covers-panel .song-story-cover-row>.song-cover-detail{grid-column:1}
+ #main .song-covers-panel .song-story-cover-row .song-cover-detail .song-cover-copy>.song-cover-meta{display:block}
+ #main .song-covers-panel .song-story-cover-row>.song-story-cover-actions{grid-column:1/-1;justify-self:end}
+}

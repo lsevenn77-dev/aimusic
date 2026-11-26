@@ -1,0 +1,152 @@
+/* One portrait and information grid for members and artists. */
+dialog.profile-preview {
+ --preview-photo: 93.6px;
+ --preview-photo-slot: 124px;
+ --preview-action-size: calc(var(--pc-font-body, 15px) - 1px);
+ box-sizing:border-box; position:fixed; inset:0; margin:auto; width:560px;
+ max-width:calc(100% - 32px); height:fit-content; max-height:calc(100dvh - 32px);
+ padding:14px 16px; overflow:auto; border:1px solid #53566a;
+ border-radius:var(--ds-radius-card,16px); background:var(--ds-surface); color:var(--ds-text);
+ box-shadow:0 24px 80px #0009;
+}
+dialog.profile-preview::backdrop {background:#030812aa;backdrop-filter:blur(5px)}
+dialog.profile-preview .profile-preview-card {
+ display:grid; grid-template-columns:var(--preview-photo-slot) minmax(0,1fr);
+ gap:10px 12px; padding:0; align-items:center;
+}
+.profile-preview-image-slot {display:grid;place-items:center;align-self:center;height:var(--preview-photo-slot)}
+.profile-preview .profile-preview-photo {
+ position:relative;display:block;width:var(--preview-photo);height:var(--preview-photo);aspect-ratio:1;
+ border-radius:50%;background:transparent;padding:0;border:0;cursor:zoom-in;
+}
+.profile-preview-photo>.profile-avatar-image {display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
+.profile-preview-info {min-width:0;min-height:126px;display:flex;flex-direction:column;justify-content:flex-start;gap:3px}
+.profile-preview-header {display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.profile-preview-header h2 {min-width:0;margin:0;font-size:var(--pc-font-section,20px);line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-preview .mp-public-id {margin:0;font-size:var(--pc-font-meta,13px);line-height:1.25;color:var(--ds-muted)}
+.profile-preview-tools {display:flex;align-items:center;flex:none;gap:6px;color:var(--ds-muted);white-space:nowrap}
+.profile-preview-tools :is(button:not(.profile-preview-close),span) {font-size:calc(12px * var(--ui-type-scale,1));font-weight:400;color:color-mix(in srgb,var(--ds-muted) 76%,var(--ds-surface))}
+.profile-preview-tools button:not(.profile-preview-close) {background:none;border:0;padding:5px 0;cursor:pointer}
+.profile-preview-tools button:not(.profile-preview-close):is(:hover,:focus-visible) {color:var(--ds-body)}
+.profile-preview-tools .profile-preview-close {position:static;margin:-5px -7px -5px 1px}
+.profile-preview .profile-preview-bio {
+ display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;
+ min-width:0;height:2.8em;margin:0;line-height:1.4;font-size:var(--pc-font-meta,14px);color:var(--ds-body);
+ white-space:pre-line;overflow-wrap:anywhere;overflow:hidden;text-overflow:ellipsis;
+}
+.profile-preview-stats {display:flex;align-items:center;min-width:0;gap:0;margin:2px 0 0;font-size:var(--pc-font-meta,13px);line-height:1.4;white-space:nowrap;color:var(--ds-body)}
+.profile-preview-stats>*+* {border-inline-start:1px solid var(--ds-border);padding-inline-start:8px;margin-inline-start:8px}
+.profile-preview-stats .preview-count {flex:none;color:inherit}
+.profile-preview-stats strong {font-weight:600;color:var(--ds-text)}
+.profile-preview-crew,.preview-affiliation {display:flex;align-items:center;gap:4px;min-width:0;color:inherit}
+.profile-preview-crew img {width:14px;height:14px;object-fit:contain;flex:none}
+.profile-preview-crew span,.preview-affiliation span {min-width:0;overflow:hidden;text-overflow:ellipsis}
+.profile-preview-actions {grid-column:1/-1;display:grid;grid-auto-columns:minmax(0,1fr);grid-auto-flow:column;gap:8px;margin:0}
+.profile-preview .profile-preview-actions>:is(button,a) {
+ display:flex;align-items:center;justify-content:center;gap:6px;width:100%;min-width:0;
+ box-sizing:border-box;height:38px;min-height:38px;margin:0;padding:0 5px;white-space:nowrap;
+ font-size:var(--preview-action-size);font-weight:500;line-height:1.3;
+}
+.profile-preview-actions :is(a,button)>span {font-size:inherit;font-weight:inherit}
+.profile-preview-actions svg {width:17px;height:17px;flex:none}
+[data-profile-preview] {cursor:pointer}
+.user-nickname {font:inherit;color:inherit;letter-spacing:inherit}
+.user-nickname[data-profile-preview]:hover {text-decoration:underline;text-underline-offset:3px}
+@media (max-width:800px) {
+ dialog.profile-preview {
+  --preview-photo:76px; --preview-action-size:13px;
+  width:calc(100vw - 24px); max-width:440px; padding:14px 15px;
+  max-height:calc(100dvh - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+  overscroll-behavior:contain;
+ }
+ /* Keep the same accessible controls and data. Only the mobile grid changes their placement. */
+ dialog.profile-preview .profile-preview-card {
+  grid-template-columns:max-content minmax(0,1fr);
+  grid-template-areas:"tools tools" "photo name" "photo id" "bio bio" "stats stats" "actions actions";
+  gap:8px 12px;
+ }
+ dialog.profile-preview .profile-preview-card[data-profile-kind="artist"] {
+  grid-template-areas:"tools tools" "photo name" "bio bio" "stats stats" "actions actions";
+ }
+ .profile-preview-info,.profile-preview-header {display:contents}
+ .profile-preview-image-slot {grid-area:photo;height:auto}
+ .profile-preview-header h2 {grid-area:name;align-self:end;font-size:18px;font-weight:600}
+ [data-profile-kind="artist"] .profile-preview-header h2 {align-self:center}
+ .profile-preview .mp-public-id {grid-area:id;align-self:start;font-size:12px}
+ .profile-preview-tools {grid-area:tools;justify-self:end;gap:2px}
+ .profile-preview-tools :is(button:not(.profile-preview-close),span) {
+  font-size:12px;font-weight:400;color:color-mix(in srgb,var(--ds-muted) 76%,var(--ds-surface));
+ }
+ .profile-preview-tools button:not(.profile-preview-close) {
+  display:inline-grid;place-items:center;min-width:36px;min-height:36px;padding:0;
+ }
+ .profile-preview-tools .profile-preview-close {margin:0}
+ .profile-preview .profile-preview-bio {
+  grid-area:bio;height:auto;font-size:13px;line-height:1.45;
+ }
+ [data-profile-kind="user"] .profile-preview-bio:empty {display:none}
+ .profile-preview [data-profile-kind="artist"] .profile-preview-bio {height:2lh}
+ .profile-preview-stats {
+  grid-area:stats;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);
+  margin:0;min-height:32px;align-items:center;font-size:12px;
+ }
+ .profile-preview-stats:has(.profile-preview-crew) {
+  grid-template-columns:minmax(max-content,1fr) minmax(max-content,1fr) minmax(0,1.2fr);
+ }
+ .profile-preview-stats > * {min-width:0;padding-inline:4px;text-align:center;justify-content:center}
+ .profile-preview-stats > *+* {margin-inline-start:0;padding-inline-start:4px}
+ .profile-preview-stats strong {font-size:14px;font-weight:600}
+ .profile-preview-crew img {width:19px;height:19px}
+ .profile-preview-actions {grid-area:actions;grid-auto-flow:row;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .profile-preview .profile-preview-actions>:is(button,a) {height:44px;min-height:44px;padding-inline:8px;font-weight:500}
+ .profile-preview-actions svg {width:18px;height:18px}
+}
+
+html.profile-embed,html.profile-embed body {background:transparent;min-width:0}
+.profile-embed body> :not(dialog):not(#toast) {display:none!important}
+/* Native popover dismissal keeps the header icon available as a toggle. */
+#mp-profile-share{
+ box-sizing:border-box;position:fixed;inset:0;margin:auto;width:min(420px,calc(100% - 32px));
+ max-height:calc(100dvh - 32px);overflow:auto;overscroll-behavior:contain;padding:24px;
+ background:var(--ds-surface);color:var(--ds-text);border:1px solid var(--ds-line);
+ border-radius:var(--ds-radius-feature);box-shadow:0 12px 36px color-mix(in srgb,var(--ds-bg) 60%,transparent)
+}
+#mp-profile-share::backdrop{background:color-mix(in srgb,var(--ds-bg) 50%,transparent)}
+#mp-profile-share h2{margin:0;font-size:var(--pc-font-section,20px)}
+.profile-share-panel{min-width:0}
+.profile-share-summary{color:var(--ds-body);margin:8px 0 16px;overflow-wrap:anywhere}
+.profile-share-search input{font-size:16px;min-height:40px}
+.profile-share-people{display:grid;align-content:start;gap:4px;max-height:min(360px,42dvh);overflow:auto;overscroll-behavior:contain;margin:12px 0}
+.profile-share-person{display:flex;align-items:center;gap:10px;min-height:52px;min-width:0;padding:6px 8px;border-radius:var(--ds-radius-sm);color:var(--ds-text)}
+.profile-share-person:has(:checked){background:color-mix(in srgb,var(--ds-accent-lavender) 14%,var(--ds-panel))}
+:is(#dialog,#mp-profile-share) .profile-share-person input{width:18px;height:18px;min-height:0;flex:none;accent-color:var(--ds-accent-lavender)}
+.profile-share-person>img{width:36px;height:36px;object-fit:cover;border-radius:50%;flex:none}
+.profile-share-person>span{min-width:0;overflow-wrap:anywhere;line-height:1.4}
+.profile-share-person small{display:block;color:var(--ds-muted);font-size:12px}
+.profile-share-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px}
+.profile-share-actions>span{color:var(--ds-body);font-size:13px}
+.profile-share-result{color:var(--ds-body);font-size:13px;line-height:1.5}
+.profile-share-result:empty{display:none}
+#mp-profile-share .form-error:empty{display:none}
+#mp-profile-share [data-profile-share-more]{min-height:44px}
+:is(#dialog,#mp-profile-share) [data-profile-share-more][hidden]{display:none}
+#mp-profile-share .profile-share-actions button{min-width:88px;min-height:44px}
+@media(max-width:800px){
+ #mp-profile-share{inset:auto 0 0;width:100%;max-width:none;margin:0;max-height:85dvh;
+  padding:20px 20px calc(16px + env(safe-area-inset-bottom));border-radius:var(--ds-radius-feature) var(--ds-radius-feature) 0 0}
+ #mp-profile-share .profile-share-people{max-height:min(42dvh,calc(85dvh - 250px));min-height:44px}
+}
+.dm-profile-share{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px;padding:10px 12px;border-radius:var(--ds-radius-sm);background:color-mix(in srgb,var(--ds-panel) 75%,transparent);color:var(--ds-text);text-decoration:none;white-space:normal;min-height:44px}
+.dm-profile-share:after{content:'›';font-size:20px;line-height:1}
+#dialog .song-share-panel>.song-share-track{margin-block:12px 16px}
+#dialog .song-share-panel fieldset{min-inline-size:0;padding:0;border:0}
+#dialog .song-share-panel .profile-share-result:empty,#dialog .song-share-panel .form-error:empty{display:none}
+#dialog .song-share-panel .profile-share-actions{justify-content:flex-end}
+.song-share-track{display:flex;align-items:center;gap:12px;min-width:0;color:var(--ds-text)}
+.song-share-track>img{width:48px;height:48px;flex:none;object-fit:cover;border-radius:var(--ds-radius-sm)}
+.song-share-track-copy{min-width:0;display:grid;gap:2px;overflow-wrap:anywhere;line-height:1.4}
+.song-share-track-copy small,.dm-song-share-detail{color:var(--ds-muted);font-size:.86em}
+.dm-message .dm-song-share{display:grid;gap:8px;color:var(--ds-text);text-decoration:none;white-space:normal}
+.dm-song-share-detail{display:flex;align-items:center;gap:4px}
+.dm-song-share-detail>svg{width:14px;height:14px}
+a.dm-song-share:hover .dm-song-share-detail{color:var(--ds-text)}

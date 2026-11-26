@@ -33,13 +33,13 @@ test('crew 3/4/5 rewards follow crew XP boundaries, preserve equipped choice and
  const {sql,call}=await fixture(t);join(sql);
  let d=(await call('/api/me/player')).body;assert.equal(d.inventory.length,1);
  assert.equal((await call('/api/me/player/equipment','PUT',{frame_inventory_id:'reward:crew-level-3:owner'})).status,409);
- for(const [xp,count,level] of [[500,2,3],[1499,2,3],[1500,3,4],[2999,3,4],[3000,4,5]]){
+ for(const [xp,count,level] of [[800,2,3],[1599,2,3],[1600,3,4],[2799,3,4],[2800,4,5]]){
   sql.prepare("UPDATE crew_xp SET amount=? WHERE id='reward-test'").run(xp);
   d=(await call('/api/me/player')).body;assert.equal(d.inventory.length,count);assert.ok(reward(d,'crew-level-'+level).available);assert.equal(d.profile.profile_frame,'crew-outline');
  }
  const frame=reward(d,'crew-level-5');await call('/api/me/player/equipment','PUT',{frame_inventory_id:frame.id});
  d=(await call('/api/me/player')).body;assert.equal(d.profile.profile_frame_artwork,frame.artwork);
- sql.exec("UPDATE crew_xp SET amount=2999 WHERE id='reward-test'");
+ sql.exec("UPDATE crew_xp SET amount=2799 WHERE id='reward-test'");
  d=(await call('/api/me/player')).body;assert.equal(reward(d,'crew-level-5').available,false);assert.equal(d.profile.profile_frame,null);
  assert.equal((await call('/api/me/player/equipment','PUT',{frame_inventory_id:frame.id})).status,409);
  sql.exec("DELETE FROM crew_members WHERE user_id='owner'");
@@ -55,7 +55,8 @@ test('existing eligible users receive rewards on backfill; expired/revoked rewar
  const item=reward(d,'player-level-10');await call('/api/me/player/equipment','PUT',{frame_inventory_id:item.id});
  for(const change of ['expires_at=1','expires_at=0,revoked=1']){
   sql.prepare('UPDATE player_inventory SET '+change+' WHERE id=?').run(item.id);
-  d=(await call('/api/me/player')).body;assert.equal(d.inventory.length,5);assert.equal(reward(d,'player-level-10').available,false);assert.equal(d.profile.profile_frame_artwork,null);
+  d=(await call('/api/me/player')).body;assert.equal(d.inventory.length,4);assert.equal(reward(d,'player-level-10'),undefined);assert.equal(d.profile.profile_frame_artwork,null);
+  assert.equal(sql.prepare('SELECT count(*) n FROM player_inventory').get().n,5,'expired ownership history remains stored');
   assert.equal((await call('/api/me/player/equipment','PUT',{frame_inventory_id:item.id})).status,409);
  }
 });

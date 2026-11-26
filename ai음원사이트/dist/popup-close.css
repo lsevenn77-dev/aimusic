@@ -1,0 +1,25 @@
+/* Popup dismiss controls only; preserve each dialog's positioning and handlers. */
+:is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button) {
+  display: flex; align-items: center; justify-content: center; gap: 0; box-sizing: border-box;
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px;
+  flex-shrink: 0; padding: 0; border: 0; border-radius: 0;
+  background: transparent; box-shadow: none; filter: none;
+  /* Keep the accessible label, but never show the legacy text beside the mask.
+     PC semantic button typography is !important; the icon-only reset must win.
+     Flex also prevents a zero-size text node from creating a second grid row. */
+  color: #E7ECF5; font-size: 0 !important; line-height: 0; text-shadow: none;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+:is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button) > svg { display: none; }
+:is(#dialog .dialog-close#dialog-close, dialog .dialog-close, dialog .voice-dialog-close, dialog .profile-preview-close, #v3-room-create #v3-close-create, dialog.photo-lightbox > .small-button)::before {
+  content: ''; display: block; width: 20px; height: 20px;
+  background: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m4 4 12 12M16 4 4 16' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / 20px 20px no-repeat;
+}
+/* Gift scaling has a more specific legacy text-size rule. */
+body:has(main > .shop-page) #dialog:has(:is(.shop-checkout, .shop-theme-preview)) #dialog-close { font-size: 0; }
+
+/* These compact headers need a separate title line below the 44px dismiss target. */
+@media (max-width: 360px) {
+  #dialog-content .popup-title-clearance { padding-block-start: 20px; }
+}

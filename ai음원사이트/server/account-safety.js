@@ -1,5 +1,6 @@
+import * as AifectMessages from '../shared/system-messages.js';
 import {one,rows,query,run,now,id,fail,json,rate} from './db.js';
-import {requireUser,appleClientSecret} from './auth.js';
+import {requireUser,appleClientSecret,viewerBlockedIds,viewerBlockedArtists} from './auth.js';
 import {cancelSubscription} from './billing.js';
 
 const encoder=new TextEncoder();
@@ -17,34 +18,49 @@ export async function rememberAppleToken(env,uid,token){
 }
 export async function revokeAppleLogin(env,uid){
  const saved=await one(env,'SELECT cipher FROM apple_login_tokens WHERE user_id=?',uid);
- if(!saved)fail(409,'Apple로 다시 로그인한 뒤 계정 삭제를 진행해주세요.');
+ if(!saved)fail(409,'Apple로 다시 로그인한 뒤 계정 삭제를 진행해 주세요.');
  const [iv,cipher]=saved.cipher.split('.');
  const token=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM',iv:from64(iv),additionalData:encoder.encode(uid)},await tokenKey(env),from64(cipher)));
- let response;try{response=await fetch('https://appleid.apple.com/auth/revoke',{method:'POST',body:new URLSearchParams({client_id:env.APPLE_CLIENT_ID,client_secret:await appleClientSecret(env),token,token_type_hint:'refresh_token'}),signal:AbortSignal.timeout(10000)});}catch{fail(502,'Apple 연결 해제를 완료하지 못했어요. 잠시 후 다시 시도해주세요.');}
- if(!response.ok)fail(502,'Apple 연결 해제를 완료하지 못했어요. 다시 로그인한 뒤 시도해주세요.');
+ let response;try{response=await fetch('https://appleid.apple.com/auth/revoke',{method:'POST',body:new URLSearchParams({client_id:env.APPLE_CLIENT_ID,client_secret:await appleClientSecret(env),token,token_type_hint:'refresh_token'}),signal:AbortSignal.timeout(10000)});}catch{fail(502,'Apple 연결 해제를 완료하지 못했습니다. 잠시 후 다시 시도해 주세요.');}
+ if(!response.ok)fail(502,'Apple 연결 해제를 완료하지 못했습니다. 다시 로그인한 뒤 시도해 주세요.');
 }
 
 export async function blockedContext(env,user){
  if(!user)return env;
+ const resolved=viewerBlockedIds(user);
+ if(resolved)return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:resolved,AIFECT_INTERACTION_BLOCKED:resolved,AIFECT_BLOCKED_ARTISTS:viewerBlockedArtists(user)||[]};
  const blocked=await rows(env,'SELECT CASE WHEN user_id=? THEN blocked_id ELSE user_id END id FROM user_blocks WHERE user_id=? OR blocked_id=?',user.id,user.id,user.id);
- return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:blocked.map(x=>x.id)};
+ const artists=await rows(env,"SELECT artist_id FROM artist_follow_blocks WHERE user_id=? AND direction='artist'",user.id);
+ return {...env,AIFECT_VIEWER_ID:user.id,AIFECT_BLOCKED:blocked.map(x=>x.id),AIFECT_INTERACTION_BLOCKED:blocked.map(x=>x.id),AIFECT_BLOCKED_ARTISTS:artists.map(x=>x.artist_id)};
 }
-export function assertUnblocked(env,uid){if(env.AIFECT_BLOCKED?.includes(uid))fail(403,'차단된 이용자와는 소통할 수 없습니다.');}
+export function assertUnblocked(env,uid){if((env.AIFECT_INTERACTION_BLOCKED||env.AIFECT_BLOCKED)?.includes(uid))fail(403,'차단된 이용자와는 소통할 수 없습니다.');}
 // Apply before pagination in track and chat queries, with a final guard for nested discovery shelves.
 export async function filterBlockedResponse(env,response){
- if(!env.AIFECT_BLOCKED?.length||!response.ok||!response.headers.get('content-type')?.includes('application/json'))return response;
- const ids=env.AIFECT_BLOCKED,marks=ids.map(()=>'?').join(',');
- const profiles=await rows(env,`SELECT id FROM producers WHERE user_id IN (${marks})`,...ids);
- const artists=await rows(env,`SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id IN (${marks})`,...ids);
- const all=new Set([...ids,...profiles.map(p=>p.id),...artists.map(a=>a.id)]);
- const hidden=o=>o&&typeof o==='object'&&['user_id','producer_id','artist_id','profile_id','target_id'].some(k=>all.has(o[k]));
- const clean=o=>Array.isArray(o)?o.filter(x=>!hidden(x)&&!(x&&all.has(x.id))).map(clean):o&&typeof o==='object'?Object.fromEntries(Object.entries(o).map(([k,v])=>[k,clean(v)])):o;
+ if(env.AIFECT_PUBLIC_CONTENT||(!env.AIFECT_BLOCKED?.length&&!env.AIFECT_BLOCKED_ARTISTS?.length)||!response.ok||!response.headers.get('content-type')?.includes('application/json'))return response;
+ const ids=env.AIFECT_BLOCKED||[],marks=ids.map(()=>'?').join(',');
+ const [profiles,artists]=await Promise.all([
+  rows(env,`SELECT id FROM producers WHERE user_id IN (${marks})`,...ids),
+  rows(env,`SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id IN (${marks})`,...ids)]);
+ const all=new Set([...ids,...profiles.map(p=>p.id),...artists.map(a=>a.id)]),individualArtists=new Set(env.AIFECT_BLOCKED_ARTISTS||[]);
+ const hidden=o=>o&&typeof o==='object'&&(['user_id','owner_id','producer_id','artist_id','profile_id','target_id'].some(k=>all.has(o[k]))||(o.kind!=='cover'&&individualArtists.has(o.artist_id))||individualArtists.has(o.id));
+ // A recommendation may omit a playlist owner, but never rewrite a published
+ // playlist's preview, duration, stored order or track membership.
+ const playlist=o=>o&&typeof o==='object'&&o.is_public===1&&Array.isArray(o.covers);
+ const publicRanks=new Set(['ranking','rankings','support_ranking','individualRanking']);
+ const clean=o=>Array.isArray(o)?o.filter(x=>playlist(x)||!hidden(x)&&!(x&&all.has(x.id))).map(clean):o&&typeof o==='object'?(playlist(o)?o:Object.fromEntries(Object.entries(o).map(([k,v])=>[k,publicRanks.has(k)?v:clean(v)]))):o;
  const body=await response.json();if(hidden(body.profile)||hidden(body.track))fail(403,'차단된 이용자의 콘텐츠입니다.');
  return new Response(JSON.stringify(clean(body)),{status:response.status,headers:response.headers});
 }
 
-async function storageTargets(env,uid){
+async function storageTargets(env,uid,hasDubbing=false){
  const targets=[];
+ if(hasDubbing)targets.push({prefix:`dubbing/${uid}/`});
+ if(hasDubbing&&await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_final_jobs'")){
+  const owned=await rows(env,'SELECT r.id,r.user_id,r.project_id FROM dubbing_recordings r JOIN dubbing_projects p ON p.id=r.project_id WHERE p.owner_id=?',uid);
+  for(const r of owned)targets.push({prefix:`dubbing/${r.user_id}/${r.project_id}/voices/${r.id}/`});
+  const shared=await rows(env,'SELECT DISTINCT p.owner_id,p.id,j.id job_id FROM dubbing_recordings r JOIN dubbing_projects p ON p.id=r.project_id JOIN dubbing_final_jobs j ON j.project_id=p.id WHERE r.user_id=?',uid);
+  for(const p of shared)targets.push({prefix:`dubbing/${p.owner_id}/${p.id}/final/${p.job_id}-`});
+ }
  const tracks=await rows(env,'SELECT id,original_key,original_ext FROM tracks WHERE user_id=?',uid);
  for(const t of tracks){
   for(const prefix of [`original/${t.id}.`,`cover/${t.id}.`,`stream/${t.id}.`,`preview/${t.id}.`,`karaoke/${t.id}/`,`archive/${t.id}/`,`premium/${t.id}/`,`images/track/${t.id}/`])targets.push({prefix});
@@ -81,20 +97,44 @@ export async function drainDeletedFiles(env){
 export async function deleteAccount(env,user){
  if(user.provider==='apple')await revokeAppleLogin(env,user.id);
  await cancelSubscription(env,user);
- const targets=await storageTargets(env,user.id),q=(sql,...args)=>query(env,sql,...args),uid=user.id;
+ // The feature may be disabled after migration; deletion must still clean its data.
+ const hasDubbing=!!await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_projects'");
+ const targets=await storageTargets(env,user.id,hasDubbing),q=(sql,...args)=>query(env,sql,...args),uid=user.id;
  const writes=[];
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='crew_participation_requests'"))writes.push(q('DELETE FROM crew_participation_requests WHERE sender=? OR recipient=?',uid,uid),q('DELETE FROM notification_digests WHERE recipient=?',uid));
+ if(hasDubbing)writes.push(q('DELETE FROM dubbing_role_claims WHERE user_id=?',uid),q('DELETE FROM dubbing_generations WHERE user_id=?',uid),q('DELETE FROM dubbing_projects WHERE owner_id=?',uid));
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_script_rewards'"))writes.push(q('DELETE FROM dubbing_script_rewards WHERE user_id=?',uid));
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_ad_sessions'"))writes.push(q('DELETE FROM dubbing_ad_sessions WHERE user_id=?',uid));
+ if(await one(env,"SELECT name FROM sqlite_master WHERE type='table' AND name='dubbing_recordings'"))writes.push(q("UPDATE dubbing_projects SET state='recording' WHERE id IN (SELECT project_id FROM dubbing_recordings WHERE user_id=?) AND state='complete'",uid),q("UPDATE dubbing_final_jobs SET state='invalidated',lease_token=NULL,lease_until=0,output_key=NULL WHERE project_id IN (SELECT project_id FROM dubbing_recordings WHERE user_id=?)",uid),q('DELETE FROM dubbing_recordings WHERE user_id=?',uid));
+ writes.push(q('DELETE FROM activity_notifications WHERE recipient=?',uid),q('UPDATE activity_notifications SET actor_id=NULL WHERE actor_id=?',uid));
  for(const crew of await rows(env,'SELECT id FROM crews WHERE owner_id=?',uid)){
   const next=await one(env,'SELECT user_id FROM crew_members WHERE crew_id=? AND user_id!=? ORDER BY joined,user_id LIMIT 1',crew.id,uid);
   if(next)writes.push(q('UPDATE crews SET owner_id=? WHERE id=?',next.user_id,crew.id),q("UPDATE crew_members SET role='owner' WHERE crew_id=? AND user_id=?",crew.id,next.user_id));
   else writes.push(q('DELETE FROM crews WHERE id=?',crew.id));
  }
  const ownTracks='SELECT id FROM tracks WHERE user_id=?';
+ // Remove playback references as before, while retaining an unavailable typed
+ // slot in another user's private mix if the departing user supplied a cover.
+ // Otherwise account deletion can turn duplicate mixed titles into AI-only lists.
+ writes.push(q(`INSERT OR IGNORE INTO playlist_extra_items(playlist_id,kind,content_id,position,created)
+  SELECT pt.playlist_id,'cover',pt.track_id,pt.position,pt.created FROM playlist_tracks pt
+  JOIN playlists p ON p.id=pt.playlist_id JOIN tracks t ON t.id=pt.track_id
+  WHERE t.user_id=? AND t.kind='cover' AND p.user_id!=?`,uid,uid));
+ writes.push(q(`UPDATE playlists SET is_public=0,revision=revision+1,updated=unixepoch()
+  WHERE is_public=1 AND EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=playlists.id AND t.user_id=?)
+  AND NOT EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=playlists.id AND t.user_id!=?)`,uid,uid));
+
  for(const table of ['lyric_jobs','karaoke_jobs','premium_audio_jobs','original_archives','track_reports','playlist_tracks','likes','free_gifts','comments'])writes.push(q(`DELETE FROM ${table} WHERE track_id IN (${ownTracks})`,uid));
- for(const table of ['player_equipment','player_inventory','player_xp','sessions','account_handles','apple_login_tokens','push_devices','push_preferences','user_blocks','comment_reports','comment_likes','comments','likes','follows','playlist_saves','playlist_preferences','playlists','listens','free_gift_claims','free_gift_wallets','crew_bans','crew_xp','crew_messages','crew_members'])writes.push(q(`DELETE FROM ${table} WHERE user_id=?`,uid));
+ for(const table of ['welcome_receipts','player_equipment','player_inventory','player_xp','sessions','account_handles','apple_login_tokens','push_devices','push_preferences','user_blocks','comment_reports','comment_likes','comments','likes','follows','playlist_saves','playlist_preferences','playlists','listens','free_gift_claims','free_gift_wallets','crew_bans','crew_xp','crew_messages','crew_members'])writes.push(q(`DELETE FROM ${table} WHERE user_id=?`,uid));
+ writes.push(q("UPDATE track_reports SET rightsholder='',contact='',details='',evidence_json='[]' WHERE user_id=?",uid));
  writes.push(q('DELETE FROM user_blocks WHERE blocked_id=?',uid),q('DELETE FROM direct_messages WHERE sender_id=? OR recipient_id=?',uid,uid),q('DELETE FROM push_outbox WHERE recipient=?',uid),q('DELETE FROM free_gifts WHERE sender_id=?',uid),q("DELETE FROM oauth_states WHERE provider='mobile' AND nonce=?",uid));
  writes.push(q("DELETE FROM follows WHERE (kind='producer' AND target_id IN (SELECT id FROM producers WHERE user_id=?)) OR (kind='artist' AND target_id IN (SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=?))",uid,uid));
  writes.push(q('DELETE FROM crew_chat_images WHERE sender_id=?',uid));
  writes.push(q('DELETE FROM dm_settings WHERE user_id=? OR peer_id=?',uid,uid),q('DELETE FROM chat_images WHERE sender_id=? OR recipient_id=?',uid,uid));
+ writes.push(q('DELETE FROM profile_photos WHERE producer_id IN (SELECT id FROM producers WHERE user_id=?)',uid));
+ writes.push(q("UPDATE artist_fan_posts SET body='',title='',deleted=1,pinned=0 WHERE user_id=?",uid),q('DELETE FROM artist_fan_likes WHERE user_id=?',uid),q('DELETE FROM artist_fan_reports WHERE user_id=?',uid));
+ writes.push(q('DELETE FROM artist_fan_operators WHERE user_id=? OR approved_by=?',uid,uid));
+ writes.push(q('DELETE FROM artist_fan_settings WHERE artist_id IN (SELECT a.id FROM artists a JOIN producers p ON p.id=a.producer_id WHERE p.user_id=?)',uid));
  // Minimal anonymous keys remain only where accounting rows require stable foreign keys.
  writes.push(q("UPDATE tracks SET status='deleted',title='삭제된 음악',genre='',tags='',description='',lyrics='',lyrics_mode='none',ai_tool='',participation='',original_key='',original_bytes=0,duration=0,has_cover=0,cover_version='',cover_type='',error=NULL,lease_token=NULL,lease_until=0,karaoke_terms='',karaoke_at=0,duet_guide='' WHERE user_id=?",uid));
  writes.push(q("UPDATE artists SET name='삭제된 아티스트',bio='',genre='',image_version='',image_type='' WHERE producer_id IN (SELECT id FROM producers WHERE user_id=?)",uid));
@@ -109,7 +149,9 @@ export async function deleteAccount(env,user){
 export async function accountSafetyRoute(req,env,path,user){
  if(path==='/api/account/delete'&&req.method==='POST'){
   requireUser(user);await rate(env,'account-delete:'+user.id,5,900);
-  if((await req.json()).confirmation!=='DELETE')fail(400,'계정 영구 삭제를 확인해주세요.');
+  const {confirmation,account_id}=await req.json();
+  if(account_id!==undefined&&account_id!==user.id)fail(409,'로그인 계정이 변경됐습니다. 화면을 새로고침해 삭제할 계정을 확인해 주세요.');
+  if(confirmation!=='DELETE')fail(400,'계정 영구 삭제를 확인해 주세요.');
   await deleteAccount(env,user);
   return json({ok:true,deleted:true},200,{'set-cookie':'aifect_session=; Path=/; HttpOnly; SameSite=Lax; Secure; Max-Age=0'});
  }
@@ -118,11 +160,11 @@ export async function accountSafetyRoute(req,env,path,user){
  }
  const m=path.match(/^\/api\/blocks\/([\w-]+)$/);if(!m)return null;
  requireUser(user);const target=await one(env,"SELECT id FROM users WHERE id=? AND provider!='deleted'",m[1]);
- if(!target||target.id===user.id)fail(400,'차단할 이용자를 확인해주세요.');
+ if(!target||target.id===user.id)fail(400,'차단할 이용자를 확인해 주세요.');
  if(req.method==='PUT'){
   await rate(env,'block:'+user.id,60,3600);
   await run(env,'INSERT OR IGNORE INTO user_blocks(user_id,blocked_id,created) VALUES(?,?,?)',user.id,target.id,now());
  }else if(req.method==='DELETE')await run(env,'DELETE FROM user_blocks WHERE user_id=? AND blocked_id=?',user.id,target.id);
- else fail(405,'지원하지 않는 요청입니다.');
+ else fail(405,AifectMessages.unsupportedRequest);
  return json({ok:true});
 }

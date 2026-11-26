@@ -1,8 +1,12 @@
-import {one,run,query,now,id,fail,json,rate} from './db.js';
+import * as AifectMessages from '../shared/system-messages.js';
+import {one,rows,run,query,now,id,fail,json,rate} from './db.js';
+import {producerNameSQL} from './identity.js';
 import {requireUser} from './auth.js';
 import {MAX_AUDIO,put,objectResponse} from './storage.js';
 import {KARAOKE_MAX_SECONDS,karaokeLyrics,karaokeWords} from '../shared/karaoke.js';
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
+import {isPremium} from './membership.js';
+import {punchLyricRange} from '../shared/punch-recording.js';
 
 const MR_TYPES=['wav','flac','mp3'];
 const key=(trackId,name)=>`karaoke/${trackId}/${name}`;
@@ -24,18 +28,51 @@ export async function karaokeQueue(env,track,{mr='keep',ext='',bytes=0}={}){
 
 // Singing: the list of singable songs is public; the words and the MR need a signed-in singer.
 async function singRoute(req,env,path,user){
- if(path==='/api/karaoke'&&req.method==='GET')return json({tracks:await trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'(plays+likes*3) DESC,t.created DESC',100)});
+ const edit=path.match(/^\/api\/karaoke\/([\w-]+)\/(rerecord|crop)$/);
+ if(edit&&['GET','POST'].includes(req.method)){
+  const crop=edit[2]==='crop';
+  requireUser(user);if(!isPremium(user))fail(403,`${crop?'구간 크롭':'일부 구간 재녹음'}은 프리미엄 회원 전용 기능입니다.`);
+  const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[edit[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없습니다.');
+  if(req.method==='GET')return json({allowed:true});
+  const b=await req.json(),duration=b?.duration;
+  if(!Number.isFinite(duration)||duration<=0||duration>track.duration+.5)fail(400,'녹음 길이를 확인해 주세요.');
+  if(crop){
+   const {start,end}=b;
+   if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>duration||end-start<.1-1e-9)fail(400,'크롭 시작·끝 시간을 확인해 주세요.');
+   return json({allowed:true,range:{start,end}});
+  }
+  const words=JSON.parse((await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',track.id)).words);
+  let range;
+  try{range=punchLyricRange(words,Math.min(duration,track.duration),b.first,b.last);}catch(e){fail(400,e.message);}
+  if(b.manual){if(!Number.isFinite(b.start)||!Number.isFinite(b.end)||b.start<0||b.end>duration||b.end>track.duration||b.end-b.start<.1)fail(400,'재녹음 시작·끝 시간을 확인해 주세요.');range={...range,start:b.start,end:b.end};}
+  return json({allowed:true,range:{start:range.start,end:range.end},countdown:3});
+ }
+ if(path==='/api/karaoke'&&req.method==='GET'){
+  const blocked=env.AIFECT_BLOCKED||[];
+  const [tracks,participants,recent_covers]=await Promise.all([
+   trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'(plays+likes*3) DESC,t.created DESC',100),
+   rows(env,`WITH recent AS (SELECT t.id,t.original_id,t.producer_id,${producerNameSQL()} name,p.image_version,
+    count(*) OVER(PARTITION BY t.original_id) cover_count,
+    row_number() OVER(PARTITION BY t.original_id ORDER BY t.created DESC,t.id) position
+    FROM tracks t JOIN producers p ON p.id=t.producer_id WHERE t.kind='cover' AND ${VISIBLE()}
+    AND EXISTS(SELECT 1 FROM tracks original WHERE original.id=t.original_id AND ${SINGABLE('original')})
+    ${blocked.length?'AND t.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':''})
+    SELECT * FROM recent WHERE position<=3 LIMIT 300`,...blocked),
+   trackList(env,`${VISIBLE()} AND t.kind='cover'`,[],'t.created DESC',8)
+  ]);
+  return json({tracks:tracks.map(t=>{const previews=participants.filter(p=>p.original_id===t.id);return {...t,covers:previews[0]?.cover_count||0,cover_participants:previews};}),recent_covers});
+ }
  let s=path.match(/^\/api\/karaoke\/([\w-]+)$/);
  if(s&&req.method==='GET'){
   requireUser(user);
-  const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[s[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없어요.');
+  const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[s[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없습니다.');
   const job=await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',track.id);
   return json({track,words:JSON.parse(job.words),mr:`/media/${track.id}/mr`});
  }
  s=path.match(/^\/media\/([\w-]+)\/mr$/);
  if(s&&['GET','HEAD'].includes(req.method)){
   requireUser(user);
-  if(!await one(env,`SELECT t.id FROM tracks t WHERE t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,s[1]))fail(404,'노래방 MR을 찾을 수 없어요.');
+  if(!await one(env,`SELECT t.id FROM tracks t WHERE t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,s[1]))fail(404,'노래방 MR을 찾을 수 없습니다.');
   return objectResponse(req,env,key(s[1],'mr.m4a'),'audio/mp4');
  }
  return null;
@@ -48,8 +85,8 @@ export async function karaokeRoute(req,env,path,user){
  const method=req.method;
  if(!m[2]){
   if(method==='GET')return json({karaoke:await karaokeStatus(env,track.id)});
-  if(method!=='POST')fail(405,'지원하지 않는 요청입니다.');
-  if(!track.karaoke_at)fail(409,'노래방 MR 제공에 먼저 동의해주세요.');
+  if(method!=='POST')fail(405,AifectMessages.unsupportedRequest);
+  if(!track.karaoke_at)fail(409,'노래방 MR 제공에 먼저 동의해 주세요.');
   if(!['published','hidden'].includes(track.status))fail(409,'음원 변환이 끝난 뒤 노래방 MR을 만들 수 있습니다.');
   await rate(env,'karaoke:'+user.id,10,86400);
   await env.DB.batch(await karaokeQueue(env,track,{mr:'auto'}));return json({karaoke:await karaokeStatus(env,track.id)},202);
@@ -58,8 +95,8 @@ export async function karaokeRoute(req,env,path,user){
   if(!(await karaokeStatus(env,track.id))?.mr_ready)fail(404,'노래방 MR이 아직 없습니다.');
   return objectResponse(req,env,key(track.id,'mr.m4a'),'audio/mp4');
  }
- if(method!=='PUT')fail(405,'지원하지 않는 요청입니다.');
- if(!track.karaoke_at)fail(409,'노래방 MR 제공에 먼저 동의해주세요.');
+ if(method!=='PUT')fail(405,AifectMessages.unsupportedRequest);
+ if(!track.karaoke_at)fail(409,'노래방 MR 제공에 먼저 동의해 주세요.');
  if(!['published','hidden'].includes(track.status))fail(409,'음원 변환이 끝난 뒤 반주 파일을 올릴 수 있습니다.');
  const ext=new URL(req.url).searchParams.get('ext'),bytes=Number(req.headers.get('content-length'));
  if(!MR_TYPES.includes(ext))fail(400,'반주 파일은 WAV·FLAC·MP3만 올릴 수 있습니다.');
@@ -69,14 +106,14 @@ export async function karaokeRoute(req,env,path,user){
 }
 
 const FAIL_REASONS={
- duration_mismatch:'올린 반주 파일의 길이가 원곡과 다릅니다. 원곡과 같은 길이의 반주를 올려주세요.',
- unreadable:'반주 파일을 읽지 못했습니다. WAV·FLAC·MP3 파일인지 확인해주세요.',
+ duration_mismatch:'올린 반주 파일의 길이가 원곡과 다릅니다. 원곡과 같은 길이의 반주를 올려 주세요.',
+ unreadable:'반주 파일을 읽지 못했습니다. WAV·FLAC·MP3 파일인지 확인해 주세요.',
 };
 export async function karaokeInternalRoute(req,env,path){
  if(!path.startsWith('/internal/karaoke/'))return null;
  // Called only after the shared worker credential was validated by internalRoute.
  if(path==='/internal/karaoke/claim'&&req.method==='POST'){
-  await run(env,"UPDATE karaoke_jobs SET state='failed',error='노래방 MR을 만들지 못했습니다. 다시 만들기를 눌러주세요.',lease_token=NULL,updated=? WHERE state='processing' AND lease_until<? AND attempts>=3",now(),now());
+  await run(env,"UPDATE karaoke_jobs SET state='failed',error='노래방 MR을 만들지 못했습니다. 다시 만들기를 눌러 주세요.',lease_token=NULL,updated=? WHERE state='processing' AND lease_until<? AND attempts>=3",now(),now());
   // Separation takes several minutes per song on CPU; the lease covers the whole build.
   const job=await query(env,`UPDATE karaoke_jobs SET state='processing',lease_until=?,lease_token=?,attempts=attempts+1,updated=? WHERE track_id=(
    SELECT k.track_id FROM karaoke_jobs k JOIN tracks t ON t.id=k.track_id WHERE (k.state='queued' OR (k.state='processing' AND k.lease_until<?)) AND k.attempts<3 AND t.status IN ('published','hidden') AND t.karaoke_at>0 AND t.duration<=? ORDER BY k.updated LIMIT 1)
@@ -88,7 +125,7 @@ export async function karaokeInternalRoute(req,env,path){
  const action=m[2],method=req.method;
  if(method==='GET'){
   const source={audio:`stream/${job.track_id}.m4a`,vocals:key(job.track_id,'vocals.m4a'),'mr-source':key(job.track_id,'mr-source.'+job.mr_ext)}[action];
-  if(!source)fail(405,'지원하지 않는 요청입니다.');
+  if(!source)fail(405,AifectMessages.unsupportedRequest);
   return objectResponse(req,env,source,'application/octet-stream');
  }
  if(method==='PUT'&&['mr','vocals'].includes(action)){await put(env,key(job.track_id,action+'.m4a'),req,MAX_AUDIO,'audio/mp4');return json({ok:true});}
@@ -107,7 +144,7 @@ export async function karaokeInternalRoute(req,env,path){
  }
  if(action==='fail'&&method==='POST'){
   const reason=(await req.json().catch(()=>({}))).reason;
-  await run(env,"UPDATE karaoke_jobs SET state='failed',error=?,lease_until=0,lease_token=NULL,updated=? WHERE id=? AND lease_token=?",FAIL_REASONS[reason]||'노래방 MR을 만들지 못했습니다. 다시 만들기를 눌러주세요.',now(),job.id,job.lease_token);return json({ok:true});
+  await run(env,"UPDATE karaoke_jobs SET state='failed',error=?,lease_until=0,lease_token=NULL,updated=? WHERE id=? AND lease_token=?",FAIL_REASONS[reason]||'노래방 MR을 만들지 못했습니다. 다시 만들기를 눌러 주세요.',now(),job.id,job.lease_token);return json({ok:true});
  }
- fail(405,'지원하지 않는 요청입니다.');
+ fail(405,AifectMessages.unsupportedRequest);
 }

@@ -1,0 +1,95 @@
+/* The existing jump lobby is the visual source for all game waiting rooms. */
+.crew-game-board{box-sizing:border-box;container-type:inline-size;min-width:0;width:100%;padding:16px;border:2px solid #abb7ff;border-radius:22px;background:radial-gradient(ellipse at 50% 0%,#3a365e 0%,transparent 67%),linear-gradient(145deg,#232644,#191c34);box-shadow:inset 0 0 0 2px #4f5195;color:#f6f4ff}
+.crew-game-board .cgl-pair{display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.crew-game-board .cgl-ranking{min-width:0;display:grid;grid-template-rows:auto auto minmax(160px,1fr) auto;padding:0 6px}
+.crew-game-board .cgl-ranking+.cgl-ranking{border-top:1px solid #66618b;margin-top:16px;padding-top:16px}
+.crew-game-board .cgl-title{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0;padding:0;border:0;background:none}
+.crew-game-board .cgl-title h2{margin:0;color:#fcfaff;font-size:clamp(18px,3cqw,26px);font-weight:800;line-height:1.4;letter-spacing:-.035em}
+.crew-game-board .cgl-title small{color:#d3ceff;font-size:12px;font-weight:750;letter-spacing:.08em;white-space:nowrap}
+.crew-game-board .cgl-description{margin:6px 0 10px;color:#c7c8df;font-size:14px;line-height:1.5}
+.crew-game-board .cgl-scroll{min-height:160px;height:190px;position:relative;overflow-y:auto;overscroll-behavior:contain;border-block:1px solid #514e72;scrollbar-color:#746f9d transparent;scrollbar-width:thin}
+.crew-game-board .cgl-scroll ol{padding:0;margin:0;list-style:none}
+.crew-game-board .cgl-row{box-sizing:border-box;display:grid;grid-template-columns:2ch 32px minmax(0,1fr) auto;align-items:center;gap:9px;min-height:48px;padding:7px 0;margin:0;border:0;border-bottom:1px solid #454665;font-size:16px;line-height:1.35}
+.crew-game-board .cgl-row>b{color:#c6b6fa;text-align:center;font-variant-numeric:tabular-nums}
+.crew-game-board .cgl-avatar{position:relative;display:grid;place-items:center;overflow:hidden;width:30px;height:30px;border-radius:50%;background:#494467;color:#e7ddff;font-style:normal}
+.crew-game-board .cgl-avatar img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;border:0;border-radius:50%;margin:0}
+.crew-game-board .cgl-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700;color:#f6f4ff}
+.crew-game-board .cgl-name small{display:block;margin-top:2px;font-size:11px;font-weight:500;color:#c7c8df}
+.crew-game-board .cgl-row strong{margin:0;color:#f6f4ff;font-size:15px;font-style:normal;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+.crew-game-board .cgl-empty{position:absolute;inset:0;display:grid;align-content:center;justify-items:center;gap:8px;color:#cac8df;font-size:14px;background:radial-gradient(ellipse at 50% 55%,#60538b22,transparent 65%)}
+.crew-game-board .cgl-empty span{font-size:34px;line-height:1;color:#bdafed}
+.crew-game-board .cgl-own{padding-top:10px;color:var(--ds-mint,#aeebdf);font-size:15px;font-weight:650;line-height:1.5}
+@container (min-width:650px){.crew-game-board .cgl-pair{grid-template-columns:repeat(2,minmax(0,1fr))}.crew-game-board .cgl-ranking{padding-inline:14px}.crew-game-board .cgl-ranking+.cgl-ranking{margin:0;padding-top:0;border-top:0;border-left:1px solid #66618b}}
+@container (max-width:340px){.crew-game-board .cgl-row{grid-template-columns:2ch 28px minmax(0,1fr) auto;gap:6px;font-size:14px}.crew-game-board .cgl-avatar{width:27px;height:27px}.crew-game-board .cgl-row strong{font-size:13px}.crew-game-board .cgl-description{font-size:13px}}
+[data-game-lobby] .glass.card,[data-game-lobby] .panel.stats{border-color:#9383d5;border-width:1px;border-radius:20px;background:radial-gradient(at 0% 0%,#4c427b,transparent 65%),linear-gradient(145deg,#292649,#322d5d)}
+[data-game-lobby] .card h3{font-size:18px;line-height:1.4}
+[data-game-lobby] .card .muted{font-size:14px;line-height:1.55}
+[data-game-lobby] .startrow{flex-wrap:wrap;gap:10px}
+[data-game-lobby] .startrow button{min-height:46px}
+[data-game-lobby] .topbar{gap:8px;padding:12px}
+[data-game-lobby] .topbar h1{min-width:0;margin:0;font-size:clamp(18px,1.7vw,24px);line-height:1.4;white-space:nowrap}
+[data-game-lobby] .topbar .iconbtn{font-size:13px;padding:8px;white-space:nowrap}
+#fishingRankings{margin-block:14px}
+
+/* Shared waiting-room shell, using the existing jump arcade's palette and tiles. */
+.arcade-lobby{--mint:#aeebdf;--muted:#c7c8df;--edge:#75669d;box-sizing:border-box;max-width:1180px;margin-inline:auto;padding:12px;border-radius:18px;background:linear-gradient(145deg,#171832,#24234a 55%,#191c39);color:#f6f4ff;font-size:15px;line-height:1.5}
+.arcade-lobby .cgl-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 4px;padding:4px 2px;background:none;border:0;width:100%;height:auto}
+.arcade-lobby .cgl-nav h1{flex:1;margin:0;font-size:20px;line-height:1.4;letter-spacing:-.03em}
+.arcade-lobby .cgl-nav a{color:inherit;text-decoration:none;font-size:14px;white-space:nowrap;padding:8px 0;min-height:44px;display:inline-flex;align-items:center}
+.arcade-lobby .cgl-nav .chip{font-size:11px;white-space:nowrap}
+.arcade-lobby .cgl-layout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:stretch;gap:12px;padding:0;margin:0;width:100%}
+.arcade-lobby .cgl-layout>.crew-game-board,.arcade-lobby .cgl-practice-info{grid-column:2 / 4;margin:0}
+.arcade-lobby .cgl-tile{min-width:0;padding:20px;border:1px solid #9383d5;border-radius:20px;background:radial-gradient(at 0% 0%,#4c427b,transparent 65%),linear-gradient(145deg,#292649,#322d5d);box-shadow:none;overflow:hidden}
+.arcade-lobby .cgl-tile h2{font-size:20px;font-weight:800;line-height:1.35;margin:0 0 12px;color:#fcfaff;letter-spacing:-.03em}
+.arcade-lobby .cgl-tile h3{font-size:17px;line-height:1.4;margin:8px 0}
+.arcade-lobby .cgl-tile p{font-size:14px;color:#c7c8df;line-height:1.6;margin:8px 0}
+.arcade-lobby .cgl-eyebrow,.cgl-store-dialog .cgl-eyebrow{font-size:10px;letter-spacing:.14em;color:#d3ceff;font-weight:700}
+.arcade-lobby .cgl-hero{display:flex;flex-direction:column;gap:4px;background:radial-gradient(ellipse at 90% 15%,#565197,transparent 65%),linear-gradient(150deg,#29264b,#302b5a)}
+.arcade-lobby .cgl-hero h1,.arcade-lobby .cgl-hero h2{font-size:clamp(24px,2.3vw,32px);line-height:1.2;margin:6px 0;letter-spacing:-.04em}
+.arcade-lobby .cgl-hero .chip{align-self:start;border-color:#75669d;color:#dbd6ee}
+.arcade-lobby :is(button,a.cgl-pill){min-height:44px;font-family:inherit;font-size:14px;line-height:1.4;cursor:pointer}
+.arcade-lobby :is(.cta,.primary,.cgl-pill),.cgl-store-dialog .act{display:inline-flex;justify-content:center;align-items:center;text-align:center;padding:10px 18px;border:1px solid #e7dbff;border-radius:99px;background:linear-gradient(#eee6ff,#bfacf6);color:#362762;font-weight:800;box-shadow:none;text-decoration:none}
+.arcade-lobby .cgl-start{width:100%;margin-top:10px;min-height:48px;font-size:18px}
+.arcade-lobby :is(.iconbtn,.diff,.cgl-collection button:not(.cgl-pill)){height:auto;border:1px solid #75669d;border-radius:99px;padding:8px 14px;background:#29274f;color:#f6f4ff;box-shadow:none;text-decoration:none}
+.arcade-lobby .diff[aria-pressed=true]{background:linear-gradient(#eee6ff,#bfacf6);color:#362762;border-color:#e7dbff}
+.arcade-lobby button:disabled,.cgl-store-dialog button:disabled{opacity:.55;cursor:default}
+.arcade-lobby .cgl-records dl{margin:0;display:grid;gap:6px}
+.arcade-lobby .cgl-records dl>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;border-radius:8px;background:#29274fae}
+.arcade-lobby .cgl-records dt{font-size:13px;color:#c7c8df}.arcade-lobby .cgl-records dd{margin:0;color:#fff1ca;font-size:18px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+.arcade-lobby .cgl-records h2 small{font-size:11px;color:#d3ceff;font-weight:500;letter-spacing:0}
+.arcade-lobby .cgl-shop-entry{display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;text-align:center}
+.arcade-lobby .cgl-shop-entry img{width:160px;height:90px;object-fit:contain;border-radius:10px}
+.arcade-lobby .cgl-shop-entry h2{margin:0}.arcade-lobby .cgl-shop-entry p{margin:4px 0}.arcade-lobby .cgl-shop-entry button{width:100%}
+.arcade-lobby .howto{grid-template-columns:repeat(2,minmax(0,1fr));margin:0;font-size:13px;line-height:1.6;gap:10px}
+.arcade-lobby .howto>div{padding:8px;border:0;border-radius:8px;background:#29274fae}
+.arcade-lobby .howto b{color:#f6f4ff;font-size:14px;display:block;margin-bottom:3px}
+.arcade-lobby .cgl-scoring{grid-column:1 / -1}.arcade-lobby .rule{font-size:14px;line-height:1.5}
+.arcade-lobby .crew-game-board{display:grid;align-items:stretch}.arcade-lobby .cgl-scroll{height:100%;min-height:150px}.arcade-lobby .cgl-ranking{grid-template-rows:auto auto minmax(150px,1fr) auto}
+.arcade-lobby .cgl-nav .iconbtn{font-size:13px;white-space:nowrap}
+.arcade-lobby .mapbox{width:100%;max-width:none;height:140px;aspect-ratio:auto;margin:10px 0}
+.arcade-lobby .song{margin-top:10px;gap:12px;flex-wrap:nowrap}.arcade-lobby .song .meta{min-width:0}.arcade-lobby .song img{width:64px;height:64px;box-shadow:none}.arcade-lobby .song .title{font-size:20px}.arcade-lobby .song p{font-size:12px}
+.arcade-lobby .preview{height:135px;aspect-ratio:auto;margin:8px 0}.arcade-lobby .diffs{display:flex;gap:5px}.arcade-lobby .diff{flex:1;padding:8px 4px;font-size:12px;letter-spacing:0}
+.arcade-lobby .startrow{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);margin-top:6px;gap:8px}.arcade-lobby .startrow .cgl-start{margin:0}.arcade-lobby .status{margin-top:6px;gap:3px;font-size:12px}
+.arcade-lobby .sync{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:14px}.arcade-lobby .sync button{width:44px;border-radius:12px;color:#f6f4ff;background:#29274f;border:1px solid #75669d}.arcade-lobby .sync output{min-width:54px;text-align:center}
+.arcade-lobby .cgl-fishing-art{height:160px;margin:8px 0;border-radius:12px;background:#201e42 url('/crew-fishing/art/shore.svg') center/cover no-repeat}
+.arcade-lobby .pill{align-self:center;color:#dbd6ee;background:none;border:0;font-size:12px;letter-spacing:0;padding:5px 0}
+.arcade-lobby .cgl-collection .links{gap:8px;margin-top:14px}.arcade-lobby .cgl-text-links{font-size:13px}.arcade-lobby .cgl-text-links a{color:#d3ceff}
+.arcade-lobby .cgl-footnote{margin:14px 6px 2px;color:#c7c8df;font-size:12px;line-height:1.5}
+.arcade-lobby .cgl-practice-info{display:flex;flex-direction:column;justify-content:center;align-items:start;gap:12px}
+.fishing-lobby{width:min(1180px,94%);margin-block:16px 28px}.fishing-lobby .cgl-title{height:auto}.fishing-lobby .cgl-title small{letter-spacing:.08em}.fishing-lobby .cgl-tile .cgl-eyebrow{letter-spacing:.14em}
+/* Match the jump game's native wardrobe dialog; only the vehicle list scrolls. */
+.cgl-store-dialog{box-sizing:border-box;width:min(720px,calc(100% - 24px));max-width:none;max-height:calc(100dvh - 32px);margin:auto;padding:20px;border:1px solid #75669d;border-radius:20px;background:linear-gradient(155deg,#24263e,#141c2c 70%);color:#f8f7ff;overflow:hidden}
+.cgl-store-dialog[open]{display:flex;flex-direction:column;gap:12px}.cgl-store-dialog::backdrop{background:#060c18aa;backdrop-filter:blur(6px)}
+.cgl-store-dialog header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none}.cgl-store-dialog h2{font-size:22px;margin:4px 0 0}
+.cgl-store-dialog .cgl-close{width:44px;height:44px;padding:0;border:0;background:none;color:inherit;font-size:30px;line-height:1;cursor:pointer}
+.cgl-store-dialog p{margin:0;font-size:13px;line-height:1.5;color:#c7c8df}.cgl-store-dialog #garageStatus:empty{display:none}
+.cgl-store-dialog .cgl-store-scroll{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px;scrollbar-width:thin}.cgl-store-dialog .garage{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.cgl-store-dialog .carcard{padding:10px;background:#1d2134;border-color:#555771;box-shadow:none}.cgl-store-dialog .carcard.on{border-color:#d6baff;box-shadow:inset 0 0 0 1px #d6baff}.cgl-store-dialog .carcard .nm{font-size:14px}
+.cgl-store-dialog .act{width:100%;min-height:44px;font-size:13px;padding:8px 4px;border-radius:12px}.cgl-store-dialog .act.equipped{background:none;color:#d3ceff;border:1px solid #75669d}.cgl-store-dialog .cgl-store-note{flex:none}
+body:has(.cgl-store-dialog[open]){overflow:hidden}
+@media(max-width:900px){.arcade-lobby .cgl-layout{grid-template-columns:repeat(2,minmax(0,1fr))}.arcade-lobby .cgl-layout>.crew-game-board,.arcade-lobby .cgl-practice-info{grid-column:2}.arcade-lobby .cgl-help{grid-column:auto}}
+@media(max-width:760px){.arcade-lobby{padding:8px}.arcade-lobby .cgl-layout{grid-template-columns:minmax(0,1fr);gap:10px}.arcade-lobby .cgl-layout>.crew-game-board,.arcade-lobby .cgl-practice-info{grid-column:1}.arcade-lobby .cgl-tile{padding:16px;border-radius:18px}.arcade-lobby .cgl-nav{gap:8px}.arcade-lobby .cgl-nav h1{font-size:18px}.arcade-lobby .cgl-nav a{font-size:12px}.arcade-lobby .cgl-nav .chip{font-size:10px;padding:2px 5px}.arcade-lobby .cgl-nav .iconbtn{font-size:12px;padding:8px}.arcade-lobby .cgl-hero h1,.arcade-lobby .cgl-hero h2{font-size:26px}.arcade-lobby .cgl-scroll{height:110px;min-height:110px}.arcade-lobby .cgl-ranking{grid-template-rows:auto auto 110px auto}.arcade-lobby .cgl-shop-entry{display:grid;grid-template-columns:80px minmax(0,1fr);text-align:left;gap:8px 12px}.arcade-lobby .cgl-shop-entry img{width:80px;height:60px}.arcade-lobby .cgl-shop-entry button{grid-column:1 / -1}.arcade-lobby .cgl-fishing-art{height:120px}.arcade-lobby .mapbox{height:115px}.arcade-lobby .preview{height:110px}.cgl-store-dialog{padding:16px;gap:10px}.cgl-store-dialog .garage{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.arcade-lobby .diffs .diff[aria-pressed="true"]{background:linear-gradient(#eee6ff,#bfacf6);color:#362762;border-color:#e7dbff}
+.arcade-lobby .cgl-hero .cgl-start{font-size:18px}
+.fishing-lobby .cgl-title{width:100%}
+.arcade-lobby .startrow .cgl-start{font-size:16px;padding-inline:8px;white-space:nowrap}
