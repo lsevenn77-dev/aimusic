@@ -183,9 +183,10 @@ function saveResume(){saveQueue();try{localStorage.setItem('aifect-player-modes'
 
 // Presentation only: preserve gift surfaces, dialog events and form handlers.
 function prepareCompactPopup(modal,content){
- const excluded=content.querySelector('.gift-dialog,.gift-success,.gift-recipient-dialog,.shop-checkout,.shop-theme-preview,#gift-dialog-retry,#mp-inventory-buy,#mp-inventory-recipient');
+ const giftCompose=content.querySelector('.gift-compose');
+ const excluded=giftCompose||content.querySelector('.gift-dialog,.gift-success,.gift-recipient-dialog,.shop-checkout,.shop-theme-preview,#gift-dialog-retry,#mp-inventory-buy,#mp-inventory-recipient');
  modal.classList.toggle('compact-popup',!excluded);
- if(excluded){modal.setAttribute('aria-label','AIFECT');return;}
+ if(excluded&&!giftCompose){modal.setAttribute('aria-label','AIFECT');return;}
  const label=content.querySelector('.popup-prompt,h2');
  modal.setAttribute('aria-label',label?.textContent?.trim()||'AIFECT');
 }

@@ -34,6 +34,12 @@
       return;
     }
     if (!surface) return;
+    const giftBody = active.closest('.gift-compose-body');
+    if (giftBody) {
+      const recipients = active.closest('.gift-compose-recipients');
+      if (recipients) giftBody.scrollTop += recipients.getBoundingClientRect().top - giftBody.getBoundingClientRect().top - 8;
+      return;
+    }
     // Native page scrolling owns ordinary fields. Only correct an obscured field
     // inside a constrained popup, once after keyboard geometry has settled.
     const owner = active.closest('.crew-action-body') || active.closest('#dialog-content') || surface;

@@ -472,23 +472,10 @@
 #inventory-products .stock-actions :disabled {opacity:.55;cursor:default}
 #unified-inventory .inventory-empty {padding:48px 16px;text-align:center;color:var(--ds-muted)}
 #unified-inventory .inventory-empty p {margin:0 0 16px}
-#dialog:has(.stock-recipient) {width:min(420px,calc(100% - 24px));max-height:calc(100dvh - 32px);overflow:auto}
-.stock-recipient h2 {margin:0 0 16px;color:var(--ds-text)}
 .stock-selection {display:flex;align-items:center;gap:12px;margin:0 0 16px}
 .stock-selection img {width:56px;height:56px;object-fit:contain}
-.stock-selection strong,.stock-selection small,.stock-person strong,.stock-person small {display:block}
-.stock-selection small,.stock-person small {color:var(--ds-muted);font-size:12px}
-#stock-recipient-form {display:grid;gap:12px}
-.stock-field {display:grid;gap:5px;font-size:14px}
-.stock-field input {min-width:0;width:100%;min-height:44px;padding:8px 12px;border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-text)}
-.stock-field input[type="number"] {width:88px}
-.stock-people {display:grid;gap:4px;max-height:min(28dvh,190px);overflow:auto}
-.stock-person {display:flex;align-items:center;gap:10px;width:100%;min-height:46px;padding:6px 10px;text-align:left;color:var(--ds-text);background:var(--ds-soft);border:1px solid transparent;border-radius:8px}
-.stock-person[aria-pressed="true"] {border-color:var(--pink)}
-.stock-avatar {position:relative;width:34px;height:34px;flex:none}
-.stock-avatar>.profile-avatar-image {width:100%;height:100%;border-radius:50%;object-fit:cover}
-#stock-recipient-form .form-error:empty {display:none}
-#stock-recipient-form .primary-button {min-height:44px}
+.stock-selection strong,.stock-selection small {display:block}
+.stock-selection small {color:var(--ds-muted);font-size:12px}
 @media(max-width:800px) {
  #unified-inventory .inventory-heading {margin-bottom:16px}
  #unified-inventory .inventory-heading h1 {font-size:22px}

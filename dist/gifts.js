@@ -45,9 +45,9 @@ function giftInventorySection(title, cards) {
  return cards ? `<section class="gift-owned-section"><h3>${title}</h3><div class="gift-catalog gift-owned-catalog">${cards}</div></section>` : '';
 }
 
-function confirmGiftTransfer({name,image,recipient,quantity,amount,currency,started = false}) {
+function confirmGiftTransfer({name,image,recipient,quantity,amount,currency,started = false,composeAction}) {
  const sheet = document.createElement('dialog');
- sheet.className = 'gift-transfer-confirm';
+ sheet.className = 'gift-transfer-confirm' + (composeAction ? ' gift-transfer-confirm--compose' : '');
  sheet.setAttribute('aria-labelledby', 'gift-transfer-title');
  sheet.setAttribute('aria-describedby', 'gift-transfer-question gift-transfer-notice');
  const payment = amount == null ? '' : `<p class="gift-confirm-cost">결제 금액 ${shopPrice(amount, currency)}</p>`;
@@ -55,7 +55,7 @@ function confirmGiftTransfer({name,image,recipient,quantity,amount,currency,star
  sheet.innerHTML = `<form method="dialog"><h2 id="gift-transfer-title">선물하기</h2>${giftArt({image})}
   <p id="gift-transfer-question"><strong>${esc(recipient)}</strong>님에게<br>${esc(name)} ${number(quantity)}개를 선물하시겠습니까?</p>
   ${payment}${period}<p id="gift-transfer-notice">보낸 선물은 취소할 수 없습니다.</p>
-  <div class="gift-confirm-actions"><button type="submit" value="cancel" class="small-button" autofocus>취소</button><button type="submit" value="send" class="primary-button">선물하기</button></div></form>`;
+  <div class="gift-confirm-actions"><button type="submit" value="cancel" class="small-button" autofocus>취소</button><button type="submit" value="send" class="primary-button">${esc(composeAction || '선물하기')}</button></div></form>`;
  const owner = $('#dialog');
  return new Promise(resolve => {
   const cancel = () => { if (sheet.open) sheet.close('cancel'); };

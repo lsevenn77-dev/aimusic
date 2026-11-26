@@ -1,0 +1,387 @@
+#dialog:has(> #dialog-content > .gift-compose) {
+  --gift-compose-line: color-mix(in srgb, var(--ds-body) 17%, transparent);
+  --gift-compose-control: color-mix(in srgb, var(--ds-text) 7%, var(--ds-panel));
+  --gift-compose-hover: color-mix(in srgb, var(--ds-text) 12%, var(--ds-panel));
+  --gift-compose-pad: 20px;
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: min(432px, calc(100% - 32px));
+  max-width: none;
+  height: fit-content;
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--gift-compose-line);
+  border-radius: var(--ds-radius-feature);
+  background: var(--ds-panel);
+  color: var(--ds-text);
+  box-shadow: 0 16px 40px color-mix(in srgb, var(--ds-bg) 55%, transparent);
+}
+#dialog:has(> #dialog-content > .gift-compose)::backdrop {
+  background: color-mix(in srgb, var(--ds-bg) 67%, transparent);
+  backdrop-filter: none;
+}
+#dialog:has(> #dialog-content > .gift-compose) #dialog-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+  overflow: hidden !important;
+}
+#dialog .gift-compose, #dialog .gift-compose form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  gap: 0;
+}
+#dialog .gift-compose [hidden] { display: none !important; }
+#dialog .gift-compose-header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 0 56px 0 var(--gift-compose-pad);
+  border-bottom: 1px solid var(--gift-compose-line);
+}
+#dialog .gift-compose-header h2 {
+  margin: 0;
+  color: var(--ds-text);
+  font-size: var(--pc-font-section, 20px);
+  font-weight: 650;
+  line-height: 1.4;
+  outline: none;
+}
+#dialog:has(> #dialog-content > .gift-compose) #dialog-close {
+  z-index: 1;
+  top: 6px;
+  right: 6px;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-input);
+  background: transparent;
+  color: var(--ds-muted);
+  box-shadow: none;
+}
+#dialog:has(> #dialog-content > .gift-compose) #dialog-close:not(:disabled):hover {
+  background: var(--gift-compose-control);
+  color: var(--ds-text);
+}
+#dialog .gift-compose-body {
+  min-height: 0;
+  padding: 16px var(--gift-compose-pad);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+#dialog .gift-compose-product {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  border: 1px solid var(--gift-compose-line);
+  border-radius: var(--ds-radius-input);
+  background: var(--ds-bg);
+}
+#dialog .gift-compose-product > img {
+  flex: none;
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 0;
+  object-fit: contain;
+}
+#dialog .gift-compose-product strong {
+  display: block;
+  color: var(--ds-text);
+  font-size: var(--pc-font-card, 16px);
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+#dialog .gift-compose-product p {
+  margin: 4px 0 0;
+  color: var(--ds-body);
+  font-size: var(--pc-font-caption, 13px);
+  line-height: 1.4;
+}
+#dialog .gift-compose-label {
+  display: block;
+  margin: 0 0 8px;
+  color: var(--ds-text);
+  font-size: var(--pc-font-control, 14px);
+  font-weight: 650;
+  line-height: 1.3;
+}
+#dialog .gift-compose-quantity { margin-bottom: 18px; }
+#dialog .gift-compose-quantity-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#dialog .gift-compose-quantity-row > * {
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 48px;
+  height: 44px;
+  min-height: 44px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--gift-compose-line);
+  border-radius: var(--ds-radius-sm);
+  background: var(--gift-compose-control);
+  color: var(--ds-text);
+  box-shadow: none;
+  font: inherit;
+  font-size: 17px;
+  line-height: 1;
+  text-align: center;
+}
+#dialog .gift-compose-quantity-row output {
+  background: var(--ds-bg);
+  font-size: var(--pc-font-body, 15px);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+#dialog .gift-compose-quantity-row [data-gift-quantity="max"] {
+  margin-inline-start: 6px;
+  background: var(--ds-panel);
+  color: var(--ds-body);
+  font-size: var(--pc-font-caption, 13px);
+  font-weight: 600;
+}
+#dialog .gift-compose-quantity-row button:not(:disabled):is(:hover,:active) {
+  background: var(--gift-compose-hover);
+  border-color: var(--gift-compose-line);
+}
+#dialog .gift-compose-quantity-row button:disabled {
+  opacity: 1;
+  background: var(--gift-compose-control);
+  color: var(--ds-disabled);
+  cursor: default;
+}
+#dialog .gift-compose :is(button,input,a):focus-visible,
+.gift-transfer-confirm--compose button:focus-visible {
+  outline: 2px solid var(--ds-muted) !important;
+  outline-offset: -2px !important;
+}
+#dialog .gift-compose input[type="search"] {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--gift-compose-line);
+  border-radius: var(--ds-radius-input);
+  background: var(--ds-bg);
+  color: var(--ds-text);
+  font: inherit;
+  font-size: 16px;
+  box-shadow: none;
+}
+#dialog .gift-compose input[type="search"]::placeholder { color: var(--ds-muted); opacity: 1; }
+#dialog .gift-compose-recipients h3 {
+  margin: 12px 0 4px;
+  color: var(--ds-muted);
+  font-size: var(--pc-font-caption, 13px);
+  font-weight: 550;
+  line-height: 1.4;
+}
+#dialog .gift-compose-people-status {
+  margin: 8px 0 0;
+  color: var(--ds-muted);
+  font-size: var(--pc-font-caption, 13px);
+}
+#dialog .gift-compose-people-status:empty { display: none; }
+#dialog .gift-compose-people {
+  display: grid;
+  gap: 2px;
+  max-height: min(288px, calc(var(--input-viewport-height, 100dvh) * .43));
+  overflow: auto;
+  scrollbar-width: thin;
+}
+#dialog .gift-compose-person {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 24px;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--ds-text);
+  box-shadow: none;
+  font: inherit;
+  text-align: left;
+}
+#dialog .gift-compose-person:hover { background: var(--gift-compose-control); }
+#dialog .gift-compose-person[aria-pressed="true"] { background: var(--gift-compose-hover); }
+#dialog .gift-compose-avatar {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--gift-compose-control);
+}
+#dialog .gift-compose-avatar > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  object-fit: cover;
+}
+#dialog .gift-compose-person-info :is(strong,small) {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#dialog .gift-compose-person-info strong {
+  color: var(--ds-text);
+  font-size: var(--pc-font-control, 14px);
+  font-weight: 600;
+  line-height: 1.25;
+}
+#dialog .gift-compose-person-info small {
+  margin-top: 2px;
+  color: var(--ds-muted);
+  font-size: 12px;
+  line-height: 1.2;
+}
+#dialog .gift-compose-check {
+  display: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--ds-progress) 14%, transparent);
+  color: var(--ds-progress);
+}
+#dialog .gift-compose-person[aria-pressed="true"] .gift-compose-check { display: grid; }
+#dialog .gift-compose-retry { justify-self: start; min-height: 44px; }
+#dialog .gift-compose-footer {
+  flex: none;
+  display: grid;
+  gap: 8px;
+  padding: 12px var(--gift-compose-pad) 16px;
+  border-top: 1px solid var(--gift-compose-line);
+  background: var(--ds-panel);
+}
+#dialog .gift-compose-balances {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  color: var(--ds-muted);
+  font-size: var(--pc-font-caption, 13px);
+  line-height: 1.4;
+}
+#dialog .gift-compose-balances > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+#dialog .gift-compose-balances strong { color: var(--ds-body); font-weight: 600; }
+#dialog .gift-compose-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--ds-body);
+  font-size: var(--pc-font-control, 14px);
+  line-height: 1.4;
+}
+#dialog .gift-compose-total strong {
+  color: var(--ds-text);
+  font-size: var(--pc-font-card, 16px);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+#dialog .inventory-gift-popup .gift-compose-total strong { color: var(--ds-progress); }
+#dialog .gift-compose-footer .form-error:empty { display: none; }
+#dialog .gift-compose-footer .form-error, #dialog .gift-compose-notice {
+  margin: 0;
+  font-size: var(--pc-font-caption, 13px);
+  line-height: 1.4;
+}
+#dialog .gift-compose-notice { color: var(--ds-muted); }
+#dialog .gift-compose-shortfall { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#dialog .gift-compose-charge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ds-progress);
+  font-weight: 650;
+  text-underline-offset: 3px;
+}
+#dialog .gift-compose-submit,
+dialog.gift-transfer-confirm--compose .gift-confirm-actions button[value="send"] {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-input);
+  background: color-mix(in srgb, var(--ds-progress) 21%, var(--ds-panel));
+  color: var(--ds-progress);
+  box-shadow: none;
+  font: inherit;
+  font-size: var(--pc-font-control, 14px);
+  font-weight: 700;
+}
+#dialog .gift-compose-submit:not(:disabled):hover,
+dialog.gift-transfer-confirm--compose .gift-confirm-actions button[value="send"]:hover {
+  background: color-mix(in srgb, var(--ds-progress) 27%, var(--ds-panel));
+}
+#dialog .gift-compose-submit:disabled {
+  background: var(--gift-compose-control);
+  color: var(--ds-muted);
+  cursor: default;
+}
+dialog.gift-transfer-confirm--compose {
+  border: 1px solid var(--ds-border);
+  background: var(--ds-panel);
+  color: var(--ds-text);
+  box-shadow: none;
+}
+dialog.gift-transfer-confirm--compose::backdrop { backdrop-filter: none; }
+@media (max-width: 800px), (max-width: 1100px) and (pointer: coarse) {
+  #dialog:has(> #dialog-content > .gift-compose) {
+    --gift-compose-pad: 16px;
+    width: min(432px, calc(100% - 16px));
+    margin: auto auto 8px;
+    max-height: calc(100dvh - 16px);
+  }
+  #dialog .gift-compose-footer { padding-bottom: max(12px, env(safe-area-inset-bottom)); }
+  #dialog[data-input-viewport]:has(> #dialog-content > .gift-compose) {
+    height: var(--input-viewport-height);
+    padding-bottom: 0;
+  }
+  #dialog[data-input-viewport] .gift-compose,
+  #dialog[data-input-viewport] .gift-compose form,
+  #dialog[data-input-viewport] .gift-compose-body { flex: 1 1 auto; }
+  #dialog[data-input-viewport] .gift-compose-header { min-height: 52px; }
+  #dialog[data-input-viewport] .gift-compose-body { padding-block: 8px; }
+  #dialog[data-input-viewport] .gift-compose-footer { padding-block: 8px; gap: 6px; }
+}

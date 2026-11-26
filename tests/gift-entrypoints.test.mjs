@@ -25,10 +25,11 @@ function shopBrowser(){
    form={isConnected:true,error:control(),elements,querySelectorAll(selector){return selector==='[data-step]'?elements.filter(el=>'step'in el.dataset):selector==='[name=period]'?elements.filter(el=>el.attributes.name==='period'):selector==='[data-quantity]'?elements.filter(el=>'quantity'in el.dataset):[];},querySelector(selector){return selector==='[name=quantity]'?elements.find(el=>el.attributes.name==='quantity'):selector==='[type=submit]'?elements.find(el=>el.attributes.type==='submit'):selector==='.shop-money'||selector==='.frame-detail-layers>img'?control():null;}};
   },
   api:async(path,method='GET',body)=>{calls.push({path,method,body});return method==='POST'?{}:path==='/api/gifts/catalog'?{gifts:AifectGifts.GIFT_CATALOG,silver_gifts:AifectGifts.SILVER_GIFT_CATALOG}:path==='/api/decorations'?catalog:{balance:10000,silver_balance:100};},
-  chooseGiftRecipient:selection=>opened.push(selection),askLogin(){},toast(){},refreshShopBalances(){},render(){},
+  inventoryRecipientDialog:(item,state)=>opened.push({item,state}),askLogin(){},toast(){},refreshShopBalances(){},render(){},
  });
  vm.runInContext(decorations.slice(decorations.indexOf('function shopCoin('),decorations.indexOf('function shopIcon(')),context);
  vm.runInContext(extract('shopPurchaseDialog',"\ndocument.addEventListener('click',e=>{"),context);
+ context.shopGiftDialog=(product,period,quantity,wallet)=>opened.push({id:product.id,sku:product.sku,period,quantity,wallet});
  vm.runInContext(extract('storedDecorationDialog',"\ndocument.addEventListener('click',e=>{"),context);
  return {context,calls,opened,get form(){return form;},get html(){return html;}};
 }
@@ -45,8 +46,8 @@ test('shop decoration gift entry preserves the period while purchase still buys 
  const purchase=shopBrowser();await purchase.context.shopPurchaseDialog({sku:'frame_aurora_ring',period:'P3M'});await purchase.form.onsubmit({preventDefault(){}});
  const write=purchase.calls.find(call=>call.method==='POST');assert.equal(write.path,'/api/decorations/buy');assert.equal(write.body.period,'P3M');assert.equal(write.body.profile_id,undefined);
 });
-test('stored decoration gift entry validates current stock and hands its actual ID to the common chooser',async()=>{
- const b=shopBrowser();await b.context.storedDecorationDialog('stored-frame','send');assert.equal(b.opened.length,1);assert.equal(b.opened[0].inventoryId,'stored-frame');assert.equal(b.calls.filter(call=>call.method==='POST').length,0);
+test('stored decoration gift entry validates current stock and passes its actual unit to the inventory popup',async()=>{
+ const b=shopBrowser();await b.context.storedDecorationDialog('stored-frame','send');assert.equal(b.opened.length,1);assert.equal(b.opened[0].item.ids[0],'stored-frame');assert.equal(b.opened[0].state.account,'owner');assert.equal(b.calls.filter(call=>call.method==='POST').length,0);
  await b.context.storedDecorationDialog('missing-stock','send');assert.equal(b.opened.length,1);assert.equal(b.calls.filter(call=>call.method==='POST').length,0);
 });
 test('room recipient chooser filters only supplied members and keeps the room transport and quantity',async()=>{

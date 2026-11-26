@@ -138,59 +138,51 @@ function refreshInventoryRoute(raw) {
 
 function inventoryRecipientDialog(item,state) {
  const serial = ++giftDialogSerial, account = state.account;
- dialog(`<section class="stock-recipient"><h2>선물하기</h2>
-  <div class="stock-selection"><img src="${esc(item.image)}" alt=""><div><strong>${esc(item.name)}</strong><small>보유 ×${number(item.quantity)}</small></div></div>
-  <form id="stock-recipient-form"><label class="stock-field">수량<input type="number" name="quantity" value="1" min="1" max="${item.ids.length}" step="1" inputmode="numeric" required></label>
-  <label class="stock-field">받는 사람 닉네임<input type="search" name="query" maxlength="60" autocomplete="off" placeholder="닉네임 검색"></label>
-  <div class="stock-people" role="group" aria-label="회원 검색 결과"></div>
-  <p class="form-error" role="alert"></p><button type="submit" class="primary-button" disabled>선물하기</button></form></section>`);
- const modal=$('#dialog'), form=$('#stock-recipient-form'), results=form.querySelector('.stock-people');
- const submit=form.querySelector('[type=submit]'), qty=form.elements.quantity, search=form.elements.query;
- const active=()=>form.isConnected && modal.open && giftDialogSerial===serial && me?.id===account;
- let profiles=[], recipient=null, searching=0, timer=0, busy=false, attempt=null;
- const valid=()=>Number.isInteger(qty.valueAsNumber) && qty.valueAsNumber>=1 && qty.valueAsNumber<=item.ids.length;
- const sync=()=>{submit.disabled=busy || !recipient || !valid();};
- const find = async ticket => {
-  try {
-   const response=await api('/api/decorations/recipients?q='+encodeURIComponent(search.value.trim()),'GET',undefined,{fresh:true});
-   if (!active() || ticket!==searching) return;
-   profiles=response.profiles.filter(p=>p.id!==me.profile_id && p.user_id!==account);
-   results.innerHTML=profiles.length ? profiles.map(p=>`<button type="button" class="stock-person" data-profile-choice="${esc(p.id)}" aria-pressed="false"><span class="stock-avatar">${avatarImage(p,'producer',false)}</span><span><strong${premiumNameAttribute(p.id,p.user_id)}>${esc(p.name)}</strong><small>${esc(p.public_id || p.public_number || '')}</small></span></button>`).join('') : '<p class="field-help">'+(search.value.trim()?AifectMessages.searchEmpty:'닉네임으로 회원을 검색해 주세요.')+'</p>';
-  } catch(e) {
-   if (active() && ticket===searching) {results.innerHTML='<button type="button" class="text-link" data-search-retry>검색 다시 시도</button>'; formError(form).textContent=e.message;}
+ const consumable = item.category === 'gifts';
+ let ownedIds = item.ids;
+ dialog(`<section class="gift-compose inventory-gift-popup">
+  <header class="gift-compose-header"><h2 tabindex="-1">인벤토리 선물하기</h2></header>
+  <form id="inventory-gift-form">
+   <div class="gift-compose-body">
+    <div class="gift-compose-product"><img src="${esc(item.image)}" alt="">
+     <div><strong>${esc(item.name)}</strong><p>보유 수량 <span data-gift-stock>${number(ownedIds.length)}개</span></p></div>
+    </div>
+    ${giftQuantityControls()}
+    ${giftRecipientField()}
+   </div>
+   <footer class="gift-compose-footer">
+    <p class="gift-compose-total"><span>선물 후 보유 수량</span><strong data-gift-remaining aria-live="polite"></strong></p>
+    <p class="gift-compose-notice" data-gift-unavailable hidden>선물할 수 있는 보유 수량이 없습니다.</p>
+    <p class="form-error" role="alert"></p>
+    <button type="submit" class="gift-compose-submit" disabled>선물하기</button>
+   </footer>
+  </form></section>`);
+ const form = $('#inventory-gift-form');
+ const stock = form.querySelector('[data-gift-stock]');
+ const remaining = form.querySelector('[data-gift-remaining]');
+ const unavailable = form.querySelector('[data-gift-unavailable]');
+ bindGiftCompose(form,{
+  serial, account, maximum:() => ownedIds.length,
+  summary(quantity, available) {
+   const count = number(Math.max(0,available-quantity))+'개';
+   if (remaining.textContent !== count) remaining.textContent = count;
+   stock.textContent = number(available)+'개';
+   unavailable.hidden = available > 0;
+  },
+  transfer(quantity, recipient) {
+   const ids = ownedIds.slice(0,quantity);
+   const endpoint = consumable ? '/api/me/gift-inventory/' : '/api/decorations/inventory/';
+   return {
+    path:endpoint+encodeURIComponent(ids[0])+'/send',
+    body:{inventory_ids:ids,profile_id:recipient.id},
+    review:{name:item.name,image:item.image,quantity,recipient:recipient.name}
+   };
+  },
+  async refresh() {
+   const data = await readOwnedInventory(api);
+   if ((consumable ? data.gifts : data.player).error) return;
+   const available = new Set(inventoryItems(data).filter(i=>i.available && i.giftable).flatMap(i=>i.ids));
+   ownedIds = ownedIds.filter(id=>available.has(id));
   }
- };
- const lookup=delay=>{
-  clearTimeout(timer);recipient=null;profiles=[];sync();formError(form).textContent='';results.textContent='불러오는 중…';
-  const ticket=++searching; timer=setTimeout(()=>void find(ticket),delay);
- };
- search.oninput=()=>lookup(180);
- search.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();lookup(0);}};
- results.onclick=e=>{
-  if (busy) return;
-  if (e.target.closest('[data-search-retry]')) return lookup(0);
-  const button=e.target.closest('[data-profile-choice]');
-  if (!button) return;
-  recipient=profiles.find(p=>p.id===button.dataset.profileChoice);
-  for(const row of results.querySelectorAll('[data-profile-choice]')) row.setAttribute('aria-pressed',String(row===button));
-  formError(form).textContent='';sync();
- };
- qty.oninput=sync;
- const setBusy=value=>{busy=value;qty.disabled=value;search.disabled=value;results.inert=value;sync();};
- form.onsubmit=async e=>{
-  e.preventDefault();if (!active() || busy || !recipient || !valid()) return;
-  const quantity=qty.valueAsNumber, ids=item.ids.slice(0,quantity), target=recipient;
-  const fingerprint=JSON.stringify([ids,target.id]);
-  if (attempt?.fingerprint!==fingerprint) attempt={fingerprint,key:crypto.randomUUID()};
-  setBusy(true);formError(form).textContent='';
-  try {
-   if (!await confirmGiftTransfer({name:item.name,image:item.image,quantity,recipient:target.name}) || !active()) return;
-   const url=item.category==='gifts'?'/api/me/gift-inventory/':'/api/decorations/inventory/';
-   await api(url+encodeURIComponent(ids[0])+'/send','POST',{inventory_ids:ids,profile_id:target.id,request_id:attempt.key});
-   if (active()) finishGiftTransfer();
-  } catch(error) {if(active()) formError(form).textContent=error.message;}
-  finally {if(active())setBusy(false);}
- };
- modal.addEventListener('close',()=>clearTimeout(timer),{once:true});
- lookup(0);
+ });
 }

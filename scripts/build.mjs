@@ -28,7 +28,7 @@ await cp('shared/public-image-client.js', 'dist/client/public-image-client.js');
 await cp('shared/crew-jump.js','dist/client/crew-jump-core.js');
 for(const name of ['crew-game-lobby.js','crew-game-lobby.css','crew-jump-view.js','crew-jump.css','crew-jump-art','crew-rhythm','crew-racing','crew-fishing'])await cp('dist/'+name,'dist/client/'+name,{recursive:true});
 for(const file of ['artist-fanpage.js','artist-fanpage.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['mobile-input.js','mobile-input.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['mobile-input.js','mobile-input.css','gift-compose.js','gift-compose.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['decorations.js','decoration-display.js','decorations.css','shop.css','shop-dialog.css','microphone-check.js','microphone-check.css','play-page.js','play-page.css','dub-discovery.js','dub-discovery.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['image-crop.js','crew-photo.js','crew-heif.js','crew-heif-worker.js','profile-collections.js','crew-integrated.js','crew-settings.js','crew-page.js','crew-page.css','integrated.css','profile-preview.js','profile-preview.css','mypage.js','mypage.css','profile-management.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/voice-room-template.js','dist/client/voice-room-template.js');
@@ -113,7 +113,7 @@ for(const name of await readdir('dist/client')){
  if(['talking-playlist.css','room-frame.css'].includes(name))continue; // Approved room dimensions use final CSS pixels.
  // Shared chat controls, singing presentation and popup roles use final CSS pixels. Their feature
  // geometry and the verified 20/15/14/13px popup type scale must not be remapped.
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','public-discovery.css','scroll-top.css','room-release.css','room-bubbles.css','room-interior.css','chat-ui.css','messages-ui.css','page-tabs.css','crew-page.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'].includes(name))continue;
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','public-discovery.css','scroll-top.css','room-release.css','room-bubbles.css','room-interior.css','chat-ui.css','messages-ui.css','page-tabs.css','crew-page.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','gift-compose.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'].includes(name))continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }

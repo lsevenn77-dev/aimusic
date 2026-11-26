@@ -5,6 +5,7 @@ import {requireUser} from './auth.js';
 // Preserve the module initialization order of the installed public renderer.
 import './account-safety.js';
 import {inventoryTarget,recipientAllowedSQL,selectedInventoryIds,unitRequestKey} from './inventory-transfer.js';
+import {giftRecipientRecommendations} from './gift-recipients.js';
 import {assertDmBody} from './dm-body.js';
 import {producerNameSQL} from './identity.js';
 import {allocateLots} from '../shared/gifts.js';
@@ -206,8 +207,10 @@ export async function decorationRoute(req,env,path,user){
  }
  requireUser(user);
  if(path==='/api/decorations/recipients'&&req.method==='GET'){
-  const q=(new URL(req.url).searchParams.get('q')||'').trim().slice(0,60);
+  const params=new URL(req.url).searchParams;
+  const q=(params.get('q')||'').trim().slice(0,60);
   await rate(env,'decoration-recipients:'+user.id,120,60);
+  if(!q&&params.get('scope')==='gift')return json({profiles:await giftRecipientRecommendations(env,user.id)});
   const name=producerNameSQL();
   const follow=(from,toUser,toProfile)=>`EXISTS(SELECT 1 FROM follows f WHERE f.user_id=${from} AND ((f.kind='producer' AND f.target_id=${toProfile}) OR (f.kind='member' AND f.target_id=${toUser})))`;
   const following=follow('viewer.id','p.user_id','p.id'),followed=follow('p.user_id','viewer.id','viewer.profile_id');
