@@ -1,6 +1,7 @@
 import {DECORATIONS,PERIOD_LABELS,roomThemeProduct,frameDisplayAssets} from '../shared/decorations.js';
 import {FREE_GIFT,GIFT_CATALOG,SILVER_GIFT_CATALOG,GOLD_KRW,giftById,silverGiftById} from '../shared/gifts.js';
 import {fail,rows} from './db.js';
+import {themeArtwork} from '../shared/product-asset-contract.js';
 
 export const PRODUCT_TYPES=['gift','frame','theme'];
 export const PERIODS=Object.keys(PERIOD_LABELS);
@@ -19,7 +20,7 @@ function decorationDefinition(product){
  const type=product.kind==='PROFILE_FRAME'?'frame':'theme',paths=product.assetPaths;
  const canvas=type==='frame'?frameDisplayAssets(paths.overlay,paths.effect):null;
  const files=canvas?{base:canvas.overlay,thumbnail:paths.thumbnail||paths.overlay,...(canvas.effect?{effect:canvas.effect}:{})}:
-  {desktop:paths.roomDesktop,mobile:paths.roomMobile,thumbnail:paths.roomCard};
+  {desktop:paths.roomDesktop,mobile:paths.roomMobile,roomCard:paths.roomCard,thumbnail:paths.roomCard};
  return {id:product.sku,type,name:product.name,description:'',currency:product.currency,options:product.periodPrices,
   value:null,distribution:'shop',sale:true,grant:false,legacy:true,listed:true,uiMode:product.uiMode,
   asset:{mode:product.motion==='LAYERED'?'layered':'static',
@@ -47,11 +48,22 @@ function entry(id,row){
  if(!row)return {...base,revision:0,archived:false,eventOnly:false,grantDeadline:null,activeVersion:null};
  const stored=JSON.parse(row.definition);
  if(stored.deletedAt)return undefined;
- const files=row.asset_files?JSON.parse(row.asset_files):null;
- const asset=files?{mode:row.asset_mode,renderer:row.asset_renderer,files:Object.fromEntries(
-  Object.entries(files).map(([role,file])=>[role,assetUrl(id,row.active_version,role,file)])
- )}:base?.asset??null;
+ const asset=row.asset_files?{...publishedVersionAsset(id,row.active_version,row.asset_mode,row.asset_renderer,row.asset_files,row.asset_package),
+  originalUpload:!!row.asset_original_zip}:base?.asset??null;
  return {...base,...stored,id,revision:row.revision,asset,activeVersion:row.active_version};
+}
+
+function publishedVersionAsset(id,version,mode,renderer,fileJSON,packageJSON){
+ const files=Object.fromEntries(Object.entries(JSON.parse(fileJSON)).map(([role,file])=>[role,assetUrl(id,version,role,file)]));
+ return {mode,renderer,files,themeArtwork:themeArtwork(packageJSON?JSON.parse(packageJSON).manifest:null,files)};
+}
+
+export async function publishedThemeVersions(env,pins){
+ const keys=[...new Set(pins.filter(pin=>VERSION_ID.test(pin||'')))];
+ if(!keys.length)return new Map();
+ const versions=await rows(env,`SELECT product_id,id,mode,renderer,files,package_metadata FROM product_asset_versions
+  WHERE published_at IS NOT NULL AND id IN (SELECT value FROM json_each(?))`,JSON.stringify(keys));
+ return new Map(versions.map(row=>[row.product_id+'/'+row.id,publishedVersionAsset(row.product_id,row.id,row.mode,row.renderer,row.files,row.package_metadata)]));
 }
 
 // The canonical sources supply all existing SKUs. Only edited settings and
@@ -59,7 +71,8 @@ function entry(id,row){
 export async function catalog(env,ids){
  const keys=ids&&[...new Set(ids.filter(key=>typeof key==='string'&&PRODUCT_ID.test(key)))];
  if(keys?.length===0)return new Map();
- const records=await rows(env,`SELECT p.*, a.mode asset_mode,a.renderer asset_renderer,a.files asset_files
+ const records=await rows(env,`SELECT p.*, a.mode asset_mode,a.renderer asset_renderer,a.files asset_files,a.package_metadata asset_package,
+   json_extract(a.originals,'$.package.sha256') asset_original_zip
    FROM product_catalog p LEFT JOIN product_asset_versions a ON a.product_id=p.product_id AND a.id=p.active_version
    ${keys?'WHERE p.product_id IN (SELECT value FROM json_each(?))':''}
    ORDER BY p.product_id`,...(keys?[JSON.stringify(keys)]:[]));
@@ -72,8 +85,8 @@ export async function productById(env,id){
  return (await catalog(env,[id])).get(id);
 }
 
-export const sold=product=>!!product&&product.distribution==='shop'&&product.sale&&!product.archived;
-export const grantable=product=>!!product?.grant&&!product.archived;
+export const sold=product=>!!product&&product.distribution==='shop'&&product.sale&&!product.archived&&!product.deletePendingAt;
+export const grantable=product=>!!product?.grant&&!product.archived&&!product.deletePendingAt;
 
 export function assertProductAction(product,action){
  const legacyCompatibility=product?.type==='gift'&&product.legacy&&!product.listed&&!product.revision;
@@ -112,10 +125,16 @@ export function decorationRuntime(product){
   currency:product.currency,periodPrices:product.options,assetPaths,
   motion:mode==='animated'||mode==='layered'?'LAYERED':'STATIC',
   ...(product.activeVersion?{catalog_thumbnail:files.thumbnail}:{}),
+  ...(product.type==='theme'&&product.asset.themeArtwork?{themeArtwork:product.asset.themeArtwork,assetVersion:product.activeVersion}:{}),
   ...(product.type==='theme'?{uiMode:product.uiMode}:{}),...(product.eventOnly?{event_only:true}:{})};
 }
 
-export async function catalogRoomTheme(env,sku,products){
- const product=decorationRuntime(products?products.get(sku):await productById(env,sku));
+export async function catalogRoomTheme(env,sku,products,pin=null,versions){
+ let item=products?products.get(sku):await productById(env,sku);
+ if(pin!==null&&item&&pin!==item.activeVersion){
+  const asset=pin?(versions??await publishedThemeVersions(env,[pin])).get(sku+'/'+pin):null;
+  item={...item,activeVersion:asset?pin:null,asset:asset??legacyProduct(sku)?.asset};
+ }
+ const product=decorationRuntime(item);
  return product?.kind==='TALKING_ROOM_THEME'?product:roomThemeProduct(sku);
 }

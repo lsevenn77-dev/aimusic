@@ -1,20 +1,20 @@
-import {fail,one} from './db.js';
+import {fail,id,now,one,run} from './db.js';
 import {originRequest} from './cafe24-origin.js';
 import {PRODUCT_ID,VERSION_ID,assetUrl} from './product-catalog.js';
-import {productZip,PRODUCT_ARCHIVE_MAX,PRODUCT_IMAGE_MAX} from './product-zip.js';
+import {openProductZip,productZip,PRODUCT_ARCHIVE_MAX,PRODUCT_IMAGE_MAX} from './product-zip.js';
+import {actualImageType,assetRoles,inspectProductPackage,packageIsReview,sha256,themeArtwork} from '../shared/product-asset-contract.js';
+export {sha256};
 
 const modes={
  gift:{static:'gift-standard',animated:'gift-standard',layered:'gift-overlay'},
  frame:{static:'frame-static',animated:'frame-overlay',layered:'frame-overlay'},
  theme:{static:'room-background',layered:'room-overlay'}
 };
-const roles=['base','effect','thumbnail','fallback','desktop','mobile','app','roomCard','desktopEffect','mobileEffect','appEffect'];
+const roles=assetRoles;
 const extensions={jpeg:'jpg',png:'png',webp:'webp',gif:'gif'};
 const types={jpg:'image/jpeg',jpeg:'image/jpeg',png:'image/png',webp:'image/webp',gif:'image/gif',zip:'application/zip'};
 const filePath=/^assets\/(?:effects\/)?[a-zA-Z0-9_-]+\.(?:webp|png|jpe?g|gif)$/i;
-const encoder=new TextEncoder();
 const decoder=new TextDecoder('utf-8',{fatal:true});
-export const sha256=async data=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',typeof data==='string'?encoder.encode(data):data)),b=>b.toString(16).padStart(2,'0')).join('');
 export const UPLOAD_LIMIT=28*1024*1024;
 
 export async function boundedBody(source,max){
@@ -42,9 +42,19 @@ export async function boundedBody(source,max){
 export async function productForm(req,max=UPLOAD_LIMIT){
  const type=req.headers.get('content-type')||'';
  if(!type.startsWith('multipart/form-data;'))fail(400,'업로드 양식을 확인해 주세요.');
- const data=await boundedBody(req,max);
- try{return await new Response(data,{headers:{'content-type':type}}).formData();}
- catch{fail(400,'업로드 양식이 손상되었습니다.');}
+ if(Number(req.headers.get('content-length')||0)>max)fail(413,'업로드 크기 제한을 초과했습니다.');
+ if(!req.body)fail(400,'업로드할 파일을 선택해 주세요.');
+ let size=0;
+ const bytes=req.body.pipeThrough(new TransformStream({transform(chunk,controller){
+  size+=chunk.length;
+  if(size>max)controller.error(new Error('size'));
+  else controller.enqueue(chunk);
+ }}));
+ try{return await new Response(bytes,{headers:{'content-type':type}}).formData();}
+ catch{
+  if(size>max)fail(413,'업로드 크기 제한을 초과했습니다.');
+  fail(400,'업로드 양식이 손상되었습니다.');
+ }
 }
 
 export async function productMedia(env,action,data,type){
@@ -59,14 +69,7 @@ async function uploaded(file,max=PRODUCT_IMAGE_MAX){
  if(file.size>max)fail(413,'개별 파일 크기 제한을 초과했습니다.');
  return new Uint8Array(await file.arrayBuffer());
 }
-function actualType(data){
- const header=String.fromCharCode(...data.subarray(0,12));
- if(header.startsWith('RIFF')&&header.slice(8,12)==='WEBP'&&data.length>12&&new DataView(data.buffer,data.byteOffset,data.byteLength).getUint32(4,true)+8===data.length)return 'webp';
- if(data[0]===0x89&&header.slice(1,4)==='PNG'&&data.length>=45&&String.fromCharCode(...data.subarray(-8,-4))==='IEND')return 'png';
- if(data[0]===0xff&&data[1]===0xd8&&data[2]===0xff&&data.at(-2)===0xff&&data.at(-1)===0xd9)return 'jpg';
- if((header.startsWith('GIF87a')||header.startsWith('GIF89a'))&&data.at(-1)===0x3b)return 'gif';
- fail(400,'WebP, PNG, JPG 또는 GIF 이미지 파일을 선택해 주세요.');
-}
+const actualType=actualImageType;
 
 const validKeys=(object,allowed)=>object&&typeof object==='object'&&!Array.isArray(object)&&Object.keys(object).every(k=>allowed.includes(k));
 function manifestJSON(data){
@@ -139,7 +142,26 @@ async function encode(env,data,ext,action){
  return imageFile(bytes,'webp',metadata);
 }
 
+export async function inspectPackageUpload(env,upload,target){
+ if(upload?.type&&!['application/zip','application/x-zip-compressed','application/octet-stream'].includes(upload.type))fail(400,'ZIP 파일을 선택해 주세요.');
+ const data=await uploaded(upload,PRODUCT_ARCHIVE_MAX),archive=openProductZip(data);
+ const parsed=await inspectProductPackage(archive,async(bytes,ext,frame)=>{
+  const response=await productMedia(env,frame?'product-frame':'product-inspect',bytes,types[ext]);
+  return imageMetadata(await response.json(),ext);
+ },target);
+ const uploadHash=await sha256(data),{manifest,animation}=parsed;
+ const originals=new Map([['package',{data,info:{extension:'zip',size:data.length,sha256:uploadHash}}]]);
+ return {...parsed,originals,uploadHash,label:manifest.assetVersion,mode:manifest.renderMode,renderer:manifest.renderer.id,
+  fingerprint:uploadHash,packageMetadata:{manifest,animation,archiveName:upload.name?.slice(0,180)??'',reviewOnly:packageIsReview(manifest)}};
+}
+
 export async function parseProductAssets(env,product,form){
+ // Existing multipart callers remain explicit. The common ZIP carries its own version and render mode.
+ if(form.has('package')&&!form.has('mode')&&!form.has('asset_version')){
+  if([...form.keys()].some(key=>!['package','request_id'].includes(key)||form.getAll(key).length!==1))fail(400,'업로드 파일 역할을 확인해 주세요.');
+  if(product.id==='theme_christmas')fail(409,'크리스마스 테마 패키지는 기존 전용 렌더러의 빌드와 함께 검수해야 합니다.');
+  return inspectPackageUpload(env,form.get('package'),product);
+ }
  const mode=form.get('mode'),label=form.get('asset_version');
  const renderer=modes[product.type]?.[mode];
  if(typeof label!=='string'||!/^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[a-z0-9.-]{1,24})?$/.test(label)||
@@ -195,16 +217,22 @@ export async function parseProductAssets(env,product,form){
 export function describeProductVersion(row,privateAccess=true){
  const files=JSON.parse(row.files),originals=JSON.parse(row.originals);
  const visible=(role,file)=>{const {key,...info}=file;return {...info,url:assetUrl(row.product_id,row.id,role,file,privateAccess)};};
+ const stored=row.package_metadata?JSON.parse(row.package_metadata):null;
+ const displayFiles=Object.fromEntries(Object.entries(files).map(([role,file])=>[role,visible(role,file)]));
+ const downloadBase='/api/admin/products/'+row.product_id+'/versions/'+row.id;
  return {id:row.id,label:row.label,mode:row.mode,renderer:row.renderer,hash:row.hash,created:row.created,published_at:row.published_at,
-  files:Object.fromEntries(Object.entries(files).map(([role,file])=>[role,visible(role,file)])),
-  originals:Object.fromEntries(Object.entries(originals).map(([role,file])=>[role,visible('original-'+role,file)]))};
+  files:displayFiles,originals:Object.fromEntries(Object.entries(originals).map(([role,file])=>[role,visible('original-'+role,file)])),
+  ...(privateAccess?{upload_sha256:row.upload_sha256??originals.package?.sha256??null,registered_by:row.registered_by??null,
+   package:stored,source_status:stored?.manifest.originals.length?'confirmed':originals.package?'upload_only':Object.keys(originals).length?'legacy_files':'missing',
+   downloads:{original:originals.package?visible('original-package',originals.package).url:null,operating:stored?downloadBase+'/operating.zip':null}}:{}),
+  themeArtwork:themeArtwork(stored?.manifest,Object.fromEntries(Object.entries(displayFiles).map(([role,file])=>[role,file.url])))};
 }
 
-export async function productFileRoute(req,env,path,authorized){
+export async function productFileRoute(req,env,path,actor){
  const admin=path.startsWith('/api/admin/product-files/');
  const base=admin?'/api/admin/product-files/':'/api/product-assets/';
  if(!path.startsWith(base))return null;
- if(admin&&!authorized)fail(403,'상품 파일 조회 권한이 필요합니다.');
+ if(admin&&!actor)fail(403,'상품 파일 조회 권한이 필요합니다.');
  if(!['GET','HEAD'].includes(req.method))fail(405,'파일 조회만 지원합니다.');
  const [product,version,name,...rest]=path.slice(base.length).split('/');
  const match=/^([a-zA-Z-]+)\.(webp|jpg|png|gif|zip)$/.exec(name||'');
@@ -222,8 +250,29 @@ export async function productFileRoute(req,env,path,authorized){
   'cache-control':admin?'private, no-store':'public, max-age=31536000, immutable',etag:'"'+file.sha256+'"',
   ...(original?{'content-disposition':'attachment; filename="'+name+'"'}:{})};
  if(!admin&&req.headers.get('if-none-match')===headers.etag)return new Response(null,{status:304,headers});
- if(req.method==='HEAD')return new Response(null,{headers});
+ if(req.method==='HEAD'){
+  const object=await env.BUCKET.head(file.key);
+  if(!object||object.size!==file.size)fail(404,'저장된 상품 에셋 파일을 찾을 수 없습니다.');
+  return new Response(null,{headers});
+ }
  const object=await env.BUCKET.get(file.key);
  if(!object)fail(404,'저장된 상품 에셋 파일을 찾을 수 없습니다.');
+ if(original){
+  const data=await checkedProductBytes(object,file);
+  await auditAssetDownload(env,actor,product,version,role,file.sha256);
+  if(role==='package')headers['content-disposition']='attachment; filename="'+product+'-'+version+'.zip"';
+  return new Response(data,{headers});
+ }
  return new Response(object.body,{headers});
 }
+
+export async function checkedProductBytes(object,file){
+ if(!object||object.size!==undefined&&object.size!==file.size)fail(409,'저장된 상품 파일의 크기가 원본 기록과 다릅니다.');
+ const data=await boundedBody(new Response(object.body),file.size);
+ if(data.length!==file.size||await sha256(data)!==file.sha256)fail(409,'저장된 상품 파일의 SHA-256이 원본 기록과 다릅니다.');
+ return data;
+}
+
+export const auditAssetDownload=(env,actor,product,version,role,hash)=>run(env,
+ 'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',
+ 'product-download:'+id(),actor.id,'product_asset_download',JSON.stringify({product_id:product,version_id:version,role,sha256:hash}),now());

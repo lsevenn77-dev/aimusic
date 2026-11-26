@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "standard": "2.0.0",
+  "platforms": [
+    "desktop",
+    "mobile",
+    "android",
+    "ios"
+  ],
+  "limits": {
+    "zipBytes": 8388608,
+    "fileBytes": 5242880,
+    "inflatedBytes": 25165824,
+    "entries": 48,
+    "declaredFiles": 42,
+    "pixelsAcrossFrames": 16000000,
+    "edgePixels": 4096,
+    "frames": 120,
+    "manifestBytes": 16384,
+    "animationBytes": 2048,
+    "maxSustainedFps": 30,
+    "maxGiftMs": 4500
+  },
+  "types": {
+    "gift": {
+      "static": {
+        "id": "gift-standard",
+        "version": 1,
+        "required": [
+          "thumbnail",
+          "base"
+        ],
+        "optional": []
+      },
+      "animated": {
+        "id": "gift-standard",
+        "version": 1,
+        "required": [
+          "thumbnail",
+          "base",
+          "fallback"
+        ],
+        "optional": []
+      },
+      "layered": {
+        "id": "gift-overlay",
+        "version": 1,
+        "required": [
+          "thumbnail",
+          "base",
+          "effect",
+          "fallback"
+        ],
+        "optional": []
+      }
+    },
+    "frame": {
+      "static": {
+        "id": "frame-static",
+        "version": 1,
+        "required": [
+          "thumbnail",
+          "base"
+        ],
+        "optional": []
+      },
+      "animated": {
+        "id": "frame-overlay",
+        "version": 1,
+        "required": [
+          "thumbnail",
+          "base",
+          "fallback"
+        ],
+        "optional": []
+      },
+      "layered": {
+        "id": "frame-overlay",
+        "version": 1,
+        "required": [
+          "thumbnail",
+          "base",
+          "effect",
+          "fallback"
+        ],
+        "optional": []
+      }
+    },
+    "theme": {
+      "static": {
+        "id": "room-background",
+        "version": 1,
+        "required": [
+          "thumbnail",
+          "desktop",
+          "mobile",
+          "roomCard"
+        ],
+        "optional": [
+          "app",
+          "desktopLow",
+          "mobileLow",
+          "appLow"
+        ]
+      },
+      "layered": {
+        "id": "room-overlay",
+        "version": 1,
+        "required": [
+          "thumbnail",
+          "desktop",
+          "mobile",
+          "roomCard",
+          "desktopEffect",
+          "mobileEffect"
+        ],
+        "optional": [
+          "app",
+          "appEffect",
+          "desktopLow",
+          "mobileLow",
+          "appLow",
+          "desktopEffectLow",
+          "mobileEffectLow",
+          "appEffectLow"
+        ]
+      }
+    }
+  }
+}

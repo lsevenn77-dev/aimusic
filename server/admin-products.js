@@ -7,7 +7,10 @@ import {
 import {parseProductDeadline} from './product-deadline.js';
 import {activeDecorationSQL,stockDecorationSQL} from './decorations.js';
 import {PERMANENT_PERIOD} from '../shared/decorations.js';
-import {parseProductAssets,productForm,describeProductVersion,sha256} from './product-assets.js';
+import {checkedProductBytes,inspectPackageUpload,parseProductAssets,productForm,describeProductVersion,sha256} from './product-assets.js';
+import {PRODUCT_ARCHIVE_MAX} from './product-zip.js';
+import {bulkOriginalDownload,operatingDownload} from './product-downloads.js';
+import {registry} from '../shared/product-asset-contract.js';
 import {measureProductReview,productReviewStatus,reviewBuilds} from './product-reviews.js';
 import {giftDispatchPermissions} from './gift-dispatch-permissions.js';
 
@@ -57,7 +60,7 @@ function normalizeDefinition(body,previous){
   grantDeadline:Object.hasOwn(body,'grantDeadline')?parseProductDeadline(body.grantDeadline):previous?.grantDeadline??null,
   sale:distribution==='shop'&&!!previous?.sale,grant:!!previous?.grant,
   dispatchOnActivation:previous?!!previous.dispatchOnActivation:true,
-  archived:!!previous?.archived,listed:true,legacy:!!previous?.legacy};
+ archived:!!previous?.archived,listed:true,legacy:!!previous?.legacy,...(previous?.deletePendingAt?{deletePendingAt:previous.deletePendingAt}:{})};
 }
 
 async function operation(env,actor,action,key,input){
@@ -89,7 +92,7 @@ async function operation(env,actor,action,key,input){
   "ELSE json_set(item.value,'$.status','failed','$.reason','상품 상태, 검수 또는 보존 참조가 변경되었습니다. 목록을 다시 확인해 주세요.') END"+
   ")))),? FROM json_each(?) item LEFT JOIN product_catalog p ON p.product_id=json_extract(item.value,'$.id')",
   auditId(request),actor.id,action,request,hash,request,now(),JSON.stringify(items));
- return {key:request,replay,write,writePlan,batch};
+ return {key:request,actor:actor.id,replay,write,writePlan,batch};
 }
 
 function writeDefinition(env,op,product,definition,active,review=null,condition=null){
@@ -139,15 +142,19 @@ function deletionReferenceSQL(type){
   END AS reason FROM (SELECT ? AS id) subject`;
 }
 
-const operations=['sale_resume','sale_stop','archive','unarchive','delete'];
+const operations=['sale_resume','sale_stop','archive','unarchive','delete_request','delete_cancel','delete'];
 async function classifyOperation(env,action,product){
+ if(action==='delete_request')return {reason:product.deletePendingAt?'이미 삭제 대기 중입니다.':null};
+ if(action==='delete_cancel')return {reason:!product.deletePendingAt?'삭제 대기 중인 상품을 선택해 주세요.':null};
  if(action==='delete'){
+  if(!product.deletePendingAt)return {reason:'먼저 상품을 삭제 대기로 전환해 주세요.'};
   if(legacyProduct(product.id))return {reason:'기존 상점 또는 서비스에서 참조하는 상품입니다. 상품을 보관해 주세요.'};
   if(sold(product)||grantable(product)&&product.asset)return {reason:'판매 또는 발송에 사용 중입니다. 먼저 상품을 보관해 주세요.'};
   const condition=deletionReferenceSQL(product.type);
   const {reason}=await one(env,condition,product.id);
   return {reason,condition};
  }
+ if(product.deletePendingAt)return {reason:'먼저 상품의 삭제 대기를 해제해 주세요.'};
  if(action==='archive'||action==='unarchive'){
   return {reason:action==='archive'&&product.archived?'이미 보관된 상품입니다.':
    action==='unarchive'&&!product.archived?'보관된 상품만 해제할 수 있습니다.':null};
@@ -193,6 +200,8 @@ async function productOperation(req,env,user){
    const definition=asDefinition(product);
    if(action==='archive'||action==='unarchive')definition.archived=action==='archive';
    if(action==='sale_resume'||action==='sale_stop')definition.sale=action==='sale_resume';
+   if(action==='delete_request')definition.deletePendingAt=now();
+   if(action==='delete_cancel')delete definition.deletePendingAt;
    if(action==='delete')Object.assign(definition,{deletedAt:now(),sale:false,grant:false,listed:false});
    return {...display,status:'eligible',statement:writeDefinition(env,op,product,definition,product.activeVersion,review,condition)};
   }
@@ -210,6 +219,7 @@ async function productOperation(req,env,user){
 
 async function readyReview(env,product,version){
  if(!version)fail(409,'검수를 통과한 에셋 버전을 선택해 주세요.');
+ if(version.package_metadata&&JSON.parse(version.package_metadata).reviewOnly)fail(409,'검토 전용 ZIP은 운영에 적용할 수 없습니다.');
  const review=await productReviewStatus(env,product,version);
  if(!review.ready)fail(409,'PC웹, 모바일웹, Android, iOS의 해당 화면 검수를 완료해 주세요.');
  return review;
@@ -220,6 +230,10 @@ async function requireStoredFiles(env,version){
  const objects=Object.values(JSON.parse(version.files));
  const existing=await Promise.all(objects.map(file=>env.BUCKET.head(file.key)));
  if(!objects.length||existing.some((file,i)=>!file||file.size!==objects[i].size))fail(409,'저장된 서비스 파일을 확인해 주세요.');
+ if(version.package_metadata){
+  const unique=new Map(objects.map(file=>[file.key,file]));
+  for(const file of unique.values())await checkedProductBytes(await env.BUCKET.get(file.key),file);
+ }
 }
 
 async function mutateDefinition(req,env,actor,productId){
@@ -241,11 +255,12 @@ async function mutateDefinition(req,env,actor,productId){
  }
  const product=await productById(env,productId);
  if(!product?.listed)fail(404,'상품을 찾을 수 없습니다.');
+ if(parsed?.manifest&&parsed.manifest.productType!==product.type)fail(400,'상품 유형이 ZIP 매니페스트와 다릅니다.');
  ensureCurrent(product,body.revision);
  const active=product.activeVersion;
  const definition=asDefinition(product);
  if(action==='edit'){
-  if(product.archived&&parsed)fail(409,'에셋을 등록하려면 먼저 보관을 해제해 주세요.');
+  if((product.archived||product.deletePendingAt)&&parsed)fail(409,'에셋을 등록하려면 보관 또는 삭제 대기를 해제해 주세요.');
   return json(await saveDefinition(env,op,product,normalizeDefinition(body,product),active,parsed));
  }
  if(action==='copy'){
@@ -260,12 +275,12 @@ async function mutateDefinition(req,env,actor,productId){
  if(action==='archive')return json(await commitDefinition(env,op,product,{...definition,archived:true},active));
  if(action==='status'){
   const {sale,grant}=body;
-  if(typeof sale!=='boolean'||typeof grant!=='boolean'||sale&&product.distribution!=='shop'||product.archived)fail(400,'판매 및 지급 상태를 확인해 주세요.');
+  if(typeof sale!=='boolean'||typeof grant!=='boolean'||sale&&product.distribution!=='shop'||product.archived||product.deletePendingAt)fail(400,'판매 및 발송 상태를 확인해 주세요.');
   const review=!product.legacy&&(sale&&!product.sale||grant&&!product.grant)?
    await readyReview(env,product,active?await versionRow(env,product.id,active):null):null;
   return json(await commitDefinition(env,op,product,{...definition,sale,grant,dispatchOnActivation:false},active,review));
  }
- if(product.archived)fail(409,'에셋을 변경하려면 먼저 보관을 해제해 주세요.');
+ if(product.archived||product.deletePendingAt)fail(409,'에셋을 변경하려면 먼저 보관 또는 삭제 대기를 해제해 주세요.');
  if(action==='link'){
   const source=await productById(env,body.source_id);
   const row=source?.type===product.type&&VERSION_ID.test(body.version_id||'')?await versionRow(env,source.id,body.version_id):null;
@@ -281,19 +296,20 @@ async function mutateDefinition(req,env,actor,productId){
  if(!row)fail(404,'상품 에셋 버전을 찾을 수 없습니다.');
  if(action==='rollback'){
   if(!row.published_at)fail(409,'이미 사용한 에셋 버전만 복원할 수 있습니다.');
+  const review=row.package_metadata?await readyReview(env,product,row):null;
   await requireStoredFiles(env,row);
-  return json(await commitDefinition(env,op,product,definition,row.id));
+  return json(await commitDefinition(env,op,product,definition,row.id,review));
  }
  const review=await readyReview(env,product,row);
  await requireStoredFiles(env,row);
  const publish=query(env,'UPDATE product_asset_versions SET published_at=COALESCE(published_at,?) WHERE product_id=? AND id=?',now(),product.id,row.id);
- const flags=definition.dispatchOnActivation?{grant:true,dispatchOnActivation:false}:{};
+ const flags=row.package_metadata?{dispatchOnActivation:false}:definition.dispatchOnActivation?{grant:true,dispatchOnActivation:false}:{};
  return json(await commitDefinition(env,op,product,{...definition,...flags},row.id,review,[publish]));
 }
 
 function linkedVersion(env,product,op,row,label){
- return query(env,`INSERT INTO product_asset_versions(product_id,id,label,mode,renderer,files,originals,hash,created)
- VALUES(?,?,?,?,?,?,?,?,?)`,product.id,op.key,label,row.mode,row.renderer,row.files,row.originals,row.hash,now());
+ return query(env,`INSERT INTO product_asset_versions(product_id,id,label,mode,renderer,files,originals,hash,created,package_metadata,registered_by)
+ VALUES(?,?,?,?,?,?,?,?,?,?,?)`,product.id,op.key,label,row.mode,row.renderer,row.files,row.originals,row.hash,now(),row.package_metadata??null,op.actor);
 }
 
 async function stage(env,prefix,groups,commit,committed){
@@ -303,10 +319,16 @@ async function stage(env,prefix,groups,commit,committed){
   const result={};
   for(const [group,files] of Object.entries(groups)){
    result[group]={};
+   const stored=new Map();
    for(const [role,file] of files){
-    const key=prefix+'/'+group+'/'+role+'.'+file.info.extension;
-    staged.push(key);
-    await env.BUCKET.put(key,file.data);
+    const ref=file.ref??role;
+    let key=stored.get(ref);
+    if(!key){
+     key=prefix+'/'+group+'/'+role+'-'+file.info.sha256+'.'+file.info.extension;
+     staged.push(key);
+     await env.BUCKET.put(key,file.data??await file.read());
+     stored.set(ref,key);
+    }
     result[group][role]={...file.info,key};
    }
   }
@@ -323,32 +345,47 @@ async function stage(env,prefix,groups,commit,committed){
 }
 
 async function saveAssetVersion(env,op,product,parsed,commit){
- const prefix='product-media/'+product.id+'/'+op.key+'/'+id();
- const hash=await sha256(JSON.stringify([...parsed.files].map(([role,file])=>[role,file.info.sha256]).sort()));
+ const versionId=parsed.packageMetadata?id():op.key;
+ const prefix='product-media/'+product.id+'/'+versionId+'/'+id();
+ const roles=[...parsed.files].map(([role,file])=>[role,file.info.sha256]).sort();
+ const hash=await sha256(JSON.stringify(parsed.packageMetadata?[roles,parsed.animation,parsed.manifest.layout??null]:roles));
  return stage(env,prefix,{files:parsed.files,originals:parsed.originals},files=>commit(
-  query(env,`INSERT INTO product_asset_versions(product_id,id,label,mode,renderer,files,originals,hash,created)
-   VALUES(?,?,?,?,?,?,?,?,?)`,product.id,op.key,parsed.label,parsed.mode,parsed.renderer,JSON.stringify(files.files),JSON.stringify(files.originals),hash,now()),
-  hash),async()=>!!(await versionRow(env,product.id,op.key))?.files.includes(prefix+'/'));
+  query(env,`INSERT INTO product_asset_versions(product_id,id,label,mode,renderer,files,originals,hash,created,package_metadata,upload_sha256,registered_by)
+   VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,product.id,versionId,parsed.label,parsed.mode,parsed.renderer,JSON.stringify(files.files),JSON.stringify(files.originals),hash,now(),
+   parsed.packageMetadata?JSON.stringify(parsed.packageMetadata):null,parsed.uploadHash??null,op.actor),
+  hash,versionId),async()=>!!(await versionRow(env,product.id,versionId))?.files.includes(prefix+'/'));
 }
 
-function saveDefinition(env,op,product,definition,active,parsed,other=[]){
+const findSameUpload=(env,productId,hash)=>hash?one(env,'SELECT id,hash FROM product_asset_versions WHERE product_id=? AND upload_sha256=?',productId,hash):null;
+
+async function saveDefinition(env,op,product,definition,active,parsed,other=[]){
  if(!parsed)return commitDefinition(env,op,product,definition,active,null,other);
- return saveAssetVersion(env,op,product,parsed,write=>
-  commitDefinition(env,op,product,definition,active,null,[write],{version_id:op.key}));
+ const same=await findSameUpload(env,product.id,parsed.uploadHash);
+ if(same)return commitDefinition(env,op,product,definition,active,null,other,{version_id:same.id});
+ return saveAssetVersion(env,op,product,parsed,(write,hash,versionId)=>
+  commitDefinition(env,op,product,definition,active,null,[write],{version_id:versionId}));
 }
 
 async function registerVersion(req,env,actor,product){
- if(product.archived)fail(409,'보관된 상품의 에셋은 변경할 수 없습니다.');
+ if(product.archived||product.deletePendingAt)fail(409,'보관 또는 삭제 대기 상품의 에셋은 변경할 수 없습니다.');
  const form=await productForm(req),parsed=await parseProductAssets(env,product,form);
  const input=[product.id,parsed.label,parsed.mode,parsed.renderer,parsed.fingerprint];
  const op=await operation(env,actor,'product_asset_upload',form.get('request_id'),input);
  const old=await op.replay();if(old)return json(old);
- const result={id:product.id,version_id:op.key};
- const saved=await saveAssetVersion(env,op,product,parsed,(write,hash)=>op.batch([
-  op.write(product.id,{version_id:op.key,hash},'COALESCE((SELECT revision FROM product_catalog WHERE product_id=?),0)=?',
-   [product.id,product.revision]),write
- ],result));
- return json(saved,201);
+ const prior=()=>findSameUpload(env,product.id,parsed.uploadHash);
+ const guard='COALESCE((SELECT revision FROM product_catalog WHERE product_id=?),0)=?';
+ const audit=(versionId,hash)=>op.write(product.id,{version_id:versionId,hash},guard,[product.id,product.revision]);
+ const reuse=version=>op.batch([audit(version.id,version.hash)],{id:product.id,version_id:version.id,reused:true});
+ let same=await prior();if(same)return json(await reuse(same));
+ try{
+  const saved=await saveAssetVersion(env,op,product,parsed,(write,hash,versionId)=>op.batch([
+   audit(versionId,hash),write
+  ],{id:product.id,version_id:versionId}));
+  return json(saved,saved.replayed?200:201);
+ }catch(error){
+  if(error.status!==409||!(same=await prior()))throw error;
+  return json(await reuse(same));
+ }
 }
 
 async function recordReview(req,env,actor,product,version){
@@ -407,9 +444,10 @@ async function listProducts(req,env,user){
  const q=(params.get('q')||'').trim().toLocaleLowerCase('ko-KR').slice(0,100);
  const type=params.get('type'),currency=params.get('currency'),distribution=params.get('distribution'),sale=params.get('sale'),grant=params.get('grant');
  const archived=params.get('archived')==='1'||sale==='archived';
+ const deletion=params.get('deletion')==='1';
  const size=Math.min(30,Math.max(1,Math.floor(Number(params.get('size'))||12)));
  const products=[...(await catalog(env)).values()].filter(p=>
-  p.listed&&!!p.archived===archived&&(!type||type===p.type)&&(!currency||currency===p.currency)&&(!distribution||distribution===p.distribution)&&
+  p.listed&&!!p.deletePendingAt===deletion&&(deletion||!!p.archived===archived)&&(!type||type===p.type)&&(!currency||currency===p.currency)&&(!distribution||distribution===p.distribution)&&
   (!sale||sale==='archived'||p.distribution==='shop'&&String(Number(sold(p)))===sale)&&
   (!grant||String(Number(grantable(p)))===grant)&&(!q||[p.name,p.id].some(value=>value.toLocaleLowerCase('ko-KR').includes(q))));
  const pages=Math.max(1,Math.ceil(products.length/size));
@@ -430,7 +468,7 @@ export async function adminProductRoute(req,env,path,user){
  if(path!==ROOT&&!path.startsWith(ROOT+'/'))return null;
  requireUser(user);
  if(!isAdmin(env,user))fail(403,'상품 관리 조회 권한이 필요합니다.');
- if(req.method!=='GET'&&!writable(env,user))fail(403,'상품 등록 및 변경 권한이 필요합니다.');
+ if(req.method!=='GET'&&path!==ROOT+'/originals.zip'&&!writable(env,user))fail(403,'상품 등록 및 변경 권한이 필요합니다.');
  if(path===ROOT){
   if(req.method==='GET')return listProducts(req,env,user);
   if(req.method==='POST')return mutateDefinition(req,env,user,null);
@@ -440,6 +478,14 @@ export async function adminProductRoute(req,env,path,user){
   return json({products:products.map(shape)});
  }
  if(path===ROOT+'/operations'&&req.method==='POST')return productOperation(req,env,user);
+ if(path===ROOT+'/inspect-package'&&req.method==='POST'){
+  const form=await productForm(req,PRODUCT_ARCHIVE_MAX+8192);
+  if([...form.keys()].some(key=>key!=='package'||form.getAll(key).length!==1))fail(400,'검사할 상품 ZIP을 하나 선택해 주세요.');
+  const parsed=await inspectPackageUpload(env,form.get('package'));
+  return json({standard:registry.standard,upload_sha256:parsed.uploadHash,size:parsed.originals.get('package').info.size,
+   ...parsed.packageMetadata,files:Object.fromEntries([...parsed.files].map(([role,file])=>[role,file.info]))});
+ }
+ if(path===ROOT+'/originals.zip'&&req.method==='POST')return bulkOriginalDownload(req,env,user);
  const [productId,collection,versionId,action,...rest]=path.slice(ROOT.length+1).split('/');
  if(rest.length||!PRODUCT_ID.test(productId))fail(404,'상품을 찾을 수 없습니다.');
  if(!collection&&req.method==='POST')return mutateDefinition(req,env,user,productId);
@@ -450,6 +496,7 @@ export async function adminProductRoute(req,env,path,user){
  if(collection==='versions'&&VERSION_ID.test(versionId||'')){
   const version=await versionRow(env,product.id,versionId);
   if(!version)fail(404,'상품 에셋 버전을 찾을 수 없습니다.');
+  if(action==='operating.zip'&&req.method==='GET')return operatingDownload(env,user,version);
   if(action==='review'&&req.method==='POST')return recordReview(req,env,user,product,version);
   if(!action&&req.method==='GET')return json({version:describeProductVersion(version),review:await productReviewStatus(env,product,version)});
  }

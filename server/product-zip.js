@@ -2,8 +2,8 @@ import {fail} from './db.js';
 
 export const PRODUCT_ARCHIVE_MAX=8*1024*1024;
 export const PRODUCT_IMAGE_MAX=5*1024*1024;
-const TOTAL_MAX=24*1024*1024;
-const FILE_MAX=48;
+export const PRODUCT_INFLATED_MAX=24*1024*1024;
+export const PRODUCT_FILE_MAX=48;
 const endRecord=0x06054b50,centralRecord=0x02014b50,localRecord=0x04034b50,descriptorRecord=0x08074b50;
 const decoder=new TextDecoder('utf-8',{fatal:true});
 const safeName=/^(?:[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*\/)*[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+)*\/?$/;
@@ -15,7 +15,7 @@ for(let i=0;i<256;i++){
  for(let bit=0;bit<8;bit++)n=(n&1)?(n>>>1)^0xedb88320:n>>>1;
  crcTable[i]=n;
 }
-function crc32(bytes){
+export function crc32(bytes){
  let sum=0xffffffff;
  for(const byte of bytes)sum=(sum>>>8)^crcTable[(sum^byte)&255];
  return (sum^0xffffffff)>>>0;
@@ -38,7 +38,7 @@ async function inflate(data,size){
  return output;
 }
 
-export async function productZip(data){
+export function openProductZip(data,{bundle=false}={}){
  if(data.length<22||data.length>PRODUCT_ARCHIVE_MAX)reject();
  const view=new DataView(data.buffer,data.byteOffset,data.byteLength);
  const u16=offset=>view.getUint16(offset,true),u32=offset=>view.getUint32(offset,true);
@@ -48,7 +48,7 @@ export async function productZip(data){
  }
  if(end<Math.max(0,data.length-65557)||u16(end+4)||u16(end+6))reject();
  const count=u16(end+10),central=u32(end+16);
- if(!count||count>FILE_MAX||count!==u16(end+8)||central+u32(end+12)!==end)reject();
+ if(!count||count>(bundle?12:PRODUCT_FILE_MAX)||count!==u16(end+8)||central+u32(end+12)!==end)reject();
  const names=new Set(),entries=[];
  let next=central,total=0;
  for(let i=0;i<count;i++){
@@ -56,13 +56,13 @@ export async function productZip(data){
   const flags=u16(next+8),method=u16(next+10),crc=u32(next+16),packed=u32(next+20),size=u32(next+24);
   const nameLength=u16(next+28),mode=u32(next+38)>>>16,start=u32(next+42);
   const boundary=next+46+nameLength+u16(next+30)+u16(next+32);
-  if(boundary>end||!nameLength||nameLength>160||u16(next+34)||(flags&~0x080e)||![0,8].includes(method)||size>PRODUCT_IMAGE_MAX||u16(next+6)>20)reject();
+  if(boundary>end||!nameLength||nameLength>160||u16(next+34)||(flags&~0x080e)||![0,8].includes(method)||size>(bundle?PRODUCT_ARCHIVE_MAX:PRODUCT_IMAGE_MAX)||u16(next+6)>20)reject();
   let name;
   try{name=decoder.decode(data.subarray(next+46,next+46+nameLength));}catch{reject();}
   const directory=name.endsWith('/'),kind=mode&0xf000,key=name.toLowerCase().replace(/\/$/,'');
   if(!safeName.test(name)||blockedName.test(name)||names.has(key)||kind&&kind!==(directory?0x4000:0x8000)||
-     (directory&&!['assets/','assets/effects/'].includes(name))||(directory&&(size||packed))||
-     (!directory&&(!size||!packed||size>Math.max(packed*300,64*1024)))||(total+=size)>TOTAL_MAX)reject();
+     (directory&&!['assets/','assets/effects/','originals/','originals/effects/'].includes(name))||(directory&&(size||packed))||
+     (!directory&&(!size||!packed||size>Math.max(packed*300,64*1024)))||(total+=size)>PRODUCT_INFLATED_MAX)reject();
   names.add(key);
   if(start+30>central||u32(start)!==localRecord||flags!==u16(start+6)||method!==u16(start+8)||nameLength!==u16(start+26))reject();
   const from=start+30+nameLength+u16(start+28),until=from+packed;
@@ -85,13 +85,19 @@ export async function productZip(data){
   offset=entry.localEnd;
  }
  if(offset!==central)reject();
- const files=new Map();
- for(const entry of entries){
-  if(entry.directory)continue;
+ const files=new Map(entries.filter(entry=>!entry.directory).map(entry=>[entry.name,entry]));
+ return {files,async read(name){
+  const entry=files.get(name);
+  if(!entry)return undefined;
   const packed=data.subarray(entry.from,entry.until);
   const bytes=entry.method===0?packed:await inflate(packed,entry.size);
   if(crc32(bytes)!==entry.crc)reject();
-  files.set(entry.name,bytes);
- }
- return files;
+  return bytes;
+ }};
+}
+
+export async function productZip(data){
+ const archive=openProductZip(data),result=new Map();
+ for(const name of archive.files.keys())result.set(name,await archive.read(name));
+ return result;
 }

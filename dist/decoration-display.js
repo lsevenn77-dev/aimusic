@@ -2,6 +2,8 @@
 function catalogImagePath(path){
  if(typeof path!=='string')return false;
  if(/^\/assets\/[a-zA-Z0-9_./-]+\.(png|webp|jpg|gif)$/.test(path)&&!path.includes('..'))return true;
+ if(document.documentElement.hasAttribute?.('data-product-preview')&&
+    /^\/api\/product-review\/[A-Za-z0-9_-]{10,768}\.[A-Za-z0-9_-]{43}\/asset\/[a-zA-Z]+\.(png|webp|jpg|gif)$/.test(path))return true;
  const versioned=/^\/api\/(product-assets|admin\/product-files)\/[\w-]+\/[0-9a-f-]{36}\/[a-zA-Z]+\.(webp|png|gif|jpg)$/.exec(path);
  return !!versioned&&(versioned[1]==='product-assets'||document.documentElement.hasAttribute?.('data-product-preview'));
 }
@@ -10,7 +12,8 @@ function catalogImagePath(path){
 const frameEffects=(()=>{
  const effects=new Map();
  function paint(base,e){
-  if(!base.isConnected||!e.visible||document.hidden||globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||(e.dialog&&!e.dialog.open)){
+  if(!base.isConnected||!e.visible||document.hidden||document.documentElement.hasAttribute?.('data-aifect-room-inactive')||
+   ['low','static'].includes(document.documentElement.dataset?.previewQuality)||globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||(e.dialog&&!e.dialog.open)){
    e.layer?.remove();e.layer=null;return;
   }
   if(!e.layer){
@@ -40,9 +43,15 @@ function profileFrameCanvasArtwork(path){
 // Display-only refresh. This never enters the audio/WebRTC graph or room socket.
 (()=>{
  const frames=new Map(),themes=new Map(),assetHealth=new Map();let busy=false,queued=false,lastRead=0;
+ const motionPreference=globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
  function usableAsset(path){
   if(!validAsset(path))return false;
-  if(!assetHealth.has(path)){assetHealth.set(path,'loading');const image=new Image();image.onload=()=>{assetHealth.set(path,'ready');paintThemes();};image.onerror=()=>{assetHealth.set(path,'failed');paintThemes();};image.src=path;}
+  if(!assetHealth.has(path)){
+   if(assetHealth.size>=256)assetHealth.delete(assetHealth.keys().next().value);
+   assetHealth.set(path,'loading');const image=new Image();
+   const done=status=>{assetHealth.set(path,status);if(previewPaint)previewPaint();else paintThemes();};
+   image.onload=()=>done('ready');image.onerror=()=>done('failed');image.src=path;
+  }
   return assetHealth.get(path)!=='failed';
  }
  const validAsset=catalogImagePath;
@@ -98,12 +107,51 @@ function profileFrameCanvasArtwork(path){
   }
   layoutProfileFrames();
  }
+ let previewPaint=null,roomElement=null,resizeFrame=0,sizeChanges=null;
+ function paintPackagedTheme(el,t,app){
+  if(!globalThis.AifectProductTheme||!t.artwork||expired(t,Date.now()/1000+(t.offset||0)))return false;
+  if(roomElement!==el){
+   if(!sizeChanges&&typeof ResizeObserver==='function')sizeChanges=new ResizeObserver(()=>{
+    cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(()=>previewPaint?previewPaint():paintThemes());
+   });
+   sizeChanges?.disconnect();sizeChanges?.observe(el);roomElement=el;
+  }
+  const failed=new Set([...assetHealth].filter(([,state])=>state==='failed').map(([src])=>src));
+  const quality=document.documentElement.dataset.previewQuality;
+  const reducedMotion=document.hidden||document.documentElement.hasAttribute('data-aifect-room-inactive')||motionPreference?.matches||quality==='static';
+  const economy=quality==='low'||navigator.connection?.saveData||['slow-2g','2g'].includes(navigator.connection?.effectiveType)||
+   (Number.isFinite(navigator.deviceMemory)&&navigator.deviceMemory<=2);
+  const dpr=Number(document.documentElement.dataset.previewDpr)||window.devicePixelRatio||1;
+  const chosen=AifectProductTheme.resolveProductTheme(t.artwork,{width:el.clientWidth,height:el.clientHeight,dpr,app,economy,reducedMotion,failed});
+  if(!chosen||!usableAsset(chosen.src))return false;
+  if(assetHealth.get(chosen.src)!=='ready'){
+   if(reducedMotion)el.removeAttribute('data-product-theme-effect');
+   return true;
+  }
+  el.dataset.background=t.sku;el.dataset.themeSku=t.sku;
+  el.dataset.uiMode=t.uiMode==='light'?'light':'dark';
+  el.dataset.productPackage='';el.dataset.productRole=chosen.role;el.dataset.productQuality=chosen.quality;
+  el.toggleAttribute('data-product-crop-warning',chosen.warning);
+  el.style.setProperty('--product-theme-base','url("'+chosen.src+'")');
+  el.style.setProperty('--product-theme-size',chosen.fit);
+  el.style.setProperty('--product-theme-position',chosen.focus.map(value=>value*100+'%').join(' '));
+  const effect=validAsset(chosen.effect)?chosen.effect:null;
+  el.toggleAttribute('data-product-theme-effect',!!effect);
+  if(effect)el.style.setProperty('--product-theme-effect','url("'+effect+'")');
+  else el.style.removeProperty('--product-theme-effect');
+  return true;
+ }
  function paintTheme(el,t,card=false){
   if(!t)return;
   let assets=t.assets,sku=t.sku,mode=t.uiMode;
   const small=matchMedia('(max-width:800px)').matches;
   const tall=small&&matchMedia('(max-aspect-ratio: 1/2)').matches;
   const app=document.documentElement.hasAttribute?.('data-aifect-native-room')||document.documentElement.hasAttribute?.('data-aifect-native');
+  if(!card&&paintPackagedTheme(el,t,app))return;
+  if(!card&&el.hasAttribute('data-product-package')){
+   for(const name of ['data-product-package','data-product-role','data-product-quality','data-product-crop-warning'])el.removeAttribute(name);
+   for(const name of ['base','size','position'])el.style.removeProperty('--product-theme-'+name);
+  }
   const mobile=paths=>app&&paths?.roomApp||paths?.roomMobile;
   const visible=paths=>card?paths?.roomCard:small?(!(app&&paths?.roomApp)&&tall&&paths?.roomMobileTall||mobile(paths)||paths?.roomDesktop):paths?.roomDesktop;
   let active=!expired(t,Date.now()/1000+(t.offset||0))&&usableAsset(visible(assets));
@@ -136,8 +184,11 @@ function profileFrameCanvasArtwork(path){
  if(document.documentElement.hasAttribute?.('data-product-preview')){
   window.AifectProductThemePreview=(element,theme,avatars)=>{
    for(const data of avatars)frames.set(data.profile_id,{...data,checkedAt:Date.now(),offset:0});
-   const paint=()=>{if(element&&theme)paintTheme(element,theme);paintFrames();};
+   const paint=previewPaint=()=>{if(element&&theme)paintTheme(element,theme);paintFrames();};
    window.addEventListener('resize',paint);
+   window.addEventListener('aifect:room-visibility',()=>{paint();frameEffects.sweep();});
+   window.addEventListener('pagehide',()=>sizeChanges?.disconnect(),{once:true});
+   document.addEventListener('visibilitychange',paint);
    document.addEventListener('load',event=>{if(event.target.matches?.('img[data-avatar-profile]'))paintFrames();},true);
    paint();
   };
@@ -146,6 +197,7 @@ function profileFrameCanvasArtwork(path){
  function paintThemes(){
   for(const card of document.querySelectorAll('[data-decoration-room]'))paintTheme(card,themes.get(card.dataset.decorationRoom),true);
   const room=document.querySelector('[data-voice-room]');if(room)paintTheme(room,themes.get(room.dataset.voiceRoom));
+  else if(roomElement){sizeChanges?.disconnect();roomElement=null;cancelAnimationFrame(resizeFrame);}
  }
  let roomThemeVersion=0;
  const remember=(id,theme)=>{
@@ -188,7 +240,8 @@ function profileFrameCanvasArtwork(path){
  document.addEventListener('load',e=>{if(e.target.matches?.('img[data-avatar-profile]'))paintFrames();},true);
  window.addEventListener('resize',()=>{paintFrames();paintThemes();});
  document.addEventListener('visibilitychange',()=>{paintThemes();if(!document.hidden)void refresh(true);});
- globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.('change',()=>{paintThemes();frameEffects.sweep();});
+ window.addEventListener('aifect:room-visibility',()=>{paintThemes();frameEffects.sweep();});
+ motionPreference?.addEventListener?.('change',()=>{paintThemes();frameEffects.sweep();});
  window.addEventListener('aifect:equipment',()=>{
   frames.clear();
   // Existing equipment action updates me before emitting this event. Refresh

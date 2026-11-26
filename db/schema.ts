@@ -145,8 +145,10 @@ export const productCatalog=sqliteTable('product_catalog',{
 export const productAssetVersions=sqliteTable('product_asset_versions',{
  productId:text('product_id').notNull(),id:text('id').notNull(),label:text('label').notNull(),mode:text('mode').notNull(),
  renderer:text('renderer').notNull(),files:text('files').notNull(),originals:text('originals').notNull(),
- hash:text('hash').notNull(),created:integer('created').notNull(),publishedAt:integer('published_at')
-},t=>[primaryKey({columns:[t.productId,t.id]}),uniqueIndex('product_asset_version_label').on(t.productId,t.label)]);
+ hash:text('hash').notNull(),created:integer('created').notNull(),publishedAt:integer('published_at'),
+ packageMetadata:text('package_metadata'),uploadSha256:text('upload_sha256'),registeredBy:text('registered_by')
+},t=>[primaryKey({columns:[t.productId,t.id]}),uniqueIndex('product_asset_version_label').on(t.productId,t.label),
+ uniqueIndex('product_asset_upload_hash').on(t.productId,t.uploadSha256).where(sql`upload_sha256 IS NOT NULL`)]);
 export const productAssetReviews=sqliteTable('product_asset_reviews',{
  productId:text('product_id').notNull(),versionId:text('version_id').notNull(),platform:text('platform').notNull(),
  surface:text('surface').notNull(),build:text('build').notNull(),report:text('report').notNull(),passed:integer('passed').notNull(),
@@ -363,7 +365,8 @@ export const decorationTransfers=sqliteTable('decoration_transfers',{
 },t=>[uniqueIndex('decoration_transfer_request').on(t.senderId,t.requestId)]);
 // Display settings are separate from realtime voice transport and its database.
 export const roomDecorations=sqliteTable('room_decorations',{
- roomId:text('room_id').primaryKey(),hostId:text('host_id').notNull().references(()=>users.id),sku:text('sku').notNull(),revision:integer('revision').notNull(),updated:integer('updated').notNull(),inventoryId:text('inventory_id').references(()=>playerInventory.id)
+ roomId:text('room_id').primaryKey(),hostId:text('host_id').notNull().references(()=>users.id),sku:text('sku').notNull(),revision:integer('revision').notNull(),updated:integer('updated').notNull(),inventoryId:text('inventory_id').references(()=>playerInventory.id),
+ assetVersion:text('asset_version')
 });
 // Immutable completed applications. No reservation starts a rental clock.
 export const roomThemeApplications=sqliteTable('room_theme_applications',{

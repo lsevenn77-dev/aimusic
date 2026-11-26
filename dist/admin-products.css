@@ -99,6 +99,23 @@
 .product-preview-stage iframe{display:block;height:min(640px,70dvh);border:0;background:var(--bg);margin:0 auto}
 .product-preview-stage iframe.desktop{width:100%;min-width:801px}
 .product-preview-stage iframe.mobile{width:390px;max-width:100%}
+.product-heading-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.product-icon-action{display:inline-grid;place-items:center;min-width:34px}
+.product-authoring{font-size:var(--pc-font-caption,13px);color:var(--muted);line-height:1.5}
+.product-authoring a{text-decoration:underline;color:inherit}
+.product-drop{display:grid;gap:8px;padding:12px;border:1px dashed var(--line);border-radius:10px;overflow-wrap:anywhere}
+.product-package progress{width:100%;margin:8px 0}
+.product-zip-status,.product-import-results small{overflow-wrap:anywhere}
+.product-zip-images,.product-file-preview,.product-preview-columns{display:flex;align-items:start;gap:12px}
+.product-zip-images,.product-file-preview{flex-wrap:wrap;padding:8px}
+.product-zip-images figure,.product-file-preview figure{text-align:center;margin:0;max-width:100%}
+.product-zip-images img,.product-file-preview img{width:auto;height:auto;max-height:160px;max-width:100%;object-fit:contain}
+.product-file-preview img{background:repeating-conic-gradient(#242938 0 25%,#303747 0 50%) 50%/18px 18px}
+.product-preview-columns{width:max-content;min-width:100%;justify-content:center}
+.product-preview-columns iframe{max-width:none;min-width:0}
+.product-preview-columns p:empty{display:none}
+.product-import-results details{margin-top:6px}
+@media(max-width:480px){.product-heading-actions{gap:5px}.product-icon-action{min-width:40px;min-height:40px}}
 #admin-gift-grant{justify-content:start;margin-top:12px}
 #admin-gift-grant [role=status]{flex-basis:100%;color:var(--muted)}
 #gift-grant-panel summary{cursor:pointer}

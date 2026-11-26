@@ -39,6 +39,7 @@
   const skin=AifectPlayer.DEFAULT_ROOM_SKIN;
   const theme={sku:data.type==='theme'?data.id:skin.sku,
    assets:data.type==='theme'?data.decor.assetPaths:skin.assetPaths,
+   artwork:data.decor?.themeArtwork,
    uiMode:data.surface.endsWith('-light')?'light':'dark',expires_at:data.type==='theme'?4102444800:0};
   const names=['아리아','소리','코러스','별빛','은하','선율','라임','루나','하늘'];
   const members=names.map((name,i)=>({id:'qa-member-'+(i+1),profile_id:'qa-profile-'+(i+1),name,

@@ -1,4 +1,5 @@
 import {buildPublicImageAssets} from './public-image-assets.mjs';
+import {buildAuthoringKit} from './build-product-authoring.mjs';
 import {buildOrigin} from '../ops/cafe24/build-origin.mjs';
 import {builtinModules} from 'node:module';
 import {createHash} from 'node:crypto';
@@ -13,6 +14,7 @@ import {regionTokenCSS} from './ui-region-tokens.mjs';
 import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+await buildAuthoringKit('dist/client/product-authoring');
 // Shop banners supplied by the owner; public/ maps to the static URL root.
 await cp('public/images/shop','dist/client/images/shop',{recursive:true});
 await build({entryPoints:['shared/room-backing-worklet.js'],outfile:'dist/client/room-backing-worklet.js',bundle:true,format:'esm',target:'es2022'});
@@ -101,6 +103,8 @@ for(const file of ['dropdown.js','dropdown.css'])await cp('dist/'+file,'dist/cli
 await cp('dist/brand.css','dist/client/brand.css');
 for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compression.js','admin-notice.css','official-notice.css','notice-editor.js','notice-audience.js','admin-notices.js','admin-products.css','admin-products.js','admin-gift-dispatch.css','admin-gift-dispatch.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 for(const file of ['product-preview.js','product-preview.css','chat-ui.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+await build({entryPoints:['shared/product-theme-layout.js'],outfile:'dist/client/product-theme-layout.js',bundle:true,format:'iife',globalName:'AifectProductTheme',target:'es2022'});
+await build({entryPoints:['server/product-zip.js'],outfile:'dist/client/product-zip-core.js',bundle:true,format:'iife',globalName:'AifectProductZip',target:'es2022'});
 await mkdir('dist/client/admin',{recursive:true});
 await cp('dist/admin.html','dist/client/admin/dashboard.html');
 await rm('dist/client/admin.html',{force:true});
@@ -169,7 +173,7 @@ await rm('dist/client/index.html',{force:true});
 await rm('dist/client/profile-popup.html',{force:true});
 const originRevision=await buildOrigin();
 const reviewHash=createHash('sha256').update(originRevision);
-for(const file of ['dist/product-preview.js','dist/product-preview.css','server/product-preview.js','server/product-catalog.js'])reviewHash.update(await readFile(file));
+for(const file of ['dist/product-preview.js','dist/product-preview.css','server/product-preview.js','server/product-catalog.js','dist/decoration-display.js','dist/room-interior.css','shared/product-theme-layout.js','shared/product-asset-contract.js'])reviewHash.update(await readFile(file));
 const productReviewBuild=reviewHash.digest('hex');
 await build({define:{__CAFE24_BUILD__:JSON.stringify(originRevision),__PRODUCT_REVIEW_BUILD__:JSON.stringify(productReviewBuild)},entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
 await mkdir('dist/.openai',{recursive:true});

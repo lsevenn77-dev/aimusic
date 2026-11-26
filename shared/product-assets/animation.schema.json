@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:aifect:product-assets:animation:1",
+  "title": "AIFECT 이미지 애니메이션 설정 v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "playback": {
+      "enum": [
+        "event",
+        "visible"
+      ]
+    },
+    "layers": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "base",
+          "effect",
+          "desktopEffect",
+          "mobileEffect",
+          "appEffect",
+          "desktopEffectLow",
+          "mobileEffectLow",
+          "appEffectLow"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 6
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "playback",
+    "layers"
+  ]
+}

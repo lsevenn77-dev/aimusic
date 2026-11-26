@@ -69,7 +69,8 @@ function fixtureData(snapshot,claims,path){
  const native_room=isRoom?{self:'qa-member-1',members,chat,room:{id:'qa-room',host_id:'qa-member-1',
   mode:surface.startsWith('karaoke')?'karaoke':'talk',title:surface.startsWith('karaoke')?'라이브 노래방':'토킹룸',
   settings_revision:1,max_members:30,theme_sku:skins?snapshot.id:'basic_dark',
-  ...(skins?{theme:{sku:snapshot.id,assets:skins,expires_at:0,permanent:true,uiMode:surface.endsWith('-light')?'light':'dark'}}:{})},
+  ...(skins?{theme:{sku:snapshot.id,assets:skins,artwork:decor.themeArtwork,asset_version:decor.assetVersion,
+   expires_at:0,permanent:true,uiMode:surface.endsWith('-light')?'light':'dark'}}:{})},
   music:{queue:[],index:0,revision:1,volume:1,playing:false}}:null;
  return {surface,type:snapshot.type,platform:claims.platform,expires_at:claims.exp,
   catalog:gallery,wallet,profile,chat,item,player:{inventory:[],stored_decorations:decor?[item]:[],decorations:[],rewards:[]},owned,

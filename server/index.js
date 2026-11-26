@@ -228,7 +228,7 @@ async function fetchRequest(req,env,ctx){
   if(path==='/api/admin/product-native-review')return await createNativeProductReview(req,env,user);
   if(path.startsWith('/api/admin/product-')||path.startsWith('/api/admin/products')){
    const authorized=isAdmin(env,user);
-   const product=await productFileRoute(req,env,path,authorized)||await productEvidenceRoute(req,env,path,authorized)||await productPreviewRoute(req,env,path,user)||await adminProductRoute(req,env,path,user);
+   const product=await productFileRoute(req,env,path,authorized?user:null)||await productEvidenceRoute(req,env,path,authorized)||await productPreviewRoute(req,env,path,user)||await adminProductRoute(req,env,path,user);
    if(product)return product;
   }
   const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;

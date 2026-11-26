@@ -30,7 +30,7 @@ export async function themeApplicationReplay(env,uid,key,roomId,action,fingerpri
  if(old&&(old.room_id!==roomId||old.action!==action||(action!=='create'&&old.fingerprint!==fingerprint)))fail(409,'이미 다른 테마 적용에 사용한 요청 번호입니다.');
  return old;
 }
-export async function commitRoomTheme(env,uid,room,choice,{key,action,fingerprint}){
+export async function commitRoomTheme(env,uid,room,choice,{key,action,fingerprint,refreshVersion=false}){
  if(room.host_id!==uid)fail(403,'방장만 테마를 변경할 수 있습니다.');
  const replay=()=>themeApplicationReplay(env,uid,key,room.id,action,fingerprint);
  if(await replay())return;
@@ -41,7 +41,13 @@ export async function commitRoomTheme(env,uid,room,choice,{key,action,fingerprin
   await env.DB.batch([
    query(env,'INSERT INTO room_theme_applications(user_id,request_id,room_id,action,fingerprint,revision,created) VALUES(?,?,?,?,?,?,?)',uid,key,room.id,action,fingerprint,room.settings_revision||0,at),
    ...(activation?.queries||[]),
-   query(env,`INSERT INTO room_decorations(room_id,host_id,sku,revision,updated,inventory_id) VALUES(?,?,?,?,?,?) ON CONFLICT(room_id) DO UPDATE SET host_id=excluded.host_id,sku=excluded.sku,revision=excluded.revision,updated=excluded.updated,inventory_id=excluded.inventory_id`,room.id,uid,choice.sku,room.settings_revision||0,at,activation?.activeId||choice.inventoryId)
+   query(env,`INSERT INTO room_decorations(room_id,host_id,sku,revision,updated,inventory_id,asset_version)
+    VALUES(?,?,?,?,?,?,COALESCE((SELECT active_version FROM product_catalog WHERE product_id=?),''))
+    ON CONFLICT(room_id) DO UPDATE SET asset_version=CASE WHEN ?=0 AND room_decorations.host_id=excluded.host_id
+    AND room_decorations.sku=excluded.sku AND room_decorations.inventory_id IS excluded.inventory_id
+    THEN COALESCE(room_decorations.asset_version,excluded.asset_version) ELSE excluded.asset_version END,
+    host_id=excluded.host_id,sku=excluded.sku,revision=excluded.revision,updated=excluded.updated,inventory_id=excluded.inventory_id`,
+    room.id,uid,choice.sku,room.settings_revision||0,at,activation?.activeId||choice.inventoryId,choice.sku,Number(refreshVersion))
   ]);
  }catch(e){
   if(await replay())return;

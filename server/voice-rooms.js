@@ -124,7 +124,7 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   const selected=await selectRoomEntitlement(env,user.id,sku,inventory_id||(!theme_sku&&!background?applied.inventory_id:null),activate_theme===true);
   const data=await applyVoiceSettings(env,actor,room,'settings',{...settings,theme_sku:selected.transport});
   if(settings.mode && data.room?.mode!==settings.mode)fail(502,'방 유형 변경이 확인되지 않았습니다. 방 설정을 다시 열어 주세요.');
-  await commitRoomTheme(env,user.id,data.room,selected,{key,action:'settings',fingerprint});return json(await decorateRoomResult(env,data));
+  await commitRoomTheme(env,user.id,data.room,selected,{key,action:'settings',fingerprint,refreshVersion:!!(theme_sku||background)});return json(await decorateRoomResult(env,data));
  }
  if(action==='invite') {
   const note=String(b.note??'').trim();if(note.length>200)fail(400,'함께 보낼 메시지는 200자까지 입력해 주세요.');

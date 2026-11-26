@@ -1,6 +1,6 @@
 import {one,rows,run,now,fail} from './db.js';
 import {FREE_ROOM_THEMES,DEFAULT_ROOM_SKIN,DEFAULT_ROOM_THEME,isRetiredRoomTheme,roomUIMode} from '../shared/decorations.js';
-import {catalog,catalogRoomTheme,giftRuntime} from './product-catalog.js';
+import {catalog,catalogRoomTheme,giftRuntime,publishedThemeVersions} from './product-catalog.js';
 import {activeDecorationSQL,decorationInventory} from './decorations.js';
 import {playerColumnsSQL} from './player.js';
 export async function roomThemeChoices(env,uid){
@@ -19,22 +19,33 @@ export async function saveRoomTheme(env,actor,room,sku,{creating=false}={}){
  if(room.host_id!==actor.id)fail(403,'방장만 테마를 변경할 수 있습니다.');
  await assertRoomTheme(env,actor.id,sku);
  // A late response from an earlier settings revision cannot overwrite a later save.
- await run(env,`INSERT INTO room_decorations(room_id,host_id,sku,revision,updated) VALUES(?,?,?,?,?) ON CONFLICT(room_id) ${creating?'DO NOTHING':'DO UPDATE SET host_id=excluded.host_id,sku=excluded.sku,revision=excluded.revision,updated=excluded.updated WHERE room_decorations.revision<excluded.revision'}`,room.id,actor.id,sku,room.settings_revision||0,now());
+ await run(env,`INSERT INTO room_decorations(room_id,host_id,sku,revision,updated,asset_version)
+  VALUES(?,?,?,?,?,COALESCE((SELECT active_version FROM product_catalog WHERE product_id=?),'')) ON CONFLICT(room_id) ${creating?'DO NOTHING':'DO UPDATE SET host_id=excluded.host_id,sku=excluded.sku,revision=excluded.revision,updated=excluded.updated,asset_version=excluded.asset_version WHERE room_decorations.revision<excluded.revision'}`,room.id,actor.id,sku,room.settings_revision||0,now(),sku);
 }
 function themeResponse(product,expires_at=0,server_now=now(),inventory_id=null){
- return {sku:product.sku,uiMode:roomUIMode(product),assets:product.assetPaths,expires_at,server_now,inventory_id};
+ return {sku:product.sku,uiMode:roomUIMode(product),assets:product.assetPaths,expires_at,server_now,inventory_id,
+  ...(product.themeArtwork?{artwork:product.themeArtwork,asset_version:product.assetVersion}:{})};
 }
 export async function resolveRoomDecoration(env,room){
  const setting=await one(env,'SELECT * FROM room_decorations WHERE room_id=? AND host_id=?',room.id,room.host_id);
  // A matching row may hold the persisted fallback for an expired purchase.
  const current=setting&&(!room.theme_sku||setting.revision===(room.settings_revision||0));
  const sku=(current&&setting.sku)||room.theme_sku||room.background||DEFAULT_ROOM_THEME;
- const product=await catalogRoomTheme(env,sku);
+ let product=await catalogRoomTheme(env,sku,undefined,current?setting.asset_version:null);
  if(product&&!product.kind)return themeResponse(product);
  const entitlement=product?await one(env,`SELECT id,expires_at FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${current&&setting.inventory_id?'pi.id=?':"pi.source_ref=pi.item_key"} AND ${activeDecorationSQL('pi')}`,room.host_id,sku,...(current&&setting.inventory_id?[setting.inventory_id]:[])):null;
- if(entitlement)return themeResponse(product,entitlement.expires_at,now(),entitlement.id);
+ if(entitlement){
+  if(current&&setting.asset_version===null){
+   // Existing rooms take one version lock on their next successful resolution.
+   const pinned=await one(env,`UPDATE room_decorations SET asset_version=COALESCE((SELECT active_version FROM product_catalog WHERE product_id=?),'')
+    WHERE room_id=? AND host_id=? AND sku=? AND revision=? AND asset_version IS NULL RETURNING asset_version`,sku,room.id,room.host_id,sku,setting.revision);
+   const version=pinned??await one(env,'SELECT asset_version FROM room_decorations WHERE room_id=? AND host_id=? AND sku=? AND revision=?',room.id,room.host_id,sku,setting.revision);
+   if(version&&version.asset_version!==product.assetVersion)product=await catalogRoomTheme(env,sku,undefined,version.asset_version);
+  }
+  return themeResponse(product??DEFAULT_ROOM_SKIN,product?entitlement.expires_at:0,now(),product?entitlement.id:null);
+ }
  // Persist fallback, so a later renewal does not silently re-equip an expired theme.
- if(current)await run(env,`UPDATE room_decorations SET sku=?,inventory_id=NULL,updated=? WHERE room_id=? AND host_id=? AND revision=? AND sku=? AND NOT EXISTS(SELECT 1 FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND (pi.id=room_decorations.inventory_id OR (room_decorations.inventory_id IS NULL AND pi.source_ref=pi.item_key)) AND ${activeDecorationSQL('pi')})`,DEFAULT_ROOM_THEME,now(),room.id,room.host_id,setting.revision,sku,room.host_id,sku);
+ if(current)await run(env,`UPDATE room_decorations SET sku=?,inventory_id=NULL,asset_version='',updated=? WHERE room_id=? AND host_id=? AND revision=? AND sku=? AND NOT EXISTS(SELECT 1 FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND (pi.id=room_decorations.inventory_id OR (room_decorations.inventory_id IS NULL AND pi.source_ref=pi.item_key)) AND ${activeDecorationSQL('pi')})`,DEFAULT_ROOM_THEME,now(),room.id,room.host_id,setting.revision,sku,room.host_id,sku);
  return themeResponse(DEFAULT_ROOM_SKIN);
 }
 export function withRoomTheme(room,theme){
@@ -70,20 +81,21 @@ export async function directoryRoomThemes(env,rooms){
   SELECT json_extract(value,'$[0]') id,json_extract(value,'$[1]') host_id,json_extract(value,'$[2]') chosen,
    json_extract(value,'$[3]') revision,json_extract(value,'$[4]') background FROM json_each(?)
  ), themes AS (
-  SELECT page.id,page.host_id,rd.revision,rd.inventory_id,COALESCE(rd.sku,page.chosen,page.background) sku
+  SELECT page.id,page.host_id,rd.revision,rd.inventory_id,rd.asset_version,COALESCE(rd.sku,page.chosen,page.background) sku
   FROM page LEFT JOIN room_decorations rd ON rd.room_id=page.id AND rd.host_id=page.host_id
   AND (page.chosen IS NULL OR rd.revision=page.revision)
  ) SELECT themes.*,(SELECT MAX(pi.expires_at) FROM player_inventory pi WHERE pi.user_id=themes.host_id
   AND pi.item_key=themes.sku AND (pi.id=themes.inventory_id OR (themes.inventory_id IS NULL AND pi.source_ref=pi.item_key)) AND ${activeDecorationSQL('pi')}) expires_at FROM themes`,JSON.stringify(scope));
- const themes=new Map(),expired=[],server_now=now(),products=await catalog(env,settings.map(row=>row.sku));
- for(const {id,host_id,revision,sku,expires_at,inventory_id} of settings){
-  const product=await catalogRoomTheme(env,sku,products),paid=product?.kind==='TALKING_ROOM_THEME';
+ const [products,versions]=await Promise.all([catalog(env,settings.map(row=>row.sku)),publishedThemeVersions(env,settings.map(row=>row.asset_version))]);
+ const themes=new Map(),expired=[],server_now=now();
+ for(const {id,host_id,revision,sku,expires_at,inventory_id,asset_version} of settings){
+  const product=await catalogRoomTheme(env,sku,products,asset_version,versions),paid=product?.kind==='TALKING_ROOM_THEME';
   const active=paid&&expires_at!==null&&(expires_at===0||expires_at>server_now);
   themes.set(id,themeResponse(product&&(!paid||active)?product:DEFAULT_ROOM_SKIN,active?expires_at:0,server_now,active?inventory_id:null));
   if(revision!=null&&!active&&(paid||isRetiredRoomTheme(sku)))expired.push([id,host_id,revision,sku]);
  }
  // Match the current host and settings revision, including concurrent handoffs.
- if(expired.length)await run(env,`UPDATE room_decorations SET sku=?,inventory_id=NULL,updated=? WHERE (room_id,host_id,revision,sku) IN
+ if(expired.length)await run(env,`UPDATE room_decorations SET sku=?,inventory_id=NULL,asset_version='',updated=? WHERE (room_id,host_id,revision,sku) IN
   (SELECT json_extract(value,'$[0]'),json_extract(value,'$[1]'),json_extract(value,'$[2]'),json_extract(value,'$[3]') FROM json_each(?))
   AND NOT EXISTS(SELECT 1 FROM player_inventory pi WHERE pi.user_id=room_decorations.host_id AND pi.item_key=room_decorations.sku AND (pi.id=room_decorations.inventory_id OR (room_decorations.inventory_id IS NULL AND pi.source_ref=pi.item_key)) AND ${activeDecorationSQL('pi')})`,DEFAULT_ROOM_THEME,server_now,JSON.stringify(expired));
  return themes;

@@ -820,6 +820,13 @@
       "when": 1795695334222,
       "tag": "0116_notice_test_recipients",
       "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "6",
+      "when": 1795697813439,
+      "tag": "0117_product_asset_packages",
+      "breakpoints": true
     }
   ]
 }

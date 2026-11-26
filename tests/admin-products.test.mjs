@@ -174,7 +174,12 @@ test('mixed deletion confirms eligible products once and preserves even expired 
  const version=key();
  f.sql.prepare(`INSERT INTO product_asset_versions(product_id,id,label,mode,renderer,files,originals,hash,created)
   VALUES(?,?,'1.0.0','static','gift-standard','{}','{}','shared',1)`).run(clean,version);
- const items=[target(clean,1),target(used,1),target(room,1),target(late,1),target('heart')];
+ const candidates=[target(clean,1),target(used,1),target(room,1),target(late,1),target('heart')];
+ const pending=await apply(f,'delete_request',candidates);
+ assert.ok(pending.body.items.every(item=>item.status==='success'));
+ assert.equal((await f.call(root+'?deletion=1')).body.total,5);
+ assert.equal((await f.call('/api/gifts/catalog')).body.gifts.some(item=>item.id==='heart'),false);
+ const items=candidates.map(item=>target(item.id,item.revision+1));
  assert.equal((await operate(f,{action:'delete',items,preview:true},null)).status,401);
  assert.equal((await operate(f,{action:'delete',items,preview:true},'other')).status,403);
  const preview=await operate(f,{action:'delete',items,preview:true});
@@ -199,16 +204,19 @@ test('mixed deletion confirms eligible products once and preserves even expired 
  assert.equal(audit.length,1);
  assert.equal(JSON.parse(audit[0].target).result.items[0].status,'success');
  assert.equal(table(f,'gift_inventory').length,2);
+ assert.equal((await apply(f,'delete_cancel',[target('heart',1)])).body.items[0].status,'success');
+ assert.equal((await f.call('/api/gifts/catalog')).body.gifts.some(item=>item.id==='heart'),true);
 });
 
 test('a reference added during deletion is checked inside the write batch',async t=>{
  const f=await fixture(t,scope),{body:{id}}=await mutate(f,null,bodyFor({type:'theme',options:{P7D:1},uiMode:'dark'}));
+ assert.equal((await apply(f,'delete_request',[target(id,1)])).body.items[0].status,'success');
  const original=f.DB.batch.bind(f.DB);
  f.DB.batch=statements=>{
   f.sql.prepare("INSERT INTO room_decorations(room_id,host_id,sku,revision,updated) VALUES('late-room','owner',?,1,1)").run(id);
   return original(statements);
  };
- const result=await apply(f,'delete',[target(id,1)]);
+ const result=await apply(f,'delete',[target(id,2)]);
  assert.equal(result.status,200,JSON.stringify(result.body));
  assert.equal(result.body.items[0].status,'failed');
  assert.equal((await f.call(root+'/'+id)).status,200);

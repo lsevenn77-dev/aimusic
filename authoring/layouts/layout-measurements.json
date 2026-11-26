@@ -1,0 +1,1534 @@
+{
+  "source": "Chromium / 격리된 AIFECT 실제 웹 컴포넌트",
+  "coordinates": "viewport CSS px · [x,y,width,height]",
+  "measurements": [
+    {
+      "name": "pc-talk-dark",
+      "surface": "talk-dark",
+      "platform": "desktop",
+      "logicalMode": "pc",
+      "requested": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "pixelRatioViewport": 1,
+      "screen": [
+        1440,
+        900
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            250.8,
+            88,
+            1189.2,
+            812
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            296.4,
+            107.8,
+            1086,
+            60
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            296.4,
+            177.8,
+            659.9,
+            257.7
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            964.3,
+            177.8,
+            418.1,
+            708.2
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            964.3,
+            826.6,
+            418.1,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            296.4,
+            495.5,
+            659.9,
+            56
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "avatar": {
+          "rect": [
+            371.7,
+            197.6,
+            63.9,
+            63.9
+          ],
+          "className": "profile-avatar-image"
+        }
+      },
+      "background": {
+        "role": "desktop",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "pc-karaoke-light",
+      "surface": "karaoke-light",
+      "platform": "desktop",
+      "logicalMode": "pc",
+      "requested": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "pixelRatioViewport": 1,
+      "screen": [
+        1440,
+        900
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            250.8,
+            88,
+            1189.2,
+            812
+          ],
+          "className": "voice-room live-karaoke-room"
+        },
+        "header": {
+          "rect": [
+            296.4,
+            107.8,
+            1086,
+            60
+          ],
+          "className": "room-header"
+        },
+        "lyrics": {
+          "rect": [
+            296.4,
+            413.3,
+            659.9,
+            300
+          ],
+          "className": "live-lyrics"
+        },
+        "chat": {
+          "rect": [
+            964.3,
+            177.8,
+            418.1,
+            708.2
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            964.3,
+            826.6,
+            418.1,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "karaokeControls": {
+          "rect": [
+            296.4,
+            816.6,
+            659.9,
+            4
+          ],
+          "className": ""
+        }
+      },
+      "background": {
+        "role": "desktop",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "pc-talk-seated",
+      "surface": "talk-seated",
+      "platform": "desktop",
+      "logicalMode": "pc",
+      "requested": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "pixelRatioViewport": 1,
+      "screen": [
+        1440,
+        900
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            250.8,
+            88,
+            1189.2,
+            812
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            296.4,
+            107.8,
+            1086,
+            60
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            296.4,
+            177.8,
+            659.9,
+            257.7
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            964.3,
+            177.8,
+            418.1,
+            708.2
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            964.3,
+            826.6,
+            418.1,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            296.4,
+            495.5,
+            659.9,
+            56
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "gift": {
+          "rect": [
+            575.5,
+            264.9,
+            103.5,
+            103.5
+          ],
+          "className": "talk-gift-art"
+        },
+        "avatar": {
+          "rect": [
+            371.7,
+            197.6,
+            63.9,
+            63.9
+          ],
+          "className": "profile-avatar-image"
+        }
+      },
+      "background": {
+        "fit": "",
+        "brightness": "normal",
+        "mask": "linear-gradient(90deg, rgb(0, 0, 0) 95%, rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0) 135px, rgb(0, 0, 0) 163px, rgb(0, 0, 0) 96%, rgba(0, 0, 0, 0))"
+      }
+    },
+    {
+      "name": "pc-talk",
+      "surface": "talk",
+      "platform": "desktop",
+      "logicalMode": "pc",
+      "requested": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "pixelRatioViewport": 1,
+      "screen": [
+        1440,
+        900
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            250.8,
+            88,
+            1189.2,
+            812
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            296.4,
+            107.8,
+            1086,
+            60
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            296.4,
+            177.8,
+            659.9,
+            257.7
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            964.3,
+            177.8,
+            418.1,
+            708.2
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            964.3,
+            826.6,
+            418.1,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            296.4,
+            495.5,
+            659.9,
+            56
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "avatar": {
+          "rect": [
+            381,
+            206.9,
+            45.3,
+            45.3
+          ],
+          "className": "profile-avatar-image"
+        },
+        "frame": {
+          "rect": [
+            369.4,
+            195.3,
+            67.5,
+            67.5
+          ],
+          "className": "decoration-avatar-overlay"
+        }
+      },
+      "background": {
+        "fit": "",
+        "brightness": "normal",
+        "mask": "linear-gradient(90deg, rgb(0, 0, 0) 95%, rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0) 135px, rgb(0, 0, 0) 163px, rgb(0, 0, 0) 96%, rgba(0, 0, 0, 0))"
+      }
+    },
+    {
+      "name": "pc-shop",
+      "surface": "shop",
+      "platform": "desktop",
+      "logicalMode": "pc",
+      "requested": {
+        "width": 1440,
+        "height": 900,
+        "dpr": 1
+      },
+      "viewport": [
+        1440,
+        900
+      ],
+      "dpr": 1,
+      "pixelRatioViewport": 1,
+      "screen": [
+        1440,
+        900
+      ],
+      "fields": {
+        "shop": {
+          "rect": [
+            309.5,
+            565.8,
+            111.2,
+            111.2
+          ],
+          "className": "shop-card-art"
+        }
+      },
+      "background": null
+    },
+    {
+      "name": "pc-125-talk-dark",
+      "surface": "talk-dark",
+      "platform": "desktop",
+      "logicalMode": "pc-125",
+      "requested": {
+        "width": 1152,
+        "height": 720,
+        "dpr": 1.25
+      },
+      "viewport": [
+        1152,
+        720
+      ],
+      "dpr": 1.25,
+      "pixelRatioViewport": 1,
+      "screen": [
+        1152,
+        720
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            250.8,
+            88,
+            901.2,
+            632
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            266.8,
+            104,
+            869.2,
+            60
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            266.8,
+            168,
+            526.6,
+            212
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            801.4,
+            168,
+            334.6,
+            538
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            801.4,
+            649.5,
+            334.6,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            266.8,
+            440,
+            526.6,
+            56
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "avatar": {
+          "rect": [
+            327.2,
+            182.4,
+            50.3,
+            50.3
+          ],
+          "className": "profile-avatar-image"
+        }
+      },
+      "background": {
+        "role": "desktop",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "pc-125-karaoke-light",
+      "surface": "karaoke-light",
+      "platform": "desktop",
+      "logicalMode": "pc-125",
+      "requested": {
+        "width": 1152,
+        "height": 720,
+        "dpr": 1.25
+      },
+      "viewport": [
+        1152,
+        720
+      ],
+      "dpr": 1.25,
+      "pixelRatioViewport": 1,
+      "screen": [
+        1152,
+        720
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            250.8,
+            88,
+            901.2,
+            632
+          ],
+          "className": "voice-room live-karaoke-room"
+        },
+        "header": {
+          "rect": [
+            266.8,
+            104,
+            869.2,
+            60
+          ],
+          "className": "room-header"
+        },
+        "lyrics": {
+          "rect": [
+            266.8,
+            360,
+            526.6,
+            237.5
+          ],
+          "className": "live-lyrics"
+        },
+        "chat": {
+          "rect": [
+            801.4,
+            168,
+            334.6,
+            538
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            801.4,
+            649.5,
+            334.6,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "karaokeControls": {
+          "rect": [
+            266.8,
+            643.5,
+            526.6,
+            4
+          ],
+          "className": ""
+        }
+      },
+      "background": {
+        "role": "desktop",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "mobile-talk-dark",
+      "surface": "talk-dark",
+      "platform": "mobile",
+      "logicalMode": "mobile",
+      "requested": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        390,
+        844
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            0,
+            56,
+            390,
+            788
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            10,
+            62,
+            370,
+            52
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            10,
+            120,
+            370,
+            241.7
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            10,
+            471.7,
+            370,
+            364.3
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            10,
+            786,
+            370,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            10,
+            411.7,
+            370,
+            52
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "avatar": {
+          "rect": [
+            37,
+            148.9,
+            44,
+            44
+          ],
+          "className": "profile-avatar-image"
+        }
+      },
+      "background": {
+        "role": "mobile",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "mobile-karaoke-light",
+      "surface": "karaoke-light",
+      "platform": "mobile",
+      "logicalMode": "mobile",
+      "requested": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        390,
+        844
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            0,
+            56,
+            390,
+            788
+          ],
+          "className": "voice-room live-karaoke-room"
+        },
+        "header": {
+          "rect": [
+            10,
+            62,
+            370,
+            52
+          ],
+          "className": "room-header"
+        },
+        "lyrics": {
+          "rect": [
+            10,
+            250.4,
+            370,
+            108.7
+          ],
+          "className": "live-lyrics"
+        },
+        "chat": {
+          "rect": [
+            10,
+            471.7,
+            370,
+            364.3
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            10,
+            786,
+            370,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "karaokeControls": {
+          "rect": [
+            10,
+            409.7,
+            1,
+            1
+          ],
+          "className": ""
+        }
+      },
+      "background": {
+        "role": "mobile",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "mobile-talk-seated",
+      "surface": "talk-seated",
+      "platform": "mobile",
+      "logicalMode": "mobile",
+      "requested": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        390,
+        844
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            0,
+            56,
+            390,
+            788
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            10,
+            62,
+            370,
+            52
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            10,
+            120,
+            370,
+            241.7
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            10,
+            471.7,
+            370,
+            364.3
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            10,
+            786,
+            370,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            10,
+            411.7,
+            370,
+            52
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "gift": {
+          "rect": [
+            161.5,
+            223.1,
+            67.1,
+            67.1
+          ],
+          "className": "talk-gift-art"
+        },
+        "avatar": {
+          "rect": [
+            37,
+            148.9,
+            44,
+            44
+          ],
+          "className": "profile-avatar-image"
+        }
+      },
+      "background": {
+        "fit": "",
+        "brightness": "multiply",
+        "mask": "linear-gradient(90deg, rgba(0, 0, 0, 0), rgb(0, 0, 0) 7%, rgb(0, 0, 0) 91%, rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 9%, rgb(0, 0, 0) 84%, rgba(0, 0, 0, 0)), radial-gradient(85% 88% at 43% 54%, rgb(0, 0, 0) 32%, rgba(0, 0, 0, 0.94) 59%, rgba(0, 0, 0, 0))"
+      }
+    },
+    {
+      "name": "mobile-talk",
+      "surface": "talk",
+      "platform": "mobile",
+      "logicalMode": "mobile",
+      "requested": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        390,
+        844
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            0,
+            56,
+            390,
+            788
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            10,
+            62,
+            370,
+            52
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            10,
+            120,
+            370,
+            241.7
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            10,
+            471.7,
+            370,
+            364.3
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            10,
+            786,
+            370,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            10,
+            411.7,
+            370,
+            52
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "avatar": {
+          "rect": [
+            37,
+            148.9,
+            44,
+            44
+          ],
+          "className": "profile-avatar-image"
+        },
+        "frame": {
+          "rect": [
+            26,
+            137.9,
+            66,
+            66
+          ],
+          "className": "decoration-avatar-overlay"
+        }
+      },
+      "background": {
+        "fit": "",
+        "brightness": "multiply",
+        "mask": "linear-gradient(90deg, rgba(0, 0, 0, 0), rgb(0, 0, 0) 7%, rgb(0, 0, 0) 91%, rgba(0, 0, 0, 0)), linear-gradient(rgba(0, 0, 0, 0), rgb(0, 0, 0) 9%, rgb(0, 0, 0) 84%, rgba(0, 0, 0, 0)), radial-gradient(85% 88% at 43% 54%, rgb(0, 0, 0) 32%, rgba(0, 0, 0, 0.94) 59%, rgba(0, 0, 0, 0))"
+      }
+    },
+    {
+      "name": "mobile-shop",
+      "surface": "shop",
+      "platform": "mobile",
+      "logicalMode": "mobile",
+      "requested": {
+        "width": 390,
+        "height": 844,
+        "dpr": 3
+      },
+      "viewport": [
+        390,
+        844
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        390,
+        844
+      ],
+      "fields": {
+        "shop": {
+          "rect": [
+            25,
+            535,
+            73,
+            73
+          ],
+          "className": "shop-card-art"
+        }
+      },
+      "background": null
+    },
+    {
+      "name": "mobile-landscape-talk-dark",
+      "surface": "talk-dark",
+      "platform": "mobile",
+      "logicalMode": "mobile-landscape",
+      "requested": {
+        "width": 844,
+        "height": 390,
+        "dpr": 3
+      },
+      "viewport": [
+        844,
+        390
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        844,
+        390
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            228.8,
+            88,
+            615.2,
+            302
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            246,
+            92,
+            590,
+            52
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            246,
+            148.5,
+            348.6,
+            138.5
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            603.6,
+            148.5,
+            232.4,
+            236.5
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            613.6,
+            330,
+            222.4,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            246,
+            337,
+            348.6,
+            48
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "avatar": {
+          "rect": [
+            270.7,
+            153.2,
+            42.9,
+            42.9
+          ],
+          "className": "profile-avatar-image"
+        }
+      },
+      "background": {
+        "role": "desktop",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "mobile-landscape-karaoke-light",
+      "surface": "karaoke-light",
+      "platform": "mobile",
+      "logicalMode": "mobile-landscape",
+      "requested": {
+        "width": 844,
+        "height": 390,
+        "dpr": 3
+      },
+      "viewport": [
+        844,
+        390
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        844,
+        390
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            228.8,
+            88,
+            615.2,
+            302
+          ],
+          "className": "voice-room live-karaoke-room"
+        },
+        "header": {
+          "rect": [
+            246,
+            92,
+            590,
+            52
+          ],
+          "className": "room-header"
+        },
+        "lyrics": {
+          "rect": [
+            246,
+            270.5,
+            348.6,
+            136
+          ],
+          "className": "live-lyrics"
+        },
+        "chat": {
+          "rect": [
+            603.6,
+            148.5,
+            232.4,
+            236.5
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            613.6,
+            330,
+            222.4,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "karaokeControls": {
+          "rect": [
+            246,
+            421,
+            1,
+            1
+          ],
+          "className": ""
+        }
+      },
+      "background": {
+        "role": "desktop",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "ios-webview-sim-talk-dark",
+      "surface": "talk-dark",
+      "platform": "ios",
+      "logicalMode": "ios-webview-sim",
+      "requested": {
+        "width": 393,
+        "height": 852,
+        "dpr": 3
+      },
+      "viewport": [
+        393,
+        852
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        393,
+        852
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            0,
+            56,
+            393,
+            796
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            10,
+            62,
+            373,
+            52
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            10,
+            120,
+            373,
+            245.5
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            10,
+            475.5,
+            373,
+            368.5
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            10,
+            794,
+            373,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            10,
+            415.5,
+            373,
+            52
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "avatar": {
+          "rect": [
+            37.4,
+            149.9,
+            44,
+            44
+          ],
+          "className": "profile-avatar-image"
+        }
+      },
+      "background": {
+        "role": "mobile",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "ios-webview-sim-karaoke-light",
+      "surface": "karaoke-light",
+      "platform": "ios",
+      "logicalMode": "ios-webview-sim",
+      "requested": {
+        "width": 393,
+        "height": 852,
+        "dpr": 3
+      },
+      "viewport": [
+        393,
+        852
+      ],
+      "dpr": 3,
+      "pixelRatioViewport": 1,
+      "screen": [
+        393,
+        852
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            0,
+            56,
+            393,
+            796
+          ],
+          "className": "voice-room live-karaoke-room"
+        },
+        "header": {
+          "rect": [
+            10,
+            62,
+            373,
+            52
+          ],
+          "className": "room-header"
+        },
+        "lyrics": {
+          "rect": [
+            10,
+            252.1,
+            373,
+            109.6
+          ],
+          "className": "live-lyrics"
+        },
+        "chat": {
+          "rect": [
+            10,
+            475.5,
+            373,
+            368.5
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            10,
+            794,
+            373,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "karaokeControls": {
+          "rect": [
+            10,
+            413.5,
+            1,
+            1
+          ],
+          "className": ""
+        }
+      },
+      "background": {
+        "role": "mobile",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "android-webview-sim-talk-dark",
+      "surface": "talk-dark",
+      "platform": "android",
+      "logicalMode": "android-webview-sim",
+      "requested": {
+        "width": 412,
+        "height": 915,
+        "dpr": 2.625
+      },
+      "viewport": [
+        412,
+        915
+      ],
+      "dpr": 2.625,
+      "pixelRatioViewport": 1,
+      "screen": [
+        412,
+        915
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            0,
+            56,
+            412,
+            859
+          ],
+          "className": "voice-room talking-room"
+        },
+        "header": {
+          "rect": [
+            10,
+            62,
+            392,
+            52
+          ],
+          "className": "room-header"
+        },
+        "seats": {
+          "rect": [
+            10,
+            120,
+            392,
+            258
+          ],
+          "className": "voice-seats"
+        },
+        "chat": {
+          "rect": [
+            10,
+            488,
+            392,
+            419
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            10,
+            857,
+            392,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "music": {
+          "rect": [
+            10,
+            428,
+            392,
+            52
+          ],
+          "className": "voice-music-mini talk-host-player"
+        },
+        "avatar": {
+          "rect": [
+            39.9,
+            153,
+            44,
+            44
+          ],
+          "className": "profile-avatar-image"
+        }
+      },
+      "background": {
+        "role": "mobile",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    },
+    {
+      "name": "android-webview-sim-karaoke-light",
+      "surface": "karaoke-light",
+      "platform": "android",
+      "logicalMode": "android-webview-sim",
+      "requested": {
+        "width": 412,
+        "height": 915,
+        "dpr": 2.625
+      },
+      "viewport": [
+        412,
+        915
+      ],
+      "dpr": 2.625,
+      "pixelRatioViewport": 1,
+      "screen": [
+        412,
+        915
+      ],
+      "fields": {
+        "room": {
+          "rect": [
+            0,
+            56,
+            412,
+            859
+          ],
+          "className": "voice-room live-karaoke-room"
+        },
+        "header": {
+          "rect": [
+            10,
+            62,
+            392,
+            52
+          ],
+          "className": "room-header"
+        },
+        "lyrics": {
+          "rect": [
+            10,
+            257,
+            392,
+            114.9
+          ],
+          "className": "live-lyrics"
+        },
+        "chat": {
+          "rect": [
+            10,
+            488,
+            392,
+            419
+          ],
+          "className": "voice-chat-panel"
+        },
+        "composer": {
+          "rect": [
+            10,
+            857,
+            392,
+            44
+          ],
+          "className": "chat-ui-composer "
+        },
+        "karaokeControls": {
+          "rect": [
+            10,
+            426,
+            1,
+            1
+          ],
+          "className": ""
+        }
+      },
+      "background": {
+        "role": "mobile",
+        "quality": "standard",
+        "fit": "cover",
+        "brightness": "normal",
+        "mask": "none"
+      }
+    }
+  ]
+}

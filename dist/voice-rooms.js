@@ -842,7 +842,8 @@ class VoiceRoomClient {
   if(this.seenGifts.size>200)this.seenGifts.delete(this.seenGifts.values().next().value);
   const gift=event.gift,still=roomGiftAsset(gift.artwork)||roomGiftAsset(gift.image)||AifectGifts.giftById(gift.type)?.image;
   if(document.hidden)return;
-  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches||document.hidden||
+   document.documentElement.hasAttribute('data-aifect-room-inactive')||['low','static'].includes(document.documentElement.dataset.previewQuality);
   const imageURL=(!reduced&&roomGiftAsset(gift.animation))||still,effect=!reduced&&roomGiftAsset(gift.effect);
   if(!this.liveMode){
    if(imageURL){this.talkGiftQueue.push({event,imageURL,still,effect});this.playNextTalkGift();}

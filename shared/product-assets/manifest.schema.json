@@ -1,0 +1,361 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:aifect:product-assets:manifest:2",
+  "title": "AIFECT 상품 ZIP 매니페스트 v2",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "assetVersion": {
+      "type": "string",
+      "pattern": "^\\d{1,4}\\.\\d{1,4}\\.\\d{1,4}(?:-[a-z0-9.-]{1,24})?$"
+    },
+    "productType": {
+      "enum": [
+        "gift",
+        "frame",
+        "theme"
+      ]
+    },
+    "productId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9_-]{1,80}$"
+    },
+    "packageKind": {
+      "enum": [
+        "author",
+        "operating",
+        "review"
+      ]
+    },
+    "reviewOnly": {
+      "const": true
+    },
+    "releaseReady": {
+      "const": false
+    },
+    "sourceException": {
+      "type": "string",
+      "pattern": ".*\\S.*",
+      "maxLength": 160
+    },
+    "renderMode": {
+      "enum": [
+        "static",
+        "layered",
+        "animated"
+      ]
+    },
+    "renderer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "enum": [
+            "gift-standard",
+            "gift-overlay",
+            "frame-static",
+            "frame-overlay",
+            "room-background",
+            "room-overlay"
+          ]
+        },
+        "version": {
+          "const": 1
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ]
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": ".*\\S.*",
+          "maxLength": 80
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 400
+        },
+        "uiMode": {
+          "enum": [
+            "light",
+            "dark"
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 400
+        }
+      }
+    },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "base": {
+          "$ref": "#/$defs/path"
+        },
+        "thumbnail": {
+          "$ref": "#/$defs/path"
+        },
+        "fallback": {
+          "$ref": "#/$defs/path"
+        },
+        "effect": {
+          "$ref": "#/$defs/path"
+        },
+        "desktop": {
+          "$ref": "#/$defs/path"
+        },
+        "mobile": {
+          "$ref": "#/$defs/path"
+        },
+        "app": {
+          "$ref": "#/$defs/path"
+        },
+        "roomCard": {
+          "$ref": "#/$defs/path"
+        },
+        "desktopEffect": {
+          "$ref": "#/$defs/path"
+        },
+        "mobileEffect": {
+          "$ref": "#/$defs/path"
+        },
+        "appEffect": {
+          "$ref": "#/$defs/path"
+        },
+        "desktopLow": {
+          "$ref": "#/$defs/path"
+        },
+        "mobileLow": {
+          "$ref": "#/$defs/path"
+        },
+        "appLow": {
+          "$ref": "#/$defs/path"
+        },
+        "desktopEffectLow": {
+          "$ref": "#/$defs/path"
+        },
+        "mobileEffectLow": {
+          "$ref": "#/$defs/path"
+        },
+        "appEffectLow": {
+          "$ref": "#/$defs/path"
+        }
+      },
+      "required": [
+        "thumbnail"
+      ]
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "mime": {
+            "enum": [
+              "image/webp",
+              "image/png",
+              "image/jpeg",
+              "image/gif"
+            ]
+          },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4096
+          },
+          "frames": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120
+          },
+          "bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5242880
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "mime",
+          "width",
+          "height",
+          "frames",
+          "bytes",
+          "sha256"
+        ]
+      },
+      "minItems": 1,
+      "maxItems": 42
+    },
+    "originals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/path"
+      },
+      "minItems": 0,
+      "maxItems": 38
+    },
+    "animation": {
+      "const": "animation.json"
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "desktop": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fit": {
+              "enum": [
+                "cover",
+                "contain"
+              ]
+            },
+            "focus": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "safe": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "fit",
+            "focus",
+            "safe"
+          ]
+        },
+        "mobile": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fit": {
+              "enum": [
+                "cover",
+                "contain"
+              ]
+            },
+            "focus": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "safe": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "fit",
+            "focus",
+            "safe"
+          ]
+        },
+        "app": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "fit": {
+              "enum": [
+                "cover",
+                "contain"
+              ]
+            },
+            "focus": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "safe": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "required": [
+            "fit",
+            "focus",
+            "safe"
+          ]
+        }
+      }
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "assetVersion",
+    "productType",
+    "packageKind",
+    "renderMode",
+    "renderer",
+    "assets",
+    "files",
+    "originals"
+  ],
+  "$defs": {
+    "path": {
+      "type": "string",
+      "pattern": "^(?:assets|originals)/(?:effects/)?[A-Za-z0-9_-]+\\.(?:webp|png|jpg|jpeg|gif)$",
+      "maxLength": 160
+    }
+  }
+}
