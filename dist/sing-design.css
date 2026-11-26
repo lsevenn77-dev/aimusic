@@ -232,34 +232,35 @@
     }
   }
 
-  /* Let the settings set the minimum height while the remaining viewport
-     stretches the shared grid. A short window can grow the document. */
+  /* Keep the desktop recording frame between the top bar and mini-player. */
   :root:not([data-aifect-native]) .page-wrap:has(> #main > #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording)) {
     --record-frame-inset:clamp(3px,calc(5dvh - 24px),24px);
     display:flex;
     flex-direction:column;
-    height:auto;
-    min-height:100dvh;
-    overflow:visible;
+    height:100dvh;
+    min-height:0;
+    padding-bottom:var(--player-space)!important;
+    overflow:clip;
 
     > .topbar { flex:none; }
     > #main {
-      flex:1 0 auto;
+      flex:1 1 0;
       align-items:stretch;
       width:100%;
       height:auto;
       min-height:0;
       padding-block:var(--record-frame-inset)!important;
-      overflow:visible;
+      overflow:clip;
     }
     > #main > #sing {
       --record-card-inset:clamp(4px,calc(3dvh - 12.5px),16px);
       --record-setting-gap:clamp(3px,calc(2.45dvh - 10px),12px);
       --record-slider-height:clamp(24px,calc(8dvh - 22px),55px);
       --record-option-height:clamp(28px,calc(5.2dvh - 4px),45px);
-      height:auto;
-      max-height:none;
-      grid-template-rows:max-content minmax(min-content,1fr);
+      height:100%;
+      /* The reference line is 855px below the top of both panels. */
+      max-height:855px;
+      grid-template-rows:max-content minmax(0,1fr);
 
       > .sing-head {
         padding-block:clamp(8px,calc(4dvh - 16px),20px) var(--record-setting-gap)!important;
@@ -267,13 +268,19 @@
       > .sing-recording {
         grid-template-rows:max-content clamp(0px,calc(5dvh - 29px),15px)
           clamp(22px,4.1dvh,35px) clamp(28px,4.5dvh,40px)
-          minmax(calc(var(--record-line) + 15px),1fr) max-content;
-        overflow:visible;
+          minmax(0,1fr) max-content;
       }
       .sing-wheel {
         /* The lyric list follows the grid track even when the song is long. */
         contain:size;
         height:calc(100% - 15px)!important;
+      }
+      @media(max-height:540px) {
+        > .sing-head { row-gap:4px; }
+        > .sing-recording {
+          grid-template-rows:max-content 0 20px 16px minmax(0,1fr) max-content;
+        }
+        .sing-wheel { height:100%!important;margin-block-start:0; }
       }
       > .sing-status:not(.show-notice) {
         grid-area:1 / 1;
@@ -283,15 +290,15 @@
 
       > #sing-live-settings {
         grid-row:1 / -1;
-        grid-template-rows:auto auto minmax(min-content,1fr);
+        grid-template-rows:auto auto minmax(100px,1fr);
         align-content:stretch;
         align-items:stretch;
         gap:var(--record-setting-gap);
-        overflow:visible;
-        overscroll-behavior-y:auto;
+        overflow-y:auto;
+        overscroll-behavior-y:contain;
 
         .studio-setting-card { padding-block:var(--record-card-inset); }
-        .studio-space { align-self:stretch; }
+        .studio-space { align-self:stretch;overflow-y:auto;scrollbar-width:thin; }
         .studio-setting-card h2 { margin-block-end:var(--record-setting-gap); }
         .studio-range,.studio-range input[type=range] {
           min-height:var(--record-slider-height);
