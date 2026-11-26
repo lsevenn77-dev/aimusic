@@ -45,7 +45,7 @@ internal fun Modifier.roomGlass(radius:Int=16):Modifier{
   Text(if(created>0)java.lang.String.format(java.util.Locale.ROOT,"%02d:%02d:%02d",elapsed/3600,elapsed/60%60,elapsed%60)else "참여자 "+members+"명",fontSize=12.sp,lineHeight=16.sp,color=Muted)}
 }
 internal data class RoomSticker(val key:String,val label:String,val group:String,val url:String)
-@Composable private fun roomStickers():List<RoomSticker>{
+@Composable internal fun roomStickers():List<RoomSticker>{
  val ctx=LocalContext.current
  return remember(ctx){val rows=JSONArray(ctx.resources.openRawResource(R.raw.room_stickers).bufferedReader().use{it.readText()});rows.objects().map{val group=it.getString("group");val key=it.getString("key");RoomSticker(key,it.getString("label"),group,Endpoint.url("/assets/chat-stickers/"+it.optString("assetVersion",if(group=="text")"v2" else "v1")+"/"+group+"/"+key+".webp"))}}
 }

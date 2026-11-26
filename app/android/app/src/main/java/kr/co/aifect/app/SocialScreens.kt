@@ -334,6 +334,12 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
  val context=LocalContext.current.applicationContext
  val accountId=m.user!!.optString("id")
  val peerId=m.messagePeer
+ if(isOfficialNoticePeer(peerId)){
+  val close={m.messagePeer=null}
+  androidx.activity.compose.BackHandler(onBack=close)
+  OfficialNoticeConversation(m,close)
+  return
+ }
  val cached=remember(accountId,peerId){NativeChatCache.peek(context,accountId)}
  val cachedThread=peerId?.let{cached?.threads?.get(it)}
  val knownPeer=cachedThread?.peer?:cached?.conversations?.find{it.optString("id")==peerId}
@@ -367,7 +373,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
   if(!current(pid))return
   if(pid==null){
    val revision=++inboxRevision.longValue
-   val inbox=m.api.call("/api/dm",fresh=true);val result=inbox.optJSONArray("conversations").objects();if(!current(pid)||revision!=inboxRevision.longValue)return
+   val inbox=m.api.call("/api/dm?notices=unified",fresh=true);val result=inbox.optJSONArray("conversations").objects();if(!current(pid)||revision!=inboxRevision.longValue)return
    m.inboxCrew=inbox.optJSONObject("crew");m.unreadMessages=inbox.optInt("unread")
    conversations=result;synced=true;NativeChatCache.saveConversations(context,accountId,result);return
   }
@@ -462,7 +468,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
        inboxRevision.longValue++
        conversations=conversations.filterNot{it.optString("id")==id}
        sheetScope.launch{try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
-      },refreshInbox={load()},openProfile=::openMessageProfile)
+      },openProfile=::openMessageProfile)
     }
    }else{
     ChatHistory(m,messages,earlier,historyLoading,{if(!historyLoading){historyLoading=true;sheetScope.launch{try{load(older=true)}catch(e:Exception){if(e is CancellationException)throw e;if(current(peerId))error=e.message}finally{historyLoading=false}}}},m.user?.optString("id"),false,peer=peer?.optString("name")?:"",retry={send(it)},modifier=Modifier.weight(1f).padding(horizontal=8.dp),fill=true,peerPerson=peer,openPeer={peer?.let{openMessageProfile(it)}})
