@@ -46,13 +46,15 @@ function fixture(){
  return {client,nodes,observed,focus,rootAttrs,input,context,fire,active:()=>activeElement,open:(id,action)=>client.adoptRoomPopup(nodes.get(id),nodes.get('trigger-'+action)),flush:()=>{while(closeEvents.length)closeEvents.shift()();}};
 }
 
-test('rental confirmation retains the underlying settings draft and owns pointer and keyboard events',()=>{
- const f=fixture();f.open('voice-room-settings','settings');const sheet=f.client.talkPopup,ticket=f.client.settingsTicket;
- f.context.document.querySelector=selector=>selector==='dialog.rental-confirm[open]'?{}:null;
- for(const type of ['pointerdown','click','keydown']){
-  const event=f.fire(type,f.input,{key:'Escape'});assert.equal(event.defaultPrevented,false);assert.equal(event.stopped,false);assert.equal(sheet.open,true);assert.equal(f.client.settingsTicket,ticket);
- }
-});
+for(const confirmation of ['rental-confirm','gift-transfer-confirm']){
+ test(`${confirmation} retains the underlying room popup and owns pointer and keyboard events`,()=>{
+  const f=fixture();f.open('voice-room-settings','settings');const sheet=f.client.talkPopup,ticket=f.client.settingsTicket;
+  f.context.document.querySelector=selector=>selector.split(',').includes(`dialog.${confirmation}[open]`)?{}:null;
+  for(const type of ['pointerdown','click','keydown']){
+   const event=f.fire(type,f.input,{key:'Escape'});assert.equal(event.defaultPrevented,false);assert.equal(event.stopped,false);assert.equal(sheet.open,true);assert.equal(f.client.settingsTicket,ticket);
+  }
+ });
+}
 
 test('switching from sound retires its live mic test and observer before the old close event',()=>{
  const f=fixture(),sound=f.nodes.get('voice-sound'),settings=f.nodes.get('voice-room-settings');

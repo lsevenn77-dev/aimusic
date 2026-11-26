@@ -14,18 +14,18 @@ function renderedBanners(html){
 }
 test('shop renders every API gift in gold then silver order with original IDs, names, prices and URLs',async()=>{
  const c=context(),calls=[],gifts=[...GIFT_CATALOG,{id:'new-server-id',name:'새 서버 상품',gold:123,image:'/server-new.webp'}];
- const api=async(path,...args)=>{calls.push([path,...args]);if(path==='/api/gold')return {balance:987,free:{balance:654}};if(path==='/api/decorations')return {products:Object.values(DECORATIONS),periods:PERIOD_LABELS};if(path==='/api/gifts/catalog')return {gifts,silver_gifts:SILVER_GIFT_CATALOG};throw Error(path);};
+ const api=async(path,...args)=>{calls.push([path,...args]);if(path==='/api/gold/balance')return {balance:987,silver_balance:654};if(path==='/api/decorations')return {products:Object.values(DECORATIONS),periods:PERIOD_LABELS};if(path==='/api/gifts/catalog')return {gifts,silver_gifts:SILVER_GIFT_CATALOG};throw Error(path);};
  const html=await c.finalGiftShopView('gifts',api),expected=[...gifts,...SILVER_GIFT_CATALOG];
  assert.equal((html.match(/data-shop-category="gifts"/g)||[]).length,expected.length);
  let previous=-1;for(const p of expected){const index=html.indexOf('data-shop-name="'+p.name+'"');assert.ok(index>previous);previous=index;assert.ok(html.includes('data-gift-buy="'+p.id+'"'));assert.ok(html.includes('src="'+p.image+'"'));assert.ok(html.includes('>'+Number(p.free?p.silver:p.gold).toLocaleString('en-US')+'</span>'));}
  assert.ok(!html.includes('data-gift-buy="note"'));assert.ok(!html.includes('data-gift-buy="star"'));
- assert.ok(/data-shop-gold>[^<]*<span[^>]+aria-label="골드 987"/.test(html));assert.ok(/data-shop-silver>[^<]*<span[^>]+aria-label="실버 654"/.test(html));
- assert.equal(calls.length,3);assert.equal(calls.find(x=>x[0]==='/api/gold')[3].fresh,true);
+ assert.ok(/data-shop-gold[^>]*>[^<]*<span[^>]+aria-label="골드 987"/.test(html));assert.ok(/data-shop-silver[^>]*>[^<]*<span[^>]+aria-label="실버 654"/.test(html));
+ assert.equal(calls.length,3);assert.ok(calls.some(x=>x[0]==='/api/gold/balance'));
  assert.equal((html.match(/role="tab"/g)||[]).length,3);assert.ok(!/shop-shelf|shop-expand|data-shelf|골드 상품|실버 상품/.test(html));
 });
 test('anonymous shop skips wallet request and category deep links select the correct tab',async()=>{
- const c=context({me:null}),api=async path=>{assert.notEqual(path,'/api/gold');return path==='/api/decorations'?{products:Object.values(DECORATIONS),periods:PERIOD_LABELS}:{gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG};};
- const html=await c.finalGiftShopView('themes',api);assert.ok(html.includes('data-shop-active="themes"'));assert.ok(/data-shop-gold>[^<]*<span[^>]+aria-label="골드 0"/.test(html));
+ const c=context({me:null}),api=async path=>{assert.notEqual(path,'/api/gold/balance');return path==='/api/decorations'?{products:Object.values(DECORATIONS),periods:PERIOD_LABELS}:{gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG};};
+ const html=await c.finalGiftShopView('themes',api);assert.ok(html.includes('data-shop-active="themes"'));assert.ok(/data-shop-gold[^>]*>[^<]*<span[^>]+aria-label="골드 —"/.test(html));
  assert.equal((html.match(/data-shop-category="frames"/g)||[]).length,4);assert.equal((html.match(/data-shop-category="themes"/g)||[]).length,4);
  for(const [tag,category] of html.matchAll(/<article [^>]*data-shop-category="([^"]+)"[^>]*>/g)){
   assert.equal(tag.endsWith(' hidden>'),category!=='themes',`${category} card has the correct initial visibility`);

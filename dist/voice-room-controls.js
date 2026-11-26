@@ -384,10 +384,10 @@ Object.assign(VoiceRoomClient.prototype,{
   }
   const ids={inbox:'room-inbox',participants:'voice-members',sound:'voice-sound',share:'voice-invite-sheet',settings:'voice-room-settings',leave:'talk-leave','music-picker':'voice-music-sheet','view-queue':'voice-music-sheet','personal-volume':'talk-volume','karaoke-search-open':'live-search-sheet',emoji:'voice-emoji-picker',gift:'voice-gift-sheet'};
   for(const button of this.host.querySelectorAll('.room-header button,[data-voice=sound]')){button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls',ids[button.dataset.voice]);button.setAttribute('aria-expanded','false');}
+  const confirmationOpen=()=>document.querySelector('dialog.rental-confirm[open],dialog.gift-transfer-confirm[open]');
   const outside=e=>{
-   // The first-use confirmation owns pointer/keyboard dismissal while open.
-   // Its buttons must not dismiss the settings draft underneath it.
-   if(document.querySelector('dialog.rental-confirm[open]'))return;
+   // The top modal owns dismissal while the room popup remains open beneath it.
+   if(confirmationOpen())return;
    const popup=this.talkPopup;if(!popup?.open||popup.contains(e.target))return;
    const link=e.target.closest?.('a[href]');if(link&&!roomRouteMatches(new URL(link.href,location.href),this)){this.closeRoomPopup();return;}
    // Let the same mobile tap both dismiss the sheet and place the editing caret.
@@ -399,7 +399,7 @@ Object.assign(VoiceRoomClient.prototype,{
   };
   document.addEventListener('pointerdown',outside,{...options,capture:true});document.addEventListener('click',outside,{...options,capture:true});
   document.addEventListener('keydown',e=>{
-   if(document.querySelector('dialog.rental-confirm[open]'))return;
+   if(confirmationOpen())return;
    const popup=this.talkPopup;
    if(e.key==='Tab'&&popup?.open){
     const controls=[...popup.querySelectorAll('a[href],button:not(:disabled),input:not(:disabled),select:not(:disabled),textarea:not(:disabled),[contenteditable=true],[tabindex="0"]')].filter(el=>el.getClientRects().length);

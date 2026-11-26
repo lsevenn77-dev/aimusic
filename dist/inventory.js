@@ -95,23 +95,33 @@ function paintInventory(state) {
  const panel = $('#unified-inventory #inventory-products');
  if (!panel || state !== unifiedInventoryState) return;
  const html = inventoryPanel(state);
- if (state.painted !== html) {panel.innerHTML=html; state.painted=html;}
+ if (state.painted === html) return;
+ const scroll=document.scrollingElement, top=scroll?.scrollTop, main=$('#main'), localTop=main?.scrollTop;
+ panel.innerHTML=html;state.painted=html;
+ if(scroll&&scroll.scrollTop!==top)scroll.scrollTop=top;
+ if(main&&main.scrollTop!==localTop)main.scrollTop=localTop;
 }
 function bindUnifiedInventory(state) {
  const root = $('#unified-inventory');
  if (!root || me?.id !== state.account) return;
  unifiedInventoryState = state;
- let lastRead = inventoryClock(), sequence = 0;
- const refresh = async force => {
-  if (!root.isConnected || me?.id !== state.account || document.hidden) return;
+ state.painted=inventoryPanel(state);
+ const paths={player:'/api/me/player',gifts:'/api/me/gift-inventory'};
+ const lastRead={player:inventoryClock(),gifts:inventoryClock()},sequence={player:0,gifts:0};
+ const refresh = async (force,detail) => {
+  if (!root.isConnected || me?.id !== state.account || document.hidden&&!detail) return;
   paintInventory(state);
-  if (!force && inventoryClock()-lastRead < 30000) return;
-  const revision = apiRevision, ticket = ++sequence;
-  lastRead = inventoryClock();
-  const data = await readOwnedInventory(api);
-  if (root.isConnected && state === unifiedInventoryState && state.account === me?.id && ticket === sequence && revision === apiRevision) {
-   Object.assign(state,data,{revision}); paintInventory(state);
-  }
+  const revision=apiRevision, keys=detail?.kind?[detail.kind]:Object.keys(paths);
+  await Promise.all(keys.map(async key=>{
+   if(!force&&inventoryClock()-lastRead[key]<30000)return;
+   const ticket=++sequence[key];lastRead[key]=inventoryClock();
+   try{
+    const data=await api(paths[key],'GET',undefined,{fresh:true});
+    if(!root.isConnected||state!==unifiedInventoryState||state.account!==me?.id||ticket!==sequence[key]||revision!==apiRevision)return;
+    if(data.server_now){state.serverNow=data.server_now;state.receivedAt=inventoryClock();}
+    state[key]=data;state.revision=revision;paintInventory(state);
+   }catch{if(ticket===sequence[key])lastRead[key]=inventoryClock()-25000;}
+  }));
  };
  root.onclick = e => {
   if (e.target.closest('[data-inventory-retry]')) return void refresh(true);
@@ -119,7 +129,7 @@ function bindUnifiedInventory(state) {
   const item = button && inventoryItems(state).find(i => i.id === button.dataset.stockSend);
   if (item?.giftable && item.available) inventoryRecipientDialog(item,state);
  };
- const tick = () => void refresh(false), changed = () => void refresh(true);
+ const tick = () => void refresh(false), changed = event => void refresh(true,event.detail);
  window.addEventListener('aifect:inventory-tick',tick);
  window.addEventListener('aifect:inventory-changed',changed);
  document.addEventListener('visibilitychange',changed);
@@ -179,8 +189,8 @@ function inventoryRecipientDialog(item,state) {
    };
   },
   async refresh() {
-   const data = await readOwnedInventory(api);
-   if ((consumable ? data.gifts : data.player).error) return;
+   const stock = await api(consumable?'/api/me/gift-inventory':'/api/me/player','GET',undefined,{fresh:true});
+   const data = {gifts:consumable?stock:{},player:consumable?{}:stock,serverNow:stock.server_now||Date.now()/1000,receivedAt:inventoryClock()};
    const available = new Set(inventoryItems(data).filter(i=>i.available && i.giftable).flatMap(i=>i.ids));
    ownedIds = ownedIds.filter(id=>available.has(id));
   }
