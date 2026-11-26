@@ -813,6 +813,13 @@
       "when": 1795684472916,
       "tag": "0115_official_notice_delivery",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "6",
+      "when": 1795695334222,
+      "tag": "0116_notice_test_recipients",
+      "breakpoints": true
     }
   ]
 }

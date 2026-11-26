@@ -25,6 +25,13 @@ const post=(f,data)=>f.call(root,'POST',data);
 const selectors=(f,uid)=>f.call(feed,'GET',undefined,uid);
 const patch=(f,id,data)=>f.call(root+'/history/'+id,'PATCH',data);
 const withdraw=(f,id,data)=>f.call(root+'/history/'+id+'/withdraw','POST',data);
+const testRecipients=root+'/test-recipients';
+const addTester=(f,public_id)=>f.call(testRecipients,'POST',{public_id});
+const selectTester=(f,code,selected)=>f.call(testRecipients+'/'+code,'PATCH',{selected});
+function migrateTestRecipients(f){
+ f.sql.exec('DROP TABLE notice_test_recipients');
+ f.sql.exec(readFileSync(new URL('../drizzle/0116_notice_test_recipients.sql',import.meta.url),'utf8'));
+}
 const raw=(f,path,method='GET',uid='owner',headers={},body,extra={})=>worker.fetch(
  new Request('https://aifect.test'+path,{method,headers:{...(uid?{cookie:'aifect_session='+uid}:{}),origin:'https://aifect.test',...headers},body}),
  {...operator,DB:f.DB,...extra},{waitUntil(p){p.catch(()=>{});}});
@@ -168,7 +175,8 @@ test('welcome templates are immutable across signup boundaries and disable/re-en
 test('client and server agree on safe content and retain versioned draft/roster state without exposing it to members',async t=>{
  const f=await fixture(t,operator);
  const code=f.sql.prepare("SELECT code FROM public_profile_ids WHERE user_id='other'").get().code;
- assert.equal((await f.call(root+'/settings','PUT',{public_id:code})).status,200);
+ assert.equal((await addTester(f,code)).status,201);
+ assert.equal((await selectTester(f,code,true)).status,200);
  const valid=content();
  valid.blocks[0].runs.push({text:'<img onerror=alert(1)>',href:'#song/one',bold:true},{sticker:'cat_basic_happy'});
  const render=renderNoticeEntry({id:'campaign:notice',rich:cleanNoticeContent(valid),created:1});
@@ -177,7 +185,10 @@ test('client and server agree on safe content and retain versioned draft/roster 
  assert.throws(()=>cleanNoticeContent({...valid,blocks:[{type:'p',runs:[{text:'bad',href:'javascript:alert(1)'}]}]}));
  assert.throws(()=>cleanNoticeContent({...valid,blocks:[{type:'p',runs:[{sticker:'unregistered'}]}]}));
  const id=crypto.randomUUID(),draft=root+'/drafts/'+id;
- const input={version:0,content:valid,audience:audience('specific',['other']),push:false};
+ const input={version:0,content:valid,audience:audience('specific',['other']),push:false,intent:'manual'};
+ const {intent,...oldClient}=input;
+ assert.equal((await f.call(draft,'PUT',oldClient)).status,409);
+ assert.equal((await f.call(root+'/drafts')).body.drafts.length,0);
  assert.equal((await f.call(draft,'PUT',input)).status,201);
  assert.equal((await f.call(draft,'PUT',input)).body.version,1);
  assert.equal((await f.call(draft,'GET',undefined,'other')).status,403);
@@ -186,12 +197,14 @@ test('client and server agree on safe content and retain versioned draft/roster 
  assert.deepEqual(roster.body.ids,['other']);
  assert.equal((await f.call(root+'/rosters/'+roster.body.id)).body.name,'테스트 명단');
  assert.equal((await f.call(root+'/rosters/'+roster.body.id,'DELETE',{version:1})).status,200);
- const test=await f.call(root+'/test','POST',{request_id:crypto.randomUUID(),content:valid});
+ const test=await f.call(root+'/test','POST',{request_id:crypto.randomUUID(),content:valid,recipient_codes:[code]});
  assert.equal(test.status,201,JSON.stringify(test.body));
  assert.equal((await selectors(f,'other')).body.items[0].test,true);
  assert.equal((await selectors(f,'owner')).body.items.length,0);
  assert.equal((await f.call(root)).body.items.length,0);
  assert.equal((await f.call(root+'?test=test')).body.items.length,1);
+ assert.equal((await f.call(root+'/drafts')).body.drafts.length,1);
+ assert.equal((await f.call(draft)).body.version,1);
  assert.equal((await f.call(root+'/test','POST',{request_id:crypto.randomUUID(),content:content(),push:true})).status,409);
 });
 
@@ -206,6 +219,7 @@ test('exact public IDs and UUIDs, nickname fragments, exclusions, and the defaul
  f.sql.prepare('INSERT OR IGNORE INTO public_profile_ids(user_id,code) VALUES(?,?)').run(removed,'ZZZ7001');
  f.sql.prepare('INSERT OR IGNORE INTO public_profile_ids(user_id,code) VALUES(?,?)').run(bot,'ZZZ7002');
  code.run('ZZZ7001',removed);code.run('ZZZ7002',bot);
+ migrateTestRecipients(f);
  for(const term of [' rGt  4228 ',uid.toUpperCase(),'검색 테스트']){
   const {body,status}=await f.call(root+'/members?q='+encodeURIComponent(term));
   assert.equal(status,200);
@@ -213,15 +227,16 @@ test('exact public IDs and UUIDs, nickname fragments, exclusions, and the defaul
  }
  assert.deepEqual((await f.call(root+'/members?q='+uid.slice(3,14))).body.members,[]);
  const settings=await f.call(root+'/settings');
- assert.equal(settings.body.test.member.public_id,'RGT4228');
+ assert.deepEqual(settings.body.test_recipients.map(m=>[m.public_id,m.selected]),[['RGT4228',true]]);
+ assert.equal(Object.hasOwn(settings.body.test_recipients[0],'id'),false);
  const resolved=await f.call(root+'/members/resolve','POST',{codes:['rgt4228','RG T4228','ZZZ7001','ZZZ7002','ZZZ7003','!']});
  assert.deepEqual(resolved.body.members.map(item=>item.id),[uid]);
  assert.deepEqual(resolved.body.excluded.map(item=>item.reason),['withdrawn','ai_account','not_found','invalid_format']);
  const query=await f.call(root+'/targets/count','POST',{audience:audience('specific',[uid,uid,bot,removed])});
  assert.equal(query.body.count,1);
- assert.equal((await f.call(root+'/settings','PUT',{public_id:'ZZZ7003'})).status,422);
- assert.equal((await f.call(root+'/settings')).body.test.member.id,uid);
- const message={request_id:crypto.randomUUID(),content:content('환영 테스트 {닉네임}'),purpose:'welcome',audience:audience('all')};
+ for(const invalid of ['ZZZ7001','ZZZ7002','ZZZ7003',uid])assert.equal((await addTester(f,invalid)).status,422);
+ assert.equal((await f.call(root+'/settings')).body.test_recipients.length,1);
+ const message={request_id:crypto.randomUUID(),content:content('환영 테스트 {닉네임}'),purpose:'welcome',recipient_codes:['RGT4228'],audience:audience('all')};
  await login(f,uid);
  const [first,second]=await Promise.all([f.call(root+'/test','POST',message),f.call(root+'/test','POST',message)]);
  assert.equal(first.body.recipients,1);assert.equal(second.body.id,first.body.id);
@@ -230,6 +245,60 @@ test('exact public IDs and UUIDs, nickname fragments, exclusions, and the defaul
  assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM admin_audit WHERE action='notice:test'").get().n,1);
  assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM push_outbox').get().n,0);
  assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM notice_signup_deliveries WHERE state='sent'").get().n,0);
+});
+
+test('migrates test settings and sends one receipt per selected registered account without touching drafts or other recipients',async t=>{
+ const f=await fixture(t,operator);
+ for(const user of ['default-tester','previous-tester','unchecked-tester']){
+  member(f,user);await login(f,user);
+ }
+ f.sql.exec("DROP TRIGGER public_profile_ids_immutable");
+ const setCode=f.sql.prepare('UPDATE public_profile_ids SET code=? WHERE user_id=?');
+ setCode.run('RGT4228','default-tester');setCode.run('ZZZ8081','previous-tester');setCode.run('ZZZ8082','unchecked-tester');
+ f.sql.exec("INSERT INTO notice_test_settings VALUES('default','ZZZ8081','owner',10)");
+ f.sql.exec("INSERT INTO producers(id,user_id,name,image_version,created) VALUES('test-picture','default-tester','사진 회원','4',0)");
+ migrateTestRecipients(f);
+ let settings=(await f.call(root+'/settings')).body.test_recipients;
+ assert.deepEqual(settings.map(m=>[m.public_id,m.selected]),[['RGT4228',false],['ZZZ8081',true]]);
+ assert.equal(settings[0].profile_id,'test-picture');assert.equal(settings[0].image_version,'4');
+ assert.equal(f.sql.prepare("SELECT public_id FROM notice_test_settings WHERE id='default'").get().public_id,'ZZZ8081');
+ const [added,duplicate]=await Promise.all([addTester(f,' zz z8082 '),addTester(f,'ZZZ8082')]);
+ assert.deepEqual([added.status,duplicate.status].sort(),[201,409]);
+ assert.equal((await selectTester(f,'RGT4228',true)).status,200);
+ settings=(await f.call(root+'/settings')).body.test_recipients;
+ assert.deepEqual(settings.map(m=>[m.public_id,m.selected]),[['RGT4228',true],['ZZZ8081',true],['ZZZ8082',false]]);
+
+ const draft=root+'/drafts/'+crypto.randomUUID();
+ assert.equal((await f.call(draft,'PUT',{intent:'manual',version:0,content:content('수동 저장'),audience:audience('normal')})).status,201);
+ const send=payload=>f.call(root+'/test','POST',payload);
+ const message={request_id:crypto.randomUUID(),content:content('환영 {닉네임}'),purpose:'welcome',
+  recipient_codes:['ZZZ8081','RGT4228'],audience:audience('all')};
+ assert.equal((await send({...message,recipient_codes:['ZZZ8081','ZZZ8082']})).status,409);
+ assert.equal((await send({...message,recipient_codes:[]})).status,400);
+ assert.equal((await send({...message,recipient_codes:['RGT4228','RGT4228']})).status,400);
+ assert.equal((await send({...message,recipient_codes:undefined})).status,409);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM welcome_receipts').get().n,0);
+ const [first,replay]=await Promise.all([send(message),send({...message,recipient_codes:[...message.recipient_codes].reverse()})]);
+ assert.equal(first.body.recipients,2,JSON.stringify(first.body));assert.equal(replay.body.id,first.body.id);
+ assert.equal((await selectors(f,'default-tester')).body.items[0].rich.title,'환영 사진 회원');
+ assert.equal((await selectors(f,'previous-tester')).body.items[0].rich.title,'환영 previous-tester');
+ for(const user of ['owner','other','unchecked-tester'])assert.equal((await selectors(f,user)).body.items.length,0);
+ assert.equal((await f.call(root+'?test=test')).body.items[0].original,2);
+ assert.equal((await f.call(root)).body.items.length,0);
+ assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM admin_audit WHERE action='notice:test'").get().n,1);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM notice_drafts').get().n,1);
+ assert.equal((await f.call(draft)).body.content.title,'수동 저장');
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM notice_delivery_jobs').get().n,0);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM push_outbox').get().n,0);
+ assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM notice_signup_deliveries WHERE state='sent'").get().n,0);
+
+ assert.equal((await f.call(testRecipients+'/RGT4228','DELETE')).status,200);
+ assert.equal(f.sql.prepare("SELECT id FROM users WHERE id='default-tester'").get().id,'default-tester');
+ assert.equal((await selectors(f,'default-tester')).body.items.length,1);
+ assert.equal((await send(message)).body.id,first.body.id);
+ assert.equal((await send({...message,request_id:crypto.randomUUID()})).status,409);
+ assert.equal((await send({...message,recipient_codes:['ZZZ8081']})).status,409);
+ assert.deepEqual((await f.call(root+'/settings')).body.test_recipients.map(m=>m.public_id),['ZZZ8081','ZZZ8082']);
 });
 
 test('a confirmed payload is single-use and processes only the original recipients; retry skips successes',async t=>{

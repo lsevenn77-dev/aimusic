@@ -5,7 +5,7 @@ import {WELCOME_CAMPAIGN_ID,WELCOME_PEER_ID,WELCOME_PREVIEW,WELCOME_GUIDE,update
 import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID,PREMIUM_OPEN_NOTICE_SENDER,PREMIUM_OPEN_NOTICE_TYPE} from '../shared/premium-open-notice.js';
 import {eventEnd,eventUntilSQL} from './premium-event.js';
 import {noticeAssetURL,noticePlainText} from '../shared/official-notice-content.js';
-import {noticeVisible,recipientRichNotice} from './notice-visibility.js';
+import {noticeVisible,recipientRichNotice,usesNoticeNickname} from './notice-visibility.js';
 import {withGiftArrivalDetails} from './gift-arrival-details.js';
 
 const eligible = "u.account_type='human' AND u.provider!='deleted'";
@@ -20,7 +20,7 @@ export function isOfficialNoticePeer(peerId) {
 
 function noticePreview(receipt) {
  if(receipt.title){
-  const welcome=receipt.kind==='welcome'||receipt.campaign_id===WELCOME_CAMPAIGN_ID;
+  const welcome=usesNoticeNickname(receipt.kind,receipt.campaign_id);
   return (receipt.test?'[테스트] ':'')+(welcome?receipt.title.replaceAll('{닉네임}',()=>receipt.nickname??'회원'):receipt.title);
  }
  if(receipt.campaign_id!==PREMIUM_OPEN_NOTICE_ID)return WELCOME_PREVIEW;

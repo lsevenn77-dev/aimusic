@@ -140,7 +140,7 @@
   const $=s=>host.querySelector(s),body=$('[data-body]'),title=$('[data-title]'),files=$('[data-files]'),
    picture=$('[data-picture]'),link=$('[data-link-dialog]'),emoji=$('[data-emoji-dialog]'),palette=$('[data-color-dialog]');
   const pictureField=selector=>picture.querySelector(selector);
-  let range=null,image=null,replace=false,activeLink=null,failed=null,uploading=false,writable=true;
+  let range=null,image=null,replace=false,activeLink=null,failed=null,uploading=false,writable=true,uploadGeneration=0;
   let current=null;
   const undo=[],redo=[];
   const editingOptions=()=>({imageURL:rich().adminNoticeAssetURL,renderStickers:stickers()?.render,editing:true});
@@ -162,8 +162,11 @@
    $('[data-length]').value=rich().noticeLength(content).toLocaleString('ko-KR')+'자';
   }
   function load(content=blank()){
+   ++uploadGeneration;uploading=false;failed=null;replace=false;activeLink=null;files.value='';
+   $('[data-heading]').selectedIndex=0;
+   for(const dialog of [link,emoji,palette])if(dialog.open)dialog.close();
    paint(content);current=JSON.stringify(read());undo.length=0;redo.length=0;
-   failed=null;showUpload('');
+   showUpload('');
   }
   function moveHistory(back){
    const origin=back?undo:redo,target=back?redo:undo,next=origin.pop();
@@ -308,7 +311,7 @@
    if(!writable||uploading||!all.length)return;
    const existing=read().blocks.filter(block=>block.type==='image').length;
    if(existing+all.length-(replacing?1:0)>rich().noticeImageLimit){showUpload('이미지는 10장까지 첨부할 수 있습니다.');return;}
-   const at=range?.cloneRange();
+   const at=range?.cloneRange(),generation=++uploadGeneration;
    uploading=true;failed=null;
    let summary='';
    try{
@@ -317,8 +320,10 @@
      showUpload(progress+' 최적화 중');
      try{
       const {blob,width,height}=await webp(all[i]);
+      if(generation!==uploadGeneration)return;
       showUpload(progress+' 업로드 중');
       const asset=await upload(blob);
+      if(generation!==uploadGeneration)return;
       summary=width+' × '+height+' · '+Math.ceil(blob.size/1024)+' KB'+
        (blob.size>rich().noticeImageBounds.targetBytes?' (글자 가독성을 위해 크기를 유지했습니다.)':'');
       if(replacing&&!replacing.isConnected)throw new Error('교체할 이미지를 다시 선택해 주세요.');
@@ -326,11 +331,16 @@
       const next={type:'image',align:'left',width:100,alt:'',...(replacing?imageBlock(replacing):{}),asset:asset.id};
       if(!insert([next],replacing))throw new Error('이미지를 본문에 삽입할 수 없습니다.');
       if(replacing)chooseImage(body.querySelector('[data-notice-asset="'+asset.id+'"]'));
-     }catch(error){failed={files:all.slice(i),replacing,error};break;}
+     }catch(error){
+      if(generation!==uploadGeneration)return;
+      failed={files:all.slice(i),replacing,error};break;
+     }
     }
    }finally{
-    uploading=false;
-    showUpload(failed?failed.error.message:'이미지를 업로드했습니다. '+summary);
+    if(generation===uploadGeneration){
+     uploading=false;
+     showUpload(failed?failed.error.message:'이미지를 업로드했습니다. '+summary);
+    }
    }
   }
 

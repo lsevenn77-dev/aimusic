@@ -1,11 +1,12 @@
 import {WELCOME_CAMPAIGN_ID,WELCOME_GUIDE,WELCOME_PREVIEW} from '../shared/welcome-guide.js';
 import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
-import {cleanNoticeContent,legacyNoticeContent,noticeFormat,noticeAssetId,noticeAssetsIn,noticeForMember,noticeSongsIn} from '../shared/official-notice-content.js';
+import {cleanNoticeContent,legacyNoticeContent,noticeFormat,noticeAssetId,noticeAssetsIn,noticeSongsIn} from '../shared/official-notice-content.js';
 import {hash} from './auth.js';
 import {fail,id,json,now,one,query,rows,str} from './db.js';
 import {publicNameSQL} from './identity.js';
-import {activeAudienceCheck,audienceCandidates,createAudienceCheck,eligibleNoticeMember,memberCsv,normalizePublicCode,readMemberIds,recordNoticeAudit,resolveNoticeMembers} from './notice-audience.js';
+import {activeAudienceCheck,audienceCandidates,createAudienceCheck,eligibleNoticeMember,memberCsv,readMemberIds,recordNoticeAudit} from './notice-audience.js';
 import {continueNoticeJob,noticeDeliveryStatus,processNoticeBatch} from './notice-delivery.js';
+import {readNoticeTestCodes,selectedNoticeTestTargets} from './notice-test-recipients.js';
 import {formatWelcomeGuide} from './welcome-notices.js';
 import {noticeScope} from './notice-visibility.js';
 
@@ -70,36 +71,6 @@ export async function noticeTestMember(env,actor){
  return member??null;
 }
 
-const defaultTestCode='RGT4228';
-async function locateNoticeTester(env,publicId){
- const {members,excluded}=await resolveNoticeMembers(env,{codes:[publicId]});
- if(members.length===1)return {public_id:publicId,member:members[0],error:null};
- const reason=excluded[0]?.reason;
- return {public_id:publicId,member:null,error:reason==='withdrawn'?'탈퇴한 회원입니다.':
-  reason==='ai_account'?'AI 활동 계정은 테스트 발송 대상에서 제외됩니다.':
-  reason==='invalid_format'?'회원 고유 ID 형식을 확인해 주세요.':'해당 회원 고유 ID를 찾을 수 없습니다.'};
-}
-export async function configuredNoticeTester(env){
- const setting=await one(env,"SELECT public_id FROM notice_test_settings WHERE id='default'");
- return locateNoticeTester(env,setting?.public_id??defaultTestCode);
-}
-
-export async function setNoticeTester(env,actor,input){
- if(typeof input.public_id!=='string'||input.public_id.length>100)fail(400,'회원 고유 ID를 확인해 주세요.');
- const publicId=normalizePublicCode(input.public_id);
- if(!publicId)fail(400,'회원 고유 ID를 입력해 주세요.');
- const tester=await locateNoticeTester(env,publicId);
- if(!tester.member)fail(422,tester.error);
- const at=now();
- await env.DB.batch([
-  query(env,`INSERT INTO notice_test_settings(id,public_id,updated_by,updated) VALUES('default',?,?,?)
-   ON CONFLICT(id) DO UPDATE SET public_id=excluded.public_id,updated_by=excluded.updated_by,updated=excluded.updated`,publicId,actor,at),
-  query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,'notice:test_settings',?,?)`,
-   id(),actor,JSON.stringify({public_id:publicId}),at)
- ]);
- return json(tester);
-}
-
 export function noticePush(env,input){
  if(input.push===undefined||input.push===false)return false;
  if(input.push!==true)fail(400,'앱 푸시 발송 여부를 확인해 주세요.');
@@ -120,16 +91,19 @@ export async function publishOfficialNotice(env,actor,input,{test=false,ctx}={})
  if(test&&input.push===true)fail(409,'테스트 발송에는 앱 푸시를 사용할 수 없습니다.');
  const push=!test&&input.push===true,purpose=test?input.purpose??'announcement':null;
  if(test&&!['announcement','welcome'].includes(purpose))fail(400,'테스트 발송 유형을 확인해 주세요.');
+ const recipientCodes=test&&Object.hasOwn(input,'recipient_codes')?readNoticeTestCodes(input.recipient_codes):null;
  // Preserve the fingerprint of requests accepted by the previous client.
  const legacyHash={content,test,draftId,draftVersion,check:test?undefined:input.check_id};
- const requestHash=await hash(JSON.stringify({...legacyHash,...(push?{push}:{}),...(purpose==='welcome'?{purpose}:{})}));
+ const requestHash=await hash(JSON.stringify({...legacyHash,...(push?{push}:{}),...(purpose==='welcome'?{purpose}:{}),
+  ...(recipientCodes?{recipientCodes}:{})}));
  const previous=await existingSend(env,actor,campaignId,requestHash);
  if(previous){
   if(previous.status==='processing')continueNoticeJob(env,ctx,campaignId);
   return json(previous,previous.status==='processing'?202:200);
  }
+ if(test&&!recipientCodes)fail(409,'관리자 화면을 새로고침하고 테스트 수신 계정을 선택해 주세요.');
  await checkedNoticeContent(env,content,{required:true});
- if(test)return publishTestNotice(env,actor,action,campaignId,requestHash,content,purpose);
+ if(test)return publishTestNotice(env,actor,action,campaignId,requestHash,content,purpose,recipientCodes);
  noticePush(env,input);
  const check=await activeAudienceCheck(env,actor,input.check_id);
  const {confirmation,...audience}=check.audience;
@@ -177,30 +151,28 @@ export async function publishOfficialNotice(env,actor,input,{test=false,ctx}={})
  return json(result,result.status==='processing'?202:201);
 }
 
-async function publishTestNotice(env,actor,action,campaignId,requestHash,content,purpose){
- const tester=await configuredNoticeTester(env);
- if(!tester.member)fail(422,tester.public_id+' · '+tester.error);
- const member=tester.member,at=now();
- const message=purpose==='welcome'?noticeForMember(content,member.name):content;
- const target=`SELECT u.id FROM users u WHERE ${eligibleNoticeMember} AND u.id=? AND
-  EXISTS(SELECT 1 FROM public_profile_ids m WHERE m.user_id=u.id AND m.code=?)`;
- const targetArgs=[member.id,tester.public_id];
+async function publishTestNotice(env,actor,action,campaignId,requestHash,content,purpose,recipientCodes){
+ const at=now(),targets=JSON.stringify(recipientCodes),requested=recipientCodes.length;
+ const kind=purpose==='welcome'?'welcome_test':'announcement';
+ const target=`SELECT id FROM (${selectedNoticeTestTargets}) WHERE public_id IN (SELECT value FROM json_each(?))`;
+ // Compare the full selected set inside the write transaction before recording any receipt.
  await env.DB.batch([
   query(env,`INSERT INTO welcome_campaigns(id,content_json,created,recipient_max_rowid,kind,title,author_id,audience,request_hash,test)
-   SELECT ?,?,?,0,'announcement',?,?,'test',?,1 WHERE EXISTS(${target}) ON CONFLICT(id) DO NOTHING`,
-   campaignId,JSON.stringify(message),at,message.title,actor,requestHash,...targetArgs),
+   SELECT ?,?,?,0,?,?,?,'test',?,1 WHERE (SELECT COUNT(*) FROM (${selectedNoticeTestTargets}))=?
+   AND (SELECT COUNT(*) FROM (${target}))=? ON CONFLICT(id) DO NOTHING`,
+   campaignId,JSON.stringify(content),at,kind,content.title,actor,requestHash,requested,targets,requested),
   query(env,`INSERT INTO welcome_receipts(campaign_id,user_id,created,source)
    SELECT ?,u.id,?,'broadcast' FROM (${target}) u
    WHERE changes()=1 AND EXISTS(SELECT 1 FROM welcome_campaigns WHERE id=? AND author_id=? AND request_hash=?)`,
-   campaignId,at,...targetArgs,campaignId,actor,requestHash),
+   campaignId,at,targets,campaignId,actor,requestHash),
   query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created)
-   SELECT ?,?,'notice:test',json_object('id',id,'audience',audience,'recipients',1,'test',1,'push',0,'purpose',?),created
-   FROM welcome_campaigns WHERE id=? AND author_id=? AND request_hash=? AND changes()=1`,
-   action,actor,purpose,campaignId,actor,requestHash)
+   SELECT ?,?,'notice:test',json_object('id',id,'audience',audience,'recipients',?,'test',1,'push',0,'purpose',?),created
+   FROM welcome_campaigns WHERE id=? AND author_id=? AND request_hash=? AND changes()=?`,
+   action,actor,requested,purpose,campaignId,actor,requestHash,requested)
  ]);
  const saved=await existingSend(env,actor,campaignId,requestHash);
  if(saved)return json(saved,201);
- fail(409,'테스트 회원의 상태가 변경되었습니다. 다시 확인해 주세요.');
+ fail(409,'테스트 수신 계정 또는 선택 상태가 변경되었습니다. 목록을 다시 확인해 주세요.');
 }
 
 export function giftArrivalNoticeQueries(env,job,anchors,content){

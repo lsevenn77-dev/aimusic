@@ -3,8 +3,9 @@ import {PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
 import {noticeForMember,noticeFormat} from '../shared/official-notice-content.js';
 import {query} from './db.js';
 
-export const noticeScope=`(c.kind IN ('announcement','welcome') OR c.id IN ('${WELCOME_CAMPAIGN_ID}','${PREMIUM_OPEN_NOTICE_ID}'))`;
+export const noticeScope=`(c.kind IN ('announcement','welcome','welcome_test') OR c.id IN ('${WELCOME_CAMPAIGN_ID}','${PREMIUM_OPEN_NOTICE_ID}'))`;
 export const noticeVisible=`(${noticeScope} OR c.kind='gift') AND c.withdrawn_at=0 AND r.withdrawn_at=0`;
+export const usesNoticeNickname=(kind,campaignId)=>kind==='welcome'||kind==='welcome_test'||campaignId===WELCOME_CAMPAIGN_ID;
 export function bumpGiftArrivalVersion(env,targets,...args){
  return query(env,`UPDATE welcome_campaigns SET version=version+1 WHERE kind='gift' AND id IN (
   SELECT 'gift-'||a.id FROM (${targets}) touched JOIN gift_dispatch_items a
@@ -18,6 +19,6 @@ export function recipientRichNotice(record){
  if(!record.edit_json&&kind==='legacy')return null;
  const data=JSON.parse(record.edit_json??record.content_json);
  if(data.format!==noticeFormat)return null;
- return kind==='welcome'||record.campaign_id===WELCOME_CAMPAIGN_ID||record.legacy_id===WELCOME_CAMPAIGN_ID?
+ return usesNoticeNickname(kind,record.campaign_id??record.legacy_id)?
   noticeForMember(data,record.nickname):data;
 }

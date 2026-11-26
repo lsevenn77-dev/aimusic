@@ -83,6 +83,8 @@
   }
 
   function navigate(view,selection=null){
+    if(state.view==='notice-chat'&&view!=='notice-chat'&&
+      !document.dispatchEvent(new Event('aifect-admin-notices-leave',{cancelable:true})))return;
     state.view=view;
     $('#period-select').hidden=['people','notice-chat','products','gift-dispatch'].includes(view);
     $$('.view-page').forEach(page=>page.classList.toggle('hidden',page.dataset.page!==view));
@@ -775,7 +777,7 @@
       document.dispatchEvent(new CustomEvent('aifect-admin-notices-logout',{detail:{waitUntil(promise){ready=promise;}}}));
       if(!await ready)return;
       await api('/api/admin/logout',{method:'POST'});
-      document.dispatchEvent(new CustomEvent('aifect-admin-notices-reset',{detail:{clear:true}}));
+      document.dispatchEvent(new Event('aifect-admin-notices-reset'));
       location.replace('/admin/dashboard');
     }
     catch(error){toast(error.message);}

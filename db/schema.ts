@@ -70,6 +70,10 @@ export const noticeWelcomeSettings=sqliteTable('notice_welcome_settings',{
 export const noticeTestSettings=sqliteTable('notice_test_settings',{
  id:text('id').primaryKey(),publicId:text('public_id').notNull(),updatedBy:text('updated_by').notNull(),updated:integer('updated').notNull()
 });
+export const noticeTestRecipients=sqliteTable('notice_test_recipients',{
+ publicId:text('public_id').primaryKey().references(()=>publicProfileIds.code,{onDelete:'cascade'}),
+ selected:integer('selected').notNull().default(0),updatedBy:text('updated_by').notNull(),updated:integer('updated').notNull()
+},t=>[check('notice_test_recipient_selected',sql`${t.selected} IN (0,1)`)]);
 export const noticeDeliveryJobs=sqliteTable('notice_delivery_jobs',{
  campaignId:text('campaign_id').primaryKey().notNull().references(()=>welcomeCampaigns.id),
  checkId:text('check_id').notNull(),requested:integer('requested').notNull(),

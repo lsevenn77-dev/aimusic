@@ -6,7 +6,7 @@ import {chatSummary} from './chat-features.js';
 import {fail,json,now,one,query,rows} from './db.js';
 import {publicNameSQL} from './identity.js';
 import {formatWelcomeGuide} from './welcome-notices.js';
-import {noticeVisible,recipientRichNotice} from './notice-visibility.js';
+import {noticeVisible,recipientRichNotice,usesNoticeNickname} from './notice-visibility.js';
 import {noticeImageResponse} from './admin-notices.js';
 import {withGiftArrivalDetails} from './gift-arrival-details.js';
 import {legacyNoticeImage,noticeAssetId} from '../shared/official-notice-content.js';
@@ -41,7 +41,7 @@ const scope=(env,uid)=>[uid,uid,uid,uid,uid,uid,uid,JSON.stringify(configuredAdm
 export async function officialNoticeChannel(env,uid){
  const latest=await one(env,`${history} SELECT kind,legacy_id,body,title,test,created,campaign_kind,nickname,SUM(read_at=0 AND mine=0) OVER () unread,
   MIN(muted) OVER () muted FROM official_history ORDER BY created DESC,id DESC LIMIT 1`,...scope(env,uid));
- const title=latest?.title&&(latest.campaign_kind==='welcome'||latest.legacy_id===WELCOME_CAMPAIGN_ID)?
+ const title=latest?.title&&usesNoticeNickname(latest.campaign_kind,latest.legacy_id)?
   latest.title.replaceAll('{닉네임}',()=>latest.nickname??'회원'):latest?.title;
  const preview=latest?.kind==='dm'?latest.body:title?(latest.test?'[테스트] ':'')+title:
   latest?.legacy_id===PREMIUM_OPEN_NOTICE_ID?PREMIUM_OPEN_NOTICE.title:latest?WELCOME_PREVIEW:null;

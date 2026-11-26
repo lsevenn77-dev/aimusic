@@ -167,7 +167,7 @@
    status=$('[data-member-status]'),countStatus=$('[data-audience-count]'),selectedList=$('[data-selected-list]'),
    pageControls=$('[data-search-results]'),countRetry=$('[data-count-retry]'),bulk=$('[data-bulk-add]');
   const chosen=new Map();
-  let page=[],next=null,lastQuery='',ticket=0,lookup=0,countTicket=0,bulkTicket=0,timer=null,writable=false,selectingAll=false,displayLimit=50;
+  let page=[],next=null,lastQuery='',ticket=0,lookup=0,countTicket=0,bulkTicket=0,timer=null,writable=false,selectingAll=null,displayLimit=50;
   const value=()=>({type:type.value,ids:type.value==='specific'?[...chosen.keys()]:[]});
   const number=n=>n.toLocaleString('ko-KR');
   const say=message=>{status.textContent=message;};
@@ -242,9 +242,9 @@
   $('[data-page-select]').onclick=()=>{try{addMembers(page);}catch(error){say(error.message);}};
   $('[data-search-select]').onclick=async event=>{
    const button=event.currentTarget;
-   if(!lastQuery||selectingAll||!page.length)return;
+   if(!lastQuery||selectingAll!==null||!page.length)return;
    const q=lastQuery,mine=ticket,members=new Map();
-   selectingAll=true;button.disabled=true;
+   selectingAll=mine;button.disabled=true;
    try{
     let after=null;
     do{
@@ -254,7 +254,8 @@
      if(members.size>max)throw new Error('회원은 10,000명까지 선택할 수 있습니다.');
     }while(after);
     addMembers([...members.values()]);
-   }catch(error){if(mine===ticket)say(error.message);}finally{selectingAll=false;button.disabled=!writable;}
+   }catch(error){if(mine===ticket)say(error.message);}
+   finally{if(selectingAll===mine){selectingAll=null;button.disabled=!writable;}}
   };
   bulk.onclick=async()=>{
    const mine=++bulkTicket,field=$('[data-bulk-input]'),bulkStatus=$('[data-bulk-status]'),errors=$('[data-bulk-errors]');
@@ -284,7 +285,9 @@
    const mine=++lookup;
    ++ticket;++bulkTicket;
    search.value='';page=[];next=null;lastQuery='';pageControls.hidden=true;say('');
-   $('[data-bulk-input]').value='';$('[data-bulk-status]').textContent='';$('[data-bulk-errors]').hidden=true;bulk.disabled=!writable;
+   selectingAll=null;$('[data-search-select]').disabled=!writable;$('[data-member-more]').hidden=true;results.replaceChildren();
+   $('.notice-bulk').open=false;$('[data-bulk-input]').value='';$('[data-bulk-status]').textContent='';
+   const errors=$('[data-bulk-errors]');errors.hidden=true;errors.replaceChildren();bulk.disabled=!writable;
    displayLimit=50;chosen.clear();
    for(const id of input.ids??[])chosen.set(id,{id});
    type.value=input.type||'';$('[data-specific]').hidden=type.value!=='specific';refresh();refreshCount();
@@ -301,5 +304,5 @@
    refresh();
   }};
  }
- globalThis.AifectNoticeAudience={create,rosterTools,types,download,max,esc,exclusionText};
+ globalThis.AifectNoticeAudience={create,rosterTools,types,download,max,esc,exclusionText,memberMarkup};
 })();

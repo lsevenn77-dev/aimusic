@@ -4,7 +4,7 @@ import {fail,id,json,now,one,query,rows,run,str} from './db.js';
 
 export const eligibleNoticeMember="u.account_type='human' AND u.provider<>'deleted'";
 export const audienceTypes=['all','normal','premium','paid','specific'];
-const publicCode=/^[A-Z]{3}[0-9]{4}$/;
+export const publicCode=/^[A-Z]{3}[0-9]{4}$/;
 const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 export const normalizePublicCode=value=>typeof value==='string'?value.replace(/\s/gu,'').toUpperCase():'';
 const idLimit=10000;
@@ -101,7 +101,7 @@ export async function createAudienceCheck(env,owner,audience,{oldId=null,duplica
 const memberName=publicNameSQL();
 export const noticeMemberColumns=`u.id,${memberName} name,m.code public_id,p.id profile_id,p.image_version`;
 export const noticeMemberJoins='LEFT JOIN public_profile_ids m ON m.user_id=u.id LEFT JOIN producers p ON p.user_id=u.id';
-const memberExclusion=`CASE WHEN u.id IS NULL AND m.code IS NULL THEN 'not_found'
+export const memberExclusion=`CASE WHEN u.id IS NULL AND m.code IS NULL THEN 'not_found'
  WHEN u.id IS NULL OR u.provider='deleted' THEN 'withdrawn' WHEN u.account_type<>'human' THEN 'ai_account' END`;
 function readCursor(params){
  const after=params.get('after');

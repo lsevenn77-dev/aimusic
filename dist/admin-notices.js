@@ -22,27 +22,17 @@
   const api=(path,options={})=>request(base+path,{signal:lifetime.signal,...options});
   const write=(path,method,data)=>api(path,{method,body:JSON.stringify(data)});
   const editorUpload=file=>api('/images',{method:'POST',body:file,headers:{'content-type':'image/webp'}});
-  let settings=null,draft=null,dirty=false,revision=0,saving=null,timer=null,active='compose',composeBlocked=false,
-   welcomeBlocked=false,editBlocked=false,sendPending=false,plan=null,planNext=null,sendRequest=null,submitting=false,
-   historyTicket=0,draftTicket=0,historyNext=null,draftNext=null,detail=null,detailTicket=0,recipientNext=null,
+  let settings=null,draft=null,dirty=false,revision=0,saving=false,savedSignature='',emptySignature='',active='compose',composeBlocked=false,
+   welcomeBlocked=false,editBlocked=false,sendPending=false,plan=null,planNext=null,sendRequest=null,retryRequest=null,submitting=false,
+   historyTicket=0,draftTicket=0,draftLoadTicket=0,historyNext=null,draftNext=null,detail=null,detailTicket=0,recipientNext=null,
    editData=null,welcomeData=null,welcomeDirty=false,welcomeKey=null,editKey=null,withdrawRequest=null,
    testing=false,testSettingPending=false,deliveryTimer=null,deliveryTicket=0,welcomeLoading=false;
   const testRequests=new Map();
   const picked=new Map();
   const status=(selector,message)=>{$(selector,root).textContent=message;};
-  const backupKey=()=>settings?'aifect:notice-draft:'+settings.operator:null;
-  const sendKey=()=>settings?'aifect:notice-send:'+settings.operator:null;
   const modal=name=>$('[data-notice-dialog="'+name+'"]',root);
   const action=name=>$('[data-action="'+name+'"]',root);
   const panel=tab=>$('[data-notice-panel="'+tab+'"]',root);
-  function cache(key,value){
-   if(!key)return;
-   try{if(value==null)sessionStorage.removeItem(key);else sessionStorage.setItem(key,JSON.stringify(value));}catch{}
-  }
-  function cached(key){
-   if(!key)return null;
-   try{return JSON.parse(sessionStorage.getItem(key));}catch{return null;}
-  }
 
   root.innerHTML=`<div class="section-heading"><div><h1>공지 채팅 관리</h1></div></div>
    <div class="notice-tabs" role="tablist" aria-label="공지 채팅 관리">
@@ -57,14 +47,16 @@
       <p class="notice-help" data-push-status></p>
       <details class="notice-test-setting"><summary>테스트 수신 계정 설정</summary>
        <form class="notice-inline" data-test-setting><label class="notice-field">회원 고유 ID <input name="public_id" maxlength="100" autocomplete="off"></label>
-        <button type="submit">테스트 계정 저장</button></form>
+        <button type="submit">등록</button></form>
+       <ul class="notice-member-results notice-test-accounts" data-test-accounts aria-label="등록된 테스트 수신 계정" hidden></ul>
        <p class="notice-state" data-test-setting-error role="alert"></p>
       </details>
       <p class="notice-help" data-test-recipient role="status"></p>
       <p class="notice-state" data-compose-status role="status"></p>
-      <div class="notice-actions">
-       ${btn('임시 저장','save-draft')+btn('테스트 발송','test')+btn('발송하기','confirm-send','notice-primary')}
-      </div><button type="button" data-action="save-copy" hidden>새 초안으로 저장</button>
+      <div class="notice-actions notice-compose-actions">
+       ${btn('<span aria-hidden="true">↶</span> 초기화','reset-compose','notice-reset')+
+        btn('임시 저장','save-draft')+btn('테스트 발송','test')+btn('발송하기','confirm-send','notice-primary')}
+      </div><button type="button" data-action="detach-draft" hidden>새 초안으로 전환</button>
       <button type="button" data-action="retry-send" hidden>이전 발송 결과 확인</button>
       <section class="notice-result" data-delivery-result hidden aria-label="최근 발송 결과">
        <p data-delivery-status role="status"></p><div class="notice-actions">
@@ -105,6 +97,11 @@
      <div class="notice-actions">${btn('테스트 발송','test-welcome')+btn('설정 저장','save-welcome','notice-primary')}</div>
     </article><aside class="admin-card notice-preview" data-preview-for="welcome">${previewMarkup()}</aside></div>
    </section>
+   <dialog class="notice-dialog" data-notice-dialog="reset" aria-labelledby="notice-reset-title">
+    <h2 id="notice-reset-title">작성 중인 내용을 초기화할까요?</h2>
+    <div class="notice-actions"><button type="button" data-close="reset" autofocus>취소</button>
+     ${btn('초기화','confirm-reset','notice-primary')}</div>
+   </dialog>
    <dialog class="notice-dialog" data-notice-dialog="confirm" aria-label="공지 발송 확인">
     <h2>공지 발송 확인</h2><div data-confirm-info></div><p data-confirm-status role="alert"></p>
     <div class="notice-actions"><button type="button" data-action="more-targets" hidden>명단 더 보기</button>
@@ -129,10 +126,13 @@
     if(event.target.closest('a')){event.preventDefault();return;}
     const mode=event.target.closest('[data-mode]')?.dataset.mode;
     if(!mode)return;
-    const frame=$('[data-preview-frame]',preview);
-    frame.classList.toggle('is-mobile',mode==='mobile');frame.classList.toggle('is-app',mode==='app');
-    for(const b of preview.querySelectorAll('[data-mode]'))b.setAttribute('aria-pressed',String(b.dataset.mode===mode));
+    previewMode(preview,mode);
    },opts);
+  }
+  function previewMode(preview,mode){
+   const frame=$('[data-preview-frame]',preview);
+   frame.classList.toggle('is-mobile',mode==='mobile');frame.classList.toggle('is-app',mode==='app');
+   for(const button of preview.querySelectorAll('[data-mode]'))button.setAttribute('aria-pressed',String(button.dataset.mode===mode));
   }
 
   function preview(kind,content,entry={}){
@@ -155,116 +155,136 @@
    onChange:content=>{editKey=null;preview('edit',content,editData||{});},
    onUpload:blocked=>{editBlocked=blocked;updateButtons();},upload:editorUpload
   });
-  const welcomeEnabled=$('[data-welcome-enabled]',root),push=$('[data-push]',root),testSetting=$('[data-test-setting]',root);
+  const welcomeEnabled=$('[data-welcome-enabled]',root),push=$('[data-push]',root),testSetting=$('[data-test-setting]',root),
+   testAccounts=$('[data-test-accounts]',root);
   const wantsPush=()=>!!settings?.push.available&&push.checked;
   const hasContent=content=>content.title.trim()&&content.blocks.some(block=>block.type==='image'||
    block.runs?.some(run=>run.sticker||run.text.trim()));
+  const selectedTestCodes=()=>(settings?.test_recipients??[]).filter(member=>member.selected).map(member=>member.public_id).sort();
+  const composeData=()=>({content:composer.read(),audience:selection.value(),push:push.checked});
+  const signature=({content,audience,push})=>JSON.stringify([content,audience.type,[...audience.ids].sort(),push]);
   welcomeEnabled.onchange=()=>{welcomeKey=null;welcomeDirty=true;};
   push.onchange=changeDraft;
   function renderTestSetting(){
-   const test=settings.test,member=test?.member;
-   for(const label of root.querySelectorAll('[data-test-recipient]'))label.textContent=member?
-    '테스트 수신 '+member.name+' · '+member.public_id:test?'테스트 수신 '+test.public_id+' · '+test.error:'';
-   testSetting.elements.public_id.value=test?.public_id||'';
+   const members=settings.test_recipients??[],selected=selectedTestCodes().length;
+   for(const label of root.querySelectorAll('[data-test-recipient]'))label.textContent=!settings.manage?'':
+    selected?'테스트 수신 계정 '+count(selected)+'명 선택':'테스트 수신 계정을 선택해 주세요.';
+   testAccounts.hidden=!members.length;
+   testAccounts.innerHTML=members.map(member=>{
+    const code=esc(member.public_id),name=esc(member.name||member.public_id),error=member.error;
+    return '<li><label><input type="checkbox" data-test-select="'+code+'"'+(member.selected?' checked':'')+
+     (error?' data-unavailable disabled':'')+'>'+AifectNoticeAudience.memberMarkup(member)+
+     (error?'<small class="notice-state">'+esc(error)+'</small>':'')+
+     '</label><button type="button" class="notice-test-remove" data-test-remove="'+code+'" aria-label="'+name+
+     ' 테스트 계정 삭제"><span aria-hidden="true">×</span></button></li>';
+   }).join('');
    testSetting.closest('details').hidden=!settings.manage;
+  }
+  async function changeTestSetting(path,method,data){
+   if(!settings?.manage||testSettingPending||testing)return false;
+   testSettingPending=true;updateButtons();status('[data-test-setting-error]','');
+   try{
+    const result=await write(path,method,data);
+    settings.test_recipients=result.test_recipients;
+    return true;
+   }catch(error){
+    if(!lifetime.signal.aborted){status('[data-test-setting-error]',error.message);toast(error.message);}
+    return false;
+   }finally{
+    testSettingPending=false;
+    if(!lifetime.signal.aborted){renderTestSetting();updateButtons();}
+   }
   }
   testSetting.addEventListener('submit',async event=>{
    event.preventDefault();
-   if(testSettingPending||testing)return;
-   testSettingPending=true;updateButtons();status('[data-test-setting-error]','');
-   try{
-    settings.test=await write('/settings','PUT',{public_id:testSetting.elements.public_id.value});
-    testRequests.clear();renderTestSetting();toast('테스트 수신 계정을 저장했습니다.');
-   }catch(error){status('[data-test-setting-error]',error.message);toast(error.message);}
-   finally{testSettingPending=false;updateButtons();}
+   const field=testSetting.elements.public_id;
+   if(await changeTestSetting('/test-recipients','POST',{public_id:field.value})){
+    field.value='';field.focus();toast('테스트 수신 계정을 등록했습니다.');
+   }
+  },opts);
+  testAccounts.addEventListener('change',async event=>{
+   const code=event.target.dataset.testSelect;
+   if(!code)return;
+   await changeTestSetting('/test-recipients/'+encodeURIComponent(code),'PATCH',{selected:event.target.checked});
+   $('[data-test-select="'+code+'"]',testAccounts)?.focus();
+  },opts);
+  testAccounts.addEventListener('click',async event=>{
+   const code=event.target.closest('[data-test-remove]')?.dataset.testRemove;
+   if(code&&await changeTestSetting('/test-recipients/'+encodeURIComponent(code),'DELETE',{})){
+    testSetting.elements.public_id.focus();toast('테스트 수신 계정을 삭제했습니다.');
+   }
   },opts);
   function updateButtons(){
-   const manage=!!settings?.manage;
+   if(lifetime.signal.aborted)return;
+   const manage=!!settings?.manage,canTest=selectedTestCodes().length>0&&!testing&&!testSettingPending;
    const audience=selection.value(),ready=!composeBlocked&&hasContent(composer.read());
    for(const button of panel('compose').querySelectorAll('[data-action]')){
     const key=button.dataset.action;
     if(key==='open-history')continue;
-    button.disabled=!manage||sendPending||(['save-draft','save-copy'].includes(key)&&composeBlocked)||
+    button.disabled=!manage||sendPending||
+     (['save-draft','detach-draft','reset-compose','confirm-send','retry-send'].includes(key)&&saving)||
+     (key==='save-draft'&&composeBlocked)||
      (key==='confirm-send'&&(!ready||!audience.type||(audience.type==='specific'&&!audience.ids.length)))||
-     (key==='test'&&(!ready||!settings?.test?.member||testing||testSettingPending));
+     (key==='test'&&(!ready||!canTest));
    }
-   action('test-welcome').disabled=!manage||!welcomeData||welcomeBlocked||!settings?.test?.member||testing||
-    testSettingPending||!hasContent(welcome.read());
+   action('test-welcome').disabled=!manage||!welcomeData||welcomeBlocked||!canTest||!hasContent(welcome.read());
    action('save-welcome').disabled=!manage||welcomeBlocked||!welcomeData;
    action('edit-save').disabled=!manage||editBlocked||!editData;
    welcomeEnabled.disabled=!manage||!welcomeData||welcomeLoading;
    push.disabled=!manage||!settings?.push.available;
-   for(const control of testSetting.elements)control.disabled=!manage||testing||testSettingPending;
+   for(const control of [...testSetting.elements,...testAccounts.querySelectorAll('input,button')]){
+    control.disabled=!manage||testing||testSettingPending||control.hasAttribute('data-unavailable');
+   }
   }
   function loadComposer(data=null){
-   clearTimeout(timer);revision++;dirty=false;
-   draft=data?.id?{id:data.id,version:data.version}:null;
+   revision++;
+   draft=data?.id?{id:data.id,version:data.version,updated:data.updated}:null;
    const body=data?.content??blank();
-   push.checked=data?.push===true;composer.load(body);selection.set(data?.audience??emptyAudience());preview('compose',body);updateButtons();
-   action('save-copy').hidden=true;status('[data-compose-status]',data?.updated?'마지막 저장 '+date(data.updated):'');
-   cache(backupKey(),null);
+   push.checked=data?.push===true;composer.load(body);void selection.set(data?.audience??emptyAudience());preview('compose',body);
+   previewMode($('[data-preview-for="compose"]',root),'pc');
+   plan=planNext=sendRequest=retryRequest=null;
+   action('retry-send').hidden=true;action('detach-draft').hidden=true;
+   testRequests.delete('announcement');
+   const loaded=signature(composeData());
+   if(!data)emptySignature=loaded;
+   savedSignature=draft||!data?loaded:emptySignature;
+   updateDraftStatus();
+   updateButtons();
   }
-  function backup(){
-   if(!draft)draft={id:crypto.randomUUID(),version:0};
-   cache(backupKey(),{...draft,content:composer.read(),audience:selection.value(),push:push.checked});
+  function updateDraftStatus(){
+   dirty=signature(composeData())!==savedSignature;
+   status('[data-compose-status]',dirty?'저장하지 않은 작성 내용이 있습니다.':draft?.updated?'마지막 저장 '+date(draft.updated):'');
   }
   function changeDraft(){
    if(!settings?.manage)return;
-   revision++;dirty=true;backup();
-   status('[data-compose-status]','자동 저장을 기다리는 중입니다.');
-   clearTimeout(timer);timer=setTimeout(()=>void saveDraft(),650);
+   revision++;updateDraftStatus();
    updateButtons();
   }
-  async function saveDraft(force=false){
-   if(!settings?.manage)return false;
-   if(saving){
-    await saving;
-    if(saving||!dirty)return !dirty;
-   }
-   clearTimeout(timer);
-   if(!dirty&&!force)return true;
-   if(composeBlocked){status('[data-compose-status]','이미지 업로드 상태를 확인해 주세요.');return false;}
-   if(!draft)draft={id:crypto.randomUUID(),version:0};
-   const key=draft.id,version=draft.version,ticket=revision;
-   const payload={content:composer.read(),audience:selection.value(),push:push.checked,version};
+  async function saveDraft(){
+   if(!settings?.manage||saving||sendPending||composeBlocked)return;
+   const {id,version}=draft??(draft={id:crypto.randomUUID(),version:0}),data=composeData();
+   saving=true;updateButtons();
    status('[data-compose-status]','임시 저장 중입니다.');
-   saving=(async()=>{
-    try{
-     const stored=await write('/drafts/'+key,'PUT',payload);
-     if(draft?.id!==key)return false;
-     draft={id:key,version:stored.version};
-     dirty=ticket!==revision;
-     if(dirty){backup();clearTimeout(timer);timer=setTimeout(()=>void saveDraft(),200);}
-     else cache(backupKey(),null);
-     action('save-copy').hidden=true;status('[data-compose-status]','마지막 저장 '+date(stored.updated));
-     return !dirty;
-    }catch(error){
-     if(lifetime.signal.aborted)return false;
-     action('save-copy').hidden=error.status!==409;
-     status('[data-compose-status]',error.message+' 작성한 내용은 현재 화면에 보관되어 있습니다.');
-     return false;
-    }
-   })();
-   try{return await saving;}finally{saving=null;}
+   try{
+    const stored=await write('/drafts/'+id,'PUT',{...data,version,intent:'manual'});
+    draft={id:stored.id,version:stored.version,updated:stored.updated};
+    savedSignature=signature(data);updateDraftStatus();action('detach-draft').hidden=true;
+   }catch(error){
+    if(lifetime.signal.aborted)return;
+    action('detach-draft').hidden=error.status!==409&&error.status!==404;
+    status('[data-compose-status]',error.message+' 작성한 내용은 현재 화면에 보관되어 있습니다.');
+   }finally{saving=false;if(!lifetime.signal.aborted)updateButtons();}
   }
 
-  async function resumeCompose(copy){
-   if(!copy)return;
-   loadComposer(copy);
-   dirty=true;backup();
-   await saveDraft();
-  }
-  async function preserveDraft(){
-   if(!dirty)return true;
-   if(await saveDraft())return true;
-   return confirm('자동 저장하지 못한 작성 내용이 있습니다. 다른 공지로 이동하시겠습니까?');
+  function mayLeaveComposer(){
+   if(saving||sendPending){toast('현재 요청이 끝난 뒤 이동해 주세요.');return false;}
+   return !dirty&&!composeBlocked||window.confirm('저장하지 않은 작성 내용이 있습니다. 이 화면에서 나갈까요?');
   }
   function guardExit(event){
-   if(!dirty&&!composeBlocked&&!welcomeDirty&&!editData&&!sendPending)return;
+   if(!dirty&&!composeBlocked&&!saving&&!welcomeDirty&&!editData&&!sendPending)return;
    event.preventDefault();event.returnValue='';
   }
   window.addEventListener('beforeunload',guardExit,opts);
-  document.addEventListener('visibilitychange',()=>{if(document.hidden&&dirty)void saveDraft();},opts);
 
   async function loadRecent(){
    try{
@@ -348,16 +368,25 @@
   }
 
   function selectTab(tab){
+   if(active==='compose'&&tab!==active&&!leaveComposer())return false;
+   if(active==='drafts'&&tab!==active)++draftLoadTicket;
    active=tab;
    for(const button of root.querySelectorAll('[data-notice-tab]')){
     const selected=button.dataset.noticeTab===tab;
     button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;
    }
    for(const node of root.querySelectorAll('[data-notice-panel]'))node.hidden=node.dataset.noticePanel!==tab;
-   if(dirty)void saveDraft();
    if(tab==='drafts')void loadDrafts();
    if(tab==='history')void loadHistory();
    if(tab==='welcome')void loadWelcome();
+   return true;
+  }
+  function leaveComposer(){
+   if(active!=='compose')return true;
+   if(!mayLeaveComposer())return false;
+   if(modal('confirm').open)modal('confirm').close();
+   loadComposer();
+   return true;
   }
 
   function confirmRows(members){
@@ -382,44 +411,46 @@
    if(!modal('confirm').open)modal('confirm').showModal();
   }
   async function openConfirm(){
-   if(sendPending||composeBlocked)return;
+   if(sendPending||saving||composeBlocked)return;
    if(!selection.value().type){status('[data-compose-status]','발송 대상을 선택해 주세요.');return;}
    sendPending=true;updateButtons();
    const inputs=[$('[data-compose-editor]',root),$('[data-audience]',root),push];
    for(const node of inputs)node.inert=true;
    try{
     const content=AifectOfficialNotice.cleanNoticeContent(composer.read(),{required:true});
-    if(!(await saveDraft()))return;
     const audience=selection.value(),push=wantsPush();
     status('[data-compose-status]','발송 대상을 확인하고 있습니다.');
     const checked=await write('/targets','POST',{audience,content,push});
-    sendRequest={request_id:crypto.randomUUID(),content,push,check_id:checked.id,draft};
+    sendRequest={request_id:crypto.randomUUID(),content,push,check_id:checked.id,revision,
+     ...(draft?.version?{draft:{id:draft.id,version:draft.version}}:{})};
     status('[data-confirm-status]',checked.count?'':'발송할 수 있는 회원이 없습니다.');
-    status('[data-compose-status]','');
+    updateDraftStatus();
     confirmScreen(checked);
    }catch(error){status('[data-compose-status]',error.message);}
    finally{for(const node of inputs)node.inert=false;sendPending=false;updateButtons();}
   }
   async function sendTest(purpose='announcement'){
-   if(testing||testSettingPending)return;
-   const widget=purpose==='welcome'?welcome:composer;
-   if(widget.busy()||!settings?.test?.member)return;
+   if(!settings?.manage||testing||testSettingPending)return;
+   const widget=purpose==='welcome'?welcome:composer,recipient_codes=selectedTestCodes();
+   if(widget.busy()||!recipient_codes.length)return;
    testing=true;updateButtons();
    try{
     const content=AifectOfficialNotice.cleanNoticeContent(widget.read(),{required:true});
-    const fingerprint=JSON.stringify(content),previous=testRequests.get(purpose);
-    const request_id=previous?.fingerprint===fingerprint?previous.request_id:crypto.randomUUID();
-    testRequests.set(purpose,{fingerprint,request_id});
-    const result=await write('/test','POST',{request_id,content,purpose,push:false});
-    if(result.recipients!==1)throw new Error('테스트 메시지의 수신 결과를 확인해 주세요.');
-    testRequests.delete(purpose);toast('테스트 메시지를 1명에게 발송했습니다.');
+    const fingerprint=JSON.stringify([content,recipient_codes]),previous=testRequests.get(purpose);
+    const attempt=previous?.fingerprint===fingerprint?previous:{fingerprint,request_id:crypto.randomUUID()};
+    if(attempt.sent){toast('이미 테스트 메시지를 '+count(recipient_codes.length)+'명에게 발송했습니다.');return;}
+    testRequests.set(purpose,attempt);
+    const result=await write('/test','POST',{request_id:attempt.request_id,content,purpose,push:false,recipient_codes});
+    if(result.recipients!==recipient_codes.length)throw new Error('테스트 메시지의 수신 결과를 확인해 주세요.');
+    attempt.sent=true;toast('테스트 메시지를 '+count(result.recipients)+'명에게 발송했습니다.');
    }catch(error){
+    if(lifetime.signal.aborted)return;
     if(error.status&&error.status<500)testRequests.delete(purpose);
     if(error.status===422||error.status===409){
      try{settings=await api('/settings');renderTestSetting();}catch{}
     }
     toast(error.message);
-   }finally{testing=false;updateButtons();}
+   }finally{testing=false;if(!lifetime.signal.aborted)updateButtons();}
   }
   async function moreTargets(){
    if(!planNext)return;
@@ -430,38 +461,38 @@
     $('[data-confirm-members]',root).insertAdjacentHTML('beforeend',confirmRows(page.members));planNext=page.next;action('more-targets').hidden=!planNext;
    }catch(error){status('[data-confirm-status]',error.message);}
   }
-  function recoveredSend(){
-   const last=cached(sendKey());action('retry-send').hidden=!last;
-   if(last)status('[data-compose-status]','이전 발송 요청의 결과를 확인할 수 있습니다.');
-  }
   async function send(retry=false){
-   if(submitting)return;
-   const payload=retry?cached(sendKey()):sendRequest;
-   if(!payload)return;
+   if(submitting||saving)return;
+   const attempt=retry?retryRequest:sendRequest;
+   if(!attempt)return;
+   const {revision:confirmedRevision,...payload}=attempt;
    submitting=true;sendPending=true;updateButtons();
    action('send').disabled=true;
-   cache(sendKey(),payload);
+   retryRequest=attempt;
    const channel=modal('confirm').open?'[data-confirm-status]':'[data-compose-status]';
    status(channel,'발송 결과를 확인하고 있습니다.');
    try{
-    const result=await write(payload.test?'/test':'','POST',payload);
-    cache(sendKey(),null);action('retry-send').hidden=true;
+    const result=await write('','POST',payload);
+    retryRequest=sendRequest=null;action('retry-send').hidden=true;
     if(modal('confirm').open)modal('confirm').close();
-    if(payload.test){toast('테스트 메시지를 1명에게 발송했습니다.');return;}
-    if(!retry||draft?.id===payload.draft?.id)loadComposer();
+    if(confirmedRevision===revision)loadComposer();
     watchDelivery(result);
     void loadRecent();
    }catch(error){
+    if(lifetime.signal.aborted)return;
     if(error.data?.check){
-     cache(sendKey(),null);action('retry-send').hidden=true;sendRequest={...payload,check_id:error.data.check.id};
+     retryRequest=null;action('retry-send').hidden=true;sendRequest={...attempt,check_id:error.data.check.id};
      confirmScreen(error.data.check);
      status('[data-confirm-status]',error.message);
     }else{
-     if(error.status&&error.status<500){cache(sendKey(),null);action('retry-send').hidden=true;}
+     if(error.status&&error.status<500){retryRequest=null;action('retry-send').hidden=true;}
      else action('retry-send').hidden=false;
      status(channel,error.message);
     }
-   }finally{submitting=false;sendPending=false;updateButtons();action('send').disabled=!(plan?.count);}
+   }finally{
+    submitting=false;sendPending=false;
+    if(!lifetime.signal.aborted){updateButtons();action('send').disabled=!(plan?.count);}
+   }
   }
   function deliveryMessage(result){
    if(result.status==='processing')return '발송 처리 중 · '+count(result.success||0)+'명 성공 · '+count(result.pending)+'명 대기';
@@ -636,22 +667,27 @@
     if(id===draft?.id)loadComposer();
     await loadDrafts();return;
    }
-   if(!(await preserveDraft()))return;
+   if(!mayLeaveComposer())return;
+   const ticket=++draftLoadTicket;
    const data=await api('/drafts/'+id);
-   if(key==='copy-draft'){loadComposer({content:data.content});changeDraft();}else loadComposer(data);
+   if(ticket!==draftLoadTicket)return;
+   loadComposer(key==='copy-draft'?{content:data.content}:data);
    selectTab('compose');composer.focus();
   }
   const handlers={
-   'new-draft':async()=>{if(await preserveDraft()){loadComposer();selectTab('compose');composer.focus();}},
-   'save-draft':()=>saveDraft(true),'confirm-send':openConfirm,'test':()=>sendTest(),'test-welcome':()=>sendTest('welcome'),
-   'save-copy':()=>{draft=null;changeDraft();return saveDraft();},'retry-send':()=>send(true),
+   'new-draft':()=>{if(mayLeaveComposer()){loadComposer();selectTab('compose');composer.focus();}},
+   'reset-compose':()=>modal('reset').showModal(),
+   'confirm-reset':()=>{loadComposer();modal('reset').close();composer.focus();},
+   'save-draft':saveDraft,'confirm-send':openConfirm,'test':()=>sendTest(),'test-welcome':()=>sendTest('welcome'),
+   'detach-draft':()=>{draft=null;savedSignature=emptySignature;changeDraft();action('detach-draft').hidden=true;},
+   'retry-send':()=>send(true),
    'open-history':()=>selectTab('history'),'more-drafts':()=>loadDrafts(true),
    'load-draft':button=>editDraftRow(button,'load-draft'),'copy-draft':button=>editDraftRow(button,'copy-draft'),
    'remove-draft':button=>editDraftRow(button,'remove-draft'),
    'refresh-history':()=>loadHistory(),'more-history':()=>loadHistory(true),'save-welcome':saveWelcome,
    'more-targets':moreTargets,'send':()=>send(),'more-recipients':()=>loadRecipients(true),'retry-failures':retryFailures,
    'recipient-csv':()=>loadRecipients(false,true),'copy-id':()=>navigator.clipboard.writeText(detail.id).then(()=>toast('공지 ID를 복사했습니다.')),
-   'duplicate-notice':async()=>{if(await preserveDraft()){loadComposer({content:detail.content});changeDraft();modal('detail').close();selectTab('compose');composer.focus();}},
+   'duplicate-notice':()=>{if(mayLeaveComposer()){loadComposer({content:detail.content});modal('detail').close();selectTab('compose');composer.focus();}},
    'edit':openEdit,'edit-save':saveEdit,'withdraw-all':()=>openWithdraw('all'),'withdraw-some':()=>openWithdraw('specific'),'withdraw':confirmWithdraw
   };
   root.addEventListener('click',async event=>{
@@ -672,7 +708,7 @@
    if(index<0||!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
    event.preventDefault();
    const to=event.key==='Home'?0:event.key==='End'?buttons.length-1:(buttons.length+index+(event.key==='ArrowRight'?1:-1))%buttons.length;
-   buttons[to].focus();selectTab(buttons[to].dataset.noticeTab);
+   if(selectTab(buttons[to].dataset.noticeTab))buttons[to].focus();
   },opts);
   modal('confirm').addEventListener('cancel',event=>{if(submitting)event.preventDefault();},opts);
   modal('edit').addEventListener('close',()=>{editData=null;},opts);
@@ -683,15 +719,13 @@
    return ready??=(async()=>{
     try{
      settings=await api('/settings');
-     const backupCopy=cached(backupKey());
      $('[data-notice-start]',root).hidden=true;
      status('[data-push-status]',settings.push.reason);
      renderTestSetting();
      for(const widget of [composer,editor,selection])widget.setWritable(settings.manage);
      welcome.setWritable(false);
      loadComposer();selectTab('compose');updateButtons();
-     await resumeCompose(backupCopy);
-     recoveredSend();void loadRecent();
+     void loadRecent();
     }catch(error){
      if(!lifetime.signal.aborted)status('[data-notice-start]',error.message);
      ready=null;
@@ -700,7 +734,7 @@
   }
   return {start,async seed(ids){
    await start();
-   if(!settings?.manage||!(await preserveDraft()))return;
+   if(!settings?.manage||!mayLeaveComposer())return;
    loadComposer();
    selection.set({type:'specific',ids});changeDraft();selectTab('compose');composer.focus();
   },refresh(){
@@ -708,9 +742,11 @@
    if(active==='drafts')return loadDrafts();
    if(active==='welcome'){if(!welcomeDirty){welcomeData=null;return loadWelcome();}return;}
    return loadRecent();
-  },prepareLogout:async()=>!sendPending&&await preserveDraft(),dispose(clear=false){
-   clearTimeout(timer);clearTimeout(deliveryTimer);
-   if(clear){cache(backupKey(),null);cache(sendKey(),null);}
+  },leave(){
+   ++draftLoadTicket;
+   return leaveComposer();
+  },prepareLogout:mayLeaveComposer,dispose(){
+   clearTimeout(deliveryTimer);
    lifetime.abort();root.replaceChildren();
   }};
  }
@@ -723,6 +759,7 @@
   if(event.detail.ids)void page.seed(event.detail.ids);else void page.start();
  });
  document.addEventListener('aifect-admin-notices-refresh',()=>{void page?.refresh();});
+ document.addEventListener('aifect-admin-notices-leave',event=>{if(page&&!page.leave())event.preventDefault();});
  document.addEventListener('aifect-admin-notices-logout',event=>{if(page)event.detail.waitUntil(page.prepareLogout());});
- document.addEventListener('aifect-admin-notices-reset',event=>{page?.dispose(!!event.detail?.clear);page=null;});
+ document.addEventListener('aifect-admin-notices-reset',()=>{page?.dispose();page=null;});
 })();

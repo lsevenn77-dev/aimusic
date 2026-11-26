@@ -6,8 +6,9 @@ import {fail,id,json,now,one,query,rate,rows,run} from './db.js';
 import {readImage} from './images.js';
 import {audiencePage,countNoticeAudience,createAudienceCheck,exportSelectedMembers,getNoticeRoster,listNoticeRosters,mutateNoticeRoster,readAudience,resolveNoticeMembers,searchNoticeMembers} from './notice-audience.js';
 import {checkedNoticeContent,mutateNoticeCampaign,noticeDetail,noticeHistory,noticeRecipientList,
- configuredNoticeTester,noticeConfirmation,noticePush,noticeWelcome,publishOfficialNotice,readNoticeVersion,saveNoticeWelcome,setNoticeTester} from './notice-campaigns.js';
+ noticeConfirmation,noticePush,noticeWelcome,publishOfficialNotice,readNoticeVersion,saveNoticeWelcome} from './notice-campaigns.js';
 import {continueNoticeJob,noticeDeliveryStatus,retryNoticeFailures} from './notice-delivery.js';
+import {addNoticeTestRecipient,listNoticeTestRecipients,removeNoticeTestRecipient,selectNoticeTestRecipient} from './notice-test-recipients.js';
 
 const base='/api/admin/notices';
 const assetRoute=/^\/api\/admin\/notices\/images\/([0-9a-f-]{36})$/i;
@@ -15,7 +16,7 @@ export const canManageNotices=(env,user)=>env.AIFECT_NOTICE_READ_ONLY!=='true'&&
  isAdmin(env,user)&&(env.AIFECT_NOTICE_OPERATOR_IDS||'').split(',').map(x=>x.trim()).includes(user.id));
 const draftPageSize=30;
 const allowedMethods=new Map([
- ['',['GET','POST']],['/settings',['GET','PUT']],['/targets',['POST']],['/targets/count',['POST']],
+ ['',['GET','POST']],['/settings',['GET']],['/test-recipients',['POST']],['/targets',['POST']],['/targets/count',['POST']],
  ['/members',['GET']],['/members/resolve',['POST']],['/export',['POST']],
  ['/test',['POST']],['/images',['POST']],['/drafts',['GET']],['/rosters',['GET','POST']],['/welcome',['GET','PUT']]
 ]);
@@ -86,6 +87,7 @@ async function noticeDraft(env,actor,key){
 }
 
 async function changeNoticeDraft(env,actor,key,input,remove){
+ if(!remove&&input.intent!=='manual')fail(409,'관리자 화면을 새로고침한 후 임시 저장 버튼을 눌러 주세요.');
  const expected=readNoticeVersion(input.version,remove?1:0),at=now();
  if(remove){
   const result=await run(env,'DELETE FROM notice_drafts WHERE id=? AND owner_id=? AND version=?',key,actor,expected);
@@ -116,9 +118,10 @@ export async function adminNoticeRoute(req,env,path,user,ctx){
  const section=path.slice(base.length),method=req.method,params=new URL(req.url).searchParams,manage=canManageNotices(env,user);
  const asset=assetRoute.exec(path),draft=/^\/drafts\/([0-9a-f-]{36})$/i.exec(section),
   roster=/^\/rosters\/([0-9a-f-]{36})$/i.exec(section),check=/^\/targets\/([0-9a-f-]{36})$/i.exec(section),
+  testRecipient=/^\/test-recipients\/([A-Z]{3}[0-9]{4})$/.exec(section),
   campaign=/^\/history\/([\w-]{1,100})(?:\/(recipients|withdraw|delivery|retry))?$/.exec(section);
  const allowed=allowedMethods.get(section)??(asset?['GET','HEAD']:draft||roster?['GET','PUT','DELETE']:
-  check?['GET']:campaign?(['withdraw','retry'].includes(campaign[2])?['POST']:campaign[2]?['GET']:['GET','PATCH']):null);
+  testRecipient?['PATCH','DELETE']:check?['GET']:campaign?(['withdraw','retry'].includes(campaign[2])?['POST']:campaign[2]?['GET']:['GET','PATCH']):null);
  if(!allowed)fail(404,'공지 채팅 메뉴를 찾을 수 없습니다.');
  if(!allowed.includes(method))fail(405,'지원하지 않는 요청입니다.');
  const reading=['GET','HEAD'].includes(method);
@@ -130,10 +133,12 @@ export async function adminNoticeRoute(req,env,path,user,ctx){
  }
  const actor=user.id;
  if(section==='/settings'){
-  if(!reading)return setNoticeTester(env,actor,await jsonInput(req));
-  const test=manage?await configuredNoticeTester(env):null,available=!!env.FCM_SERVICE_ACCOUNT;
-  return json({operator:actor,manage,test,push:{available,reason:available?'':'공지 채팅용 앱 푸시가 연결되지 않았습니다.'}});
+  const test_recipients=manage?await listNoticeTestRecipients(env):[],available=!!env.FCM_SERVICE_ACCOUNT;
+  return json({operator:actor,manage,test_recipients,push:{available,reason:available?'':'공지 채팅용 앱 푸시가 연결되지 않았습니다.'}});
  }
+ if(section==='/test-recipients')return addNoticeTestRecipient(env,actor,await jsonInput(req));
+ if(testRecipient)return method==='DELETE'?removeNoticeTestRecipient(env,actor,testRecipient[1]):
+  selectNoticeTestRecipient(env,actor,testRecipient[1],await jsonInput(req));
  if(section==='/members')return json(await searchNoticeMembers(env,params));
  if(section==='/members/resolve')return json(await resolveNoticeMembers(env,await jsonInput(req)));
  if(section==='/export')return exportSelectedMembers(env,actor,await jsonInput(req));

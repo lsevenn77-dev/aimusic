@@ -10,11 +10,16 @@
 | 회원 이미지 | `GET/HEAD /api/notices/official/{campaignId}/images/{assetId}` |
 | 발송 이력과 확정 발송 | `GET/POST /api/admin/notices` |
 | 대상 사전 확인과 페이지 조회 | `POST /api/admin/notices/targets`, `GET /api/admin/notices/targets/{checkId}` |
-| 운영자 본인 테스트 | `POST /api/admin/notices/test` |
+| 선택한 테스트 계정으로 발송 | `POST /api/admin/notices/test` |
+| 테스트 수신 계정 조회, 등록과 선택 · 삭제 | `GET /api/admin/notices/settings`, `POST /api/admin/notices/test-recipients`, `PATCH/DELETE /api/admin/notices/test-recipients/{publicId}` |
 | 편집과 철회 | `PATCH /api/admin/notices/history/{campaignId}`, `POST /api/admin/notices/history/{campaignId}/withdraw` |
 | 명단, 초안, 설정 | `/api/admin/notices/rosters`, `/api/admin/notices/drafts`, `/api/admin/notices/welcome` |
 
-기존 콘솔 세션과 관리자 권한으로 조회할 수 있습니다. 변경은 기존 콘솔 세션 또는 `ADMIN_USER_IDS`와 `AIFECT_NOTICE_OPERATOR_IDS`에 모두 포함된 회원 계정에 허용합니다. 테스트 발송은 `AIFECT_NOTICE_TEST_ACCOUNTS`의 운영자 ID와 검증된 테스트 회원 ID 연결이 필요합니다. 예를 들어 `admin-console`은 기존 단일 콘솔의 서버 인증 식별자입니다. 공지 전용 앱 푸시는 연결 준비 상태로 표시합니다.
+기존 콘솔 세션과 관리자 권한으로 조회할 수 있습니다. 변경은 기존 콘솔 세션 또는 `ADMIN_USER_IDS`와 `AIFECT_NOTICE_OPERATOR_IDS`에 모두 포함된 회원 계정에 허용합니다. 공지 전용 앱 푸시는 연결 준비 상태로 표시합니다.
+
+임시저장은 버튼을 누를 때만 `intent: "manual"`과 현재 버전으로 초안 API에 기록합니다. 작성 화면 초기화와 이탈은 편집 상태만 비우며, 임시저장 목록에서 선택한 초안만 불러옵니다.
+
+테스트 수신 계정은 DB에 등록된 회원 고유 ID로 관리합니다. 테스트 요청의 `recipient_codes`는 쓰기 트랜잭션에서 서버가 확인한 선택 계정과 일치해야 합니다. 동일한 요청 UUID를 재사용하면 기존 결과를 반환합니다. 환영 메시지 테스트는 수신자 닉네임으로 표시하며 가입 자동 발송 이력과 푸시 기록을 생성하지 않습니다.
 
 ## 발송과 명단 재사용
 
