@@ -8,7 +8,6 @@ const prefix='library-v2:20261118:',actor='owner-request:20261118:library-v2';
 const pending=`p.name_key IS NULL OR (EXISTS(SELECT 1 FROM playlist_tracks pt JOIN tracks t ON t.id=pt.track_id WHERE pt.playlist_id=p.id AND t.kind='cover')) OR (NOT EXISTS(SELECT 1 FROM admin_audit done WHERE done.id='${prefix}done:'||p.id) AND EXISTS(SELECT 1 FROM admin_audit old WHERE old.action='playlist:originals:backup' AND json_extract(old.target,'$.playlist_id')=p.id))`;
 export async function libraryMigrationStatus(env){
  const summary=await one(env,`SELECT (SELECT count(*) FROM playlists p WHERE ${pending}) pending,
- (SELECT count(*) FROM (SELECT name_key FROM playlists WHERE name_key IS NOT NULL GROUP BY name_key HAVING count(*)>1)) duplicate_title_groups,
  (SELECT count(*) FROM my_boxes WHERE source_playlist_id IS NOT NULL) migrated_boxes,
  (SELECT count(*) FROM my_box_items i JOIN my_boxes b ON b.id=i.box_id WHERE b.source_playlist_id IS NOT NULL) preserved_items,
  (SELECT count(*) FROM admin_audit WHERE action='library:v2:backup') backups,
@@ -30,7 +29,7 @@ export async function migrateLibraryBatch(env){
   await query(env,'INSERT OR IGNORE INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',prefix+'backup:'+p.id+':'+(await hash(JSON.stringify(snapshot))).slice(0,20),actor,'library:v2:backup',JSON.stringify(snapshot),now()).run();
   const map=new Map();for(const item of history){const row=JSON.parse(item.target);map.set(row.track_id,{...row,kind:item.kind});}for(const item of members)if(item.kind==='cover')map.set(item.track_id,item);
   const entries=[...map.values()].sort((a,b)=>a.position-b.position||a.created-b.created||a.track_id.localeCompare(b.track_id)),bid='legacy-'+p.id;
-  const statements=[query(env,'INSERT OR IGNORE INTO playlist_title_claims(key) VALUES(?)',normalizePlaylistTitle(p.name)),query(env,'UPDATE playlists SET name_key=?,updated=CASE WHEN updated=0 THEN created ELSE updated END WHERE id=?',normalizePlaylistTitle(p.name),p.id)];
+  const statements=[query(env,'UPDATE playlists SET name_key=?,updated=CASE WHEN updated=0 THEN created ELSE updated END WHERE id=?',normalizePlaylistTitle(p.name),p.id)];
   if(entries.length){
    statements.push(query(env,'INSERT OR IGNORE INTO my_boxes(id,user_id,name,created,updated,source_playlist_id) VALUES(?,?,?,?,?,?)',bid,p.user_id,p.name,p.created,now(),p.id));
    // Resolve the unique source mapping on every retry, preserving user renames.

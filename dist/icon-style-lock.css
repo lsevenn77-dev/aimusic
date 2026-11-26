@@ -198,8 +198,6 @@
 #main .charts-final [data-browse-count]{font-size:13px;color:var(--ds-muted);white-space:nowrap}
 #main .charts-final .chart-playback-buttons{display:flex;align-items:center;gap:8px}
 #main .charts-final .chart-playback button{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;min-height:34px;padding:0 11px;border-radius:7px;font:inherit;font-size:13px!important;line-height:1;white-space:nowrap;box-shadow:none;cursor:pointer}
-#main .charts-final .chart-listen{color:var(--ds-progress);border:1px solid color-mix(in srgb,var(--ds-progress) 22%,transparent);background:color-mix(in srgb,var(--ds-ink) 65%,transparent)}
-#main .charts-final .chart-shuffle{color:var(--ds-selected);border:0;background:transparent}
 #main .charts-final .chart-playback button>svg{width:15px!important;height:15px!important;flex:0 0 15px!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;fill:none!important}
 #main .charts-final .chart-playback button:hover{background:color-mix(in srgb,var(--ds-body) 8%,transparent)}
 #main .charts-final button:disabled{opacity:.45;cursor:default}
@@ -248,23 +246,15 @@
 }
 @media(hover:none){#main .charts-final .chart-cover-play{opacity:1;pointer-events:auto}}
 
-/* Chart toolbar: a single period control, with a strict mobile 2 x 2 grid. */
+/* Chart tabs and period menu. */
 #main .charts-final>h1{margin-bottom:8px}
-#main .charts-final .chart-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;grid-template-areas:"tabs tabs tabs period" "meta listen shuffle create";gap:8px;align-items:center;margin-bottom:12px}
 #main .charts-final .chart-tabs{grid-area:tabs;display:flex;gap:24px;margin:0;padding:0;border:0;min-width:0}
 #main .charts-final .chart-tabs .tab{position:relative;display:flex;align-items:center;justify-content:center;min-height:40px;padding:0 0 9px;margin:0;border:0!important;background:none;white-space:nowrap;font-size:14px}
 #main .charts-final .chart-tabs .tab::before,#main .charts-final .chart-tabs .tab::after{content:none}
 #main .charts-final .chart-tabs .tab.active::after{content:"";position:absolute;left:0;right:0;bottom:2px;height:2px;border-radius:2px;background:linear-gradient(90deg,var(--ds-progress),var(--ds-selected));box-shadow:none}
-#main .charts-final .chart-action{box-sizing:border-box;position:relative;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:32px;min-height:32px;margin:0;padding:0 10px;border:1px solid var(--ds-line);border-radius:7px;background:transparent;color:var(--ds-body);font-family:inherit;font-size:12px!important;font-weight:500;line-height:1;white-space:nowrap;box-shadow:none;cursor:pointer}
-#main .charts-final .chart-action>svg{width:15px!important;height:15px!important;flex:0 0 15px!important;padding:0!important;border:0!important;border-radius:0!important;background:none!important;box-shadow:none!important;fill:none!important;stroke-width:1.8!important}
-#main .charts-final .chart-action:is(:hover,:active){background:color-mix(in srgb,var(--ds-body) 6%,transparent);border-color:color-mix(in srgb,var(--ds-body) 28%,transparent)}
-#main .charts-final .chart-listen{grid-area:listen;color:var(--ds-progress);border-color:color-mix(in srgb,var(--ds-progress) 24%,transparent)}
-#main .charts-final .chart-shuffle{grid-area:shuffle;color:var(--ds-selected)}
-#main .charts-final .chart-create{grid-area:create}
-#main .charts-final .chart-period{grid-area:period;position:relative;justify-self:end;min-width:90px}
-#main .charts-final .chart-period>summary{list-style:none;width:100%;color:var(--ds-body)}
+#main .charts-final .chart-period{position:relative}
+#main .charts-final .chart-period>summary{list-style:none}
 #main .charts-final .chart-period>summary::-webkit-details-marker{display:none}
-#main .charts-final .chart-period[open]>summary{border-color:var(--ds-selected)}
 #main .charts-final .chart-period[open]>summary svg{transform:rotate(180deg)}
 #main .charts-final .chart-period-menu{position:absolute;z-index:20;right:0;top:calc(100% + 4px);box-sizing:border-box;width:max(100%,120px);max-width:calc(100vw - 32px);padding:4px;background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:8px;box-shadow:none}
 #main .charts-final .chart-period-menu a{display:flex;align-items:center;min-height:36px;padding:0 12px;border-radius:4px;font-size:13px;color:var(--ds-body);white-space:nowrap}
@@ -273,30 +263,15 @@
 #main .charts-final .chart-meta .chart-period-note,#main .charts-final .chart-meta [data-browse-count]{font-size:11px;line-height:1.6;margin:0}
 #main .charts-final .song-table-chart{margin-top:12px}
 @media(max-width:600px){
- #main .charts-final .chart-toolbar{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-areas:"tabs tabs" "listen period" "shuffle create" "meta meta";gap:8px}
  #main .charts-final .chart-tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;width:100%;margin-bottom:2px}
  #main .charts-final .chart-tabs .tab{width:100%;box-sizing:border-box;min-height:40px;padding:0 8px 8px}
  #main .charts-final .chart-tabs .tab.active::after{left:12px;right:12px}
- #main .charts-final .chart-toolbar .chart-action{width:100%;height:40px;min-height:40px;font-size:13px!important;padding:0 10px}
  #main .charts-final .chart-action::before{content:"";position:absolute;inset:-2px 0}
- #main .charts-final .chart-period{width:100%;min-width:0;justify-self:stretch}
  #main .charts-final .chart-period-menu{width:100%}
  #main .charts-final .chart-meta{justify-content:space-between;flex-wrap:nowrap;gap:8px;margin-top:2px}
  #main .charts-final .chart-period-note{min-width:0}
  #main .charts-final [data-browse-count]{flex:none;white-space:nowrap}
 }
-#dialog:has(.chart-playlist-dialog){box-sizing:border-box;width:min(360px,calc(100vw - 32px));height:fit-content;max-height:calc(100dvh - 32px);margin:auto;inset:0;padding:22px;background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);box-shadow:none;overflow:auto}
-#dialog .chart-playlist-dialog h2{font-size:18px;margin:0 0 18px}
-#dialog .chart-playlist-dialog .form-field{font-size:13px;margin-bottom:12px}
-#dialog .chart-playlist-dialog .chart-range{margin:16px 0 12px;padding:0;border:0}
-#dialog .chart-range legend{font-size:13px;margin-bottom:8px}
-#dialog .chart-range label{display:flex;align-items:center;gap:8px;min-height:40px;font-size:13px;color:var(--ds-body)}
-#dialog .chart-range label>span{margin-left:auto;color:var(--ds-muted);font-size:12px}
-#dialog .chart-range input{accent-color:var(--ds-selected)}
-#dialog .chart-playlist-dialog .field-help{font-size:11px;line-height:1.6}
-#dialog .chart-dialog-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
-#dialog .chart-dialog-actions button{box-sizing:border-box;height:38px;min-height:38px;margin:0;padding:0 16px;font-family:inherit;font-size:13px;line-height:1;display:inline-flex;align-items:center;justify-content:center;text-align:center;white-space:nowrap;border:1px solid var(--ds-line);background:transparent;box-shadow:none;color:var(--ds-body)}
-#dialog .chart-dialog-actions .chart-confirm{color:var(--ds-progress);border-color:color-mix(in srgb,var(--ds-progress) 30%,transparent)}
 #chart-track-menu{position:fixed;inset:auto;box-sizing:border-box;width:248px;margin:0;padding:5px 8px;background:var(--ds-panel);color:var(--ds-text);border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);box-shadow:none;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
 #chart-track-menu .track-options{margin:0;padding:0}
 #chart-track-menu .track-option{box-sizing:border-box;display:grid;grid-template-columns:18px minmax(0,1fr) 14px;align-items:center;gap:8px;width:100%;min-height:40px;padding:4px;margin:0;border:0;border-radius:4px;background:transparent;color:var(--ds-body);font-family:inherit;font-size:12px;line-height:1.4;text-align:left;text-decoration:none;white-space:normal}
@@ -382,12 +357,8 @@
    Scale actual dimensions; subgrid shares intrinsic count widths across rows. */
 @media(min-width:1101px){
  #main .charts-final>h1{font-size:26.4px;margin-bottom:8.8px}
- #main .charts-final .chart-toolbar{gap:8.8px;margin-bottom:13.2px}
  #main .charts-final .chart-tabs{gap:26.4px}
  #main .charts-final .chart-tabs .tab{font-size:15.4px;min-height:44px;padding-bottom:9.9px}
- #main .charts-final .chart-toolbar .chart-action{height:35.2px;min-height:35.2px;gap:7.7px;padding-inline:11px;font-size:12.1px!important}
- #main .charts-final .chart-toolbar .chart-action>svg{width:16.5px!important;height:16.5px!important;flex-basis:16.5px!important}
- #main .charts-final .chart-period{min-width:99px}
  #main .charts-final .chart-period-menu{padding:4.4px}
  #main .charts-final .chart-period-menu a{font-size:14.3px;min-height:39.6px;padding-inline:13.2px}
  #main .charts-final .chart-meta{gap:4.4px 13.2px}
@@ -410,13 +381,3 @@
  #main .charts-final .chart-movement .chart-direction{font-size:9.9px!important}
  #main .charts-final .song-table-tools .icon-button{width:44px;height:48.4px}
 }
-
-/* Chart selection stays inside the existing compact dialog. */
-#dialog .chart-track-picker{max-height:min(260px,32dvh);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;margin:8px 0 12px}
-#dialog .chart-pick-row{display:flex;align-items:center;gap:10px;min-height:44px;padding:6px 0;border-bottom:1px solid var(--ds-line);cursor:pointer}
-#dialog .chart-pick-row input{flex:none;accent-color:var(--ds-selected)}
-#dialog .chart-pick-rank{flex:none;width:24px;text-align:center;font-size:12px;color:var(--ds-muted)}
-#dialog .chart-pick-copy{min-width:0;flex:1}
-#dialog .chart-pick-copy strong,#dialog .chart-pick-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
-#dialog .chart-pick-copy small{margin-top:3px;color:var(--ds-muted);font-size:11px}
-#dialog .chart-playlist-dialog .form-error:empty{display:none}

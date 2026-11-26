@@ -49,17 +49,55 @@ test('paged lists preserve later order, literal long searches, private bookmark 
  assert.equal((await f.call('/api/my-boxes/'+b.id,'DELETE')).status,200);assert.equal((await f.call('/api/my-boxes/'+b.id)).status,404);
  assert.equal(f.sql.prepare('SELECT count(*) n FROM my_box_items WHERE box_id=?').get(b.id).n,0);
 });
-test('unlimited account storage retains rate protection, privacy defaults and Unicode global title uniqueness',async t=>{
+test('unlimited account storage retains rate protection and privacy defaults with repeated titles',async t=>{
  const f=await fixture(t);for(const user of ['owner','other']){for(let i=0;i<12;i++)await create(f,user+' '+i,{},user);}
  assert.equal((await f.call('/api/membership')).body.membership.playlist_limit,null);
  const pid=await create(f,'  Ｎｉｇｈｔ　 Mix  ');assert.equal(normalizePlaylistTitle(' Ｎｉｇｈｔ　 Mix '),'night mix');
- assert.equal((await f.call('/api/playlists','POST',{name:'NIGHT   mix'},'other')).status,409);
+ const copy=await create(f,'  Ｎｉｇｈｔ　 Mix  ');assert.notEqual(copy,pid);
+ await create(f,'NIGHT   mix',{},'other');
  assert.equal((await f.call('/api/playlists/'+pid,'PATCH',{name:'night mix'})).status,200);
  assert.equal((await f.call('/api/playlists/'+pid,'GET',null,'other')).status,404);
  assert.equal((await f.call('/api/playlists','POST',{name:'empty public',is_public:true})).status,400);
  assert.equal((await f.call('/api/playlists/'+pid,'PATCH',{is_public:true})).status,400);
- const race=await Promise.all([f.call('/api/playlists','POST',{name:'Race'}),f.call('/api/playlists','POST',{name:' race '},'other')]);assert.deepEqual(race.map(r=>r.status).sort(),[201,409]);
+ const race=await Promise.all([f.call('/api/playlists','POST',{name:'Race'}),f.call('/api/playlists','POST',{name:' race '},'other')]);
+ assert.deepEqual(race.map(r=>r.status),[201,201]);assert.notEqual(race[0].body.id,race[1].body.id);
  for(let i=0;i<40;i++)await f.call('/api/playlists','POST',{name:'rate '+i});assert.equal((await f.call('/api/playlists','POST',{name:'rate blocked'})).status,429);
+});
+test('same-title public lists retain distinct links, owners, search hits, saves and edit permissions',async t=>{
+ const f=await fixture(t),name='같은 공개 제목',trackIds=['one','three'];
+ const [first,second,third,privateId]=await Promise.all([
+  create(f,name,{is_public:true,track_ids:trackIds}),create(f,name,{is_public:true,track_ids:['three']}),
+  create(f,name,{is_public:true,track_ids:['one']},'other'),create(f,'변경 전 이름',{track_ids:trackIds})
+ ]);
+ const link=id=>'/api/playlists/'+id;
+ assert.equal((await f.call(link(privateId),'PATCH',{name})).status,200);
+ assert.equal((await f.call(link(privateId),'GET',null,'other')).status,404);
+ assert.equal((await f.call('/api/playlists/title-availability?name='+encodeURIComponent(name))).body.available,true);
+ assert.equal((await f.call('/api/playlists/title-availability?name=')).status,400);
+ for(const invalid of ['', ' ', '가'.repeat(81)])assert.equal((await f.call('/api/playlists','POST',{name:invalid})).status,400);
+ const publicSearch=async()=> (await f.call('/api/search?q='+encodeURIComponent(name),'GET',null,null)).body.playlists;
+ assert.deepEqual(new Set((await publicSearch()).map(p=>p.id)),new Set([first,second,third]));
+ assert.equal((await f.call(link(privateId),'PATCH',{is_public:true})).status,200);
+ const found=await publicSearch();
+ assert.deepEqual(new Set(found.map(p=>p.id)),new Set([first,second,third,privateId]));
+ assert.equal(found.find(p=>p.id===first).owner_name,'QA');assert.equal(found.find(p=>p.id===third).owner_name,'other');
+ f.sql.exec("UPDATE producers SET name='바뀐 닉네임' WHERE id='producer'");
+ assert.equal((await publicSearch()).find(p=>p.id===first).owner_name,'바뀐 닉네임');
+ const listed=(await f.call('/api/playlists?q='+encodeURIComponent(name),'GET',null,null)).body.playlists;
+ assert.equal(listed.length,4);
+ for(const pid of [first,second]){
+  for(let i=0;i<2;i++)assert.equal((await f.call(link(pid)+'/save','PUT',null,'other')).status,200);
+  assert.equal((await f.call(link(pid)+'/played','POST',null,'other')).status,200);
+  for(const method of ['PATCH','DELETE'])assert.equal((await f.call(link(pid),method,{name:'잘못된 수정'},'other')).status,403);
+ }
+ assert.deepEqual(new Set(f.sql.prepare('SELECT playlist_id FROM playlist_saves').all().map(p=>p.playlist_id)),new Set([first,second]));
+ assert.deepEqual(new Set(f.sql.prepare('SELECT playlist_id FROM playlist_recents').all().map(p=>p.playlist_id)),new Set([first,second]));
+ assert.equal((await f.call(link(second),'PATCH',{description:'한 개만 수정'})).status,200);
+ assert.equal((await f.call(link(first))).body.playlist.description,'');
+ assert.equal((await f.call(link(second),'DELETE')).status,200);
+ assert.equal((await f.call(link(second),'GET',null,null)).status,404);
+ assert.deepEqual((await f.call(link(first),'GET',null,null)).body.tracks.map(t=>t.id),trackIds);
+ assert.ok((await publicSearch()).some(p=>p.id===third));
 });
 test('bookmarks reference one source, fork is atomic and replay safe, failure/cancel keeps bookmark',async t=>{
  const f=await fixture(t),pid=await create(f,'원본',{is_public:true,track_ids:['one','three']}),url='/api/playlists/'+pid;
@@ -68,19 +106,22 @@ test('bookmarks reference one source, fork is atomic and replay safe, failure/ca
  assert.equal((await f.call('/api/me/music-library?section=playlists&filter=saved','GET',null,'other')).body.items[0].name,'원본');
  await f.call(url,'PATCH',{name:'수정한 원본'});await f.call(url+'/order','PUT',{track_ids:['three','one']});
  const read=(await f.call(url,'GET',null,'other')).body;assert.equal(read.playlist.name,'수정한 원본');assert.deepEqual(read.tracks.map(t=>t.id),['three','one']);
- const payload={name:'내 편집본',track_ids:read.tracks.map(t=>t.id),source_revision:read.playlist.revision,request_id:'fork-1'};
- assert.equal((await f.call(url+'/fork','POST',{...payload,name:read.playlist.name},'other')).status,409);
+ const payload={name:read.playlist.name,track_ids:read.tracks.map(t=>t.id),source_revision:read.playlist.revision,request_id:'fork-1',is_public:true};
  assert.equal(f.sql.prepare('SELECT count(*) n FROM playlist_saves').get().n,1);
  f.sql.exec("CREATE TRIGGER fail_fork BEFORE DELETE ON playlist_saves BEGIN SELECT RAISE(ABORT,'forced storage failure'); END;");
  assert.equal((await f.call(url+'/fork','POST',payload,'other')).status,500);assert.equal(f.sql.prepare('SELECT count(*) n FROM playlists').get().n,1);assert.equal(f.sql.prepare('SELECT count(*) n FROM playlist_saves').get().n,1);
  f.sql.exec('DROP TRIGGER fail_fork');
  const results=await Promise.all([f.call(url+'/fork','POST',payload,'other'),f.call(url+'/fork','POST',payload,'other')]);assert.ok(results.every(r=>r.status===200||r.status===201),JSON.stringify(results));assert.equal(results[0].body.id,results[1].body.id);
  const copy=results[0].body.id;assert.equal(f.sql.prepare('SELECT count(*) n FROM playlists').get().n,2);assert.equal(f.sql.prepare('SELECT count(*) n FROM playlist_saves').get().n,0);
- assert.equal(f.sql.prepare('SELECT source_id FROM playlists WHERE id=?').get(copy).source_id,pid);assert.equal((await f.call('/api/playlists/'+copy,'GET',null,'owner')).status,404);
+ assert.equal(f.sql.prepare('SELECT source_id FROM playlists WHERE id=?').get(copy).source_id,pid);
+ const cloned=(await f.call('/api/playlists/'+copy,'GET',null,'owner')).body.playlist;
+ assert.equal(cloned.name,read.playlist.name);assert.equal(cloned.user_id,'other');assert.equal(read.playlist.user_id,'owner');
+ await f.call('/api/playlists/'+copy+'/order','PUT',{track_ids:['one','three']},'other');
+ assert.deepEqual((await f.call(url)).body.tracks.map(t=>t.id),['three','one']);
  await f.call(url+'/save','PUT',null,'other');await f.call(url,'PATCH',{is_public:false});assert.equal((await f.call(url,'GET',null,'other')).status,404);
  assert.equal((await f.call(url+'/fork','POST',payload,'other')).body.id,copy);
  assert.equal((await f.call(url+'/save','DELETE',null,'other')).status,200);
- assert.deepEqual((await f.call('/api/playlists/'+copy,'GET',null,'other')).body.tracks.map(t=>t.id),['three','one']);
+ assert.deepEqual((await f.call('/api/playlists/'+copy,'GET',null,'other')).body.tracks.map(t=>t.id),['one','three']);
 });
 test('fork rejects a source modified between preflight and transaction, preserving everything',async t=>{
  const f=await fixture(t),pid=await create(f,'snapshot',{is_public:true,track_ids:['one']}),path='/api/playlists/'+pid;
@@ -115,11 +156,11 @@ test('migration snapshots first, preserves duplicate titles and original order, 
  const f=await fixture(t);content(f.sql);
  f.sql.exec("INSERT INTO playlists(id,user_id,name,created,is_public) VALUES('legacy-a','owner',' MIX ',1,1),('legacy-b','other','mix',2,0); INSERT INTO playlist_tracks VALUES('legacy-a','one',1,0),('legacy-a','two',2,1); INSERT INTO playlist_saves VALUES('other','legacy-a',1)");
  f.sql.prepare('INSERT INTO admin_audit VALUES(?,?,?,?,?)').run('old-backup','admin','playlist:originals:backup',JSON.stringify({playlist_id:'legacy-b',track_id:'two',created:4,position:7}),1);
- assert.equal((await f.call('/api/playlists','POST',{name:'mix'})).status,503);
+ const newPlaylist=await create(f,'mix');
  const DB={...f.DB,async batch(statements){assert.ok(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='library:v2:backup'").get().n>0);return f.DB.batch(statements);}};
- const first=await migrateLibraryBatch({DB});assert.equal(first.pending,0);assert.equal(first.duplicate_title_groups,1);assert.equal(first.migrated_boxes,2);assert.equal(first.preserved_items,2);
- assert.equal((await f.call('/api/playlists','POST',{name:'ＭＩＸ'})).status,409);
- assert.deepEqual(f.sql.prepare('SELECT name FROM playlists ORDER BY id').all().map(p=>p.name),[' MIX ','mix']);
+ const first=await migrateLibraryBatch({DB});assert.equal(first.pending,0);assert.equal(first.migrated_boxes,2);assert.equal(first.preserved_items,2);
+ const another=await create(f,'ＭＩＸ');assert.notEqual(another,newPlaylist);
+ assert.deepEqual(f.sql.prepare("SELECT name FROM playlists WHERE id LIKE 'legacy-%' ORDER BY id").all().map(p=>p.name),[' MIX ','mix']);
  assert.equal(f.sql.prepare('SELECT is_public FROM playlists WHERE id=?').get('legacy-a').is_public,1);assert.equal(f.sql.prepare('SELECT count(*) n FROM playlist_saves').get().n,1);
  assert.deepEqual(f.sql.prepare('SELECT track_id,position FROM playlist_tracks').all().map(x=>[x.track_id,x.position]),[['one',0]]);
  await migrateLibraryBatch({DB:f.DB});assert.equal((await libraryMigrationStatus({DB:f.DB})).preserved_items,2);

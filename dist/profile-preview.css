@@ -150,7 +150,7 @@ html.profile-embed,html.profile-embed body {background:transparent;min-width:0}
 .dm-song-share-detail>svg{width:14px;height:14px}
 a.dm-song-share:hover .dm-song-share-detail{color:var(--ds-text)}
 
-#dialog.compact-popup:has(:is(.song-share-dialog,.playlist-picker-panel)){
+#dialog.compact-popup:has(:is(.song-share-dialog,.playlist-picker-panel,.chart-playlist-dialog)){
  --song-share-mint:#8eddd2;
  width:380px;max-width:calc(100% - 40px);padding:20px;
  border-radius:var(--ds-radius-card);overflow:hidden;box-shadow:none;
@@ -164,8 +164,9 @@ a.dm-song-share:hover .dm-song-share-detail{color:var(--ds-text)}
  /* Leave room for the dialog border, padding and 32px of viewport clearance. */
  max-height:calc(100dvh - 74px);
 }
+.chart-playlist-dialog{display:flex;flex-direction:column;gap:12px;min-width:0}
 .song-share-heading{display:flex;align-items:center;justify-content:space-between}
-#dialog.compact-popup :is(.song-share-heading,.playlist-picker-panel)>h2{margin:0;font-size:var(--pc-font-section,19px)}
+#dialog.compact-popup :is(.song-share-heading,.playlist-picker-panel,.chart-playlist-dialog)>h2{margin:0;font-size:var(--pc-font-section,19px)}
 #dialog .song-share-heading>.song-share-close{position:static;border-radius:var(--ds-radius-sm)}
 :is(.song-share-dialog,.playlist-picker-panel) .song-share-track-copy>:is(strong,small){
  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;

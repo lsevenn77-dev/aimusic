@@ -1,6 +1,6 @@
 # Playlist eligibility
 
-The 2026-11-24 unified library accepts original tracks, covers and dubbing projects. Only nonempty original-only playlists can be made public. All additions use the stored content type and current access rules. Empty and original-only playlists reserve a normalized title. Mixed lists remain private and may share a title. See `server/playlists.js` and `server/playlist-visibility.js`.
+The unified library accepts original tracks, covers and dubbing projects. Only nonempty original-only playlists can be made public. All additions use the stored content type and current access rules. Playlists can share a title across owners, content types and visibility settings. Chart saves create a private playlist in chart order. See `server/playlists.js` and `server/playlist-visibility.js`.
 
 The November 6 original-only maintenance job has been retired. Its historical snapshots and counts remain in `admin_audit`. The current `playlist_cleanup` admin result is read-only. The following records describe the previous release.
 

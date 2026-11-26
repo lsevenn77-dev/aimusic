@@ -1,4 +1,4 @@
-import {playlistPrivatePrompt,playlistDuplicateTitle} from '../shared/system-messages.js';
+import {playlistPrivatePrompt} from '../shared/system-messages.js';
 import {publicContentContext} from './block-policy.js';
 import {normalizePlaylistTitle} from '../shared/playlist-policy.js';
 import {one,rows,query,run,now,id,str,fail,json,rate} from './db.js';
@@ -8,30 +8,12 @@ import {libraryTransaction} from './library-transactions.js';
 import {typedItems,legacyItems,itemKey,storedItems,hydrateItems,newItemsCondition,playlistCandidates,restrictedSQL,publicPlaylistSQL} from './playlist-items.js';
 
 const isRestricted=items=>items.some(i=>i.kind!=='original');
-const title=value=>str(value,80);
+function title(value){
+ const name=str(value,80);
+ if(!normalizePlaylistTitle(name))fail(400,'플레이리스트 이름을 입력해 주세요.');
+ return name;
+}
 const visiblePlaylist=`(p.user_id=? OR ${publicPlaylistSQL()})`;
-const otherTitle=`FROM playlists p WHERE p.name_key=? AND p.id!=? AND NOT ${restrictedSQL()}`;
-const titleHolder=`FROM playlists p WHERE p.name_key=? AND NOT ${restrictedSQL()}`;
-
-async function availableTitle(env,name,exclude=''){
- if(await one(env,`SELECT p.id FROM playlists p WHERE p.name_key IS NULL AND p.id!=? AND NOT ${restrictedSQL()} LIMIT 1`,exclude))fail(503,'기존 플레이리스트 제목을 확인하고 있습니다. 잠시 후 다시 시도해 주세요.');
- return !await one(env,'SELECT p.id '+otherTitle+' LIMIT 1',normalizePlaylistTitle(name),exclude);
-}
-function releaseTitle(env,key){
- return query(env,`DELETE FROM playlist_title_claims WHERE key=? AND NOT EXISTS(SELECT 1 ${titleHolder})`,key,key);
-}
-async function reserveTitle(env,name,p,wasStrict,requiresCheck) {
- const key=normalizePlaylistTitle(name);
- if(!key)fail(400,'플레이리스트 이름을 입력해 주세요.');
- if(wasStrict && key===p.name_key){
-  if(requiresCheck && !await availableTitle(env,name,p.id))fail(409,playlistDuplicateTitle);
-  return [];
- }
- if(!await availableTitle(env,name,p?.id||''))fail(409,playlistDuplicateTitle);
- // Clear abandoned claims (for example after account deletion). Existing
- // owners reserve the key until the last grandfathered duplicate moves away.
- return [releaseTitle(env,key),query(env,'INSERT INTO playlist_title_claims(key) VALUES(?)',key)];
-}
 async function getPlaylist(env,pid,user){
  const p=await one(env,`SELECT p.*,${restrictedSQL()} restricted FROM playlists p WHERE p.id=? AND ${visiblePlaylist}`,pid,user?.id||'');
  if(!p)fail(404,'플레이리스트를 찾을 수 없습니다.');
@@ -41,10 +23,10 @@ async function requestItems(env,body){
  if(body.items!==undefined)return typedItems(body.items);
  return legacyItems(env,body.track_ids??[]);
 }
-async function validateAdditions(env,uid,items,conditions){
+async function validateAdditions(env,uid,items,conditions,missingMessage='추가할 수 있는 콘텐츠를 찾을 수 없습니다.'){
  if(!items.length)return;
  const [sql,args]=newItemsCondition(env,uid,items);
- if(!(await one(env,`SELECT (${sql}) ok`,...args)).ok)fail(404,'추가할 수 있는 콘텐츠를 찾을 수 없습니다.');
+ if(!(await one(env,`SELECT (${sql}) ok`,...args)).ok)fail(404,missingMessage);
  conditions.push([sql,args]);
 }
 function initialVisibility(body,items){
@@ -97,22 +79,23 @@ async function playlistBody(req){
  return body;
 }
 
-async function createPlaylist(req,env,user,sourceId){
+async function createPlaylist(req,env,user,{sourceId=null,fromChart=false}={}){
  requireUser(user);
  const b=await playlistBody(req),name=title(b.name);
- const description=str(b.description??'',600,false),requestId=b.request_id===undefined?id():str(b.request_id,100);
+ const description=str(b.description??'',600,false),requestId=fromChart||b.request_id!==undefined?str(b.request_id,100):id();
  // Compare retries against the submitted snapshot before resolving current IDs.
  // Legacy clients retain the v2 fingerprint, including its "ids" field and raw
  // description, if a completed request is retried after a track is removed.
- const selection=b.items===undefined?{ids:b.track_ids??[]}:{items:typedItems(b.items)};
- const fingerprint=await hash(JSON.stringify({source:sourceId||null,name,...selection,pub:Number(b.is_public===true),description:b.description||'',revision:b.source_revision??null}));
+ const selection=fromChart||b.items!==undefined?{items:typedItems(b.items)}:{ids:b.track_ids??[]};
+ const fingerprint=await hash(JSON.stringify({source:sourceId,name,...selection,pub:Number(!fromChart&&b.is_public===true),description:b.description||'',revision:b.source_revision??null,...(fromChart?{chart:true}:{})}));
  const replay=async()=>{
   const saved=await one(env,'SELECT * FROM library_requests WHERE user_id=? AND request_id=?',user.id,requestId);
   if(saved && saved.fingerprint!==fingerprint)fail(409,'같은 요청 식별자로 다른 내용을 저장할 수 없습니다.');
   return saved;
  };
  const prior=await replay();if(prior)return json({id:prior.result_id,replayed:true});
- const items=selection.items??await legacyItems(env,selection.ids),pub=initialVisibility(b,items);
+ const items=selection.items??await legacyItems(env,selection.ids),pub=fromChart?0:initialVisibility(b,items);
+ if(fromChart&&(!items.length||items.some(item=>item.kind==='dubbing')))fail(400,'차트에서 저장할 수 있는 곡을 확인해 주세요.');
  if(items.length>500)fail(400,'플레이리스트에는 콘텐츠를 최대 500개까지 추가할 수 있습니다.');
  const source=sourceId?await getPlaylist(env,sourceId,user):null;
  const conditions=[];
@@ -122,13 +105,12 @@ async function createPlaylist(req,env,user,sourceId){
   conditions.push([`EXISTS(SELECT 1 FROM playlists p JOIN playlist_saves s ON s.playlist_id=p.id WHERE p.id=? AND p.revision=? AND ${publicPlaylistSQL()} AND s.user_id=?)`,[source.id,source.revision,user.id]]);
  }
  await rate(env,'playlist-create:'+user.id,30,60);
- await validateAdditions(env,user.id,items,conditions);
- const statements=isRestricted(items)?[]:await reserveTitle(env,name,null,false,true);
+ await validateAdditions(env,user.id,items,conditions,fromChart?'차트에 현재 담을 수 없는 곡이 있습니다. 차트를 다시 열어 확인해 주세요.':undefined);
  const pid=id(),at=now(),image=await copyImage(env,source,pid);
  try{
-  statements.push(query(env,'INSERT INTO playlists(id,user_id,name,name_key,is_public,created,updated,description,source_id,image_version,image_type) VALUES(?,?,?,?,?,?,?,?,?,?,?)',pid,user.id,name,normalizePlaylistTitle(name),pub,at,at,description,sourceId||null,image?.version||'',image?.type||''),
+  const statements=[query(env,'INSERT INTO playlists(id,user_id,name,name_key,is_public,created,updated,description,source_id,image_version,image_type) VALUES(?,?,?,?,?,?,?,?,?,?,?)',pid,user.id,name,normalizePlaylistTitle(name),pub,at,at,description,sourceId,image?.version||'',image?.type||''),
    ...appendMembers(env,pid,items.map((i,position)=>({...i,position})),at),
-   query(env,'INSERT INTO library_requests(user_id,request_id,fingerprint,result_id,created) VALUES(?,?,?,?,?)',user.id,requestId,fingerprint,pid,at));
+   query(env,'INSERT INTO library_requests(user_id,request_id,fingerprint,result_id,created) VALUES(?,?,?,?,?)',user.id,requestId,fingerprint,pid,at)];
   if(source)statements.push(query(env,'DELETE FROM playlist_saves WHERE user_id=? AND playlist_id=?',user.id,source.id));
   await libraryTransaction(env,conditions,statements);
  }catch(e){
@@ -142,16 +124,17 @@ async function createPlaylist(req,env,user,sourceId){
 export async function playlistsRoute(req,env,path,user){
  const method=req.method,params=new URL(req.url).searchParams;
  if(path==='/api/playlists/title-availability'&&method==='GET'){
-  requireUser(user);const name=title(params.get('name'));let exclude=params.get('exclude')||'';
-  if(exclude&&!await one(env,'SELECT id FROM playlists WHERE id=? AND user_id=?',exclude,user.id))exclude='';
-  return json({available:await availableTitle(env,name,exclude)});
+  // Older clients still preflight names. Keep validation without a uniqueness check.
+  requireUser(user);title(params.get('name'));
+  return json({available:true});
  }
  if(path==='/api/playlists/candidates'&&method==='GET')return playlistCandidates(req,env,user);
+ if(path==='/api/playlists/from-chart'&&method==='POST')return createPlaylist(req,env,user,{fromChart:true});
  if(path==='/api/playlists'&&method==='POST')return createPlaylist(req,env,user);
  const m=path.match(/^\/api\/playlists\/([\w-]+)(?:\/(save|fork|order|played|items|tracks)(?:\/([\w-]+))?)?$/);if(!m)return null;
  const [,pid,action,tid]=m;
  if(action==='save'&&method==='DELETE'){requireUser(user);await run(env,'DELETE FROM playlist_saves WHERE user_id=? AND playlist_id=?',user.id,pid);return json({saved:false});}
- if(action==='fork'&&method==='POST')return createPlaylist(req,env,user,pid);
+ if(action==='fork'&&method==='POST')return createPlaylist(req,env,user,{sourceId:pid});
  const p=await getPlaylist(env,pid,user),uid=user?.id||'';
  if(!action&&method==='GET'){
   const memberOfPublic=!!(p.is_public&&!p.restricted),context=memberOfPublic?publicContentContext(env):env;
@@ -174,7 +157,7 @@ export async function playlistsRoute(req,env,path,user){
  if(p.user_id!==uid)fail(403,'내 플레이리스트만 변경할 수 있습니다.');
  const conditions=[['EXISTS(SELECT 1 FROM playlists WHERE id=? AND user_id=? AND revision=?)',[pid,uid,p.revision]]];
  if(!action&&method==='DELETE'){
-  await libraryTransaction(env,conditions,[query(env,'DELETE FROM playlists WHERE id=?',pid),releaseTitle(env,p.name_key)]);
+  await libraryTransaction(env,conditions,[query(env,'DELETE FROM playlists WHERE id=?',pid)]);
   return json({ok:true});
  }
  const b=await playlistBody(req);
@@ -206,10 +189,8 @@ export async function playlistsRoute(req,env,path,user){
  if(!items.length){if(b.is_public===true)fail(400,'콘텐츠를 추가한 뒤 공개할 수 있습니다.');pub=0;}
  if(pub&&b.is_public===true && !(await hydrateItems(env,uid,items)).some(i=>i.available))fail(400,'공개할 수 있는 제작곡을 추가해 주세요.');
  await validateAdditions(env,uid,items.filter(i=>!old.has(itemKey(i))),conditions);
- const statements=restricted?[]:await reserveTitle(env,name,p,!p.restricted,b.is_public===true);
- statements.push(...(items===stored?[]:applyMembers(env,pid,stored,items)),
-  query(env,'UPDATE playlists SET name=?,name_key=?,description=?,is_public=?,updated=?,revision=revision+1 WHERE id=?',name,normalizePlaylistTitle(name),str(b.description??p.description,600,false),pub,now(),pid));
- if(p.name_key && (restricted||normalizePlaylistTitle(name)!==p.name_key))statements.push(releaseTitle(env,p.name_key));
+ const statements=[...(items===stored?[]:applyMembers(env,pid,stored,items)),
+  query(env,'UPDATE playlists SET name=?,name_key=?,description=?,is_public=?,updated=?,revision=revision+1 WHERE id=?',name,normalizePlaylistTitle(name),str(b.description??p.description,600,false),pub,now(),pid)];
  await libraryTransaction(env,conditions,statements);
  return json({ok:true,is_public:!!pub,restricted,revision:p.revision+1});
 }
