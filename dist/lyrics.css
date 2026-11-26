@@ -20,7 +20,7 @@
 :is(.expanded-song-lyrics,.song-detail-lyrics) :is(.lyrics-reading-line,[data-expanded-lyric]){
  display:block;width:100%;margin:0;padding:5px 0;min-height:1lh;text-align:left;
  font:inherit;font-size:1rem;line-height:1.8;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;
- background:transparent!important;border:0;box-shadow:none;color:var(--ds-body);
+ background:transparent!important;border:0;box-shadow:none;color:var(--song-detail-lyrics-color,var(--ds-body));
 }
 :is(.expanded-song-lyrics,.song-detail-lyrics) button[data-expanded-lyric]{min-height:44px}
 #expanded-song-lyrics [data-expanded-lyric].is-current{color:var(--ds-selected)}
@@ -38,9 +38,13 @@
  color:var(--ds-muted);background:transparent;border:0;box-shadow:none;
 }
 .song-detail-lyrics .song-detail-lyrics-copy svg{width:14px;height:14px}
-.song-detail-lyrics-lines{font-size:1rem;line-height:1.8em}
-.song-detail-lyrics-lines > :is(.lyrics-reading-line,[data-expanded-lyric]){
- font-size:calc(1em + 1px);line-height:inherit;
+.song-detail-lyrics-lines{
+ --song-detail-lyrics-size:16px;
+ --song-detail-lyrics-color:color-mix(in srgb,var(--ds-body) 75%,var(--ds-text));
+}
+@media(min-width:801px){.song-detail-lyrics-lines{--song-detail-lyrics-size:17px}}
+#main .song-detail-lyrics-lines > :is(.lyrics-reading-line,[data-expanded-lyric]){
+ font-size:var(--song-detail-lyrics-size)!important;line-height:1.8;
 }
 .song-detail-lyrics .expanded-lyrics-close{border:0;box-shadow:none}
 @media(max-width:600px){.song-detail-lyrics > .section-heading h2{font-size:18px}}

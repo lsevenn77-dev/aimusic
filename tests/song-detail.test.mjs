@@ -8,8 +8,8 @@ const read=name=>readFileSync(new URL('../'+name,import.meta.url),'utf8');
 const samples=JSON.parse(read('tests/fixtures/song-detail-descriptions.json'));
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const track={id:'song',title:'곡 제목',kind:'original',user_id:'other',producer_id:'person',producer:'제작자',artist_id:'artist',artist:'아티스트',has_ai_artist:true,karaoke_ready:true,lyrics_mode:'synced',genre:'Pop',duration:120,likes:12,plays:20,comments:2,description:''};
-function header(user='owner',active=false){
- const c=nicknameContext({me:user?{id:user}:null,esc,number:n=>Number(n).toLocaleString('en-US'),time:()=> '2:00',liked:()=>active,hasArtist:t=>t.kind!=='cover'&&!!t.has_ai_artist,credits:t=>'<a href="#artist/'+esc(t.artist_id)+'">'+esc(t.artist)+'</a>',cover:t=>'<div class="album-art">'+esc(t.title)+'</div>',songReleaseDateHTML:()=>''});
+function header(user='owner',active=false,platform={}){
+ const c=nicknameContext({me:user?{id:user}:null,...platform,esc,number:n=>Number(n).toLocaleString('en-US'),time:()=> '2:00',liked:()=>active,hasArtist:t=>t.kind!=='cover'&&!!t.has_ai_artist,credits:t=>'<a href="#artist/'+esc(t.artist_id)+'">'+esc(t.artist)+'</a>',cover:t=>'<div class="album-art">'+esc(t.title)+'</div>',songReleaseDateHTML:()=>''});
  vm.runInContext(read('dist/icons.js'),c);
  const views=read('dist/views.js');
  vm.runInContext(views.slice(views.indexOf('function songCredits('),views.indexOf('function coversPanelHTML(')),c);
@@ -18,37 +18,39 @@ function header(user='owner',active=false){
  vm.runInContext(views.slice(views.indexOf('function trackModerationToolsHTML('),views.indexOf('function trackReviewHTML(')),c);
  vm.runInContext(read('dist/song-detail.js'),c);return c;
 }
-test('saved descriptions display without guessing authorship from content',()=>{
- const c=header();assert.equal(samples.legacy_auto.length,13);
- for(const t of samples.legacy_auto){
-  assert.equal(c.songCreatorDescription(t),t.description,t.title);
-  assert.equal(c.songCreatorDescription({description:t.description.replaceAll('\\n','\n')}),t.description.replaceAll('\\n','\n'),t.title);
-  assert.ok(c.songDescriptionHTML(t).includes(esc(t.description)));
+test('web song introductions use the creator field and native readers use the stored field',()=>{
+ const web=header(),sample={...samples.legacy_auto[0],creator_description:'첫 줄\n둘째 줄'};
+ assert.equal(web.songDescriptionHTML({...sample,creator_description:''}),'');
+ assert.equal(web.songDescriptionHTML(samples.legacy_auto[0]),'');
+ assert.match(web.songDescriptionHTML(sample),/첫 줄\n둘째 줄/);
+ assert.ok(!web.songDescriptionHTML(sample).includes(esc(sample.description)));
+ for(const platform of [{inApp:true},{navigator:{userAgent:'AIFECT-Mobile/1.0'}}]){
+  const markup=header('owner',false,platform).songDescriptionHTML(sample);
+  assert.ok(markup.includes(esc(sample.description)));
+  assert.match(markup,/>\+더보기<\/button>/);
  }
 });
-test('creator text, paragraphs and amended descriptions stay intact and HTML-safe',()=>{
+test('creator text and paragraphs stay intact and HTML-safe',()=>{
  const c=header();
- for(const t of samples.creator_samples)assert.equal(c.songCreatorDescription(t),t.description);
+ for(const t of samples.creator_samples)assert.equal(c.songCreatorDescription({creator_description:t.description}),t.description);
  const text='첫 줄\n둘째 줄\n\n다음 문단 <script>alert(1)</script> & "인용"';
- const html=c.songDescriptionHTML({id:'song',description:text});
+ const html=c.songDescriptionHTML({id:'song',creator_description:text});
  assert.match(html,/첫 줄\n둘째 줄\n\n다음 문단/);assert.doesNotMatch(html,/<script>/);assert.match(html,/&lt;script&gt;/);
  assert.match(html,/<section\b[^>]*data-song-description-track="song"/);
  const description=html.match(/<p\b[^>]*id="song-description-text"[^>]*>([\s\S]*?)<\/p>/)?.[1];
  assert.ok(description);assert.ok(description.includes('<span class="song-description-content">'+esc(text)+'</span>'));
  const toggle=description.match(/<button\b[^>]*class="text-link song-description-toggle"[^>]*>/)?.[0];
- assert.ok(toggle);assert.match(toggle,/type="button"/);assert.match(toggle,/aria-controls="song-description-text"/);assert.match(toggle,/aria-expanded="false"/);assert.match(toggle,/\bhidden\b/);assert.match(description,/>\+더보기<\/button>/);
- const edited=samples.legacy_auto[0].description+'\n제작자가 새로 수정한 소개입니다.';
- assert.equal(c.songCreatorDescription({description:edited}),edited,'Similar prose is not guessed to be automatic');
+ assert.ok(toggle);assert.match(toggle,/type="button"/);assert.match(toggle,/aria-controls="song-description-text"/);assert.match(toggle,/aria-expanded="false"/);assert.match(toggle,/\bhidden\b/);assert.match(description,/>… 더보기<\/button>/);
 });
 test('empty introductions do not reserve a card and saved text stays intact',()=>{
  const c=header();
- for(const description of [undefined,null,'',' \n\t '])assert.equal(c.songDescriptionHTML({description}),'');
- for(const description of ['none','없음','음악을 듣고 감상을 나눠보세요.','  첫 줄\n둘째 줄  '])assert.equal(c.songCreatorDescription({description}),description);
+ for(const creator_description of [undefined,null,'',' \n\t '])assert.equal(c.songDescriptionHTML({creator_description}),'');
+ for(const creator_description of ['none','없음','음악을 듣고 감상을 나눠보세요.','  첫 줄\n둘째 줄  '])assert.equal(c.songCreatorDescription({creator_description}),creator_description);
  assert.doesNotMatch(c.songDetailHeaderHTML(track),/song-description|음악을 듣고 감상을/);
 });
 
 test('the song title heads the page and metrics follow the date before introduction and actions',()=>{
- const c=header(),html=c.songDetailHeaderHTML({...track,description:'제작자 소개'});
+ const c=header(),html=c.songDetailHeaderHTML({...track,creator_description:'제작자 소개'});
  const order=['song-release-date','song-meta-row','song-metrics','song-engagement','data-report-track','song-header-divider','song-introduction','song-actions'];
  let previous=-1;for(const key of order){const at=html.indexOf(key);assert.ok(at>previous,key);previous=at;}
  assert.equal(html.match(/class="song-introduction"/g).length,1);
@@ -110,14 +112,24 @@ test('artist and producer profiles are each shown once without dropping cover cr
  const cover=c.songDetailCreditsHTML({...track,kind:'cover',original_id:'parent',original_title:'원곡',original_artist:'원곡 아티스트',cover_mode:'duet',duet_open:1,duet_partner_id:'partner',duet_partner:'파트너'});
  for(const href of ['#producer/person','#producer/partner','#song/parent'])assert.ok(cover.includes(href));
 });
-test('the existing track API returns saved introductions unchanged and performs no cleanup write',async t=>{
- const f=await fixture(t),c=header(),values=['첫 줄\n둘째 줄\n\n다음 문단',samples.legacy_auto[0].description,''];
- for(const description of values){
-  f.sql.prepare("UPDATE tracks SET description=? WHERE id='one'").run(description);
+test('track detail reads the creator copy from the matching editorial audit without rewriting stored descriptions',async t=>{
+ const f=await fixture(t);
+ const generated=samples.legacy_auto[0].description,original='첫 줄\n둘째 줄\n\n다음 문단';
+ const edited=generated+'\n제작자가 새로 수정한 소개입니다.';
+ const save=f.sql.prepare("UPDATE tracks SET description=? WHERE id='one'");
+ const audit=f.sql.prepare("INSERT OR REPLACE INTO admin_audit(id,admin_id,action,target,created) VALUES('public-copy-0078:one','operator-requested-editorial:0078','track_description_editorial',?,0)");
+ for(const [description,before,expected] of [
+  [original,null,original],[generated,'',''],[generated,original,original],
+  [generated.replaceAll('\n','\r\n'),original,original],[generated,'없음',''],
+  [edited,original,edited],['',original,'']
+ ]){
+  save.run(description);
+  if(before!==null)audit.run(JSON.stringify({track_id:'one',before,after:generated}));
   const r=await f.call('/api/tracks/one','GET',undefined,null);
-  assert.equal(r.status,200);assert.equal(r.body.track.description,description);
+  assert.equal(r.status,200);
+  assert.equal(r.body.track.description,description);
+  assert.equal(r.body.track.creator_description,expected);
   assert.equal(f.sql.prepare("SELECT description FROM tracks WHERE id='one'").get().description,description);
-  assert.equal(c.songCreatorDescription(r.body.track),description);
  }
 });
 
