@@ -117,7 +117,10 @@ struct WebWorkspacePage: View {
         Group {
             if let error { RetryCard(message: error) { self.error = nil; attempt += 1 } }
             else { WorkspaceBrowser(space: space, error: $error).id("\(model.userID ?? "guest")-\(space.id)-\(attempt)") }
-        }.navigationTitle(space.title).modifier(FullScreenWorkspace())
+        }
+        .navigationTitle(space.area == "voice" ? "" : space.title)
+        .navigationBarTitleDisplayMode(space.area == "voice" ? .inline : .automatic)
+        .modifier(FullScreenWorkspace())
     }
 }
 
@@ -129,6 +132,9 @@ private struct WorkspaceBrowser: UIViewRepresentable {
         let config = WKWebViewConfiguration()
         config.websiteDataStore = .nonPersistent()
         config.allowsInlineMediaPlayback = true
+        if space.area == "voice" {
+            config.defaultWebpagePreferences.preferredContentMode = .mobile
+        }
         if space.area.hasPrefix("game/") {
             let style = """
                 if (location.origin === '\(Endpoint.origin.absoluteString)' &&
