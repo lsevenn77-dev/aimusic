@@ -26,7 +26,7 @@
    welcomeBlocked=false,editBlocked=false,sendPending=false,plan=null,planNext=null,sendRequest=null,submitting=false,
    historyTicket=0,draftTicket=0,historyNext=null,draftNext=null,detail=null,detailTicket=0,recipientNext=null,
    editData=null,welcomeData=null,welcomeDirty=false,welcomeKey=null,editKey=null,withdrawRequest=null,
-   testing=false,testSettingPending=false,deliveryTimer=null,deliveryTicket=0;
+   testing=false,testSettingPending=false,deliveryTimer=null,deliveryTicket=0,welcomeLoading=false;
   const testRequests=new Map();
   const picked=new Map();
   const status=(selector,message)=>{$(selector,root).textContent=message;};
@@ -192,7 +192,7 @@
     testSettingPending||!hasContent(welcome.read());
    action('save-welcome').disabled=!manage||welcomeBlocked||!welcomeData;
    action('edit-save').disabled=!manage||editBlocked||!editData;
-   welcomeEnabled.disabled=!manage;
+   welcomeEnabled.disabled=!manage||!welcomeData||welcomeLoading;
    push.disabled=!manage||!settings?.push.available;
    for(const control of testSetting.elements)control.disabled=!manage||testing||testSettingPending;
   }
@@ -317,7 +317,8 @@
   }
 
   async function loadWelcome(){
-   if(welcomeData)return;
+   if(welcomeData||welcomeLoading)return;
+   welcomeLoading=true;welcome.setWritable(false);updateButtons();
    status('[data-welcome-status]','환영 메시지를 불러오는 중입니다.');
    try{
     welcomeData=await api('/welcome');
@@ -325,7 +326,10 @@
     preview('welcome',welcomeData.content);
     welcomeDelivery(welcomeData);
     status('[data-welcome-status]',welcomeData.updated?'마지막 저장 '+date(welcomeData.updated):'');
-   }catch(error){status('[data-welcome-status]',error.message);}finally{updateButtons();}
+   }catch(error){status('[data-welcome-status]',error.message);}
+   finally{
+    welcomeLoading=false;welcome.setWritable(!!settings?.manage&&!!welcomeData);updateButtons();
+   }
   }
   async function saveWelcome(){
    if(!welcomeData||welcomeBlocked)return;
@@ -683,7 +687,8 @@
      $('[data-notice-start]',root).hidden=true;
      status('[data-push-status]',settings.push.reason);
      renderTestSetting();
-     for(const widget of [composer,welcome,editor,selection])widget.setWritable(settings.manage);
+     for(const widget of [composer,editor,selection])widget.setWritable(settings.manage);
+     welcome.setWritable(false);
      loadComposer();selectTab('compose');updateButtons();
      await resumeCompose(backupCopy);
      recoveredSend();void loadRecent();
