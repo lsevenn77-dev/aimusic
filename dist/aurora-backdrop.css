@@ -43,18 +43,21 @@
     mask-composite:intersect;
   }
 
-  @media (min-width:801px) {
-    :root:not([data-aifect-native]) & {
-      --aurora-height:var(--aurora-default-height);
-      --aurora-paint:linear-gradient(90deg in srgb,
-        rgb(142 221 210) 24%,
-        color-mix(in srgb, rgb(142 221 210) 48%, rgb(151 117 232)) 42%,
-        rgb(151 117 232) 56%,
-        rgb(242 125 181) 84%);
-      --aurora-vertical-mask:linear-gradient(#000 0%, rgb(0 0 0 / .55) 32%, rgb(0 0 0 / .16) 68%, transparent 100%);
+  :root:not([data-aifect-native]) & {
+    --aurora-height:var(--aurora-default-height);
+    --aurora-paint:linear-gradient(90deg in srgb,
+      rgb(142 221 210) 24%,
+      color-mix(in srgb, rgb(142 221 210) 48%, rgb(151 117 232)) 42%,
+      rgb(151 117 232) 56%,
+      rgb(242 125 181) 84%);
+    --aurora-vertical-mask:linear-gradient(#000 0%, rgb(0 0 0 / .55) 32%, rgb(0 0 0 / .16) 68%, transparent 100%);
 
-      &::before { opacity:.18; }
+    @media (max-width:800px) {
+      /* Continue the fade beyond the edge-to-edge mobile banners. */
+      --aurora-height:clamp(360px, 60vw, 480px);
     }
+
+    &::before { opacity:.18; }
   }
 
   /* Reuse #main's existing isolated context; the header keeps its higher z-index.
@@ -63,7 +66,7 @@
   & > .page-footer { position:relative; z-index:1; }
 }
 
-/* Preserve the Play-specific wash on mobile and in the native app. */
+/* Preserve the Play-specific wash in the native app. */
 .page-wrap:has(> #main > .play-page) {
   --aurora-height:var(--play-wash-height);
   --aurora-paint:
