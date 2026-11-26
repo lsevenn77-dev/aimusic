@@ -49,7 +49,7 @@ function paintCrewNews(root,base,items,error){
 }
 
 function bindCrewDetailPanels(view){
- if(!view?.crewDetail||!crewInternalTabs.some(([key])=>key===view.crewTab))return;
+ if(!view?.crewDetail)return;
  const root=document.querySelector('[data-crew-detail]'),main=root.closest('#main');
  const detail=view.crewDetail,base='crew/'+encodeURIComponent(detail.crew.id),viewRoute=main.dataset.route;
  const homeAlias=['crew','community/crews'].includes(viewRoute)?viewRoute:null;
@@ -60,6 +60,10 @@ function bindCrewDetailPanels(view){
  const news=root.querySelector('[data-crew-news]');
  const noticePanel=panels.find(panel=>panel.dataset.crewPanel==='notice');
  const notices=mountCrewNotices(noticePanel,detail.crew.id,controller.signal,(items,error)=>paintCrewNews(news,base,items,error));
+ if(view.crewTab==='chat'){
+  registerRouteCleanup(()=>controller.abort());
+  return;
+ }
  function show(tab,noticeId){
   for(const panel of panels)panel.hidden=panel.dataset.crewPanel!==tab;
   for(const link of links){

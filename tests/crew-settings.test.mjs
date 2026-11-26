@@ -18,6 +18,22 @@ test('crew settings expose only actions allowed by the current role',()=>{
  for(const role of ['member',undefined])assert.deepEqual(actions(role),[]);
 });
 
+test('approval requests and member audit enforce crew state and permissions',async t=>{
+ const f=await fixture(t);
+ f.sql.exec("INSERT INTO producers(id,user_id,name,created,nickname_confirmed) VALUES('friend','other','신청자',0,1); UPDATE producers SET name='운영자',nickname_confirmed=1 WHERE id='producer'; INSERT INTO crews(id,owner_id,name,created,join_policy,recruiting) VALUES('crew','owner','Crew',0,'approval',0); INSERT INTO crew_members(crew_id,user_id,role,joined) VALUES('crew','owner','owner',0)");
+ assert.equal((await f.call('/api/crews/crew/join','POST',undefined,'other')).status,409);
+ f.sql.exec("UPDATE crews SET recruiting=1 WHERE id='crew'");
+ assert.equal((await f.call('/api/crews/crew/join','POST',undefined,'other')).status,202);
+ assert.equal((await f.call('/api/crews/crew/join','POST',undefined,'other')).status,202);
+ assert.equal((await f.call('/api/crews/crew?web=1','GET',undefined,'other')).body.application_pending,true);
+ assert.equal((await f.call('/api/crews/crew/audit?members=1','GET',undefined,'other')).status,403);
+ assert.equal((await f.call('/api/crews/crew/applications/other','POST',{decision:'approve'})).status,200);
+ f.sql.exec("INSERT INTO crew_audit(id,crew_id,actor_id,action,detail,created) VALUES('config','crew','owner','settings_changed','',0)");
+ const log=(await f.call('/api/crews/crew/audit?members=1')).body.events;
+ assert.deepEqual(log.map(event=>[event.action,event.actor_name,event.target_name]),[['application_approved','운영자','신청자']]);
+ assert.equal((await f.call('/api/crews/crew?web=1','GET',undefined,'other')).body.application_pending,false);
+});
+
 test('info changes exclude locked or absent fields and ignore legacy capacity fields',()=>{
  const form={elements:{}};
  for(const name of ['name','description','interests','join_policy','notice'])form.elements[name]={value:''};

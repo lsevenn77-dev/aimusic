@@ -29,7 +29,7 @@ test('own header uses unified list counts in label-first order, separate totals 
  const c=nicknameContext({me:{id:'owner'},document:{addEventListener(){}},window:{addEventListener(){}},esc:String,number:String,icon:()=>'',playerAvatarClass:()=>'',avatarImage:()=>'',playerBadgeHTML:()=>''});
  vm.runInContext(readFileSync('dist/mypage.js','utf8'),c);
  const html=c.myProfileHeader({profile:{id:'p',user_id:'owner',name:'Artist',public_id:'REAL1234'},human_followers:3,followers:13,ai_followers:10,following_count:8,profile_following_count:1,profile_work_count:5,produced_track_count:4});
- assert.match(html,/팔로워 <b>13<\/b>.*팔로잉 <b>8<\/b>.*작품 <b>5<\/b>.*제작곡 <b>4<\/b>/s);
+ assert.match(html,/팔로워 <b>13<\/b>.*팔로잉 <b>8<\/b>.*작품 <b data-mp-work-total="profile_work_count">5<\/b>.*제작곡 <b data-mp-work-total="produced_track_count">4<\/b>/s);
  assert.doesNotMatch(html,/AI 10|공개곡|>복사<|data-followers=/);assert.match(html,/data-copy-public-id="REAL1234"[^>]*><svg/);
  assert.match(html,/href="#profile\/edit"/);assert.match(html,/href="#studio"/);
 });

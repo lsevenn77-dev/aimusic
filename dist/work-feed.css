@@ -168,7 +168,14 @@
 }
 #main .work-feed .work-feed-play[aria-pressed="true"]>svg,
 #main .work-feed :is(.work-feed-play,.work-feed-menu):hover { color: var(--ds-accent-mint); }
-#main .work-feed .work-feed-menu svg { width: 20px; height: 20px; }
+#main .work-feed .work-feed-menu > svg {
+ width: 20px!important;
+ height: 20px!important;
+ flex-basis: 20px!important;
+ padding: 0!important;
+ border: 0!important;
+ background: transparent!important;
+}
 #main .work-feed .work-feed-join {
  display: inline-flex;
  min-height: 44px;
@@ -199,17 +206,35 @@
 .work-feed-management-actions { display: grid; gap: 8px; }
 .work-feed-management-actions > :is(a,button) { justify-content: flex-start; min-height: 44px; }
 
-@container (max-width: 660px) {
- #main .work-feed-row:has(.work-feed-actions) {
-  grid-template-columns: var(--work-art-size) minmax(0,1fr);
-  grid-template-areas: "art copy" "art actions";
+@media (min-width: 801px) {
+ @container (max-width: 660px) {
+  #main .work-feed-row:has(.work-feed-actions) {
+   grid-template-columns: var(--work-art-size) minmax(0,1fr);
+   grid-template-areas: "art copy" "art actions";
+  }
+  #main .work-feed-row:has(.work-feed-actions) .work-feed-versions { grid-row: 3; }
  }
- #main .work-feed-row:has(.work-feed-actions) .work-feed-actions { margin-top: 2px; }
- #main .work-feed-row:has(.work-feed-actions) .work-feed-versions { grid-row: 3; }
 }
-
 @media (max-width: 800px) {
  #main .work-feed-grid { grid-template-columns: minmax(0,1fr); }
  #main .work-feed-row { --work-art-size: 82px; gap: 0 10px; }
  #main .work-feed-filters button { min-height: 44px; padding-inline: clamp(5px,1.8vw,10px); font-size: 13px; }
+ #main .work-feed-row:has(.work-feed-join) {
+  grid-template-columns: var(--work-art-size) minmax(0,1fr);
+  grid-template-areas: "art copy" "art actions";
+ }
+ #main .work-feed-row:has(.work-feed-join) .work-feed-versions { grid-row: 3; }
+}
+@media (max-width: 600px) {
+ #main .work-feed-toolbar:has([data-feed-order]) { gap: 2px 4px; }
+ #main .work-feed-toolbar:has([data-feed-order]) .work-feed-filters { gap: 1px; }
+ #main .work-feed-toolbar:has([data-feed-order]) .work-feed-filters button { padding-inline: 5px; }
+ #main .work-feed-toolbar > .aifect-dropdown { margin-inline-start: auto; }
+}
+@media (max-width: 350px) {
+ #main .work-feed-row:has(.work-feed-menu) {
+  grid-template-columns: var(--work-art-size) minmax(0,1fr);
+  grid-template-areas: "art copy" "art actions";
+ }
+ #main .work-feed-row:has(.work-feed-menu) .work-feed-versions { grid-row: 3; }
 }

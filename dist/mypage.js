@@ -1,5 +1,6 @@
 // Desktop composition reuses existing routes, media, playback and social actions.
 let myPageState=null,myPendingTabFocus='',myWorkSearchObserver=null;
+let myWorkReturnProfile=null;
 const myPageRevision=()=>typeof apiRevision==='number'?apiRevision:0;
 function myPageRouteSelection(raw=''){
  raw=raw.replace(/^#\/?/,'');
@@ -31,6 +32,7 @@ function rememberMyPageRouteTarget(raw){
 function refreshMyPageProfile(){
  // Profile edits must refresh the shared gallery/artists/header too. Ordinary
  // tab navigation retains them; explicit successful edits use the full view.
+ myWorkReturnProfile=null;
  if(myPageState?.own){myPageState.request=(myPageState.request||0)+1;myPageState=null;}
  return render();
 }
@@ -349,6 +351,11 @@ function myWorksBanner(tab='works'){
 function myProfileDashboardPath(id,feedShell=false){
  return '/api/producers/'+encodeURIComponent(id)+'?dashboard=1&work_list=1'+(feedShell?'&feed_shell=1':'');
 }
+function takeMyWorkReturnProfile(raw){
+ if(myPageRouteSelection(raw)!=='works')return null;
+ const saved=myWorkReturnProfile;myWorkReturnProfile=null;
+ return saved&&saved.account===me?.id&&saved.until>Date.now()?saved.data:null;
+}
 async function myPageView(base,param,raw,readApi=api){
  if(base==='member'){
   const {profile}=await readApi('/api/members/'+encodeURIComponent(param));
@@ -363,11 +370,11 @@ async function myPageView(base,param,raw,readApi=api){
  const q=new URLSearchParams(raw.split('?')[1]||'');
  const legacyLibrary=['covers','originals'].includes(q.get('section'));
  const useFeedShell=!full&&!legacyLibrary;
- let d;
- if(base==='profile'){
+ let d=base==='profile'&&useFeedShell?takeMyWorkReturnProfile(raw):null;
+ if(!d&&base==='profile'){
   const self=me.profile_id?{profile:{id:me.profile_id}}:await readApi('/api/me/profile','GET',undefined,{fresh:true});
   d=self.profile.id?await readApi(myProfileDashboardPath(self.profile.id,useFeedShell),'GET',undefined,{fresh:true}):{profile:self.profile,followers:self.follower_count,following_count:self.following_count,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
- }else d=await readApi(myProfileDashboardPath(param,useFeedShell&&param===me?.profile_id),'GET',undefined,{fresh:true});
+ }else if(!d)d=await readApi(myProfileDashboardPath(param,useFeedShell&&param===me?.profile_id),'GET',undefined,{fresh:true});
  const own=isMyProfile(d.profile),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
  if(full)return profileWorksPage(d,q);
  const collection=own&&tab==='library'?await myLibraryView(raw,readApi):own&&tab==='works'&&legacyLibrary?await browseView('library',q.get('section'),raw,true,readApi):null;
@@ -532,7 +539,16 @@ function bindMyPage(view){
   };
   window.addEventListener('scroll',scroll,{passive:true});
   window.addEventListener('aifect:inventory-changed',refreshStock);
-  registerRouteCleanup(()=>{s.request=(s.request||0)+1;window.removeEventListener('scroll',scroll);window.removeEventListener('aifect:inventory-changed',refreshStock);});
+  registerRouteCleanup(()=>{
+   s.request=(s.request||0)+1;
+   window.removeEventListener('scroll',scroll);
+   window.removeEventListener('aifect:inventory-changed',refreshStock);
+   const destination=location.hash;
+   if(s.tab==='works'&&s.account===me?.id&&/^#(?:manage|dubbing)\//.test(destination)&&
+      new URLSearchParams(destination.split('?')[1]||'').get('from')==='works'){
+    myWorkReturnProfile={account:s.account,data:s.d,until:Date.now()+300000};
+   }
+  });
  }
  bindProfileWorkJoins(document.querySelector('.mp-dashboard'),s.d);
  if(profileMobileLayout)placeProfileArtists();

@@ -13,12 +13,16 @@
 #main [data-crew-detail] .crew-identity {
  display: grid;
  grid-template-columns: auto minmax(0, 1fr);
- gap: 16px;
+ column-gap: 16px;
+ row-gap: 4px;
  min-width: 0;
  flex: 1;
 }
 
-#main [data-crew-detail] .crew-detail-picture { width: 104px; }
+#main [data-crew-detail] .crew-detail-picture { grid-row: 1 / span 2; width: 104px; }
+#main [data-crew-detail] .crew-identity-copy { align-self: end; }
+#main [data-crew-detail] .crew-identity:not(:has(.crew-profile-description)) .crew-detail-picture { grid-row: auto; }
+#main [data-crew-detail] .crew-identity:not(:has(.crew-profile-description)) .crew-identity-copy { align-self: center; }
 #main [data-crew-detail] .crew-identity-copy { font-size: 13px; }
 #main [data-crew-detail] .crew-identity-copy h1 {
  display: flex;
@@ -163,7 +167,9 @@
 }
 
 #main [data-crew-detail] .crew-profile-description {
- margin: 5px 0 0;
+ grid-column: 2;
+ align-self: start;
+ margin: 0;
  color: var(--ds-body);
  font-size: 14px;
  line-height: 1.55;
@@ -219,8 +225,7 @@
  white-space: nowrap;
 }
 #main [data-crew-detail] .crew-news li a:hover { color: var(--crew-accent); }
-#main [data-crew-detail] .crew-news-type { flex: none; color: var(--ds-muted); font-size: 12px; }
-#main [data-crew-detail] .crew-news li:has(.crew-news-type:first-child) .crew-news-type { min-width: 24px; }
+#main [data-crew-detail] .crew-news-type { flex: none; min-width: 24px; color: var(--ds-muted); font-size: 12px; }
 #main [data-crew-detail] .crew-weekly-games { width: 100%; max-width: 410px; min-height: 62px; margin: 0; }
 #main [data-crew-detail] .crew-notice:focus { outline: 1px solid var(--crew-surface-line); outline-offset: 3px; }
 #main [data-crew-detail] .crew-empty { color: var(--ds-muted); margin: 12px 0; }
@@ -307,7 +312,10 @@
   align-items: start;
   gap: 8px;
  }
- #main [data-crew-detail] .crew-identity { gap: 12px; }
+ #main [data-crew-detail] .crew-identity { column-gap: 12px; row-gap: 6px; }
+ #main [data-crew-detail] .crew-detail-picture { grid-row: auto; }
+ #main [data-crew-detail] .crew-identity-copy { align-self: center; }
+ #main [data-crew-detail] .crew-profile-description { grid-column: 1/-1; font-size: 13px; }
  #main [data-crew-detail] .crew-settings-anchor { grid-area: 1 / 2; }
  #main [data-crew-detail] .crew-join-profile { grid-column: 1/-1; justify-self: start; min-height: 44px; }
  #main [data-crew-detail] .crew-detail-xp { margin-top: 8px; }

@@ -25,8 +25,7 @@ function crewHeroHTML(c,m,join=''){
     <h1 title="${esc(c.name)}">${name}<small class="crew-level">Lv.${number(c.level)}</small></h1>
     <span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span>
     ${activities.length?'<ul class="crew-activities" aria-label="활동 방향">'+activities.map(tag=>'<li>'+esc(tag)+'</li>').join('')+'</ul>':''}
-    ${description?'<p class="crew-profile-description">'+esc(description)+'</p>':''}
-    </div></div>${settings}${join}
+    </div>${description?'<p class="crew-profile-description">'+esc(description)+'</p>':''}</div>${settings}${join}
    </div>
    <div class="crew-detail-xp"><div><span>${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div>
    <progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>

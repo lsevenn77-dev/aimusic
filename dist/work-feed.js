@@ -21,7 +21,7 @@ function workFeedKind(work){
 
 function workFeedLink(work){
  const route=work.kind==='dubbing'?'dubbing':work.owned&&!work.work_public?'manage':'song';
- return '#'+route+'/'+encodeURIComponent(work.id);
+ return '#'+route+'/'+encodeURIComponent(work.id)+(route==='manage'?'?from=works':'');
 }
 
 function workFeedPlay(work){
@@ -227,4 +227,3 @@ function mountWorkFeed(root,{state,loadPage,emptyText,metadata,actions,onAction,
  });
  return {dispose,replaceItems};
 }
-
