@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {DatabaseSync} from 'node:sqlite';
 import {Worker} from 'node:worker_threads';
-import {mkdirSync,mkdtempSync,readFileSync,rmSync} from 'node:fs';
+import {mkdirSync,mkdtempSync,readFileSync} from 'node:fs';
+import {rm} from 'node:fs/promises';
 import {resolve,sep} from 'node:path';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
@@ -12,13 +13,31 @@ test('independent SQLite writers issue unique public numbers atomically',async()
  const base=resolve('work/id-concurrency');mkdirSync(base,{recursive:true});const dir=mkdtempSync(base+sep+'test-'),path=resolve(dir,'members.sqlite');
  const sql=new DatabaseSync(path);sql.exec('PRAGMA journal_mode=WAL; CREATE TABLE users(id TEXT PRIMARY KEY,created INTEGER)');sql.exec(readFileSync(new URL('../drizzle/0064_public_member_ids.sql',import.meta.url),'utf8'));
  try{
-  await Promise.all(Array.from({length:6},(_,w)=>new Promise((res,rej)=>{
-   const t=new Worker(`const {workerData,parentPort}=require('node:worker_threads');const {DatabaseSync}=require('node:sqlite');const db=new DatabaseSync(workerData.path);db.exec('PRAGMA busy_timeout=10000');const q=db.prepare('INSERT INTO users VALUES(?,?)');for(let i=0;i<20;i++)q.run(workerData.w+'-'+i,i);db.close();parentPort.postMessage('done');`,{eval:true,workerData:{path,w}});t.once('error',rej);t.once('exit',code=>code?rej(Error('writer '+code)):res());
+  const writers=await Promise.allSettled(Array.from({length:6},(_,w)=>new Promise((res,rej)=>{
+   const t=new Worker(`
+    const {workerData}=require('node:worker_threads');
+    const {DatabaseSync}=require('node:sqlite');
+    const db=new DatabaseSync(workerData.path);
+    try {
+     db.exec('PRAGMA busy_timeout=30000; BEGIN IMMEDIATE');
+     const insert=db.prepare('INSERT INTO users VALUES(?,?)');
+     for(let i=0;i<20;i++)insert.run(workerData.w+'-'+i,i);
+     db.exec('COMMIT');
+    } finally { db.close(); }
+   `,{eval:true,workerData:{path,w}});
+   t.once('error',rej);
+   t.once('exit',code=>code?rej(Error('writer '+code)):res());
   })));
+  const writerError=writers.find(result=>result.status==='rejected');
+  if(writerError)throw writerError.reason;
   assert.equal(sql.prepare('SELECT count(*) n FROM public_member_ids').get().n,120);
   assert.equal(sql.prepare('SELECT count(DISTINCT number) n FROM public_member_ids').get().n,120);
   assert.equal(sql.prepare('SELECT count(*) n FROM users u LEFT JOIN public_member_ids m ON m.user_id=u.id WHERE m.number IS NULL').get().n,0);
- }finally{sql.close();if(!dir.startsWith(base+sep))throw Error('Unsafe fixture cleanup path');rmSync(dir,{recursive:true,force:true,maxRetries:10,retryDelay:100});}
+ }finally{
+  sql.close();
+  if(!dir.startsWith(base+sep))throw Error('Unsafe fixture cleanup path');
+  await rm(dir,{recursive:true,force:true,maxRetries:10,retryDelay:150});
+ }
 });
 
 test('logout and login keep the same public ID with actual session cookies',async t=>{
