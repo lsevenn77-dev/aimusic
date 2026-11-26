@@ -5,22 +5,7 @@ import {giftDispatchKey} from './gift-dispatch.js';
 import {parseProductDeadline,productGrantExpiry} from './product-deadline.js';
 import {bumpGiftArrivalVersion} from './notice-visibility.js';
 
-// The existing unit and redemption tables remain the source of live ownership.
-export const dispatchRights=where=>`WITH selected AS MATERIALIZED (
- SELECT i.id,i.user_id,i.dispatch_id FROM gift_dispatch_items i WHERE i.state='granted' AND (${where})
-), rights AS (
- SELECT i.dispatch_id,i.id item_id,i.user_id,g.id inventory_id,'gift' type,g.expires_at,NULL season_ends_at,NULL active_until,
-  CASE WHEN g.used_at>0 THEN 'used' WHEN g.recalled_at IS NOT NULL THEN 'recalled'
-   WHEN g.expires_at<=unixepoch() THEN 'expired' WHEN u.provider='deleted' THEN 'unavailable' ELSE 'ready' END state
- FROM selected i JOIN gift_inventory g ON g.dispatch_item=i.id AND g.user_id=i.user_id JOIN users u ON u.id=g.user_id
- UNION ALL
- SELECT i.dispatch_id,i.id,i.user_id,p.id,'decoration',p.redeem_before,p.season_ends_at,r.expires_at,
-  CASE WHEN r.inventory_id IS NOT NULL THEN 'used' WHEN p.revoked<>0 THEN 'recalled'
-   WHEN p.redeem_before<=unixepoch() OR p.season_ends_at<=unixepoch() THEN 'expired'
-   WHEN u.provider='deleted' THEN 'unavailable' ELSE 'ready' END
- FROM selected i JOIN player_inventory p ON p.dispatch_item=i.id AND p.user_id=i.user_id
- JOIN users u ON u.id=p.user_id LEFT JOIN decoration_redemptions r ON p.id=r.inventory_id
-)`;
+import {dispatchRights} from './gift-dispatch-rights.js';
 
 const line=`json_extract(d.plan,'$['||i.line||']')`;
 const quantity=`json_extract(${line},'$.quantity')`;
@@ -31,7 +16,8 @@ export async function dispatchProgress(env,key){
   (SELECT COUNT(*) FROM gift_dispatch_items WHERE dispatch_id=? AND state='pending') pending,
   (SELECT COUNT(*) FROM gift_dispatch_items WHERE dispatch_id=? AND state='failed') failed,
   (SELECT COUNT(*) FROM gift_dispatch_items a WHERE dispatch_id=? AND line=0 AND notice_state='pending'
-   AND EXISTS (SELECT 1 FROM gift_dispatch_items g WHERE g.dispatch_id=a.dispatch_id AND g.user_id=a.user_id AND g.state='granted')) notices_pending,
+   AND EXISTS (SELECT 1 FROM gift_dispatch_items g INDEXED BY gift_dispatch_member_line
+    WHERE g.dispatch_id=a.dispatch_id AND g.user_id=a.user_id AND g.state='granted')) notices_pending,
   (SELECT COUNT(*) FROM gift_dispatch_items WHERE dispatch_id=? AND line=0 AND notice_state='failed') notices_failed`,key,key,key,key);
 }
 
@@ -43,8 +29,9 @@ async function summaries(env,jobs){
    SUM(i.state='excluded') excluded,SUM(CASE WHEN i.state='granted' THEN ${quantity} ELSE 0 END) granted_units,
    COUNT(DISTINCT CASE WHEN i.state='granted' THEN i.user_id END) granted_members,
    SUM(i.line=0 AND i.notice_state='sent') notices_sent,SUM(i.line=0 AND i.notice_state='failed') notices_failed,
-   SUM(i.line=0 AND i.notice_state='pending' AND EXISTS (SELECT 1 FROM gift_dispatch_items p
-    WHERE p.dispatch_id=i.dispatch_id AND p.user_id=i.user_id AND p.state='granted')) notices_pending
+   SUM(CASE WHEN i.line=0 AND i.notice_state='pending' THEN EXISTS (
+    SELECT 1 FROM gift_dispatch_items p INDEXED BY gift_dispatch_member_line
+    WHERE p.dispatch_id=i.dispatch_id AND p.user_id=i.user_id AND p.state='granted') ELSE 0 END) notices_pending
    FROM gift_dispatch_items i JOIN gift_dispatches d ON d.id=i.dispatch_id
    WHERE ${idsClause} GROUP BY i.dispatch_id`,keys),
   rows(env,`${dispatchRights(idsClause)} SELECT dispatch_id,state,COUNT(*) qty FROM rights GROUP BY dispatch_id,state`,keys)

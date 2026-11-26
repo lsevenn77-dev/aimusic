@@ -8,7 +8,7 @@ import {publicNameSQL} from './identity.js';
 import {formatWelcomeGuide} from './welcome-notices.js';
 import {noticeVisible,recipientRichNotice} from './notice-visibility.js';
 import {noticeImageResponse} from './admin-notices.js';
-import {withGiftArrivalDetails} from './gift-dispatch-notices.js';
+import {withGiftArrivalDetails} from './gift-arrival-details.js';
 import {legacyNoticeImage,noticeAssetId} from '../shared/official-notice-content.js';
 
 const channel={id:'aifect-official-notice',name:'아이팩트 안내',is_notice:true,notice_type:'official',read_only:true};

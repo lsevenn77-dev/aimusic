@@ -6,7 +6,7 @@ import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID,PREMIUM_OPEN_NOTICE_SENDER,PR
 import {eventEnd,eventUntilSQL} from './premium-event.js';
 import {noticeAssetURL,noticePlainText} from '../shared/official-notice-content.js';
 import {noticeVisible,recipientRichNotice} from './notice-visibility.js';
-import {withGiftArrivalDetails} from './gift-dispatch-notices.js';
+import {withGiftArrivalDetails} from './gift-arrival-details.js';
 
 const eligible = "u.account_type='human' AND u.provider!='deleted'";
 const premiumOpenPeer = receipt => ({id:PREMIUM_OPEN_NOTICE_ID,name:PREMIUM_OPEN_NOTICE_SENDER,chat_nickname:PREMIUM_OPEN_NOTICE_SENDER,is_notice:true,notice_type:PREMIUM_OPEN_NOTICE_TYPE,read_only:true,last_message:PREMIUM_OPEN_NOTICE.title,updated:receipt.created,unread:receipt.read_at?0:1});

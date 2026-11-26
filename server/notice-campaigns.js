@@ -126,8 +126,10 @@ export function giftArrivalNoticeQueries(env,job,anchors,content){
  const keys=JSON.stringify(anchors);
  const eligible=`FROM gift_dispatch_items a JOIN users u ON u.id=a.user_id
   WHERE a.dispatch_id=? AND a.line=0 AND a.id IN (SELECT value FROM json_each(?)) AND ${eligibleNoticeMember}
-  AND NOT EXISTS(SELECT 1 FROM gift_dispatch_items p WHERE p.dispatch_id=a.dispatch_id AND p.user_id=a.user_id AND p.state='pending')
-  AND EXISTS(SELECT 1 FROM gift_dispatch_items g WHERE g.dispatch_id=a.dispatch_id AND g.user_id=a.user_id AND g.state='granted')`;
+  AND NOT EXISTS(SELECT 1 FROM gift_dispatch_items p INDEXED BY gift_dispatch_member_line
+   WHERE p.dispatch_id=a.dispatch_id AND p.user_id=a.user_id AND p.state='pending')
+  AND EXISTS(SELECT 1 FROM gift_dispatch_items g INDEXED BY gift_dispatch_member_line
+   WHERE g.dispatch_id=a.dispatch_id AND g.user_id=a.user_id AND g.state='granted')`;
  return [
   query(env,`INSERT INTO welcome_campaigns(id,content_json,created,recipient_max_rowid,kind,title,author_id,audience,test)
    SELECT 'gift-'||a.id,?,unixepoch(),0,'gift',?,?,'specific',? ${eligible} ON CONFLICT(id) DO NOTHING`,
