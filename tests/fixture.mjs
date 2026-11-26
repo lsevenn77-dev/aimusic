@@ -9,7 +9,16 @@ export async function fixture(t,extraEnv={},signupAt=Date.parse('2027-01-01T00:0
  for(const file of readdirSync(new URL('../drizzle/',import.meta.url)).filter(x=>x.endsWith('.sql')).sort())sql.exec(readFileSync(new URL('../drizzle/'+file,import.meta.url),'utf8'));
  t.after(()=>sql.close());
  let batchTail=Promise.resolve();
- const DB={prepare(query){return {bind(...args){const s=sql.prepare(query);return {async first(){return s.get(...args)||null;},async all(){return {results:s.all(...args)};},async run(){const results=s.columns().length?s.all(...args):(s.run(...args),[]);return {success:true,results};}};}};},async batch(statements){const previous=batchTail;let release;batchTail=new Promise(resolve=>release=resolve);await previous;sql.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}finally{release();}}};
+ const DB={prepare(query){return {bind(...args){const s=sql.prepare(query);return {
+  async first(){return s.get(...args)||null;},
+  async all(){return {results:s.all(...args)};},
+  async run(){
+   const returns=s.columns().length>0;
+   const results=returns?s.all(...args):[];
+   const changes=returns?(/\bRETURNING\b/i.test(query)?sql.prepare('SELECT changes() changes').get().changes:0):s.run(...args).changes;
+   return {success:true,results,meta:{changes}};
+  }
+ };}};},async batch(statements){const previous=batchTail;let release;batchTail=new Promise(resolve=>release=resolve);await previous;sql.exec('BEGIN');try{const result=[];for(const s of statements)result.push(await s.run());sql.exec('COMMIT');return result;}catch(e){sql.exec('ROLLBACK');throw e;}finally{release();}}};
  for(const uid of ['owner','other']){
   sql.prepare('INSERT INTO users(id,email,name,created) VALUES(?,?,?,?)').run(uid,uid+'@example.test',uid,signupAt);
   sql.prepare('INSERT INTO sessions(token,user_id,expires) VALUES(?,?,?)').run(await hash(uid),uid,Math.floor(Date.now()/1000)+3600);

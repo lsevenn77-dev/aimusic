@@ -65,8 +65,12 @@ function conversationListHTML(conversations=[],crew=null,selected=''){
  const {notice:official,direct}=dmOrderedConversations(conversations),query=dmInboxQuery;
  const notice=dmSearchMatch(official,query,'아이팩트 안내 공지')?noticeInboxHTML(official,selected):'';
  const crewRow=dmSearchMatch(crew,query,'크루채팅')?(crewInboxHTML(crew,selected)||'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있습니다.</p></div></a>'):'';
- const rows=direct.filter(p=>dmSearchMatch(p,query)).map(p=>dmConversationRow(p,selected)).join('');
- return '<div class="conversation-list">'+notice+crewRow+rows+'</div>'+(!notice&&!crewRow&&!rows?'<div class="dm-empty" role="status"><p>검색 결과가 없습니다.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해 보세요.</p></div>':'');
+ const rows=direct.filter(p=>dmSearchMatch(p,query));
+ const boundary=rows.findIndex(p=>Number(p.updated||0)<Number(official?.updated||0));
+ const position=boundary<0?rows.length:boundary;
+ const markup=rows.map(p=>dmConversationRow(p,selected));
+ if(notice)markup.splice(position,0,notice);
+ return '<div class="conversation-list">'+crewRow+markup.join('')+'</div>'+(!markup.length&&!crewRow?'<div class="dm-empty" role="status"><p>검색 결과가 없습니다.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해 보세요.</p></div>':'');
 }
 function chatTextHTML(body){return esc(body).replace(/(?:[ \t]*\r?\n[ \t]*)?https:\/\/aifect\.co\.kr\/#(voice|live)\/([a-zA-Z0-9_-]{16,64})(?![a-zA-Z0-9_-])/g,(_,route,id)=>'<a class="small-button dm-room-invite" href="#'+route+'/'+id+'">방 입장하기</a>').replace(/(?:[ \t]*\r?\n[ \t]*)?https:\/\/aifect\.co\.kr\/#(producer|member)\/([a-zA-Z0-9_-]{1,80})(?![a-zA-Z0-9_/-])/g,(_,route,id)=>'<a class="dm-profile-share" href="#'+route+'/'+id+'" aria-label="공유된 프로필 보기">프로필 보기</a>');}
 function chatBodyHTML(body){return body?.includes('[aifect:')?AifectStickers.render(body,chatTextHTML):chatTextHTML(body);}
@@ -271,9 +275,11 @@ function bindSocialChat(view){
  const routeTargets=root&&document.createElement('span');
  if(routeTargets){routeTargets.hidden=true;root.querySelector('aside').append(routeTargets);}
  const addTarget=raw=>{
-  if(!routeTargets||targets.has(raw))return;
-  const target=document.createElement('span');target.id=raw;target.dataset.dmRouteTarget='';
-  routeTargets.append(target);targets.add(raw);
+  // Match the fragment ID used by render-state, including encoded notice anchors.
+  let name=raw;try{name=decodeURIComponent(raw);}catch{}
+  if(!routeTargets||targets.has(name))return;
+  const target=document.createElement('span');target.id=name;target.dataset.dmRouteTarget='';
+  routeTargets.append(target);targets.add(name);
  };
  const addInboxTargets=d=>{
   addTarget('dm');addTarget('dm/notice');addTarget('dm/tools/friends');

@@ -34,11 +34,39 @@ export const users=sqliteTable('users',{
 },t=>[uniqueIndex('users_identity').on(t.provider,t.subject),uniqueIndex('users_email_provider').on(t.email,t.provider)]);
 // Official welcome notices are separate from member-to-member conversations.
 export const welcomeCampaigns=sqliteTable('welcome_campaigns',{
- id:text('id').primaryKey(),contentJson:text('content_json').notNull(),created:integer('created').notNull(),recipientMaxRowid:integer('recipient_max_rowid').notNull()
-});
+ id:text('id').primaryKey(),contentJson:text('content_json').notNull(),created:integer('created').notNull(),recipientMaxRowid:integer('recipient_max_rowid').notNull(),
+ kind:text('kind').notNull().default('legacy'),title:text('title').notNull().default(''),authorId:text('author_id'),
+ audience:text('audience'),requestHash:text('request_hash'),test:integer('test').notNull().default(0),
+ version:integer('version').notNull().default(1),editJson:text('edit_json'),editedAt:integer('edited_at').notNull().default(0),
+ withdrawnAt:integer('withdrawn_at').notNull().default(0)
+},t=>[index('official_notices_history').on(t.created,t.id)]);
 export const welcomeReceipts=sqliteTable('welcome_receipts',{
- campaignId:text('campaign_id').notNull().references(()=>welcomeCampaigns.id),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),created:integer('created').notNull(),readAt:integer('read_at').notNull().default(0),source:text('source').notNull()
-},t=>[primaryKey({columns:[t.campaignId,t.userId]}),index('welcome_receipts_unread').on(t.userId,t.readAt),check('welcome_receipt_source',sql`${t.source} IN ('broadcast','automatic')`)]);
+ campaignId:text('campaign_id').notNull().references(()=>welcomeCampaigns.id),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),created:integer('created').notNull(),readAt:integer('read_at').notNull().default(0),source:text('source').notNull(),
+ withdrawnAt:integer('withdrawn_at').notNull().default(0)
+},t=>[primaryKey({columns:[t.campaignId,t.userId]}),index('welcome_receipts_unread').on(t.userId,t.readAt),index('official_receipts_timeline').on(t.userId,t.created,t.campaignId),check('welcome_receipt_source',sql`${t.source} IN ('broadcast','automatic')`)]);
+export const noticeDrafts=sqliteTable('notice_drafts',{
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull(),dataJson:text('data_json').notNull(),
+ version:integer('version').notNull(),updated:integer('updated').notNull()
+},t=>[index('notice_drafts_owner').on(t.ownerId,t.updated)]);
+export const noticeRosters=sqliteTable('notice_rosters',{
+ id:text('id').primaryKey(),name:text('name').notNull(),membersJson:text('members_json').notNull(),
+ version:integer('version').notNull(),updated:integer('updated').notNull()
+},t=>[index('notice_rosters_updated').on(t.updated)]);
+export const noticeAssets=sqliteTable('notice_assets',{
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull(),objectKey:text('object_key').notNull(),
+ contentType:text('content_type').notNull(),created:integer('created').notNull()
+});
+export const noticeTargetChecks=sqliteTable('notice_target_checks',{
+ id:text('id').primaryKey(),ownerId:text('owner_id').notNull(),audienceJson:text('audience_json').notNull(),
+ expires:integer('expires').notNull()
+},t=>[index('notice_target_checks_expiry').on(t.expires)]);
+export const noticeTargetMembers=sqliteTable('notice_target_members',{
+ checkId:text('check_id').notNull().references(()=>noticeTargetChecks.id,{onDelete:'cascade'}),userId:text('user_id').notNull()
+},t=>[primaryKey({columns:[t.checkId,t.userId]})]);
+export const noticeWelcomeSettings=sqliteTable('notice_welcome_settings',{
+ id:text('id').primaryKey(),campaignId:text('campaign_id').notNull().references(()=>welcomeCampaigns.id),
+ version:integer('version').notNull(),enabled:integer('enabled').notNull(),minUserRowid:integer('min_user_rowid').notNull(),updated:integer('updated').notNull()
+});
 export const sessions=sqliteTable('sessions',{token:text('token').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),expires:integer('expires').notNull()});
 // Public identity is independent of authentication UUIDs. No FK: retired numbers
 // remain reserved after account deletion. Allocation/immutability live in SQL triggers.

@@ -5,11 +5,12 @@ import {trackArtworkSQL} from './track-artwork.js';
 import {one,rows,now,fail,json,str} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {publicNameSQL} from './identity.js';
+import {eligibleNoticeMember} from './notice-audience.js';
 
 const ALLOWED_DAYS=new Set([7,30,90]);
 const toNumber=value=>Number(value||0);
 const mwToWon=value=>Math.round(toNumber(value)/1000);
-const currentMember="u.provider!='deleted' AND u.account_type='human'";
+const currentMember=eligibleNoticeMember;
 const premiumMember=`${effectiveUntilSQL}>?`;
 const kstStart=at=>Math.floor((at+9*3600)/86400)*86400-9*3600;
 
@@ -25,6 +26,11 @@ async function memberDirectory(env,params,at){
  }
  if(group==='premium'){conditions.push(premiumMember);args.push(at);}
  if(group==='event')conditions.push(`(${eventUntilSQL})>0`);
+ const q=str(params.get('q')??'',100,false);
+ if(q){
+  conditions.push(`(instr(lower(u.id),lower(?))>0 OR instr(lower(${publicNameSQL()}),lower(?))>0)`);
+  args.push(q,q);
+ }
  if(cursor!==null){
   const match=/^(\d{1,12}):([^:\s]{1,128})$/.exec(cursor);
   if(!match)fail(400,'목록 위치를 확인해 주세요.');

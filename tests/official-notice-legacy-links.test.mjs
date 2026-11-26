@@ -21,7 +21,8 @@ function context(extra={}){
   location:{hash:'#dm',pathname:'/',search:''},history:{state:{}},
   document:{addEventListener(){},removeEventListener(){}},window:{addEventListener(){},removeEventListener(){}},
   esc:escape,icon:()=>'',portrait:()=>'',number:String,crewInboxHTML:()=>'',inboxControlsHTML:()=>'',
-  api:async path=>{calls.push(path);if(path==='/api/dm?notices=unified')return inbox();if(path==='/api/notices/official')return feed();throw Error('Unexpected API '+path);},
+  api:async path=>{calls.push(path);if(path==='/api/dm?notices=unified')return inbox();if(path==='/api/notices/official')return feed();
+   if(path==='/api/notices/official?known=campaign%3Aolder')return {items:[]};throw Error('Unexpected API '+path);},
   ...extra
  });
  for(const source of [social,messages,improvements,pageFunctions])vm.runInContext(source,c);
@@ -67,7 +68,7 @@ test('old notice peer links retain their original entry anchor and explicit entr
  ]){
   const {c,calls}=context();
   const view=await c.dmRouteView('notice','dm/notice?'+query,c.api,null);
-  assert.deepEqual(calls,['/api/dm?notices=unified','/api/notices/official']);
+  assert.deepEqual(calls,['/api/dm?notices=unified','/api/notices/official',...(expected==='campaign:older'?['/api/notices/official?known=campaign%3Aolder']:[])]);
   assert.equal(view.noticeAnchor,expected);
   assert.equal(view.selectedConversation,'notice');
  }

@@ -39,7 +39,10 @@
         <button class="admin-nav-item" data-view="moderation"><span>◇</span><b>신고 · 문의</b><i id="report-badge"></i></button>
 
         <button class="admin-nav-item" data-view="ai-bots"><span>◌</span><b>AI 봇 관리</b></button>
-        <button class="admin-nav-item" data-view="cover-compression"><span>♫</span><b>커버 파일 압축</b></button><p class="nav-section">MONEY</p>
+        <button class="admin-nav-item" data-view="cover-compression"><span>♫</span><b>커버 파일 압축</b></button>
+        <p class="nav-section">운영 관리</p>
+        <button class="admin-nav-item" data-view="notice-chat"><span aria-hidden="true">▤</span><b>공지 채팅 관리</b></button>
+        <p class="nav-section">MONEY</p>
         <button class="admin-nav-item" data-view="subscriptions"><span>♕</span><b>구독 관리</b></button>
         <button class="admin-nav-item" data-view="gold"><span>◎</span><b>골드 관리</b></button>
         <button class="admin-nav-item" data-view="payouts"><span>▣</span><b>정산 관리</b><i id="payout-badge"></i></button>
@@ -78,7 +81,9 @@
         </section>
 
         <div id="admin-content" hidden><section class="view-page hidden" data-page="ai-bots"><div id="ai-bots-content"></div></section>
-          <section class="view-page hidden" data-page="cover-compression"><div id="cover-compression-content"></div></section><section class="view-page" data-page="dashboard">
+          <section class="view-page hidden" data-page="cover-compression"><div id="cover-compression-content"></div></section>
+          <section class="view-page hidden" data-page="notice-chat"><div class="notice-admin" id="notice-admin-content"></div></section>
+          <section class="view-page" data-page="dashboard">
             <div class="page-heading">
               <div><p class="eyebrow">AIFECT OPERATIONS</p><h1>안녕하세요, <span id="operator-heading">운영자</span>님.</h1><p>AI 음악 플랫폼의 핵심 지표와 운영 이슈를 한 화면에서 확인합니다.</p></div>
               <div class="insight-banner"><span>LIVE INSIGHT</span><strong id="insight-text">데이터를 불러오는 중입니다.</strong><small>실제 DB 기준 · 관리자 전용</small></div>
@@ -155,6 +160,16 @@
                 <button type="button" data-member-group="event" aria-pressed="false">이벤트 대상</button>
                 <label id="member-day-field">가입일 <input type="date" id="member-day"></label>
               </div>
+              <div id="member-notice-actions">
+                <div class="notice-inline"><input id="member-search-query" type="search" maxlength="100" placeholder="닉네임 또는 회원 ID" aria-label="회원 검색"><button type="button" id="member-search-submit">검색</button></div>
+                <div class="member-notice-list-actions"><output id="member-selected-count">0명 선택</output>
+                  <button type="button" id="member-select-page">현재 페이지 선택</button>
+                  <button type="button" id="member-select-results">검색 결과 전체 선택</button>
+                  <button type="button" id="member-clear-selection">선택 해제</button>
+                  <button type="button" id="member-go-notice" disabled>공지 작성으로 이동</button>
+                </div>
+                <div id="member-notice-roster"></div>
+              </div>
               <div id="member-list"></div>
               <p id="member-status" role="status"></p>
               <button type="button" id="member-more" class="link-button" hidden>더 보기</button>
@@ -202,7 +217,16 @@
     <div class="admin-toast" id="admin-toast" role="status" aria-live="polite"></div>
     <dialog id="admin-dialog"><div id="admin-dialog-content"></div><button type="button" id="admin-dialog-close" class="dialog-close" aria-label="닫기">×</button></dialog>
   </div>
-  <script defer src="/admin.js?v=20261125-event"></script>
+  <link rel="stylesheet" href="/chat-stickers.css">
+  <link rel="stylesheet" href="/official-notice.css">
+  <link rel="stylesheet" href="/admin-notice.css">
+  <script defer src="/official-notice-content.js"></script>
+  <script defer src="/chat-stickers.js"></script>
+  <script defer src="/image-upload.js"></script>
+  <script defer src="/notice-editor.js"></script>
+  <script defer src="/notice-audience.js"></script>
+  <script defer src="/admin-notices.js"></script>
+  <script defer src="/admin.js?v=20261126-official-notices"></script>
   <script defer src="/admin-ai-bots.js"></script><script defer src="/admin-cover-compression.js"></script>
 <link rel="stylesheet" href="/popup-close.css">
 <link rel="stylesheet" href="/icon-feedback.css">

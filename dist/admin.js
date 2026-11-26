@@ -22,7 +22,7 @@
     scheduled:'지급예정',held:'정보대기',paid:'지급완료',removed:'삭제',dismissed:'유지'
   }[value]||value||'-');
   const state={days:7,data:null,me:null,view:'dashboard',payoutPeriod:null};
-  const directory={group:'all',cursor:null,lastDay:'',count:0,request:0};
+  const directory={group:'all',cursor:null,lastDay:'',count:0,request:0,page:[],selected:new Set(),query:''};
   const eventTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',year:'numeric',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'});
   const memberTime=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',hour:'2-digit',minute:'2-digit',hourCycle:'h23'});
 
@@ -34,20 +34,23 @@
     toast.timer=setTimeout(()=>el.classList.remove('show'),2300);
   }
 
-  async function api(url,options={}){
+  async function api(url,{download=false,...options}={}){
     const headers=new Headers(options.headers||{});
     if(options.body&&!headers.has('content-type'))headers.set('content-type','application/json');
     const res=await fetch(url,{credentials:'same-origin',...options,headers});
+    if(res.ok&&download)return res;
     let body={};
     try{body=await res.json();}catch{}
     if(res.status===401&&url!=='/api/admin/login')showLogin('로그인 시간이 만료되었습니다. 다시 로그인해 주세요.');
-    if(!res.ok)throw new Error(body.error||'요청을 처리하지 못했습니다.');
+    if(!res.ok)throw Object.assign(new Error(body.error||'요청을 처리하지 못했습니다.'),{status:res.status,data:body});
     return body;
   }
 
   function showLogin(message=''){
     state.data=null;state.me=null;
     directory.request++;
+    directory.selected.clear();updateMemberSelection();
+    document.dispatchEvent(new CustomEvent('aifect-admin-notices-reset'));
     $('#member-list').replaceChildren();
     app.classList.add('locked');
     $('#admin-content').hidden=true;
@@ -71,9 +74,9 @@
     });
   }
 
-  function navigate(view){
+  function navigate(view,ids=null){
     state.view=view;
-    $('#period-select').hidden=view==='people';
+    $('#period-select').hidden=['people','notice-chat'].includes(view);
     $$('.view-page').forEach(page=>page.classList.toggle('hidden',page.dataset.page!==view));
     $$('.admin-nav-item').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
     if(view==='tracks')loadTrackReview();
@@ -81,6 +84,7 @@
     if(view==='moderation'){loadCommentReports();loadDubbingReports();}
     if(view==='dubbing')loadDubbing();
     if(view==='payouts')loadPayouts();
+    if(view==='notice-chat')document.dispatchEvent(new CustomEvent('aifect-admin-notices',{detail:{request:api,toast,ids}}));
     if(view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));if(view==='cover-compression')document.dispatchEvent(new CustomEvent('aifect-admin-cover-compression'));
     window.scrollTo({top:0,behavior:'smooth'});
   }
@@ -254,16 +258,32 @@
     $('#recent-creator-table').innerHTML=data.recent_creators.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+num(x.tracks)+'</td><td>'+num(x.followers)+'</td><td>'+kstDate(x.created)+'</td></tr>').join('')||'<tr><td colspan="4">창작자 데이터가 없습니다.</td></tr>';
   }
 
+  function directoryParams(){
+    const {group,query}=directory,day=$('#member-day').value;
+    return new URLSearchParams({group,...(day&&group!=='today'?{day}:{}),...(query?{q:query}:{})});
+  }
+
+  function updateMemberSelection(){
+    const size=directory.selected.size;
+    $('#member-selected-count').value=num(size)+'명 선택';
+    $('#member-go-notice').disabled=!size;
+    for(const checkbox of $$('[data-member-select]'))checkbox.checked=directory.selected.has(checkbox.value);
+  }
+
+  function updateMemberIds(ids){
+    if(ids.length>AifectNoticeAudience.max){toast('회원 ID는 10,000개까지 선택할 수 있습니다.');return;}
+    directory.selected=new Set(ids);
+    updateMemberSelection();
+  }
+
   async function loadMembers(append=false){
     const {group}=directory,request=++directory.request;
     const list=$('#member-list'),more=$('#member-more'),status=$('#member-status');
-    const params=new URLSearchParams({group});
-    const day=$('#member-day').value;
+    const params=directoryParams();
     $('#member-day-field').hidden=group==='today';
     for(const button of $$('[data-member-group]'))button.setAttribute('aria-pressed',String(button.dataset.memberGroup===group));
-    if(day&&group!=='today')params.set('day',day);
     if(!append){
-      directory.cursor=null;directory.lastDay='';directory.count=0;
+      directory.cursor=null;directory.lastDay='';directory.count=0;directory.page=[];
       list.replaceChildren();
     }
     if(directory.cursor)params.set('cursor',directory.cursor);
@@ -282,11 +302,13 @@
         }
         const until=member.event_premium_until;
         const eventLabel=until?'<small>'+ (until>page.as_of?'이벤트 적용 중':'이벤트 만료')+' · '+eventTime.format((until-1)*1000)+' KST까지</small>':'';
-        html+='<div class="member-row"><div><strong>'+esc(member.name)+'</strong> <code>'+esc(member.public_id?'#'+member.public_id:member.id)+'</code>'+
+        html+='<div class="member-row"><div><label class="notice-member-picker"><input type="checkbox" data-member-select value="'+esc(member.id)+'" aria-label="'+esc(member.name)+' 선택"><strong>'+esc(member.name)+'</strong></label>'+
+          (member.public_id?' <code>#'+esc(member.public_id)+'</code>':'')+' <code class="member-uid">'+esc(member.id)+'</code> <button type="button" class="link-button" data-member-copy="'+esc(member.id)+'" aria-label="회원 ID 복사">ID 복사</button>'+
           (member.login_email?'<small>'+esc(member.login_email)+'</small>':'')+eventLabel+'</div><span>'+esc(providers[member.provider]||member.provider)+'<small class="member-source">'+esc(sourceLabel(member.signup_source))+'</small></span>'+
           '<span>'+(member.other_premium?'Premium':member.premium?'이벤트 Premium':'무료')+'</span><time datetime="'+date.toISOString()+'">'+memberTime.format(date)+'</time></div>';
       }
       list.insertAdjacentHTML('beforeend',html);
+      directory.page=page.members.map(member=>member.id);updateMemberSelection();
       directory.count+=page.members.length;directory.cursor=page.next_cursor;
       status.textContent=directory.count?num(directory.count)+'명 표시':'해당하는 회원이 없습니다.';
       more.hidden=!directory.cursor;more.textContent='더 보기';
@@ -605,13 +627,56 @@
   });
   $('#member-day').addEventListener('change',()=>loadMembers());
   $('#member-more').addEventListener('click',()=>loadMembers(Boolean(directory.cursor)));
+  AifectNoticeAudience.rosterTools($('#member-notice-roster'),{request:api,getIds:()=>[...directory.selected],setIds:updateMemberIds,notify:toast});
+  const searchMembers=()=>{directory.query=$('#member-search-query').value.trim();void loadMembers();};
+  $('#member-search-submit').addEventListener('click',searchMembers);
+  $('#member-search-query').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();searchMembers();}});
+  $('#member-list').addEventListener('change',e=>{
+    if(!e.target.matches('[data-member-select]'))return;
+    const ids=new Set(directory.selected);
+    if(e.target.checked)ids.add(e.target.value);else ids.delete(e.target.value);
+    updateMemberIds([...ids]);updateMemberSelection();
+  });
+  $('#member-list').addEventListener('click',async e=>{
+    const uid=e.target.closest('[data-member-copy]')?.dataset.memberCopy;
+    if(!uid)return;
+    try{await navigator.clipboard.writeText(uid);toast('회원 ID를 복사했습니다.');}catch{toast('회원 ID를 복사할 수 없습니다.');}
+  });
+  $('#member-select-page').onclick=()=>updateMemberIds([...new Set([...directory.selected,...directory.page])]);
+  $('#member-clear-selection').onclick=()=>updateMemberIds([]);
+  $('#member-go-notice').onclick=()=>navigate('notice-chat',[...directory.selected]);
+  $('#member-select-results').onclick=async e=>{
+    const button=e.currentTarget,params=directoryParams(),filter=params.toString();
+    if(button.disabled)return;
+    button.disabled=true;
+    try{
+      const ids=new Set(directory.selected);
+      do{
+        const page=await api('/api/admin/dashboard/members?'+params);
+        for(const member of page.members)ids.add(member.id);
+        if(ids.size>AifectNoticeAudience.max)throw new Error('회원 ID는 10,000개까지 선택할 수 있습니다.');
+        if(page.next_cursor)params.set('cursor',page.next_cursor);else params.delete('cursor');
+      }while(params.has('cursor'));
+      if(filter===directoryParams().toString())updateMemberIds([...new Set([...directory.selected,...ids])]);
+    }catch(error){toast(error.message);}finally{button.disabled=false;}
+  };
   app.addEventListener('click',e=>{const jump=e.target.closest('[data-jump]');if(jump&&app.contains(jump))navigate(jump.dataset.jump);});
   async function refreshCurrentView(){if(state.view==='cover-compression')document.dispatchEvent(new CustomEvent('aifect-admin-cover-compression'));if(state.view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));await loadDashboard(true);if(state.view==='dubbing')await loadDubbing();if(state.view==='moderation')await Promise.all([loadCommentReports(),loadDubbingReports()]);}
   $('#period-select').addEventListener('change',async e=>{state.days=Number(e.target.value)||7;await refreshCurrentView();});
-  $('#refresh-button').addEventListener('click',()=>{if(state.view==='people')loadMembers();refreshCurrentView();});
+  $('#refresh-button').addEventListener('click',()=>{
+    if(state.view==='notice-chat'){document.dispatchEvent(new CustomEvent('aifect-admin-notices-refresh'));return;}
+    if(state.view==='people')loadMembers();refreshCurrentView();
+  });
   $('#admin-search-form').addEventListener('submit',e=>{e.preventDefault();globalSearch($('#admin-search-input').value);});
   $('#profile-button').addEventListener('click',async()=>{
-    try{await api('/api/admin/logout',{method:'POST'});location.replace('/admin/dashboard');}
+    try{
+      let ready=Promise.resolve(true);
+      document.dispatchEvent(new CustomEvent('aifect-admin-notices-logout',{detail:{waitUntil(promise){ready=promise;}}}));
+      if(!await ready)return;
+      await api('/api/admin/logout',{method:'POST'});
+      document.dispatchEvent(new CustomEvent('aifect-admin-notices-reset',{detail:{clear:true}}));
+      location.replace('/admin/dashboard');
+    }
     catch(error){toast(error.message);}
   });
   $('#track-review-filter').addEventListener('change',loadTrackReview);

@@ -2,8 +2,11 @@ import * as AifectMessages from '../shared/system-messages.js';
 import {one,now,fail} from './db.js';
 import {cookies,hash,requireUser} from './auth.js';
 import {isOfficialNoticePeer} from './welcome-notices.js';
-import {WELCOME_CAMPAIGN_ID} from '../shared/welcome-guide.js';
-import {PREMIUM_OPEN_NOTICE_ID} from '../shared/premium-open-notice.js';
+import {noticeVisible} from './notice-visibility.js';
+
+const noticeRevision=`(SELECT json_array(COALESCE(MAX(r.rowid),0),COUNT(*),COALESCE(SUM(c.version),0),
+ COUNT(CASE WHEN r.read_at=0 THEN 1 END)) FROM welcome_receipts r JOIN welcome_campaigns c ON c.id=r.campaign_id
+ WHERE r.user_id=s.user_id AND ${noticeVisible}) notice_revision`;
 
 // Cross-instance, database-backed notifications: one indexed check/client/sec.
 // A bounded stream stays below the free D1 per-invocation query limit.
@@ -43,17 +46,13 @@ export async function chatStreamRoute(req,env,path,user){
  }else if(isOfficialNoticePeer(peer)){
   // Official channels have no member profile. Every legacy alias follows the
   // same recipient-scoped receipts without creating a DM or acknowledging it.
-  readState=()=>one(env,`SELECT COALESCE(MAX(r.rowid),0) notice_received,
-   COUNT(CASE WHEN r.read_at=0 THEN 1 END) notice_unread
-   FROM sessions s JOIN users u ON u.id=s.user_id
-   LEFT JOIN welcome_receipts r ON r.user_id=s.user_id AND r.campaign_id IN (?,?)
-   WHERE ${session} AND u.account_type='human' AND u.provider!='deleted'
-   GROUP BY s.token,s.user_id`,WELCOME_CAMPAIGN_ID,PREMIUM_OPEN_NOTICE_ID,token,user.id,now());
+  readState=()=>one(env,`SELECT ${noticeRevision} FROM sessions s JOIN users u ON u.id=s.user_id
+   WHERE ${session} AND u.account_type='human' AND u.provider!='deleted'`,token,user.id,now());
  }else{
   const p=peer?await one(env,'SELECT user_id FROM producers WHERE id=?',peer):null;
   if(peer&&(!p||p.user_id===user.id))fail(404,'대화 상대를 찾을 수 없습니다.');
   // Separate indexed directions avoid sorting the entire DM history.
-  readState=()=>one(env,'SELECT COALESCE((SELECT rowid FROM direct_messages WHERE sender_id=s.user_id'+(p?' AND recipient_id=?':'')+' ORDER BY rowid DESC LIMIT 1),0) sent,COALESCE((SELECT rowid FROM direct_messages WHERE recipient_id=s.user_id'+(p?' AND sender_id=?':'')+' ORDER BY rowid DESC LIMIT 1),0) received'+(p?',(SELECT count(*) FROM direct_messages WHERE sender_id=s.user_id AND recipient_id=? AND read_at=0) awaiting_read':',(SELECT count(*) FROM direct_messages WHERE recipient_id=s.user_id AND read_at=0) unread')+(p?'':',COALESCE((SELECT max(created) FROM welcome_receipts WHERE user_id=s.user_id),0) notice_received,(SELECT count(*) FROM welcome_receipts WHERE user_id=s.user_id AND read_at=0) notice_unread')+' FROM sessions s WHERE '+session,...(p?[p.user_id,p.user_id,p.user_id]:[]),token,user.id,now());
+  readState=()=>one(env,'SELECT COALESCE((SELECT rowid FROM direct_messages WHERE sender_id=s.user_id'+(p?' AND recipient_id=?':'')+' ORDER BY rowid DESC LIMIT 1),0) sent,COALESCE((SELECT rowid FROM direct_messages WHERE recipient_id=s.user_id'+(p?' AND sender_id=?':'')+' ORDER BY rowid DESC LIMIT 1),0) received'+(p?',(SELECT count(*) FROM direct_messages WHERE sender_id=s.user_id AND recipient_id=? AND read_at=0) awaiting_read':',(SELECT count(*) FROM direct_messages WHERE recipient_id=s.user_id AND read_at=0) unread,'+noticeRevision)+' FROM sessions s WHERE '+session,...(p?[p.user_id,p.user_id,p.user_id]:[]),token,user.id,now());
  }
  if(!await readState())fail(403,'로그인 또는 크루 가입 상태를 다시 확인해 주세요.');
  return chatEventStream(req,readState);

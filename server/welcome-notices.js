@@ -4,6 +4,8 @@ import {publicNameSQL} from './identity.js';
 import {WELCOME_CAMPAIGN_ID,WELCOME_PEER_ID,WELCOME_PREVIEW,WELCOME_GUIDE,updateWelcomeCopy} from '../shared/welcome-guide.js';
 import {PREMIUM_OPEN_NOTICE,PREMIUM_OPEN_NOTICE_ID,PREMIUM_OPEN_NOTICE_SENDER,PREMIUM_OPEN_NOTICE_TYPE} from '../shared/premium-open-notice.js';
 import {eventEnd,eventUntilSQL} from './premium-event.js';
+import {noticeAssetURL,noticePlainText} from '../shared/official-notice-content.js';
+import {noticeVisible,recipientRichNotice} from './notice-visibility.js';
 
 const eligible = "u.account_type='human' AND u.provider!='deleted'";
 const premiumOpenPeer = receipt => ({id:PREMIUM_OPEN_NOTICE_ID,name:PREMIUM_OPEN_NOTICE_SENDER,chat_nickname:PREMIUM_OPEN_NOTICE_SENDER,is_notice:true,notice_type:PREMIUM_OPEN_NOTICE_TYPE,read_only:true,last_message:PREMIUM_OPEN_NOTICE.title,updated:receipt.created,unread:receipt.read_at?0:1});
@@ -12,10 +14,14 @@ const premiumAuditId = 'notice:'+PREMIUM_OPEN_NOTICE_ID;
 // Campaigns are individual deliveries in one official channel, not separate
 // conversation identities. Keep the published aliases for older app versions.
 export function isOfficialNoticePeer(peerId) {
- return [WELCOME_PEER_ID,PREMIUM_OPEN_NOTICE_ID,'notice'].includes(peerId);
+ return [WELCOME_PEER_ID,PREMIUM_OPEN_NOTICE_ID,'notice','aifect-official-notice'].includes(peerId);
 }
 
 function noticePreview(receipt) {
+ if(receipt.title){
+  const welcome=receipt.kind==='welcome'||receipt.campaign_id===WELCOME_CAMPAIGN_ID;
+  return (receipt.test?'[테스트] ':'')+(welcome?receipt.title.replaceAll('{닉네임}',()=>receipt.nickname??'회원'):receipt.title);
+ }
  if(receipt.campaign_id!==PREMIUM_OPEN_NOTICE_ID)return WELCOME_PREVIEW;
  try{const title=JSON.parse(receipt.content_json).title;if(typeof title==='string'&&title.trim())return title;}catch{}
  return PREMIUM_OPEN_NOTICE.title;
@@ -27,28 +33,32 @@ function peer(receipts) {
 }
 
 async function deliveredNotices(env,userId) {
- return rows(env,`SELECT r.rowid sequence,r.campaign_id,r.created,r.read_at,c.content_json,${publicNameSQL()} nickname
+ return rows(env,`SELECT r.rowid sequence,r.campaign_id,r.created,r.read_at,c.content_json,${publicNameSQL()} nickname,
+  c.kind,c.title,c.edit_json,c.edited_at,c.version,c.test
   FROM welcome_receipts r JOIN welcome_campaigns c ON c.id=r.campaign_id JOIN users u ON u.id=r.user_id
-  WHERE r.campaign_id IN (?,?) AND r.user_id=? AND ${eligible} ORDER BY r.created,r.rowid`,WELCOME_CAMPAIGN_ID,PREMIUM_OPEN_NOTICE_ID,userId);
+  WHERE ${noticeVisible} AND r.user_id=? AND ${eligible} ORDER BY r.created,r.rowid`,userId);
 }
 
 function noticeEntry(receipt) {
  const entry={campaign_id:receipt.campaign_id,created:receipt.created,read_at:receipt.read_at};
+ const rich=recipientRichNotice(receipt);
+ if(rich)return {...entry,rich,version:receipt.version,edited_at:receipt.edited_at,test:!!receipt.test};
  if(receipt.campaign_id===PREMIUM_OPEN_NOTICE_ID)return {...entry,path:'/api/notices/premium-open-event',notice:JSON.parse(receipt.content_json)};
  return {...entry,path:'/api/notices/welcome',guide:formatWelcomeGuide(receipt)};
 }
 
 function noticeBody(entry) {
+ if(entry.rich)return [(entry.test?'[테스트] ':'')+entry.rich.title,noticePlainText(entry.rich)].filter(Boolean).join('\n\n');
  if(entry.notice)return [entry.notice.title,entry.notice.body].filter(Boolean).join('\n\n');
  const guide=entry.guide;
  return [guide.greeting,...guide.intro,...guide.sections.map(section=>section.title+'\n'+section.body),...guide.closing].join('\n\n');
 }
 
 function channelResponse(receipts) {
- const notices=receipts.map(noticeEntry),welcome=notices.find(entry=>entry.campaign_id===WELCOME_CAMPAIGN_ID);
+ const notices=receipts.map(noticeEntry),welcome=notices.find(entry=>entry.guide);
  // Legacy apps only render the top-level guide. Include event text in that
  // response copy; the structured timeline keeps each original entry separate.
- const announcements=notices.filter(entry=>entry.notice).map(noticeBody);
+ const announcements=notices.filter(entry=>entry.notice||entry.rich).map(noticeBody);
  const guide=welcome?{...welcome.guide,intro:[...announcements,...welcome.guide.intro]}:{greeting:PREMIUM_OPEN_NOTICE_SENDER,intro:announcements,sections:[],closing:[]};
  return {...(welcome||notices.at(-1)),peer:peer(receipts),guide,notices};
 }
@@ -58,7 +68,9 @@ function legacyHistory(req,receipts,userId) {
  if((before&&after)||[before,after].some(value=>value!==null&&!/^[1-9]\d{0,14}$/.test(value)))fail(400,'대화 위치를 확인해 주세요.');
  const messages=receipts.filter(receipt=>(!before||receipt.sequence<Number(before))&&(!after||receipt.sequence>Number(after))).sort((a,b)=>a.sequence-b.sequence).map(receipt=>{
   const entry=noticeEntry(receipt);
-  return {id:'notice:'+receipt.campaign_id,request_id:'notice:'+receipt.campaign_id,sequence:receipt.sequence,sender_id:WELCOME_PEER_ID,recipient_id:userId,body:noticeBody(entry),created:receipt.created,read_at:receipt.read_at,crew_invite_id:null,image_id:null,image_expires:null,campaign_id:entry.campaign_id,...(entry.notice?.banner?{image_url:entry.notice.banner,banner:entry.notice.banner}:{})};
+  const image=entry.rich?.blocks.find(b=>b.type==='image');
+  const banner=image?noticeAssetURL(image.asset,entry.campaign_id):entry.notice?.banner;
+  return {id:'notice:'+receipt.campaign_id,request_id:'notice:'+receipt.campaign_id,sequence:receipt.sequence,sender_id:WELCOME_PEER_ID,recipient_id:userId,body:noticeBody(entry),created:receipt.created,read_at:receipt.read_at,crew_invite_id:null,image_id:null,image_expires:null,campaign_id:entry.campaign_id,...(banner?{image_url:banner,banner}:{}),...(entry.rich?{version:entry.version,edited_at:entry.edited_at}:{})};
  });
  const data=channelResponse(receipts);
  return {...data,peer:{...data.peer,user_id:WELCOME_PEER_ID,image_version:'',premium_style_until:0,premium_default_frame:0},messages,settings:{muted:0,cleared_sequence:0,read_only:true},has_more:false,read_only:true,read_receipt:{sequence:0,read_at:0}};
@@ -72,11 +84,13 @@ async function acknowledgeNotice(req,env,userId,receipts,{campaignId,alias}) {
   // history. Concurrent later deliveries and other members remain unread.
   const sequence=body.sequence;
   if(!Number.isSafeInteger(sequence)||sequence<1||!receipts.some(receipt=>receipt.sequence===sequence))fail(400,'읽음 위치를 확인해 주세요.');
-  await run(env,'UPDATE welcome_receipts SET read_at=? WHERE user_id=? AND campaign_id IN (?,?) AND rowid<=? AND read_at=0',now(),userId,WELCOME_CAMPAIGN_ID,PREMIUM_OPEN_NOTICE_ID,sequence);
+  await run(env,`UPDATE welcome_receipts AS r SET read_at=? WHERE r.user_id=? AND r.rowid<=? AND r.read_at=0
+   AND EXISTS(SELECT 1 FROM welcome_campaigns c WHERE c.id=r.campaign_id AND ${noticeVisible})`,now(),userId,sequence);
  }else{
   const target=body.campaign_id;
   if(!Object.hasOwn(body,'campaign_id')||!receipts.some(receipt=>receipt.campaign_id===target)||(!alias&&target!==campaignId))fail(400,'읽은 안내를 다시 확인해 주세요.');
-  await run(env,'UPDATE welcome_receipts SET read_at=? WHERE campaign_id=? AND user_id=? AND read_at=0',now(),target,userId);
+  await run(env,`UPDATE welcome_receipts AS r SET read_at=? WHERE r.campaign_id=? AND r.user_id=? AND r.read_at=0
+   AND EXISTS(SELECT 1 FROM welcome_campaigns c WHERE c.id=r.campaign_id AND ${noticeVisible})`,now(),target,userId);
  }
  return json({ok:true});
 }
@@ -171,8 +185,12 @@ export function queueWelcomeCampaign(req,env,ctx) {
 // two devices, and a signup racing the original broadcast transaction.
 export async function ensureWelcomeReceipt(env,userId) {
  await run(env,`INSERT OR IGNORE INTO welcome_receipts(campaign_id,user_id,created,source)
-  SELECT c.id,u.id,?,'automatic' FROM welcome_campaigns c JOIN users u ON u.id=?
-  WHERE c.id=? AND ${eligible}`,now(),userId,WELCOME_CAMPAIGN_ID);
+  SELECT c.id,u.id,?,'automatic' FROM users u JOIN welcome_campaigns c ON c.id=COALESCE(
+   (SELECT w.id FROM welcome_campaigns w WHERE w.kind='welcome' AND w.recipient_max_rowid<u.rowid
+    ORDER BY w.recipient_max_rowid DESC,w.rowid DESC LIMIT 1),?)
+  WHERE u.id=? AND ${eligible} AND c.withdrawn_at=0 AND COALESCE(c.audience,'welcome')<>'welcome_disabled'
+  AND NOT EXISTS (SELECT 1 FROM welcome_receipts r JOIN welcome_campaigns past ON past.id=r.campaign_id
+   WHERE r.user_id=u.id AND (past.kind='welcome' OR past.id=?))`,now(),WELCOME_CAMPAIGN_ID,userId,WELCOME_CAMPAIGN_ID);
 }
 
 export async function noticeConversations(env,userId) {
@@ -191,7 +209,12 @@ export async function welcomeNoticeRoute(req,env,path,user) {
  if(!receipts.length||(!alias&&(premium||req.method==='PATCH')&&!receipt))fail(404,'아직 도착한 안내가 없습니다.');
  if(req.method==='PATCH')return acknowledgeNotice(req,env,user.id,receipts,{campaignId,alias});
  if(alias)return json(legacy[2]==='settings'?{muted:0,cleared_sequence:0,read_only:true}:legacyHistory(req,receipts,user.id));
- if(premium)return json({peer:premiumOpenPeer(receipt),campaign_id:campaignId,created:receipt.created,read_at:receipt.read_at,notice:JSON.parse(receipt.content_json)});
+ if(premium){
+  const entry=noticeEntry(receipt);
+  const image=entry.rich?.blocks.find(b=>b.type==='image');
+  const notice=entry.rich?{title:entry.rich.title,body:noticePlainText(entry.rich),banner:image?noticeAssetURL(image.asset,campaignId):null}:entry.notice;
+  return json({peer:{...premiumOpenPeer(receipt),last_message:notice.title},campaign_id:campaignId,created:receipt.created,read_at:receipt.read_at,notice});
+ }
  return json(channelResponse(receipts));
 }
 

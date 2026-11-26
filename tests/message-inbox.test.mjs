@@ -5,13 +5,13 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../dist/social-chat.js',import.meta.url),'utf8');
 const make=()=>{const c=nicknameContext({document:{addEventListener(){}},esc:String,crewInboxHTML:()=>'',number:String});vm.runInContext(source,c);return c;};
-test('notice and crew stay first while only ordinary DMs follow message timestamps',()=>{
+test('the notice follows message timestamps and the crew keeps its existing slot',()=>{
  const c=make();c.icon=()=>'';
  const items=[{id:'old',name:'old',updated:2},{id:'fake',name:'AIFECT 운영팀',updated:5},{id:'official',name:'아이팩트 안내',is_notice:true,notice_type:'official',updated:1,last_message:'최신 공지',unread:2},{id:'new',name:'new',updated:9}];
  c.items=items;const ordered=JSON.parse(vm.runInContext('JSON.stringify(dmOrderedConversations(items))',c));
  assert.equal(ordered.notice.id,'official');assert.deepEqual(ordered.direct.map(p=>p.id),['new','fake','old']);assert.equal(items[0].id,'old');
  c.portrait=()=>'';c.crewInboxHTML=()=>'<a>CREW</a>';
- const html=c.conversationListHTML(items);assert.ok(html.indexOf('공지')<html.indexOf('CREW'));assert.ok(html.indexOf('CREW')<html.indexOf('#dm/new'));assert.ok(html.indexOf('#dm/new')<html.indexOf('#dm/old'));assert.doesNotMatch(html,/dm-pin|data-dm-filter/);
+ const html=c.conversationListHTML(items);assert.ok(html.indexOf('CREW')<html.indexOf('#dm/new'));assert.ok(html.indexOf('#dm/new')<html.indexOf('#dm/old'));assert.ok(html.indexOf('#dm/old')<html.indexOf('#dm/notice'));assert.doesNotMatch(html,/dm-pin|data-dm-filter/);
  assert.equal((html.match(/href="#dm\/notice"/g)||[]).length,1);assert.match(html,/최신 공지/);assert.match(html,/안 읽은 메시지 2개/);
 });
 

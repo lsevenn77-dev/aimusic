@@ -31,15 +31,32 @@ function noticeContentHTML(entry,headingId){
 }
 
 function officialNoticeEntryHTML(entry){
+ if(entry.rich)return AifectOfficialNotice.renderNoticeEntry(entry,{renderStickers:globalThis.AifectStickers?.render});
  const headingId='official-notice-'+esc(entry.id);
  const title=entry.kind==='dm'?' aria-label="'+(entry.mine?'내 메시지':'공지 메시지')+'"':' aria-labelledby="'+headingId+'"';
  return '<div class="official-notice-entry" data-notice-id="'+esc(entry.id)+'">'+noticeTime(entry.created)+'<article class="welcome-guide'+(entry.mine?' official-notice-mine':'')+'"'+title+'>'+noticeContentHTML(entry,headingId)+'</article></div>';
 }
 
-function officialNoticeTimeline(feed){
- const content=feed.items.length?feed.items.map(officialNoticeEntryHTML).join(''):'<div class="dm-empty"><p>아직 받은 공지가 없습니다.</p></div>';
- return '<section class="welcome-guide-scroll" data-official-notice-scroll tabindex="0" aria-label="공지 내역"><button type="button" class="small-button official-notice-earlier" data-official-notice-earlier'+(feed.before?'':' hidden')+'>이전 공지 보기</button><div data-official-notice-items>'+content+'</div></section><div class="welcome-guide-status" data-official-notice-status role="status" hidden><span></span><button type="button" class="text-link" data-official-notice-retry>다시 시도</button></div>';
+function officialNoticeEntriesHTML(entries){
+ let previous='';
+ return entries.map(entry=>{
+  const day=new Date(entry.created*1000).toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'});
+  const separator=day!==previous?'<div class="chat-day official-notice-day">'+esc(day)+'</div>':'';
+  previous=day;
+  return separator+officialNoticeEntryHTML(entry);
+ }).join('');
 }
+
+function officialNoticeTimeline(feed){
+ const content=feed.items.length?officialNoticeEntriesHTML(feed.items):'<div class="dm-empty"><p>아직 받은 공지가 없습니다.</p></div>';
+ return (feed.missingAnchor?'<p class="official-notice-channel-note" role="status">이 공지는 확인할 수 없습니다.</p>':'')+
+  '<section class="welcome-guide-scroll" data-official-notice-scroll tabindex="0" aria-label="공지 내역"><button type="button" class="small-button official-notice-earlier" data-official-notice-earlier'+(feed.before?'':' hidden')+'>이전 공지 보기</button><div data-official-notice-items>'+content+'</div></section><div class="welcome-guide-status" data-official-notice-status role="status" hidden><span></span><button type="button" class="text-link" data-official-notice-retry>다시 시도</button></div><footer class="official-notice-channel-note">아이팩트 공식 안내 채널입니다.</footer>';
+}
+
+function knownOfficialNoticePath(ids){
+ return officialNoticePath+'?'+ids.map(id=>'known='+encodeURIComponent(id)).join('&');
+}
+const compareOfficialNotices=(a,b)=>Number(a.created)-Number(b.created)||(a.id<b.id?-1:a.id>b.id?1:0);
 
 function bindOfficialNotices(host,feed,{anchor='',onRead=()=>{}}={}){
  const pane=host?.querySelector('[data-official-notice-scroll]');
@@ -99,18 +116,34 @@ function bindOfficialNotices(host,feed,{anchor='',onRead=()=>{}}={}){
   }finally{clearTimeout(deadline);acking=false;}
  };
  const schedule=()=>{if(current()&&ackFrame===null)ackFrame=requestAnimationFrame(acknowledge);};
+ const repaint=sorted=>{
+  const oldNodes=children();
+  const same=(entry,node)=>entry?.id===node.dataset.noticeId&&entry.version===items.get(entry.id)?.version;
+  if(sorted.length===oldNodes.length&&sorted.every((entry,index)=>same(entry,oldNodes[index])))return;
+  const bounds=pane.getBoundingClientRect(),nextById=new Map(sorted.map(entry=>[entry.id,entry]));
+  const visible=oldNodes.find(node=>nextById.has(node.dataset.noticeId)&&node.getBoundingClientRect().bottom>bounds.top);
+  const offset=visible?.getBoundingClientRect().top;
+  const template=document.createElement('template');
+  template.innerHTML=officialNoticeEntriesHTML(sorted)||'<div class="dm-empty"><p>아직 받은 공지가 없습니다.</p></div>';
+  const existing=new Map(oldNodes.map(node=>[node.dataset.noticeId,node]));
+  for(const node of Array.from(template.content.children)){
+   const saved=existing.get(node.dataset.noticeId);
+   if(saved&&same(nextById.get(node.dataset.noticeId),saved))node.replaceWith(saved);
+  }
+  list.replaceChildren(template.content);
+  const anchorNode=visible&&children().find(node=>node.dataset.noticeId===visible.dataset.noticeId);
+  if(anchorNode)pane.scrollTop+=anchorNode.getBoundingClientRect().top-offset;
+ };
  earlier.onclick=async()=>{
   if(!current()||!before||loading)return;
   loading=true;earlier.disabled=true;
   try{
    const older=await api(officialNoticePath+'?before='+encodeURIComponent(before),'GET',undefined,{signal:events.signal,fresh:true});
    if(!current())return;
-   const oldFirst=children()[0],oldTop=oldFirst?.getBoundingClientRect().top;
    const additions=older.items.filter(entry=>!items.has(entry.id));
-   list.insertAdjacentHTML('afterbegin',additions.map(officialNoticeEntryHTML).join(''));
+   repaint([...items.values(),...additions].sort(compareOfficialNotices));
    remember(additions);before=older.before;earlier.hidden=!before;
    earlier.textContent='이전 공지 보기';earlier.removeAttribute('title');
-   if(oldFirst)pane.scrollTop+=oldFirst.getBoundingClientRect().top-oldTop;
    schedule();
   }catch(error){
    if(current()){earlier.textContent='이전 공지 다시 시도';earlier.setAttribute('title',error.message);}
@@ -125,27 +158,17 @@ function bindOfficialNotices(host,feed,{anchor='',onRead=()=>{}}={}){
     refreshAgain=false;
     const latest=await api(officialNoticePath,'GET',undefined,{signal:events.signal,fresh:true});
     if(!current())return;
-    const timestamp=entry=>Number(entry.created),first=latest.items[0];
-    const compare=(a,b)=>timestamp(a)-timestamp(b)||(a.id<b.id?-1:a.id>b.id?1:0);
-    const merged=new Map();
-    if(latest.before&&first)for(const entry of items.values())if(compare(entry,first)<0)merged.set(entry.id,entry);
-    for(const entry of latest.items)merged.set(entry.id,entry);
-    const sorted=[...merged.values()].sort(compare),oldNodes=children();
-    if(sorted.length!==oldNodes.length||sorted.some((entry,index)=>entry.id!==oldNodes[index].dataset.noticeId)){
-     const bounds=pane.getBoundingClientRect(),visible=oldNodes.find(node=>node.getBoundingClientRect().bottom>bounds.top);
-     const offset=visible?.getBoundingClientRect().top;
-     const template=document.createElement('template');
-     template.innerHTML=sorted.map(officialNoticeEntryHTML).join('')||'<div class="dm-empty"><p>아직 받은 공지가 없습니다.</p></div>';
-     const existing=new Map(oldNodes.map(node=>[node.dataset.noticeId,node]));
-     for(const node of Array.from(template.content.children)){
-      const saved=existing.get(node.dataset.noticeId);
-      if(saved)node.replaceWith(saved);
-     }
-     list.replaceChildren(template.content);
-     if(visible?.isConnected)pane.scrollTop+=visible.getBoundingClientRect().top-offset;
+    const first=latest.items[0],earlierIds=latest.before&&first?
+     [...items.values()].filter(entry=>compareOfficialNotices(entry,first)<0).map(entry=>entry.id):[];
+    const merged=new Map(latest.items.map(entry=>[entry.id,entry]));
+    for(let start=0;start<earlierIds.length;start+=100){
+     const older=await api(knownOfficialNoticePath(earlierIds.slice(start,start+100)),'GET',undefined,{signal:events.signal,fresh:true});
+     if(!current())return;
+     for(const entry of older.items)merged.set(entry.id,entry);
     }
-    const oldestFetched=items.size&&first&&[...items.values()].some(entry=>compare(entry,first)<0);
-    if(!oldestFetched||!latest.before)before=latest.before;
+    const sorted=[...merged.values()].sort(compareOfficialNotices);
+    repaint(sorted);
+    if(!earlierIds.length||!latest.before)before=latest.before;
     earlier.hidden=!before;
     items.clear();remember(sorted);schedule();
    }while(refreshAgain&&current());
@@ -171,13 +194,18 @@ function bindOfficialNotices(host,feed,{anchor='',onRead=()=>{}}={}){
  return Object.assign(dispose,{refresh});
 }
 async function dmNoticeView(raw,readApi=api,knownInbox=null,layout=dmInboxHTML){
- const [inbox,feed]=await Promise.all([knownInbox||readApi(unifiedDmInboxPath),readApi(officialNoticePath)]);
- rememberDmInbox(inbox);
- const back='<a class="chat-ui-icon chat-ui-plain dm-back" href="#dm" aria-label="대화 목록으로 돌아가기">'+icon('back')+'</a>';
- const header='<header class="dm-thread-header">'+back+'<div class="dm-thread-person"><div><h1>'+esc(feed.channel.name)+'</h1></div></div></header>';
  const params=new URLSearchParams(raw.split('?')[1]||'');
  const peer=params.get('peer')||raw.split('?')[0].split('/')[1];
  const anchor=params.get('entry')||(peer==='premium-open-event-20261231-v1'?'campaign:'+peer:peer==='aifect-guide'?peer:params.get('peer')||'');
+ const [inbox,initial]=await Promise.all([knownInbox||readApi(unifiedDmInboxPath),readApi(officialNoticePath)]);
+ let feed=initial;
+ if(/^(campaign|dm):[\w-]{1,100}$/.test(anchor)&&!feed.items.some(entry=>entry.id===anchor)){
+  const anchorFeed=await readApi(knownOfficialNoticePath([anchor]));
+  feed={...initial,items:[...initial.items,...anchorFeed.items].sort(compareOfficialNotices),missingAnchor:!anchorFeed.items.length};
+ }
+ rememberDmInbox(inbox);
+ const back='<a class="chat-ui-icon chat-ui-plain dm-back" href="#dm" aria-label="대화 목록으로 돌아가기">'+icon('back')+'</a>';
+ const header='<header class="dm-thread-header">'+back+'<div class="dm-thread-person"><div><h1>'+esc(feed.channel.name)+'</h1></div></div></header>';
  return {html:layout(inbox,header+officialNoticeTimeline(feed),'notice'),inbox:true,selectedConversation:'notice',noticeFeed:feed,noticeAnchor:anchor};
 }
 function dmFriendFinderHTML(){

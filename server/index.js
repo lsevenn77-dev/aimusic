@@ -5,6 +5,8 @@ import {playlistsRoute} from './playlists.js';
 import {myBoxesRoute} from './my-boxes.js';
 import {queuePremiumOpenNotice,queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
 import {officialNoticeRoute} from './official-notices.js';
+import {adminNoticeRoute} from './admin-notices.js';
+import {noticeJsonLimit} from '../shared/official-notice-content.js';
 import {cspReport} from './csp-report.js';
 import {imageOriginRequest,imageExportRequest} from './image-mirror.js';
 import {recordVisit,pruneVisits} from './visitors.js';
@@ -175,14 +177,16 @@ async function fetchRequest(req,env,ctx){
   }
   if(path.startsWith('/api/auth/')&&!path.endsWith('/callback'))await rate(env,'auth-ip:'+await hash(req.headers.get('cf-connecting-ip')||'local'),40,900);
   const editorPayload=/^\/api\/dubbing\/editor-drafts\/[\w-]+$/.test(path);
-  const maxJson=path==='/api/visits'?256:editorPayload?512*1024:path==='/api/dubbing/generations'?256*1024:path==='/api/uploads'||/^\/api\/dubbing\/projects(?:\/[^/]+)?$/.test(path)||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
+  const noticesAdmin=path==='/api/admin/notices'||path.startsWith('/api/admin/notices/');
+  const maxJson=noticesAdmin?noticeJsonLimit:path==='/api/visits'?256:editorPayload?512*1024:path==='/api/dubbing/generations'?256*1024:path==='/api/uploads'||/^\/api\/dubbing\/projects(?:\/[^/]+)?$/.test(path)||/^\/api\/studio\/tracks\/[^/]+(?:\/lyrics\/align)?$/.test(path)?131072:32768;
   const binary=path==='/api/dubbing/projects/b7c81f9a-2182-4dc5-bcb2-6dc0aee0a899/sound/revision'||/^\/api\/dubbing\/projects\/[\w-]+\/poster$/.test(path)||/^\/api\/artists\/[\w-]+\/fanpage\/banner$/.test(path)||path==='/api/admin/ai-bots/assets'||/^\/api\/crews\/[\w-]+\/notice-images$/.test(path)||/^\/api\/dubbing\/projects\/[^/]+\/recording\/[\w-]+\/lines\/[\w-]+$/.test(path)||/^\/api\/playlists\/[\w-]+\/image$/.test(path)||/^\/api\/producers\/[\w-]+\/gallery$/.test(path)||/^\/api\/artists\/[\w-]+\/gallery$/.test(path)||/^\/api\/(dm\/[\w-]+\/images|crews\/[\w-]+\/images?)$/.test(path)||path==='/api/me/profile/image'||/^\/api\/uploads\/[^/]+\/(audio|cover|duet-instrument|duet-partner)$/.test(path)||/^\/api\/studio\/(artists|producers|tracks)\/[^/]+\/image$/.test(path)||/^\/api\/studio\/tracks\/[^/]+\/karaoke\/mr$/.test(path);
   // Some ingress requests expose an empty stream for HEAD/GET (Content-Length: 0).
   // Rebuilding those with a body throws before the public media handler runs.
   const profileMultipart=path==='/api/me/profile'&&req.method==='PUT'&&req.headers.get('content-type')?.startsWith('multipart/form-data');
   // The official producer upload handler checks the manifest digest and enforces its own byte limits.
   const officialAudioUpload=req.method==='PUT'&&/^\/api\/dubbing\/projects\/[\w-]+\/sound\/official-rebuild\/(?:manifest|asset\/[\w-]+)$/.test(path);
-  if(!['GET','HEAD'].includes(req.method)&&!binary&&!profileMultipart&&!officialAudioUpload&&req.body){
+  const noticeUpload=path==='/api/admin/notices/images'&&req.method==='POST';
+  if(!['GET','HEAD'].includes(req.method)&&!binary&&!noticeUpload&&!profileMultipart&&!officialAudioUpload&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,AifectMessages.requestTooLarge);
    const reader=req.body.getReader(),chunks=[];let size=0;
    try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxJson){await reader.cancel().catch(()=>{});fail(413,AifectMessages.requestTooLarge);}chunks.push(value);}}finally{reader.releaseLock();}
@@ -195,6 +199,7 @@ async function fetchRequest(req,env,ctx){
   if(path==='/api/account/summary'||path==='/api/account/payments')return await accountOverviewRoute(req,env,path,user);
   const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;
   const notice=await officialNoticeRoute(req,env,path,user)||await welcomeNoticeRoute(req,env,path,user);if(notice)return notice;
+  const noticeAdmin=await adminNoticeRoute(req,env,path,user);if(noticeAdmin)return noticeAdmin;
   if(path==='/api/admin/mcp/identity'){
    if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해 주세요.');
    if(req.method!=='GET')fail(405,'GET만 지원합니다.');
