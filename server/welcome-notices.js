@@ -183,16 +183,47 @@ export function queueWelcomeCampaign(req,env,ctx) {
  ctx.waitUntil(activationPending);
 }
 
-// Called after authenticated startup. The composite primary key covers retries,
-// two devices, and a signup racing the original broadcast transaction.
 export async function ensureWelcomeReceipt(env,userId) {
- await run(env,`INSERT OR IGNORE INTO welcome_receipts(campaign_id,user_id,created,source)
-  SELECT c.id,u.id,?,'automatic' FROM users u JOIN welcome_campaigns c ON c.id=COALESCE(
-   (SELECT w.id FROM welcome_campaigns w WHERE w.kind='welcome' AND w.recipient_max_rowid<u.rowid
-    ORDER BY w.recipient_max_rowid DESC,w.rowid DESC LIMIT 1),?)
-  WHERE u.id=? AND ${eligible} AND c.withdrawn_at=0 AND COALESCE(c.audience,'welcome')<>'welcome_disabled'
-  AND NOT EXISTS (SELECT 1 FROM welcome_receipts r JOIN welcome_campaigns past ON past.id=r.campaign_id
-   WHERE r.user_id=u.id AND (past.kind='welcome' OR past.id=?))`,now(),WELCOME_CAMPAIGN_ID,userId,WELCOME_CAMPAIGN_ID);
+ const at=now();
+ const actionable="d.state IN ('pending','failed')";
+ const already=`EXISTS(SELECT 1 FROM welcome_receipts r JOIN welcome_campaigns c ON c.id=r.campaign_id
+  WHERE r.user_id=d.user_id AND (c.kind='welcome' OR c.id=?))`;
+ try{
+  await env.DB.batch([
+   query(env,`INSERT INTO welcome_receipts(campaign_id,user_id,created,source)
+    SELECT c.id,u.id,?,'automatic' FROM notice_signup_deliveries d JOIN users u ON u.id=d.user_id
+    JOIN welcome_campaigns c ON c.id=d.campaign_id
+    WHERE d.user_id=? AND ${actionable} AND ${eligible} AND c.withdrawn_at=0 AND NOT ${already}
+    ON CONFLICT(campaign_id,user_id) DO NOTHING`,at,userId,WELCOME_CAMPAIGN_ID),
+   query(env,`UPDATE notice_signup_deliveries AS d SET
+    state=CASE WHEN changes()=1 THEN 'sent' WHEN ${already} THEN 'already_delivered' ELSE 'failed' END,
+    reason=CASE WHEN changes()=1 OR ${already} THEN NULL ELSE 'template_unavailable' END,
+    attempts=attempts+1,updated=? WHERE d.user_id=? AND ${actionable}`,WELCOME_CAMPAIGN_ID,WELCOME_CAMPAIGN_ID,at,userId),
+   welcomeFailureAudit(env,userId,at)
+  ]);
+ }catch(error){
+  console.error('Signup welcome delivery is pending');
+  try{
+   await env.DB.batch([
+    query(env,`UPDATE notice_signup_deliveries AS d SET state='failed',reason='write_failed',attempts=attempts+1,updated=?
+     WHERE user_id=? AND ${actionable}`,at,userId),welcomeFailureAudit(env,userId,at)
+   ]);
+  }catch{console.error('Signup welcome failure could not be recorded');}
+ }
+}
+
+function welcomeFailureAudit(env,userId,at){
+ return query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created)
+  SELECT 'notice:signup:'||user_id||':'||attempts,'system:welcome-guide','notice:signup_failed',
+   json_object('id',campaign_id,'reason',reason),? FROM notice_signup_deliveries
+   WHERE user_id=? AND state='failed' AND changes()=1 ON CONFLICT(id) DO NOTHING`,at,userId);
+}
+
+export async function retrySignupWelcomes(env){
+ const at=now();
+ const pending=await rows(env,`SELECT user_id FROM notice_signup_deliveries
+  WHERE state IN ('pending','failed') AND attempts<8 AND updated<=? ORDER BY updated LIMIT 25`,at-60);
+ for(const {user_id} of pending)await ensureWelcomeReceipt(env,user_id);
 }
 
 export async function noticeConversations(env,userId) {

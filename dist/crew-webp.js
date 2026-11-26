@@ -3,7 +3,7 @@ import createEncoder from './vendor/crew-webp/webp_enc.js';
 import {defaultOptions} from './vendor/crew-webp/meta.js';
 
 let encoder;
-export async function encodeCrewWebp(image) {
+export async function encodeCrewWebp(image,{quality=90}={}) {
   const canvas = document.createElement('canvas');
   canvas.width = image.width;
   canvas.height = image.height;
@@ -16,7 +16,7 @@ export async function encodeCrewWebp(image) {
     throw error;
   });
   const codec = await encoder;
-  const bytes = codec.encode(pixels.data, pixels.width, pixels.height, {...defaultOptions, quality: 90});
+  const bytes = codec.encode(pixels.data, pixels.width, pixels.height, {...defaultOptions, quality});
   if (!bytes?.length) throw new Error('WebP encoding failed');
   return new File([bytes], 'photo.webp', {type: 'image/webp'});
 }

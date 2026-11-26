@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 import worker from '../server/index.js';
 import {hash} from '../server/auth.js';
 import {WELCOME_CAMPAIGN_ID} from '../shared/welcome-guide.js';
 import {activateWelcomeCampaign,ensureWelcomeReceipt} from '../server/welcome-notices.js';
 import {cleanNoticeContent,renderNoticeEntry} from '../shared/official-notice-content.js';
+import {processNoticeBatch} from '../server/notice-delivery.js';
+import {notificationData} from '../server/push.js';
 
 const root='/api/admin/notices',feed='/api/notices/official';
 const operator={ADMIN_USER_IDS:'owner,reviewer',AIFECT_NOTICE_OPERATOR_IDS:'owner'};
@@ -87,7 +90,7 @@ test('specific, Premium benefit, paying and ordinary members have distinct serve
 });
 
 test('edits retain the receipt and chronology; scoped and full withdrawals remove actual read and media access',async t=>{
- const bytes=Uint8Array.from([82,73,70,70,12,0,0,0,87,69,66,80,86,80,56,32,0,0,0,0]),objects=new Map();
+ const bytes=readFileSync(new URL('../dist/assets/chat-stickers/v1/basic/cat_basic_happy.webp',import.meta.url)),objects=new Map();
  const BUCKET={async put(k,b){objects.set(k,b);},async head(k){return objects.has(k)?{}:null;},async get(k){return objects.has(k)?{body:objects.get(k)}:null;}};
  const f=await fixture(t,{...operator,BUCKET});
  const uploaded=await raw(f,root+'/images','POST','owner',{'content-type':'image/webp'},bytes,{BUCKET});
@@ -163,7 +166,9 @@ test('welcome templates are immutable across signup boundaries and disable/re-en
 });
 
 test('client and server agree on safe content and retain versioned draft/roster state without exposing it to members',async t=>{
- const f=await fixture(t,{...operator,AIFECT_NOTICE_TEST_ACCOUNTS:JSON.stringify({owner:'other'})});
+ const f=await fixture(t,operator);
+ const code=f.sql.prepare("SELECT code FROM public_profile_ids WHERE user_id='other'").get().code;
+ assert.equal((await f.call(root+'/settings','PUT',{public_id:code})).status,200);
  const valid=content();
  valid.blocks[0].runs.push({text:'<img onerror=alert(1)>',href:'#song/one',bold:true},{sticker:'cat_basic_happy'});
  const render=renderNoticeEntry({id:'campaign:notice',rich:cleanNoticeContent(valid),created:1});
@@ -188,6 +193,97 @@ test('client and server agree on safe content and retain versioned draft/roster 
  assert.equal((await f.call(root)).body.items.length,0);
  assert.equal((await f.call(root+'?test=test')).body.items.length,1);
  assert.equal((await f.call(root+'/test','POST',{request_id:crypto.randomUUID(),content:content(),push:true})).status,409);
+});
+
+test('exact public IDs and UUIDs, nickname fragments, exclusions, and the default test account',async t=>{
+ const f=await fixture(t,operator),uid=crypto.randomUUID(),removed=crypto.randomUUID(),bot='ai_999901';
+ member(f,uid);member(f,removed,'deleted');member(f,bot,'ai_service','ai_bot');
+ f.sql.exec('DROP TRIGGER public_profile_ids_immutable');
+ const name=f.sql.prepare('UPDATE users SET name=? WHERE id=?');
+ name.run('공지 검색 테스트 회원',uid);
+ const code=f.sql.prepare('UPDATE public_profile_ids SET code=? WHERE user_id=?');
+ code.run('RGT4228',uid);
+ f.sql.prepare('INSERT OR IGNORE INTO public_profile_ids(user_id,code) VALUES(?,?)').run(removed,'ZZZ7001');
+ f.sql.prepare('INSERT OR IGNORE INTO public_profile_ids(user_id,code) VALUES(?,?)').run(bot,'ZZZ7002');
+ code.run('ZZZ7001',removed);code.run('ZZZ7002',bot);
+ for(const term of [' rGt  4228 ',uid.toUpperCase(),'검색 테스트']){
+  const {body,status}=await f.call(root+'/members?q='+encodeURIComponent(term));
+  assert.equal(status,200);
+  assert.deepEqual(body.members.map(item=>[item.id,item.public_id]),[[uid,'RGT4228']]);
+ }
+ assert.deepEqual((await f.call(root+'/members?q='+uid.slice(3,14))).body.members,[]);
+ const settings=await f.call(root+'/settings');
+ assert.equal(settings.body.test.member.public_id,'RGT4228');
+ const resolved=await f.call(root+'/members/resolve','POST',{codes:['rgt4228','RG T4228','ZZZ7001','ZZZ7002','ZZZ7003','!']});
+ assert.deepEqual(resolved.body.members.map(item=>item.id),[uid]);
+ assert.deepEqual(resolved.body.excluded.map(item=>item.reason),['withdrawn','ai_account','not_found','invalid_format']);
+ const query=await f.call(root+'/targets/count','POST',{audience:audience('specific',[uid,uid,bot,removed])});
+ assert.equal(query.body.count,1);
+ assert.equal((await f.call(root+'/settings','PUT',{public_id:'ZZZ7003'})).status,422);
+ assert.equal((await f.call(root+'/settings')).body.test.member.id,uid);
+ const message={request_id:crypto.randomUUID(),content:content('환영 테스트 {닉네임}'),purpose:'welcome',audience:audience('all')};
+ await login(f,uid);
+ const [first,second]=await Promise.all([f.call(root+'/test','POST',message),f.call(root+'/test','POST',message)]);
+ assert.equal(first.body.recipients,1);assert.equal(second.body.id,first.body.id);
+ assert.equal((await selectors(f,uid)).body.items[0].rich.title,'환영 테스트 공지 검색 테스트 회원');
+ assert.equal((await selectors(f,'owner')).body.items.length,0);
+ assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM admin_audit WHERE action='notice:test'").get().n,1);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM push_outbox').get().n,0);
+ assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM notice_signup_deliveries WHERE state='sent'").get().n,0);
+});
+
+test('a confirmed payload is single-use and processes only the original recipients; retry skips successes',async t=>{
+ const f=await fixture(t,{...operator,FCM_SERVICE_ACCOUNT:'fixture'});
+ for(let i=0;i<135;i++)member(f,'bulk-'+String(i).padStart(3,'0'));
+ const body=content('격리된 대량 발송');
+ const confirmed=await f.call(root+'/targets','POST',{audience:audience('all'),content:body,push:true});
+ assert.equal(confirmed.body.count,137);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM welcome_receipts').get().n,0);
+ member(f,'new-after-confirm');
+ f.sql.exec("UPDATE users SET provider='deleted' WHERE id='bulk-000'");
+ const request={...delivery(body,confirmed.body.id),push:true};
+ assert.equal((await post(f,{...request,push:false})).status,409);
+ const sent=await post(f,request);
+ assert.equal(sent.status,202,JSON.stringify(sent.body));
+ const id=sent.body.id;
+ assert.equal((await post(f,{...request,request_id:crypto.randomUUID()})).status,409);
+ for(let i=0;i<5;i++)await processNoticeBatch({DB:f.DB},id);
+ const intermediate=(await f.call(root+'/history/'+id+'/delivery')).body;
+ assert.deepEqual([intermediate.requested,intermediate.success,intermediate.failed,intermediate.pending],[137,136,1,0]);
+ assert.equal(f.sql.prepare("SELECT COUNT(*) n FROM welcome_receipts WHERE campaign_id=? AND user_id='new-after-confirm'").get(id).n,0);
+ const example=f.sql.prepare('SELECT * FROM push_outbox WHERE target=? LIMIT 1').get(id);
+ assert.equal(notificationData(example).target,'aifect-official-notice');
+ f.sql.exec("UPDATE users SET provider='email' WHERE id='bulk-000'");
+ const bodyRetry={revision:intermediate.revision};
+ await Promise.all([f.call(root+'/history/'+id+'/retry','POST',bodyRetry),f.call(root+'/history/'+id+'/retry','POST',bodyRetry)]);
+ await processNoticeBatch({DB:f.DB},id);
+ const done=(await f.call(root+'/history/'+id+'/delivery')).body;
+ assert.deepEqual([done.requested,done.success,done.failed,done.pending,done.revision],[137,137,0,0,1]);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM welcome_receipts WHERE campaign_id=?').get(id).n,137);
+ assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM push_outbox WHERE target=?').get(id).n,137);
+});
+
+test('email registration delivers before inbox startup; write failure is recorded and retries once',async t=>{
+ const f=await fixture(t,{...operator,AUTH_PEPPER:'fixture-qa-pepper'}),env={DB:f.DB};
+ await activateWelcomeCampaign(env);
+ const saved=await f.call(root+'/welcome','PUT',{version:0,enabled:true,content:content('가입 환영 {닉네임}'),request_id:crypto.randomUUID()});
+ assert.equal(saved.status,200);
+ const source={email:'welcome@example.test',password:'fixture-password-long',name:'가입환영회원'};
+ f.sql.exec("CREATE TEMP TRIGGER fail_signup_receipt BEFORE INSERT ON welcome_receipts WHEN NEW.source='automatic' BEGIN SELECT RAISE(ABORT,'fixture failure'); END");
+ const registered=await f.call('/api/auth/register','POST',source,null);
+ assert.equal(registered.status,200);
+ const {id}=registered.body.user;
+ const status=()=>f.sql.prepare('SELECT state,attempts FROM notice_signup_deliveries WHERE user_id=?').get(id);
+ assert.deepEqual({...status()},{state:'failed',attempts:1});
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='notice:signup_failed'").get().n,1);
+ f.sql.exec('DROP TRIGGER fail_signup_receipt');
+ await Promise.all([ensureWelcomeReceipt(env,id),ensureWelcomeReceipt(env,id)]);
+ assert.deepEqual({...status()},{state:'sent',attempts:2});
+ await login(f,id);
+ assert.equal((await selectors(f,id)).body.items[0].rich.title,'가입 환영 가입환영회원');
+ assert.equal((await f.call('/api/auth/login','POST',source,null)).status,200);
+ assert.equal((await f.call('/api/me','GET',undefined,id)).status,200);
+ assert.equal((await selectors(f,id)).body.items.length,1);
 });
 
 test('audit failure rolls back every receipt and the same request can complete once',async t=>{

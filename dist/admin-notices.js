@@ -5,14 +5,15 @@
  const labels=()=>AifectNoticeAudience.types;
  const blank=()=>AifectNoticeEditor.blank();
  const emptyAudience=()=>({type:'',ids:[]});
- const states={sent:'발송 완료',partially_withdrawn:'일부 철회',withdrawn:'전체 철회'};
+ const states={processing:'발송 처리 중',sent:'발송 완료',failed:'실패 대상 있음',partially_withdrawn:'일부 철회',withdrawn:'전체 철회'};
  const stamp=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'medium',timeStyle:'short'});
  const date=seconds=>seconds?stamp.format(seconds*1000):'—';
  const count=value=>value==null?'—':Number(value).toLocaleString('ko-KR');
  const btn=(label,action,style='')=>'<button type="button" class="'+style+'" data-action="'+action+'">'+label+'</button>';
  const optionMap=values=>Object.entries(values).map(([value,label])=>'<option value="'+esc(value)+'">'+esc(label)+'</option>').join('');
  const previewMarkup=()=>`<div class="notice-preview-head"><h2>미리보기</h2><div class="notice-segment" role="group" aria-label="미리보기 화면">
-  <button type="button" data-mode="pc" aria-pressed="true">PC웹</button><button type="button" data-mode="mobile" aria-pressed="false">모바일웹</button></div></div>
+  <button type="button" data-mode="pc" aria-pressed="true">PC웹</button><button type="button" data-mode="mobile" aria-pressed="false">모바일웹</button>
+  <button type="button" data-mode="app" aria-pressed="false">앱</button></div></div>
   <div class="notice-preview-frame" data-preview-frame><div class="dm-thread-header"><div class="dm-thread-person"><div><h3>아이팩트 안내</h3></div></div></div>
    <div class="notice-preview-body" data-preview-body></div><div class="official-notice-channel-note">아이팩트 공식 안내 채널입니다.</div></div>`;
 
@@ -24,7 +25,9 @@
   let settings=null,draft=null,dirty=false,revision=0,saving=null,timer=null,active='compose',composeBlocked=false,
    welcomeBlocked=false,editBlocked=false,sendPending=false,plan=null,planNext=null,sendRequest=null,submitting=false,
    historyTicket=0,draftTicket=0,historyNext=null,draftNext=null,detail=null,detailTicket=0,recipientNext=null,
-   editData=null,welcomeData=null,welcomeDirty=false,welcomeKey=null,editKey=null,withdrawRequest=null;
+   editData=null,welcomeData=null,welcomeDirty=false,welcomeKey=null,editKey=null,withdrawRequest=null,
+   testing=false,testSettingPending=false,deliveryTimer=null,deliveryTicket=0;
+  const testRequests=new Map();
   const picked=new Map();
   const status=(selector,message)=>{$(selector,root).textContent=message;};
   const backupKey=()=>settings?'aifect:notice-draft:'+settings.operator:null;
@@ -52,11 +55,20 @@
      <article class="admin-card notice-compose-card"><div data-audience></div><div data-compose-editor></div>
       <label class="notice-check"><input type="checkbox" data-push disabled> 앱 푸시 알림도 함께 발송</label>
       <p class="notice-help" data-push-status></p>
+      <details class="notice-test-setting"><summary>테스트 수신 계정 설정</summary>
+       <form class="notice-inline" data-test-setting><label class="notice-field">회원 고유 ID <input name="public_id" maxlength="100" autocomplete="off"></label>
+        <button type="submit">테스트 계정 저장</button></form>
+       <p class="notice-state" data-test-setting-error role="alert"></p>
+      </details>
+      <p class="notice-help" data-test-recipient role="status"></p>
       <p class="notice-state" data-compose-status role="status"></p>
       <div class="notice-actions">
-       ${btn('새 공지','new-draft')+btn('임시 저장','save-draft')+btn('내 계정 테스트','test')+btn('발송 대상 확인','confirm-send','notice-primary')}
+       ${btn('임시 저장','save-draft')+btn('테스트 발송','test')+btn('발송하기','confirm-send','notice-primary')}
       </div><button type="button" data-action="save-copy" hidden>새 초안으로 저장</button>
       <button type="button" data-action="retry-send" hidden>이전 발송 결과 확인</button>
+      <section class="notice-result" data-delivery-result hidden aria-label="최근 발송 결과">
+       <p data-delivery-status role="status"></p><div class="notice-actions">
+        <button type="button" data-delivery-detail>발송 결과 보기</button>${btn('발송 내역','open-history')}</div></section>
      </article>
      <aside class="admin-card notice-preview" data-preview-for="compose">${previewMarkup()}</aside>
     </div>
@@ -88,8 +100,9 @@
     <div class="notice-compose"><article class="admin-card notice-compose-card">
      <h2>환영 메시지</h2><label class="notice-check"><input type="checkbox" data-welcome-enabled> 신규 가입 시 환영 메시지 발송</label>
      <p class="notice-help">저장 이후 가입한 회원부터 적용됩니다. {닉네임}은 실제 공개 닉네임으로 표시됩니다.</p>
-     <div data-welcome-editor></div><p class="notice-state" data-welcome-status role="status"></p>
-     <div class="notice-actions">${btn('설정 저장','save-welcome','notice-primary')}</div>
+     <div data-welcome-editor></div><p class="notice-help" data-test-recipient role="status"></p>
+     <p class="notice-help" data-welcome-delivery></p><p class="notice-state" data-welcome-status role="status"></p>
+     <div class="notice-actions">${btn('테스트 발송','test-welcome')+btn('설정 저장','save-welcome','notice-primary')}</div>
     </article><aside class="admin-card notice-preview" data-preview-for="welcome">${previewMarkup()}</aside></div>
    </section>
    <dialog class="notice-dialog" data-notice-dialog="confirm" aria-label="공지 발송 확인">
@@ -112,10 +125,12 @@
 
   for(const preview of root.querySelectorAll('[data-preview-for]')){
    preview.addEventListener('click',event=>{
+    if(AifectOfficialNotice.openNoticeImage(event))return;
     if(event.target.closest('a')){event.preventDefault();return;}
     const mode=event.target.closest('[data-mode]')?.dataset.mode;
     if(!mode)return;
-    $('[data-preview-frame]',preview).classList.toggle('is-mobile',mode==='mobile');
+    const frame=$('[data-preview-frame]',preview);
+    frame.classList.toggle('is-mobile',mode==='mobile');frame.classList.toggle('is-app',mode==='app');
     for(const b of preview.querySelectorAll('[data-mode]'))b.setAttribute('aria-pressed',String(b.dataset.mode===mode));
    },opts);
   }
@@ -130,49 +145,75 @@
   }
   const selection=AifectNoticeAudience.create($('[data-audience]',root),{request,onChange:changeDraft});
   const composer=AifectNoticeEditor.create($('[data-compose-editor]',root),{
-   onChange:content=>{preview('compose',content);changeDraft();},onUpload:blocked=>{composeBlocked=blocked;updateButtons();},upload:editorUpload
+   onChange:content=>{preview('compose',content);changeDraft();updateButtons();},onUpload:blocked=>{composeBlocked=blocked;updateButtons();},upload:editorUpload
   });
   const welcome=AifectNoticeEditor.create($('[data-welcome-editor]',root),{
-   onChange:content=>{welcomeDirty=true;welcomeKey=null;preview('welcome',content);},
+   onChange:content=>{welcomeDirty=true;welcomeKey=null;preview('welcome',content);updateButtons();},
    onUpload:blocked=>{welcomeBlocked=blocked;updateButtons();},upload:editorUpload
   });
   const editor=AifectNoticeEditor.create($('[data-edit-editor]',root),{
    onChange:content=>{editKey=null;preview('edit',content,editData||{});},
    onUpload:blocked=>{editBlocked=blocked;updateButtons();},upload:editorUpload
   });
-  const welcomeEnabled=$('[data-welcome-enabled]',root);
+  const welcomeEnabled=$('[data-welcome-enabled]',root),push=$('[data-push]',root),testSetting=$('[data-test-setting]',root);
+  const wantsPush=()=>!!settings?.push.available&&push.checked;
+  const hasContent=content=>content.title.trim()&&content.blocks.some(block=>block.type==='image'||
+   block.runs?.some(run=>run.sticker||run.text.trim()));
   welcomeEnabled.onchange=()=>{welcomeKey=null;welcomeDirty=true;};
+  push.onchange=changeDraft;
+  function renderTestSetting(){
+   const test=settings.test,member=test?.member;
+   for(const label of root.querySelectorAll('[data-test-recipient]'))label.textContent=member?
+    '테스트 수신 '+member.name+' · '+member.public_id:test?'테스트 수신 '+test.public_id+' · '+test.error:'';
+   testSetting.elements.public_id.value=test?.public_id||'';
+   testSetting.closest('details').hidden=!settings.manage;
+  }
+  testSetting.addEventListener('submit',async event=>{
+   event.preventDefault();
+   if(testSettingPending||testing)return;
+   testSettingPending=true;updateButtons();status('[data-test-setting-error]','');
+   try{
+    settings.test=await write('/settings','PUT',{public_id:testSetting.elements.public_id.value});
+    testRequests.clear();renderTestSetting();toast('테스트 수신 계정을 저장했습니다.');
+   }catch(error){status('[data-test-setting-error]',error.message);toast(error.message);}
+   finally{testSettingPending=false;updateButtons();}
+  },opts);
   function updateButtons(){
    const manage=!!settings?.manage;
+   const audience=selection.value(),ready=!composeBlocked&&hasContent(composer.read());
    for(const button of panel('compose').querySelectorAll('[data-action]')){
     const key=button.dataset.action;
     if(key==='open-history')continue;
-    button.disabled=!manage||sendPending||(['confirm-send','test','save-draft','save-copy'].includes(key)&&composeBlocked)||
-     (key==='test'&&!settings?.test_member);
+    button.disabled=!manage||sendPending||(['save-draft','save-copy'].includes(key)&&composeBlocked)||
+     (key==='confirm-send'&&(!ready||!audience.type||(audience.type==='specific'&&!audience.ids.length)))||
+     (key==='test'&&(!ready||!settings?.test?.member||testing||testSettingPending));
    }
-   action('test').title=settings?.test_member?'연결된 테스트 회원 '+settings.test_member.name:
-    '운영자와 연결된 테스트 회원 계정이 필요합니다.';
+   action('test-welcome').disabled=!manage||!welcomeData||welcomeBlocked||!settings?.test?.member||testing||
+    testSettingPending||!hasContent(welcome.read());
    action('save-welcome').disabled=!manage||welcomeBlocked||!welcomeData;
    action('edit-save').disabled=!manage||editBlocked||!editData;
    welcomeEnabled.disabled=!manage;
+   push.disabled=!manage||!settings?.push.available;
+   for(const control of testSetting.elements)control.disabled=!manage||testing||testSettingPending;
   }
   function loadComposer(data=null){
    clearTimeout(timer);revision++;dirty=false;
    draft=data?.id?{id:data.id,version:data.version}:null;
    const body=data?.content??blank();
-   composer.load(body);selection.set(data?.audience??emptyAudience());preview('compose',body);
+   push.checked=data?.push===true;composer.load(body);selection.set(data?.audience??emptyAudience());preview('compose',body);updateButtons();
    action('save-copy').hidden=true;status('[data-compose-status]',data?.updated?'마지막 저장 '+date(data.updated):'');
    cache(backupKey(),null);
   }
   function backup(){
    if(!draft)draft={id:crypto.randomUUID(),version:0};
-   cache(backupKey(),{...draft,content:composer.read(),audience:selection.value(),push:false});
+   cache(backupKey(),{...draft,content:composer.read(),audience:selection.value(),push:push.checked});
   }
   function changeDraft(){
    if(!settings?.manage)return;
    revision++;dirty=true;backup();
    status('[data-compose-status]','자동 저장을 기다리는 중입니다.');
    clearTimeout(timer);timer=setTimeout(()=>void saveDraft(),650);
+   updateButtons();
   }
   async function saveDraft(force=false){
    if(!settings?.manage)return false;
@@ -185,7 +226,7 @@
    if(composeBlocked){status('[data-compose-status]','이미지 업로드 상태를 확인해 주세요.');return false;}
    if(!draft)draft={id:crypto.randomUUID(),version:0};
    const key=draft.id,version=draft.version,ticket=revision;
-   const payload={content:composer.read(),audience:selection.value(),push:false,version};
+   const payload={content:composer.read(),audience:selection.value(),push:push.checked,version};
    status('[data-compose-status]','임시 저장 중입니다.');
    saving=(async()=>{
     try{
@@ -282,6 +323,7 @@
     welcomeData=await api('/welcome');
     welcome.load(welcomeData.content);welcomeEnabled.checked=welcomeData.enabled;
     preview('welcome',welcomeData.content);
+    welcomeDelivery(welcomeData);
     status('[data-welcome-status]',welcomeData.updated?'마지막 저장 '+date(welcomeData.updated):'');
    }catch(error){status('[data-welcome-status]',error.message);}finally{updateButtons();}
   }
@@ -292,9 +334,13 @@
     request_id:welcomeKey??=crypto.randomUUID()};
    status('[data-welcome-status]','환영 메시지를 저장하고 있습니다.');
    try{
-    welcomeData=await write('/welcome','PUT',payload);welcomeKey=null;welcomeDirty=false;
+    welcomeData=await write('/welcome','PUT',payload);welcomeKey=null;welcomeDirty=false;welcomeDelivery(welcomeData);
     status('[data-welcome-status]','저장했습니다. '+date(welcomeData.updated));
    }catch(error){status('[data-welcome-status]',error.message);}finally{updateButtons();}
+  }
+  function welcomeDelivery({delivery}){
+   status('[data-welcome-delivery]',delivery?'가입 시 발송 성공 '+count(delivery.sent)+'명 · 실패 '+
+    count(delivery.failed)+'명'+(delivery.pending?' · 대기 '+count(delivery.pending)+'명':''):'');
   }
 
   function selectTab(tab){
@@ -311,42 +357,65 @@
   }
 
   function confirmRows(members){
-   return members.map(m=>'<li><span>'+esc(m.name||'')+'</span><code>'+esc(m.id)+'</code></li>').join('');
+   return members.map(m=>'<li><span>'+esc(m.name||'')+'</span><code>'+esc(m.public_id||'')+'</code></li>').join('');
   }
-  function confirmScreen(nextPlan,test=false){
+  function confirmScreen(nextPlan){
    plan=nextPlan;planNext=plan.next;
    const changed=plan.change;
-   $('[data-confirm-info]',root).innerHTML='<dl class="notice-summary"><div><dt>제목</dt><dd>'+esc((test?'[테스트] ':'')+sendRequest.content.title)+
-    '</dd></div><div><dt>발송 대상</dt><dd>'+esc(labels()[plan.audience])+'</dd></div><div><dt>유효 회원</dt><dd>'+count(plan.count)+
-    '명</dd></div><div><dt>앱 푸시</dt><dd>미발송</dd></div></dl>'+
-    (changed?'<p>대상 변경 · 추가 '+count(changed.added.count)+'명, 제외 '+count(changed.removed.count)+'명</p>'+
-      '<p class="notice-id-note">추가 '+esc(changed.added.ids.join(', ')||'—')+'<br>제외 '+esc(changed.removed.ids.join(', ')||'—')+'</p>':'')+
+   selection.confirmed(plan.count);
+   $('[data-confirm-info]',root).innerHTML='<dl class="notice-summary"><div><dt>제목</dt><dd>'+esc(sendRequest.content.title)+
+    '</dd></div><div><dt>발송 대상</dt><dd>'+esc(labels()[plan.audience])+'</dd></div><div><dt>대상 인원</dt><dd>'+count(plan.count)+
+    '명</dd></div><div><dt>첨부 이미지</dt><dd>'+count(sendRequest.content.blocks.filter(block=>block.type==='image').length)+
+    '장</dd></div><div><dt>앱 푸시</dt><dd>'+(sendRequest.push?'발송':'미발송')+'</dd></div></dl>'+
+    (changed?'<p>대상 변경 · 추가 '+count(changed.added.count)+'명, 제외 '+count(changed.removed.count)+'명</p>':'')+
     (plan.duplicates?'<p>중복 ID '+count(plan.duplicates)+'개를 제외했습니다.</p>':'')+
-    (plan.invalid?.length?'<details class="notice-id-note" open><summary>무효·탈퇴·제외 계정 '+count(plan.invalid.length)+'개</summary>'+esc(plan.invalid.join(', '))+'</details>':'')+
+    (plan.excluded?.length?'<details class="notice-id-note"><summary>제외된 회원 '+count(plan.excluded.length)+'명</summary><ul>'+
+     plan.excluded.map(item=>'<li>'+esc(item.public_id||'회원 정보 없음')+' · '+esc(AifectNoticeAudience.exclusionText[item.reason])+'</li>').join('')+'</ul></details>':'')+
     '<ul class="notice-member-results" data-confirm-members>'+confirmRows(plan.members||[])+'</ul>';
    action('more-targets').hidden=!planNext;
-   action('send').textContent=test?'내 계정에 테스트 발송':changed?'변경된 대상에 발송':'발송';
+   action('send').textContent=count(plan.count)+'명에게 발송';
    action('send').disabled=!plan.count;
    if(!modal('confirm').open)modal('confirm').showModal();
   }
-  async function openConfirm(test=false){
+  async function openConfirm(){
    if(sendPending||composeBlocked)return;
-   if(!test&&!selection.value().type){status('[data-compose-status]','발송 대상을 선택해 주세요.');return;}
+   if(!selection.value().type){status('[data-compose-status]','발송 대상을 선택해 주세요.');return;}
    sendPending=true;updateButtons();
-   const inputs=[$('[data-compose-editor]',root),$('[data-audience]',root)];
+   const inputs=[$('[data-compose-editor]',root),$('[data-audience]',root),push];
    for(const node of inputs)node.inert=true;
    try{
     const content=AifectOfficialNotice.cleanNoticeContent(composer.read(),{required:true});
-    if(!test&&!(await saveDraft()))return;
-    const original=selection.value();
-    status('[data-compose-status]',test?'':'발송 대상을 확인하고 있습니다.');
-    const checked=test?{audience:'test',members:[settings.test_member],count:1}:await write('/targets','POST',{audience:original});
-    sendRequest={request_id:crypto.randomUUID(),content,push:false,...(test?{test:true}:{check_id:checked.id,draft})};
+    if(!(await saveDraft()))return;
+    const audience=selection.value(),push=wantsPush();
+    status('[data-compose-status]','발송 대상을 확인하고 있습니다.');
+    const checked=await write('/targets','POST',{audience,content,push});
+    sendRequest={request_id:crypto.randomUUID(),content,push,check_id:checked.id,draft};
     status('[data-confirm-status]',checked.count?'':'발송할 수 있는 회원이 없습니다.');
-    if(!test)status('[data-compose-status]','');
-    confirmScreen(checked,test);
+    status('[data-compose-status]','');
+    confirmScreen(checked);
    }catch(error){status('[data-compose-status]',error.message);}
    finally{for(const node of inputs)node.inert=false;sendPending=false;updateButtons();}
+  }
+  async function sendTest(purpose='announcement'){
+   if(testing||testSettingPending)return;
+   const widget=purpose==='welcome'?welcome:composer;
+   if(widget.busy()||!settings?.test?.member)return;
+   testing=true;updateButtons();
+   try{
+    const content=AifectOfficialNotice.cleanNoticeContent(widget.read(),{required:true});
+    const fingerprint=JSON.stringify(content),previous=testRequests.get(purpose);
+    const request_id=previous?.fingerprint===fingerprint?previous.request_id:crypto.randomUUID();
+    testRequests.set(purpose,{fingerprint,request_id});
+    const result=await write('/test','POST',{request_id,content,purpose,push:false});
+    if(result.recipients!==1)throw new Error('테스트 메시지의 수신 결과를 확인해 주세요.');
+    testRequests.delete(purpose);toast('테스트 메시지를 1명에게 발송했습니다.');
+   }catch(error){
+    if(error.status&&error.status<500)testRequests.delete(purpose);
+    if(error.status===422||error.status===409){
+     try{settings=await api('/settings');renderTestSetting();}catch{}
+    }
+    toast(error.message);
+   }finally{testing=false;updateButtons();}
   }
   async function moreTargets(){
    if(!planNext)return;
@@ -374,8 +443,9 @@
     const result=await write(payload.test?'/test':'','POST',payload);
     cache(sendKey(),null);action('retry-send').hidden=true;
     if(modal('confirm').open)modal('confirm').close();
-    if(!payload.test&&(!retry||draft?.id===payload.draft?.id))loadComposer();
-    status('[data-compose-status]',count(result.recipients)+'명에게 '+(payload.test?'테스트 메시지를 ':'공지를 ')+'발송했습니다.');
+    if(payload.test){toast('테스트 메시지를 1명에게 발송했습니다.');return;}
+    if(!retry||draft?.id===payload.draft?.id)loadComposer();
+    watchDelivery(result);
     void loadRecent();
    }catch(error){
     if(error.data?.check){
@@ -389,19 +459,52 @@
     }
    }finally{submitting=false;sendPending=false;updateButtons();action('send').disabled=!(plan?.count);}
   }
+  function deliveryMessage(result){
+   if(result.status==='processing')return '발송 처리 중 · '+count(result.success||0)+'명 성공 · '+count(result.pending)+'명 대기';
+   return count(result.success??result.recipients)+'명 성공 · '+count(result.failed??0)+'명 실패'+
+    (result.finished_at||result.created?' · '+date(result.finished_at??result.created):'');
+  }
+  function watchDelivery(result){
+   const current=++deliveryTicket;
+   clearTimeout(deliveryTimer);
+   const section=$('[data-delivery-result]',root),link=$('[data-delivery-detail]',root);
+   section.hidden=false;link.dataset.historyId=result.id;
+   status('[data-delivery-status]',deliveryMessage(result));
+   if(result.status!=='processing')return;
+   const poll=async()=>{
+    try{
+     const next=await api('/history/'+encodeURIComponent(result.id)+'/delivery');
+     if(current!==deliveryTicket)return;
+     status('[data-delivery-status]',deliveryMessage(next));
+     if(next.status==='processing')deliveryTimer=setTimeout(poll,1500);
+     else{
+      if(detail?.id===result.id&&modal('detail').open)void openDetail(result.id);
+      void (active==='history'?loadHistory():loadRecent());
+     }
+    }catch(error){
+     if(current!==deliveryTicket||lifetime.signal.aborted)return;
+     status('[data-delivery-status]','발송 상태를 조회하지 못했습니다. '+error.message);
+     deliveryTimer=setTimeout(poll,4000);
+    }
+   };
+   deliveryTimer=setTimeout(poll,1500);
+  }
 
   function detailPath(part=''){return '/history/'+encodeURIComponent(detail.id)+part;}
   function renderDetail(data){
-   detail=data;const canChange=settings?.manage&&!data.withdrawn_at;
+   detail=data;const canChange=settings?.manage&&!data.withdrawn_at&&data.status!=='processing';
+   const canRetry=canChange&&data.delivery?.failed&&data.author_id===settings.operator;
    $('[data-detail-info]',root).innerHTML=`<h3>${esc((data.test?'[테스트] ':'')+data.title)}</h3>
     <dl class="notice-summary"><div><dt>대상</dt><dd>${esc(labels()[data.audience]||data.audience)}</dd></div>
      <div><dt>상태</dt><dd>${esc(states[data.status])}</dd></div><div><dt>발송 일시</dt><dd>${date(data.created)}</dd></div>
      <div><dt>운영자</dt><dd>${esc(data.author_id||'—')}</dd></div><div><dt>최초 / 유효</dt><dd>${count(data.original)} / ${count(data.active)}명</dd></div>
-     <div><dt>읽음 / 미읽음</dt><dd>${count(data.read)} / ${count(data.unread)}명</dd></div><div><dt>앱 푸시</dt><dd>미발송</dd></div></dl>
+     <div><dt>읽음 / 미읽음</dt><dd>${count(data.read)} / ${count(data.unread)}명</dd></div><div><dt>앱 푸시</dt><dd>${data.push?'발송 요청':'미발송'}</dd></div></dl>
+    ${data.delivery?'<p class="notice-help">'+esc(deliveryMessage(data.delivery))+'</p>':data.failed?'<p>자동 발송 실패 '+count(data.failed)+'명</p>':''}
     <div class="notice-detail-preview">${AifectOfficialNotice.renderNoticeEntry({id:'admin-detail',rich:data.content,created:data.created,edited_at:data.edited_at},
      {imageURL:AifectOfficialNotice.adminNoticeAssetURL,renderStickers:globalThis.AifectStickers?.render})}</div>
     <div class="notice-actions">${btn('공지 ID 복사','copy-id')}${settings?.manage?btn('복제','duplicate-notice'):''}
-     ${canChange?btn('수정','edit')+btn('전체 철회','withdraw-all','notice-danger'):''}</div>
+     ${canChange?(data.audience==='welcome'?'':btn('수정','edit'))+btn('전체 철회','withdraw-all','notice-danger'):''}
+     ${canRetry?btn('실패 대상 재시도','retry-failures','notice-primary'):''}</div>
     <details class="notice-audit"><summary>변경 이력</summary>${auditHTML(data.history)}</details>`;
    $('[data-detail-recipients]',root).innerHTML=`<h3>수신 회원</h3>
     <form class="notice-filters" data-recipient-form><label>닉네임 또는 ID <input name="q" type="search" maxlength="128"></label>
@@ -421,13 +524,14 @@
   }
   function auditHTML(history){
    if(!history.length)return '<p>기존 발송에서 개별 변경 이력을 찾을 수 없습니다.</p>';
-   const names={'notice:send':'발송','notice:test':'테스트 발송','notice:edit':'수정','notice:withdraw':'철회','notice:welcome':'환영 메시지 설정'};
+   const names={'notice:send':'발송','notice:test':'테스트 발송','notice:edit':'수정','notice:withdraw':'철회','notice:welcome':'환영 메시지 설정','notice:signup_failed':'가입 시 자동 발송 실패'};
    return '<ul>'+history.map(entry=>{
     const line='<b>'+esc(names[entry.action]||entry.action)+'</b> '+esc(entry.admin_id)+' · '+date(entry.created);
     const previous=entry.details.before,next=entry.details.after;
     const explain=previous&&next?'<details><summary>수정 전후 본문</summary>'+
      '<pre>'+esc(previous.format===1?previous.title+'\n'+AifectOfficialNotice.noticePlainText(previous):JSON.stringify(previous,null,2))+
      '</pre><pre>'+esc(next.title+'\n'+AifectOfficialNotice.noticePlainText(next))+'</pre></details>':
+     entry.action==='notice:signup_failed'?'<p>'+(entry.details.reason==='write_failed'?'수신 기록을 저장하지 못했습니다.':'가입 시 적용된 환영 메시지를 확인할 수 없습니다.')+'</p>':
      entry.details.reason?'<p>'+esc(entry.details.reason)+' · '+count(entry.details.recipients)+'명</p>':'';
     return '<li>'+line+explain+'</li>';
    }).join('')+'</ul>';
@@ -441,6 +545,7 @@
     const data=await api('/history/'+encodeURIComponent(id));
     if(current!==detailTicket||!modal('detail').open)return;
     renderDetail(data);status('[data-detail-status]','');void loadRecipients();
+    if(data.delivery?.status==='processing')watchDelivery(data.delivery);
    }catch(error){if(current===detailTicket)status('[data-detail-status]',error.message);}
   }
   function updatePicked(){
@@ -458,16 +563,27 @@
     const data=await api(detailPath('/recipients')+'?'+params,csv?{download:true}:{});
     if(ticket!==detailTicket||detail?.id!==id)return;
     if(csv){await AifectNoticeAudience.download(data,'aifect-notice-recipients.csv');status('[data-recipient-status]','수신 명단을 내려받았습니다.');return;}
-    const list=$('[data-recipient-list]',root),canSelect=settings?.manage&&!detail.withdrawn_at;
+    const list=$('[data-recipient-list]',root),canSelect=settings?.manage&&!detail.withdrawn_at&&detail.status!=='processing';
     if(!append)list.replaceChildren();
     list.insertAdjacentHTML('beforeend',data.members.map(m=>'<li><label>'+
      (canSelect&&!m.withdrawn_at?'<input type="checkbox" data-recipient data-read="'+Number(!!m.read_at)+'" value="'+esc(m.id)+'"'+(picked.has(m.id)?' checked':'')+'> ':'')+
-     '<b>'+esc(m.name||'')+'</b> <code>'+esc(m.id)+'</code></label><span>'+
+     '<b>'+esc(m.name||'')+'</b> <code>'+esc(m.public_id||'')+'</code></label><span>'+
      (m.withdrawn_at?'철회 '+date(m.withdrawn_at):m.read_at?'읽음 '+date(m.read_at):'미읽음')+'</span>'+
-     '<button type="button" data-copy-value="'+esc(m.id)+'" aria-label="회원 ID 복사">복사</button></li>').join(''));
+     (m.public_id?'<button type="button" data-copy-value="'+esc(m.public_id)+'" aria-label="회원 고유 ID 복사">복사</button>':'')+'</li>').join(''));
     recipientNext=data.next;action('more-recipients').hidden=!recipientNext;
     status('[data-recipient-status]',list.children.length?'':'조건에 맞는 수신 회원이 없습니다.');
    }catch(error){if(detail?.id===id&&ticket===detailTicket)status('[data-recipient-status]',error.message);}
+  }
+  async function retryFailures(button){
+   if(!detail?.delivery?.failed)return;
+   button.disabled=true;
+   const id=detail.id;
+   try{
+    const result=await write(detailPath('/retry'),'POST',{revision:detail.delivery.revision});
+    watchDelivery(result);
+    if(detail?.id===id&&modal('detail').open)await openDetail(id);
+   }catch(error){status('[data-detail-status]',error.message);}
+   finally{button.disabled=false;}
   }
   function openEdit(){
    editData=detail;editKey=null;
@@ -523,18 +639,19 @@
   }
   const handlers={
    'new-draft':async()=>{if(await preserveDraft()){loadComposer();selectTab('compose');composer.focus();}},
-   'save-draft':()=>saveDraft(true),'confirm-send':()=>openConfirm(),'test':()=>openConfirm(true),
+   'save-draft':()=>saveDraft(true),'confirm-send':openConfirm,'test':()=>sendTest(),'test-welcome':()=>sendTest('welcome'),
    'save-copy':()=>{draft=null;changeDraft();return saveDraft();},'retry-send':()=>send(true),
    'open-history':()=>selectTab('history'),'more-drafts':()=>loadDrafts(true),
    'load-draft':button=>editDraftRow(button,'load-draft'),'copy-draft':button=>editDraftRow(button,'copy-draft'),
    'remove-draft':button=>editDraftRow(button,'remove-draft'),
    'refresh-history':()=>loadHistory(),'more-history':()=>loadHistory(true),'save-welcome':saveWelcome,
-   'more-targets':moreTargets,'send':()=>send(),'more-recipients':()=>loadRecipients(true),
+   'more-targets':moreTargets,'send':()=>send(),'more-recipients':()=>loadRecipients(true),'retry-failures':retryFailures,
    'recipient-csv':()=>loadRecipients(false,true),'copy-id':()=>navigator.clipboard.writeText(detail.id).then(()=>toast('공지 ID를 복사했습니다.')),
    'duplicate-notice':async()=>{if(await preserveDraft()){loadComposer({content:detail.content});changeDraft();modal('detail').close();selectTab('compose');composer.focus();}},
    'edit':openEdit,'edit-save':saveEdit,'withdraw-all':()=>openWithdraw('all'),'withdraw-some':()=>openWithdraw('specific'),'withdraw':confirmWithdraw
   };
   root.addEventListener('click',async event=>{
+   if(AifectOfficialNotice.openNoticeImage(event))return;
    const control=event.target.closest('button');
    if(!control||control.disabled)return;
    const {noticeTab,close,historyId,copyValue}=control.dataset,key=control.dataset.action;
@@ -542,7 +659,7 @@
     if(noticeTab)selectTab(noticeTab);
     else if(close){if(close!=='confirm'||!submitting)modal(close).close();if(close==='edit')editData=null;}
     else if(historyId)await openDetail(historyId);
-    else if(copyValue){await navigator.clipboard.writeText(copyValue);toast('회원 ID를 복사했습니다.');}
+    else if(copyValue){await navigator.clipboard.writeText(copyValue);toast('회원 고유 ID를 복사했습니다.');}
     else if(key&&handlers[key])await handlers[key](control);
    }catch(error){if(!lifetime.signal.aborted)toast(error.message);}
   },opts);
@@ -565,6 +682,7 @@
      const backupCopy=cached(backupKey());
      $('[data-notice-start]',root).hidden=true;
      status('[data-push-status]',settings.push.reason);
+     renderTestSetting();
      for(const widget of [composer,welcome,editor,selection])widget.setWritable(settings.manage);
      loadComposer();selectTab('compose');updateButtons();
      await resumeCompose(backupCopy);
@@ -586,7 +704,7 @@
    if(active==='welcome'){if(!welcomeDirty){welcomeData=null;return loadWelcome();}return;}
    return loadRecent();
   },prepareLogout:async()=>!sendPending&&await preserveDraft(),dispose(clear=false){
-   clearTimeout(timer);
+   clearTimeout(timer);clearTimeout(deliveryTimer);
    if(clear){cache(backupKey(),null);cache(sendKey(),null);}
    lifetime.abort();root.replaceChildren();
   }};

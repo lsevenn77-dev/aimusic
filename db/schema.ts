@@ -67,6 +67,28 @@ export const noticeWelcomeSettings=sqliteTable('notice_welcome_settings',{
  id:text('id').primaryKey(),campaignId:text('campaign_id').notNull().references(()=>welcomeCampaigns.id),
  version:integer('version').notNull(),enabled:integer('enabled').notNull(),minUserRowid:integer('min_user_rowid').notNull(),updated:integer('updated').notNull()
 });
+export const noticeTestSettings=sqliteTable('notice_test_settings',{
+ id:text('id').primaryKey(),publicId:text('public_id').notNull(),updatedBy:text('updated_by').notNull(),updated:integer('updated').notNull()
+});
+export const noticeDeliveryJobs=sqliteTable('notice_delivery_jobs',{
+ campaignId:text('campaign_id').primaryKey().notNull().references(()=>welcomeCampaigns.id),
+ checkId:text('check_id').notNull(),requested:integer('requested').notNull(),
+ push:integer('push').notNull().default(0),created:integer('created').notNull(),
+ finishedAt:integer('finished_at').notNull().default(0),revision:integer('revision').notNull().default(0)
+},t=>[uniqueIndex('notice_delivery_check').on(t.checkId),index('notice_delivery_pending').on(t.finishedAt,t.created)]);
+export const noticeDeliveryItems=sqliteTable('notice_delivery_items',{
+ campaignId:text('campaign_id').notNull().references(()=>noticeDeliveryJobs.campaignId),
+ userId:text('user_id').notNull(),state:text('state').notNull().default('pending'),
+ reason:text('reason'),sentAt:integer('sent_at').notNull().default(0)
+},t=>[primaryKey({columns:[t.campaignId,t.userId]}),index('notice_delivery_item_state').on(t.campaignId,t.state,t.userId),
+ check('notice_delivery_item_state_valid',sql`${t.state} IN ('pending','sent','failed')`)]);
+export const noticeSignupDeliveries=sqliteTable('notice_signup_deliveries',{
+ userId:text('user_id').primaryKey().notNull().references(()=>users.id,{onDelete:'cascade'}),
+ campaignId:text('campaign_id').notNull(),created:integer('created').notNull(),
+ state:text('state').notNull(),reason:text('reason'),attempts:integer('attempts').notNull().default(0),
+ updated:integer('updated').notNull()
+},t=>[index('notice_signup_delivery_state').on(t.state,t.updated),index('notice_signup_delivery_campaign').on(t.campaignId,t.state),
+ check('notice_signup_delivery_state_valid',sql`${t.state} IN ('pending','sent','failed','disabled','already_delivered')`)]);
 export const sessions=sqliteTable('sessions',{token:text('token').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),expires:integer('expires').notNull()});
 // Public identity is independent of authentication UUIDs. No FK: retired numbers
 // remain reserved after account deletion. Allocation/immutability live in SQL triggers.

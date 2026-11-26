@@ -5,6 +5,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {generateKeyPair,exportJWK,exportPKCS8,SignJWT,jwtVerify} from 'jose';
 import worker from '../server/index.js';
 import {appleClientSecret,providers} from '../server/auth.js';
+import {activateWelcomeCampaign} from '../server/welcome-notices.js';
 
 const origin='https://aifect.test';
 const client='aifect-test.apps.googleusercontent.com';
@@ -35,22 +36,27 @@ async function token(nonce,overrides={},key=keys.privateKey){
 test('Google redirect authentication uses signed identity and browser-bound single-use state',async t=>{
  t.mock.method(globalThis,'fetch',async url=>{assert.equal(String(url),'https://www.googleapis.com/oauth2/v3/certs');return Response.json({keys:[jwk]});});
  await t.test('native Google token uses the same nonce binding and cannot replay',async t=>{
-  const f=fixture(t),state=await f.start(),credential=await token(state.nonce);
+  const f=fixture(t);await activateWelcomeCampaign(f.env);
+  const state=await f.start(),credential=await token(state.nonce);
   const options={cookie:state.cookie,type:'application/json',body:JSON.stringify({credential})};
   assert.equal((await f.send('/api/auth/google/token',{...options,cookie:''})).status,400);
   const result=await f.send('/api/auth/google/token',options);assert.equal(result.status,200);
   assert.equal((await result.json()).user.provider,'google');assert.match(result.headers.get('set-cookie'),/aifect_session=/);
+  assert.equal(f.sqlite.prepare("SELECT state FROM notice_signup_deliveries").get().state,'sent');
   assert.equal((await f.send('/api/auth/google/token',options)).status,400);
  });
  await t.test('valid Google POST creates a secure session and returning login reuses the identity',async t=>{
-  const f=fixture(t),state=await f.start(),signed=await token(state.nonce);
+  const f=fixture(t);await activateWelcomeCampaign(f.env);
+  const state=await f.start(),signed=await token(state.nonce);
   const result=await f.post(state,signed);assert.equal(result.status,303);assert.equal(result.headers.get('location'),'/#account?welcome=1');
+  assert.equal(f.sqlite.prepare("SELECT count(*) n FROM welcome_receipts WHERE source='automatic'").get().n,1);
   const cookies=result.headers.getSetCookie();assert.ok(cookies.some(x=>/aifect_google_oauth=;.*Max-Age=0/.test(x)));
   const session=cookies.find(x=>x.startsWith('aifect_session='));assert.match(session,/HttpOnly; SameSite=Lax;.*Secure/);
   const me=await f.send('/api/me',{method:'GET',cookie:session.split(';')[0]});assert.equal((await me.json()).user.provider,'google');
   assert.match((await f.post(state,signed)).headers.get('location'),/error=/);
   const next=await f.start();assert.equal((await f.post(next,await token(next.nonce))).status,303);
   assert.equal(f.sqlite.prepare('SELECT count(*) AS n FROM users').get().n,1);
+  assert.equal(f.sqlite.prepare("SELECT count(*) n FROM welcome_receipts WHERE source='automatic'").get().n,1);
  });
  await t.test('missing or mismatched double-submit CSRF cannot consume the login state',async t=>{
   const f=fixture(t),state=await f.start(),signed=await token(state.nonce);
@@ -81,6 +87,7 @@ test('Apple signs fresh client secrets and verifies the browser-bound callback',
  const checked=await jwtVerify(secret,signing.publicKey,{issuer:'TESTTEAM',audience:'https://appleid.apple.com',subject:env.APPLE_CLIENT_ID});
  assert.equal(checked.protectedHeader.kid,'TESTKEY');assert.equal(checked.payload.exp-checked.payload.iat,300);
  const f=fixture(t,env);
+ await activateWelcomeCampaign(f.env);
  const mobile=await f.send('/api/auth/mobile/start',{type:'application/json',body:JSON.stringify({challenge:'a'.repeat(64)})});
  const {ticket}=await mobile.json();
  const direct=await f.send('/api/auth/mobile/browser?ticket='+ticket+'&provider=apple',{method:'GET'});
@@ -103,7 +110,28 @@ test('Apple signs fresh client secrets and verifies the browser-bound callback',
  const result=await f.send('/api/auth/apple/callback',{body,cookie,from:'https://appleid.apple.com'});
  assert.equal(result.status,303);assert.equal(result.headers.get('location'),'/#account?welcome=1');
  const user=f.sqlite.prepare('SELECT name,provider FROM users').get();assert.equal(user.provider,'apple');assert.equal(user.name,'Apple 리스너');
+ assert.equal(f.sqlite.prepare("SELECT state FROM notice_signup_deliveries").get().state,'sent');
  assert.match((await f.send('/api/auth/apple/callback',{body,cookie,from:'https://appleid.apple.com'})).headers.get('location'),/error=/);
+});
+
+test('web Kakao callback creates one welcome receipt before returning a session',async t=>{
+ const f=fixture(t,{KAKAO_CLIENT_ID:'kakao-test-key'});
+ await activateWelcomeCampaign(f.env);
+ t.mock.method(globalThis,'fetch',async url=>{
+  const path=String(url);
+  if(path==='https://kauth.kakao.com/oauth/token')return Response.json({access_token:'fixture-token'});
+  assert.equal(path,'https://kapi.kakao.com/v2/user/me');
+  return Response.json({id:123,kakao_account:{profile:{nickname:'가입 회원'}}});
+ });
+ const login=async()=>{
+  const start=await f.send('/api/auth/kakao',{method:'GET'}),dest=new URL(start.headers.get('location'));
+  const qs=new URLSearchParams({state:dest.searchParams.get('state'),code:'fixture-code'});
+  return f.send('/api/auth/kakao/callback?'+qs,{method:'GET',cookie:start.headers.get('set-cookie').split(';')[0]});
+ };
+ assert.equal((await login()).status,303);
+ assert.equal(f.sqlite.prepare("SELECT state FROM notice_signup_deliveries").get().state,'sent');
+ assert.equal((await login()).status,303);
+ assert.equal(f.sqlite.prepare("SELECT count(*) n FROM welcome_receipts WHERE source='automatic'").get().n,1);
 });
 
 test('Kakao exchanges the configured REST secret and creates only the verified provider identity',async t=>{

@@ -5,9 +5,10 @@ import {requireUser,hash,cookies} from './auth.js';
 import {VISIBLE} from './catalog.js';
 import {resolveNotification} from './notifications.js';
 import {queueArtistDigests,artistDigestBody} from './notification-digest.js';
+import {noticeVisible} from './notice-visibility.js';
 
 const kinds=['dm','comment','gift','fan_comment','participation','artist_follower','artist_release','crew_important','work_status'];
-const eventKinds=[...kinds,'crew','person_gift','crew_invite','crew_approved','crew_request','dubbing_complete','dubbing_participation','artist_digest'];
+const eventKinds=[...kinds,'crew','person_gift','crew_invite','crew_approved','crew_request','dubbing_complete','dubbing_participation','artist_digest','official_notice'];
 let credentialCache;
 let retryAfter=0;
 export function retryPush(env,ctx){
@@ -60,6 +61,8 @@ async function accessToken(env){
 }
 
 export function notificationData(event){
+ if(event.kind==='official_notice')return {kind:'dm',target:'aifect-official-notice',recipient:event.recipient,
+  title:'아이팩트 안내',body:event.body||'새 공지가 도착했습니다.'};
  if(['gift','person_gift'].includes(event.kind)&&event.source){
   const {source_type,source_id,gift_source_title,href}=event.source;
   const direct=source_id===event.target&&(source_type==='profile'&&event.kind==='person_gift'||event.kind==='gift'&&event.source.gift_source_kind==='song');
@@ -87,6 +90,13 @@ export async function dispatchPush(env){
  let auth;try{auth=await accessToken(env);}catch{console.error('Push authorization failed');return;}
  await Promise.allSettled(events.map(async event=>{
   if(!eventKinds.includes(event.kind))return;
+  if(event.kind==='official_notice'){
+   const notice=await one(env,`SELECT c.title FROM welcome_receipts r JOIN welcome_campaigns c ON c.id=r.campaign_id
+    JOIN users u ON u.id=r.user_id WHERE c.id=? AND r.user_id=? AND ${noticeVisible}
+    AND c.test=0 AND u.account_type='human' AND u.provider<>'deleted'`,event.target,event.recipient);
+   if(!notice){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
+   event.body=notice.title.slice(0,180);
+  }
   if(event.kind==='crew'&&!await one(env,'SELECT 1 FROM crew_members WHERE user_id=? AND crew_id=? AND muted=0',event.recipient,event.target)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
   if(event.kind==='person_gift'&&!await one(env,'SELECT 1 FROM producers WHERE id=? AND user_id=?',event.target,event.recipient)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
   let activity=await one(env,'SELECT * FROM activity_notifications WHERE id=?',event.id);
@@ -102,7 +112,8 @@ export async function dispatchPush(env){
   }
   if(event.kind==='artist_digest'){event.body=await artistDigestBody(env,event.recipient,event.target);if(!event.body){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}}
   if(activity?.actor_id&&await one(env,'SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?)',event.recipient,activity.actor_id,activity.actor_id,event.recipient)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
-  const preference=event.kind==='crew'?'dm':event.kind==='person_gift'?'gift':event.kind.startsWith('crew_')?'crew_important':event.kind.startsWith('dubbing_')?'participation':event.kind==='artist_digest'?'dm':event.kind;
+  const preference=['crew','official_notice','artist_digest'].includes(event.kind)?'dm':event.kind==='person_gift'?'gift':
+   event.kind.startsWith('crew_')?'crew_important':event.kind.startsWith('dubbing_')?'participation':event.kind;
   const preferenceSQL=event.kind==='artist_digest'?'1=1':`COALESCE(p.${preference},1)=1`;
   if(event.kind==='participation'&&!await one(env,`SELECT t.id FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,event.target)){await run(env,'UPDATE push_outbox SET delivered=1 WHERE id=?',event.id);return;}
   if(event.kind==='dm'&&await one(env,'SELECT 1 FROM dm_settings s JOIN producers p ON p.user_id=s.peer_id WHERE s.user_id=? AND p.id=? AND s.muted=1',event.recipient,event.target)){

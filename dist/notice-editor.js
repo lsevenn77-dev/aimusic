@@ -3,13 +3,12 @@
  const stickers=()=>globalThis.AifectStickers;
  const tools=[
   ['bold','굵게','B'],['italic','기울임','I'],['underline','밑줄','U'],['strikeThrough','취소선','S'],
-  ['mint','민트 강조','민트'],['purple','보라 강조','보라'],
+  ['color','글자 색상','글자 색상'],
   ['justifyLeft','왼쪽 정렬','왼쪽'],['justifyCenter','가운데 정렬','가운데'],['justifyRight','오른쪽 정렬','오른쪽'],
   ['insertUnorderedList','글머리 목록','• 목록'],['insertOrderedList','번호 목록','1. 목록'],['insertHorizontalRule','구분선','구분선'],
   ['link','링크','링크'],['image','이미지 넣기','이미지'],['emoji','이모티콘','이모티콘'],
   ['undo','실행 취소','↶'],['redo','다시 실행','↷'],['removeFormat','서식 초기화','서식 초기화']
  ];
- const colors={mint:'#8eddd2',purple:'#9a82ff'};
  const unicode=['😀','😊','😂','🥹','😍','🥳','🙂','😎','🤔','😮','😢','🙌','👏','👍','👋','💜','💚','❤️','✨','🎵','🎤','🎉','🎁','📌','📢','✅'];
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const blank=()=>({format:1,title:'',blocks:[]});
@@ -27,10 +26,9 @@
   if(['I','EM'].includes(tag)||style.fontStyle==='italic')next.italic=true;
   if(tag==='U'||style.textDecorationLine.includes('underline'))next.underline=true;
   if(['S','STRIKE','DEL'].includes(tag)||style.textDecorationLine.includes('line-through'))next.strike=true;
-  const color=(node.getAttribute('color')||style.color||'').toLowerCase().replace(/\s+/g,'');
-  if(node.dataset.noticeColor)next.color=node.dataset.noticeColor;
-  if([colors.mint,'rgb(142,221,210)'].includes(color))next.color='mint';
-  if([colors.purple,'rgb(154,130,255)'].includes(color))next.color='purple';
+  const color=rich().noticeColor(node.dataset.noticeColor);
+  if(color)next.color=color;
+  if(node.dataset.noticeColor==='default')delete next.color;
   if(tag==='A')next.href=node.getAttribute('href')||'';
   return Array.from(node.childNodes).flatMap(child=>inlineRuns(child,next));
  }
@@ -72,11 +70,32 @@
  }
 
  async function webp(file){
-  const prepared=await optimizeUploadImage(file,{allowFallback:true});
-  if(prepared.type==='image/webp')return prepared;
-  const bitmap=await decodeUploadImage(prepared);
-  try{const {encodeCrewWebp}=await import('./crew-webp.js');return await encodeCrewWebp(bitmap);}
-  finally{bitmap.close();}
+  if(!['image/jpeg','image/png','image/webp'].includes(file.type))throw new Error('JPG·PNG·WebP 이미지를 선택해 주세요.');
+  if(file.size>30*1024*1024)throw new Error('30MB 이하의 원본 이미지를 선택해 주세요.');
+  const bitmap=await decodeUploadImage(file),limits=rich().noticeImageBounds,canvas=document.createElement('canvas');
+  try{
+   if(!bitmap.width||!bitmap.height||bitmap.width*bitmap.height>64000000)throw new Error('이미지의 가로·세로 크기를 줄여 주세요.');
+   const fit=Math.min(1,limits.width/bitmap.width,limits.height/bitmap.height);
+   let best;
+   for(const scale of [fit,fit*.90,fit*.80]){
+    const width=Math.max(1,Math.round(bitmap.width*scale)),height=Math.max(1,Math.round(bitmap.height*scale));
+    if(best&&width===canvas.width&&height===canvas.height)break;
+    canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d');
+    if(!ctx)throw new Error('이미지를 변환할 수 없습니다.');
+    ctx.imageSmoothingQuality='high';ctx.drawImage(bitmap.source||bitmap,0,0,width,height);
+    for(const quality of [limits.quality,.81,.77,.74]){
+     let blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',quality));
+     if(blob?.type!=='image/webp'){
+      const {encodeCrewWebp}=await import('./crew-webp.js');
+      blob=await encodeCrewWebp(canvas,{quality:Math.round(100*quality)});
+     }
+     if(blob.size<=limits.targetBytes)return {blob,width,height};
+     if(!best||blob.size<best.blob.size)best={blob,width,height};
+    }
+   }
+   return best;
+  }finally{bitmap.close();canvas.width=canvas.height=1;}
  }
 
  function create(host,{onChange,onUpload,upload}){
@@ -89,6 +108,15 @@
     <div class="official-rich-body notice-editable" contenteditable="true" role="textbox" aria-label="본문" aria-multiline="true" data-body></div>
     <div class="notice-editor-meta"><output data-length>0자</output><span data-upload role="status"></span><button type="button" data-retry hidden>다시 업로드</button><button type="button" data-dismiss hidden>실패한 파일 제외</button></div>
    </div>
+   <dialog data-color-dialog class="notice-dialog notice-color-dialog" aria-label="글자 색상">
+    <h2>글자 색상</h2>${Object.entries(rich().noticePalette).map(([group,colors])=>'<div class="notice-colors"><strong>'+
+     (group==='brand'?'브랜드 색상':'기본 색상')+'</strong><div>'+colors.map(([label,color])=>
+     '<button type="button" data-color="'+color+'" aria-label="'+label+' '+color+'" title="'+label+' '+color+
+     '"><span style="background:'+color+'"></span></button>').join('')+'</div></div>').join('')}
+    <form data-color-form><label class="notice-field">사용자 지정 HEX <input data-color-hex maxlength="7" placeholder="#8EDDD2" autocomplete="off"></label>
+    <p data-color-error role="alert"></p><div class="notice-actions"><button type="button" data-color="default">기본 색상으로 복원</button>
+     <button type="button" data-color-close>닫기</button><button class="notice-primary" type="submit">적용</button></div></form>
+   </dialog>
    <input data-files type="file" accept="image/jpeg,image/png,image/webp" multiple hidden>
    <div data-picture class="notice-image-settings" hidden>
     <label>정렬 <select data-align><option value="left">왼쪽</option><option value="center">가운데</option><option value="right">오른쪽</option></select></label>
@@ -110,7 +138,7 @@
     <div class="cat-picker notice-cat-picker" data-cat-picker></div><div class="notice-actions"><button type="button" data-emoji-close>닫기</button></div>
    </dialog>`;
   const $=s=>host.querySelector(s),body=$('[data-body]'),title=$('[data-title]'),files=$('[data-files]'),
-   picture=$('[data-picture]'),link=$('[data-link-dialog]'),emoji=$('[data-emoji-dialog]');
+   picture=$('[data-picture]'),link=$('[data-link-dialog]'),emoji=$('[data-emoji-dialog]'),palette=$('[data-color-dialog]');
   const pictureField=selector=>picture.querySelector(selector);
   let range=null,image=null,replace=false,activeLink=null,failed=null,uploading=false,writable=true;
   let current=null;
@@ -164,6 +192,57 @@
    selection.removeAllRanges();selection.addRange(point);
    return point;
   }
+  function applyColor(color){
+   if(!range||range.collapsed||!body.contains(range.commonAncestorContainer)){
+    $('[data-color-error]').textContent='색상을 적용할 글자를 선택해 주세요.';return;
+   }
+   const point=range.cloneRange(),walker=document.createTreeWalker(point.commonAncestorContainer,NodeFilter.SHOW_TEXT);
+   const affected=[];
+   for(let node=point.commonAncestorContainer.nodeType===Node.TEXT_NODE?point.commonAncestorContainer:walker.nextNode();node;node=walker.nextNode()){
+    if(!point.intersectsNode(node)||node.parentElement.closest('[contenteditable="false"]'))continue;
+    const start=node===point.startContainer?point.startOffset:0,end=node===point.endContainer?point.endOffset:node.length;
+    if(start<end)affected.push({node,start,end});
+   }
+   if(!affected.length){$('[data-color-error]').textContent='색상을 적용할 글자를 선택해 주세요.';return;}
+   palette.close();
+   const selected=affected.map(({node,start,end})=>{
+    if(end<node.length)node.splitText(end);
+    const text=start>0?node.splitText(start):node;
+    const parent=text.parentElement;
+    const replace=parent.tagName==='SPAN'&&parent.dataset.noticeColor&&parent.childNodes.length===1;
+    const span=replace?parent:document.createElement('span');
+    span.dataset.noticeColor=color;
+    if(color.startsWith('#'))span.style.setProperty('--notice-text-color',color);else span.style.removeProperty('--notice-text-color');
+    if(!replace){text.before(span);span.append(text);}
+    return text;
+   });
+   range=document.createRange();
+   range.setStart(selected[0],0);range.setEnd(selected.at(-1),selected.at(-1).length);
+   select();capture();updated();
+  }
+  function colorContrast(value){
+   if(!value?.startsWith('#'))return false;
+   const channels=value.slice(1).match(/../g).map(hex=>parseInt(hex,16)/255)
+    .map(x=>x<=.04045?x/12.92:((x+.055)/1.055)**2.4);
+   const luminance=channels[0]*.2126+channels[1]*.7152+channels[2]*.0722;
+   // Matches the lightest dark background used for notice text across clients.
+   return (luminance+.05)/.077>=4.5;
+  }
+  palette.addEventListener('click',event=>{
+   const color=event.target.closest('[data-color]')?.dataset.color;
+   if(color)applyColor(color);
+   if(event.target.closest('[data-color-close]')){palette.close();select();}
+  });
+  palette.addEventListener('cancel',()=>{requestAnimationFrame(()=>select());});
+  $('[data-color-form]').addEventListener('submit',event=>{
+   event.preventDefault();
+   const input=$('[data-color-hex]').value.trim();
+   const color=rich().noticeColor(input.startsWith('#')?input:'#'+input);
+   if(!colorContrast(color)){
+    $('[data-color-error]').textContent=color?'어두운 배경에서 읽을 수 있는 밝은 색을 입력해 주세요.':'#RGB 또는 #RRGGBB 형식으로 입력해 주세요.';return;
+   }
+   applyColor(color);
+  });
   function command(key,value=null,target=null){
    if(!writable)return false;
    if(key==='undo'||key==='redo'){moveHistory(key==='undo');return true;}
@@ -203,7 +282,9 @@
     const fragment=document.createRange().createContextualFragment(markup);
     target.replaceWith(fragment);range=null;updated();return true;
    }
-   return insertMarkup(markup,outsideWidget(select()),{block:true});
+   const point=outsideWidget(select());
+   point.collapse(false);
+   return insertMarkup(markup,point,{block:true});
   }
   function showUpload(message){
    $('[data-upload]').textContent=message;
@@ -229,11 +310,17 @@
    if(existing+all.length-(replacing?1:0)>rich().noticeImageLimit){showUpload('이미지는 10장까지 첨부할 수 있습니다.');return;}
    const at=range?.cloneRange();
    uploading=true;failed=null;
+   let summary='';
    try{
     for(let i=0;i<all.length;i++){
-     showUpload('이미지 '+(i+1)+' / '+all.length+' 업로드 중');
+     const progress='이미지 '+(i+1)+' / '+all.length;
+     showUpload(progress+' 최적화 중');
      try{
-      const file=await webp(all[i]),asset=await upload(file);
+      const {blob,width,height}=await webp(all[i]);
+      showUpload(progress+' 업로드 중');
+      const asset=await upload(blob);
+      summary=width+' × '+height+' · '+Math.ceil(blob.size/1024)+' KB'+
+       (blob.size>rich().noticeImageBounds.targetBytes?' (글자 가독성을 위해 크기를 유지했습니다.)':'');
       if(replacing&&!replacing.isConnected)throw new Error('교체할 이미지를 다시 선택해 주세요.');
       if(i===0&&at&&body.contains(at.commonAncestorContainer))range=at;
       const next={type:'image',align:'left',width:100,alt:'',...(replacing?imageBlock(replacing):{}),asset:asset.id};
@@ -243,7 +330,7 @@
     }
    }finally{
     uploading=false;
-    showUpload(failed?failed.error.message:'이미지를 업로드했습니다.');
+    showUpload(failed?failed.error.message:'이미지를 업로드했습니다. '+summary);
    }
   }
 
@@ -287,7 +374,7 @@
    if(action==='link')openLink();
    else if(action==='emoji'){capture();emoji.show();}
    else if(action==='image'){capture();replace=false;files.click();}
-   else if(action in colors)command('foreColor',colors[action]);
+   else if(action==='color'){capture();$('[data-color-error]').textContent='';palette.showModal();}
    else if(action==='removeFormat'){
     command('removeFormat');command('formatBlock','p');
    }else command(action);

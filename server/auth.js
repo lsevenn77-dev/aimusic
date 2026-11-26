@@ -63,7 +63,6 @@ export async function authRoute(req,env,path,user){
  const mobile=await mobileAuthRoute(req,env,path,user);if(mobile)return mobile;
  const native=await nativeAuthRoute(req,env,path);if(native)return native;
  if(path==='/api/me'){
-  if(user)await ensureWelcomeReceipt(env,user.id);
   const [plan,state]=await Promise.all([membership(env,user),user&&url.searchParams.get('state')==='1'?one(env,`SELECT (SELECT json_group_array(track_id) FROM likes WHERE user_id=? AND track_id IS NOT NULL) likes,(SELECT json_group_array(json_object('kind',kind,'target_id',target_id)) FROM follows WHERE user_id=?) follows`,user.id,user.id):null]);
   return json({user,admin:isAdmin(env,user),track_moderator:isTrackModerator(env,user),membership:plan,providers:providers(env),googleClientId:env.GOOGLE_CLIENT_ID||null,emailEnabled:!!env.AUTH_PEPPER,...(state?{interaction_state:{likes:JSON.parse(state.likes).map(id=>({id})),follows:JSON.parse(state.follows)}}:{})});
  }
@@ -86,7 +85,7 @@ export async function authRoute(req,env,path,user){
   let payload;try{({payload}=await jwtVerify(str(b.credential,10000),jwks,{issuer:['https://accounts.google.com','accounts.google.com'],audience:env.GOOGLE_CLIENT_ID}));}catch{fail(401,'Google 인증을 확인할 수 없습니다.');}
   if(payload.nonce!==st.nonce||payload.email_verified!==true||!payload.email||!payload.sub)fail(401,'Google 인증 정보가 일치하지 않습니다.');
   let u=await one(env,"SELECT id,name,email,provider FROM users WHERE provider='google' AND subject=?",payload.sub);
-  if(!u){u={id:id(),name:String(payload.name||'AIFECT 리스너').slice(0,40),email:payload.email,provider:'google'};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',u.id,u.email,u.name,'google',payload.sub,sourceFromRequest(req));}
+  if(!u){u={id:id(),name:String(payload.name||'AIFECT 리스너').slice(0,40),email:payload.email,provider:'google'};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',u.id,u.email,u.name,'google',payload.sub,sourceFromRequest(req));await ensureWelcomeReceipt(env,u.id);}
   const appResult=await finishMobile(req,env,u,null,!isRedirect);if(appResult)return appResult;
   const headers=new Headers({'cache-control':'no-store'});
   headers.append('set-cookie',await session(env,u,secure));
@@ -137,6 +136,7 @@ export async function authRoute(req,env,path,user){
    if(u)fail(409,'이미 가입된 이메일입니다. 로그인해 주세요.');
    const salt=id(),name=nickname(body.name).name,uid=id();
    await nicknameBatch(env,uid,name,[query(env,'INSERT INTO users(id,email,name,password,provider,subject,created,signup_source) VALUES(?,?,?,?,?,?,unixepoch(),?)',uid,email,name,salt+':'+await passwordHash(password,salt,env),'email',email,sourceFromRequest(req))]);
+   await ensureWelcomeReceipt(env,uid);
    u={id:uid,email,name,provider:'email'};
   }else{
    const [salt,saved]=(u?.password||'invalid:invalid').split(':');
@@ -182,7 +182,7 @@ export async function authRoute(req,env,path,user){
   identity={sub:payload.sub,name:name||'AIFECT 리스너',email:[true,'true'].includes(payload.email_verified)?payload.email:null};
  }
  let u=await one(env,'SELECT id FROM users WHERE provider=? AND subject=?',p,identity.sub);
- if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,sourceFromRequest(req));}
+ if(!u){u={id:id()};await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',u.id,identity.email||`${p}-${identity.sub}@identity.aifect.invalid`,String(identity.name).slice(0,40),p,identity.sub,sourceFromRequest(req));await ensureWelcomeReceipt(env,u.id);}
  if(p==='apple')await rememberAppleToken(env,u.id,token.refresh_token);
  const appResult=await finishMobile(req,env,u,null);if(appResult)return appResult;
  return new Response(null,{status:303,headers:{location:'/#account?welcome=1','set-cookie':await session(env,u,secure),'cache-control':'no-store'}});

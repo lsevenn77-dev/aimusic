@@ -3,9 +3,10 @@ import {withSourceCookie} from './signup-source.js';
 import {boxCutoverRoute,queueConfiguredBoxRetirement} from './library-unification.js';
 import {playlistsRoute} from './playlists.js';
 import {myBoxesRoute} from './my-boxes.js';
-import {queuePremiumOpenNotice,queueWelcomeCampaign,welcomeNoticeRoute} from './welcome-notices.js';
+import {queuePremiumOpenNotice,queueWelcomeCampaign,retrySignupWelcomes,welcomeNoticeRoute} from './welcome-notices.js';
 import {officialNoticeRoute} from './official-notices.js';
 import {adminNoticeRoute} from './admin-notices.js';
+import {continueNoticeJob,runNoticeJobs} from './notice-delivery.js';
 import {adminGiftDispatchRoute} from './admin-gift-dispatch.js';
 import {noticeJsonLimit} from '../shared/official-notice-content.js';
 import {cspReport} from './csp-report.js';
@@ -138,7 +139,22 @@ async function fetchRequest(req,env,ctx){
   if(path==='/internal/billing/tick')return await billingTick(req,env);
   if(path==='/internal/player/backfill')return await playerBackfillRoute(req,env);
   if(path.startsWith('/internal/music-classification/'))return await musicClassificationInternal(req,env,path);
-  if(path.startsWith('/internal/')){const result=await internalRoute(req,env,path);if(result?.ok&&ctx?.waitUntil){if(path==='/internal/jobs/claim'&&req.method==='POST'){queueConfiguredBoxRetirement(env,ctx);queueBotHeartbeat(env,ctx);retryPush(env,ctx);queueLyricAnalysis(env,ctx);}if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));if(path.endsWith('/finish')){ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));}}return result;}
+  if(path.startsWith('/internal/')){
+   const result=await internalRoute(req,env,path);
+   if(result?.ok&&ctx?.waitUntil){
+    if(path==='/internal/jobs/claim'&&req.method==='POST'){
+     queueConfiguredBoxRetirement(env,ctx);queueBotHeartbeat(env,ctx);retryPush(env,ctx);queueLyricAnalysis(env,ctx);
+     continueNoticeJob(env,ctx);
+     ctx.waitUntil(retrySignupWelcomes(env).catch(()=>console.error('Signup welcome delivery is pending')));
+    }
+    if(env.GEMINI_API_KEY&&(path==='/internal/jobs/claim'||path.endsWith('/finish')))ctx.waitUntil(classifyNext(env).catch(()=>console.error('Music classification pending')));
+    if(path.endsWith('/finish')){
+     ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Participation push pending')));
+     ctx.waitUntil(syncRecentCrewGrowth(env).catch(()=>console.error('Crew growth pending')));
+    }
+   }
+   return result;
+  }
   // Render signed-in deletion locally. The public renderer never receives a user's identity.
   if(path==='/account/delete'&&req.method==='GET'){
    const account=await viewer(req,env);if(account)return accountPageRoute(req,path,account);
@@ -211,7 +227,7 @@ async function fetchRequest(req,env,ctx){
   }
   const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;
   const notice=await officialNoticeRoute(req,env,path,user)||await welcomeNoticeRoute(req,env,path,user);if(notice)return notice;
-  const noticeAdmin=await adminNoticeRoute(req,env,path,user)||await adminGiftDispatchRoute(req,env,path,user);if(noticeAdmin)return noticeAdmin;
+  const noticeAdmin=await adminNoticeRoute(req,env,path,user,ctx)||await adminGiftDispatchRoute(req,env,path,user);if(noticeAdmin)return noticeAdmin;
   if(path==='/api/admin/mcp/identity'){
    if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해 주세요.');
    if(req.method!=='GET')fail(405,'GET만 지원합니다.');
@@ -323,6 +339,6 @@ async function serve(req,env,ctx){
  }
  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
-export default {fetch:serve,async scheduled(event,env,ctx){ctx.waitUntil(pruneVisits(env));ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));}};
+export default {fetch:serve,async scheduled(event,env,ctx){ctx.waitUntil(pruneVisits(env));ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));ctx.waitUntil(runNoticeJobs(env));ctx.waitUntil(retrySignupWelcomes(env));}};
 
 async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}

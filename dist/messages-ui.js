@@ -13,7 +13,8 @@ function noticeContentHTML(entry,headingId){
   const {banner,title,body}=entry.notice;
   if(typeof title!=='string'||typeof body!=='string'||typeof banner!=='string'||!/^\/assets\/[\w-]+\.webp$/.test(banner))throw new Error('공지 내용을 불러오지 못했습니다. 다시 열어 주세요.');
   const paragraphs=body.split('\n\n').map(text=>'<p>'+esc(text).replaceAll('\n','<br>')+'</p>').join('');
-  return '<img class="official-notice-banner" src="'+esc(banner)+'" width="2172" height="724" alt="AIFECT 오픈 이벤트. 2026년 12월 31일까지 프리미엄 무료">'+heading(title)+paragraphs;
+  const picture='<img class="official-notice-banner" src="'+esc(banner)+'" width="2172" height="724" alt="AIFECT 오픈 이벤트. 2026년 12월 31일까지 프리미엄 무료">';
+  return (globalThis.AifectOfficialNotice?.noticeZoomButton(picture,'AIFECT 오픈 이벤트')??picture)+heading(title)+paragraphs;
  }
  if(entry.kind==='dm'){
   const invite=entry.crew_invite_id?'<a class="small-button dm-crew-invite" href="#crew/'+esc(entry.crew_invite_id)+'">'+icon('users')+' 초대받은 크루 보기 '+icon('chevron')+'</a>':'';
@@ -259,6 +260,7 @@ function bindDmFriendFinder(panel,addTarget){
  return invalidate;
 }
 document.addEventListener('click',event=>{
+ if(event.target.closest('[data-official-notice-scroll]')&&globalThis.AifectOfficialNotice?.openNoticeImage(event))return;
  if(event.target.closest('[data-dm-find]'))location.hash='dm/tools/friends';
 });
 // Every mobile thread has a real list history entry, including shared URLs and reloads.

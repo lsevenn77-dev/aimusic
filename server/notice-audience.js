@@ -4,6 +4,9 @@ import {fail,id,json,now,one,query,rows,run,str} from './db.js';
 
 export const eligibleNoticeMember="u.account_type='human' AND u.provider<>'deleted'";
 export const audienceTypes=['all','normal','premium','paid','specific'];
+const publicCode=/^[A-Z]{3}[0-9]{4}$/;
+const uuid=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+export const normalizePublicCode=value=>typeof value==='string'?value.replace(/\s/gu,'').toUpperCase():'';
 const idLimit=10000;
 const memberId=/^[^\s,\u0000-\u001f\u007f]{1,128}$/u;
 const pageSize=50;
@@ -51,6 +54,11 @@ export function audienceCandidates(audience,at){
  return {sql:'SELECT u.id FROM users u WHERE '+eligibleNoticeMember+' AND '+sql,params};
 }
 
+export async function countNoticeAudience(env,audience){
+ const candidates=audienceCandidates(audience,now());
+ return one(env,'SELECT COUNT(*) count FROM ('+candidates.sql+')',...candidates.params);
+}
+
 export async function activeAudienceCheck(env,owner,checkId){
  if(typeof checkId!=='string'||!/^[0-9a-f-]{36}$/i.test(checkId))fail(400,'발송 대상을 다시 확인해 주세요.');
  const check=await one(env,'SELECT * FROM notice_target_checks WHERE id=? AND owner_id=? AND expires>?',checkId,owner,now());
@@ -69,25 +77,32 @@ async function changeSummary(env,oldId,newId){
  return {added,removed};
 }
 
-export async function createAudienceCheck(env,owner,audience,{oldId=null,duplicates=0}={}){
+export async function createAudienceCheck(env,owner,audience,{oldId=null,duplicates=0,confirmation}={}){
  const at=now(),checkId=id(),expires=at+lifetime;
  const previous=oldId?await activeAudienceCheck(env,owner,oldId):null;
  if(previous&&previous.audience_json!==JSON.stringify(audience))fail(400,'같은 발송 대상을 다시 확인해 주세요.');
  const candidates=audienceCandidates(audience,at);
  await env.DB.batch([
   query(env,'DELETE FROM notice_target_checks WHERE id IN (SELECT id FROM notice_target_checks WHERE expires<=? LIMIT 8)',at),
-  query(env,'INSERT INTO notice_target_checks(id,owner_id,audience_json,expires) VALUES(?,?,?,?)',checkId,owner,JSON.stringify(audience),expires),
+  query(env,'INSERT INTO notice_target_checks(id,owner_id,audience_json,expires) VALUES(?,?,?,?)',checkId,owner,
+   JSON.stringify({...audience,...(confirmation?{confirmation}:{})}),expires),
   query(env,'INSERT INTO notice_target_members(check_id,user_id) SELECT ?,id FROM ('+candidates.sql+')',checkId,...candidates.params)
  ]);
  const [count,invalid,change,members]=await Promise.all([
   one(env,'SELECT COUNT(*) count FROM notice_target_members WHERE check_id=?',checkId),
-  audience.ids.length?rows(env,`SELECT value id FROM json_each(?) EXCEPT ${snapshotMembers}`,JSON.stringify(audience.ids),checkId):[],
+  audience.ids.length?rows(env,`SELECT x.value id,m.code public_id,${memberExclusion} reason
+   FROM json_each(?) x LEFT JOIN users u ON u.id=x.value LEFT JOIN public_profile_ids m ON m.user_id=x.value
+   WHERE x.value NOT IN (${snapshotMembers}) ORDER BY x.value`,JSON.stringify(audience.ids),checkId):[],
   changeSummary(env,oldId,checkId),audiencePage(env,owner,checkId,new URLSearchParams())
  ]);
- return {id:checkId,expires,audience:audience.type,count:count.count,invalid:invalid.map(r=>r.id),duplicates,change,...members};
+ return {id:checkId,expires,audience:audience.type,count:count.count,invalid:invalid.map(r=>r.id),excluded:invalid,duplicates,change,...members};
 }
 
 const memberName=publicNameSQL();
+export const noticeMemberColumns=`u.id,${memberName} name,m.code public_id,p.id profile_id,p.image_version`;
+export const noticeMemberJoins='LEFT JOIN public_profile_ids m ON m.user_id=u.id LEFT JOIN producers p ON p.user_id=u.id';
+const memberExclusion=`CASE WHEN u.id IS NULL AND m.code IS NULL THEN 'not_found'
+ WHEN u.id IS NULL OR u.provider='deleted' THEN 'withdrawn' WHEN u.account_type<>'human' THEN 'ai_account' END`;
 function readCursor(params){
  const after=params.get('after');
  if(after!==null&&!memberId.test(after))fail(400,'목록 위치를 확인해 주세요.');
@@ -96,8 +111,10 @@ function readCursor(params){
 
 export async function audiencePage(env,owner,checkId,params){
  await activeAudienceCheck(env,owner,checkId);
- const result=await rows(env,`SELECT m.user_id id,CASE WHEN u.id IS NOT NULL THEN ${memberName} END name FROM notice_target_members m
-  LEFT JOIN users u ON u.id=m.user_id WHERE m.check_id=? AND m.user_id>? ORDER BY m.user_id LIMIT ?`,checkId,readCursor(params),pageSize+1);
+ const result=await rows(env,`SELECT r.user_id id,CASE WHEN u.id IS NOT NULL AND (${eligibleNoticeMember})
+  THEN ${memberName} END name,m.code public_id FROM notice_target_members r
+  LEFT JOIN users u ON u.id=r.user_id LEFT JOIN public_profile_ids m ON m.user_id=r.user_id
+  WHERE r.check_id=? AND r.user_id>? ORDER BY r.user_id LIMIT ?`,checkId,readCursor(params),pageSize+1);
  return memberPage(result);
 }
 
@@ -108,11 +125,36 @@ function memberPage(result){
 
 export async function searchNoticeMembers(env,params){
  const q=str(params.get('q')??'',100,false);
- const args=q?[q,q]:[];
- const filter=q?`AND (instr(lower(u.id),lower(?))>0 OR instr(lower(${memberName}),lower(?))>0)`:'';
- const found=await rows(env,`SELECT u.id,${memberName} name FROM users u WHERE ${eligibleNoticeMember} ${filter}
-  AND u.id>? ORDER BY u.id LIMIT ?`,...args,readCursor(params),pageSize+1);
+ const code=normalizePublicCode(q),exactCode=publicCode.test(code),exactUuid=uuid.test(q);
+ const filter=exactCode?'m.code=?':exactUuid?'u.id=?':q?`instr(lower(${memberName}),lower(?))>0`:'1';
+ const found=await rows(env,`SELECT ${noticeMemberColumns} FROM users u ${noticeMemberJoins}
+  WHERE ${eligibleNoticeMember} AND ${filter} AND u.id>? ORDER BY u.id LIMIT ?`,
+  ...(q?[exactCode?code:exactUuid?q.toLowerCase():q]:[]),readCursor(params),pageSize+1);
  return memberPage(found);
+}
+
+export async function resolveNoticeMembers(env,input){
+ if(Object.hasOwn(input,'ids')){
+  const ids=readMemberIds(input.ids,{allowEmpty:true});
+  const members=await rows(env,`SELECT ${noticeMemberColumns} FROM users u ${noticeMemberJoins}
+   WHERE ${eligibleNoticeMember} AND u.id IN (SELECT value FROM json_each(?))`,JSON.stringify(ids));
+  return {members,excluded:[]};
+ }
+ if(!Array.isArray(input.codes)||input.codes.length>idLimit||
+  input.codes.some(code=>typeof code!=='string'||code.length>100))fail(400,'회원 고유 ID 목록을 확인해 주세요.');
+ const codes=[...new Set(input.codes.map(normalizePublicCode).filter(Boolean))],valid=codes.filter(code=>publicCode.test(code));
+ const found=valid.length?await rows(env,`SELECT ${noticeMemberColumns},${memberExclusion} reason
+  FROM public_profile_ids m LEFT JOIN users u ON u.id=m.user_id LEFT JOIN producers p ON p.user_id=u.id
+  WHERE m.code IN (SELECT value FROM json_each(?))`,JSON.stringify(valid)):[];
+ const byCode=new Map(found.map(row=>[row.public_id,row])),members=[],excluded=[];
+ for(const code of codes){
+  const result=byCode.get(code);
+  if(result&&!result.reason){
+   const {reason,...member}=result;
+   members.push(member);
+  }else excluded.push({public_id:code,reason:result?.reason??(publicCode.test(code)?'not_found':'invalid_format')});
+ }
+ return {members,excluded};
 }
 
 const rosterData=row=>({id:row.id,name:row.name,ids:JSON.parse(row.members_json),version:row.version,updated:row.updated});

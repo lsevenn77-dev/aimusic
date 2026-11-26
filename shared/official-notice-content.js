@@ -5,6 +5,7 @@ export const noticeFormat=1;
 export const noticeJsonLimit=1024*1024;
 export const noticeContentLimit=256*1024;
 export const noticeImageLimit=10;
+export const noticeImageBounds=Object.freeze({width:1200,height:2400,quality:0.85,targetBytes:500*1024});
 export const legacyNoticeImage='premium-open-event-banner';
 export const noticeLinks=Object.freeze({
  '#home':'홈','#play':'플레이','#karaoke':'노래방','#live?mode=karaoke':'라이브 노래방',
@@ -15,7 +16,20 @@ export const noticeLinks=Object.freeze({
 export const noticeAssetId=/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const detailLink=/^#song\/([\w-]{1,100})(?:\?comments=1)?$/;
 const alignments=['left','center','right'];
-const colors=['mint','purple'];
+const legacyColors=['mint','purple'];
+export const noticePalette=Object.freeze({
+ brand:[['민트','#8EDDD2'],['보라','#D3BAFF'],['핑크','#F4A8CE']],
+ basic:[['흰색','#F5F5FC'],['회색','#A9B0C1'],['빨강','#FFA3A7'],['주황','#FFC184'],['노랑','#F2D97C'],
+  ['초록','#9DDFAC'],['하늘색','#A2DFFF'],['파랑','#AEC6FF'],['보라','#D4BCEB']]
+});
+export function noticeColor(value){
+ if(legacyColors.includes(value))return value;
+ if(typeof value!=='string')return null;
+ const hex=value.trim().toUpperCase();
+ if(/^#[0-9A-F]{6}$/.test(hex))return hex;
+ if(/^#[0-9A-F]{3}$/.test(hex))return '#'+[...hex.slice(1)].map(char=>char.repeat(2)).join('');
+ return null;
+}
 const blockTypes=['p','h2','h3','li'];
 const escapeHTML=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 const invalid=()=>{throw new Error('공지 본문 또는 서식을 확인해 주세요.');};
@@ -49,9 +63,10 @@ function safeRun(run){
  if(typeof run.text!=='string')invalid();
  const text=run.text.replace(/\r\n?/g,'\n').replace(/\u0000/g,'');
  if(!text)return null;
+ const color=noticeColor(run.color);
  return {text,...(run.bold===true?{bold:true}:{}),...(run.italic===true?{italic:true}:{}),
   ...(run.underline===true?{underline:true}:{}),...(run.strike===true?{strike:true}:{}),
-  ...(colors.includes(run.color)?{color:run.color}:{}),...(run.href?{href:checkedHref(run.href)}:{})};
+  ...(color?{color}:{}),...(run.href?{href:checkedHref(run.href)}:{})};
 }
 
 export function cleanNoticeContent(value,{required=false}={}){
@@ -139,7 +154,8 @@ function renderRun(run,renderStickers,editing){
  }
  let markup=escapeHTML(run.text).replace(/\n/g,'<br>');
  for(const [key,tag] of [['bold','strong'],['italic','em'],['underline','u'],['strike','s']])if(run[key])markup='<'+tag+'>'+markup+'</'+tag+'>';
- if(colors.includes(run.color))markup='<span data-notice-color="'+run.color+'">'+markup+'</span>';
+ const color=noticeColor(run.color);
+ if(color)markup='<span data-notice-color="'+color+'"'+(color.startsWith('#')?' style="--notice-text-color:'+color+'"':'')+'>'+markup+'</span>';
  return linkHTML(run.href,markup);
 }
 
@@ -155,7 +171,8 @@ export function renderNoticeBody(content,{imageURL,renderStickers,editing=false}
    const picture='<img src="'+escapeHTML(imageURL(block.asset))+'" alt="'+escapeHTML(block.alt)+'" loading="'+(editing?'eager':'lazy')+'" draggable="false">';
    markup+='<figure class="official-rich-image" data-align="'+align+'" data-width="'+width+'"'+
     (editing?' contenteditable="false" data-notice-asset="'+escapeHTML(block.asset)+'" data-href="'+escapeHTML(noticeHref(block.href)||'')+'"':'')+
-    ' style="--notice-image-width:'+width+'%">'+(editing?picture:linkHTML(block.href,picture))+'</figure>';
+    ' style="--notice-image-width:'+width+'%">'+(editing?picture:noticeZoomButton(picture,block.alt)+
+     (noticeHref(block.href)?linkHTML(block.href,'연결된 링크 열기'):'') )+'</figure>';
    continue;
   }
   if(!blockTypes.includes(block.type))continue;
@@ -170,6 +187,34 @@ export function renderNoticeBody(content,{imageURL,renderStickers,editing=false}
  }
  closeList();
  return markup;
+}
+
+export function noticeZoomButton(picture,alt=''){
+ return '<button type="button" class="official-rich-image-zoom" data-notice-image aria-label="'+
+  escapeHTML(alt?'이미지 확대 · '+alt:'이미지 확대')+'">'+picture+'</button>';
+}
+
+export function openNoticeImage(event){
+ if(event.defaultPrevented)return false;
+ const trigger=event.target.closest?.('[data-notice-image]');
+ const image=trigger?.querySelector('img');
+ if(!image)return false;
+ event.preventDefault();
+ const dialog=document.createElement('dialog');
+ dialog.className='official-notice-image-dialog';
+ dialog.setAttribute('aria-label','공지 이미지 확대');
+ const copy=image.cloneNode(false);
+ copy.removeAttribute('loading');
+ copy.removeAttribute('width');
+ copy.removeAttribute('height');
+ const close=document.createElement('button');
+ close.type='button';close.textContent='닫기';close.onclick=()=>dialog.close();
+ dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close();});
+ dialog.addEventListener('close',()=>{dialog.remove();trigger.focus({preventScroll:true});},{once:true});
+ dialog.append(close,copy);
+ document.body.append(dialog);
+ dialog.showModal();
+ return true;
 }
 
 export function renderNoticeEntry(entry,{imageURL=asset=>noticeAssetURL(asset,entry.id.replace(/^campaign:/,'')),renderStickers}={}){

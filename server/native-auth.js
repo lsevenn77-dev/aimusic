@@ -1,6 +1,7 @@
 import {sourceFromRequest} from './signup-source.js';
 import {one,run,id,fail,json} from './db.js';
 import {session} from './auth.js';
+import {ensureWelcomeReceipt} from './welcome-notices.js';
 
 // SDK access tokens are bearer credentials: only accept the configured Kakao app,
 // and derive the account exclusively from Kakao's verified responses.
@@ -26,6 +27,7 @@ export async function nativeAuthRoute(req,env,path){
  if(!user){
   user={id:id(),name:identity.name,email:identity.email||`kakao-${identity.sub}@identity.aifect.invalid`,provider:'kakao'};
   await run(env,'INSERT INTO users(id,email,name,provider,subject,created,signup_source) VALUES(?,?,?,?,?,unixepoch(),?)',user.id,user.email,user.name,'kakao',identity.sub,sourceFromRequest(req)||'app');
+  await ensureWelcomeReceipt(env,user.id);
  }
  return json({user},200,{'set-cookie':await session(env,user,new URL(req.url).protocol==='https:'),'cache-control':'no-store'});
 }

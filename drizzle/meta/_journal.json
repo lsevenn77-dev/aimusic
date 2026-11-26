@@ -806,6 +806,13 @@
       "when": 1795666638793,
       "tag": "0114_gift_dispatch",
       "breakpoints": true
+    },
+    {
+      "idx": 115,
+      "version": "6",
+      "when": 1795684472916,
+      "tag": "0115_official_notice_delivery",
+      "breakpoints": true
     }
   ]
 }

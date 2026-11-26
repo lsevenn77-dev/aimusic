@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {kakaoIdentity} from '../server/native-auth.js';
 import {fixture} from './fixture.mjs';
+import {activateWelcomeCampaign} from '../server/welcome-notices.js';
 
 const info={id:12345,app_id:1567877,expires_in:3600};
 const profile={id:12345,kakao_account:{profile:{nickname:'리스너'},email:'unverified@example.test',is_email_verified:false}};
@@ -31,4 +32,14 @@ test('native Kakao endpoint reuses web identity and never trusts client account 
  assert.equal(result.status,200);assert.equal(result.body.user.id,'kakao-owner');assert.equal(result.body.user.email,'old@example.test');
  assert.equal(f.sql.prepare("SELECT count(*) n FROM users WHERE provider='kakao'").get().n,1);
  assert.equal(f.sql.prepare("SELECT count(*) n FROM sessions WHERE user_id='kakao-owner'").get().n,1);
+});
+test('native Kakao signup delivers the welcome once before inbox startup',async t=>{
+ const f=await fixture(t,{KAKAO_APP_ID:'1567877'});
+ await activateWelcomeCampaign({DB:f.DB});
+ t.mock.method(globalThis,'fetch',request());
+ const path='/api/auth/kakao/token',body={accessToken:'test-access-token'};
+ const first=await f.call(path,'POST',body,null),second=await f.call(path,'POST',body,null);
+ assert.equal(first.status,200);assert.equal(second.body.user.id,first.body.user.id);
+ assert.deepEqual({...f.sql.prepare('SELECT state,attempts FROM notice_signup_deliveries WHERE user_id=?').get(first.body.user.id)},{state:'sent',attempts:1});
+ assert.equal(f.sql.prepare("SELECT count(*) n FROM welcome_receipts WHERE user_id=? AND source='automatic'").get(first.body.user.id).n,1);
 });

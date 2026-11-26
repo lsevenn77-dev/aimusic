@@ -6,7 +6,6 @@
   specific:'특정 회원',welcome:'신규 가입자',test:'테스트 회원'
  };
  const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const splitIds=value=>value.trim().split(/[,\s]+/u).filter(Boolean);
  const uniq=ids=>[...new Set(ids)];
  const requestJson=(request,path,method,data)=>request(api+path,{method,body:JSON.stringify(data)});
 
@@ -129,52 +128,104 @@
   return {setWritable(value){writable=value;enable();}};
  }
 
- function create(root,{request,onChange,notify}){
+ const exclusionText={
+  not_found:'등록된 회원이 없습니다.',withdrawn:'탈퇴한 회원입니다.',
+  ai_account:'AI 활동 계정입니다.',invalid_format:'회원 고유 ID 형식을 확인해 주세요.'
+ };
+ function memberMarkup(member){
+  const image=member.profile_id&&member.image_version?'/media/producer/'+encodeURIComponent(member.profile_id)+'?v='+
+   encodeURIComponent(member.image_version):'/assets/default-avatar.svg';
+  return '<span class="notice-member-person"><img src="'+esc(image)+'" alt="" loading="lazy"><span><b>'+
+   esc(member.name||'회원 정보를 확인해 주세요.')+'</b><small>'+esc(member.public_id||'')+'</small></span></span>';
+ }
+
+ function create(root,{request,onChange}){
   root.innerHTML=`<div class="notice-audience-head"><label class="notice-field">발송 대상
    <select data-audience-type><option value="">선택해 주세요</option>${Object.entries(types).slice(0,5).map(([value,label])=>'<option value="'+value+'">'+label+'</option>').join('')}</select>
-   </label><p>가입한 회원 중 AI 활동 계정과 탈퇴 계정을 제외합니다.</p></div>
+   </label><div class="notice-audience-count"><p data-audience-count role="status"></p>
+    <button type="button" data-count-retry hidden>다시 조회</button></div></div>
    <div data-specific hidden>
-    <label class="notice-field">회원 ID <textarea rows="3" data-member-ids placeholder="쉼표, 공백 또는 줄바꿈으로 여러 ID를 넣을 수 있습니다."></textarea></label>
-    <div class="notice-inline"><input type="search" data-member-query placeholder="닉네임 또는 회원 ID" aria-label="닉네임 또는 회원 ID">
+    <div class="notice-inline"><input type="search" data-member-query placeholder="닉네임 또는 회원 고유 ID" aria-label="닉네임 또는 회원 고유 ID" maxlength="100">
      <button type="button" data-member-search>검색</button></div>
     <div class="notice-member-search" data-search-results hidden>
      <div class="notice-actions"><button type="button" data-page-select>현재 페이지 선택</button>
       <button type="button" data-search-select>검색 결과 전체 선택</button></div>
      <ul data-member-results class="notice-member-results"></ul><button type="button" data-member-more hidden>다음 페이지</button>
     </div>
-    <p data-member-status role="status"></p><div data-roster></div>
+    <p class="notice-state" data-member-status role="status"></p>
+    <details class="notice-bulk"><summary>회원 고유 ID 일괄 입력</summary>
+     <label class="notice-field">회원 고유 ID <textarea data-bulk-input rows="3" placeholder="쉼표 또는 줄바꿈으로 구분해 주세요."></textarea></label>
+     <button type="button" data-bulk-add>명단에 추가</button>
+     <p class="notice-state" data-bulk-status role="status"></p><ul class="notice-list notice-bulk-errors" data-bulk-errors hidden></ul>
+    </details>
+    <div class="notice-selected" data-selected hidden>
+     <div class="notice-inline"><strong data-selected-count></strong><button type="button" data-clear-members>전체 해제</button></div>
+     <ul class="notice-member-results" data-selected-list></ul><button type="button" data-selected-more hidden>선택한 회원 더 보기</button>
+    </div>
    </div>`;
-  const $=s=>root.querySelector(s),type=$('[data-audience-type]'),ids=$('[data-member-ids]'),
-   search=$('[data-member-query]'),results=$('[data-member-results]'),status=$('[data-member-status]');
-  let page=[],next=null,lastQuery='',ticket=0;
-  const value=()=>({type:type.value,ids:type.value==='specific'?splitIds(ids.value):[]});
-  const say=message=>{status.textContent=message;notify?.(message);};
+  const $=s=>root.querySelector(s),type=$('[data-audience-type]'),search=$('[data-member-query]'),results=$('[data-member-results]'),
+   status=$('[data-member-status]'),countStatus=$('[data-audience-count]'),selectedList=$('[data-selected-list]'),
+   pageControls=$('[data-search-results]'),countRetry=$('[data-count-retry]'),bulk=$('[data-bulk-add]');
+  const chosen=new Map();
+  let page=[],next=null,lastQuery='',ticket=0,lookup=0,countTicket=0,bulkTicket=0,timer=null,writable=false,selectingAll=false,displayLimit=50;
+  const value=()=>({type:type.value,ids:type.value==='specific'?[...chosen.keys()]:[]});
+  const number=n=>n.toLocaleString('ko-KR');
+  const say=message=>{status.textContent=message;};
+  const post=(path,data)=>requestJson(request,path,'POST',data);
+  function countResult(count){
+   countStatus.textContent='대상 '+number(count)+'명';countRetry.hidden=true;
+  }
+  function refreshCount(){
+   const mine=++countTicket;
+   const audience=value();
+   clearTimeout(timer);
+   countRetry.hidden=true;
+   countStatus.textContent=audience.type?'발송 대상을 조회하는 중입니다.':'';
+   if(!writable||!audience.type){countStatus.textContent='';return;}
+   timer=setTimeout(async()=>{
+    try{
+     const result=await post('/targets/count',{audience});
+     if(mine===countTicket)countResult(result.count);
+    }catch(error){
+     if(mine===countTicket){countStatus.textContent='대상 인원을 조회하지 못했습니다. '+error.message;countRetry.hidden=false;}
+    }
+   },180);
+  }
   function refresh(){
-   const chosen=new Set(splitIds(ids.value));
-   for(const toggle of results.querySelectorAll('input[type=checkbox]'))toggle.checked=chosen.has(toggle.value);
-   status.textContent=chosen.size?chosen.size.toLocaleString('ko-KR')+'명 선택':'';
+   for(const toggle of results.querySelectorAll('input[type=checkbox]')){toggle.checked=chosen.has(page[Number(toggle.value)]?.id);toggle.disabled=!writable;}
+   $('[data-selected]').hidden=!chosen.size;
+   $('[data-selected-count]').textContent=number(chosen.size)+'명 선택';
+   $('[data-selected-more]').hidden=chosen.size<=displayLimit;
+   selectedList.innerHTML=Array.from(chosen.values()).slice(0,displayLimit).map((member,i)=>
+    '<li>'+memberMarkup(member)+'<button type="button" data-member-remove="'+i+'" aria-label="'+esc((member.name||'회원')+' 제거')+
+    '"'+(writable?'':' disabled')+'>제거</button></li>').join('');
   }
-  function setIds(chosen,changed=true){
-   if(chosen.length>max){say('회원 ID는 10,000개까지 선택할 수 있습니다.');return;}
-   ids.value=chosen.join('\n');refresh();if(changed)onChange(value());
+  function changed(){refresh();refreshCount();onChange(value());}
+  function addMembers(members){
+   const unique=new Map(members.map(member=>[member.id,member])),newMembers=[...unique.values()].filter(member=>!chosen.has(member.id));
+   if(chosen.size+newMembers.length>max)throw new Error('회원은 10,000명까지 선택할 수 있습니다.');
+   for(const member of unique.values())chosen.set(member.id,member);
+   if(newMembers.length)changed();else refresh();
+   return newMembers.length;
   }
-  const roster=rosterTools($('[data-roster]'),{request,getIds:()=>value().ids,setIds,notify:say});
-  type.addEventListener('change',()=>{$('[data-specific]').hidden=type.value!=='specific';onChange(value());});
-  ids.addEventListener('input',()=>{refresh();onChange(value());});
+  type.addEventListener('change',()=>{$('[data-specific]').hidden=type.value!=='specific';changed();});
+  countRetry.onclick=refreshCount;
   const searchPath=(q,after)=>api+'/members?'+new URLSearchParams({q,...(after?{after}:{})});
   async function find(append=false){
+   if(!writable)return;
    const mine=++ticket,q=append?lastQuery:search.value.trim();
+   pageControls.hidden=true;page=[];results.replaceChildren();
    if(!q){say('닉네임 또는 회원 ID를 입력해 주세요.');return;}
    try{
     say('회원을 찾는 중입니다.');
     const result=await request(searchPath(q,append?next:null));
     if(ticket!==mine)return;
     page=result.members;next=result.next;lastQuery=q;
-    $('[data-search-results]').hidden=false;
+    pageControls.hidden=!page.length;
     $('[data-member-more]').hidden=!next;
-    results.innerHTML=page.map(m=>'<li><label><input type="checkbox" value="'+esc(m.id)+'"> <b>'+esc(m.name)+'</b> <code>'+esc(m.id)+'</code></label></li>').join('');
+    results.innerHTML=page.map((member,i)=>'<li><label><input type="checkbox" value="'+i+'">'+memberMarkup(member)+'</label></li>').join('');
     refresh();
-    if(!page.length)say('검색 결과가 없습니다.');
+    say(page.length?'':'검색 결과가 없습니다.');
    }catch(error){if(ticket===mine)say(error.message);}
   }
   $('[data-member-search]').onclick=()=>find();
@@ -183,30 +234,72 @@
   results.addEventListener('change',event=>{
    const item=event.target;
    if(item.type!=='checkbox')return;
-   const chosen=new Set(value().ids);
-   if(item.checked)chosen.add(item.value);else chosen.delete(item.value);
-   setIds(Array.from(chosen));
+   const member=page[Number(item.value)];
+   if(!member)return;
+   if(item.checked){try{addMembers([member]);}catch(error){item.checked=false;say(error.message);}}
+   else{chosen.delete(member.id);changed();}
   });
-  $('[data-page-select]').onclick=()=>setIds(uniq([...value().ids,...page.map(m=>m.id)]));
+  $('[data-page-select]').onclick=()=>{try{addMembers(page);}catch(error){say(error.message);}};
   $('[data-search-select]').onclick=async event=>{
    const button=event.currentTarget;
-   if(!lastQuery||button.disabled)return;
-   const q=lastQuery,selected=new Set(value().ids);
-   button.disabled=true;
+   if(!lastQuery||selectingAll||!page.length)return;
+   const q=lastQuery,mine=ticket,members=new Map();
+   selectingAll=true;button.disabled=true;
    try{
     let after=null;
     do{
      const data=await request(searchPath(q,after));
-     data.members.forEach(m=>selected.add(m.id));after=data.next;
-     if(selected.size>max)throw new Error('회원 ID는 10,000개까지 선택할 수 있습니다.');
+     if(mine!==ticket)return;
+     data.members.forEach(member=>members.set(member.id,member));after=data.next;
+     if(members.size>max)throw new Error('회원은 10,000명까지 선택할 수 있습니다.');
     }while(after);
-    if(q===lastQuery)setIds(uniq([...value().ids,...selected]));
-   }catch(error){say(error.message);}finally{button.disabled=false;}
+    addMembers([...members.values()]);
+   }catch(error){if(mine===ticket)say(error.message);}finally{selectingAll=false;button.disabled=!writable;}
   };
-  return {value,set(input={type:'',ids:[]}){
-   type.value=input.type||'';$('[data-specific]').hidden=type.value!=='specific';setIds(input.ids??[],false);
-  },setWritable(writable){type.disabled=!writable;ids.disabled=!writable;roster.setWritable(writable);},
-  setRosterWritable(writable){roster.setWritable(writable);}};
+  bulk.onclick=async()=>{
+   const mine=++bulkTicket,field=$('[data-bulk-input]'),bulkStatus=$('[data-bulk-status]'),errors=$('[data-bulk-errors]');
+   const codes=field.value.split(/[,\r\n]+/u).map(value=>value.trim()).filter(Boolean);
+   errors.hidden=true;errors.replaceChildren();
+   if(!codes.length){bulkStatus.textContent='회원 고유 ID를 입력해 주세요.';return;}
+   bulk.disabled=true;bulkStatus.textContent='회원 고유 ID를 확인하는 중입니다.';
+   try{
+    const data=await post('/members/resolve',{codes});
+    if(mine!==bulkTicket)return;
+    const added=addMembers(data.members);
+    bulkStatus.textContent=number(added)+'명 추가 · 중복 '+number(data.members.length-added)+'명 · 제외 '+number(data.excluded.length)+'개';
+    errors.hidden=!data.excluded.length;
+    errors.innerHTML=data.excluded.map(item=>'<li><code>'+esc(item.public_id)+'</code> '+esc(exclusionText[item.reason])+'</li>').join('');
+   }catch(error){if(mine===bulkTicket)bulkStatus.textContent=error.message;}
+   finally{if(mine===bulkTicket)bulk.disabled=!writable;}
+  };
+  $('[data-clear-members]').onclick=()=>{chosen.clear();changed();};
+  $('[data-selected-more]').onclick=()=>{displayLimit+=50;refresh();};
+  selectedList.addEventListener('click',event=>{
+   const button=event.target.closest('[data-member-remove]');
+   if(button){chosen.delete([...chosen.keys()][Number(button.dataset.memberRemove)]);changed();}
+  });
+  return {value,confirmed(count){
+   ++countTicket;clearTimeout(timer);countResult(count);
+  },async set(input={type:'',ids:[]}){
+   const mine=++lookup;
+   ++ticket;++bulkTicket;
+   search.value='';page=[];next=null;lastQuery='';pageControls.hidden=true;say('');
+   $('[data-bulk-input]').value='';$('[data-bulk-status]').textContent='';$('[data-bulk-errors]').hidden=true;bulk.disabled=!writable;
+   displayLimit=50;chosen.clear();
+   for(const id of input.ids??[])chosen.set(id,{id});
+   type.value=input.type||'';$('[data-specific]').hidden=type.value!=='specific';refresh();refreshCount();
+   if(!chosen.size||!writable)return;
+   try{
+    const {members}=await post('/members/resolve',{ids:[...chosen.keys()]});
+    if(mine!==lookup)return;
+    for(const member of members)if(chosen.has(member.id))chosen.set(member.id,member);
+    refresh();
+   }catch(error){if(mine===lookup)say('선택한 회원의 정보를 조회하지 못했습니다. '+error.message);}
+  },setWritable(value){
+   writable=value;
+   for(const node of root.querySelectorAll('input,select,textarea,button'))node.disabled=!value;
+   refresh();
+  }};
  }
- globalThis.AifectNoticeAudience={create,rosterTools,types,download,max,esc};
+ globalThis.AifectNoticeAudience={create,rosterTools,types,download,max,esc,exclusionText};
 })();

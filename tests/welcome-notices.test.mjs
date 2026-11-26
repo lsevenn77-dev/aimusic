@@ -132,7 +132,7 @@ test('concurrent activation and startup retries create one receipt and never res
  assert.equal(f.sql.prepare('SELECT content_json FROM welcome_campaigns WHERE id=?').get(WELCOME_CAMPAIGN_ID).content_json,JSON.stringify(historical));
 });
 
-test('the broadcast snapshot excludes later signups; common authenticated startup automatically delivers once for every login provider',async t=>{
+test('later signups have a dedicated queue entry and subsequent authenticated startup leaves the receipt intact',async t=>{
  const f=await fixture(t),env={DB:f.DB};
  await activateWelcomeCampaign(env);
  const max=f.sql.prepare('SELECT recipient_max_rowid n FROM welcome_campaigns').get().n;
@@ -142,6 +142,8 @@ test('the broadcast snapshot excludes later signups; common authenticated startu
  assert.equal(count(f,'welcome_receipts'),2,'retries must not expand the original broadcast audience');
  for(const provider of ['email','google','kakao','apple']){
   const user='new-'+provider;
+  assert.equal(f.sql.prepare('SELECT state FROM notice_signup_deliveries WHERE user_id=?').get(user).state,'pending');
+  await Promise.all([ensureWelcomeReceipt(env,user),ensureWelcomeReceipt(env,user)]);
   const results=await Promise.all([f.call('/api/me','GET',undefined,user),f.call('/api/me','GET',undefined,user)]);
   assert.ok(results.every(r=>r.status===200));
   assert.equal(receipt(f,user).source,'automatic');
