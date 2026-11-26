@@ -39,6 +39,7 @@ import {communityRankingRoute} from './community-rankings.js';
 import {dubbingAdminRoute} from './dubbing-admin.js';
 import {playRoute} from './play.js';
 import {adminMcpRoute} from './admin-mcp.js';
+import {assetRecoveryRoute,recoveryPath} from './asset-recovery.js';
 import {dubbingReportsAdminRoute} from './dubbing-reports.js';
 import {pitchCorrectionRoute} from './pitch-correction.js';
 import {dubbingRoute} from './dubbing.js';
@@ -303,6 +304,7 @@ async function fetchRequest(req,env,ctx){
  }
 }
 async function serve(req,env,ctx){
+ if(new URL(req.url).pathname.startsWith(recoveryPath))return assetRecoveryRoute(req,env);
  let response=await observeReadRequest(req,env,ctx,fetchRequest);
  if(!response.headers.get('content-type')?.startsWith('text/html'))return response;
  const pageURL=new URL(req.url);

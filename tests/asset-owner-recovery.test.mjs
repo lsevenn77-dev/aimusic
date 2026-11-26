@@ -1,0 +1,44 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import {Miniflare,convertV4MiniflareOptions} from 'miniflare';
+import {authenticateMcp} from '../server/admin-mcp-auth.js';
+import {assetRecoveryRoute,recoveryAccess,recoveryPath} from '../server/asset-recovery.js';
+
+test('temporary recovery requires the authenticated Site owner and release key, and exports a restorable typed snapshot',async t=>{
+ const mf=new Miniflare(convertV4MiniflareOptions({modules:true,script:'export default {fetch(){return new Response()}}',compatibilityDate:'2026-09-01',d1Databases:['DB'],r2Buckets:['BUCKET']}));
+ t.after(()=>mf.dispose());
+ const DB=await mf.getD1Database('DB'),BUCKET=await mf.getR2Bucket('BUCKET');
+ const env={DB,BUCKET,AIFECT_MCP_ENABLED:'true',AIFECT_MCP_OWNER_ID:'fixture-owner',CAFE24_ORIGIN_KEY:'isolated-placeholder-for-local-recovery-test'};
+ const clock=Date.now(),pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+ const access=recoveryAccess(await crypto.subtle.exportKey('jwk',pair.publicKey),clock+3600000,()=>clock);
+ const owner=authenticateMcp(new Request('https://example.test/mcp',{headers:{'oai-authenticated-user-id':'fixture-owner'}}),env);
+ assert.equal(await access.grant(env,{id:owner.id}),null);
+ const grant=await access.grant(env,owner),origin='https://aifect.co.kr'+recoveryPath;
+ const signed=async path=>{
+  const url=new URL(path,origin).href;
+  const msg=['GET',url,String(clock),String(grant.expires_at),grant.proof].join('\n');
+  const sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},pair.privateKey,new TextEncoder().encode(msg));
+  return new Request(url,{headers:{'x-recovery-expiry':String(grant.expires_at),'x-recovery-time':String(clock),'x-recovery-owner':grant.proof,'x-recovery-signature':Buffer.from(sig).toString('hex')}});
+ };
+ const read=async path=>assetRecoveryRoute(await signed(path),env,access);
+ assert.equal((await assetRecoveryRoute(new Request(origin+'schema'),{},access)).status,404);
+ const original=await signed('schema');
+ assert.equal((await assetRecoveryRoute(new Request(origin+'objects',{headers:original.headers}),env,access)).status,404);
+ assert.equal((await assetRecoveryRoute(new Request(original,{method:'POST'}),env,access)).status,404);
+ assert.equal((await assetRecoveryRoute(original,env,recoveryAccess(await crypto.subtle.exportKey('jwk',pair.publicKey),clock-1,()=>clock))).status,404);
+ await DB.batch([DB.prepare('CREATE TABLE assets(id INTEGER PRIMARY KEY AUTOINCREMENT,text_value TEXT,integral INTEGER,number REAL,data BLOB,empty TEXT)'),DB.prepare("INSERT INTO assets VALUES(7,'음'||char(0)||'악',9223372036854775807,0.125,X'0027FE',NULL)")]);
+ const schemaResponse=await read('schema');assert.equal(schemaResponse.status,200);const model=await schemaResponse.json();
+ const suffix='?schema='+model.digest;const size=await(await read('sizes'+suffix)).json();
+ assert.ok(size.sizes.some(s=>s.t==='assets'&&s.n===1));
+ const rows=await(await read('rows'+suffix+'&tables=all')).json();
+ assert.deepEqual(JSON.parse(rows.records.find(r=>r.t==='assets').record),['i7','i7','t음\u0000악','i9223372036854775807','r0.125','b0027FE','n']);
+ assert.equal((await read('rows?schema=no&tables=all')).status,409);
+ assert.equal((await read('rows'+suffix+'&tables=-2')).status,400);
+ const object=await BUCKET.put('product-media/example/file.webp','test',{customMetadata:{role:'fixture'}});
+ const listing=await(await read('objects?prefix=product-media%2F')).json();
+ assert.equal(listing.objects[0].customMetadata.role,'fixture');
+ assert.equal((await read('objects?prefix=private%2F')).status,400);
+ assert.equal(await(await read('object?key=product-media%2Fexample%2Ffile.webp&etag='+object.etag)).text(),'test');
+ assert.equal((await read('object?key=product-media%2Fexample%2Ffile.webp&etag=wrong')).status,409);
+ assert.equal((await read('object?key=private%2Fanything&etag=wrong')).status,400);
+});

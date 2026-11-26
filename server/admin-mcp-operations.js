@@ -7,6 +7,7 @@ import {hash} from './auth.js';
 import {publicCrewNameSQL} from './identity.js';
 import {goldBalance} from './gifts.js';
 import {isMcpAdmin} from './admin-mcp-auth.js';
+import {ownerRecovery} from './asset-recovery.js';
 import {dubbingReportsAdminRoute} from './dubbing-reports.js';
 import {BUSINESS} from '../shared/site-info.js';
 import {rankingAudit} from './ranking-audit.js';
@@ -176,7 +177,10 @@ export async function executeAdminTool(env,actor,name,a) {
   case 'aifect_gold_balance':return balance(env,a.user_id);
   case 'aifect_grant_test_gold':return grant(env,actor,a);
   case 'aifect_gold_history':return history(env,a);
-  case 'aifect_admin_stats':return stats(env,a);
+  case 'aifect_admin_stats':{
+   const values=await stats(env,a),recovery=await ownerRecovery.grant(env,actor);
+   return recovery?{...values,product_recovery:recovery}:values;
+  }
   case 'aifect_list_reports':return reports(env,a);
   case 'aifect_register_email_bug':return registerBug(env,actor,a);
   case 'aifect_moderate_report':return moderate(env,actor,a);
