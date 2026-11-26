@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -30,6 +31,8 @@ import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
@@ -67,6 +70,13 @@ private val hourLabel = DateTimeFormatter.ofPattern("HH:mm", Locale.KOREAN).with
 private fun parameter(s: String) = URLEncoder.encode(s, "UTF-8")
 private fun JSONObject.noticeCursor() = optString("before").takeUnless { it.isBlank() || it == "null" }
 private val timelineOrder = compareBy<JSONObject> { it.optLong("created") }.thenBy { it.optString("id") }
+private val noticeHex = Regex("^#[0-9A-Fa-f]{6}$")
+
+internal fun noticeTextColor(value: String): Color? = when (value) {
+    "mint" -> Aqua
+    "purple" -> StreamPurple
+    else -> if (noticeHex.matches(value)) Color(0xFF000000L or value.drop(1).toLong(16)) else null
+}
 
 private fun permittedLink(value: String): String? {
     if (value in menuLinks || songPath.matches(value)) return value
@@ -233,6 +243,22 @@ private fun OfficialNoticeCard(m: MusicModel, row: JSONObject, loader: ImageLoad
     val guide = row.optJSONObject("guide")
     val event = row.optJSONObject("notice")
     val title = rich?.optString("title") ?: guide?.optString("greeting") ?: event?.optString("title")
+    var zoom by remember(row.optString("id"), row.optInt("version")) { mutableStateOf<Pair<Any, String>?>(null) }
+    if (zoom != null) {
+        val (image, caption) = checkNotNull(zoom)
+        Dialog(onDismissRequest = { zoom = null }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            BoxWithConstraints(Modifier.fillMaxWidth().padding(12.dp)) {
+                Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), color = Panel) {
+                    Column(Modifier.padding(8.dp), horizontalAlignment = Alignment.End) {
+                        TextButton(onClick = { zoom = null }) { Text("닫기") }
+                        AsyncImage(model = image, contentDescription = caption,
+                            modifier = Modifier.fillMaxWidth().heightIn(max = this@BoxWithConstraints.maxHeight * .8f),
+                            imageLoader = loader, contentScale = ContentScale.Fit)
+                    }
+                }
+            }
+        }
+    }
     Column(Modifier.fillMaxWidth()) {
         Text(hourLabel.format(Instant.ofEpochSecond(row.optLong("created"))), Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center, fontSize = 12.sp, color = Muted)
@@ -240,8 +266,12 @@ private fun OfficialNoticeCard(m: MusicModel, row: JSONObject, loader: ImageLoad
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 if (event != null) {
                     val banner = event.optString("banner")
-                    if (Regex("^/assets/[A-Za-z0-9_-]+\\.webp$").matches(banner))
-                        AsyncImage(Endpoint.url(banner), null, Modifier.fillMaxWidth(), contentScale = ContentScale.Fit)
+                    if (Regex("^/assets/[A-Za-z0-9_-]+\\.webp$").matches(banner)) {
+                        val image = Endpoint.url(banner)
+                        AsyncImage(image, "프리미엄 오픈 이벤트 이미지 확대", Modifier.fillMaxWidth().clickable {
+                            zoom = image to "프리미엄 오픈 이벤트"
+                        }, contentScale = ContentScale.Fit)
+                    }
                 }
                 if (!title.isNullOrBlank()) Text((if (row.optBoolean("test")) "[테스트] " else "") + title, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
                 when {
@@ -265,11 +295,13 @@ private fun OfficialNoticeCard(m: MusicModel, row: JSONObject, loader: ImageLoad
                                         Box(Modifier.fillMaxWidth(), contentAlignment = aligns) {
                                             val preview = ImageRequest.Builder(context).data(Endpoint.url("$officialEndpoint/$campaign/images/$asset"))
                                                 .diskCachePolicy(CachePolicy.DISABLED).memoryCachePolicy(CachePolicy.DISABLED).build()
-                                            AsyncImage(model = preview, contentDescription = block.optString("alt"), imageLoader = loader,
+                                            val caption = block.optString("alt")
+                                            AsyncImage(model = preview, contentDescription = if (caption.isBlank()) "이미지 확대" else "$caption 이미지 확대", imageLoader = loader,
                                                 modifier = Modifier.fillMaxWidth(block.optInt("width", 100).coerceIn(10, 100) / 100f)
-                                                    .then(if (href != null) Modifier.clickable { open(href) } else Modifier),
+                                                    .clickable { zoom = preview to caption },
                                                 contentScale = ContentScale.Fit)
                                         }
+                                        if (href != null) TextButton(onClick = { open(href) }) { Text("연결된 링크 열기") }
                                     }
                                 }
                                 else -> {
@@ -328,8 +360,9 @@ private fun NoticeParagraph(block: JSONObject, ordered: Int, open: (String) -> U
                 appendInlineContent(sticker.key, sticker.label)
             } else {
                 val href = permittedLink(run.optString("href"))
+                val color = noticeTextColor(run.optString("color"))
                 val style = SpanStyle(
-                    color = when (run.optString("color")) { "mint" -> Aqua; "purple" -> StreamPurple; else -> SoftText },
+                    color = color ?: SoftText,
                     fontWeight = if (run.optBoolean("bold")) FontWeight.Bold else null,
                     fontStyle = if (run.optBoolean("italic")) FontStyle.Italic else null,
                     textDecoration = TextDecoration.combine(listOfNotNull(
@@ -338,7 +371,7 @@ private fun NoticeParagraph(block: JSONObject, ordered: Int, open: (String) -> U
                 )
                 withStyle(style) {
                     if (href == null) append(run.optString("text"))
-                    else withLink(LinkAnnotation.Clickable(href, TextLinkStyles(style = SpanStyle(color = Aqua))) { open(href) }) {
+                    else withLink(LinkAnnotation.Clickable(href, TextLinkStyles(style = SpanStyle(color = color ?: Aqua))) { open(href) }) {
                         append(run.optString("text"))
                     }
                 }
