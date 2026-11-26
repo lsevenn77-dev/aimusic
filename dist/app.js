@@ -38,6 +38,7 @@ function invalidateBlockReads(){
 }
 function invalidatesBrowseReads(path,method){
  if(method==='GET'||path==='/api/notifications/read'||/^\/api\/(playback|listens)\//.test(path))return false;
+ if(method==='POST'&&shopTransactionKind(path))return false;
  // Delivery/read receipts cannot invalidate unrelated music or navigation.
  if(/^\/api\/dm\/[\w-]+$/.test(path)&&['POST','PATCH'].includes(method))return false;
  if(/^\/api\/crews\/[\w-]+\/messages$/.test(path)&&method==='POST')return false;
@@ -49,21 +50,77 @@ function peekApiRead(path,options={}){
  const entry=apiReads.get((me?.id||'guest')+':'+path);
  return entry&&!entry.pending&&entry.revision===apiRevision&&(options.display?entry.displayUntil:entry.until)>Date.now()?structuredClone(entry.value):null;
 }
+const walletBalancePath='/api/gold/balance';
+function currentWalletBalance(){return me?apiReads.get(me.id+':'+walletBalancePath)?.value:null;}
+function paintWalletBalances(wallet=currentWalletBalance()){
+ if(!wallet)return;
+ document.querySelectorAll('[data-wallet-currency]').forEach(node=>{
+  const currency=node.dataset.walletCurrency,amount=currency==='S'?wallet.silver_balance:wallet.balance;
+  if(!Number.isFinite(amount))return;
+  const html=shopPrice(amount,currency,Number(node.dataset.walletSize)||20);
+  if(node.innerHTML!==html)node.innerHTML=html;
+ });
+ $('#gift-form')?._giftUI?.updateBalance?.(wallet);
+ $('#shop-order')?._updateBalance?.(wallet);
+ $('#shop-gift-form')?._updateBalance?.(wallet);
+}
+function shopTransactionKind(path){
+ if(path==='/api/me/gift-inventory/buy')return 'buy-gift';
+ if(path==='/api/decorations/buy')return 'buy-decoration';
+ if(/^\/api\/me\/gift-inventory\/[\w-]+\/send$/.test(path))return 'send-owned-gift';
+ if(/^\/api\/decorations\/inventory\/[\w-]+\/send$/.test(path))return 'send-owned-decoration';
+ if(['/api/gifts/checkout','/api/decorations/gift'].includes(path)||/^\/api\/(tracks|producers)\/[\w-]+\/gifts$/.test(path))return 'gift';
+ return null;
+}
+function updateAfterShopTransaction(kind,account,profileId,trackId){
+ if(!account||me?.id!==account)return;
+ if(profileId){
+  const prefix=account+':/api/producers/'+profileId;
+  for(const key of apiReads.keys())if(key===prefix||key.startsWith(prefix+'?'))apiReads.delete(key);
+ }
+ if(kind==='buy-gift'||kind==='send-owned-gift'){
+  window.dispatchEvent(new CustomEvent('aifect:inventory-changed',{detail:{kind:'gifts'}}));
+ }else if(kind==='buy-decoration'||kind==='send-owned-decoration'){
+  window.dispatchEvent(new CustomEvent('aifect:inventory-changed',{detail:{kind:'player'}}));
+ }
+ if(kind==='gift'||kind.startsWith('buy-')){
+  // A read started before the debit may still be in flight. Keep its last
+  // confirmed value visible while requesting the wallet after this receipt.
+  const key=account+':'+walletBalancePath,previous=apiReads.get(key);
+  if(previous)previous.stale=true;
+  const refresh=api(walletBalancePath),entry=apiReads.get(key);
+  void refresh.catch(()=>{
+   if(me?.id===account&&apiReads.get(key)===entry)void api(walletBalancePath).catch(()=>{});
+  });
+ }
+ if(!kind.startsWith('buy-')&&typeof refreshSentGiftHistory==='function')void refreshSentGiftHistory();
+ if(trackId&&typeof refreshSongGiftRanking==='function')void refreshSongGiftRanking(trackId);
+}
 async function api(path,method='GET',body,options={}){
  const read=method==='GET',mutates=invalidatesBrowseReads(path,method),blockMutation=!read&&(/^\/api\/blocks\//.test(path)||path.startsWith('/api/follow-management?')&&['block','unblock'].includes(body?.action));
+ const transaction=method==='POST'&&shopTransactionKind(path),walletRead=read&&path===walletBalancePath;
  const invalidate=blockMutation?invalidateBlockReads:invalidateReads;
  if(mutates)invalidate();
  const account=me?.id||'guest',key=account+':'+path,revision=apiRevision;
  // Ten seconds, memory only, account scoped. Money, chat, permissions and studio always stay live.
  const reusable=canCacheApiRead(path);
  const prior=apiReads.get(key);
- if(read&&!options.fresh&&prior&&prior.revision===revision&&(prior.pending?!prior.signal?.aborted&&prior.signal===options.signal:prior.until>Date.now()))return structuredClone(await prior.promise);
+ if(read&&!options.fresh&&prior&&!prior.stale&&prior.revision===revision&&(prior.pending?!prior.signal?.aborted&&prior.signal===options.signal:prior.until>Date.now()))return structuredClone(await prior.promise);
  const entry={revision,pending:true,until:0,signal:options.signal};
+ if(walletRead)entry.value=prior?.value;
  const request=(async()=>{
-  try{const r=await fetch(path,{method,credentials:'same-origin',signal:options.signal,headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw new Error('서버에 연결할 수 없습니다. 다시 시도해 주세요.');}if(!r.ok){if((r.status===401||r.status===403)&&account===(me?.id||'guest')&&revision===apiRevision)invalidateReads();throw Object.assign(new Error(data.error||AifectMessages.retry),{status:r.status});}return data;}
+  try{const r=await fetch(path,{method,credentials:'same-origin',signal:options.signal,headers:body?{'content-type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let data;try{data=await r.json();}catch{throw new Error('서버에 연결할 수 없습니다. 다시 시도해 주세요.');}if(!r.ok){if((r.status===401||r.status===403&&!transaction)&&account===(me?.id||'guest')&&revision===apiRevision)invalidateReads();throw Object.assign(new Error(data.error||AifectMessages.retry),{status:r.status});}return data;}
   finally{if(mutates)invalidate();}
  })();
- if(read){entry.promise=request;apiReads.set(key,entry);request.then(value=>{entry.pending=false;entry.value=structuredClone(value);entry.until=reusable?Date.now()+10000:0;entry.displayUntil=reusable?Date.now()+60000:0;if(!reusable&&apiReads.get(key)===entry)apiReads.delete(key);while(apiReads.size>60)apiReads.delete(apiReads.keys().next().value);},()=>{if(apiReads.get(key)===entry)apiReads.delete(key);});}
+ if(read){entry.promise=request;apiReads.set(key,entry);request.then(value=>{
+  entry.pending=false;entry.value=structuredClone(value);entry.until=reusable?Date.now()+10000:0;entry.displayUntil=reusable?Date.now()+60000:0;
+  if(walletRead&&apiReads.get(key)===entry&&!entry.stale&&me?.id===account)paintWalletBalances(value);
+  if(!reusable&&!walletRead&&apiReads.get(key)===entry)apiReads.delete(key);
+  while(apiReads.size>60)apiReads.delete(apiReads.keys().next().value);
+ },()=>{entry.pending=false;if(!walletRead&&apiReads.get(key)===entry)apiReads.delete(key);});}
+ if(transaction)void request.then(()=>updateAfterShopTransaction(transaction,account,
+  body?.profile_id||path.match(/^\/api\/producers\/([\w-]+)\/gifts$/)?.[1],
+  body?.track_id||path.match(/^\/api\/tracks\/([\w-]+)\/gifts$/)?.[1])).catch(()=>{});
  return structuredClone(await request);
 }
 function remember(tracks){tracks.forEach(t=>trackMap.set(t.id,t));return tracks;}

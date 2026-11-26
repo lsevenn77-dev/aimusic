@@ -1,14 +1,14 @@
 const giftArt=g=>`<img class="gift-art" src="${esc(g.image)}" alt="" width="96" height="96" loading="lazy" decoding="async">`;
 const giftButton=(t,cls='small-button gift-entry')=>me?.id===t.user_id?'':`<button class="${cls}" data-gift="${esc(t.id)}" aria-label="${esc(t.title)} 선물하기">${icon('gift')}<span>선물</span></button>`;
 function giftCards(gifts,selected=null,selectable=false,withCoins=false){return `<div class="gift-catalog">${gifts.map(g=>`<${selectable?'button type="button"':'article'} class="gift-choice ${selected===g.id?'selected':''}" ${selectable?`data-gift-type="${g.id}" aria-pressed="${selected===g.id}"`:''}>${giftArt(g)}<strong>${esc(g.name)}</strong><span>${shopPrice(g.free?g.silver:g.gold,g.free?"S":"G")}</span></${selectable?'button':'article'}>`).join('')}</div>`;}
-function freeRewardsHTML(s,compact=false){const labels={checkin:'오늘 출석',cover:'커버곡 공개',listen:'노래 5곡 감상',comment1:'첫 번째 댓글',comment2:'두 번째 댓글',comment3:'세 번째 댓글'};return `<section class="free-rewards"><div class="free-rewards-title">${shopCoin('S',32)}<div><strong>매일 모으는 작은 응원</strong><p>보유 실버 <b>${shopPrice(s?.balance,'S',20)}</b> · 하루 최대 10 s</p></div><span class="free-gift-badge">무료</span></div>${compact?'<details class="gift-reward-details"><summary>오늘의 보상 받기 · 최대 10 s</summary>':''}<div class="daily-gift-actions">${s?s.rewards.map(r=>`<div class="daily-gift-task"><span>${labels[r.kind]}<small>${r.kind==='listen'?'곡마다 60% 이상 · '+r.progress+'/5곡':r.kind==='cover'?'하루 1회':r.kind.startsWith('comment')?'3자 이상 · 하루 총 3회':'하루 1회'}</small></span><button type="button" class="small-button" data-claim-gift="${r.kind}" ${r.claimed||!r.eligible?'disabled':''}>${r.claimed?'✓ 받음':r.eligible?shopPrice(r.amount,'S')+' 받기':shopPrice(r.amount,'S')+' · '+r.progress+'/'+r.target}</button>${!r.claimed&&!r.eligible?`<a class="text-link" href="${r.kind==='cover'?'#karaoke':'#home'}">${r.kind==='cover'?'커버 공개하기':r.kind==='listen'?'음악 듣기':'곡에서 댓글 남기기'}</a>`:''}</div>`).join(''):'<a class="small-button" href="#account" data-close-dialog>로그인하고 받기</a>'}</div><p class="gift-fineprint">매일 0시(한국 시간) 보상 갱신 · 받은 실버는 누적됩니다.<br>1 s와 1 g는 각각 응원 순위 1점 · 실버는 현금 가치·골드 전환·수익 정산이 없습니다.</p>${compact?'</details>':''}</section>`;}
+function freeRewardsHTML(s,compact=false){const labels={checkin:'오늘 출석',cover:'커버곡 공개',listen:'노래 5곡 감상',comment1:'첫 번째 댓글',comment2:'두 번째 댓글',comment3:'세 번째 댓글'};return `<section class="free-rewards"><div class="free-rewards-title">${shopCoin('S',32)}<div><strong>매일 모으는 작은 응원</strong><p>보유 실버 <b data-wallet-currency="S">${shopPrice(s?.balance,'S',20)}</b> · 하루 최대 10 s</p></div><span class="free-gift-badge">무료</span></div>${compact?'<details class="gift-reward-details"><summary>오늘의 보상 받기 · 최대 10 s</summary>':''}<div class="daily-gift-actions">${s?s.rewards.map(r=>`<div class="daily-gift-task"><span>${labels[r.kind]}<small>${r.kind==='listen'?'곡마다 60% 이상 · '+r.progress+'/5곡':r.kind==='cover'?'하루 1회':r.kind.startsWith('comment')?'3자 이상 · 하루 총 3회':'하루 1회'}</small></span><button type="button" class="small-button" data-claim-gift="${r.kind}" ${r.claimed||!r.eligible?'disabled':''}>${r.claimed?'✓ 받음':r.eligible?shopPrice(r.amount,'S')+' 받기':shopPrice(r.amount,'S')+' · '+r.progress+'/'+r.target}</button>${!r.claimed&&!r.eligible?`<a class="text-link" href="${r.kind==='cover'?'#karaoke':'#home'}">${r.kind==='cover'?'커버 공개하기':r.kind==='listen'?'음악 듣기':'곡에서 댓글 남기기'}</a>`:''}</div>`).join(''):'<a class="small-button" href="#account" data-close-dialog>로그인하고 받기</a>'}</div><p class="gift-fineprint">매일 0시(한국 시간) 보상 갱신 · 받은 실버는 누적됩니다.<br>1 s와 1 g는 각각 응원 순위 1점 · 실버는 현금 가치·골드 전환·수익 정산이 없습니다.</p>${compact?'</details>':''}</section>`;}
 function giftShopHTML(d=null){
  const silver=AifectGifts.FREE_GIFT,gifts=d?.gifts||AifectGifts.GIFT_CATALOG;
  const silverGifts=d?.silver_gifts||AifectGifts.SILVER_GIFT_CATALOG;
  return `<div class="gift-dashboard"><header class="gift-shop-heading"><h1>상점</h1><div class="inline-actions"><a class="small-button" href="#gold">골드 충전·결제</a><a class="small-button" href="#gifts/rewards">오늘의 실버받기</a></div></header>
- <section class="gift-dashboard-section gift-silver-section" aria-labelledby="silver-gifts-title"><header class="gift-section-heading"><div class="gift-section-title">${shopCoin('S',24)}<h2 id="silver-gifts-title">실버 선물</h2></div><p><strong>작지만 특별한 마음, 실버로 전해 보세요.</strong><span>출석과 음악 활동으로 모으는 무료 응원입니다.</span></p><div class="gift-section-access"><span>보유 <strong>${shopPrice(d?.free?.balance||0,'S',20)}</strong></span><a class="gift-section-cta" href="#gifts/rewards">오늘의 실버 받기 ${icon('chevron')}</a></div></header>
+ <section class="gift-dashboard-section gift-silver-section" aria-labelledby="silver-gifts-title"><header class="gift-section-heading"><div class="gift-section-title">${shopCoin('S',24)}<h2 id="silver-gifts-title">실버 선물</h2></div><p><strong>작지만 특별한 마음, 실버로 전해 보세요.</strong><span>출석과 음악 활동으로 모으는 무료 응원입니다.</span></p><div class="gift-section-access"><span>보유 <strong data-wallet-currency="S">${shopPrice(d?.free?.balance||0,'S',20)}</strong></span><a class="gift-section-cta" href="#gifts/rewards">오늘의 실버 받기 ${icon('chevron')}</a></div></header>
  <div class="gift-catalog silver-catalog">${silverGifts.map(g=>`<button type="button" class="gift-choice" data-gift-buy="${esc(g.id)}">${giftArt(g)}<strong>${esc(g.name)}</strong><span>${shopPrice(g.silver,'S')}</span></button>`).join('')}</div><details class="gift-dashboard-policy"><summary>실버 선물이란?</summary><p>출석·음악 활동으로 하루 최대 10 s를 모을 수 있습니다. 1 s와 1 g는 응원 순위에 각각 1점으로 반영됩니다. 실버는 현금 정산·다이아 적립·골드 전환 대상이 아닙니다.</p></details></section>
- <section class="gift-dashboard-section gift-gold-section" aria-labelledby="gold-gifts-title"><header class="gift-section-heading"><div class="gift-section-title">${giftArt(AifectGifts.giftById('crown'))}<h2 id="gold-gifts-title">골드 선물</h2></div><p><strong>더 깊고 특별한 마음을 골드 선물로 전해 보세요.</strong><span>좋아하는 음악과 아티스트의 다음 무대를 응원합니다.</span></p><a class="gift-section-cta" href="#gold">${d?'보유 '+shopPrice(d.balance,'G',20):'골드 충전'} ${icon('chevron')}</a></header><div class="gift-catalog gift-dashboard-catalog">${gifts.map(g=>`<button type="button" class="gift-choice" data-gift-buy="${esc(g.id)}">${giftArt(g)}<strong>${esc(g.name)}</strong><span>${shopPrice(g.gold,'G')}</span></button>`).join('')}</div><details class="gift-dashboard-policy"><summary>골드 선물 수익 · 정산 안내</summary><p>${esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)} 커버곡 선물은 가창자 70%·플랫폼 30%이며, 확정된 수익은 다이아로 적립됩니다.</p></details></section>
+ <section class="gift-dashboard-section gift-gold-section" aria-labelledby="gold-gifts-title"><header class="gift-section-heading"><div class="gift-section-title">${giftArt(AifectGifts.giftById('crown'))}<h2 id="gold-gifts-title">골드 선물</h2></div><p><strong>더 깊고 특별한 마음을 골드 선물로 전해 보세요.</strong><span>좋아하는 음악과 아티스트의 다음 무대를 응원합니다.</span></p><a class="gift-section-cta" href="#gold">${d?'보유 <span data-wallet-currency="G">'+shopPrice(d.balance,'G',20)+'</span>':'골드 충전'} ${icon('chevron')}</a></header><div class="gift-catalog gift-dashboard-catalog">${gifts.map(g=>`<button type="button" class="gift-choice" data-gift-buy="${esc(g.id)}">${giftArt(g)}<strong>${esc(g.name)}</strong><span>${shopPrice(g.gold,'G')}</span></button>`).join('')}</div><details class="gift-dashboard-policy"><summary>골드 선물 수익 · 정산 안내</summary><p>${esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)} 커버곡 선물은 가창자 70%·플랫폼 30%이며, 확정된 수익은 다이아로 적립됩니다.</p></details></section>
  ${d?.official_received?officialSupportHTML(d.official_received):''}<nav class="gift-dashboard-actions" aria-label="상점 관리"><a class="small-button" href="#gifts/rewards">오늘의 실버받기</a><a class="primary-button" href="#gold">${icon('wallet')} 골드 충전 · 결제</a><a class="small-button" href="#gold/history">${icon('list')} 보낸 선물 내역</a></nav><footer class="gift-dashboard-footer"><span>${icon('gift')} 선물은 아티스트에게 큰 힘이 되는 소중한 마음입니다.</span><em>Music brings us closer.</em></footer></div>`;
 }
 async function chooseGiftRecipient(type){
@@ -18,7 +18,7 @@ async function chooseGiftRecipient(type){
   dialog('<section class="gift-recipient-dialog"><h2>선물 받을 사람</h2><form id="gift-recipient-search"><label>'+(roomGift?'토킹룸 참여자 검색':'닉네임 검색')+'<input name="q" maxlength="60" type="search" required></label><button class="small-button">검색</button><p class="form-error" role="alert"></p></form><div class="gift-target-list" id="gift-recipient-results"></div></section>');
   const form=$('#gift-recipient-search'),list=$('#gift-recipient-results');
   let selecting=false;
-  const paint=profiles=>{list.innerHTML=profiles.length?profiles.map(p=>'<button type="button" class="gift-target" data-gift-recipient="'+esc(p.id)+'"><span><strong>'+userNickname(p.name,{profileId:p.id,userId:p.user_id})+'</strong><small>이 회원에게 선물하기</small></span>'+icon('chevron')+'</button>').join(''):'<p>'+(roomGift?'선물할 참여자가 없습니다.':'닉네임으로 회원을 검색해 주세요.')+'</p>';list.querySelectorAll('[data-gift-recipient]').forEach(b=>b.onclick=async()=>{if(selecting||serial!==giftDialogSerial||account!==me?.id)return;selecting=true;try{if(roomGift)await roomGift.onRecipientChange?.(b.dataset.giftRecipient);if(serial===giftDialogSerial&&form.isConnected&&account===me?.id)await profileGiftDialog(b.dataset.giftRecipient,type);}catch(e){if(form.isConnected)formError(form).textContent=e.message;}finally{selecting=false;}});};paint(d.profiles);
+  const paint=profiles=>{list.innerHTML=profiles.length?profiles.map(p=>'<button type="button" class="gift-target" data-gift-recipient="'+esc(p.id)+'"><span><strong '+premiumNameAttribute(p.id,p.user_id)+'>'+esc(p.name)+'</strong><small>이 회원에게 선물하기</small></span>'+icon('chevron')+'</button>').join(''):'<p>'+(roomGift?'선물할 참여자가 없습니다.':'닉네임으로 회원을 검색해 주세요.')+'</p>';list.querySelectorAll('[data-gift-recipient]').forEach(b=>b.onclick=async()=>{if(selecting||serial!==giftDialogSerial||account!==me?.id)return;selecting=true;try{if(roomGift)await roomGift.onRecipientChange?.(b.dataset.giftRecipient);if(serial===giftDialogSerial&&form.isConnected&&account===me?.id)await profileGiftDialog(b.dataset.giftRecipient,type);}catch(e){if(form.isConnected)formError(form).textContent=e.message;}finally{selecting=false;}});};paint(d.profiles);
   form.onsubmit=busyForm(form,async()=>{const query=form.elements.q.value.trim();const r=roomGift?{profiles:d.profiles.filter(p=>String(p.name||'').toLocaleLowerCase().includes(query.toLocaleLowerCase()))}:await api('/api/decorations/recipients?q='+encodeURIComponent(query),'GET',undefined,{fresh:true});if(serial===giftDialogSerial&&form.isConnected&&account===me?.id)paint(r.profiles);});
  }catch(e){if(serial===giftDialogSerial&&$('#dialog').open)dialog('<section class="gift-recipient-dialog"><h2>선물할 회원을 불러오지 못했습니다</h2><p role="alert">'+esc(e.message)+'</p></section>');}
 }
@@ -73,16 +73,14 @@ function confirmGiftTransfer({name,image,recipient,quantity,amount,currency,star
  });
 }
 
-function finishGiftTransfer() {
+function finishGiftTransfer(message='선물을 보냈습니다.') {
  $('#dialog').close();
- toast('선물을 보냈습니다.');
- window.dispatchEvent(new Event('aifect:inventory-changed'));
- if (typeof refreshShopBalances === 'function') void refreshShopBalances();
+ toast(message,'success');
 }
 let giftDialogSerial=0;
 function giftCompactRecipient(profile,canChange){
  const image=typeof avatarImage==='function'?avatarImage(profile,profile.kind||'producer',false,false):'';
- return `<${canChange?'button type="button"':'div'} class="gift-recipient" id="gift-recipient"${canChange?' aria-label="받는 사람 변경"':''}><span class="gift-recipient-avatar">${image}</span><strong>${userNickname(profile.name,{profileId:profile.kind==='artist'?null:profile.id,artistId:profile.id,entityType:profile.kind})}</strong>${canChange?icon('chevron'):''}</${canChange?'button':'div'}>`;
+ return `<${canChange?'button type="button"':'div'} class="gift-recipient" id="gift-recipient"${canChange?' aria-label="받는 사람 변경"':''}><span class="gift-recipient-avatar">${image}</span><strong>${canChange?esc(profile.name):userNickname(profile.name,{profileId:profile.kind==='artist'?null:profile.id,artistId:profile.id,entityType:profile.kind})}</strong>${canChange?icon('chevron'):''}</${canChange?'button':'div'}>`;
 }
 function giftPickerHTML({profile,canChange,choices,roomGift,ownedHTML,wallet,selected=null,activeCategory=null}) {
   const initialOptions = Array.from({length:100},(_,i) => `<option value="${i+1}">${i+1}개</option>`).join('');
@@ -95,10 +93,10 @@ function giftPickerHTML({profile,canChange,choices,roomGift,ownedHTML,wallet,sel
    </div><div class="gift-checkout gift-dialog-footer">
     <div id="gift-decoration-detail" class="gift-extra-detail" hidden></div><span class="gift-summary-sr-only" id="gift-send-summary" aria-live="polite"></span>
     <p class="gift-context-detail" id="gift-detail" hidden></p><div class="gift-footer-grid">
-    <span class="gift-balance-cell" id="gift-balance-g" data-currency="G">${shopPrice(wallet?.balance||0,'G',20)}</span>
+    <span class="gift-balance-cell" id="gift-balance-g" data-currency="G" data-wallet-currency="G">${shopPrice(wallet?.balance??null,'G',20)}</span>
     <a class="gift-charge-button" href="#gold" data-close-dialog><span>충전하기</span></a>
     <label class="gift-quantity"><span class="gift-summary-sr-only">선물 수량</span><select id="gift-quantity" aria-label="선물 수량">${initialOptions}</select>${icon('chevron')}</label>
-    <span class="gift-balance-cell" id="gift-balance-s" data-currency="S">${shopPrice(wallet?.free?.balance||0,'S',20)}</span>
+    <span class="gift-balance-cell" id="gift-balance-s" data-currency="S" data-wallet-currency="S">${shopPrice(wallet?.silver_balance??null,'S',20)}</span>
     <a class="gift-silver-button" href="#rewards" data-close-dialog>${icon('gift')}<span>오늘의 실버받기</span></a>
     <button type="submit" class="gift-send-button" id="gift-send" aria-describedby="gift-send-summary">${icon('gift')}<span class="gift-send-label">선물하기</span></button></div>
     <p class="form-error" role="alert"></p></div></form></section>`;
@@ -115,8 +113,9 @@ async function giftDialog(tid, initial = null, personal = false) {
   await accountReady;
   const account = me?.id;
   const current = () => serial === giftDialogSerial && route === globalThis.location?.hash && account === me?.id;
-  const [walletData,track,inventory] = await Promise.all([
-   me ? api('/api/gold','GET',undefined,{fresh:true}) : null,
+  const [catalog,walletData,track,inventory] = await Promise.all([
+   api('/api/gifts/catalog'),
+   me ? api('/api/gold/balance') : null,
    api(artistId ? '/api/artist-preview/'+encodeURIComponent(artistId) : '/api/'+(personal?'producers/':'tracks/')+encodeURIComponent(tid)+(personal?'?gift_summary=0':'')),
    me && !roomGift ? api('/api/me/gift-inventory','GET',undefined,{fresh:true}).catch(() => ({error:true,items:[]})) : {items:[]}
   ]);
@@ -126,8 +125,8 @@ async function giftDialog(tid, initial = null, personal = false) {
   if (!personal) remember([t]);
   const reason = t.gift_block_reason || (me && me.id === t.user_id ? personal ? '본인에게는 선물할 수 없습니다.' : '내 작품에는 선물할 수 없습니다.' : '');
   if (reason) { toast(reason); return; }
-  let wallet = walletData;
-  const gold = wallet?.gifts || AifectGifts.GIFT_CATALOG, silver = wallet?.silver_gifts || AifectGifts.SILVER_GIFT_CATALOG;
+  let wallet = (typeof currentWalletBalance==='function'&&currentWalletBalance())||walletData;
+  const gold = catalog.gifts || AifectGifts.GIFT_CATALOG, silver = catalog.silver_gifts || AifectGifts.SILVER_GIFT_CATALOG;
   const choices = roomGift ? gold : [...gold,...silver];
   const groups = ownedGiftGroups(inventory.items,initial?.giftInventoryId);
   const initialType = typeof initial === 'string' ? initial : initial?.id;
@@ -186,7 +185,7 @@ async function giftDialog(tid, initial = null, personal = false) {
    const amount = item?.price * quantity;
    const validQty = Number.isInteger(quantity) && quantity >= 1 && quantity <= max;
    const exceeds = !stored && !decoration && item?.unit === 'G' && amount > AifectGifts.GIFT_MAX_GOLD;
-   const balance = item?.unit === 'S' ? wallet?.free?.balance : wallet?.balance;
+   const balance = item?.unit === 'S' ? wallet?.silver_balance : wallet?.balance;
    const insufficient = !stored && me && (balance || 0) < amount;
    if (summary) summary.textContent = item ? item.name+' '+quantity+'개 · '+t.producer+'님에게 선물' : '선물할 상품을 선택해 주세요.';
    if (periodBox) {
@@ -219,13 +218,13 @@ async function giftDialog(tid, initial = null, personal = false) {
     if (decoration?.item?.id !== value.item?.id || decoration?.p?.sku !== value.p.sku) quantity = 1;
     owned = null; decoration = value; update();
    },
-   async refreshWallet() {
-    const value = await api('/api/gold','GET',undefined,{fresh:true});
+   updateBalance(value) {
     if (!active()) return;
     wallet = value;
-    $('#gift-balance-g').innerHTML = shopPrice(wallet.balance||0,'G',20);
-    $('#gift-balance-s').innerHTML = shopPrice(wallet.free?.balance||0,'S',20);
     update();
+   },
+   async refreshWallet() {
+    await api('/api/gold/balance');
    }
   };
   input.onchange = input.oninput = () => { if (!form._busy) { quantity = Number(input.value); formError(form).textContent=''; update(); } };
@@ -256,6 +255,9 @@ async function giftDialog(tid, initial = null, personal = false) {
    const item = selection(), count = quantity;
    if (!item) return;
    form._busy = true; formError(form).textContent = ''; update();
+   const label=send.querySelector('.gift-send-label'),modal=$('#dialog'),close=$('#dialog-close');
+   let submitted=false;
+   const preventClose=event=>event.preventDefault();
    try {
     const stored = category === 'inventory';
     const accepted = await confirmGiftTransfer({name:item.name,image:item.image,recipient:t.producer,quantity:count,...(!stored?{amount:item.price*count,currency:item.unit}:{})});
@@ -277,15 +279,27 @@ async function giftDialog(tid, initial = null, personal = false) {
     const fingerprint = JSON.stringify([path,body]);
     if (!requests.has(fingerprint)) requests.set(fingerprint,crypto.randomUUID());
     body.request_id = requests.get(fingerprint);
-    if (roomGift) await roomGift.send(body);
+    label.textContent='보내는 중…';send.setAttribute('aria-busy','true');close.disabled=true;
+    modal.addEventListener('cancel',preventClose);
+    submitted=true;
+    if (roomGift) {
+     await roomGift.send(body);
+     void Promise.resolve().then(()=>{
+      if(me?.id!==account)return;
+      updateAfterShopTransaction('gift',account,recipientId);
+      window.dispatchEvent(new Event('aifect:room-gift-confirmed'));
+     }).catch(()=>{});
+    }
     else await api(path,'POST',body);
-    if (active()) finishGiftTransfer();
    } catch (e) {
     if (active()) formError(form).textContent = e.message;
+    return;
    } finally {
+    if(submitted){label.textContent='선물하기';send.removeAttribute('aria-busy');close.disabled=false;modal.removeEventListener('cancel',preventClose);}
     form._busy = false;
     if (active()) update();
    }
+   if (active()) finishGiftTransfer();
   };
   update();
   if (typeof bindRoomGiftWallet==='function' && typeof voiceController!=='undefined' && voiceController?.joined) bindRoomGiftWallet(form);

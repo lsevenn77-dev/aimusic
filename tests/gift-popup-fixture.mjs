@@ -6,7 +6,7 @@ import * as AifectGifts from '../shared/gifts.js';
 const source = name => readFileSync(new URL('../dist/'+name,import.meta.url),'utf8');
 function element(dataset = {}) {
  const e = {dataset,hidden:false,disabled:false,isConnected:true,textContent:'',attributes:{},value:'',innerHTML:'',scrollTop:0,
-  classList:{toggle(){},remove(){}},setAttribute(k,v){this.attributes[k]=String(v);},addEventListener(name,fn){this['on'+name+'Listener']=fn;},
+  classList:{toggle(){},remove(){}},setAttribute(k,v){this.attributes[k]=String(v);},removeAttribute(k){delete this.attributes[k];},addEventListener(name,fn){this['on'+name+'Listener']=fn;},
   scrollIntoView(){},querySelector(){return null;},querySelectorAll(){return [];}};
  return e;
 }
@@ -20,11 +20,12 @@ function controls(html) {
 export function giftBrowser(api,user={id:'owner'}) {
  const nodes = {}, reviews = [], notices = [], updates = [], decisions = [];
  let html='', form, buttons=[];
- const modal = nodes['#dialog'] = {open:true,close(){this.open=false;}};
+ const modal = nodes['#dialog'] = {open:true,close(){this.open=false;},addEventListener(){},removeEventListener(){}};
+ nodes['#dialog-close']=element();
  const c=nicknameContext({AifectGifts,crypto,me:user,accountReady:Promise.resolve(),icon:()=>'',number:n=>Number(n||0).toLocaleString('en-US'),
   esc:x=>String(x??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('"','&quot;'),
   $:s=>nodes[s]||null,api,remember(){},formError:f=>f.error,toast:t=>notices.push(t),askLogin(){},Event,
-  window:{addEventListener(){},dispatchEvent(e){updates.push(e.type);}},document:{addEventListener(){}},
+  window:{addEventListener(){},dispatchEvent(e){updates.push(e.type);}},document:{addEventListener(){}},updateAfterShopTransaction(){},
   shopPrice:(n,code)=>'<span aria-label="'+(code==='S'?'실버':'골드')+' '+n+'">'+n+'</span>',
   dialog(markup) {
    modal.open=true; html=markup;
@@ -42,6 +43,7 @@ export function giftBrowser(api,user={id:'owner'}) {
    extra.querySelectorAll=()=>extra.buttons||[]; extra.querySelector=()=>element();
    form.extras=extra;form.footer=footer;
    for(const id of ['gift-detail','gift-send-summary','gift-send','gift-quantity','gift-decoration-detail','gift-recipient','gift-balance-g','gift-balance-s'])nodes['#'+id]=element();
+   const sendLabel=element();nodes['#gift-send'].querySelector=()=>sendLabel;
    nodes['#gift-decoration-detail'].querySelector=()=>element();
   }});
  vm.runInContext(source('gifts.js'),c);

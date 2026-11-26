@@ -5,7 +5,7 @@ function goldHTML(d,history=false,selectedGold=null){
  const ready=!inApp&&(d.checkout_available||testCheckout),packs=inApp?d.packs:(d.web_packs||[]);
  return heading('골드 충전','좋아하는 음악에 선물하는 골드. 필요한 만큼, 한 번씩 결제합니다.')+paymentKindTabs('gold')+`<div class="gold-page">
   <section class="surface gold-card" aria-labelledby="gold-balance-title">
-   <div class="gold-wallet-summary"><span class="eyebrow" id="gold-balance-title">선물에 쓸 수 있는 보유 골드</span><strong class="gold-balance">${shopPrice(d.balance,'G',20)}</strong><a class="small-button gold-shop-link" href="#gifts">선물 종류 · 무료 실버 보기</a></div>
+   <div class="gold-wallet-summary"><span class="eyebrow" id="gold-balance-title">선물에 쓸 수 있는 보유 골드</span><strong class="gold-balance" data-wallet-currency="G">${shopPrice(d.balance,'G',20)}</strong><a class="small-button gold-shop-link" href="#gifts">선물 종류 · 무료 실버 보기</a></div>
    <div class="gold-wallet-copy"><p>골드는 선물에 사용하는 수량입니다. 받은 사람의 정산액은 별도로 계산됩니다.</p></div>
   </section>
   <section class="gold-products" aria-labelledby="gold-products-title">
@@ -30,6 +30,21 @@ function sentGiftHistoryHTML(d){
   const name=kind==='inventory'?(g.recipient_name||'회원'):g.target_name;
   return `<div class="gift-row"><span>${route?`<a href="#${esc(route)}">${esc(name)}</a>`:esc(name)}<small>${label} · ${esc(g.gift_name||'선물')} × ${number(g.quantity||1)}</small></span><strong>${shopPrice(g.value,g.currency==='gold'?'G':'S')}</strong><time datetime="${new Date(g.created*1000).toISOString()}">${new Date(g.created*1000).toLocaleString('ko-KR')}</time></div>`;
  }).join(''):'<p>아직 보낸 선물이 없습니다.</p>'}</section><nav class="gift-history-pages" aria-label="선물 내역 페이지">${d.offset?`<a class="small-button" href="#gold/history?offset=${Math.max(0,d.offset-50)}">이전</a>`:''}${d.next_offset!=null?`<a class="small-button" href="#gold/history?offset=${d.next_offset}">다음</a>`:''}</nav>`;
+}
+const sentGiftHistoryPath=offset=>'/api/gifts/sent?offset='+encodeURIComponent(offset);
+async function sentGiftHistoryView(readApi){
+ const offset=new URLSearchParams(location.hash.split('?')[1]||'').get('offset')||'0';
+ const data=await readApi(sentGiftHistoryPath(offset));
+ return heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a><div data-sent-gift-offset="'+esc(offset)+'">'+sentGiftHistoryHTML(data)+'</div>';
+}
+async function refreshSentGiftHistory(){
+ const panel=$('[data-sent-gift-offset]'),account=me?.id;
+ if(!panel||!account)return;
+ const ticket=panel._readTicket=(panel._readTicket||0)+1;
+ try{
+  const data=await api(sentGiftHistoryPath(panel.dataset.sentGiftOffset),'GET',undefined,{fresh:true});
+  if(panel.isConnected&&me?.id===account&&panel._readTicket===ticket)panel.innerHTML=sentGiftHistoryHTML(data);
+ }catch{/* Retain the current page and its last confirmed receipts. */}
 }
 let niceGoldSdk;
 function loadGoldSDK(){

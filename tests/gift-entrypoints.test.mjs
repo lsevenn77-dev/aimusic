@@ -14,7 +14,7 @@ function control(attributes={}){
  return {attributes,dataset:Object.fromEntries(Object.entries(attributes).filter(([name])=>name.startsWith('data-')).map(([name,value])=>[name.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase()),value])),value:attributes.value||'',disabled:false,isConnected:true,textContent:'',innerHTML:'',focus(){},setAttribute(){},removeAttribute(){}};
 }
 function shopBrowser(){
- const calls=[],opened=[],modal={open:true,classList:{remove(){}},addEventListener(){},removeEventListener(){},close(){this.open=false;}},close=control(),frame=DECORATIONS.frame_aurora_ring;
+ const calls=[],opened=[],notices=[],modal={open:true,classList:{remove(){}},addEventListener(){},removeEventListener(){},close(){this.open=false;}},close=control(),frame=DECORATIONS.frame_aurora_ring;
  const catalog={products:Object.values(DECORATIONS),periods:{P7D:'7일',P1M:'1개월',P3M:'3개월'},inventory:[{id:'stored-frame',item_key:frame.sku,period_code:'P1M',stored:true,available:true,product:frame}]};
  let form,html='';
  const context=nicknameContext({crypto,AifectGifts,giftDialogSerial:0,accountReady:Promise.resolve(),me:{id:'owner'},esc,number:String,frameEffects:{set(){}},DEFAULT_AVATAR:'/default-avatar',
@@ -25,13 +25,14 @@ function shopBrowser(){
    form={isConnected:true,error:control(),elements,querySelectorAll(selector){return selector==='[data-step]'?elements.filter(el=>'step'in el.dataset):selector==='[name=period]'?elements.filter(el=>el.attributes.name==='period'):selector==='[data-quantity]'?elements.filter(el=>'quantity'in el.dataset):[];},querySelector(selector){return selector==='[name=quantity]'?elements.find(el=>el.attributes.name==='quantity'):selector==='[type=submit]'?elements.find(el=>el.attributes.type==='submit'):selector==='.shop-money'||selector==='.frame-detail-layers>img'?control():null;}};
   },
   api:async(path,method='GET',body)=>{calls.push({path,method,body});return method==='POST'?{}:path==='/api/gifts/catalog'?{gifts:AifectGifts.GIFT_CATALOG,silver_gifts:AifectGifts.SILVER_GIFT_CATALOG}:path==='/api/decorations'?catalog:{balance:10000,silver_balance:100};},
-  inventoryRecipientDialog:(item,state)=>opened.push({item,state}),askLogin(){},toast(){},refreshShopBalances(){},render(){},
+  inventoryRecipientDialog:(item,state)=>opened.push({item,state}),askLogin(){},toast:message=>notices.push(message),render(){throw Error('checkout must not remount the route');},
  });
  vm.runInContext(decorations.slice(decorations.indexOf('function shopCoin('),decorations.indexOf('function shopIcon(')),context);
  vm.runInContext(extract('shopPurchaseDialog',"\ndocument.addEventListener('click',e=>{"),context);
  context.shopGiftDialog=(product,period,quantity,wallet)=>opened.push({id:product.id,sku:product.sku,period,quantity,wallet});
+ vm.runInContext(gifts.slice(gifts.indexOf('function finishGiftTransfer('),gifts.indexOf('let giftDialogSerial')),context);
  vm.runInContext(extract('storedDecorationDialog',"\ndocument.addEventListener('click',e=>{"),context);
- return {context,calls,opened,get form(){return form;},get html(){return html;}};
+ return {context,calls,opened,notices,modal,get form(){return form;},get html(){return html;}};
 }
 test('shop gift entry preserves the selected ordinary quantity and leaves purchase in the existing inventory flow',async()=>{
  const b=shopBrowser();await b.context.shopPurchaseDialog({id:'heart'});const quantity=b.form.querySelector('[name=quantity]');quantity.value='7';quantity.oninput();
@@ -39,6 +40,7 @@ test('shop gift entry preserves the selected ordinary quantity and leaves purcha
  assert.equal(b.opened[0].id,'heart');assert.equal(b.opened[0].quantity,7);assert.equal(b.calls.filter(call=>call.method==='POST').length,0);
  const purchase=shopBrowser();await purchase.context.shopPurchaseDialog({id:'heart'});await purchase.form.onsubmit({preventDefault(){}});
  const write=purchase.calls.find(call=>call.method==='POST');assert.equal(write.path,'/api/me/gift-inventory/buy');assert.equal(write.body.gift_type,'heart');assert.equal(write.body.quantity,1);assert.equal(write.body.profile_id,undefined);
+ assert.equal(purchase.modal.open,false);assert.deepEqual(purchase.notices,['상품을 구매했습니다.']);
 });
 test('shop decoration gift entry preserves the period while purchase still buys into inventory',async()=>{
  const b=shopBrowser();await b.context.shopPurchaseDialog({sku:'frame_aurora_ring'});b.form.querySelectorAll('[name=period]').find(input=>input.value==='P1M').onchange();
@@ -57,6 +59,7 @@ test('room recipient chooser filters only supplied members and keeps the room tr
  const context=nicknameContext({crypto,AifectGifts,esc,me:{id:'owner',profile_id:'self'},accountReady:Promise.resolve(),icon:()=>'',dialog(){},$:selector=>selector==='#dialog'?modal:selector==='#gift-recipient-search'?form:list,formError:()=>form.error,
   busyForm:(_form,work)=>async event=>{event.preventDefault();await work();},api:async(...args)=>{calls.push(args);throw Error('room chooser must not search all members');},askLogin(){},});
  vm.runInContext(gifts,context);context.profileGiftDialog=(id,initial)=>opened.push({id,initial});await context.chooseGiftRecipient(selection);assert.equal(list.buttons.length,2);
+ assert.match(list.innerHTML,/data-premium-identity="friend">친구/);assert.doesNotMatch(list.innerHTML,/data-user-nickname/);
  form.elements.q.value='없는 회원';await form.onsubmit({preventDefault(){}});assert.equal(list.buttons.length,0);
  form.elements.q.value='친구';await form.onsubmit({preventDefault(){}});assert.equal(list.buttons.length,1);await list.buttons[0].onclick();
  assert.equal(calls.length,0);assert.deepEqual(changed,['friend']);assert.equal(opened[0].id,'friend');assert.equal(opened[0].initial.quantity,5);assert.equal(opened[0].initial.roomGift,roomGift);

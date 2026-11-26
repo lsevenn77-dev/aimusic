@@ -64,6 +64,7 @@ function bindRenderedRoute(base,param,explorer,ticket){
  if(explorer?.followPage)bindFollowManagement(explorer.followPage);
  if(base==='artist'&&typeof bindArtistFanpage==='function')bindArtistFanpage();
  if(typeof bindShopShelves==='function')bindShopShelves();
+ if(base==='gifts'&&param!=='rewards'&&typeof paintWalletBalances==='function')paintWalletBalances();
  if(typeof bindPlay==='function')bindPlay(explorer);
  if(explorer?.songEntry)bindSongEntry(explorer.songEntry);
  if(base==='song'){bindSongCoverList();if(typeof bindSongDescription==='function')bindSongDescription();}
@@ -302,7 +303,7 @@ async function renderRoute(showCachedRoute){
   else if(base==='sing'){const d=await loadSingRoute(param,new URLSearchParams(paramQuery?.split('?')[1]||''),readApi);if(ticket!==renderId)return;routeSing=d;html=singHTML(d);}
   else if(base==='cover'){const {track:o}=await readApi('/api/tracks/'+param);remember([o]);html=coverUploadHTML(o);}
   else if(base==='gifts')html=await finalGiftShopView(param,readApi);
-  else if(base==='gold')html=(param==='history'?heading('보낸 선물 내역')+'<a class="text-link" href="#gold">골드 충전으로</a>'+sentGiftHistoryHTML(await readApi('/api/gifts/sent?offset='+encodeURIComponent(new URLSearchParams(location.hash.split('?')[1]||'').get('offset')||'0'))):goldHTML(await readApi('/api/gold'),false,new URLSearchParams(baseQuery.split('?')[1]||'').get('pack')));
+  else if(base==='gold')html=param==='history'?await sentGiftHistoryView(readApi):goldHTML(await readApi('/api/gold'),false,new URLSearchParams(baseQuery.split('?')[1]||'').get('pack'));
   else if(base==='admin'&&param==='track-review'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');html=trackReviewHTML(await readApi('/api/admin/track-review?'+q.toString()));if(authConfig?.admin)html+='<section class="surface"><button class="small-button danger-button" data-purge-all-covers>사이트 전체 커버곡 삭제</button></section>';}
   else if(base==='admin'&&param==='partners')html=partnerAdminHTML(await readApi('/api/admin/diamonds'));
   else if(base==='admin')html=adminHTML(await readApi('/api/admin/payouts'+(param?'?period='+encodeURIComponent(param):'')));
@@ -397,10 +398,22 @@ function songSupportCardsHTML(){
  const card=(kind,href,title,caption,art)=>'<a class="song-support-card song-support-card--'+kind+'" href="'+href+'"><span class="song-support-card-icon" aria-hidden="true">'+art+'</span><span class="song-support-card-copy"><strong>'+title+'</strong><span>'+caption+'</span></span><span class="song-support-card-arrow" aria-hidden="true">'+icon('chevron')+'</span></a>';
  return '<section class="song-support-gift">'+card('gift','#gifts','선물로 마음 전하기','상점 둘러보기',icon('gift'))+card('silver','#rewards','무료 실버 받기','출석·활동으로 실버를 모읍니다.',silver)+'</section>';
 }
-function songSupportHTML(g,t){
+function songSupportRankingHTML(g){
  const ranking=(g.support_ranking||g.ranking||[]).slice(0,5),empty='아직 받은 선물이 없습니다.<br>첫 응원으로 이 무대를 빛내 주세요.';
  const gifts=r=>[Number(r.official_stars)>0?'응원별 ×'+number(r.official_stars):'',Number(r.stars)>0?shopPrice(r.stars,'S'):'',Number(r.gold)>0?shopPrice(r.gold,'G'):''].filter(Boolean).join(' · ');
- return '<section class="surface song-support-rank"><h2>응원 순위</h2><p class="song-support-caption">보내준 응원만큼 쌓이는 이 곡의 응원 순위</p>'+ (ranking.length?'<ol class="song-support-ranking">'+ranking.map((r,i)=>'<li><b class="song-support-position">'+(i+1)+'</b><div class="song-support-person">'+(r.profile_id?'<a href="#producer/'+esc(r.profile_id)+'" title="'+esc(r.name)+'">'+userNickname(r.name,{profileId:r.profile_id})+'</a>':'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong>')+'</div><span class="song-support-gifts">'+gifts(r)+'</span></li>').join('')+'</ol>':'<p class="gift-rank-empty">'+empty+'</p>')+'</section>'+songSupportCardsHTML();
+ return '<h2>응원 순위</h2><p class="song-support-caption">보내준 응원만큼 쌓이는 이 곡의 응원 순위</p>'+ (ranking.length?'<ol class="song-support-ranking">'+ranking.map((r,i)=>'<li><b class="song-support-position">'+(i+1)+'</b><div class="song-support-person">'+(r.profile_id?'<a href="#producer/'+esc(r.profile_id)+'" title="'+esc(r.name)+'">'+userNickname(r.name,{profileId:r.profile_id})+'</a>':'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong>')+'</div><span class="song-support-gifts">'+gifts(r)+'</span></li>').join('')+'</ol>':'<p class="gift-rank-empty">'+empty+'</p>');
+}
+function songSupportHTML(g,t){
+ return '<section class="surface song-support-rank" data-song-gift-ranking="'+esc(t.id)+'">'+songSupportRankingHTML(g)+'</section>'+songSupportCardsHTML();
+}
+async function refreshSongGiftRanking(trackId){
+ const panel=$('[data-song-gift-ranking]'),account=me?.id;
+ if(panel?.dataset.songGiftRanking!==trackId)return;
+ const ticket=panel._readTicket=(panel._readTicket||0)+1;
+ try{
+  const data=await api('/api/tracks/'+encodeURIComponent(trackId)+'/gifts','GET',undefined,{fresh:true});
+  if(panel.isConnected&&me?.id===account&&panel._readTicket===ticket)panel.innerHTML=songSupportRankingHTML(data);
+ }catch{/* Retain the visible ranking until its next successful read. */}
 }
 function giftsPanelHTML(g,title,target={}){
  if(!g)return '';

@@ -23,7 +23,7 @@ test('gift sheet keeps all choices and detailed policy inside one scroll region,
  const form={isConnected:true,querySelectorAll:()=>[],querySelector:()=>null},send={attributes:{},setAttribute(key,value){this.attributes[key]=value;}},nodes={'#dialog':{open:true,classList:{add(){}}},'#gift-form':form,'#gift-send-summary':{},'#gift-send':send,'#gift-quantity':{value:'1'}};
  const context=nicknameContext({bindGiftCategoryTabs:async()=>{},AifectGifts,shopPrice:(value,code)=>value+" "+code.toLowerCase(),crypto,me:{id:'self'},accountReady:Promise.resolve(),esc:String,number:String,icon:()=>'',
   $:selector=>nodes[selector]||null,dialog:content=>{html=content;},remember(){},busyForm:()=>()=>{},
-  api:async path=>path==='/api/me/gift-inventory'?{items:[]}:path==='/api/gold'?{balance:500,free:{balance:3},gifts:AifectGifts.GIFT_CATALOG}:{profile:{user_id:'other',name:'긴 이름의 친구'}}});
+  api:async path=>path==='/api/me/gift-inventory'?{items:[]}:path==='/api/gold/balance'?{balance:500,silver_balance:3}:path==='/api/gifts/catalog'?{gifts:AifectGifts.GIFT_CATALOG,silver_gifts:AifectGifts.SILVER_GIFT_CATALOG}:{profile:{user_id:'other',name:'긴 이름의 친구'}}});
  vm.runInContext(read('gifts.js'),context);
  await context.giftDialog('other','star',true);
  assert.match(html,/role="region" aria-label="선물 선택"/);
