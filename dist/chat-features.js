@@ -142,9 +142,11 @@ async function refreshMessageBadge(){
  catch{}finally{messageBadgeBusy=false;if(messageBadgeAgain){messageBadgeAgain=false;void refreshMessageBadge();}}
 }
 function paintMessageBadge(count){document.querySelectorAll('[data-primary-view="dm"],#sidebar a[href="#dm"],.header-messages').forEach(link=>{let badge=link.querySelector('.nav-message-badge');if(!badge){badge=document.createElement('b');badge.className='nav-message-badge';link.append(badge);}badge.hidden=!count;badge.textContent='';badge.setAttribute('aria-label','안 읽은 메시지 '+count+'개');});}
-setInterval(()=>{if(messageBadgeAccount!==me?.id)paintMessageBadge(0);void refreshMessageBadge();},8000);
-window.addEventListener('focus',refreshMessageBadge);document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshMessageBadge();});
-if(typeof accountReady!=='undefined')Promise.resolve(accountReady).then(refreshMessageBadge);
+if(!document.documentElement?.hasAttribute?.('data-product-preview')){
+ setInterval(()=>{if(messageBadgeAccount!==me?.id)paintMessageBadge(0);void refreshMessageBadge();},8000);
+ window.addEventListener('focus',refreshMessageBadge);document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refreshMessageBadge();});
+ if(typeof accountReady!=='undefined')Promise.resolve(accountReady).then(refreshMessageBadge);
+}
 document.addEventListener('click',async e=>{
  const mute=e.target.closest('[data-dm-mute]'),clear=e.target.closest('[data-dm-clear]'),read=e.target.closest('[data-dm-read-all]');if(!mute&&!clear&&!read)return;e.preventDefault();e.stopPropagation();const b=mute||clear||read;if(b.disabled)return;b.disabled=true;
  try{

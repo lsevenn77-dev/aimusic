@@ -12,7 +12,7 @@ import {dispatchPush} from './push.js';
 import {voiceCall,voiceConfigured} from './voice-bridge.js';
 export {voiceCall,voiceConfigured} from './voice-bridge.js';
 import {identifier,requestId} from '../realtime/protocol.js';
-import {giftById} from '../shared/gifts.js';
+import {productById,giftRuntime} from './product-catalog.js';
 import {DEFAULT_ROOM_THEME} from '../shared/decorations.js';
 
 const roomTitles={
@@ -141,7 +141,8 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   if(response.ok&&ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));return response;
  }
  if(action==='gifts') {
-  if(!giftById(b.gift_type))fail(400,'골드 선물을 선택해 주세요.');
+  const product=giftRuntime(await productById(env,b.gift_type));
+  if(!product?.gold)fail(400,'골드 선물을 선택해 주세요.');
   const pid=identifier(b.profile_id),rid=await hash('voice-gift:'+room+':'+requestId(b.request_id));
   const target=await one(env,"SELECT id,user_id,name FROM producers WHERE id=? AND user_id IN (SELECT id FROM users WHERE provider!='deleted')",pid);if(!target)fail(404,'회원이 없습니다.');
   await assertUnblocked(env,user,target.user_id);
@@ -162,7 +163,8 @@ export async function voiceRoomsRoute(req,env,path,user,ctx) {
   if(history?.length&&ctx?.waitUntil)ctx.waitUntil(rememberRoomReceipts(env,source,history));
   let animation_pending=false;
   // Only the room broadcast needs the seat owner's ID. The client receipt and stored chat keep their existing shape.
-  const roomReceipt={...receipt.gift,target_id:target.user_id};
+  const roomReceipt={...receipt.gift,target_id:target.user_id,
+   ...(product.artwork?{image:product.image,artwork:product.artwork,animation:product.animation,effect:product.effect}:{})};
   try{await result(await voiceCall(env,actor,room,'gift-receipt',{generation:b.generation,receipt:roomReceipt,target_name:target.name}));}catch{animation_pending=true;}
   if(ctx?.waitUntil)ctx.waitUntil(dispatchPush(env));
   return json({...receipt,animation_pending},response.status);

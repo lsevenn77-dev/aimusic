@@ -16,7 +16,7 @@ function groupInventoryUnits(items, keyFor) {
  return [...groups.values()];
 }
 function inventoryGiftGroups(items) {
- return groupInventoryUnits(items, i => JSON.stringify([i.gift_type, !!i.giftable, !!i.available]));
+ return groupInventoryUnits(items, i => JSON.stringify([i.gift_type, i.grant_origin, i.expires_at, !!i.giftable, !!i.available]));
 }
 function inventoryItems(state) {
  const frames = (state.player.inventory || []).map(i => ({...i, image:i.artwork, category:'frames'}));
@@ -27,13 +27,16 @@ function inventoryItems(state) {
  }));
  const decorations = groupInventoryUnits([...frames, ...rentals].filter(i => !i.expires_at || i.expires_at > inventoryNow(state)),
   i => i.stored ? JSON.stringify([i.item_key, i.period_code, i.acquisition, i.giftable, i.available]) : i.id);
- const gifts = inventoryGiftGroups(state.gifts.items || []).map(i => ({...i, name:i.gift_name, category:'gifts'}));
+ const gifts = inventoryGiftGroups((state.gifts.items||[]).map(item=>{
+  if(item.expires_at&&item.expires_at<=inventoryNow(state))return {...item,available:false,giftable:false,expired:true};
+  return item;
+ })).map(i => ({...i,name:i.gift_name,category:'gifts'}));
  return [...gifts, ...decorations].sort((a,b) => Number(!!b.equipped) - Number(!!a.equipped));
 }
 function inventoryActions(item) {
  const id = esc(item.id);
  const send = item.giftable && item.available ? '<button type="button" class="stock-gift" data-stock-send="'+id+'">선물하기</button>' : '';
- if (item.category === 'gifts') return send || '<button disabled>선물 제한</button>';
+ if (item.category === 'gifts') return send || '<button disabled>'+(item.expired?'사용 기한 만료':'선물 제한')+'</button>';
  if (!item.available) return '<button disabled>사용 제한</button>';
  if (item.category === 'themes') return '<a href="#community?inventory_id='+encodeURIComponent(item.id)+'">사용하기</a>'+send;
  if (item.stored) return '<button type="button" data-stored-decoration="'+id+'" data-mode="use">사용하기</button>'+send;
@@ -43,7 +46,10 @@ function inventoryActions(item) {
 function inventoryCard(item,state) {
  const labels = [];
  if (item.equipped) labels.push('<span class="stock-equipped">'+(item.category==='frames'?'착용 중':'사용 중')+'</span>');
- if (item.expires_at || item.period_code) labels.push(esc(rentalPeriodText(item,inventoryNow(state))));
+ if(item.category==='gifts'&&item.expires_at){
+  const formatDate=new Intl.DateTimeFormat('ko-KR',{timeZone:'Asia/Seoul',dateStyle:'medium',timeStyle:'short'});
+  labels.push(esc(item.expired?'사용 기한 만료':(item.expires_at-inventoryNow(state)<=3*86400?'만료 임박 · ':'')+formatDate.format(new Date(item.expires_at*1000))+' 종료'));
+ }else if(item.expires_at||item.period_code)labels.push(esc(rentalPeriodText(item,inventoryNow(state))));
  if (item.acquisition === 'received') labels.push('받은 선물');
  if (item.acquisition === 'mixed') labels.push('받은 선물 포함');
  const quantity = item.category === 'gifts' || item.quantity > 1 ? '<span class="stock-quantity" aria-label="보유 '+item.quantity+'개">×'+number(item.quantity)+'</span>' : '';

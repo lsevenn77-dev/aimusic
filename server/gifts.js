@@ -11,11 +11,12 @@ import {assertUnblocked} from './account-safety.js';
 import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {published} from './catalog.js';
-import {GOLD_KRW,GOLD_PACKS,WEB_GOLD_PACKS,WEB_GOLD_BONUS_PERCENT,GIFT_MIN_GOLD,GIFT_MAX_GOLD,MIN_PAYOUT_KRW,PAYOUT_DAY,EARNINGS_AVAILABLE_DAY,earningsSchedule,GIFT_SPLITS,GIFT_CATALOG,giftById,allocateLots,splitGift,giftMonth,wonFromMw} from '../shared/gifts.js';
+import {GOLD_KRW,GOLD_PACKS,WEB_GOLD_PACKS,WEB_GOLD_BONUS_PERCENT,GIFT_MIN_GOLD,GIFT_MAX_GOLD,MIN_PAYOUT_KRW,PAYOUT_DAY,EARNINGS_AVAILABLE_DAY,earningsSchedule,GIFT_SPLITS,allocateLots,splitGift,giftMonth,wonFromMw} from '../shared/gifts.js';
 import {diamondWallet,partnerState} from './diamonds.js';
 import {creatorPayouts} from './payouts.js';
 import {freeGiftBalance,freeGiftState,claimFreeGift,sendFreeGift} from './free-gifts.js';
-import {FREE_GIFT,SILVER_GIFT_CATALOG,silverGiftById} from '../shared/gifts.js';
+import {FREE_GIFT} from '../shared/gifts.js';
+import {catalog,sold,productById,giftRuntime,assertProductAction,productWriteGuard} from './product-catalog.js';
 
 // No payment channel sells gold yet: web card checkout needs the NICEPAY one-time payment contract and
 // the apps need store billing. Purchases are credited by those integrations once they exist.
@@ -86,11 +87,19 @@ export function settlementMonths(months,current){
  });
 }
 
+async function shopGifts(env){
+ const gifts=[...(await catalog(env)).values()].filter(sold).map(giftRuntime).filter(Boolean);
+ return {gifts:gifts.filter(g=>!g.free),silver_gifts:gifts.filter(g=>g.free)};
+}
+
 export async function giftRoute(req,env,path,user,verifiedSource){
  if(path==='/api/gifts/sent')return sentGifts(req,env,user);
  if(path==='/api/gold/history')return walletHistory(req,env,user);
  const method=req.method;
- if(path==='/api/gifts/catalog'&&method==='GET')return json({gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free_gift:FREE_GIFT,gold_krw:GOLD_KRW,...goldCheckoutStatus(env,user)});
+ if(path==='/api/gifts/catalog'&&method==='GET'){
+  return json({...await shopGifts(env),
+   free_gift:FREE_GIFT,gold_krw:GOLD_KRW,...goldCheckoutStatus(env,user)});
+ }
  if(path==='/api/gifts/free'&&method==='GET'){requireUser(user);return json(await freeGiftState(env,user.id));}
  if(path==='/api/gifts/free/claim'&&method==='POST'){requireUser(user);return claimFreeGift(req,env,user);}
  if(path==='/api/gold/balance'&&method==='GET'){
@@ -108,7 +117,7 @@ export async function giftRoute(req,env,path,user,verifiedSource){
    freeGiftState(env,user.id),
    rows(env,'SELECT g.id,g.created,g.gift_type,g.gift_name,g.silver,g.quantity,t.id track_id,COALESCE(t.title,p.name) title,g.recipient_profile_id FROM free_gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.recipient_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id),
    rows(env,'SELECT g.id,g.gold,g.quantity,g.gift_type,g.gift_name,g.created,t.id track_id,COALESCE(t.title,p.name) title,COALESCE(t.kind,\'person\') kind,CASE WHEN g.track_id IS NULL THEN g.creator_profile_id END recipient_profile_id FROM gifts g LEFT JOIN tracks t ON t.id=g.track_id LEFT JOIN producers p ON p.id=g.creator_profile_id WHERE g.sender_id=? ORDER BY g.created DESC LIMIT 20',user.id)]);
-  return json({diamonds,balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,web_packs:WEB_GOLD_PACKS,web_bonus_percent:WEB_GOLD_BONUS_PERCENT,...goldCheckoutStatus(env,user),official_received:await officialSupport(env,'producer',user.id,true),purchases,orders,gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG,free,free_sent,sent});
+  return json({diamonds,balance,gold_krw:GOLD_KRW,packs:GOLD_PACKS,web_packs:WEB_GOLD_PACKS,web_bonus_percent:WEB_GOLD_BONUS_PERCENT,...goldCheckoutStatus(env,user),official_received:await officialSupport(env,'producer',user.id,true),purchases,orders,...await shopGifts(env),free,free_sent,sent});
  }
  if(path==='/api/gold/checkout'&&method==='POST'){requireUser(user);return createGoldCheckout(req,env,user);}
  if(path==='/api/studio/earnings'&&method==='GET'){
@@ -142,30 +151,35 @@ export async function giftRoute(req,env,path,user,verifiedSource){
  if(b.artist_id!=null&&(!personal||dubbing||verifiedSource))fail(400,'아티스트 프로필에서 다시 선택해 주세요.');
  const artistSource=await artistGiftSource(env,b.artist_id,track.producer_id,user.id);
  const source=artistSource||verifiedSource||(personal&&!dubbing&&b.from_message===true?{type:'message',id:track.producer_id,title:track.title}:giftTargetSource(track,dubbing));
- if(silverGiftById(b.gift_type))return sendFreeGift(env,user,track,b,source);
- const selected=b.gift_type===undefined?null:giftById(b.gift_type);
+ const product=b.gift_type===undefined?null:await productById(env,b.gift_type);
+ const selected=giftRuntime(product);
+ if(selected?.free)return sendFreeGift(env,user,track,b,source,product);
  if(b.gift_type!==undefined&&!selected)fail(400,'선물 종류를 다시 선택해 주세요.');
  const quantity=b.quantity===undefined?1:b.quantity;if(!Number.isInteger(quantity)||quantity<1||quantity>100||(!selected&&quantity!==1))fail(400,'수량은 1개부터 100개까지 선택해 주세요.');
- if(selected&&b.gold!==undefined&&b.gold!==selected.gold*quantity)fail(400,'선물 가격이 일치하지 않습니다. 다시 선택해 주세요.');
  const gold=selected?selected.gold*quantity:b.gold,requestId=b.request_id??null;
  if((selected&&!requestId)||(requestId!==null&&(typeof requestId!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(requestId))))fail(400,'선물 요청을 새로 시작해 주세요.');
+
+ const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;if(selected&&b.gold!==undefined&&b.gold!==old.gold&&b.gold!==gold)fail(400,'선물 가격이 일치하지 않습니다. 다시 선택해 주세요.');await checkArtistGiftReplay(env,'gold',old.id,source);if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||(selected?(b.gold!==undefined&&old.gold!==b.gold):old.gold!==b.gold)||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청입니다. 새로 선택해 주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
+ const previous=await replay();if(previous)return previous;
+ if(selected){
+  assertProductAction(product,'sale');
+  if(b.gold!==undefined&&b.gold!==gold)fail(400,'선물 가격이 일치하지 않습니다. 다시 선택해 주세요.');
+ }
  // Catalog gifts use their server-owned price; legacy amount-only clients retain their minimum.
  if(!Number.isInteger(gold)||gold<(selected?1:GIFT_MIN_GOLD)||gold>GIFT_MAX_GOLD)fail(400,`선물은 ${GIFT_MIN_GOLD}골드부터 ${GIFT_MAX_GOLD.toLocaleString('ko-KR')}골드까지 보낼 수 있습니다.`);
-
- const replay=async()=>{if(!requestId)return null;const old=await one(env,'SELECT id,track_id,creator_profile_id,gold,gift_type,gift_name,quantity FROM gifts WHERE sender_id=? AND request_id=?',user.id,requestId);if(!old)return null;await checkArtistGiftReplay(env,'gold',old.id,source);if(old.track_id!==track.id||(personal&&old.creator_profile_id!==track.producer_id)||old.gold!==gold||old.quantity!==quantity||old.gift_type!==(selected?.id??null))fail(409,'이미 사용된 선물 요청입니다. 새로 선택해 주세요.');return json({gift:{id:old.id,gold:old.gold,type:old.gift_type,name:old.gift_name,quantity:old.quantity},balance:await goldBalance(env,user.id)});};
- const previous=await replay();if(previous)return previous;
  const lots=await rows(env,"SELECT id,gold,used,price_krw,fee_krw,tax_krw FROM gold_purchases WHERE user_id=? AND status='paid' AND used<gold AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded') ORDER BY paid_at,id",user.id);
  let spent;try{spent=allocateLots(lots,gold);}catch{fail(409,'골드가 부족합니다. 충전한 뒤 다시 선물해 주세요.');}
  const net=spent.reduce((sum,l)=>sum+l.net_mw,0),share=await giftSettlement(env,track,net),gid=id(),at=now();
+ const amount=productWriteGuard(product,gold);
  try{
   // The lot check constraint rejects overspending or spending a refunded lot, which rolls the whole batch back.
   await env.DB.batch([
    ...spent.map(l=>query(env,'UPDATE gold_purchases SET used=used+? WHERE id=?',l.gold,l.purchase_id)),
-   query(env,'INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,singer_profile_id,creator_profile_id,singer_mw,creator_mw,platform_mw,month,created,gift_type,gift_name,request_id,quantity) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    gid,user.id,track.id,gold,net,share.singerProfile,share.creatorProfile,share.singer,share.creator,share.platform,giftMonth(at),at,selected?.id??null,selected?.name??null,requestId,quantity),
+   query(env,`INSERT INTO gifts(id,sender_id,track_id,gold,net_mw,singer_profile_id,creator_profile_id,singer_mw,creator_mw,platform_mw,month,created,gift_type,gift_name,request_id,quantity) VALUES(?,?,?,${amount.sql},?,?,?,?,?,?,?,?,?,?,?,?)`,
+    gid,user.id,track.id,...amount.args,net,share.singerProfile,share.creatorProfile,share.singer,share.creator,share.platform,giftMonth(at),at,selected?.id??null,selected?.name??null,requestId,quantity),
    giftSourceEntry(env,'gold',gid,source),
    ...spent.map(l=>query(env,'INSERT INTO gift_lots(gift_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',gid,l.purchase_id,l.gold,l.net_mw)),
   ]);
- }catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(source.type==='artist'&&/gift_sources\.source_id/i.test(String(e?.message)))fail(409,'이미 다른 선물에 사용한 요청입니다.');if(/CHECK constraint/i.test(String(e?.message)))fail(409,'골드 잔액이 바뀌었습니다. 다시 시도해 주세요.');throw e;}
+ }catch(e){if(/constraint/i.test(String(e?.message))){const duplicate=await replay();if(duplicate)return duplicate;}if(source.type==='artist'&&/gift_sources\.source_id/i.test(String(e?.message)))fail(409,'이미 다른 선물에 사용한 요청입니다.');if(/CHECK constraint|gifts\.gold/i.test(String(e?.message)))fail(409,'상품 가격, 판매 상태 또는 골드 잔액이 바뀌었습니다. 다시 시도해 주세요.');throw e;}
  return json({gift:{id:gid,gold,type:selected?.id??null,name:selected?.name??null,quantity},balance:await goldBalance(env,user.id)},201);
 }

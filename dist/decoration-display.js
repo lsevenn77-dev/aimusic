@@ -1,9 +1,16 @@
+// Catalog art is immutable; private candidates exist only in the read-only review document.
+function catalogImagePath(path){
+ if(typeof path!=='string')return false;
+ if(/^\/assets\/[a-zA-Z0-9_./-]+\.(png|webp|jpg|gif)$/.test(path)&&!path.includes('..'))return true;
+ const versioned=/^\/api\/(product-assets|admin\/product-files)\/[\w-]+\/[0-9a-f-]{36}\/[a-zA-Z]+\.(webp|png|gif|jpg)$/.exec(path);
+ return !!versioned&&(versioned[1]==='product-assets'||document.documentElement.hasAttribute?.('data-product-preview'));
+}
 // Only equipped avatars and the open product detail register a base image here.
 // An offscreen/hidden base keeps its static PNG but no animated image node.
 const frameEffects=(()=>{
  const effects=new Map();
  function paint(base,e){
-  if(!base.isConnected||!e.visible||document.hidden||(e.dialog&&!e.dialog.open)){
+  if(!base.isConnected||!e.visible||document.hidden||globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches||(e.dialog&&!e.dialog.open)){
    e.layer?.remove();e.layer=null;return;
   }
   if(!e.layer){
@@ -22,7 +29,7 @@ const frameEffects=(()=>{
  return {set(base,src){
   if(!base)return;
   if(effects.get(base)?.src===src)return;
-  forget(base);if(!observer||!src||!/^\/assets\/[\w/-]+\.webp$/.test(src))return;
+  forget(base);if(!observer||!catalogImagePath(src))return;
   effects.set(base,{src,visible:false,layer:null,dialog:base.closest('dialog')});observer.observe(base);
  },sweep};
 })();
@@ -38,7 +45,7 @@ function profileFrameCanvasArtwork(path){
   if(!assetHealth.has(path)){assetHealth.set(path,'loading');const image=new Image();image.onload=()=>{assetHealth.set(path,'ready');paintThemes();};image.onerror=()=>{assetHealth.set(path,'failed');paintThemes();};image.src=path;}
   return assetHealth.get(path)!=='failed';
  }
- const validAsset=p=>typeof p==='string'&&/^\/assets\/[a-zA-Z0-9_./-]+\.(png|webp)$/.test(p)&&!p.includes('..');
+ const validAsset=catalogImagePath;
  // Product thumbnails keep their original artwork. Every equipped avatar uses
  // the same normalized base/effect canvas, whose center is the photo opening.
  const canvasSource=path=>profileFrameCanvasArtwork(path);
@@ -71,7 +78,7 @@ function profileFrameCanvasArtwork(path){
    const premiumFrame=entry?.premium_default_frame===1&&activeStyle(entry,at);
    for(const artwork of host.querySelectorAll(':scope > img.player-frame-artwork')){
     const src=artwork.getAttribute('src');
-    const stalePaid=paidFrameSources.has(src)&&entry&&(canvasSource(entry.artwork)!==canvasSource(src)||expired(entry,at));
+    const stalePaid=(paidFrameSources.has(src)||String(src).startsWith('/api/product-assets/'))&&entry&&(canvasSource(entry.artwork)!==canvasSource(src)||expired(entry,at));
     artwork.style.visibility=premiumFrame||stalePaid?'hidden':'';
    }
    if(host.querySelector(':scope > img.player-frame-artwork'))alignFrame(img,host);
@@ -96,7 +103,9 @@ function profileFrameCanvasArtwork(path){
   let assets=t.assets,sku=t.sku,mode=t.uiMode;
   const small=matchMedia('(max-width:800px)').matches;
   const tall=small&&matchMedia('(max-aspect-ratio: 1/2)').matches;
-  const visible=paths=>card?paths?.roomCard:small?(tall&&paths?.roomMobileTall||paths?.roomMobile||paths?.roomDesktop):paths?.roomDesktop;
+  const app=document.documentElement.hasAttribute?.('data-aifect-native-room')||document.documentElement.hasAttribute?.('data-aifect-native');
+  const mobile=paths=>app&&paths?.roomApp||paths?.roomMobile;
+  const visible=paths=>card?paths?.roomCard:small?(!(app&&paths?.roomApp)&&tall&&paths?.roomMobileTall||mobile(paths)||paths?.roomDesktop):paths?.roomDesktop;
   let active=!expired(t,Date.now()/1000+(t.offset||0))&&usableAsset(visible(assets));
   const paid=active&&t.expires_at>0;
   if(!active){
@@ -110,12 +119,29 @@ function profileFrameCanvasArtwork(path){
   if(paid)el.dataset.paidTheme=sku;else delete el.dataset.paidTheme;
   const artKeys=['card','desktop','mobile','mobile-tall'];
   if(active)el.dataset.roomArtwork='';else delete el.dataset.roomArtwork;
-  const paths=[assets?.roomCard,assets?.roomDesktop,assets?.roomMobile,assets?.roomMobileTall];
+  const paths=[assets?.roomCard,assets?.roomDesktop,mobile(assets),app&&assets?.roomApp?null:assets?.roomMobileTall];
   artKeys.forEach((key,index)=>{
    const value=paths[index];
    if(active&&validAsset(value))el.style.setProperty('--decoration-'+key,`url("${value}")`);
    else el.style.removeProperty('--decoration-'+key);
   });
+  if(!card){
+   const effect=small?(app&&assets?.roomApp?assets.appEffect:assets?.mobileEffect):assets?.desktopEffect;
+   const show=active&&!document.hidden&&!matchMedia('(prefers-reduced-motion: reduce)').matches&&validAsset(effect);
+   el.toggleAttribute('data-product-theme-effect',show);
+   if(show)el.style.setProperty('--product-theme-effect','url("'+effect+'")');
+   else el.style.removeProperty('--product-theme-effect');
+  }
+ }
+ if(document.documentElement.hasAttribute?.('data-product-preview')){
+  window.AifectProductThemePreview=(element,theme,avatars)=>{
+   for(const data of avatars)frames.set(data.profile_id,{...data,checkedAt:Date.now(),offset:0});
+   const paint=()=>{if(element&&theme)paintTheme(element,theme);paintFrames();};
+   window.addEventListener('resize',paint);
+   document.addEventListener('load',event=>{if(event.target.matches?.('img[data-avatar-profile]'))paintFrames();},true);
+   paint();
+  };
+  return;
  }
  function paintThemes(){
   for(const card of document.querySelectorAll('[data-decoration-room]'))paintTheme(card,themes.get(card.dataset.decorationRoom),true);
@@ -161,7 +187,8 @@ function profileFrameCanvasArtwork(path){
  observer.observe(document.documentElement,{childList:true,subtree:true});
  document.addEventListener('load',e=>{if(e.target.matches?.('img[data-avatar-profile]'))paintFrames();},true);
  window.addEventListener('resize',()=>{paintFrames();paintThemes();});
- document.addEventListener('visibilitychange',()=>{if(!document.hidden)void refresh(true);});
+ document.addEventListener('visibilitychange',()=>{paintThemes();if(!document.hidden)void refresh(true);});
+ globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.('change',()=>{paintThemes();frameEffects.sweep();});
  window.addEventListener('aifect:equipment',()=>{
   frames.clear();
   // Existing equipment action updates me before emitting this event. Refresh

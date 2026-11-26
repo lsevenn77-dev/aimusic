@@ -5,7 +5,9 @@ import {inventoryTarget,recipientAllowedSQL,selectedInventoryIds,unitRequestKey}
 import {one,rows,query,now,id,fail,json,rate} from './db.js';
 import {requireUser,isAdmin} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
-import {giftById,silverGiftById,allocateLots,giftMonth} from '../shared/gifts.js';
+import {allocateLots,giftMonth} from '../shared/gifts.js';
+import {catalog,productById,giftRuntime,assertProductAction,productWriteGuard,PRODUCT_ID} from './product-catalog.js';
+import {parseProductDeadline,productGrantExpiry} from './product-deadline.js';
 import {producerNameSQL} from './identity.js';
 
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(b.request_id))fail(400,'요청 번호를 다시 확인해 주세요.');return b.request_id;};
@@ -19,13 +21,21 @@ const publicIdentity=(value,legacy=false)=>{
 };
 const paid=`status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded')`;
 export async function giftInventoryList(env,uid){
- const items=await rows(env,`SELECT i.id,i.gift_type,i.gift_name,i.currency,i.value,i.source,i.created,
-  (i.currency!='gold' OR COALESCE((SELECT sum(l.gold) FROM gift_inventory_lots l WHERE l.inventory_id=i.id),0)=i.value) AND NOT EXISTS(SELECT 1 FROM gift_inventory_lots l JOIN gold_purchases ON gold_purchases.id=l.purchase_id WHERE l.inventory_id=i.id AND NOT (${paid})) available
+ const items=await rows(env,`SELECT i.id,i.gift_type,i.gift_name,i.currency,i.value,i.source,i.created,i.expires_at,i.grant_terms,
+  (i.expires_at IS NULL OR i.expires_at>unixepoch()) AND (i.currency!='gold' OR COALESCE((SELECT sum(l.gold) FROM gift_inventory_lots l WHERE l.inventory_id=i.id),0)=i.value) AND NOT EXISTS(SELECT 1 FROM gift_inventory_lots l JOIN gold_purchases ON gold_purchases.id=l.purchase_id WHERE l.inventory_id=i.id AND NOT (${paid})) available
   FROM gift_inventory i WHERE i.user_id=? AND i.used_at=0 ORDER BY i.created DESC,i.id`,uid);
- return items.map(i=>({...i,acquisition:i.source==='purchase'?'purchase':['reward','reward_locked'].includes(i.source)?'admin':'unknown',giftable:!!i.available&&['purchase','reward'].includes(i.source),image:(giftById(i.gift_type)||silverGiftById(i.gift_type))?.image||'',available:!!i.available}));
+ const products=await catalog(env,items.map(i=>i.gift_type));
+ return items.map(({expires_at,grant_terms,...i})=>({...i,
+  ...(grant_terms?{expires_at,expired:expires_at!=null&&expires_at<=now(),grant_origin:JSON.parse(grant_terms).origin}:{}),
+  acquisition:i.source==='purchase'?'purchase':['reward','reward_locked'].includes(i.source)?'admin':'unknown',
+  giftable:!!i.available&&['purchase','reward'].includes(i.source),image:giftRuntime(products.get(i.gift_type))?.image||'',available:!!i.available}));
 }
 async function acquire(env,uid,b,operator=null){
- const key=requestId(b),gift=giftById(b.gift_type)||silverGiftById(b.gift_type),quantity=b.quantity??1;
+ const key=requestId(b),product=await productById(env,b.gift_type),gift=giftRuntime(product),quantity=b.quantity??1;
+ const deadline=operator&&b.deadline!==undefined?parseProductDeadline(b.deadline):null;
+ const origin=b.origin??'admin';
+ if(operator&&!['admin','event'].includes(origin))fail(400,'지급 출처를 확인해 주세요.');
+ const override=operator&&(b.deadline!==undefined||b.origin!==undefined)?JSON.stringify({deadline,origin}):null;
  if(!gift||!Number.isInteger(quantity)||quantity<1||quantity>100)fail(400,'선물 종류와 수량(1~100개)을 확인해 주세요.');
  if(operator&&b.giftable!==undefined&&typeof b.giftable!=='boolean')fail(400,'선물 가능 여부를 확인해 주세요.');
  const currency=operator?'reward':gift.gold?'gold':'silver',value=operator?0:gift.gold||gift.silver,source=operator?(b.giftable===false?'reward_locked':'reward'):'purchase';
@@ -34,13 +44,20 @@ async function acquire(env,uid,b,operator=null){
   if(!old.length)return false;
   if(old.length!==1||old[0].gift_type!==gift.id||old[0].currency!==currency||old[0].source!==source||old[0].quantity!==quantity)fail(409,'이미 사용된 요청 번호입니다.');
   if(operator){
-   const audit=await one(env,`SELECT admin_id,json_extract(target,'$.reason') reason FROM admin_audit WHERE action='gift_inventory_grant'
+   const audit=await one(env,`SELECT admin_id,json_extract(target,'$.reason') reason,json_extract(target,'$.terms') terms FROM admin_audit WHERE action='gift_inventory_grant'
     AND json_valid(target) AND json_extract(target,'$.user_id')=? AND json_extract(target,'$.request_id')=? LIMIT 1`,uid,key);
-   if(!audit||audit.admin_id!==operator.id||audit.reason?.trim()!==b.reason.trim())fail(409,'이미 다른 지급에 사용된 요청 번호입니다.');
+   if(!audit||audit.admin_id!==operator.id||audit.reason?.trim()!==b.reason.trim()||(audit.terms??null)!==override)fail(409,'이미 다른 지급에 사용된 요청 번호입니다.');
   }
   return true;
  };
  if(await replay())return;
+ assertProductAction(product,operator?'grant':'sale');
+ const policy=deadline??product.grantDeadline;
+ if(operator&&(origin==='event'||product.eventOnly)&&!policy)fail(400,'이벤트 지급 기한을 선택해 주세요.');
+ const at=now(),expires=operator?productGrantExpiry(policy,at):null;
+ if(expires!=null&&expires<=at)fail(400,'지급 종료일은 오늘 이후여야 합니다.');
+ const terms=operator?JSON.stringify({origin,deadline:policy,currency:product.currency,value:product.value??product.options.unit,settlement:'excluded'}):null;
+ const name=productWriteGuard(product,gift.name);
  await rate(env,'inventory-acquire:'+uid,30,3600);
  const lots=currency==='gold'?await rows(env,`SELECT id,gold,used,price_krw,fee_krw,tax_krw FROM gold_purchases WHERE user_id=? AND used<gold AND ${paid} ORDER BY paid_at,id`,uid):[];
  if(currency==='silver'&&Number((await one(env,'SELECT balance FROM free_gift_wallets WHERE user_id=?',uid))?.balance||0)<value*quantity){if(await replay())return;fail(409,'실버가 부족합니다.');}
@@ -50,10 +67,11 @@ async function acquire(env,uid,b,operator=null){
   const item=id();let spent=[];
   if(currency==='gold'){try{spent=allocateLots(lots,value);}catch{if(await replay())return;fail(409,'골드가 부족합니다.');}for(const l of spent)lots.find(x=>x.id===l.purchase_id).used+=l.gold;}
   statements.push(...spent.map(l=>query(env,'UPDATE gold_purchases SET used=used+? WHERE id=?',l.gold,l.purchase_id)));
-  statements.push(query(env,'INSERT INTO gift_inventory(id,user_id,gift_type,gift_name,currency,value,source,request_id,unit,created) VALUES(?,?,?,?,?,?,?,?,?,?)',item,uid,gift.id,gift.name,currency,value,source,key,n,now()));
+  statements.push(query(env,`INSERT INTO gift_inventory(id,user_id,gift_type,gift_name,currency,value,source,request_id,unit,created,expires_at,grant_terms)
+   VALUES(?,?,?,${name.sql},?,?,?,?,?,?,?,?)`,item,uid,gift.id,...name.args,currency,value,source,key,n,at,expires,terms));
   statements.push(...spent.map(l=>query(env,'INSERT INTO gift_inventory_lots(inventory_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',item,l.purchase_id,l.gold,l.net_mw)));
  }
- if(operator)statements.push(query(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',id(),operator.id,'gift_inventory_grant',JSON.stringify({user_id:uid,gift_type:gift.id,quantity,source,giftable:b.giftable!==false,request_id:key,reason:b.reason.trim()}),now()));
+ if(operator)statements.push(query(env,'INSERT INTO admin_audit(id,admin_id,action,target,created) VALUES(?,?,?,?,?)',id(),operator.id,'gift_inventory_grant',JSON.stringify({user_id:uid,gift_type:gift.id,quantity,source,giftable:b.giftable!==false,request_id:key,reason:b.reason.trim(),...(override?{terms:override}:{})}),at));
  try{await env.DB.batch(statements);}catch(e){if(/constraint/i.test(e.message)&&await replay())return;if(/constraint|refunded/i.test(e.message))fail(409,'잔액 또는 결제 상태가 바뀌었습니다. 다시 확인해 주세요.');throw e;}
 }
 export async function sendInventoryGift(env,user,itemId,b){
@@ -80,9 +98,10 @@ export async function sendInventoryGift(env,user,itemId,b){
  if(units.length!==ids.length)fail(404,'보관 선물을 찾을 수 없습니다.');
  const first=units[0],source=context||{type:'inventory',id:first.id,title:first.gift_name};
  if(units.some(i=>i.gift_type!==first.gift_type||!['purchase','reward'].includes(i.source)))fail(409,'선물 가능한 동일 상품만 선택해 주세요.');
+ if(units.some(i=>i.expires_at!=null&&i.expires_at<=now()))fail(409,'선물 사용 기한이 끝났습니다.');
  if(units.some(i=>i.used_at)){if(await replay())return;fail(409,'이미 다른 대상에게 사용한 선물입니다.');}
  const consumedCount=`(SELECT count(*) FROM gift_inventory i JOIN json_each(?) j ON i.id=j.value WHERE i.user_id=? AND i.recipient_id=? AND i.used_at>0 AND i.send_request_id=CASE WHEN j.key=0 THEN ? ELSE ?||':'||j.key END)`;
- const at=now(),writes=[query(env,`UPDATE gift_inventory SET used_at=?,recipient_id=CASE WHEN ${recipientAllowedSQL} AND source IN ('purchase','reward') THEN ? END,
+ const at=now(),writes=[query(env,`UPDATE gift_inventory SET used_at=?,recipient_id=CASE WHEN ${recipientAllowedSQL} AND source IN ('purchase','reward') AND (expires_at IS NULL OR expires_at>unixepoch()) THEN ? END,
   send_request_id=CASE WHEN j.key=0 THEN ? ELSE ?||':'||j.key END FROM json_each(?) j
   WHERE gift_inventory.user_id=? AND gift_inventory.id=j.value`,at,profile.user_id,user.id,user.id,profile.id,key,key,selection,user.id)];
  // Promotional units retain their zero monetary value, even when the same
@@ -104,6 +123,20 @@ export async function sendInventoryGift(env,user,itemId,b){
  try{await env.DB.batch(writes);}catch(e){if(await replay())return;if(/constraint|inventory/i.test(e.message))fail(409,'선물이나 결제 상태가 바뀌었습니다. 다시 확인해 주세요.');throw e;}
 }
 export async function giftInventoryRoute(req,env,path,user){
+ if(path==='/api/admin/gift-inventory/grants'){
+  requireUser(user);if(!isAdmin(env,user))fail(403,'지급 내역 조회 권한이 필요합니다.');
+  if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
+  const params=new URL(req.url).searchParams,product=params.get('gift_type')||'';
+  if(product&&!PRODUCT_ID.test(product))fail(400,'상품 ID를 확인해 주세요.');
+  const page=Math.max(1,Math.min(10000,Number.parseInt(params.get('page'),10)||1));
+  const history=await rows(env,`SELECT a.created,json_extract(a.target,'$.gift_type') gift_type,json_extract(a.target,'$.quantity') quantity,
+   json_extract(a.target,'$.reason') reason,p.code public_id
+   FROM admin_audit a LEFT JOIN public_profile_ids p ON p.user_id=json_extract(a.target,'$.user_id')
+   WHERE a.action='gift_inventory_grant' AND json_valid(a.target)
+   ${product?"AND json_extract(a.target,'$.gift_type')=?":''}
+   ORDER BY a.created DESC,a.id DESC LIMIT 21 OFFSET ?`,...(product?[product]:[]),(page-1)*20);
+  return json({grants:history.slice(0,20),page,more:history.length>20});
+ }
  if(path==='/api/admin/gift-inventory/grant'){
   requireUser(user);if(!isAdmin(env,user))fail(403,'관리자 권한이 필요합니다.');if(req.method!=='POST')fail(405,AifectMessages.unsupportedRequest);
   const b=await req.json();if(typeof b.reason!=='string'||!b.reason.trim()||b.reason.length>300)fail(400,'지급 사유를 입력해 주세요.');

@@ -1,9 +1,10 @@
 import {one,query,now,fail} from './db.js';
-import {roomThemeProduct,DEFAULT_ROOM_THEME} from '../shared/decorations.js';
+import {DEFAULT_ROOM_THEME} from '../shared/decorations.js';
+import {catalogRoomTheme} from './product-catalog.js';
 import {activeDecorationSQL,decorationFundingSQL,themeActivationQueries} from './decorations.js';
 
 export async function selectRoomEntitlement(env,uid,sku,inventoryId,confirm=false){
- const product=roomThemeProduct(sku);if(!product)fail(400,'테마를 확인해 주세요.');
+ const product=await catalogRoomTheme(env,sku);if(!product)fail(400,'테마를 확인해 주세요.');
  if(!product.kind)return {sku,inventoryId:null,transport:sku};
  // Old clients may omit an ID only for an already active right. Never choose stock implicitly.
  const item=inventoryId?await one(env,`SELECT pi.*,co.period_code FROM player_inventory pi LEFT JOIN decoration_orders co ON co.inventory_id=pi.id WHERE pi.user_id=? AND pi.item_key=? AND (pi.id=? OR pi.id=(SELECT active_inventory_id FROM decoration_redemptions WHERE inventory_id=? AND user_id=?)) ORDER BY pi.source='decoration' DESC LIMIT 1`,uid,sku,inventoryId,inventoryId,uid):await one(env,`SELECT * FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')} ORDER BY pi.granted_at,pi.id LIMIT 1`,uid,sku);

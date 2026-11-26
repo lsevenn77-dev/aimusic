@@ -84,6 +84,25 @@ function giftCompactRecipient(profile,canChange){
  const image=typeof avatarImage==='function'?avatarImage(profile,profile.kind||'producer',false,false):'';
  return `<${canChange?'button type="button"':'div'} class="gift-recipient" id="gift-recipient"${canChange?' aria-label="받는 사람 변경"':''}><span class="gift-recipient-avatar">${image}</span><strong>${userNickname(profile.name,{profileId:profile.kind==='artist'?null:profile.id,artistId:profile.id,entityType:profile.kind})}</strong>${canChange?icon('chevron'):''}</${canChange?'button':'div'}>`;
 }
+function giftPickerHTML({profile,canChange,choices,roomGift,ownedHTML,wallet,selected=null,activeCategory=null}) {
+  const initialOptions = Array.from({length:100},(_,i) => `<option value="${i+1}">${i+1}개</option>`).join('');
+ return `<section class="gift-dialog gift-dialog--compact"><header class="gift-dialog-header"><h2>선물하기</h2>${giftCompactRecipient(profile,canChange)}</header>
+   <nav class="gift-category-tabs" aria-label="선물 카테고리">${[['gifts','선물'],['frames','테두리'],['themes','테마'],['inventory','인벤토리']].map(([key,label]) =>
+    `<button type="button" class="small-button" data-gift-category="${key}" aria-pressed="${key===activeCategory}"${roomGift && key !== 'gifts'?' disabled aria-disabled="true"':''}>${label}</button>`).join('')}</nav>
+   <form id="gift-form"><div class="gift-options gift-dialog-scroll" tabindex="0" role="region" aria-label="선물 선택">
+    <div class="gift-ordinary-products">${giftCards(choices,selected,true,true)}<details class="gift-policy-details"${roomGift?' hidden':''}><summary>선물 수익 · 정산 안내</summary><p class="gift-fineprint">${esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)} 실버 선물은 수익 정산에 반영되지 않습니다.</p></details></div>
+    <div class="gift-owned" hidden>${ownedHTML}</div><div class="gift-decoration-products" hidden></div>
+   </div><div class="gift-checkout gift-dialog-footer">
+    <div id="gift-decoration-detail" class="gift-extra-detail" hidden></div><span class="gift-summary-sr-only" id="gift-send-summary" aria-live="polite"></span>
+    <p class="gift-context-detail" id="gift-detail" hidden></p><div class="gift-footer-grid">
+    <span class="gift-balance-cell" id="gift-balance-g" data-currency="G">${shopPrice(wallet?.balance||0,'G',20)}</span>
+    <a class="gift-charge-button" href="#gold" data-close-dialog><span>충전하기</span></a>
+    <label class="gift-quantity"><span class="gift-summary-sr-only">선물 수량</span><select id="gift-quantity" aria-label="선물 수량">${initialOptions}</select>${icon('chevron')}</label>
+    <span class="gift-balance-cell" id="gift-balance-s" data-currency="S">${shopPrice(wallet?.free?.balance||0,'S',20)}</span>
+    <a class="gift-silver-button" href="#rewards" data-close-dialog>${icon('gift')}<span>오늘의 실버받기</span></a>
+    <button type="submit" class="gift-send-button" id="gift-send" aria-describedby="gift-send-summary">${icon('gift')}<span class="gift-send-label">선물하기</span></button></div>
+    <p class="form-error" role="alert"></p></div></form></section>`;
+}
 async function giftDialog(tid, initial = null, personal = false) {
  const serial = ++giftDialogSerial, route = globalThis.location?.hash, roomGift = initial?.roomGift;
  const artistId = personal ? initial?.artistId : null;
@@ -126,23 +145,7 @@ async function giftDialog(tid, initial = null, personal = false) {
   const ownedHTML = inventory.error ? '<p class="gift-owned-empty" role="alert">보유 아이템을 불러오지 못했습니다. <button type="button" class="text-link" data-gift-inventory-retry>다시 불러오기</button></p>' :
    giftInventorySection('선물',groups.map(g => storedGiftCard(g,'data-owned-gift')).join(''));
   $('#gift-form')?._giftCleanup?.();
-  const initialOptions = Array.from({length:100},(_,i) => `<option value="${i+1}">${i+1}개</option>`).join('');
-  dialog(`<section class="gift-dialog gift-dialog--compact"><header class="gift-dialog-header"><h2>선물하기</h2>${giftCompactRecipient(profile,personal && !artistId)}</header>
-   <nav class="gift-category-tabs" aria-label="선물 카테고리">${[['gifts','선물'],['frames','테두리'],['themes','테마'],['inventory','인벤토리']].map(([key,label]) =>
-    `<button type="button" class="small-button" data-gift-category="${key}" aria-pressed="false"${roomGift && key !== 'gifts'?' disabled aria-disabled="true"':''}>${label}</button>`).join('')}</nav>
-   <form id="gift-form"><div class="gift-options gift-dialog-scroll" tabindex="0" role="region" aria-label="선물 선택">
-    <div class="gift-ordinary-products">${giftCards(choices,null,true,true)}<details class="gift-policy-details"${roomGift?' hidden':''}><summary>선물 수익 · 정산 안내</summary><p class="gift-fineprint">${esc(AifectGifts.GIFT_SETTLEMENT_NOTICE)} 실버 선물은 수익 정산에 반영되지 않습니다.</p></details></div>
-    <div class="gift-owned" hidden>${ownedHTML}</div><div class="gift-decoration-products" hidden></div>
-   </div><div class="gift-checkout gift-dialog-footer">
-    <div id="gift-decoration-detail" class="gift-extra-detail" hidden></div><span class="gift-summary-sr-only" id="gift-send-summary" aria-live="polite"></span>
-    <p class="gift-context-detail" id="gift-detail" hidden></p><div class="gift-footer-grid">
-    <span class="gift-balance-cell" id="gift-balance-g" data-currency="G">${shopPrice(wallet?.balance||0,'G',20)}</span>
-    <a class="gift-charge-button" href="#gold" data-close-dialog><span>충전하기</span></a>
-    <label class="gift-quantity"><span class="gift-summary-sr-only">선물 수량</span><select id="gift-quantity" aria-label="선물 수량">${initialOptions}</select>${icon('chevron')}</label>
-    <span class="gift-balance-cell" id="gift-balance-s" data-currency="S">${shopPrice(wallet?.free?.balance||0,'S',20)}</span>
-    <a class="gift-silver-button" href="#rewards" data-close-dialog>${icon('gift')}<span>오늘의 실버받기</span></a>
-    <button type="submit" class="gift-send-button" id="gift-send" aria-describedby="gift-send-summary">${icon('gift')}<span class="gift-send-label">선물하기</span></button></div>
-    <p class="form-error" role="alert"></p></div></form></section>`);
+  dialog(giftPickerHTML({profile,canChange:personal && !artistId,choices,roomGift,ownedHTML,wallet}));
   const form = $('#gift-form'), input = $('#gift-quantity'), send = $('#gift-send'), summary = $('#gift-send-summary');
   const detail = $('#gift-detail'), periodBox = $('#gift-decoration-detail'), footer = form.querySelector('.gift-checkout');
   const active = () => current() && form.isConnected && $('#dialog').open;

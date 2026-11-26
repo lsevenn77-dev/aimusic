@@ -25,10 +25,10 @@ test('stored gift public code lookup preserves the selected inventory ID when op
  assert.equal(h.calls.length,1);assert.equal(h.opened.length,1);assert.equal(h.opened[0].id,'recipient');assert.equal(h.opened[0].initial.giftInventoryId,'stock-1');assert.equal(h.closed,false);
 });
 test('admin console grants use the public code, selected transfer policy and a stable retry key',async()=>{
- const events={},button={disabled:false},status={},fields={public_id:{value:' qxf7082 '},gift_type:{value:'silver-letter'},quantity:{value:'2'},reason:{value:'운영 테스트'},giftable:{checked:false}};
- const form={elements:fields,reportValidity:()=>true,reset(){},querySelector:key=>key==='[type=submit]'?button:status,addEventListener:(name,fn)=>{events[name]=fn;}};
+ const events={},button={disabled:false},status={},fields={public_id:{value:' qxf7082 '},gift_type:{value:'silver-letter'},quantity:{value:'2'},reason:{value:'운영 테스트'},giftable:{checked:false},origin:{value:'admin'},deadline:{value:'',addEventListener(){}}};
+ const form={elements:fields,reportValidity:()=>true,reset(){},querySelectorAll:()=>[],querySelector:key=>key==='[type=submit]'?button:status,addEventListener:(name,fn)=>{events[name]=fn;}};
  const calls=[];
- const ctx=vm.createContext({crypto:webcrypto,$:id=>id==='#admin-gift-grant'?form:{addEventListener(){}},api:async(path,opts)=>{calls.push({path,body:JSON.parse(opts.body)});if(calls.length===1)throw Error('일시 오류');}});
+ const ctx=vm.createContext({crypto:webcrypto,URLSearchParams,document:{addEventListener(){}},$:id=>id==='#admin-gift-grant'?form:{},api:async(path,opts)=>{if(path.startsWith('/api/admin/gift-inventory/grants?'))return {grants:[],page:1,more:false};calls.push({path,body:JSON.parse(opts.body)});if(calls.length===1)throw Error('일시 오류');}});
  const js=source('admin.js'); vm.runInContext(js.slice(js.indexOf('  function bindAdminGiftGrant()'),js.indexOf('  async function init()')),ctx);
  assert.match(source('admin.html'),/name="public_id" pattern="\[A-Za-z\]\{3\}\[0-9\]\{4\}"/);
  for(let i=0;i<2;i++)await events.submit({preventDefault(){}});

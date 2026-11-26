@@ -1,5 +1,6 @@
 import {one,rows,run,now,fail} from './db.js';
-import {DECORATIONS,FREE_ROOM_THEMES,DEFAULT_ROOM_SKIN,DEFAULT_ROOM_THEME,isRetiredRoomTheme,roomThemeProduct,roomUIMode} from '../shared/decorations.js';
+import {FREE_ROOM_THEMES,DEFAULT_ROOM_SKIN,DEFAULT_ROOM_THEME,isRetiredRoomTheme,roomUIMode} from '../shared/decorations.js';
+import {catalog,catalogRoomTheme,giftRuntime} from './product-catalog.js';
 import {activeDecorationSQL,decorationInventory} from './decorations.js';
 import {playerColumnsSQL} from './player.js';
 export async function roomThemeChoices(env,uid){
@@ -8,7 +9,7 @@ export async function roomThemeChoices(env,uid){
  return [...paid,...FREE_ROOM_THEMES.map(p=>({...p,uiMode:roomUIMode(p),selectable:true,paid:false,status:'ACTIVE',expires_at:0}))];
 }
 export async function assertRoomTheme(env,uid,sku){
- const product=roomThemeProduct(sku);
+ const product=await catalogRoomTheme(env,sku);
  if(!product)fail(400,'테마를 확인해 주세요.');
  if(!product.kind)return sku;
  if(!await one(env,`SELECT id FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${activeDecorationSQL('pi')}`,uid,sku))fail(403,'보유 중인 유효한 테마만 선택할 수 있습니다.');
@@ -28,7 +29,7 @@ export async function resolveRoomDecoration(env,room){
  // A matching row may hold the persisted fallback for an expired purchase.
  const current=setting&&(!room.theme_sku||setting.revision===(room.settings_revision||0));
  const sku=(current&&setting.sku)||room.theme_sku||room.background||DEFAULT_ROOM_THEME;
- const product=roomThemeProduct(sku);
+ const product=await catalogRoomTheme(env,sku);
  if(product&&!product.kind)return themeResponse(product);
  const entitlement=product?await one(env,`SELECT id,expires_at FROM player_inventory pi WHERE pi.user_id=? AND pi.item_key=? AND ${current&&setting.inventory_id?'pi.id=?':"pi.source_ref=pi.item_key"} AND ${activeDecorationSQL('pi')}`,room.host_id,sku,...(current&&setting.inventory_id?[setting.inventory_id]:[])):null;
  if(entitlement)return themeResponse(product,entitlement.expires_at,now(),entitlement.id);
@@ -52,6 +53,14 @@ export async function decorateRoomResult(env,data){
   const frames=new Map(identities.map(p=>[p.id,{following:!!p.following,follows_viewer:!!p.follows_viewer,premium_style_until:p.premium_style_until,premium_default_frame:p.premium_default_frame,profile_frame:p.profile_frame,profile_frame_artwork:p.profile_frame_artwork,profile_frame_display:p.profile_frame_display}]));
   data={...data,members:data.members.map(member=>({...member,...(frames.get(member.id)||{premium_style_until:0,premium_default_frame:0,profile_frame:null,profile_frame_artwork:null,profile_frame_display:null})}))};
  }
+ const giftMessages=data.chat?.filter(message=>message.gift?.type);
+ if(giftMessages?.length){
+  const products=await catalog(env,giftMessages.map(message=>message.gift.type));
+  data={...data,chat:data.chat.map(message=>{
+   const image=giftRuntime(products.get(message.gift?.type))?.image;
+   return image?{...message,gift:{...message.gift,image}}:message;
+  })};
+ }
  return data;
 }
 export async function directoryRoomThemes(env,rooms){
@@ -66,9 +75,9 @@ export async function directoryRoomThemes(env,rooms){
   AND (page.chosen IS NULL OR rd.revision=page.revision)
  ) SELECT themes.*,(SELECT MAX(pi.expires_at) FROM player_inventory pi WHERE pi.user_id=themes.host_id
   AND pi.item_key=themes.sku AND (pi.id=themes.inventory_id OR (themes.inventory_id IS NULL AND pi.source_ref=pi.item_key)) AND ${activeDecorationSQL('pi')}) expires_at FROM themes`,JSON.stringify(scope));
- const themes=new Map(),expired=[],server_now=now();
+ const themes=new Map(),expired=[],server_now=now(),products=await catalog(env,settings.map(row=>row.sku));
  for(const {id,host_id,revision,sku,expires_at,inventory_id} of settings){
-  const product=roomThemeProduct(sku),paid=product?.kind==='TALKING_ROOM_THEME';
+  const product=await catalogRoomTheme(env,sku,products),paid=product?.kind==='TALKING_ROOM_THEME';
   const active=paid&&expires_at>server_now;
   themes.set(id,themeResponse(product&&(!paid||active)?product:DEFAULT_ROOM_SKIN,active?expires_at:0,server_now,active?inventory_id:null));
   if(revision!=null&&!active&&(paid||isRetiredRoomTheme(sku)))expired.push([id,host_id,revision,sku]);

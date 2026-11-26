@@ -36,7 +36,7 @@
 
   async function api(url,{download=false,...options}={}){
     const headers=new Headers(options.headers||{});
-    if(options.body&&!headers.has('content-type'))headers.set('content-type','application/json');
+    if(options.body&&!(options.body instanceof FormData)&&!headers.has('content-type'))headers.set('content-type','application/json');
     const res=await fetch(url,{credentials:'same-origin',...options,headers});
     if(res.ok&&download)return res;
     let body={};
@@ -51,6 +51,7 @@
     directory.request++;
     directory.selected.clear();updateMemberSelection();
     document.dispatchEvent(new CustomEvent('aifect-admin-notices-reset'));
+    document.dispatchEvent(new Event('aifect-admin-locked'));
     $('#member-list').replaceChildren();
     app.classList.add('locked');
     $('#admin-content').hidden=true;
@@ -74,9 +75,9 @@
     });
   }
 
-  function navigate(view,ids=null){
+  function navigate(view,selection=null){
     state.view=view;
-    $('#period-select').hidden=['people','notice-chat'].includes(view);
+    $('#period-select').hidden=['people','notice-chat','products','gift-dispatch'].includes(view);
     $$('.view-page').forEach(page=>page.classList.toggle('hidden',page.dataset.page!==view));
     $$('.admin-nav-item').forEach(btn=>btn.classList.toggle('active',btn.dataset.view===view));
     if(view==='tracks')loadTrackReview();
@@ -84,7 +85,9 @@
     if(view==='moderation'){loadCommentReports();loadDubbingReports();}
     if(view==='dubbing')loadDubbing();
     if(view==='payouts')loadPayouts();
-    if(view==='notice-chat')document.dispatchEvent(new CustomEvent('aifect-admin-notices',{detail:{request:api,toast,ids}}));
+    if(view==='notice-chat')document.dispatchEvent(new CustomEvent('aifect-admin-notices',{detail:{request:api,toast,ids:selection}}));
+    if(view==='products')products?.open();
+    if(view==='gift-dispatch')document.dispatchEvent(new CustomEvent('aifect-admin-load-grants',{detail:selection}));
     if(view==='ai-bots')document.dispatchEvent(new CustomEvent('aifect-admin-ai-bots'));if(view==='cover-compression')document.dispatchEvent(new CustomEvent('aifect-admin-cover-compression'));
     window.scrollTo({top:0,behavior:'smooth'});
   }
@@ -505,37 +508,78 @@
     }catch(error){toast(error.message);}
   }
 
+  const products=window.AifectAdminProducts?.mount($('#admin-products'),{api,esc,toast,jumpToGrant:id=>{
+    navigate('gift-dispatch',id);
+  }});
+
   function bindAdminGiftGrant(){
     const grantForm = $('#admin-gift-grant');
     const grantStatus = grantForm.querySelector('[role=status]');
     const grantButton = grantForm.querySelector('[type=submit]');
-    let grantAttempt = null, loadingGrants = false;
-    $('#gift-grant-panel').addEventListener('toggle', async event => {
-      if (!event.target.open || grantForm.elements.gift_type.options.length || loadingGrants) return;
-      loadingGrants = true;
-      try {
-        const catalog = await api('/api/gifts/catalog');
-        for (const gift of [...catalog.gifts,...catalog.silver_gifts]) {
-          grantForm.elements.gift_type.add(new Option(gift.name,gift.id));
-        }
-        grantButton.disabled = !grantForm.elements.gift_type.options.length;
-        grantStatus.textContent = '';
-      } catch(error) {grantStatus.textContent=error.message;}
-      finally {loadingGrants=false;}
+    const fields=grantForm.elements;
+    let grantAttempt=null,generation=0,selection='',historyToken=0,historyProduct='',historyPage=1;
+    const historyRows=$('#gift-grant-history-rows'),historyScope=$('#gift-grant-scope');
+    const next=$('#gift-grant-next'),previous=$('#gift-grant-previous'),all=$('#gift-grant-all');
+    async function loadHistory(){
+      const token=++historyToken,query=new URLSearchParams({gift_type:historyProduct,page:historyPage});
+      all.hidden=!historyProduct;next.hidden=previous.hidden=true;
+      historyScope.textContent=historyProduct?'상품 ID '+historyProduct:'';
+      historyRows.textContent='지급 내역을 불러오고 있습니다.';
+      try{
+        const data=await api('/api/admin/gift-inventory/grants?'+query);
+        if(token!==historyToken)return;
+        historyRows.innerHTML=data.grants.length?data.grants.map(grant=>
+          '<div class="compact-row"><div class="row-main"><strong>'+esc(grant.gift_type)+' · '+num(grant.quantity)+'개</strong>'+
+          '<span>'+esc(grant.public_id||'—')+' · '+esc(grant.reason||'')+'</span></div><span class="row-value">'+kstDateTime(grant.created)+'</span></div>'
+        ).join(''):'<p class="empty-state">지급 내역이 없습니다.</p>';
+        next.hidden=!data.more;previous.hidden=data.page===1;
+      }catch(error){if(token===historyToken)historyRows.textContent=error.message;}
+    }
+    all.onclick=()=>{historyProduct='';historyPage=1;void loadHistory();};
+    previous.onclick=()=>{historyPage=Math.max(1,historyPage-1);void loadHistory();};
+    next.onclick=()=>{historyPage++;void loadHistory();};
+    const paintDeadline=()=>{
+      for(const label of grantForm.querySelectorAll('[data-deadline]')){
+        label.hidden=label.dataset.deadline!==fields.deadline.value;
+        label.querySelector('input').required=!label.hidden;
+      }
+    };
+    fields.deadline.addEventListener('change',paintDeadline);
+    document.addEventListener('aifect-admin-locked',()=>{
+      generation++;historyToken++;historyProduct='';historyRows.replaceChildren();
+      grantAttempt=null;selection='';grantForm.reset();fields.gift_type.replaceChildren();grantStatus.textContent='';
+    });
+    document.addEventListener('aifect-admin-load-grants',async event=>{
+      selection=event.detail||selection||fields.gift_type.value;
+      historyProduct=event.detail||'';historyPage=1;void loadHistory();
+      const token=++generation;
+      grantButton.disabled=true;grantStatus.textContent='지급 가능한 상품을 확인하고 있습니다.';
+      try{
+        const catalog=await api('/api/admin/products/grantable');
+        if(token!==generation)return;
+        const gifts=catalog.products.filter(product=>product.grant_executor==='gift_inventory');
+        fields.gift_type.replaceChildren(new Option('상품 선택',''),...gifts.map(gift=>new Option(gift.name,gift.id)));
+        if(gifts.some(gift=>gift.id===selection))fields.gift_type.value=selection;
+        grantStatus.textContent=gifts.length?'':'지급 가능한 선물이 없습니다.';
+        grantButton.disabled=!gifts.length;
+      }catch(error){if(token===generation)grantStatus.textContent=error.message;}
+      finally{if(token===generation)selection='';}
     });
     grantForm.addEventListener('submit', async event => {
       event.preventDefault();
       if (grantButton.disabled || !grantForm.reportValidity()) return;
       const fields = grantForm.elements;
+      const deadline=fields.deadline.value;
       const payload = {public_id:fields.public_id.value.trim().toUpperCase(),gift_type:fields.gift_type.value,
-        quantity:Number(fields.quantity.value),reason:fields.reason.value.trim(),giftable:fields.giftable.checked};
+        quantity:Number(fields.quantity.value),reason:fields.reason.value.trim(),giftable:fields.giftable.checked,origin:fields.origin.value,
+        ...(deadline?{deadline:deadline==='days'?{mode:deadline,days:Number(fields.days.value)}:deadline==='date'?{mode:deadline,date:fields.date.value}:{mode:deadline}}:{})};
       const fingerprint = JSON.stringify(payload);
       if (grantAttempt?.fingerprint !== fingerprint) grantAttempt={fingerprint,key:crypto.randomUUID()};
       grantButton.disabled=true;grantStatus.textContent='';
       try {
         await api('/api/admin/gift-inventory/grant',{method:'POST',body:JSON.stringify({...payload,request_id:grantAttempt.key})});
         grantStatus.textContent=payload.public_id+' 회원에게 '+payload.quantity+'개를 지급했습니다.';
-        grantAttempt=null;grantForm.reset();
+        grantAttempt=null;grantForm.reset();paintDeadline();void loadHistory();
       } catch(error) {grantStatus.textContent=error.message;}
       finally {grantButton.disabled=false;}
     });
@@ -665,6 +709,7 @@
   $('#period-select').addEventListener('change',async e=>{state.days=Number(e.target.value)||7;await refreshCurrentView();});
   $('#refresh-button').addEventListener('click',()=>{
     if(state.view==='notice-chat'){document.dispatchEvent(new CustomEvent('aifect-admin-notices-refresh'));return;}
+    if(state.view==='products')products?.open();
     if(state.view==='people')loadMembers();refreshCurrentView();
   });
   $('#admin-search-form').addEventListener('submit',e=>{e.preventDefault();globalSearch($('#admin-search-input').value);});

@@ -1,0 +1,6 @@
+html[data-product-preview] body{margin:0;min-width:0;background:var(--ds-bg,#0c121b)}
+html[data-product-preview] .page-wrap{min-width:0}
+html[data-product-preview] #main{margin:0 auto;min-width:0}
+html[data-product-preview] #main :is(.shop-products,.inventory-product-grid){min-width:0}
+html[data-product-preview] #main[data-room-entered]{min-height:100dvh}
+html[data-product-preview] :is(button,a,input,select,textarea,[contenteditable]){cursor:default}

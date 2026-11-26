@@ -3,6 +3,7 @@ import {readFile} from 'node:fs/promises';
 import {timingSafeEqual,createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {render} from './renderer.mjs';
+import {processProductImage,compareProductScreens} from './product-media.mjs';
 const revision=(await readFile(new URL('./revision',import.meta.url),'utf8')).trim();
 const shell=await readFile(new URL('./shell.html',import.meta.url),'utf8');
 const renderer=await readFile(new URL('./renderer.mjs',import.meta.url));
@@ -43,6 +44,18 @@ const server=http.createServer(async(req,res)=>{
     const out=await img.rotate().resize(1600,1600,{fit:'inside',withoutEnlargement:true}).webp({quality:84}).toBuffer();
     if(out.length>maxImage)return end(413);
     res.writeHead(200,{'content-type':'image/webp','content-length':out.length,'cache-control':'no-store'});return res.end(out);
+   }finally{images--;}
+  }
+  const product=/^\/aifect-origin\/v1\/(product-(?:inspect|frame|display|thumbnail|compare))$/.exec(req.url)?.[1];
+  if(product){
+   if(images>=2)return end(503);images++;
+   try{
+    const input=await read(req,maxImage);
+    const result=product==='product-compare'?{type:'application/json',body:Buffer.from(JSON.stringify(await compareProductScreens(input)))}:
+     await processProductImage(input,product);
+    res.writeHead(200,{'content-type':result.type,'content-length':result.body.length,'cache-control':'no-store',
+     ...(result.metadata?{'x-aifect-image':JSON.stringify(result.metadata)}:{})});
+    return res.end(result.body);
    }finally{images--;}
   }
   const id=/^\/aifect-origin\/([0-9a-f]{64})\/page$/.exec(req.url)?.[1];

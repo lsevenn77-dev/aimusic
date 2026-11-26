@@ -63,7 +63,7 @@ import {coverRankingRoute} from './cover-rankings.js';
 import {commentModerationRoute} from './comment-moderation.js';
 import {trackModerationRoute} from './track-moderation.js';
 import {json,fail,rate,query,now,one,rows} from './db.js';
-import {viewer,authRoute,hash} from './auth.js';
+import {viewer,authRoute,hash,isAdmin} from './auth.js';
 import {catalogRoute} from './catalog.js';
 import {homeTracks,homePlaylists} from './home-shelves.js';
 import {musicLibraryRoute} from './music-library.js';
@@ -79,6 +79,10 @@ import {duetRoute} from './duets.js';
 import {giftRoute} from './gifts.js';
 import {payoutRoute} from './payouts.js';
 import {adminDashboardRoute} from './admin-dashboard.js';
+import {adminProductRoute} from './admin-products.js';
+import {productFileRoute} from './product-assets.js';
+import {productEvidenceRoute} from './product-reviews.js';
+import {productPreviewRoute} from './product-preview.js';
 import {adminSessionRoute,consoleViewer,isConsoleAdmin} from './admin-session.js';
 import {diamondRoute} from './diamonds.js';
 import {accountPageRoute} from './account-pages.js';
@@ -123,6 +127,7 @@ async function fetchRequest(req,env,ctx){
    const poster=path.match(/^\/api\/dubbing\/projects\/([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/poster$/i);
    if(poster)return await readProjectPoster(req,env,poster[1]);
   }
+  if(path.startsWith('/api/product-assets/'))return await productFileRoute(req,env,path,false);
   if(env.BUCKET&&ctx?.waitUntil&&(path.startsWith('/api/')||path.startsWith('/internal/')))ctx.waitUntil(drainDeletedFiles(env).catch(()=>console.error('Account file cleanup pending')));
   if(path.startsWith('/api/')||path.startsWith('/internal/'))queueChatImageCleanup(env,ctx);
   if(path==='/api/apple/notifications')return await appleNotification(req,env);
@@ -186,7 +191,8 @@ async function fetchRequest(req,env,ctx){
   // The official producer upload handler checks the manifest digest and enforces its own byte limits.
   const officialAudioUpload=req.method==='PUT'&&/^\/api\/dubbing\/projects\/[\w-]+\/sound\/official-rebuild\/(?:manifest|asset\/[\w-]+)$/.test(path);
   const noticeUpload=path==='/api/admin/notices/images'&&req.method==='POST';
-  if(!['GET','HEAD'].includes(req.method)&&!binary&&!noticeUpload&&!profileMultipart&&!officialAudioUpload&&req.body){
+  const productMultipart=req.method==='POST'&&/^\/api\/admin\/products\/[\w-]+\/versions(?:\/[\w-]+\/review)?$/.test(path);
+  if(!['GET','HEAD'].includes(req.method)&&!binary&&!noticeUpload&&!profileMultipart&&!officialAudioUpload&&!productMultipart&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,AifectMessages.requestTooLarge);
    const reader=req.body.getReader(),chunks=[];let size=0;
    try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxJson){await reader.cancel().catch(()=>{});fail(413,AifectMessages.requestTooLarge);}chunks.push(value);}}finally{reader.releaseLock();}
@@ -197,6 +203,11 @@ async function fetchRequest(req,env,ctx){
   const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
   if(path==='/api/account/summary'||path==='/api/account/payments')return await accountOverviewRoute(req,env,path,user);
+  if(path.startsWith('/api/admin/product-')||path.startsWith('/api/admin/products')){
+   const authorized=isAdmin(env,user);
+   const product=await productFileRoute(req,env,path,authorized)||await productEvidenceRoute(req,env,path,authorized)||await productPreviewRoute(req,env,path,user)||await adminProductRoute(req,env,path,user);
+   if(product)return product;
+  }
   const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;
   const notice=await officialNoticeRoute(req,env,path,user)||await welcomeNoticeRoute(req,env,path,user);if(notice)return notice;
   const noticeAdmin=await adminNoticeRoute(req,env,path,user);if(noticeAdmin)return noticeAdmin;

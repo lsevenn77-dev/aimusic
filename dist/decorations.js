@@ -106,7 +106,7 @@ async function bindGiftCategoryTabs(form, {initial, serial, account, initialOwne
  await show(initial?.roomGift ? 'gifts' : initial?.inventoryId || initial?.giftInventoryId || initialOwned ? 'inventory' :
   initial?.sku?.startsWith('frame_') ? 'frames' : initial?.sku ? 'themes' : 'gifts',true);
 }
-function decorationProductImage(p){return p.kind==='PROFILE_FRAME'?p.assetPaths.overlay:p.assetPaths.roomCard;}
+function decorationProductImage(p){return p.catalog_thumbnail||(p.kind==='PROFILE_FRAME'?p.assetPaths.overlay:p.assetPaths.roomCard);}
 // One registered SKU already contains its duration variants; never group unrelated names.
 function shopThemeProducts(products){return [...new Map(products.filter(p=>p.kind==='TALKING_ROOM_THEME').map(p=>[p.sku,p])).values()];}
 function shopProductPeriods(p,periods){return Object.entries(periods).filter(([key])=>Number.isFinite(p.periodPrices[key])&&p.periodPrices[key]>=0);}

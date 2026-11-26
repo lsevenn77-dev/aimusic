@@ -3,6 +3,16 @@
 #main .voice-room[data-christmas-review] > .af-theme-underlay { z-index:-1; }
 #main .voice-room[data-christmas-review="loading"] > .af-theme-underlay { visibility:hidden; }
 #main[data-room-entered] .voice-room[data-voice-room][data-room-design][data-christmas-review="active"][data-theme-asset-state="ready"]::before { content:none; }
+
+/* Separate artwork stays under the same room controls and uses the exact base crop. */
+#main[data-room-entered] .voice-room[data-voice-room][data-room-design][data-product-theme-effect]::after {
+ content:""!important;position:absolute;inset:0;z-index:-1;pointer-events:none;
+ background:var(--product-theme-effect) var(--room-skin-focus) / var(--room-skin-size) no-repeat;
+}
+.talk-gift-effect .product-gift-overlay{position:absolute;left:50%;top:0;margin-left:-50px;pointer-events:none}
+.live-product-gift-art{position:relative;display:inline-grid}
+.live-product-gift-art>img{grid-area:1/1}
+@media(max-width:800px){.talk-gift-effect .product-gift-overlay{margin-left:-39px}}
 .af-review-cover { display:none; }
 .af-review-shop-art, .af-review-shop-art img { display:block; width:100%; aspect-ratio:1; object-fit:cover; }
 .shop-page [data-christmas-shop] .shop-card-select { cursor:default; }

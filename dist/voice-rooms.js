@@ -29,11 +29,13 @@ if(typeof document!=='undefined')document.addEventListener('click',prepareVoiceE
 function talkGiftPeople(from,to){
  return `<span class="talk-gift-from">${esc(from)}</span><img class="talk-gift-direction" src="/assets/gift-direction-double-chevron.svg" alt=""><span class="talk-gift-to">${esc(to)}</span>`;
 }
+function roomGiftAsset(value){return typeof catalogImagePath==='function'&&catalogImagePath(value)?value:null;}
 function voiceChatMessageHTML(m,liveMode=false){
  const time='';
  if(m.kind==='system')return `<article class="voice-chat-system"><p>${esc(m.body).replace(/라이브 노래방|토킹룸|방 설정/g,word=>'<strong>'+word+'</strong>')}</p>${time}</article>`;
  if(m.kind==='gift'){
-  const gift=AifectGifts.giftById(m.gift?.type);
+  const image=roomGiftAsset(m.gift?.image);
+  const gift=image?{image}:AifectGifts.giftById(m.gift?.type);
   if(!liveMode){
    if(!m.name||!m.recipient_name||!m.gift?.name||!m.gift.quantity)return `<article class="talk-gift-notice">${esc(m.body)}</article>`;
    const item=`${esc(m.gift.name)} ×${number(m.gift.quantity)}`;
@@ -838,28 +840,45 @@ class VoiceRoomClient {
   if(this.closed||!event.gift?.id||this.seenGifts.has(event.gift.id))return;
   this.seenGifts.add(event.gift.id);
   if(this.seenGifts.size>200)this.seenGifts.delete(this.seenGifts.values().next().value);
+  const gift=event.gift,still=roomGiftAsset(gift.artwork)||roomGiftAsset(gift.image)||AifectGifts.giftById(gift.type)?.image;
+  if(document.hidden)return;
+  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const imageURL=(!reduced&&roomGiftAsset(gift.animation))||still,effect=!reduced&&roomGiftAsset(gift.effect);
   if(!this.liveMode){
-   const gift=AifectGifts.giftById(event.gift.type);
-   if(gift){this.talkGiftQueue.push({event,imageURL:gift.image});this.playNextTalkGift();}
+   if(imageURL){this.talkGiftQueue.push({event,imageURL,still,effect});this.playNextTalkGift();}
    return;
   }
-  const el=$('#voice-gift-animation');if(!el)return;const g=AifectGifts.GIFT_CATALOG.find(g=>g.id===event.gift.type);el.innerHTML=(g?giftArt(g):icon('gift'))+`<strong>${esc(event.from)} → ${esc(event.to)}</strong><span>${esc(event.gift.name)} × ${number(event.gift.quantity)}</span>`;el.hidden=false;clearTimeout(this.animationTimer);this.animationTimer=setTimeout(()=>el.hidden=true,4500);
+  const el=$('#voice-gift-animation');if(!el)return;
+  const art=imageURL?giftArt({image:imageURL}):icon('gift');
+  el.innerHTML=(effect?'<span class="live-product-gift-art">'+art+'<img alt="" src="'+esc(effect)+'"></span>':art)+
+   `<strong>${esc(event.from)} → ${esc(event.to)}</strong><span>${esc(gift.name)} × ${number(gift.quantity)}</span>`;
+  if(still&&imageURL!==still)el.querySelector('.gift-art').addEventListener('error',e=>{e.target.src=still;},{once:true});
+  el.hidden=false;clearTimeout(this.animationTimer);
+  this.animationTimer=setTimeout(()=>{el.hidden=true;el.replaceChildren();},4500);
  }
  playNextTalkGift(){
   if(this.activeTalkGift||this.closed||!this.talkGiftQueue.length)return;
   const layer=this.host?.querySelector('.talk-gift-effect');
   if(!layer?.isConnected){this.talkGiftQueue.length=0;return;}
-  const {event,imageURL}=this.talkGiftQueue.shift();
+  const {event,imageURL,still,effect}=this.talkGiftQueue.shift();
+  if(document.hidden){this.talkGiftQueue.length=0;return;}
   const image=new Image();
   this.activeTalkGift={layer,image,targetId:event.gift.target_id};
   image.className='talk-gift-art';
   image.alt='';
-  image.onerror=()=>this.finishTalkGift();
+  image.onerror=()=>{
+   if(still&&image.getAttribute('src')!==still)image.src=still;
+   else this.finishTalkGift();
+  };
   image.onload=()=>{
    clearTimeout(this.animationTimer);
    if(!layer.isConnected){this.finishTalkGift();return;}
    layer.innerHTML=`<span class="talk-gift-caption">${talkGiftPeople(event.from,event.to)}</span>`;
    layer.prepend(image);
+   if(effect){
+    const overlay=new Image();overlay.className='talk-gift-art product-gift-overlay';overlay.alt='';
+    overlay.onerror=()=>overlay.remove();overlay.src=effect;image.after(overlay);
+   }
    layer.hidden=false;
    this.positionTalkGift();
    const observer=new ResizeObserver(()=>this.positionTalkGift());

@@ -6,7 +6,7 @@ import {requireUser} from './auth.js';
 import {assertUnblocked} from './account-safety.js';
 import {assertDmBody} from './dm-body.js';
 import {giftRoute} from './gifts.js';
-import {giftById,silverGiftById} from '../shared/gifts.js';
+import {productById,giftRuntime} from './product-catalog.js';
 
 export async function giftCheckoutRoute(req,env,path,user){
  if(path!=='/api/gifts/checkout')return null;
@@ -23,7 +23,7 @@ export async function giftCheckoutRoute(req,env,path,user){
  // Append the note to the existing debit+gift batch: a note or gift failure
  // rolls back everything, and existing ledger request IDs govern retries.
  const scoped={...env,DB:{prepare:sql=>env.DB.prepare(sql),batch:statements=>env.DB.batch([...statements,...(note?[query(env,'INSERT INTO direct_messages(id,sender_id,recipient_id,body,request_id,created) VALUES(?,?,?,?,?,?)',id(),user.id,p.user_id,note,'gift:'+b.request_id,now())]:[])])}};
- const product=giftById(b.gift_type)||silverGiftById(b.gift_type);
+ const product=giftRuntime(await productById(env,b.gift_type));
  const source={type:'shop',id:product?.id||'gifts',title:product?.name||'골드 선물'};
  const response=await giftRoute(new Request(req.url,{method:'POST',headers:req.headers,body:JSON.stringify(b)}),scoped,'/api/producers/'+p.id+'/gifts',user,source);
  return response||json({ok:false},404);

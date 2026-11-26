@@ -80,8 +80,25 @@ export const relationXp=sqliteTable('relation_xp',{
  relationId:text('relation_id').notNull().references(()=>personalRelations.id),sourceKey:text('source_key').notNull(),kind:text('kind').notNull(),amount:integer('amount').notNull(),created:integer('created').notNull()
 },t=>[primaryKey({columns:[t.relationId,t.sourceKey]}),check('relation_xp_positive',sql`${t.amount}>0`)]);
 export const giftInventory=sqliteTable('gift_inventory',{
- id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),giftType:text('gift_type').notNull(),giftName:text('gift_name').notNull(),currency:text('currency').notNull(),value:integer('value').notNull(),source:text('source').notNull(),requestId:text('request_id').notNull(),unit:integer('unit').notNull(),created:integer('created').notNull(),usedAt:integer('used_at').notNull().default(0),sendRequestId:text('send_request_id'),recipientId:text('recipient_id').references(()=>producers.id)
+ id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),giftType:text('gift_type').notNull(),giftName:text('gift_name').notNull(),currency:text('currency').notNull(),value:integer('value').notNull(),source:text('source').notNull(),requestId:text('request_id').notNull(),unit:integer('unit').notNull(),created:integer('created').notNull(),usedAt:integer('used_at').notNull().default(0),sendRequestId:text('send_request_id'),recipientId:text('recipient_id').references(()=>producers.id),
+ expiresAt:integer('expires_at'),grantTerms:text('grant_terms')
 },t=>[uniqueIndex('gift_inventory_request_unit').on(t.userId,t.requestId,t.unit),uniqueIndex('gift_inventory_send_request').on(t.userId,t.sendRequestId),index('gift_inventory_owner').on(t.userId,t.usedAt),check('gift_inventory_currency',sql`${t.currency} IN ('gold','silver','reward')`),check('gift_inventory_value',sql`${t.value}>=0`)]);
+// Catalog settings share the existing item IDs. Inventory, payment receipts and
+// ledgers keep their original ownership and price snapshots.
+export const productCatalog=sqliteTable('product_catalog',{
+ productId:text('product_id').primaryKey(),definition:text('definition').notNull(),revision:integer('revision').notNull(),
+ activeVersion:text('active_version'),lastRequest:text('last_request').notNull(),updated:integer('updated').notNull()
+});
+export const productAssetVersions=sqliteTable('product_asset_versions',{
+ productId:text('product_id').notNull(),id:text('id').notNull(),label:text('label').notNull(),mode:text('mode').notNull(),
+ renderer:text('renderer').notNull(),files:text('files').notNull(),originals:text('originals').notNull(),
+ hash:text('hash').notNull(),created:integer('created').notNull(),publishedAt:integer('published_at')
+},t=>[primaryKey({columns:[t.productId,t.id]}),uniqueIndex('product_asset_version_label').on(t.productId,t.label)]);
+export const productAssetReviews=sqliteTable('product_asset_reviews',{
+ productId:text('product_id').notNull(),versionId:text('version_id').notNull(),platform:text('platform').notNull(),
+ surface:text('surface').notNull(),build:text('build').notNull(),report:text('report').notNull(),passed:integer('passed').notNull(),
+ created:integer('created').notNull()
+},t=>[primaryKey({columns:[t.productId,t.versionId,t.platform,t.surface]})]);
 export const giftInventoryLots=sqliteTable('gift_inventory_lots',{
  inventoryId:text('inventory_id').notNull().references(()=>giftInventory.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
 },t=>[primaryKey({columns:[t.inventoryId,t.purchaseId]}),check('gift_inventory_lot_positive',sql`${t.gold}>0 AND ${t.netMw}>=0`)]);

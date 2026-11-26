@@ -13,6 +13,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/admin.css?v=20261124-visits">
+  <link rel="stylesheet" href="/admin-products.css">
   <link rel="stylesheet" href="/mobile-input.css">
   <link rel="stylesheet" href="/focus.css">
   <script defer src="/focus.js"></script>
@@ -46,6 +47,9 @@
         <button class="admin-nav-item" data-view="subscriptions"><span>♕</span><b>구독 관리</b></button>
         <button class="admin-nav-item" data-view="gold"><span>◎</span><b>골드 관리</b></button>
         <button class="admin-nav-item" data-view="payouts"><span>▣</span><b>정산 관리</b><i id="payout-badge"></i></button>
+        <p class="nav-section">운영 관리</p>
+        <button class="admin-nav-item" data-view="gift-dispatch"><span aria-hidden="true">◇</span><b>선물 발송 관리</b></button>
+        <button class="admin-nav-item" data-view="products"><span aria-hidden="true">▤</span><b>상품 관리</b></button>
       </nav>
 
       <div class="sidebar-status">
@@ -137,13 +141,18 @@
             </div>
           </section>
 
-          <section class="view-page hidden" data-page="people">
-            <div class="section-heading"><div><p class="eyebrow">AUDIENCE</p><h1>사용자 · 창작자</h1></div></div>
-            <details class="admin-card wide-card" id="gift-grant-panel">
-              <summary>인벤토리에 선물용 상품 지급</summary>
+          <section class="view-page hidden" data-page="products" id="admin-products"></section>
+          <section class="view-page hidden" data-page="gift-dispatch">
+            <div class="section-heading"><h1>선물 발송 관리</h1></div>
+            <details class="admin-card wide-card" id="gift-grant-panel" open>
+              <summary>보관함 선물 지급</summary>
               <form id="admin-gift-grant" class="inline-controls">
                 <label>회원 공개 ID <input name="public_id" pattern="[A-Za-z]{3}[0-9]{4}" maxlength="7" autocomplete="off" placeholder="예: QXF7082" required></label>
                 <label>상품 <select name="gift_type" required></select></label>
+                <label>지급 출처 <select name="origin"><option value="admin">운영</option><option value="event">이벤트</option></select></label>
+                <label>사용 기한 <select name="deadline"><option value="">상품 기본값</option><option value="days">지급일 기준</option><option value="date">종료 날짜</option><option value="none">기한 없음</option></select></label>
+                <label data-deadline="days" hidden>일수 <input type="number" name="days" min="1" max="3650"></label>
+                <label data-deadline="date" hidden>종료일 (한국 시간) <input type="date" name="date"></label>
                 <label>수량 <input name="quantity" type="number" min="1" max="100" value="1" required></label>
                 <label>지급 사유 <input name="reason" maxlength="300" required></label>
                 <label><input name="giftable" type="checkbox" checked> 타인에게 선물 가능</label>
@@ -151,6 +160,18 @@
                 <p class="field-help" role="status"></p>
               </form>
             </details>
+            <article class="admin-card wide-card" id="gift-grant-history">
+              <div class="card-head"><h2>지급 내역</h2><button class="small-button" id="gift-grant-all" type="button" hidden>전체 내역</button></div>
+              <p class="management-meta" id="gift-grant-scope"></p>
+              <div id="gift-grant-history-rows" aria-live="polite"></div>
+              <div class="management-actions">
+                <button class="small-button" id="gift-grant-previous" type="button" hidden>이전</button>
+                <button class="small-button" id="gift-grant-next" type="button" hidden>다음</button>
+              </div>
+            </article>
+          </section>
+          <section class="view-page hidden" data-page="people">
+            <div class="section-heading"><div><p class="eyebrow">AUDIENCE</p><h1>사용자 · 창작자</h1></div></div>
             <article class="admin-card wide-card" id="member-directory">
               <div class="card-head"><h2>가입 회원</h2><span class="soft-badge">한국 시간 기준</span></div>
               <div class="member-filters" role="group" aria-label="회원 목록 필터">
@@ -226,7 +247,8 @@
   <script defer src="/notice-editor.js"></script>
   <script defer src="/notice-audience.js"></script>
   <script defer src="/admin-notices.js"></script>
-  <script defer src="/admin.js?v=20261126-official-notices"></script>
+  <script defer src="/admin-products.js"></script>
+  <script defer src="/admin.js?v=20261126-operations"></script>
   <script defer src="/admin-ai-bots.js"></script><script defer src="/admin-cover-compression.js"></script>
 <link rel="stylesheet" href="/popup-close.css">
 <link rel="stylesheet" href="/icon-feedback.css">

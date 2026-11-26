@@ -1,6 +1,7 @@
 import {buildPublicImageAssets} from './public-image-assets.mjs';
 import {buildOrigin} from '../ops/cafe24/build-origin.mjs';
 import {builtinModules} from 'node:module';
+import {createHash} from 'node:crypto';
 import { build, transform } from 'esbuild';
 import { mkdir, cp, writeFile, readFile, rm } from 'node:fs/promises';
 import {resolve,sep} from 'node:path';
@@ -98,7 +99,8 @@ await cp('dist/chart-ui.css','dist/client/chart-ui.css');
 await cp('dist/input-controls.css','dist/client/input-controls.css');
 for(const file of ['dropdown.js','dropdown.css'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/brand.css','dist/client/brand.css');
-for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compression.js','admin-notice.css','official-notice.css','notice-editor.js','notice-audience.js','admin-notices.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['admin.css','admin.js','admin-ai-bots.js','admin-cover-compression.js','admin-notice.css','official-notice.css','notice-editor.js','notice-audience.js','admin-notices.js','admin-products.css','admin-products.js'])await cp(`dist/${file}`,`dist/client/${file}`);
+for(const file of ['product-preview.js','product-preview.css','chat-ui.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await mkdir('dist/client/admin',{recursive:true});
 await cp('dist/admin.html','dist/client/admin/dashboard.html');
 await rm('dist/client/admin.html',{force:true});
@@ -166,7 +168,10 @@ await rm('dist/client/_headers',{force:true}); // Remove the obsolete generated 
 await rm('dist/client/index.html',{force:true});
 await rm('dist/client/profile-popup.html',{force:true});
 const originRevision=await buildOrigin();
-await build({define:{__CAFE24_BUILD__:JSON.stringify(originRevision)},entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
+const reviewHash=createHash('sha256').update(originRevision);
+for(const file of ['dist/product-preview.js','dist/product-preview.css','server/product-preview.js','server/product-catalog.js'])reviewHash.update(await readFile(file));
+const productReviewBuild=reviewHash.digest('hex');
+await build({define:{__CAFE24_BUILD__:JSON.stringify(originRevision),__PRODUCT_REVIEW_BUILD__:JSON.stringify(productReviewBuild)},entryPoints:['server/index.js'], outfile:'dist/server/index.js', bundle:true, format:'esm', platform:'neutral', mainFields:['module','main'], alias:{'node-fetch':resolve('server/apple-fetch.js')}, banner:{js:"import {createRequire as appleCreateRequire} from 'node:module'; const require=appleCreateRequire('/aifect-worker.js');"}, target:'es2022', external:['cloudflare:workers',...builtinModules,...builtinModules.map(x=>'node:'+x)], minify:false});
 await mkdir('dist/.openai',{recursive:true});
 await cp('.openai/hosting.json','dist/.openai/hosting.json');
 // Replace generated migration output: renamed source files must never remain in a release archive.

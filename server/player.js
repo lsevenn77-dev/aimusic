@@ -4,6 +4,7 @@ import {decorationInventory,decorationFundingSQL} from './decorations.js';
 import {one,rows,query,fail,json,now} from './db.js';
 import {PLAYER_ITEMS,PLAYER_RULES,PREMIUM_APPEARANCE,playerProgress} from '../shared/player.js';
 import {CREW_LEVELS,crewLevel} from '../shared/crews.js';
+import {frameDisplayAssets} from '../shared/decorations.js';
 
 const sqlString=value=>"'"+String(value).replaceAll("'","''")+"'";
 const rewards=Object.entries(PLAYER_ITEMS).filter(([,item])=>item.min_level||item.min_crew_level);
@@ -11,7 +12,13 @@ const crewMaturity=item=>CREW_LEVELS.find(l=>l.level===item.min_crew_level)?.min
 const crewThreshold=item=>CREW_LEVELS.find(l=>l.level===item.min_crew_level)?.xp??0;
 const crewQualifiedSQL=(uid,item)=>`EXISTS(SELECT 1 FROM crew_members reward_member WHERE reward_member.user_id=${uid} AND ((SELECT highest_level FROM crews WHERE id=reward_member.crew_id)>=${item.min_crew_level||1} OR ((SELECT growth_started FROM crews WHERE id=reward_member.crew_id)+${crewMaturity(item)}*86400<=unixepoch() AND COALESCE((SELECT sum(reward_xp.amount) FROM crew_xp reward_xp WHERE reward_xp.crew_id=reward_member.crew_id),0)>=${crewThreshold(item)})))`;
 const eligibleSQL=(uid,item)=>item.min_level?`COALESCE((SELECT sum(reward_xp.amount) FROM player_xp reward_xp WHERE reward_xp.user_id=${uid}),0)>=${50*item.min_level*(item.min_level-1)}`:crewQualifiedSQL(uid,item);
-const usableSQL=(alias,uid)=>`(${Object.entries(PLAYER_ITEMS).map(([key,item])=>`(${alias}.item_key=${sqlString(key)}${item.paid?` AND ${alias}.source='decoration' AND ${alias}.expires_at>unixepoch() AND ${decorationFundingSQL(alias)}`:item.membership?' AND '+crewQualifiedSQL(uid,item):''})`).join(' OR ')})`;
+const managedFrame=(alias,select='1')=>`(SELECT ${select} FROM product_catalog pc JOIN product_asset_versions pav
+ ON pav.product_id=pc.product_id AND pav.id=pc.active_version WHERE pc.product_id=${alias}.item_key AND json_extract(pc.definition,'$.type')='frame')`;
+const frameAssetSQL=role=>`CASE WHEN json_extract(pav.files,'$.${role}.extension') IS NOT NULL
+ THEN '/api/product-assets/'||pc.product_id||'/'||pav.id||'/${role}.'||json_extract(pav.files,'$.${role}.extension') END`;
+const managedFrameBase=`COALESCE(${frameAssetSQL('fallback')},${frameAssetSQL('base')})`;
+const managedFrameEffect=`CASE WHEN pav.mode='animated' THEN ${frameAssetSQL('base')} ELSE ${frameAssetSQL('effect')} END`;
+const usableSQL=(alias,uid)=>`((${managedFrame(alias)} AND ${alias}.source='decoration' AND ${alias}.expires_at>unixepoch() AND ${decorationFundingSQL(alias)}) OR (${Object.entries(PLAYER_ITEMS).map(([key,item])=>`(${alias}.item_key=${sqlString(key)}${item.paid?` AND ${alias}.source='decoration' AND ${alias}.expires_at>unixepoch() AND ${decorationFundingSQL(alias)}`:item.membership?' AND '+crewQualifiedSQL(uid,item):''})`).join(' OR ')}))`;
 function rewardQueries(env,uid){return rewards.map(([key,item])=>{const source=item.min_level?'level':'crew-level';return query(env,`INSERT OR IGNORE INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) SELECT ${sqlString('reward:'+key+':')}||u.id,u.id,${sqlString(key)},${sqlString(source)},${sqlString(key)},unixepoch() FROM users u WHERE ${uid?'u.id=? AND ':''}${eligibleSQL('u.id',item)} AND NOT EXISTS(SELECT 1 FROM player_inventory existing WHERE existing.user_id=u.id AND existing.source=${sqlString(source)} AND existing.source_ref=${sqlString(key)}) LIMIT 500`,...(uid?[uid]:[]));});}
 // Grant from server XP only, once, including users who qualified before release.
 export async function grantPlayerRewards(env,uid){await env.DB.batch(rewardQueries(env,uid));}
@@ -37,7 +44,7 @@ export const playerColumnsSQL=uid=>{
  const equipped=select=>`(SELECT ${select} FROM player_equipment pe JOIN player_inventory pi ON pi.id=pe.frame_inventory_id AND pi.user_id=pe.user_id WHERE pe.user_id=${uid} AND NOT ${premiumFrameOverrideSQL('pe.user_id')} AND pi.revoked=0 AND (pi.expires_at=0 OR pi.expires_at>unixepoch()) AND ${usableSQL('pi','pe.user_id')})`;
  const display=`CASE pi.item_key ${Object.entries(PLAYER_ITEMS).map(([key,item])=>`WHEN ${sqlString(key)} THEN ${sqlString(JSON.stringify(item.display))}`).join(' ')} END`;
  const artwork=`CASE pi.item_key ${Object.entries(PLAYER_ITEMS).map(([key,item])=>`WHEN ${sqlString(key)} THEN ${sqlString(item.artwork)}`).join(' ')} END`;
- return `${appearanceColumnsSQL(uid)},COALESCE((SELECT sum(px.amount) FROM player_xp px WHERE px.user_id=${uid}),0) player_xp,${equipped('pi.item_key')} profile_frame,${equipped(artwork)} profile_frame_artwork,${equipped(display)} profile_frame_display`;
+ return `${appearanceColumnsSQL(uid)},COALESCE((SELECT sum(px.amount) FROM player_xp px WHERE px.user_id=${uid}),0) player_xp,${equipped('pi.item_key')} profile_frame,${equipped(`COALESCE(${managedFrame('pi',managedFrameBase)},${artwork})`)} profile_frame_artwork,${equipped(`COALESCE(${managedFrame('pi',`json_object('overlay',${managedFrameBase},'effect',${managedFrameEffect},'scale',1.5)`)},${display})`)} profile_frame_display`;
 };
 export async function playerIdentity(env,uid){
  const p=await one(env,`SELECT ${playerColumnsSQL('u.id')} FROM users u WHERE u.id=?`,uid);
@@ -63,9 +70,13 @@ export async function playerSummary(env,uid){
  }]:[];
  return {server_now:at,player:playerProgress(identity.player_xp),profile:identity,crew:currentCrew,rules:PLAYER_RULES,recent,decorations:decorations.filter(i=>i.source==='decoration'&&i.product.kind==='TALKING_ROOM_THEME'),stored_decorations:decorations.filter(i=>i.source==='decoration_stock'),
   rewards:rewards.filter(([key])=>!inventory.some(i=>i.item_key===key)).map(([key,item])=>({item_key:key,...item,owned:false,available:false,equipped:false,reason:item.min_level?`유저 레벨 ${item.min_level} 달성 시 자동 지급`:`크루 레벨 ${item.min_crew_level} 이상 가입 시 자동 지급`})),
-  inventory:inventory.filter(i=>i.source!=='decoration_stock'&&PLAYER_ITEMS[i.item_key]&&!i.revoked&&(!i.expires_at||i.expires_at>now())).map(i=>{
-   const item=PLAYER_ITEMS[i.item_key],reason=item.paid&&!decorations.find(d=>d.id===i.id)?.available?'사용 기간이나 결제 상태를 확인해 주세요.':i.revoked?'사용이 종료된 아이템입니다.':i.expires_at&&i.expires_at<=now()?'사용 기간이 끝났습니다.':item.membership&&!crew?'크루에 가입하면 사용할 수 있습니다.':item.min_crew_level&&currentCrew.level<item.min_crew_level?`크루 레벨 ${item.min_crew_level} 이상에서 사용할 수 있습니다.`:'';
+  inventory:inventory.filter(i=>i.source!=='decoration_stock'&&!i.revoked&&(!i.expires_at||i.expires_at>now())).flatMap(i=>{
    const rental=decorations.find(d=>d.id===i.id);
+   const frame=rental?.product.kind==='PROFILE_FRAME'?rental.product:null;
+   const item=frame?{...PLAYER_ITEMS[i.item_key],name:frame.name,type:'frame',paid:true,artwork:frame.assetPaths.overlay,
+    effect:frame.assetPaths.effect||null,display:frameDisplayAssets(frame.assetPaths.overlay,frame.assetPaths.effect)}:PLAYER_ITEMS[i.item_key];
+   if(!item)return [];
+   const reason=item.paid&&!decorations.find(d=>d.id===i.id)?.available?'사용 기간이나 결제 상태를 확인해 주세요.':i.revoked?'사용이 종료된 아이템입니다.':i.expires_at&&i.expires_at<=now()?'사용 기간이 끝났습니다.':item.membership&&!crew?'크루에 가입하면 사용할 수 있습니다.':item.min_crew_level&&currentCrew.level<item.min_crew_level?`크루 레벨 ${item.min_crew_level} 이상에서 사용할 수 있습니다.`:'';
    return {id:i.id,item_key:i.item_key,...item,owned:true,status:'ACTIVE',activated_at:rental?.activated_at??null,period_code:rental?.period_code??null,applied:!reason&&!wearingPremium&&!!i.equipped,source:i.source,acquisition:rental?.acquisition??i.source,giftable:false,granted_at:i.granted_at,expires_at:i.expires_at,available:!reason,reason,equipped:!reason&&!wearingPremium&&!!i.equipped};
   }).concat(premiumItem)};
 }
