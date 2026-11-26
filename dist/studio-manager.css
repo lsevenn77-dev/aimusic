@@ -6,7 +6,6 @@
   --studio-room-height: clamp(232px, 20vw, 390px);
   --studio-room-fade: 86%;
   --studio-accent: #8eddd2;
-  --studio-panel-bg: rgba(15, 22, 43, .87);
   position: relative;
   isolation: isolate;
   background-color: var(--ds-bg, #0c121b);
@@ -38,7 +37,6 @@
   --studio-muted: var(--ds-muted, #a7adc2);
   --studio-line: var(--ds-line, rgba(192, 199, 229, .15));
   --studio-purple: var(--ds-lavender, #d6baff);
-  --studio-pink: var(--page-pink, #ed91bc);
   color: var(--studio-ink);
   min-width: 0;
 }
@@ -55,7 +53,12 @@
 .studio-manager .studio-main-tab[aria-selected="true"] { color: var(--studio-purple); }
 .studio-manager .studio-main-tab[aria-selected="true"]::after { content: ""; position: absolute; inset: auto 0 -1px; height: 3px; border-radius: 4px; background: linear-gradient(95deg, var(--studio-accent), #b4a0ef, #e5a0dd); }
 
-.studio-manager .studio-works-surface{ border: 1px solid var(--studio-line); border-radius: 12px; background-color: var(--studio-panel-bg); }
+/* Match the existing MY STUDIO card above the list. */
+.studio-manager .studio-works-surface {
+  background: var(--ds-bg, #0c121b);
+  border: 1px solid #30364b;
+  border-radius: var(--ds-radius-card, 16px);
+}
 /* Approved dark/gold cards retain the existing slot and live entitlement data.
    Local type/control tokens keep shared desktop rules inside this banner. */
 .studio-manager .studio-quota-card { --ui-type-scale: 1; --ui-space-scale: 1; --ui-icon-scale: 1; --ui-control-height: 44px; --pc-font-section: 19px; --pc-font-body: 15px; --pc-font-control: 14px; --pc-font-card: 16px; --pc-font-meta: 13px; --pc-font-caption: 13px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: stretch; gap: 12px; margin-bottom: 12px; min-width: 0; }
@@ -147,28 +150,71 @@
 }
 .studio-manager .studio-filter-button,
 .studio-manager .studio-bulk-button,
-.studio-manager .studio-action { display: inline-flex; align-items: center; justify-content: center; min-height: 36px; padding: 0 10px; border: 1px solid var(--studio-line); border-radius: 7px; color: var(--studio-ink); background: #ffffff06; font: inherit; font-size: 13px; line-height: 1.4; text-decoration: none; cursor: pointer; white-space: nowrap; }
-.studio-manager .studio-filter-button { border-color: transparent; background: transparent; font-weight: 650; }
-.studio-manager .studio-filter-button[aria-pressed="true"] { background: #387d7e50; color: var(--studio-accent); }
-.studio-manager .studio-bulk-bar { min-height: 44px; border-block: 1px solid var(--studio-line); background: #abb6ef09; }
+.studio-manager .studio-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 0 var(--ds-space-3, 12px);
+  border: 0;
+  border-radius: var(--ds-radius-sm);
+  font: inherit;
+  font-size: var(--pc-font-control, 13px);
+  font-weight: 600;
+  line-height: 1.4;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.studio-manager .studio-filter-button { color: var(--ds-muted); background: transparent; }
+.studio-manager .studio-filter-button[aria-pressed="false"]:hover { background: var(--ds-panel); }
+.studio-manager .studio-filter-button[aria-pressed="true"] {
+  color: var(--ds-accent-mint);
+  background: color-mix(in srgb, var(--ds-accent-mint) 10%, transparent);
+}
+.studio-manager .studio-bulk-bar { min-height: 44px; border-block: 1px solid var(--ds-line); }
 .studio-manager .studio-select-all,
-.studio-manager .studio-work-select { display: inline-flex; gap: 7px; align-items: center; cursor: pointer; font-size: 13px; }
-.studio-manager input[type="checkbox"] { flex: none; width: 21.25px; height: 21.25px; margin: 0; accent-color: var(--studio-purple); }
+.studio-manager .studio-work-select { display: inline-flex; gap: 7px; align-items: center; cursor: pointer; font-size: var(--pc-font-caption, 13px); }
+.studio-works-surface :is(.studio-select-all,.studio-work-select) input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 0; }
 .studio-manager .studio-selected-count,
-.studio-manager .studio-list-footer { font-size: 12px; color: var(--studio-muted); }
-.studio-manager .is-danger { color: var(--studio-pink); }
-.studio-manager .studio-bulk-button:disabled { opacity: .49; cursor: default; }
-.studio-manager :is(.studio-filter-button,.studio-action,.studio-bulk-button):hover:not(:disabled) { border-color: var(--studio-muted); }
-.studio-manager .studio-work-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 14px; border-bottom: 1px solid #c0c7e513; }
-.studio-manager .studio-work-row.is-selected { background: #ac9ff716; }
+.studio-manager .studio-list-footer { font-size: var(--pc-font-caption, 13px); color: var(--ds-muted); }
+.studio-manager :is(.studio-action,.studio-bulk-button) { color: var(--ds-text); background: var(--ds-raised); }
+.studio-manager :is(.studio-action,.studio-bulk-button):not(.is-danger,:disabled):hover { background: var(--ds-secondary); }
+.studio-manager :is(.studio-action,.studio-bulk-button).is-danger { color: var(--ds-accent-pink); background: transparent; }
+.studio-manager :is(.studio-action,.studio-bulk-button).is-danger:hover:not(:disabled) { text-decoration: underline; }
+.studio-manager :is(.studio-action,.studio-bulk-button):disabled { opacity: .49; cursor: default; }
+.studio-manager .studio-work-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--ds-line);
+}
 .studio-manager .studio-work-info { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.studio-manager .mini-cover { flex: none; width: 56.25px; height: 56.25px; border-radius: 7px; overflow: hidden; }
+.studio-manager .studio-work-info > .mini-cover { flex: none; width: 56px; height: 56px; border-radius: var(--ds-radius-sm); overflow: hidden; }
 .studio-manager .studio-work-details { min-width: 0; }
-.studio-manager .studio-work-details strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; }
-.studio-manager .studio-work-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 6px; margin-top: 3px; color: var(--studio-muted); font-size: 12px; }
-.studio-manager .studio-status { padding: 1px 6px; border: 1px solid var(--studio-line); border-radius: 5px; }
-.studio-manager .studio-status.is-published { color: var(--studio-accent); border-color: #8eddd248; background: #8eddd212; }
-.studio-manager .studio-status.is-failed { color: var(--studio-pink); }
+.studio-manager .studio-work-details strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--pc-font-card, 15px);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.studio-manager .studio-work-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 3px 10px;
+  margin-top: 3px;
+  color: var(--ds-muted);
+  font-size: var(--pc-font-caption, 13px);
+  line-height: 1.5;
+}
+.studio-manager .studio-status.is-published { color: var(--ds-accent-mint); }
+.studio-manager .studio-status.is-failed { color: var(--ds-accent-pink); }
 .studio-manager .studio-list-footer { padding: 8px 14px; }
 .studio-manager .studio-empty { padding: 24px 12px; text-align: center; font-size: 14px; color: var(--studio-muted); }
 #dialog .studio-confirm-detail, #dialog .studio-confirm-warning { font-size: 13px; line-height: 1.65; }
@@ -203,11 +249,12 @@
   .studio-manager .studio-filters.is-search-open .studio-search-toggle { display: none; }
   .studio-manager .studio-filters.is-search-open .studio-search-back { display: inline-flex; }
   .studio-manager .studio-filters.is-search-open .brand-search { display: flex; }
-  .studio-manager .studio-work-row { grid-template-columns: 24px minmax(0, 1fr); gap: 5px 7px; padding: 8px 10px; }
-  .studio-manager .studio-work-details strong { font-size: 14px; }
+  .studio-manager .studio-work-row { grid-template-columns: 44px minmax(0, 1fr); gap: 6px 8px; padding: 10px; }
+  .studio-manager .studio-work-info > .mini-cover { width: 48px; height: 48px; }
   .studio-manager .studio-work-actions { grid-column: 1 / -1; }
   .studio-manager .studio-work-actions, .studio-manager .studio-bulk-actions { flex-wrap: wrap; }
-  .studio-manager .studio-action, .studio-manager .studio-bulk-button { flex: 1; padding: 0 4px; }
+  .studio-manager :is(.studio-action,.studio-bulk-button) { flex: 1 0 auto; min-width: 44px; padding: 0 8px; }
+  .studio-manager .studio-filter-button { padding-inline: 8px; }
   .studio-manager :is(.studio-action,.studio-bulk-button,.studio-filter-button,.studio-select-all,.studio-work-select) { min-height: 44px; }
 }
 /* Let the centered title use the full width on compact Studio layouts. */
