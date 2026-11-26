@@ -46,6 +46,7 @@ function entry(id,row){
  if(!base&&!row)return undefined;
  if(!row)return {...base,revision:0,archived:false,eventOnly:false,grantDeadline:null,activeVersion:null};
  const stored=JSON.parse(row.definition);
+ if(stored.deletedAt)return undefined;
  const files=row.asset_files?JSON.parse(row.asset_files):null;
  const asset=files?{mode:row.asset_mode,renderer:row.asset_renderer,files:Object.fromEntries(
   Object.entries(files).map(([role,file])=>[role,assetUrl(id,row.active_version,role,file)])
@@ -77,7 +78,7 @@ export const grantable=product=>!!product?.grant&&!product.archived;
 export function assertProductAction(product,action){
  const legacyCompatibility=product?.type==='gift'&&product.legacy&&!product.listed&&!product.revision;
  if(action==='sale'?sold(product)||legacyCompatibility:grantable(product)||legacyCompatibility&&product.id===FREE_GIFT.id)return;
- fail(409,action==='sale'?'현재 판매 중인 상품이 아닙니다.':'현재 지급 가능한 상품이 아닙니다.');
+ fail(409,action==='sale'?'현재 판매 중인 상품이 아닙니다.':'현재 발송할 수 없는 상품입니다.');
 }
 
 // Insert each receipt/entitlement with this guard in the same D1 batch. A

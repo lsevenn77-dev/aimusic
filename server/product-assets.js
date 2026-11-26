@@ -152,14 +152,21 @@ export async function parseProductAssets(env,product,form){
  if([...form.keys()].some(key=>!accepted.includes(key)||form.getAll(key).length!==1))fail(400,'업로드 파일 역할을 확인해 주세요.');
  let images,originals=new Map();
  if(mode==='layered'){
-  const archive=await uploaded(form.get('package'),PRODUCT_ARCHIVE_MAX);
+  const upload=form.get('package'),archive=await uploaded(upload,PRODUCT_ARCHIVE_MAX);
+  if(upload.type&&!['application/zip','application/x-zip-compressed','application/octet-stream'].includes(upload.type))
+   fail(400,'ZIP 파일의 형식을 확인해 주세요.');
   images=await manifestFiles(archive,product,label,renderer,allowed);
   originals.set('package',{data:archive,info:{extension:'zip',size:archive.length,sha256:await sha256(archive)}});
  }else{
   images=new Map();
   for(const role of allowed){
    const file=form.get(role);
-   if(file&&(typeof file==='string'||file.size))images.set(role,await uploaded(file));
+   if(file&&(typeof file==='string'||file.size)){
+    const bytes=await uploaded(file);
+    if(file.type&&file.type!=='application/octet-stream'&&file.type!==types[actualType(bytes)])
+     fail(400,'선택한 파일의 MIME과 실제 이미지 형식이 다릅니다.');
+    images.set(role,bytes);
+   }
   }
  }
  if(required.some(role=>!images.has(role)))fail(400,'상품에 필요한 이미지가 빠져 있습니다.');

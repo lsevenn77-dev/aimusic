@@ -11,18 +11,24 @@
  };
  for(const type of ['click','submit','keydown','beforeinput'])document.addEventListener(type,stopEvent,true);
  const safeTime=1764115200;
- const periodLabels={P7D:'7일',P1M:'1개월',P3M:'3개월'};
+ const periodLabels={P7D:'7일',P1M:'1개월',P3M:'3개월',PERMANENT:'영구'};
  const profile={id:'qa-profile-1',user_id:'qa-member-1',name:'아리아',public_id:'QAA0001',bio:'상품 적용 검수용 프로필입니다.'};
- const viewer={id:'qa-member-2',profile_id:'qa-profile-2',name:'소리'};
+ const viewer={id:'qa-member-2',profile_id:'qa-profile-2',name:'소리',public_id:'QAA0002'};
+ const signedIn={id:profile.user_id,profile_id:profile.id,name:profile.name,public_id:profile.public_id};
+ if(data.surface==='messages')me=viewer;
+ else if(data.surface!=='shop'&&data.surface!=='profile')me=signedIn;
  const frameArt=data.type==='frame'?data.base.fallback||data.base.base:null;
  const pictures=keys=>frameArt?keys.map(profile_id=>({profile_id,artwork:frameArt,effect:data.decor.assetPaths.effect,expires_at:0})):[];
- function inventory(){
-  const selected=data.gift?{id:'qa-item',category:'gifts',name:data.gift.name,image:data.gift.image,
-   quantity:1,available:true,giftable:true}:{id:'qa-item',category:data.type==='theme'?'themes':'frames',
-   name:data.decor.name,image:data.decor.assetPaths.thumbnail||decorationProductImage(data.decor),
-   period_code:Object.keys(data.decor.periodPrices)[0],expires_at:0,quantity:1,stored:true,available:true,giftable:true};
+ async function inventory(){
+  const period=Object.keys(data.decor?.periodPrices||{})[0];
+  const player={server_now:safeTime,inventory:[],decorations:[],stored_decorations:data.decor?[{
+   id:'qa-entitlement',item_key:data.id,product:data.decor,period_code:period,permanent:period==='PERMANENT',
+   stored:true,available:true,giftable:true
+  }]:[]};
+  const gifts={items:data.gift?[{id:'qa-gift',gift_type:data.id,gift_name:data.gift.name,
+   image:data.gift.image,expires_at:0,available:true,giftable:true}]:[]};
   main.dataset.route='inventory';
-  main.innerHTML='<section id="unified-inventory"><div class="inventory-product-grid">'+inventoryCard(selected,{serverNow:safeTime,receivedAt:inventoryClock()})+'</div></section>';
+  main.innerHTML=(await unifiedInventoryView('inventory',async path=>path==='/api/me/player'?player:gifts)).html;
  }
  function room(){
   const live=data.surface.startsWith('karaoke'),mode=live?'karaoke':'talk';
@@ -68,12 +74,14 @@
   }
  }
  try{
+  updateAccount();
   if(data.surface==='shop'){
    main.dataset.route='gifts';
    const category=data.type==='theme'?'themes':data.type==='frame'?'frames':'gifts';
    const fixture={gifts:data.gift&&!data.gift.free?[data.gift]:[],silver_gifts:data.gift?.free?[data.gift]:[]};
    main.innerHTML=await finalGiftShopView(category,async path=>path==='/api/decorations'?{products:data.decor?[data.decor]:[],periods:periodLabels}:fixture);
-  }else if(data.surface==='inventory')inventory();
+   bindShopShelves();
+  }else if(data.surface==='inventory')await inventory();
   else if(data.surface==='gift-picker'){
    main.dataset.route='gifts';
    history.replaceState(history.state,'','#gifts');
@@ -81,13 +89,11 @@
     wallet:{balance:120000,free:{balance:10000}},selected:data.id,activeCategory:'gifts'}));
   }else if(data.surface==='my'){
    main.dataset.route='profile';
-   me={...viewer,id:profile.user_id,profile_id:profile.id,name:profile.name};
    const fixture={profile,followers:3,following_count:4,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
    main.innerHTML=(await myPageView('profile','','profile',async ()=>fixture)).html;
    AifectProductThemePreview(null,null,pictures([profile.id]));
   }else if(data.surface==='messages'){
    main.dataset.route='dm/'+profile.id;
-   me=viewer;
    rememberDmInbox({conversations:[{...profile,updated:safeTime,last_message:'오늘도 함께 들어요.'}]});
    const messages=[
     {id:'qa-message-1',sender_id:profile.user_id,body:'오늘도 함께 들어요.',created:safeTime},
@@ -100,6 +106,8 @@
    main.innerHTML=profilePreviewHTML({profile,followers:3,following_count:4});
    AifectProductThemePreview(null,null,pictures([profile.id]));
   }else room();
+  const route=main.dataset.route?.split('/')[0];
+  for(const link of document.querySelectorAll('.nav-link[data-view]'))link.classList.toggle('active',link.dataset.view===route);
   icons();
   document.documentElement.dataset.previewReady='true';
  }catch(error){

@@ -40,6 +40,17 @@ async function dispatch(f,data){
 }
 const details=async(f,id)=>valid(await f.call(base+'/'+id));
 
+test('dispatch operators can resolve and count targets without notice-writing permission',async t=>{
+ const f=await fixture(t,scope);
+ const root='/api/admin/notices';
+ const lookup=await f.call(root+'/members/resolve','POST',{ids:['other']});
+ assert.equal(lookup.status,200);
+ assert.equal(lookup.body.members[0].id,'other');
+ assert.equal((await f.call(root+'/targets/count','POST',{audience:{type:'specific',ids:['other']}})).body.count,1);
+ assert.equal((await f.call(root+'/members/resolve','POST',{ids:['other']},'other')).status,403);
+ assert.equal((await f.call(root+'/rosters','POST',{name:'격리 명단',ids:['other']})).status,403);
+});
+
 test('shared targets exclude AI and closed accounts, preserve ID strings and require reconfirmation of an equal-count change',async t=>{
  const f=await fixture(t,scope);
  markMember(f,'ai_999901','ai_service','ai_bot');

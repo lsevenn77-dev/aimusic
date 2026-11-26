@@ -42,21 +42,21 @@ function checkedDate(value,at){
 
 async function checkedPlan(env,requested,origin,at){
  if(!Array.isArray(requested)||!requested.length||requested.some(x=>!x||typeof x.product_id!=='string'||!PRODUCT_ID.test(x.product_id)))
-  fail(400,'실제 지급할 상품과 이용 옵션을 선택해 주세요.');
+  fail(400,'실제 발송할 상품과 이용 옵션을 선택해 주세요.');
  const products=await catalog(env,requested.map(item=>item.product_id)),selected=new Set();
  return requested.map(item=>{
   const product=products.get(item.product_id),option=item.option,quantity=item.quantity;
-  if(!product||!grantable(product)||!product.asset)fail(409,'현재 지급 가능한 상품을 다시 선택해 주세요.');
+  if(!product||!grantable(product)||!product.asset)fail(409,'현재 발송 가능한 상품을 다시 선택해 주세요.');
   if(product.revision!==item.revision)fail(409,'상품 정보가 변경되었습니다. 최신 상품을 확인해 주세요.');
   if(typeof option!=='string'||!Object.hasOwn(product.options,option)||(product.type==='gift'&&option!==GIFT_OPTION))
    fail(400,'상품의 실제 이용 옵션을 선택해 주세요.');
   if(!Number.isInteger(quantity)||quantity<1||quantity>100||(option===PERMANENT_PERIOD&&quantity!==1))
-   fail(400,'지급 수량은 1~100개입니다. 영구 이용권은 회원당 한 개까지 지급할 수 있습니다.');
+   fail(400,'발송 수량은 1~100개입니다. 영구 이용권은 회원당 한 개까지 발송할 수 있습니다.');
   const identity=product.id+':'+option;
   if(selected.has(identity))fail(400,'같은 상품과 옵션의 수량을 한 항목에 입력해 주세요.');
   selected.add(identity);
   const deadline=item.deadline==null?product.grantDeadline:parseProductDeadline(item.deadline);
-  if(!deadline&&(origin==='event'||product.eventOnly))fail(400,'이벤트 지급에는 기한 또는 명시적인 기한 없음 선택이 필요합니다.');
+  if(!deadline&&(origin==='event'||product.eventOnly))fail(400,'이벤트 발송에는 기한 또는 명시적인 기한 없음 선택이 필요합니다.');
   const fixed_until=deadline?.mode==='date'?checkedDate(deadline.date,at):null;
   if(item.season_date&&product.type==='gift')fail(400,'시즌 종료일은 장착형 상품에서 선택해 주세요.');
   const season_ends_at=item.season_date?checkedDate(item.season_date,at):null;
@@ -69,7 +69,7 @@ async function checkedPlan(env,requested,origin,at){
 
 export async function prepareGiftDispatch(env,actor,input){
  const at=now(),key=id(),origin=input.origin;
- if(!['admin','event'].includes(origin))fail(400,'지급 출처를 선택해 주세요.');
+ if(!['admin','event'].includes(origin))fail(400,'발송 출처를 선택해 주세요.');
  if(input.push===true)fail(409,'선물 안내의 앱 푸시 연결을 확인해 주세요.');
  const reason=str(input.reason,300),message=str(input.message??'',1000,false);
  const test=input.test===true,member=test?await configuredGiftTestMember(env,actor):null;
@@ -103,7 +103,7 @@ export async function prepareGiftDispatch(env,actor,input){
 
 export async function confirmGiftDispatch(env,actor,key){
  const job=await giftDispatch(env,key,{preview:true});
- if(job.admin_id!==actor)fail(403,'확인한 운영자만 지급을 시작할 수 있습니다.');
+ if(job.admin_id!==actor)fail(403,'확인한 운영자만 발송을 시작할 수 있습니다.');
  if(job.confirmed_at)return job;
  const at=now(),check=await activeAudienceCheck(env,actor,job.check_id);
  if(job.test&&(await configuredGiftTestMember(env,actor))?.id!==check.audience.ids[0])

@@ -1,6 +1,7 @@
 import {adminNoticeAssetURL,noticeAssetId,noticeImageBounds} from '../shared/official-notice-content.js';
 import {isAdmin,requireUser} from './auth.js';
 import {isConsoleAdmin} from './admin-session.js';
+import {giftDispatchPermissions} from './gift-dispatch-permissions.js';
 import {fail,id,json,now,one,query,rate,rows,run} from './db.js';
 import {readImage} from './images.js';
 import {audiencePage,countNoticeAudience,createAudienceCheck,exportSelectedMembers,getNoticeRoster,listNoticeRosters,mutateNoticeRoster,readAudience,resolveNoticeMembers,searchNoticeMembers} from './notice-audience.js';
@@ -122,7 +123,8 @@ export async function adminNoticeRoute(req,env,path,user,ctx){
  if(!allowed.includes(method))fail(405,'지원하지 않는 요청입니다.');
  const reading=['GET','HEAD'].includes(method);
  if(!reading&&section!=='/export'){
-  if(!manage)fail(403,'공지 채팅을 변경할 권한을 확인해 주세요.');
+  const dispatchLookup=['/members/resolve','/targets/count'].includes(section)&&giftDispatchPermissions(env,user).grant;
+  if(!manage&&!dispatchLookup)fail(403,'공지 채팅을 변경할 권한을 확인해 주세요.');
   const url=new URL(req.url);
   if(req.headers.get('origin')!==url.origin||req.headers.get('sec-fetch-site')==='cross-site')fail(403,'관리자 페이지에서 다시 요청해 주세요.');
  }

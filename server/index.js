@@ -85,6 +85,7 @@ import {adminProductRoute} from './admin-products.js';
 import {productFileRoute} from './product-assets.js';
 import {productEvidenceRoute} from './product-reviews.js';
 import {productPreviewRoute} from './product-preview.js';
+import {createNativeProductReview,nativeProductReviewRoute} from './product-native-review.js';
 import {adminSessionRoute,consoleViewer,isConsoleAdmin} from './admin-session.js';
 import {diamondRoute} from './diamonds.js';
 import {accountPageRoute} from './account-pages.js';
@@ -130,6 +131,7 @@ async function fetchRequest(req,env,ctx){
    if(poster)return await readProjectPoster(req,env,poster[1]);
   }
   if(path.startsWith('/api/product-assets/'))return await productFileRoute(req,env,path,false);
+  if(path.startsWith('/api/product-review/'))return await nativeProductReviewRoute(req,env,path);
   if(env.BUCKET&&ctx?.waitUntil&&(path.startsWith('/api/')||path.startsWith('/internal/')))ctx.waitUntil(drainDeletedFiles(env).catch(()=>console.error('Account file cleanup pending')));
   if(path.startsWith('/api/')||path.startsWith('/internal/'))queueChatImageCleanup(env,ctx);
   if(path==='/api/apple/notifications')return await appleNotification(req,env);
@@ -208,7 +210,10 @@ async function fetchRequest(req,env,ctx){
   // The official producer upload handler checks the manifest digest and enforces its own byte limits.
   const officialAudioUpload=req.method==='PUT'&&/^\/api\/dubbing\/projects\/[\w-]+\/sound\/official-rebuild\/(?:manifest|asset\/[\w-]+)$/.test(path);
   const noticeUpload=path==='/api/admin/notices/images'&&req.method==='POST';
-  const productMultipart=req.method==='POST'&&/^\/api\/admin\/products\/[\w-]+\/versions(?:\/[\w-]+\/review)?$/.test(path);
+  const productMultipart=req.method==='POST'&&req.headers.get('content-type')?.startsWith('multipart/form-data;')&&(
+   /^\/api\/admin\/products(?:\/[\w-]+)?$/.test(path)||
+   /^\/api\/admin\/products\/[\w-]+\/versions(?:\/[\w-]+\/review)?$/.test(path)
+  );
   if(!['GET','HEAD'].includes(req.method)&&!binary&&!noticeUpload&&!profileMultipart&&!officialAudioUpload&&!productMultipart&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,AifectMessages.requestTooLarge);
    const reader=req.body.getReader(),chunks=[];let size=0;
@@ -220,6 +225,7 @@ async function fetchRequest(req,env,ctx){
   const adminSession=await adminSessionRoute(req,env,path);if(adminSession)return adminSession;
   const user=(path.startsWith('/api/admin/')?await consoleViewer(req,env):null)||await viewer(req,env);
   if(path==='/api/account/summary'||path==='/api/account/payments')return await accountOverviewRoute(req,env,path,user);
+  if(path==='/api/admin/product-native-review')return await createNativeProductReview(req,env,user);
   if(path.startsWith('/api/admin/product-')||path.startsWith('/api/admin/products')){
    const authorized=isAdmin(env,user);
    const product=await productFileRoute(req,env,path,authorized)||await productEvidenceRoute(req,env,path,authorized)||await productPreviewRoute(req,env,path,user)||await adminProductRoute(req,env,path,user);
@@ -289,7 +295,8 @@ async function fetchRequest(req,env,ctx){
   }
   return json({error:AifectMessages.notFound},404);
  }catch(e){
-  if(!e.status)console.error(JSON.stringify({path,error:e.name,...((path.includes('/billing/')||path.includes('/gold/')||path.includes('/play/')||path.includes('/apple/'))?{}:{message:String(e.message).slice(0,300)})}));
+  const nativeReview=path.startsWith('/api/product-review/');
+  if(!e.status)console.error(JSON.stringify({path:nativeReview?'/api/product-review/':path,error:e.name,...((nativeReview||path.includes('/billing/')||path.includes('/gold/')||path.includes('/play/')||path.includes('/apple/'))?{}:{message:String(e.message).slice(0,300)})}));
   const status=e.status||500,message=e.status?e.message:'잠시 연결이 원활하지 않습니다. 입력 내용은 유지되니 다시 시도해 주세요.';
   if(path.includes('/auth/')&&path.endsWith('/callback'))return new Response(null,{status:303,headers:{location:'/#account?error='+encodeURIComponent(message),'cache-control':'no-store'}});
   return json({error:message},status);

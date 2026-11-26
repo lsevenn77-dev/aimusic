@@ -21,7 +21,7 @@ async function giftCatalog(env,params){
  const offset=Math.max(0,Number.parseInt(params.get('offset')??'0',10)||0);
  return {products:products.slice(offset,offset+24).map(p=>({
   id:p.id,type:p.type,name:p.name,thumbnail:p.asset?.files.thumbnail??'',currency:p.currency,
-  sale:sold(p),grant:grantable(p)&&!!p.asset,distribution:p.distribution,options:p.options,
+  sale:sold(p),grant:grantable(p)&&!!p.asset,archived:!!p.archived,distribution:p.distribution,options:p.options,
   revision:p.revision,value:p.value,deadline:p.grantDeadline,event_only:p.eventOnly
  })),next:offset+24<products.length?offset+24:null};
 }
@@ -53,7 +53,7 @@ export async function adminGiftDispatchRoute(req,env,path,user){
  }
  if(action==='/preview'&&method==='POST'){
   requireGiftDispatchOrigin(req);
-  if(!permissions.grant)fail(403,'상품 지급 권한이 필요합니다.');
+  if(!permissions.grant)fail(403,'상품 발송 권한이 필요합니다.');
   const input=await body(req),result=await prepareGiftDispatch(env,user.id,input);
   const products=result.products.filter(p=>p.units>0).map(p=>({...p,expires_at:p.season_ends_at?
    Math.min(p.preview_until??p.season_ends_at,p.season_ends_at):p.preview_until}));
@@ -65,7 +65,7 @@ export async function adminGiftDispatchRoute(req,env,path,user){
  if(method==='GET'){
   const job=await giftDispatch(env,key,{preview:part==='preview-members'});
   if(part==='preview-members'){
-   if(job.admin_id!==user.id||job.confirmed_at)fail(403,'본인이 확인 중인 지급 대상만 볼 수 있습니다.');
+   if(job.admin_id!==user.id||job.confirmed_at)fail(403,'본인이 확인 중인 발송 대상만 볼 수 있습니다.');
    await authorizeTest(env,user.id,job);
   }
   if(part==='members'||part==='preview-members')return json(await giftDispatchMembers(env,job,params));
@@ -75,7 +75,7 @@ export async function adminGiftDispatchRoute(req,env,path,user){
  if(method!=='POST'||!['confirm','process','retry','notify','adjustments'].includes(part))fail(405,'지원하지 않는 요청입니다.');
  requireGiftDispatchOrigin(req);
  if(part==='adjustments'?!permissions.adjust:!permissions.grant)
-  fail(403,part==='adjustments'?'지급 회수 또는 연장 권한이 필요합니다.':'상품 지급 권한이 필요합니다.');
+  fail(403,part==='adjustments'?'발송 회수 또는 연장 권한이 필요합니다.':'상품 발송 권한이 필요합니다.');
  if(part==='confirm'){
   const job=await confirmGiftDispatch(env,user.id,key);
   return json({id:job.id,...await dispatchProgress(env,job.id)});
