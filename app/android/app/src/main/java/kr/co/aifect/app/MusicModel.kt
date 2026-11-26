@@ -126,6 +126,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var messagePeer by mutableStateOf<String?>(null)
  var messageCrew by mutableStateOf<String?>(null)
  var showNotifications by mutableStateOf(false)
+ var notificationRoute by mutableStateOf<NativeNotificationRoute?>(null)
  var unreadActivities by mutableIntStateOf(0)
  suspend fun refreshActivitySummary(){val account=user?.optString("id")?:return;val data=api.call("/api/notifications/summary",fresh=true);if(user?.optString("id")==account)unreadActivities=data.optInt("unread")}
  var unreadMessages by mutableIntStateOf(0)
@@ -261,7 +262,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   selectedList=null;listSongs=emptyList();listLoading=false;playlistTarget=null;collection=null;collectionBusy=false;collectionError=null
   detail=null;comments=emptyList();detailBusy=false;profile=null;profileSongs=emptyList();profileCovers=emptyList();profileFollowers=0
   profileCache.clear();retryProfileLoad=null;profileLoading=false;profileError=null;messageSourceProfile=null
-  showNotifications=false;unreadActivities=0;showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
+  showNotifications=false;notificationRoute=null;unreadActivities=0;showDiamonds=false;showMessages=false;messagePeer=null;messageCrew=null;unreadMessages=0;inboxCrew=null;showProfileEdit=false;showAccountSettings=false;showRecordingDrafts=false;showRewards=false;showGifts=false;giftTarget=null;giftPerson=null
   showAccount=false;showInventory=false;accountError=null;nicknameCheck=null;studioBusy=false;studioError=null;studioData=JSONObject()
   feed=emptyList();feedFilter="전체";feedLoading=false;feedError=null;displayedFeedPath=null
   feedRequest++;feedReadScope=null;communityCrewMode=false;communityCrewTarget=null;crewBrowsing=false;lastKnownCrewId=null
@@ -306,7 +307,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   })
  }
  fun authenticated():Boolean { if(user==null){showLogin=true;return false};return true }
- fun openPush(kind:String,target:String,recipient:String){
+ fun openPush(kind:String,target:String,recipient:String,activity:String="",notificationId:String=""){
+  val push=NotificationContract.parse(mapOf("kind" to kind,"target" to target,"recipient" to recipient,"activity" to activity,"notification_id" to notificationId),user?.optString("id"))?:return
+  if(push.kind=="notifications"){showNotifications=true;if(push.notificationId.isNotEmpty())openActivityNotification(push.notificationId,recipient)else notificationRoute=NativeNotificationRoute(recipient,if(activity=="artist_digest")"#notifications?filter=artists" else "#notifications");return}
   if(user?.optString("id")!=recipient||!Regex("[a-zA-Z0-9-]{1,80}").matches(target))return
   if(kind=="dm")openMessages(target)
   else if(kind=="crew")openCrewMessages(target)
@@ -315,6 +318,13 @@ class MusicModel(app:Application):AndroidViewModel(app) {
    val song=api.call("/api/tracks/$target",fresh=true).optJSONObject("track")?:return@action
    if(user?.optString("id")==recipient)openSong(Song(song))
   }
+ }
+ fun openActivityNotification(id:String,recipient:String){
+  if(user?.optString("id")!=recipient||!NotificationContract.validId(id))return
+  viewModelScope.launch {try{
+   val result=api.call("/api/notifications/"+java.net.URLEncoder.encode(id,"UTF-8")+"/open","POST",payload())
+   if(user?.optString("id")==recipient){notificationRoute=NativeNotificationRoute(recipient,if(result.optInt("available")==1)NotificationContract.safeRoute(result.optString("href"))?:"#notifications?unavailable=1" else "#notifications?unavailable=1");refreshActivitySummary()}
+  }catch(e:Exception){if(e is CancellationException)throw e;if(user?.optString("id")==recipient)notice="알림 대상을 열 수 없어요. 알림함에서 다시 확인해주세요."}}
  }
  fun action(block:suspend ()->Unit) {
   if(busy)return

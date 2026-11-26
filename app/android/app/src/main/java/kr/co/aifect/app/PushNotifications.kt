@@ -26,7 +26,7 @@ object PushNotifications {
  private fun prefs(c:Context)=c.getSharedPreferences("native_push",Context.MODE_PRIVATE)
  fun channels(c:Context){
   val manager=c.getSystemService(NotificationManager::class.java)
-  listOf("dm" to "메시지", "comment" to "댓글", "gift" to "선물").forEach{(kind,title)->
+  (NotificationContract.preferences.toList()+listOf("artist_digest" to "오늘의 아티스트 소식")).forEach{(kind,title)->
    manager.createNotificationChannel(NotificationChannel("aifect_$kind",title,NotificationManager.IMPORTANCE_DEFAULT))
   }
  }
@@ -42,8 +42,8 @@ object PushNotifications {
   runCatching{
    val api=NativeApi(c)
    api.blocking("/api/push/device","PUT",payload("token" to token,"platform" to "android","account_id" to user))
-   val kinds=listOf("dm","comment","gift")
-   val pending=synchronized(lock){if(prefs(c).getBoolean("$user:dirty",false))kinds.associateWith{prefs(c).getBoolean("$user:$it",true)}else null}
+   val kinds=NotificationContract.preferences.keys.toList()
+   val pending=synchronized(lock){if(prefs(c).getBoolean("$user:dirty",false))kinds.filter{prefs(c).contains("$user:$it")}.associateWith{prefs(c).getBoolean("$user:$it",true)}else null}
    if(pending!=null){
     val body=payload("account_id" to user);pending.forEach{(kind,value)->body.put(kind,value)}
     api.blocking("/api/push/preferences","PUT",body)
@@ -59,21 +59,18 @@ object PushNotifications {
  }}
  fun enabled(c:Context,kind:String)=prefs(c).getBoolean("${prefs(c).getString("user","")}:$kind",true)
  fun setEnabled(c:Context,kind:String,value:Boolean){
-  require(kind in setOf("dm","comment","gift"));val user=prefs(c).getString("user",null)?:return
+  require(kind in NotificationContract.preferences);val user=prefs(c).getString("user",null)?:return
   synchronized(lock){prefs(c).edit().putBoolean("$user:$kind",value).putBoolean("$user:dirty",true).apply()}
   scope.launch{if(prefs(c).getString("user",null)==user)runCatching{NativeApi(c).blocking("/api/push/preferences","PUT",payload(kind to value,"account_id" to user))}}
  }
  fun show(c:Context,data:Map<String,String>){
-  val kind=data["kind"]?:return
-  val preference=if(kind=="crew")"dm" else if(kind=="person_gift")"gift" else kind
-  if(kind !in setOf("dm","comment","gift","crew","person_gift")||!enabled(c,preference))return
-  val user=prefs(c).getString("user",null)?:return
-  if(data["recipient"]!=user)return
-  val target=data["target"]?:return
-  if(!Regex("[a-zA-Z0-9-]{1,80}").matches(target))return
+  val push=NotificationContract.parse(data,prefs(c).getString("user",null))?:return
+  val kind=push.kind;val target=push.target;val user=push.recipient
+  val preference=push.preference
+  if(push.activity=="artist_digest"){if(!enabled(c,"artist_follower")&&!enabled(c,"artist_release"))return}else if(!enabled(c,preference))return
   channels(c)
-  val key="$kind:$target";val notificationId=key.hashCode()
-  val intent=Intent(c,MainActivity::class.java).putExtra("pushKind",kind).putExtra("pushTarget",target).putExtra("pushRecipient",user)
+  val key=push.key;val notificationId=key.hashCode()
+  val intent=Intent(c,MainActivity::class.java).putExtra("pushKind",kind).putExtra("pushTarget",target).putExtra("pushRecipient",user).putExtra("pushActivity",push.activity).putExtra("pushNotificationId",push.notificationId)
   val pending=PendingIntent.getActivity(c,notificationId,intent,PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
   val title=data["title"]?.take(100)?:"AIFECT"
   val body=data["body"]?.take(300)?:"새 알림이 도착했어요."

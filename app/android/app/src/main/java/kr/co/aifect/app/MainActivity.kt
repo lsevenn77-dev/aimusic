@@ -26,7 +26,7 @@ class MainActivity:ComponentActivity(){
   val kind=intent.getStringExtra("pushKind")?:return
   val target=intent.getStringExtra("pushTarget")?:return
   val recipient=intent.getStringExtra("pushRecipient")?:return
-  model.openPush(kind,target,recipient)
+  model.openPush(kind,target,recipient,intent.getStringExtra("pushActivity").orEmpty(),intent.getStringExtra("pushNotificationId").orEmpty())
   intent.removeExtra("pushKind")
  }
  private val recordingLauncher=registerForActivityResult(ActivityResultContracts.StartActivityForResult()){result->

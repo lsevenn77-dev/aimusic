@@ -9,26 +9,27 @@ struct ActivityHistoryView: View {
     @State private var error: String?
     @State private var destination: Song?
     @State private var profile: String?
-    private var filterKey: String { filter == "받은 선물" ? "gifts" : filter == "커버 · 듀엣" ? "participation" : "all" }
+    @State private var notificationWeb: NotificationWebDestination?
+    private var filterKey: String { ["전체": "all", "댓글·응원": "comments", "작품·참여": "works", "아티스트": "artists", "크루·선물": "crew"][filter] ?? "all" }
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 12) {
                 if model.userID == nil { LoginPrompt(title: "내 활동 알림을 확인하세요") }
                 else {
-                    ParityChips(items: ["전체", "커버 · 듀엣", "받은 선물"], selection: $filter)
-                    HStack { Text("커버·듀엣 참여와 받은 선물").font(.caption).foregroundStyle(.secondary); Spacer(); NavigationLink { PushSettingsView() } label: { Image(systemName: "bell.badge").frame(width: 44, height: 44) }.accessibilityLabel("알림 설정") }
+                    ParityChips(items: ["전체", "댓글·응원", "작품·참여", "아티스트", "크루·선물"], selection: $filter)
+                    HStack { Text("푸시를 꺼도 알림 기록은 유지돼요.").font(.caption).foregroundStyle(.secondary); Spacer(); NavigationLink { PushSettingsView() } label: { Image(systemName: "bell.badge").frame(width: 44, height: 44) }.accessibilityLabel("알림 설정") }
                     if let error { RetryCard(message: error) { Task { await load() } } }
                     ForEach(entries, id: \.selfID) { item in
                         VStack(alignment: .leading, spacing: 10) {
                             HStack {
                                 ProfilePhoto(person: ["id": item.string("actor_profile_id"), "image_version": item.string("actor_image_version")], size: 36, showsLevel: false)
-                                VStack(alignment: .leading, spacing: 3) { Text(item.string("actor_name")).font(.subheadline.bold()); if item.number("created") > 0 { Text(Date(timeIntervalSince1970: item.number("created")).formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary) } }
+                                VStack(alignment: .leading, spacing: 3) { Text(item.string("actor_name")).font(.subheadline.bold()); if item.number("created") > 0 { Text(activityDate(item.number("created"))).font(.caption).foregroundStyle(.secondary) } }
                                 Spacer(); if item.number("read_at") == 0 { Text("NEW").font(.caption2).foregroundStyle(Brand.pink) }
                             }
                             Text(message(item)).font(.subheadline)
                             Text(item.string("source_title", fallback: "나에게 보낸 선물")).font(.caption).foregroundStyle(.secondary)
                             HStack {
-                                if item.int("available") == 1 { Button("자세히 보기") { Task { await open(item) } }.disabled(loading) }
+                                Button(item.int("available") == 1 ? "자세히 보기" : "콘텐츠 안내") { Task { await open(item) } }.disabled(loading)
                                 if item.number("read_at") == 0 { Button("읽음") { Task { await mark(item) } }.disabled(loading) }
                             }.font(.caption).frame(minHeight: 44)
                         }.padding(14).background(StreamStyle.panel, in: RoundedRectangle(cornerRadius: 16))
@@ -41,10 +42,15 @@ struct ActivityHistoryView: View {
         }.navigationTitle("알림 기록").task(id: filter + (model.userID ?? "guest")) { await load() }.refreshable { await load() }
             .navigationDestination(item: $destination) { TrackDetailView(song: $0) }
             .navigationDestination(item: $profile) { ProfilePage(id: $0) }
+            .navigationDestination(item: $notificationWeb) { NotificationWebPage(destination: $0) }
+    }
+    private func activityDate(_ seconds: TimeInterval) -> String {
+        let formatter = DateFormatter(); formatter.locale = Locale(identifier: "ko_KR"); formatter.timeZone = TimeZone(identifier: "Asia/Seoul"); formatter.dateFormat = "yyyy.MM.dd HH:mm"; return formatter.string(from: Date(timeIntervalSince1970: seconds))
     }
     private func message(_ item: [String: Any]) -> String {
-        if ["gift", "person_gift"].contains(item.string("kind")) { return "\(item.string("gift_name")) \(max(1, item.int("quantity")))개 · \(item.int("amount")) \(item.string("currency") == "gold" ? "G" : "S")" }
-        return item.string("kind") == "duet" ? "내 듀엣에 참여했어요." : "내 곡으로 커버를 공개했어요."
+        let kind = item.string("kind")
+        if ["gift", "person_gift"].contains(kind) { return "\(item.string("gift_name").replacingOccurrences(of: "은화", with: "실버")) × \(max(1, item.int("quantity")))개 · \(item.int("amount")) \(item.string("currency") == "gold" ? "G" : "S")" }
+        return ["cover": "내 곡으로 커버를 공개했어요.", "duet": "내 듀엣에 참여했어요.", "comment": "내 음악에 댓글이 달렸어요.", "fan_comment": "팬라운지 댓글·답글이 도착했어요.", "fan_post": "팬라운지 새 응원글이 도착했어요.", "artist_follower": "AI 아티스트의 새 팔로워가 생겼어요.", "artist_release": "팔로우한 AI 아티스트가 신곡을 공개했어요.", "crew_invite": "크루 초대를 받았어요.", "crew_approved": "크루 가입이 승인됐어요.", "crew_request": "작품 참여 요청이 도착했어요.", "dubbing_complete": "참여한 더빙이 완성됐어요.", "dubbing_participation": "더빙 참여 작품이 공개됐어요.", "work_status": "작품 공개 상태를 확인해주세요."][kind] ?? "새 알림이 도착했어요."
     }
     private func load(older: Bool = false) async {
         guard let owner = model.userID else { entries = []; return }
@@ -66,11 +72,15 @@ struct ActivityHistoryView: View {
         } catch { if owner == model.userID { self.error = error.localizedDescription } }
     }
     private func open(_ item: [String: Any]) async {
-        let owner = model.userID
+        guard let owner = model.userID, NotificationContract.validID(item.selfID) else { return }
         loading = true; defer { loading = false }
-        await mark(item)
-        guard owner == model.userID else { return }
-        if item.string("kind") == "person_gift" { profile = item.string("target") }
-        else { do { let value = try await API.shared.call("/api/tracks/\(Endpoint.pathID(item.string("target")))"); guard owner == model.userID, !Task.isCancelled else { return }; let song = Song(value.object("track")); if !song.id.isEmpty { destination = song } } catch { self.error = error.localizedDescription } }
+        do {
+            let result = try await API.shared.call("/api/notifications/\(Endpoint.pathID(item.selfID))/open", method: "POST", body: [:])
+            guard owner == model.userID, !Task.isCancelled else { return }
+            let href = result.int("available") == 1 ? result.string("href") : "#notifications?unavailable=1"
+            guard let safe = NotificationContract.safeRoute(href) else { self.error = "알림 대상을 열 수 없어요.";return }
+            if let index = entries.firstIndex(where: { $0.selfID == item.selfID }) { entries[index]["read_at"] = Date().timeIntervalSince1970 }
+            notificationWeb = NotificationWebDestination(recipient: owner, href: safe)
+        } catch { if owner == model.userID { self.error = "알림 대상을 열 수 없어요. 다시 확인해주세요." } }
     }
 }

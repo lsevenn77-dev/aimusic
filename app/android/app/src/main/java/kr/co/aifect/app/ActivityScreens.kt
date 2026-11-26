@@ -31,7 +31,7 @@ internal fun activityDate(seconds:Long):String=SimpleDateFormat("yyyy.MM.dd HH:m
  Surface(onClick={if(m.authenticated())m.showNotifications=true},shape=RoundedCornerShape(14.dp),color=Raised){
   Row(Modifier.fillMaxWidth().padding(14.dp),verticalAlignment=Alignment.CenterVertically){
    Icon(Icons.Rounded.NotificationsNone,null,tint=Aqua)
-   Column(Modifier.weight(1f).padding(horizontal=10.dp)){Text("알림 기록");Text("커버·듀엣 참여와 받은 선물",color=Muted,fontSize=12.sp)}
+   Column(Modifier.weight(1f).padding(horizontal=10.dp)){Text("알림 기록");Text("댓글·응원 · 작품·참여 · 아티스트 · 크루·선물",color=Muted,fontSize=12.sp)}
    if(m.unreadActivities>0)Badge{Text(if(m.unreadActivities>99)"99+" else "${m.unreadActivities}")}
    Icon(Icons.Rounded.ChevronRight,null,tint=Muted)
   }
@@ -64,8 +64,8 @@ internal fun activityDate(seconds:Long):String=SimpleDateFormat("yyyy.MM.dd HH:m
  LaunchedEffect(account,filter,revision){if(account!=null)load()}
  AppPage(title="알림",onDismissRequest={m.showNotifications=false},containerColor=Ink){
   LazyColumn(Modifier.fillMaxWidth().fillMaxHeight().testTag("activity-list"),contentPadding=PaddingValues(18.dp,0.dp,18.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   item{Text("알림 기록",fontSize=25.sp);Text("한국 시간 · 날짜와 함께 모아보는 참여와 선물",fontSize=12.sp,color=Muted)
-    Chips(listOf("전체","커버 · 듀엣","받은 선물"),when(filter){"gifts"->"받은 선물";"participation"->"커버 · 듀엣";else->"전체"}){filter=when(it){"받은 선물"->"gifts";"커버 · 듀엣"->"participation";else->"all"}}
+   item{Text("알림 기록",fontSize=25.sp);Text("한국 시간 · 푸시를 꺼도 기록은 유지돼요",fontSize=12.sp,color=Muted)
+    val filters=linkedMapOf("all" to "전체","comments" to "댓글·응원","works" to "작품·참여","artists" to "아티스트","crew" to "크루·선물");Chips(filters.values.toList(),filters[filter]?:"전체"){label->filter=filters.entries.first{it.value==label}.key}
     Row{TextButton(enabled=!working,onClick={revision++}){Text("새로고침")};TextButton(enabled=!working&&entries.any{it.optLong("read_at")==0L},onClick={scope.launch{working=true;try{mark(entries.filter{it.optLong("read_at")==0L}.map{it.optString("id")})}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{working=false}}}){Text("이 목록 읽음")}}
     if(working)LinearProgressIndicator(Modifier.fillMaxWidth());error?.let{Text(it,color=Pink)}
    }
@@ -77,11 +77,11 @@ internal fun activityDate(seconds:Long):String=SimpleDateFormat("yyyy.MM.dd HH:m
       Column(Modifier.weight(1f).padding(start=10.dp)){Text(n.optString("actor_name"));Text(activityDate(n.optLong("created")),fontSize=11.sp,color=Muted)}
       if(n.optLong("read_at")==0L)Text("NEW",color=Pink,fontSize=10.sp)
      }
-     Text(if(gift)"${n.optString("gift_name").replace("은화","실버")} ${n.optInt("quantity",1)}개를 보냈어요." else if(n.optString("kind")=="duet")"내 듀엣에 참여했어요." else "내 곡으로 커버를 공개했어요.",modifier=Modifier.padding(top=12.dp))
+     Text(if(gift)"${n.optString("gift_name").replace("은화","실버")} ${n.optInt("quantity",1)}개를 보냈어요." else if(n.optString("kind")=="duet")"내 듀엣에 참여했어요." else mapOf("cover" to "내 곡으로 커버를 공개했어요.","comment" to "내 음악에 댓글을 남겼어요.","fan_comment" to "팬라운지 댓글·답글이 도착했어요.","fan_post" to "팬라운지 새 응원글이 도착했어요.","artist_follower" to "AI 아티스트의 새 팔로워가 생겼어요.","artist_release" to "팔로우한 AI 아티스트가 신곡을 공개했어요.","crew_invite" to "크루 초대를 받았어요.","crew_approved" to "크루 가입이 승인됐어요.","crew_request" to "작품 참여 요청이 도착했어요.","dubbing_complete" to "참여한 더빙이 완성됐어요.","dubbing_participation" to "더빙 참여 작품이 공개됐어요.","work_status" to "작품 공개 상태를 확인해주세요.")[n.optString("kind")]?:"새 알림이 도착했어요.",modifier=Modifier.padding(top=12.dp))
      Text(n.optString("source_title").ifBlank{"나에게 보낸 선물"},fontSize=13.sp,color=Muted)
      if(gift)Text("${n.optInt("amount")} ${if(n.optString("currency")=="gold")"G" else "S"}",color=Aqua,modifier=Modifier.padding(top=6.dp))
      Row{
-      if(n.optInt("available")==1)TextButton(enabled=!working,onClick={scope.launch{working=true;try{mark(listOf(n.optString("id")));if(active()){if(n.optString("kind")=="person_gift"){m.showNotifications=false;m.openProfile(n.optString("target"))}else{val song=Song(m.api.call("/api/tracks/${n.optString("target")}",fresh=true).getJSONObject("track"));if(active()){m.showNotifications=false;m.openSong(song)}}}}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{working=false}}}){Text(if(gift)"선물 받은 곳 보기" else "참여곡 듣기")}
+      TextButton(enabled=!working,onClick={scope.launch{working=true;try{mark(listOf(n.optString("id")));if(active())m.openActivityNotification(n.optString("id"),account.orEmpty())}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{working=false}}}){Text(if(n.optInt("available")==1)"자세히 보기" else "콘텐츠 안내")}
       if(n.optLong("read_at")==0L)TextButton(enabled=!working,onClick={scope.launch{working=true;try{mark(listOf(n.optString("id")))}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{working=false}}}){Text("읽음")}
      }
     }

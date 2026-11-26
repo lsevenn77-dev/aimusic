@@ -226,3 +226,26 @@ final class AIFECTTests: XCTestCase {
         }
     }
 }
+
+extension AIFECTTests {
+    func testNotificationContractAcceptsAllNewKindsAndLegacyPayloads() throws {
+        for activity in NotificationContract.activities {
+            let value = try XCTUnwrap(PushDestination(["kind": "notifications", "target": "work-id", "recipient": "owner", "activity": activity, "notification_id": "event:owner"]))
+            XCTAssertEqual(value.activity, activity);XCTAssertEqual(value.recipient, "owner")
+        }
+        for kind in ["dm", "comment", "gift", "crew", "person_gift"] { XCTAssertNotNil(PushDestination(["kind": kind, "target": "work-id", "recipient": "owner"])) }
+    }
+    func testNotificationContractRejectsUnknownEventsAndMalformedIDs() {
+        XCTAssertNil(PushDestination(["kind": "notifications", "target": "work-id", "recipient": "owner", "activity": "unknown"]))
+        XCTAssertNil(PushDestination(["kind": "notifications", "target": "../other", "recipient": "owner", "activity": "fan_comment"]))
+        XCTAssertNil(PushDestination(["kind": "notifications", "target": "work-id", "recipient": "owner", "activity": "fan_comment", "notification_id": "../secret"]))
+    }
+    func testNotificationRoutesStayOnTheAuthenticatedOrigin() throws {
+        for value in ["#notifications?filter=artists", "#artist/artist?tab=lounge&post=reply", "#studio?track=failed", "#dubbing/work", "#notifications?unavailable=1"] {
+            XCTAssertEqual(NotificationContract.safeRoute(value), value)
+            XCTAssertTrue(NotificationContract.safeWebURL(try XCTUnwrap(URL(string: "https://aifect.co.kr/" + value))))
+        }
+        for value in ["https://evil.example/#notifications", "https://aifect.co.kr.evil.example/#notifications", "http://aifect.co.kr/#notifications", "https://owner@aifect.co.kr/#notifications", "https://aifect.co.kr:443/#notifications"] { XCTAssertFalse(NotificationContract.safeWebURL(try XCTUnwrap(URL(string: value)))) }
+        XCTAssertNil(NotificationContract.safeRoute("javascript:alert(1)"));XCTAssertNil(NotificationContract.safeRoute("#artist/../secret"))
+    }
+}

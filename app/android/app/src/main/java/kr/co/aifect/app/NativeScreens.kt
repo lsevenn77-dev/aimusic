@@ -144,6 +144,7 @@ private val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=C
   if(m.detail==null&&!m.fullPlayer)m.profile?.let { p->pages.SaveableStateProvider("profile:"+p.optString("id")){ProfileSheet(m,p)} }
   if(m.fullPlayer)m.current?.let { PlayerSheet(m,it,{listPicker=it},sing) }
   if(m.showNotifications)ActivitySheet(m)
+  m.notificationRoute?.let{route->key(route){NotificationWebPage(m,route)}}
   if(m.showGifts)GiftSheet(m)
   if(m.showRewards)RewardsSheet(m)
   if(m.showProfileEdit)ProfileEditorSheet(m)
@@ -360,7 +361,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)A
    Text("계정 설정",fontSize=22.sp,fontWeight=FontWeight.Bold)
    val pushContext=androidx.compose.ui.platform.LocalContext.current
    Text("푸시 알림",fontSize=18.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=18.dp))
-   listOf("dm" to "메시지", "comment" to "댓글 · 커버/듀엣 참여", "gift" to "선물").forEach{(kind,label)->
+   NotificationContract.preferences.toList().forEach{(kind,label)->
     var enabled by remember(kind){mutableStateOf(PushNotifications.enabled(pushContext,kind))}
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(label,Modifier.weight(1f));Switch(enabled,{enabled=it;PushNotifications.setEnabled(pushContext,kind,it)})}
    }

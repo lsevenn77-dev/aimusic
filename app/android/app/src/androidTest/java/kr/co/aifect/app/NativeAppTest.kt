@@ -136,6 +136,7 @@ class NativeAppTest {
    }
    var cookie="";var status=200;var content="application/json"
    val result:ByteArray=when {
+    path=="/"&&testName.methodName.startsWith("notification")->{content="text/html";"<!doctype html><meta name=viewport content=\"width=device-width\"><body style=\"background:#0c121b;color:#f5f5fc\"><h1>로컬 알림 이동 검증</h1><p>알림 댓글 위치</p></body>".toByteArray()}
     path.startsWith("/media/producer/")->{content="image/png";photo}
     path.startsWith("/media/")->{content="audio/wav";audio}
     else -> {
@@ -1046,6 +1047,36 @@ class NativeAppTest {
   ui.waitUntil(10000){ui.onAllNodesWithTag("profile-cover-image").fetchSemanticsNodes().isNotEmpty()};screenshot("native-polish-public-photo.png")
   ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-layout-grid"));ui.onNodeWithTag("profile-layout-grid").performClick();ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-card-cover-fixture"));ui.onNodeWithTag("profile-card-cover-fixture").assertExists()
   ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-layout-list"));ui.onNodeWithTag("profile-layout-list").performClick();ui.onNodeWithTag("profile-scroll").performScrollToNode(hasTestTag("profile-row-cover-fixture"));ui.onNodeWithTag("profile-row-cover-fixture").assertExists();assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
+ }
+ @Test fun notificationPushResolvesExactTargetAndBindsOnlyTheCurrentAccount(){
+  val route="#artist/artist?tab=lounge&post=reply"
+  fixtureResponses["/api/notifications/qa-fan/open"]=200 to payload("available" to 1,"href" to route).toString()
+  fixtureResponses["/api/notifications"]=200 to payload("items" to JSONArray(),"unread" to 0).toString()
+  fixtureResponses["/api/notifications/summary"]=200 to payload("unread" to 0).toString()
+  val model=AtomicReference<MusicModel>();logged.set(true)
+  screen.onActivity{a->model.set(androidx.lifecycle.ViewModelProvider(a)[MusicModel::class.java]);NativeSession.put(context,"cookie","aifect_session=notification-fixture");model.get().user=user;model.get().showLogin=false;model.get().openPush("notifications","reply",user.optString("id"),"fan_comment","qa-fan")}
+  ui.waitUntil(20_000){model.get().notificationRoute?.href==route&&cookieHeaders["/"]?.contains("aifect_session=notification-fixture")==true}
+  ui.onNodeWithTag("app-page").assertIsDisplayed()
+  val webReady=AtomicBoolean(false)
+  fun findWeb(view:View):WebView? {if(view is WebView)return view;if(view is ViewGroup)for(i in 0 until view.childCount){findWeb(view.getChildAt(i))?.let{return it}};return null}
+  ui.waitUntil(10_000){screen.onActivity{a->findWeb(a.window.decorView)?.evaluateJavascript("document.body.innerText"){webReady.set(it.contains("로컬 알림 이동 검증"))}};webReady.get()}
+  val bitmap=InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+  FileOutputStream(File(context.getExternalFilesDir(null),"notification-native-android.png")).use{bitmap.compress(Bitmap.CompressFormat.PNG,100,it)};bitmap.recycle()
+  androidx.test.espresso.Espresso.pressBack()
+  ui.waitUntil(10_000){model.get().notificationRoute==null}
+  screen.onActivity{assertTrue(model.get().showNotifications);model.get().openPush("notifications","reply","wrong-user","fan_comment","qa-fan");assertNull(model.get().notificationRoute)}
+ }
+ @Test fun notificationPostingSupportsNewKindsAndRejectsOtherAccounts(){
+  val notificationManager=context.getSystemService(android.app.NotificationManager::class.java)
+  InstrumentationRegistry.getInstrumentation().uiAutomation.grantRuntimePermission(context.packageName,Manifest.permission.POST_NOTIFICATIONS)
+  context.getSharedPreferences("native_push",0).edit().putString("user","push-user").commit()
+  notificationManager.cancelAll()
+  for(activity in NotificationContract.activities){PushNotifications.show(context,mapOf("kind" to "notifications","activity" to activity,"target" to "work-id","recipient" to "push-user","notification_id" to "event:$activity"))}
+  ui.waitUntil(10_000){notificationManager.activeNotifications.size==NotificationContract.activities.size}
+  val before=notificationManager.activeNotifications.size
+  PushNotifications.show(context,mapOf("kind" to "notifications","activity" to "fan_comment","target" to "work-id","recipient" to "another-user","notification_id" to "wrong-owner"))
+  assertEquals(before,notificationManager.activeNotifications.size)
+  notificationManager.cancelAll()
  }
  private fun wav(seconds:Int=30):ByteArray{
   val size=seconds*16000*2;return ByteBuffer.allocate(44+size).order(ByteOrder.LITTLE_ENDIAN).apply{
