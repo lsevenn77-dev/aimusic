@@ -12,9 +12,9 @@ for(const file of ['social-layouts.js','crew-settings.js']){
 
 test('crew settings expose only actions allowed by the current role',()=>{
  const actions=role=>Array.from(client.crewActionsFor(role),a=>a.key);
- assert.deepEqual(actions('owner'),['info','members','activity','leadership']);
- assert.deepEqual(actions('deputy'),['info','members','activity']);
- for(const role of ['manager','operator'])assert.deepEqual(actions(role),['info','activity']);
+ assert.deepEqual(actions('owner'),['info','members','applications','audit','leadership']);
+ assert.deepEqual(actions('deputy'),['info','members','applications','audit']);
+ for(const role of ['manager','operator'])assert.deepEqual(actions(role),['info','applications','audit']);
  for(const role of ['member',undefined])assert.deepEqual(actions(role),[]);
 });
 

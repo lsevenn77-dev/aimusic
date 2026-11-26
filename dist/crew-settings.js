@@ -1,7 +1,8 @@
 const crewSettingsActions = [
  {key:'info', label:'크루 정보 수정', icon:'edit'},
  {key:'members', label:'멤버 관리', icon:'users'},
- {key:'activity', label:'가입 신청 · 운영 기록', icon:'clock'},
+ {key:'applications', label:'가입 신청 관리', icon:'users'},
+ {key:'audit', label:'멤버 운영 기록', icon:'clock'},
  {key:'leadership', label:'크루장 위임', icon:'star'}
 ];
 
@@ -146,7 +147,7 @@ function openCrewDialog(trigger,path,detail,action,targetId) {
  modal.showModal();
  if(action.key==='info') bindCrewInfo(ui,detail);
  if(action.key==='members') bindCrewMemberList(ui,detail,targetId);
- if(action.key==='activity') bindCrewActivity(ui);
+ if(action.key==='applications'||action.key==='audit') bindCrewActivity(ui,action.key);
  if(action.key==='leadership') bindCrewTransfer(ui,detail);
 }
 
@@ -170,6 +171,7 @@ function bindCrewInfo(ui,detail) {
  const form=body.querySelector('form');
  form.id='crew-settings-form';
  bindCrewTagEditor(form);
+ bindCrewDescription(form);
  if(!owner){
   form.elements.name.readOnly=true;
   for(const key of ['join_policy','minimum_level']) form.elements[key].disabled=true;
@@ -241,13 +243,13 @@ function bindCrewMemberList(ui,detail,targetId) {
  show();
 }
 
-function bindCrewActivity(ui) {
+function bindCrewActivity(ui,initialTab) {
  const {body,tools}=ui;
  tools.innerHTML='<div class="crew-activity-tabs" role="tablist" aria-label="크루 운영"><button id="crew-tab-applications" role="tab" aria-controls="crew-panel" data-tab="applications">가입 신청</button><button id="crew-tab-audit" role="tab" aria-controls="crew-panel" data-tab="audit">운영 기록</button></div>';
  body.id='crew-panel';body.setAttribute('role','tabpanel');
  const tabs=[...tools.querySelectorAll('[role=tab]')];
  let current='',serial=0;
- const labels={application_approved:'가입 승인',application_rejected:'가입 거절',settings_changed:'설정 변경',role_changed:'직책 변경',member_removed:'멤버 강퇴',leadership_transferred:'크루장 위임',growth_adjusted:'경험치 정정'};
+ const labels={application_approved:'가입 승인',application_rejected:'가입 거절',role_changed:'직책 변경',member_removed:'멤버 강퇴',leadership_transferred:'크루장 위임'};
  async function load(tab){
   const ticket=++serial;
   current=tab;
@@ -255,10 +257,12 @@ function bindCrewActivity(ui) {
   body.innerHTML='<p role="status">불러오는 중…</p>';body.scrollTop=0;
   ui.error.textContent='';
   try{
-   const d=await api(ui.path+'/'+tab,'GET',undefined,{fresh:true,signal:ui.signal});
+   const d=await api(ui.path+'/'+tab+(tab==='audit'?'?members=1':''),'GET',undefined,{fresh:true,signal:ui.signal});
    if(!ui.modal.open||ticket!==serial)return;
    body.innerHTML=tab==='applications'?d.applications.map(a=>`<div class="crew-manage-row" data-applicant="${esc(a.user_id)}"><strong>${memberNickname(a)}</strong><div class="crew-row-actions"><button class="small-button" data-decision="approve">승인</button><button class="small-button" data-decision="reject">거절</button></div></div>`).join('')||'<p>대기 중인 가입 신청이 없습니다.</p>':
-    d.events.map(e=>`<article class="crew-audit-event"><strong>${esc(labels[e.action]||e.action)}</strong><small>${esc(new Date(e.created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</small>${e.detail?`<p>${esc(e.detail)}</p>`:''}</article>`).join('')||'<p>아직 운영 기록이 없습니다.</p>';
+    d.events.map(e=>`<article class="crew-audit-event"><strong>${esc(labels[e.action])}</strong><small>${esc(new Date(e.created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</small>
+     <p>${esc(e.target_name||'회원')}${e.target_role?' · '+esc(crewRoleLabels[e.target_role]||'크루원'):''}</p>
+     <small>처리한 운영진 ${esc(e.actor_name||'크루 운영진')}</small></article>`).join('')||'<p>아직 멤버 운영 기록이 없습니다.</p>';
   }catch(e){if(ui.modal.open&&ticket===serial){ui.error.textContent=e.message;body.innerHTML='<button class="small-button" data-retry>다시 불러오기</button>';}}
  }
  for(const b of tabs){
@@ -276,7 +280,7 @@ function bindCrewActivity(ui) {
    if(ui.modal.open){toast(b.dataset.decision==='approve'?'가입을 승인했습니다.':'가입을 거절했습니다.');await load('applications');}
   });
  };
- void load('applications');
+ void load(initialTab);
 }
 
 function bindCrewTransfer(ui,detail) {

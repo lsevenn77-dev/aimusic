@@ -5,6 +5,10 @@ import {VISIBLE,SINGABLE} from './catalog.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {publicNameSQL} from './identity.js';
 
+export const duetRecruitingSQL=(t='t')=>`${VISIBLE(t)} AND ${t}.kind='cover' AND ${t}.cover_mode='duet' AND ${t}.duet_parent_id IS NULL
+ AND ${t}.duet_open=1 AND ${t}.duet_part IN ('male','female') AND ${t}.original_key!=''
+ AND EXISTS(SELECT 1 FROM tracks o WHERE o.id=${t}.original_id AND ${VISIBLE('o')} AND ${SINGABLE('o')})`;
+
 // Same completed duet projection as #song; never count drafts or blocked works.
 export async function profileCoverParticipation(env,covers,user){
  const ids=covers.filter(t=>t.cover_mode==='duet'&&!t.duet_parent_id&&(!t.status||t.status==='published')).map(t=>t.id);
@@ -13,12 +17,13 @@ export async function profileCoverParticipation(env,covers,user){
  const stats=[];
  for(let start=0;start<ids.length;start+=80){const batch=ids.slice(start,start+80);stats.push(...await rows(env,`SELECT p.id,
   COUNT(t.id) completions,COUNT(DISTINCT CASE WHEN t.user_id!=p.user_id THEN t.user_id END) participants,
-  (p.duet_open=1 AND p.duet_part IN ('male','female') AND p.original_key!='' AND EXISTS(SELECT 1 FROM tracks o WHERE o.id=p.original_id AND ${VISIBLE('o')} AND ${SINGABLE('o')})) joinable
+  (${duetRecruitingSQL('p')}) joinable
   FROM tracks p LEFT JOIN tracks t ON t.duet_parent_id=p.id AND t.original_id=p.original_id
   AND t.kind='cover' AND t.cover_mode='duet' AND t.duet_open=0 AND ${VISIBLE()}
   ${blocked.length?`AND t.user_id NOT IN (${blocked.map(()=>'?').join(',')})`:''}
   WHERE p.id IN (${batch.map(()=>'?').join(',')}) GROUP BY p.id`,...blocked,...batch));}
- for(const t of covers){const s=stats.find(s=>s.id===t.id);if(s)Object.assign(t,{recruiting:!!s.joinable,participants:s.participants,completions:s.completions,can_join:!!user&&user.id!==t.user_id&&!!s.joinable});}
+ const byId=new Map(stats.map(s=>[s.id,s]));
+ for(const t of covers){const s=byId.get(t.id);if(s)Object.assign(t,{recruiting:!!s.joinable,participants:s.participants,completions:s.completions,can_join:!!user&&user.id!==t.user_id&&!!s.joinable});}
 }
 
 // Reusable root relationship, moderation and block checks match dubbingVersions.
@@ -51,3 +56,12 @@ export const dubRecruitingSQL=()=>`p.visibility='public' AND p.state IN ('recrui
  AND (SELECT count(*) FROM dubbing_role_claims rc WHERE rc.project_id=p.id)<p.role_count
  AND EXISTS(SELECT 1 FROM dubbing_recordings r JOIN dubbing_recording_lines l ON l.recording_id=r.id WHERE r.project_id=p.id AND r.script_key=p.script_key)
  AND EXISTS(SELECT 1 FROM dubbing_sound_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.output_key!='')`;
+
+export const dubbingSubmittedCountSQL=(t='p')=>`(SELECT COUNT(*) FROM dubbing_recordings r
+ WHERE r.project_id=${t}.id AND r.script_key=${t}.script_key AND r.state='submitted')`;
+export const dubbingParticipantCountSQL=`(SELECT COUNT(DISTINCT r.user_id) FROM dubbing_recordings r JOIN users ru ON ru.id=r.user_id
+ WHERE r.project_id=p.id AND r.script_key=p.script_key AND r.state='submitted' AND ru.provider!='deleted')`;
+
+export const dubbingEditableSQL=`p.root_id IS NULL AND p.first_recorded_at=0 AND p.visibility='private'
+ AND NOT EXISTS(SELECT 1 FROM dubbing_role_claims c JOIN users u ON u.id=c.user_id WHERE c.project_id=p.id AND u.provider!='deleted')
+ AND NOT EXISTS(SELECT 1 FROM dubbing_projects child WHERE child.root_id=p.id)`;

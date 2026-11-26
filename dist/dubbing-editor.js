@@ -31,7 +31,9 @@ async function dubCommit(e){
    catch(err){if(err.status!==409)toast('대본은 저장되었습니다. 자동 저장본 정리는 연결 후 다시 확인해 주세요.');}
   }
   localStorage.removeItem(dubDraftKey(e.id));dubbingEditor=null;
-  location.hash='dubbing/'+saved.project.id+(dubEmbedded?'?editorSaved=1':'');
+  if(typeof markMyWorkChanged==='function')markMyWorkChanged('dubbing:'+saved.project.id);
+  const fromWorks=new URLSearchParams(location.hash.split('?')[1]||'').get('from')==='works';
+  location.hash=fromWorks&&!dubEmbedded?'profile':'dubbing/'+saved.project.id+(dubEmbedded?'?editorSaved=1':'');
  }finally{e.busy=false;e.element.inert=false;}
 }
 function dubMount(e){

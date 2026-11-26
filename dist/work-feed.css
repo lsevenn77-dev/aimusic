@@ -1,0 +1,215 @@
+#main .work-feed {
+ --ui-type-scale: 1;
+ --ui-space-scale: 1;
+ min-width: 0;
+ container-type: inline-size;
+}
+#main .work-feed-toolbar {
+ display: flex;
+ flex-wrap: wrap;
+ align-items: center;
+ justify-content: space-between;
+ gap: 4px 12px;
+ margin-bottom: 4px;
+}
+#main .work-feed-filters {
+ display: flex;
+ flex-wrap: wrap;
+ align-items: center;
+ gap: 3px 4px;
+}
+#main .work-feed-filters button {
+ min-height: 36px;
+ padding: 0 11px;
+ color: var(--ds-muted);
+ background: transparent;
+ border: 1px solid transparent;
+ border-radius: var(--ds-radius-sm);
+ font-size: 14px;
+ white-space: nowrap;
+}
+#main .work-feed-filters button:hover { color: var(--ds-text); }
+#main .work-feed-filters button[aria-pressed="true"] {
+ border-color: var(--ds-line);
+ background: var(--ds-panel);
+ color: var(--ds-accent-mint);
+ font-weight: 650;
+}
+#main .work-feed-grid {
+ display: grid;
+ grid-template-columns: repeat(2,minmax(0,1fr));
+ column-gap: 24px;
+}
+#main .work-feed-row {
+ --work-art-size: 96px;
+ display: grid;
+ grid-template-columns: var(--work-art-size) minmax(0,1fr) auto;
+ grid-template-areas: "art copy actions";
+ align-content: start;
+ align-items: center;
+ gap: 0 12px;
+ min-width: 0;
+ padding-block: 12px;
+ border-bottom: 1px solid var(--ds-line);
+}
+#main .work-feed-art {
+ grid-area: art;
+ display: block;
+ align-self: start;
+ width: var(--work-art-size);
+ aspect-ratio: 1;
+ overflow: hidden;
+ border-radius: var(--ds-radius-sm);
+}
+#main .work-feed-art :is(.work-feed-photo,img) {
+ display: block;
+ width: 100%;
+ height: 100%;
+ margin: 0;
+ object-fit: cover;
+}
+#main .work-feed-copy {
+ grid-area: copy;
+ min-width: 0;
+ display: grid;
+ gap: 3px;
+}
+#main .work-feed-labels,
+#main .work-feed-meta {
+ display: flex;
+ align-items: center;
+ flex-wrap: wrap;
+ gap: 2px 7px;
+ min-width: 0;
+ color: var(--ds-muted);
+ font-size: 12px;
+ line-height: 1.35;
+}
+#main .work-feed-type {
+ --work-type-tone: #8EDDD2;
+ display: inline-flex;
+ align-items: center;
+ padding: 0 5px;
+ color: var(--work-type-tone);
+ background: transparent;
+ border: 1px solid color-mix(in srgb,var(--work-type-tone) 38%,transparent);
+ border-radius: 4px;
+ font-size: 12px;
+ line-height: 18px;
+ white-space: nowrap;
+}
+#main [data-work-kind="cover"] .work-feed-type { --work-type-tone: #C4B5FD; }
+#main [data-work-kind="duet"] .work-feed-type { --work-type-tone: #F3A6CF; }
+#main [data-work-kind="dubbing"] .work-feed-type { --work-type-tone: #8BCFF3; }
+#main .work-feed-participants { font-variant-numeric: tabular-nums; }
+#main .work-feed-private { display: inline-flex; }
+#main .work-feed-private svg { width: 13px; height: 13px; }
+#main .work-feed-title,
+#main .work-feed-credit {
+ min-width: 0;
+ overflow: hidden;
+ text-overflow: ellipsis;
+ white-space: nowrap;
+}
+#main .work-feed-title {
+ display: block;
+ color: var(--ds-text);
+ font-size: var(--pc-font-card,15px);
+ font-weight: 650;
+ line-height: 1.4;
+}
+#main .work-feed-title:hover { color: var(--ds-accent-mint); }
+#main .work-feed-meta time { white-space: nowrap; }
+#main .work-feed-note {
+ display: -webkit-box;
+ -webkit-box-orient: vertical;
+ -webkit-line-clamp: 2;
+ overflow: hidden;
+ overflow-wrap: anywhere;
+ margin: 1px 0 0;
+ color: var(--ds-body);
+ font-size: 13px;
+ line-height: 1.4;
+}
+#main .work-feed-metrics {
+ --music-stat-icon: 14px;
+ --music-stat-plays: 14px;
+ --music-stat-number: 12px;
+ --music-stat-gap: 4px;
+ display: inline-flex;
+ gap: 6px;
+}
+#main .work-feed-actions {
+ grid-area: actions;
+ display: flex;
+ align-items: center;
+ justify-content: flex-end;
+ gap: 8px;
+}
+#main .work-feed :is(.work-feed-play,.work-feed-menu) {
+ display: inline-grid;
+ place-items: center;
+ width: 44px;
+ min-width: 44px;
+ height: 44px;
+ padding: 0;
+ color: var(--ds-body);
+ background: transparent;
+ border: 0;
+}
+#main .work-feed .work-feed-play>svg {
+ box-sizing: border-box;
+ width: 32px;
+ height: 32px;
+ padding: 6px;
+ border: 1px solid var(--ds-line)!important;
+ border-radius: 50%;
+ background: transparent!important;
+}
+#main .work-feed .work-feed-play[aria-pressed="true"]>svg,
+#main .work-feed :is(.work-feed-play,.work-feed-menu):hover { color: var(--ds-accent-mint); }
+#main .work-feed .work-feed-menu svg { width: 20px; height: 20px; }
+#main .work-feed .work-feed-join {
+ display: inline-flex;
+ min-height: 44px;
+ padding: 0 9px;
+ border: 0;
+ color: var(--ds-accent-mint);
+ background: color-mix(in srgb,var(--ds-accent-mint) 10%,transparent);
+ font-size: 12px;
+ font-weight: 650;
+ white-space: nowrap;
+}
+#main .work-feed .work-feed-join:hover { background: color-mix(in srgb,var(--ds-accent-mint) 18%,transparent); }
+#main .work-feed-versions {
+ grid-column: 2/-1;
+ margin: 4px 0 0;
+ color: var(--ds-muted);
+ font-size: 12px;
+}
+/* Explicit rows keep versions below the information on narrow screens too. */
+#main .work-feed-versions { grid-row: 2; }
+#main .work-feed-versions summary { width: fit-content; padding-block: 4px; cursor: pointer; }
+#main .work-feed-versions>div { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#main .work-feed-foot { color: var(--ds-muted); font-size: 13px; }
+#main .work-feed-foot:has(>button[hidden],>button:disabled) .work-feed-status:empty { display: none; }
+#main .work-feed-status { margin: 12px 0; }
+#main .work-feed-status:empty { margin: 0; }
+#main .work-feed-next:not([hidden]) { margin-top: 12px; }
+.work-feed-management-actions { display: grid; gap: 8px; }
+.work-feed-management-actions > :is(a,button) { justify-content: flex-start; min-height: 44px; }
+
+@container (max-width: 660px) {
+ #main .work-feed-row:has(.work-feed-actions) {
+  grid-template-columns: var(--work-art-size) minmax(0,1fr);
+  grid-template-areas: "art copy" "art actions";
+ }
+ #main .work-feed-row:has(.work-feed-actions) .work-feed-actions { margin-top: 2px; }
+ #main .work-feed-row:has(.work-feed-actions) .work-feed-versions { grid-row: 3; }
+}
+
+@media (max-width: 800px) {
+ #main .work-feed-grid { grid-template-columns: minmax(0,1fr); }
+ #main .work-feed-row { --work-art-size: 82px; gap: 0 10px; }
+ #main .work-feed-filters button { min-height: 44px; padding-inline: clamp(5px,1.8vw,10px); font-size: 13px; }
+}

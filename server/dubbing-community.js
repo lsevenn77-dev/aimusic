@@ -5,11 +5,16 @@ import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
 import {removeComment,REPORT_REASONS} from './comment-moderation.js';
 import {assertDubbingCreator} from './dubbing-access.js';
+export const dubbingCommentCountSQL=(project,viewer)=>`(SELECT COUNT(*) FROM comments c
+ WHERE c.dubbing_id=${project} AND c.deleted_at=0
+ AND EXISTS(SELECT 1 FROM users commenter WHERE commenter.id=c.user_id AND commenter.account_type='human')
+ AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=${viewer} AND b.blocked_id=c.user_id) OR (b.blocked_id=${viewer} AND b.user_id=c.user_id)))`;
+
 export async function dubbingCommunityStatus(env,p,user){
  const uid=user?.id||'';
- const state=await one(env,`SELECT (SELECT COUNT(*) FROM likes WHERE dubbing_id=?) likes,
- EXISTS(SELECT 1 FROM likes WHERE dubbing_id=? AND user_id=?) liked,
- (SELECT COUNT(*) FROM comments c WHERE c.dubbing_id=? AND c.deleted_at=0 AND EXISTS(SELECT 1 FROM users commenter WHERE commenter.id=c.user_id AND commenter.account_type='human') AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id))) comments`,p.id,p.id,uid,p.id,uid,uid);return {...state,official_ai:await officialSupport(env,'dubbing',p.id)};
+ const state=await one(env,`SELECT (SELECT COUNT(*) FROM likes WHERE dubbing_id=?1) likes,
+ EXISTS(SELECT 1 FROM likes WHERE dubbing_id=?1 AND user_id=?2) liked,
+ ${dubbingCommentCountSQL('?1','?2')} comments`,p.id,uid);return {...state,official_ai:await officialSupport(env,'dubbing',p.id)};
 }
 export async function dubbingCommunityRoute(req,env,p,user,action,tail){
  if(!['like','comments'].includes(action))return null;

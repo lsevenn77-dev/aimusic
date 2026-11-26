@@ -3,6 +3,7 @@ import {crewBadgeUrl,crewLevel} from '../shared/crews.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {followCounts,assertArtistInteraction,producerFollowsViewer} from './follow-management.js';
 import {publicNumberSQL,profileActivity} from './profile-dashboard.js';
+import {myWorksPage} from './my-works.js';
 import {playerIdentity,playerColumnsSQL} from './player.js';
 import {one,rows,query,id,now,str,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
@@ -37,6 +38,11 @@ async function previewCrew(env,userId){
 }
 
 export async function profileRoute(req,env,path,user){
+ if(path==='/api/me/works'){
+  if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
+  requireUser(user);
+  return json(await myWorksPage(env,user,new URL(req.url).searchParams));
+ }
  const fan=path.match(/^\/api\/artist-preview\/([\w-]+)$/);
  if(fan){
   if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);

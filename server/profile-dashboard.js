@@ -6,12 +6,19 @@ import {namedArtistSQL} from './artist-identity.js';
 import {dubbingVisibleSQL,assertDubbingCreator} from './dubbing-access.js';
 import {relationList} from './relations.js';
 import {CASTING_LICENSE,CASTING_TTL} from './dubbing-casting.js';
-import {dubAudioReadySQL,dubRecruitingSQL,finished,profileDubbingParticipation} from './profile-works.js';
+import {dubAudioReadySQL,dubRecruitingSQL,finished,profileDubbingParticipation,dubbingParticipantCountSQL,dubbingSubmittedCountSQL,dubbingEditableSQL} from './profile-works.js';
+import {dubbingLikesSQL} from './play.js';
+import {dubbingCommentCountSQL} from './dubbing-community.js';
+import {dubbingPlayCountSQL} from './dubbing-plays.js';
 
 export const publicNumberSQL=uid=>`(SELECT number FROM public_member_ids WHERE user_id=${uid})`;
-// No private balances, XP, inventory or notification records in this public DTO.
-export async function profileDashboard(env,profile,user,profileWorks=false){
- const own=user?.id===profile.user_id,uid=profile.user_id;
+export const profileWorkCountsSQL=(own,uid)=>`
+   (SELECT count(*) FROM tracks t WHERE t.user_id=${uid} AND t.kind='original' AND ${own?"t.status!='deleted'":VISIBLE()}) produced_track_count,
+   (SELECT count(*) FROM tracks t LEFT JOIN tracks dt ON dt.id=t.duet_parent_id WHERE (t.user_id=${uid} OR dt.user_id=${uid}) AND ${VISIBLE()}) public_track_count`;
+
+// A single visibility scope serves the profile digest and the authenticated, paged feed.
+export function profileDubbingQuery(env,{uid,viewer,own,profileWorks,feed=false,count=false,filter,seek='',args=[],limit=-1}){
+ if(env.DUBBING_ENABLED!=='true')return query(env,'SELECT 1 WHERE 0');
  // Casting accepts a new take only from a licensed public base with ready background audio.
  const rootReady=`EXISTS(SELECT 1 FROM dubbing_projects root JOIN dubbing_recordings r ON r.project_id=root.id
   JOIN dubbing_recording_permissions perm ON perm.recording_id=r.id JOIN dubbing_sound_jobs j ON j.project_id=root.id AND j.script_key=root.script_key
@@ -19,7 +26,7 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
   AND r.state='submitted' AND perm.visibility='public' AND perm.license_version='${CASTING_LICENSE}' AND j.state='ready' AND j.output_key!='')`;
  const openCasting=`p.visibility='public' AND ${rootReady} AND (p.root_id IS NULL OR EXISTS(
   SELECT 1 FROM dubbing_combinations c WHERE c.project_id=p.id AND c.expired_at=0 AND c.last_participation>${now()-CASTING_TTL}
-  AND p.state IN ('recruiting','recording') AND (SELECT COUNT(*) FROM dubbing_recordings r WHERE r.project_id=p.id AND r.state='submitted')<p.role_count))`;
+  AND p.state IN ('recruiting','recording') AND ${dubbingSubmittedCountSQL()}<p.role_count))`;
  const openWork=`((${openCasting}) OR (p.root_id IS NOT NULL AND NOT EXISTS(SELECT 1 FROM dubbing_combinations c WHERE c.project_id=p.id) AND (${dubRecruitingSQL()})))`;
  const workProjection=profileWorks?`
    (${finished}) work_finished,(${openWork}) work_open,
@@ -30,11 +37,33 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
  const workBlocks=profileWorks?`AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE
    (b.user_id=?1 AND b.blocked_id IN (SELECT user_id FROM dubbing_recordings WHERE project_id=p.id UNION SELECT owner_id FROM dubbing_projects WHERE id=p.root_id))
    OR (b.blocked_id=?1 AND b.user_id IN (SELECT user_id FROM dubbing_recordings WHERE project_id=p.id UNION SELECT owner_id FROM dubbing_projects WHERE id=p.root_id)))`:'';
+ const feedFields=feed?`(${dubbingEditableSQL}) can_edit,
+   EXISTS(SELECT 1 FROM dubbing_casting_drafts draft WHERE draft.project_id=p.id) casting_draft,
+   ${dubbingLikesSQL} likes,${dubbingPlayCountSQL()} plays,${dubbingCommentCountSQL('p.id','?1')} comments,
+   ${dubbingParticipantCountSQL} participants,`:`(SELECT count(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants,`;
+ const select=count?'COUNT(*) total':`p.id,${dubbingPosterSQL} posterUrl,p.owner_id,p.title,p.duration,p.state,p.visibility,p.created,p.role_count,p.root_id,p.options_json,
+   ${workProjection}${feedFields}${dubAudioReadySQL} audio_ready,(${dubRecruitingSQL()}) recruiting,${publicNameSQL('u')} owner_name,
+   (p.visibility='public' AND EXISTS(SELECT 1 FROM dubbing_projects source JOIN dubbing_sound_jobs j ON j.project_id=source.id AND j.script_key=source.script_key WHERE source.id=COALESCE(p.root_id,p.id) AND source.visibility='public' AND ${dubbingVisibleSQL('source')} AND j.state='ready' AND j.output_key!='')) can_join`;
+ return query(env,`SELECT ${select}
+   FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE u.provider!='deleted' AND p.deleted_at=0
+   AND (p.owner_id=?2 OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?2) ${profileWorks?"OR EXISTS(SELECT 1 FROM dubbing_recordings r WHERE r.project_id=p.id AND r.user_id=?2 AND r.state='submitted')":''})
+   AND ${dubbingVisibleSQL()} AND (p.root_id IS NULL OR EXISTS(SELECT 1 FROM dubbing_projects root WHERE root.id=p.root_id AND root.deleted_at=0 AND ${dubbingVisibleSQL('root')}))
+   AND ${own?"(p.owner_id=?2 OR p.visibility='public')":profileWorks?`p.visibility='public' AND ((${finished}) OR ${openWork})`:"p.visibility='public' AND p.state='complete'"}
+   AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=?1 AND b.blocked_id=p.owner_id) OR (b.blocked_id=?1 AND b.user_id=p.owner_id))
+   ${workBlocks}
+   ${count?"AND p.state='complete' AND p.visibility='public'":''}
+   ${filter==='recruit'?`AND NOT (${finished}) AND ${openWork}`:''}
+   ${seek}
+   ${count?'':`ORDER BY p.created DESC,p.id LIMIT ${limit}`}`,viewer,uid,...args);
+}
+
+// No private balances, XP, inventory or notification records in this public DTO.
+export async function profileDashboard(env,profile,user,profileWorks=false,feedShell=false){
+ const own=user?.id===profile.user_id,uid=profile.user_id;
  const [[identityResult,crewResult,artistsResult,dubbingsResult,pinResult],relations]=await Promise.all([env.DB.batch([
   query(env,`SELECT ${publicNumberSQL('u.id')} public_number,(SELECT code FROM public_profile_ids WHERE user_id=u.id) public_id,(SELECT count(*) FROM follows WHERE user_id=u.id) following_count,
    (SELECT count(*) FROM follows WHERE user_id=u.id AND kind='producer') profile_following_count,
-   (SELECT count(*) FROM tracks t WHERE t.user_id=u.id AND t.kind='original' AND ${own?"t.status!='deleted'":VISIBLE()}) produced_track_count,
-   (SELECT count(*) FROM tracks t LEFT JOIN tracks dt ON dt.id=t.duet_parent_id WHERE (t.user_id=u.id OR dt.user_id=u.id) AND ${VISIBLE()}) public_track_count FROM users u WHERE u.id=?`,uid),
+   ${profileWorkCountsSQL(own,'u.id')} FROM users u WHERE u.id=?`,uid),
   query(env,`SELECT c.id,c.name,c.description,c.image_version,c.highest_level,c.growth_started,
    (SELECT count(*) FROM crew_members WHERE crew_id=c.id) members,
    COALESCE((SELECT sum(x.amount) FROM crew_xp x WHERE x.crew_id=c.id),0) xp
@@ -42,21 +71,12 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
   query(env,`SELECT a.id,a.name,a.image_version,${artistCardCountsSQL()}
    FROM artists a JOIN producers p ON p.id=a.producer_id
    WHERE a.producer_id=?2 AND ${namedArtistSQL()} ORDER BY a.created DESC,a.id`,user?.id||'',profile.id),
-  env.DUBBING_ENABLED==='true'?query(env,`SELECT p.id,${dubbingPosterSQL} posterUrl,p.owner_id,p.title,p.duration,p.state,p.visibility,p.created,p.role_count,p.root_id,p.options_json,${workProjection}${dubAudioReadySQL} audio_ready,(${dubRecruitingSQL()}) recruiting,${publicNameSQL('u')} owner_name,
-   (p.visibility='public' AND EXISTS(SELECT 1 FROM dubbing_projects source JOIN dubbing_sound_jobs j ON j.project_id=source.id AND j.script_key=source.script_key WHERE source.id=COALESCE(p.root_id,p.id) AND source.visibility='public' AND ${dubbingVisibleSQL('source')} AND j.state='ready' AND j.output_key!='')) can_join,
-   (SELECT count(*) FROM dubbing_role_claims c WHERE c.project_id=p.id) participants
-   FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE u.provider!='deleted' AND p.deleted_at=0
-   AND (p.owner_id=? OR EXISTS(SELECT 1 FROM dubbing_role_claims c WHERE c.project_id=p.id AND c.user_id=?) ${profileWorks?'OR EXISTS(SELECT 1 FROM dubbing_recordings r WHERE r.project_id=p.id AND r.user_id=? AND r.state=\'submitted\')':''})
-   AND ${dubbingVisibleSQL()} AND (p.root_id IS NULL OR EXISTS(SELECT 1 FROM dubbing_projects root WHERE root.id=p.root_id AND root.deleted_at=0 AND ${dubbingVisibleSQL('root')}))
-   AND ${own?"(p.owner_id=? OR p.visibility='public')":profileWorks?`p.visibility='public' AND ((${finished}) OR ${openWork})`:"p.visibility='public' AND p.state='complete'"}
-   AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))
-   ${workBlocks}
-   ORDER BY p.created DESC,p.id`,...(profileWorks?[user?.id||'']:[]),uid,uid,...(profileWorks?[uid]:[]),...(own?[uid]:[]),user?.id||'',user?.id||''):query(env,'SELECT 1 WHERE 0'),
+  profileDubbingQuery(env,{uid,viewer:user?.id||'',own,profileWorks,count:feedShell}),
   query(env,'SELECT ids_json FROM profile_artist_pins WHERE producer_id=?',profile.id)
  ]),
   own?[]:relationList(env,uid,user?.id||'')
  ]);
- const identity=identityResult.results[0],crewRow=crewResult.results[0],artists=artistsResult.results,dubbings=dubbingsResult.results;
+ const identity=identityResult.results[0],crewRow=crewResult.results[0],artists=artistsResult.results,dubbings=feedShell?[]:dubbingsResult.results;
  let crew=null;
  if(crewRow){
   // The public HTML renderer also imports publicNumberSQL from this module.
@@ -71,7 +91,8 @@ export async function profileDashboard(env,profile,user,profileWorks=false){
  }
  for(const p of dubbings)p.can_join=!!user&&!!p.can_join&&(!profileWorks||(canParticipate&&!!p.work_open&&p.owner_id!==user.id&&!p.viewer_claimed));
  const pin=pinResult.results[0],pinned=JSON.parse(pin?.ids_json||'[]');artists.sort((a,b)=>(pinned.includes(a.id)?pinned.indexOf(a.id):99)-(pinned.includes(b.id)?pinned.indexOf(b.id):99));
- return {...identity,profile_work_count:(identity.public_track_count||0)+dubbings.filter(p=>p.state==='complete'&&p.visibility==='public').length,crew,artists,pinned,relations,dubbings:dubbings.map(({options_json,...p})=>({...p,kind:'dubbing',genres:JSON.parse(options_json).genres||[]}))};
+ const publicDubbings=feedShell?(dubbingsResult.results[0]?.total||0):dubbings.filter(p=>p.state==='complete'&&p.visibility==='public').length;
+ return {...identity,profile_work_count:(identity.public_track_count||0)+publicDubbings,crew,artists,pinned,relations,dubbings:dubbings.map(({options_json,...p})=>({...p,kind:'dubbing',genres:JSON.parse(options_json).genres||[]}))};
 }
 
 // Called only after requireUser, always scoped to the authenticated UUID.

@@ -6,6 +6,61 @@ import {readFileSync} from 'node:fs';
 import {fixture} from './fixture.mjs';
 import {options,sampleScript,memoryBucket} from './dubbing-fixtures.mjs';
 
+test('authenticated work feed pages across types and ties, with scoped item refreshes',async t=>{
+ const f=await fixture(t,{DUBBING_ENABLED:'true',BUCKET:memoryBucket()});
+ f.sql.exec("INSERT INTO producers(id,user_id,name,created,nickname_confirmed) VALUES('friend','other','Other',0,1); UPDATE tracks SET created=100,karaoke_at=1 WHERE id='one'; INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES('one','job','ready',1,'ready',0,0)");
+ const insert=f.sql.prepare("INSERT INTO tracks(id,user_id,producer_id,artist_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status,kind,original_id,cover_mode,duet_parent_id,duet_open,duet_part,original_key) VALUES(?,?,?,'artist',?,'Rock','',1,'wav',128,50,?,'cover','one',?,?,?,?,'audio')");
+ for(let i=0;i<20;i++)insert.run('cover-'+String(i).padStart(2,'0'),'owner','producer','Cover','published','solo',null,0,'');
+ insert.run('invite','owner','producer','Open duet','published','duet',null,1,'male');
+ insert.run('joiner','other','friend','Finished duet','published','duet','invite',0,'female');
+ insert.run('ended','owner','producer','Closed duet','published','duet',null,0,'male');
+ insert.run('private','other','friend','Hidden duet','hidden','duet','invite',0,'female');
+
+ const dub=crypto.randomUUID();
+ assert.equal((await f.call('/api/dubbing/projects','POST',{id:dub,options,script:sampleScript()})).status,201);
+ f.sql.prepare("UPDATE dubbing_projects SET created=50,state='complete',visibility='public' WHERE id=?").run(dub);
+ const {script_key}=f.sql.prepare('SELECT script_key FROM dubbing_projects WHERE id=?').get(dub);
+ const recording=f.sql.prepare("INSERT INTO dubbing_recordings(id,project_id,role_id,user_id,script_key,state,write_token,created,updated) VALUES(?,?,?,?,?,'submitted','qa',0,0)");
+ for(const [i,{id}] of sampleScript().roles.entries())recording.run('rec-'+i,dub,id,i?'other':'owner',script_key);
+ f.sql.prepare("INSERT INTO dubbing_final_jobs(id,project_id,script_key,manifest_json,state,output_key,created,updated) VALUES('final',?,?,'{}','ready','final',0,0)").run(dub,script_key);
+ f.sql.prepare("INSERT INTO likes(user_id,dubbing_id,created) VALUES('other',?,0)").run(dub);
+ f.sql.prepare("INSERT INTO comments(id,dubbing_id,user_id,body,created) VALUES('comment',?,'other','테스트',0)").run(dub);
+ f.sql.prepare("INSERT INTO dubbing_plays(project_id,request_id,started) VALUES(?,'play',0)").run(dub);
+
+ const list=async(params='')=>{
+  const response=await f.call('/api/me/works'+params);
+  assert.equal(response.status,200,JSON.stringify(response.body));return response.body;
+ };
+ const first=await list(),second=await list('?cursor='+encodeURIComponent(first.next_cursor));
+ assert.equal(first.items.length,16);
+ assert.equal(second.next_cursor,null);
+ const keys=[...first.items,...second.items].map(work=>work.key);
+ assert.deepEqual(keys.slice(0,3),['track:one','dubbing:'+dub,'track:cover-00']);
+ assert.equal(new Set(keys).size,keys.length);
+ assert.ok(keys.includes('track:hidden')&&keys.includes('track:joiner'));
+ assert.ok(!keys.includes('track:private'));
+ assert.equal((await list('?filter=cover')).items.length,16);
+ assert.deepEqual((await list('?filter=recruit')).items.map(work=>work.id),['invite']);
+ const onlyDubbing=(await list('?filter=dubbing')).items[0];
+ assert.equal(onlyDubbing.participants,2);
+ assert.equal(onlyDubbing.role_count,2);
+ assert.equal(onlyDubbing.likes,1);
+ assert.equal(onlyDubbing.comments,1);
+ assert.equal(onlyDubbing.plays,1);
+ assert.equal((await f.call('/api/me/works','GET',undefined,null)).status,401);
+ assert.equal((await f.call('/api/me/works?cursor=invalid')).status,400);
+ assert.ok(!(await f.call('/api/me/works','GET',undefined,'other')).body.items.some(work=>work.id==='hidden'));
+ const digest=(await f.call('/api/producers/producer?dashboard=1&work_list=1&feed_shell=1')).body;
+ assert.deepEqual([digest.tracks,digest.covers,digest.dubbings],[[],[],[]]);
+ const before=await list('?item=track%3Ainvite&item=track%3Ajoiner');
+ assert.deepEqual(before.items.map(work=>[work.id,work.owned]),[['invite',true],['joiner',false]]);
+ assert.equal(before.summary.profile_work_count,digest.profile_work_count);
+ assert.equal((await f.call('/api/uploads/invite/unpublish','POST')).status,200);
+ const after=await list('?item=track%3Ainvite&item=track%3Ajoiner');
+ assert.deepEqual(after.items.map(work=>[work.id,work.work_public]),[['invite',0]]);
+ assert.equal(after.summary.profile_work_count,before.summary.profile_work_count-2);
+});
+
 test('profile counts completed public children of the exact duet parent and preserves join ownership',async t=>{
  const f=await fixture(t);
  f.sql.exec("UPDATE tracks SET karaoke_at=1; INSERT INTO karaoke_jobs(track_id,id,state,mr_ready,words_state,created,updated) VALUES('one','job','ready',1,'ready',0,0)");

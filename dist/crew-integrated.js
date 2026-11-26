@@ -14,7 +14,7 @@ function crewNoticeFeed(items,canManage){
   (canManage?'<button type="button" class="small-button" data-notice-new>공지 등록</button>':'')+'</header>'+
   (items.length?items.map(n=>{
    const date=new Date(n.created*1000),author=userNickname(n.author_name||'크루 운영진',{profileId:n.author_profile_id,userId:n.author_id});
-   return '<article class="crew-notice"><header><h3>'+(n.is_pinned?'<span class="crew-pin">고정</span> ':'')+esc(n.title)+'</h3><small>'+
+   return '<article class="crew-notice" data-crew-notice="'+esc(n.id)+'" tabindex="-1"><header><h3>'+(n.is_pinned?'<span class="crew-pin">고정</span> ':'')+esc(n.title)+'</h3><small>'+
     author+' · <time datetime="'+date.toISOString()+'">'+date.toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul'})+'</time></small></header>'+
     '<p>'+esc(n.body)+'</p><div class="crew-notice-images">'+n.images.map(i=>'<button type="button" data-gallery-photo="'+esc(i.url)+
     '" data-photo-label="공지 이미지"><img src="'+esc(i.url)+'" alt="공지 첨부 이미지" loading="lazy"></button>').join('')+'</div>'+
@@ -22,19 +22,32 @@ function crewNoticeFeed(items,canManage){
      '">수정</button><button type="button" class="text-link" data-notice-delete="'+esc(n.id)+'">삭제</button></div>':'')+'</article>';
   }).join(''):'<p class="crew-empty">등록된 공지가 없습니다.</p>');
 }
-function mountCrewNotices(root,cid,signal){
+function mountCrewNotices(root,cid,signal,onNews){
  const path='/api/crews/'+encodeURIComponent(cid)+'/notices';
- let data,loading=false;
+ let data,loading=false,selectedId;
+ function focusNotice(){
+  if(!selectedId||root.hidden)return;
+  const article=[...root.querySelectorAll('[data-crew-notice]')].find(item=>item.dataset.crewNotice===selectedId);
+  if(article)requestAnimationFrame(()=>{
+   if(signal.aborted||root.hidden||selectedId!==article.dataset.crewNotice)return;
+   article.scrollIntoView({block:'nearest'});article.focus({preventScroll:true});
+  });
+ }
  async function load(){
   if(loading||signal.aborted)return;
   loading=true;
   root.setAttribute('aria-busy','true');
   try{
    data=await api(path,'GET',undefined,{fresh:true,signal});
-   if(root.isConnected&&!signal.aborted)root.innerHTML=crewNoticeFeed(data.items,data.can_manage);
+   if(root.isConnected&&!signal.aborted){
+    root.innerHTML=crewNoticeFeed(data.items,data.can_manage);onNews?.(data.items);focusNotice();
+   }
   }catch(e){
-   if(root.isConnected&&!signal.aborted)root.innerHTML='<h2>크루 공지</h2><p class="crew-empty" role="alert">'+esc(e.message)+
-    '</p><button type="button" class="small-button" data-notice-retry>다시 시도</button>';
+   if(root.isConnected&&!signal.aborted){
+    root.innerHTML='<h2>크루 공지</h2><p class="crew-empty" role="alert">'+esc(e.message)+
+     '</p><button type="button" class="small-button" data-notice-retry>다시 시도</button>';
+    onNews?.([],true);
+   }
   }finally{loading=false;root.removeAttribute('aria-busy');}
  }
  root.onclick=async event=>{
@@ -51,6 +64,7 @@ function mountCrewNotices(root,cid,signal){
  };
  root.innerHTML='<p class="crew-empty" role="status">공지를 불러오는 중…</p>';
  void load();
+ return {select(id){selectedId=id;focusNotice();}};
 }
 function crewNoticeEditor(cid,n,refresh){
  const ids=(n?.images||[]).map(i=>i.id);dialog('<h2>'+(n?'공지 수정':'공지 등록')+'</h2><form id="crew-notice-form" class="upload-form"><label class="form-field">제목<input name="title" maxlength="80" required value="'+esc(n?.title||'')+'"></label><label class="form-field">내용<textarea name="body" maxlength="2000" required>'+esc(n?.body||'')+'</textarea></label><label class="checkbox-line"><input type="checkbox" name="is_pinned" '+(n?.is_pinned?'checked':'')+'>중요 공지 (최대 2개)</label><div id="notice-existing">'+(n?.images||[]).map(i=>'<label class="checkbox-line"><input name="keep" type="checkbox" value="'+esc(i.id)+'" checked><img width="50" height="50" src="'+esc(i.url)+'" alt="첨부 사진">유지</label>').join('')+'</div><label class="form-field">이미지 추가 (총 4장 이하)<input type="file" name="photos" multiple accept="image/jpeg,image/png,image/webp"></label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>');

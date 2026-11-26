@@ -248,16 +248,17 @@ export async function catalogRoute(req,env,path,user){
   if(!m[3]&&method==='GET'){
    const own=kind==='producer'&&user?.id===entity.user_id,dashboardRequested=kind==='producer'&&url.searchParams.get('dashboard')==='1',manage=own&&dashboardRequested;
    const profileWorks=kind==='producer'&&dashboardRequested&&url.searchParams.get('work_list')==='1';
+   const feedShell=profileWorks&&own&&url.searchParams.get('feed_shell')==='1';
    const workLimit=profileWorks?-1:500;
    const [count,tracks,covers,gifts,identity,gallery,inviteCrew,dashboard,ai,followsViewer]=await Promise.all([
     followCounts(env,owner.user_id,user?.id,kind==='artist'?entity.id:''),
-    trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',workLimit,manage,profileWorks),
-    kind==='producer'?trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=? OR EXISTS(SELECT 1 FROM tracks child WHERE child.duet_parent_id=t.id AND child.producer_id=? AND ${VISIBLE('child')}))`,[...(manage?[user.id]:[]),entity.id,entity.id,entity.id], 't.created DESC',workLimit,manage,profileWorks):null,
+    feedShell?[]:trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='original' AND t.${kind}_id=?`,[...(manage?[user.id]:[]),entity.id], 't.created DESC',workLimit,manage,profileWorks),
+    kind==='producer'?(feedShell?[]:trackList(env,`${manage?"((t.user_id=? AND t.status!='deleted') OR "+VISIBLE()+')':VISIBLE()} AND t.kind='cover' AND (t.producer_id=? OR dt.producer_id=? OR EXISTS(SELECT 1 FROM tracks child WHERE child.duet_parent_id=t.id AND child.producer_id=? AND ${VISIBLE('child')}))`,[...(manage?[user.id]:[]),entity.id,entity.id,entity.id], 't.created DESC',workLimit,manage,profileWorks)):null,
     kind==='producer'&&!dashboardRequested&&url.searchParams.get('gift_summary')!=='0'?profileGifts(env,entity.id):null,
     own||dashboardRequested?playerIdentity(env,entity.user_id):null,
     kind==='producer'?profileGallery(env,entity.id,own):artistGallery(env,entity.id,user),
     kind==='producer'&&user&&entity.user_id!==user.id?one(env,'SELECT c.id,c.name FROM crew_members cm JOIN crews c ON c.id=cm.crew_id WHERE cm.user_id=? AND NOT EXISTS(SELECT 1 FROM crew_members target WHERE target.crew_id=c.id AND target.user_id=?) AND NOT EXISTS(SELECT 1 FROM crew_bans WHERE crew_id=c.id AND user_id=?)',user.id,entity.user_id,entity.user_id):null,
-    kind==='producer'?profileDashboard(env,entity,user,profileWorks):null,
+    kind==='producer'?profileDashboard(env,entity,user,profileWorks,feedShell):null,
     kind==='producer'?supportFollowCount(env,entity.user_id,user?.id||null):0,
     kind==='producer'?producerFollowsViewer(env,entity.user_id,user?.id):false
    ]);

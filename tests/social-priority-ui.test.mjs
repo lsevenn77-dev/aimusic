@@ -11,7 +11,7 @@ const home='/api/crews?q=&summary=1&home=1&web=1',workDetail='/api/crews/crew?we
 function fixture(responses={}){
  const calls=[],context=nicknameContext({me:{id:'self-user'},apiRevision:0,structuredClone,Date,URLSearchParams,esc:escape,number:n=>String(n||0),icon:()=>'',avatarImage:()=>'<img>',playerBadgeHTML:()=>'',portrait:p=>'<img alt="'+escape(p.name)+'">',heading:t=>'<h1>'+escape(t)+'</h1>',section:t=>'<h2>'+escape(t)+'</h2>',communityFeed:()=>'<div>MUSIC</div>',communityNavigation:()=>'<nav>COMMUNITY</nav>',document:{addEventListener(){}},api:async p=>{calls.push(p);if(!(p in responses))throw Error('Unexpected '+p);return typeof responses[p]==='function'?responses[p]():responses[p];}});
  Object.assign(context,{followed:()=>false,window:{addEventListener(){}},setInterval(){},cover:()=>'',trackStats:()=>''});
- for(const file of ['artist-directory.js','chat-features.js','social-chat.js','social-layouts.js','improvements.js','release-refinements.js','community-v3.js','crew-integrated.js','crew-settings.js','crew-page.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
+ for(const file of ['artist-directory.js','chat-features.js','social-chat.js','social-layouts.js','improvements.js','release-refinements.js','community-v3.js','crew-integrated.js','crew-settings.js','work-feed.js','crew-page.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),context);
  return {context,calls};
 }
 test('joined crew landing shows music and discovery without a header chat shortcut',async()=>{
@@ -45,7 +45,9 @@ test('crew settings follow live staff roles and legacy management links land on 
   assert.equal(view.crewTab,'music');
   assert.match(view.html,/data-crew-panel="music" aria-labelledby="crew-tab-music">/);
   const header=view.html.match(/<header class="crew-detail-header[\s\S]*?<\/header>/)[0];
-  assert.equal(header.includes('href="#crew-jump/crew"'),!!role);
+  assert.doesNotMatch(header,/crew-game-entry/);
+  assert.equal(view.html.includes('href="#crew-jump/crew"'),!!role);
+  assert.ok(view.html.indexOf('크루 소식')<view.html.indexOf('crew-room-tabs'));
   assert.doesNotMatch(view.html,/tab=manage|data-crew-member=|crew-cover-bg/);
   const nav=view.html.match(/<nav class="tabs crew-room-tabs"[^>]*>(.*?)<\/nav>/)[1];
   assert.deepEqual([...nav.matchAll(/href="([^"]+)"/g)].map(m=>m[1]),[
@@ -86,19 +88,19 @@ test('late crew responses cannot warm another account or mutation revision',asyn
  assert.equal(c.peekCrewNavigation('crew'),null);
 });
 
-test('unjoinable recruitments stay out of the listing, and completed versions of open duets remain playable',()=>{
+test('the crew feed merges open and completed works, retaining versions and only eligible participation links',()=>{
  const {context:c}=fixture();
- const open={id:'open',original_id:'song',kind:'cover',cover_mode:'duet',recruiting:true,can_join:true,completions:1};
+ const open={id:'open',original_id:'song',kind:'cover',cover_mode:'duet',recruiting:true,can_join:true,completions:1,created:10};
  const version={id:'complete',kind:'cover',cover_mode:'duet',duet_parent_id:open.id,popular_rank:0};
  const closed={id:'closed',kind:'cover',cover_mode:'duet',completions:0,recruiting:false};
- const reserved={id:'reserved',kind:'dubbing',state:'recruiting',recruiting:true,can_join:false};
- const {recruiting,groups}=c.crewWorkCatalog({tracks:[open,version,closed],dubbings:[reserved]});
- assert.equal(recruiting.length,1);
- assert.equal(recruiting[0].join,'#sing/song?duet=open');
- assert.equal(groups.length,2);
- assert.equal(groups.find(group=>group.root==='open').lead.id,version.id);
- assert.equal(groups.find(group=>group.root==='open').versions[0].id,version.id);
- assert.ok(groups.some(group=>group.root==='closed'));
+ const reserved={id:'reserved',kind:'dubbing',state:'recruiting',recruiting:true,can_join:false,created:3};
+ const groups=c.crewWorkCatalog({tracks:[open,version,closed,open],dubbings:[reserved]});
+ assert.deepEqual(Array.from(groups,g=>g.key),['duet:open','dubbing:reserved','duet:closed']);
+ assert.equal(groups[0].work.id,open.id);
+ assert.equal(groups[0].versions[0].id,version.id);
+ assert.match(c.crewWorkJoin(groups[0]),/#sing\/song\?duet=open/);
+ assert.equal(c.crewWorkJoin(groups[1]),'');
+ assert.deepEqual(Array.from(groups.filter(item=>c.workFeedMatches(item,'recruit')),item=>item.key),['duet:open','dubbing:reserved']);
 });
 test('member and music views avoid fetching or subscribing to hidden chat panels',async()=>{
  const {context:c}=fixture({[workDetail]:detail});

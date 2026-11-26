@@ -12,10 +12,10 @@ function crewNameWithBadgeHTML(c){
 function canManageCrew(membership){
  return ['owner','deputy','manager','operator'].includes(membership?.role);
 }
-function crewHeroHTML(c,m){
+function crewHeroHTML(c,m,join=''){
  const frame=c.level>=10?4:c.level>=8?3:c.level>=5?2:c.level>=3?1:0;
  const settings=canManageCrew(m)?`<div class="crew-settings-anchor"><button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="menu" aria-expanded="false" aria-controls="crew-settings-menu" title="크루 설정">${icon('settings',22)}</button><div id="crew-settings-menu" class="fan-settings-menu" role="menu" aria-label="크루 관리" hidden></div></div>`:'';
- const game=m?`<div class="crew-weekly-games" data-crew-games="${esc(c.id)}">${crewGameMenuHTML(m.game_catalog)}</div>`:'';
+ const description=c.description?.trim();
  const next=c.next_xp==null?'최고 레벨 달성':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
  const name=usesCrewNameBadges()?crewNameWithBadgeHTML(c):crewNameHTML(c);
  const activities=crewActivities(c);
@@ -25,7 +25,8 @@ function crewHeroHTML(c,m){
     <h1 title="${esc(c.name)}">${name}<small class="crew-level">Lv.${number(c.level)}</small></h1>
     <span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span>
     ${activities.length?'<ul class="crew-activities" aria-label="활동 방향">'+activities.map(tag=>'<li>'+esc(tag)+'</li>').join('')+'</ul>':''}
-    </div></div>${settings}${game}
+    ${description?'<p class="crew-profile-description">'+esc(description)+'</p>':''}
+    </div></div>${settings}${join}
    </div>
    <div class="crew-detail-xp"><div><span>${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div>
    <progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>

@@ -14,6 +14,7 @@ function helpers(extra={}){
  const c=vm.createContext({URLSearchParams,AbortController,Date,me:{id:'owner',profile_id:'profile-owner'},apiRevision:0,renderId:0,
   location:{hash:'#profile'},document:{addEventListener(){}},window:{addEventListener(){}},esc:escape,number:String,icon:()=>'',...extra});
  vm.runInContext(source('menu-integration.js'),c);
+ vm.runInContext(source('work-feed.js'),c);
  vm.runInContext(source('mypage.js'),c);
  return c;
 }
@@ -60,7 +61,8 @@ function fixture(read=async kind=>kind==='works'?profileData('REFRESHED'):kind==
  c.api=async(path,method,body,options)=>load('works',path,{method,body,options});
  c.myActivityData=readApi=>load('activity',location.hash.slice(1),readApi);
  c.myLibraryView=(raw,readApi)=>load('library',raw,readApi);
- c.myWorksHTML=(d,column)=>'<article>WORKS '+column+' '+d.tracks.map(t=>t.id).join(',')+'</article>';
+ // Route tests own the shell. Feed paging and item rendering have independent fixtures.
+ c.mountMyWorkFeed=()=>()=>{};
  c.myActivityHTML=result=>'<article>ACTIVITY '+escape(result.label)+'</article>';c.myActivityAside=result=>'ACTIVITY ASIDE '+result.label;
  c.bindProfileWorkJoins=()=>{};c.bindMusicLibrary=()=>events.push('bind-library');c.bindMemberHeader=()=>headerBinds++;
  const s={d:profileData('ORIGINAL'),own:true,account:'owner',tab:'works',pending:false,worksRevision:0,worksUntil:now+30000,loadedTab:'works',loadedRevision:0,libraryRoute:null};
@@ -225,16 +227,16 @@ test('long-to-short tab changes retain the viewport, then scrolling only release
 
 test('works reuse their account data before thirty seconds and read afresh at the exact boundary',async()=>{
  const f=fixture();await f.navigate('profile?view=activity');f.advance(29999);
- await f.navigate('profile');assert.match(f.content.innerHTML,/WORKS main ORIGINAL/);assert.equal(f.requests.filter(request=>request.kind==='works').length,0);
+ await f.navigate('profile');assert.match(f.content.innerHTML,/aria-label="내 작품" data-work-feed/);assert.equal(f.state.d.tracks[0].id,'ORIGINAL');assert.equal(f.requests.filter(request=>request.kind==='works').length,0);
  f.advance(1);await f.navigate('profile');
- assert.match(f.content.innerHTML,/WORKS main REFRESHED/);
+ assert.equal(f.state.d.tracks[0].id,'REFRESHED');
  const reads=f.requests.filter(request=>request.kind==='works');assert.equal(reads.length,1);assert.equal(reads[0].details.options.fresh,true);
  assert.equal(f.state.worksUntil,f.now+30000);assert.equal(f.state.worksRevision,0);assert.equal(f.headerBinds,1);
 });
 
 test('a mutation revision invalidates works without remounting the account shell',async()=>{
  const f=fixture();f.context.apiRevision++;
- assert.equal(await f.navigate('profile'),true);assert.equal(f.requests.length,1);assert.equal(f.requests[0].kind,'works');assert.match(f.content.innerHTML,/REFRESHED/);
+ assert.equal(await f.navigate('profile'),true);assert.equal(f.requests.length,1);assert.equal(f.requests[0].kind,'works');assert.equal(f.state.d.tracks[0].id,'REFRESHED');
  assert.equal(f.state.worksRevision,1);assert.equal(f.state.loadedRevision,1);assert.equal(f.events.includes('rerender'),false);assert.equal(f.headerBinds,1);
  f.context.me={id:'other'};const painted=f.writes.length;
  assert.equal(await f.navigate('profile?view=activity'),false);assert.equal(f.writes.length,painted);assert.equal(f.requests.length,1);
@@ -244,8 +246,8 @@ test('works resolve a missing profile ID before loading the authenticated dashbo
  const f=fixture((kind,path)=>path==='/api/me/profile'?{profile:{id:'created-profile',user_id:'owner'}}:{...profileData('CREATED'),profile:{id:'created-profile',user_id:'owner'}});
  f.state.d.profile.id=null;f.state.worksUntil=0;
  await f.navigate('profile');
- assert.deepEqual(f.requests.map(request=>request.path),['/api/me/profile','/api/producers/created-profile?dashboard=1&work_list=1']);
- assert.ok(f.requests.every(request=>request.details.options.fresh));assert.match(f.content.innerHTML,/CREATED/);
+ assert.deepEqual(f.requests.map(request=>request.path),['/api/me/profile','/api/producers/created-profile?dashboard=1&work_list=1&feed_shell=1']);
+ assert.ok(f.requests.every(request=>request.details.options.fresh));assert.equal(f.state.d.tracks[0].id,'CREATED');
 });
 
 test('a superseded profile-ID lookup cannot start its second dashboard request',async()=>{
@@ -296,7 +298,7 @@ test('changed revisions restart stale loads while authorization errors remain lo
 test('failed works are not cached and the next same-tab visit retries successfully',async()=>{
  let reads=0;const f=fixture(async()=>{if(++reads===1)throw Error('works unavailable');return profileData('RECOVERED');});f.state.worksUntil=0;
  await f.navigate('profile');assert.match(f.content.innerHTML,/data-mp-tab-retry="works"/);assert.equal(f.state.loadedTab,null);assert.equal(f.state.worksUntil,0);
- await f.navigate('profile');assert.equal(reads,2);assert.match(f.content.innerHTML,/RECOVERED/);assert.equal(f.state.loadedTab,'works');assert.equal(f.state.worksUntil,f.now+30000);
+ await f.navigate('profile');assert.equal(reads,2);assert.equal(f.state.d.tracks[0].id,'RECOVERED');assert.equal(f.state.loadedTab,'works');assert.equal(f.state.worksUntil,f.now+30000);
 });
 
 test('local timeout settles navigation, exposes retry and ignores its late response',async()=>{

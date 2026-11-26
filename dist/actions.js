@@ -206,7 +206,7 @@ async function sendUploadFiles(form,id,file,image){
  const completed=await uploadRequest(`/api/uploads/${id}/complete`,'POST');uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개됩니다.',100,'done');
  toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해 주세요.');location.hash='studio';if(completed.show_upload_ad)window.AifectUploadAds?.afterCoverUpload(id);
 }
-function deleteTrackDialog(id,title,kind){
+function deleteTrackDialog(id,title,kind,onDeleted){
  dialog(`<p class="popup-prompt">이 곡을 삭제하시겠습니까?</p><p>공개 목록과 내 스튜디오에서 삭제되며, 다시 공개할 수 없습니다.${kind==='original'?' 이 곡의 노래방과 연결된 커버곡도 다른 이용자가 재생할 수 없게 됩니다.':''}</p><p class="field-help">이미 받은 선물과 정산 내역은 유지됩니다.</p><form id="delete-track-form"><div class="inline-actions"><button type="button" class="small-button" data-close-dialog>취소</button><button type="submit" class="primary-button danger-button">곡 삭제</button></div><p class="form-error" role="alert"></p></form>`);
  const form=$('#delete-track-form');form.onsubmit=busyForm(form,async()=>{
   await uploadRequest('/api/uploads/'+id,'DELETE');
@@ -214,7 +214,10 @@ function deleteTrackDialog(id,title,kind){
    const original=trackMap.get(id)?.original_id;
    history.replaceState(history.state,'',original?'#song/'+encodeURIComponent(original):'#studio');
   }
-  clearDeletedStudioTracks(new Set([id]));$('#dialog').close();toast('곡이 삭제되었습니다.');await refreshLibrary(true);await render();
+  clearDeletedStudioTracks(new Set([id]));$('#dialog').close();toast('곡이 삭제되었습니다.');
+  if(onDeleted){await onDeleted();return;}
+  if(typeof markMyWorkChanged==='function')markMyWorkChanged('track:'+id);
+  await refreshLibrary(true);await render();
  });
 }
 function clearDeletedStudioTracks(removed){

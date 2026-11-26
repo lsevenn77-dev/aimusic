@@ -238,6 +238,7 @@ function bindDubbingPoster(p,root){
    const result=await response.json();
    if(!response.ok||!result.posterUrl)throw Error(result.error||'썸네일을 저장하지 못했습니다.');
    invalidateReads();
+   if(typeof markMyWorkChanged==='function')markMyWorkChanged('dubbing:'+p.id);
    p.posterUrl=result.posterUrl;
    if(current?.kind==='dubbing'&&(current.rootId||current.id)===p.id){
     current.posterUrl=result.posterUrl;
@@ -266,6 +267,9 @@ function dubbingPendingKey(){return 'aifect-dubbing-generation:'+(me?.id||'guest
 function dubbingPending(){try{return JSON.parse(sessionStorage.getItem(dubbingPendingKey())||'null');}catch{return null;}}
 function dubbingRememberPending(v){try{if(v)sessionStorage.setItem(dubbingPendingKey(),JSON.stringify(v));else sessionStorage.removeItem(dubbingPendingKey());}catch{}}
 function dubbingMessage(root,message){const el=root.querySelector('.dubbing-feedback');if(el)el.textContent=message;}
+function dubbingDeleteConfirmation(p){
+ return p.rootId===p.id?'이 대본을 삭제할까요? 이 대본으로 시작한 더빙도 목록과 공유 링크에서 열 수 없게 됩니다.':'내가 시작한 이 더빙을 삭제할까요? 원본 대본과 다른 사람의 버전은 유지됩니다.';
+}
 function dubbingListenButton(project,legacyBox=false){
  const unified=globalThis.AifectUnifiedPlaylists;
  const save=unified||legacyBox?`<button type="button" class="small-button" ${unified?'data-unified-add':'data-box-add'}="${esc(project.id)}" data-kind="dubbing">${unified?'플레이리스트에 담기':'마이박스에 담기'}</button>`:'';
@@ -343,6 +347,11 @@ function bindDubbing(view){
  }
  if(view.project){
   const p=view.project;let busy=false;
+  const params=new URLSearchParams(view.route?.split('?')[1]||''),fromWorks=params.get('from')==='works';
+  if(fromWorks&&params.get('manage')==='1'){
+   const manage=root.querySelector('.dubbing-manage');
+   requestAnimationFrame(()=>{if(manage?.isConnected){manage.scrollIntoView({block:'center'});manage.querySelector('button,a')?.focus({preventScroll:true});}});
+  }
   bindDubbingPoster(p,root);
   bindFinalDubbingPlay(root,p);
   bindDubbingCommunity(p,root);
@@ -353,7 +362,18 @@ function bindDubbing(view){
   const mutate=async(path,method,body)=>{
    if(busy)return;if(!me){returnRoute=location.hash;location.hash='account';return;}
    busy=true;const disabled=new Map([...root.querySelectorAll('button')].map(b=>[b,b.disabled]));disabled.forEach((_,b)=>b.disabled=true);
-   try{const result=await api('/api/dubbing/projects/'+p.id+path,method,{revision:p.revision,...body});if(path==='/publish'&&method==='POST')location.hash=playHref('dubbing','discover');else if(result.deleted||result.released&&!result.project)location.hash='dubbing?tab=mine';else if(result.id&&!result.project)location.hash='dubbing/'+result.id+'?record=1';else if(path.startsWith('/claims/')&&method==='POST')location.hash='dubbing/'+p.id+'?record=1';else await render();}
+   try{
+    const result=await api('/api/dubbing/projects/'+p.id+path,method,{revision:p.revision,...body});
+    if(path==='/publish'||path==='/unpublish'||result.deleted){
+     if(typeof markMyWorkChanged==='function')markMyWorkChanged('dubbing:'+p.id);
+     if(fromWorks){location.hash='profile';return;}
+    }
+    if(path==='/publish'&&method==='POST')location.hash=playHref('dubbing','discover');
+    else if(result.deleted||result.released&&!result.project)location.hash='dubbing?tab=mine';
+    else if(result.id&&!result.project)location.hash='dubbing/'+result.id+'?record=1';
+    else if(path.startsWith('/claims/')&&method==='POST')location.hash='dubbing/'+p.id+'?record=1';
+    else await render();
+   }
    catch(err){dubbingMessage(root,err.message);disabled.forEach((value,b)=>b.disabled=value);}
    finally{busy=false;}
   };
@@ -361,7 +381,7 @@ function bindDubbing(view){
   const publish=$('#dubbing-publish');if(publish)publish.onclick=()=>{if(!$('#dubbing-rights').checked){dubbingMessage(root,'대본 공개 및 공동 연기에 대한 권한을 확인해 주세요.');return;}void mutate('/publish','POST',{rightsAccepted:true});};
   const unpublish=$('#dubbing-unpublish');if(unpublish)unpublish.onclick=()=>mutate('/unpublish','POST',{});
   const start=$('#dubbing-start-version');if(start){const requestId=crypto.randomUUID();start.onclick=()=>mutate('/performances','POST',{id:requestId,roleId:$('#dubbing-new-role').value});}
-  const remove=$('#dubbing-delete-project');if(remove)remove.onclick=()=>{if(confirm(p.rootId===p.id?'이 대본을 삭제할까요? 이 대본으로 시작한 더빙도 목록과 공유 링크에서 열 수 없게 됩니다.':'내가 시작한 이 더빙을 삭제할까요? 원본 대본과 다른 사람의 버전은 유지됩니다.'))void mutate('','DELETE',{});};
+  const remove=$('#dubbing-delete-project');if(remove)remove.onclick=()=>{if(confirm(dubbingDeleteConfirmation(p)))void mutate('','DELETE',{});};
  }
  const more=$('#dubbing-load-more');
  if(more)more.onclick=async()=>{more.disabled=true;try{const d=await api('/api/dubbing/projects?'+dubbingListQuery(view.tab,view.genre,view.nextOffset));$('#dubbing-cards').insertAdjacentHTML('beforeend',d.projects.map((p,i)=>dubbingCard(p,i+view.cardCount)).join(''));view.cardCount+=d.projects.length;view.nextOffset=d.nextOffset;more.hidden=d.nextOffset===null;icons();}catch(err){toast(err.message);}finally{more.disabled=false;}};

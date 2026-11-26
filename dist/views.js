@@ -319,7 +319,7 @@ async function renderRoute(showCachedRoute){
   else if(base==='admin'&&param==='track-review'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');html=trackReviewHTML(await readApi('/api/admin/track-review?'+q.toString()));if(authConfig?.admin)html+='<section class="surface"><button class="small-button danger-button" data-purge-all-covers>사이트 전체 커버곡 삭제</button></section>';}
   else if(base==='admin'&&param==='partners')html=partnerAdminHTML(await readApi('/api/admin/diamonds'));
   else if(base==='admin')html=adminHTML(await readApi('/api/admin/payouts'+(param?'?period='+encodeURIComponent(param):'')));
-  else if(base==='manage'&&param){studioData=await readApi('/api/studio');const {profile,alignment,karaoke}=await readApi('/api/studio/tracks/'+param);html=profile.kind==='cover'?coverEditHTML(profile):trackEditHTML({...profile,alignment,karaoke},studioData);}
+  else if(base==='manage'&&param){studioData=await readApi('/api/studio');const {profile,alignment,karaoke}=await readApi('/api/studio/tracks/'+param);const fromWorks=new URLSearchParams(paramQuery?.split('?')[1]||'').get('from')==='works';html=profile.kind==='cover'?coverEditHTML(profile,fromWorks):trackEditHTML({...profile,alignment,karaoke},studioData,fromWorks);}
   else if(base==='studio'||base==='manage'){
    const d=await readApi('/api/studio','GET',undefined,{fresh:true});
    await studioLoadComplete(d,readApi);

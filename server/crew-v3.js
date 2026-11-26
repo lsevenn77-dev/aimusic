@@ -22,7 +22,19 @@ export async function crewV3Route(req,env,path,user){
  const [,cid,action,target]=m,c=await one(env,'SELECT * FROM crews WHERE id=?',cid);if(!c)fail(404,'크루를 찾을 수 없습니다.');
  const actor=await one(env,'SELECT role FROM crew_members WHERE crew_id=? AND user_id=?',cid,user.id);
  if(!['owner','deputy','manager','operator'].includes(actor?.role))fail(403,'크루 운영진만 이용할 수 있습니다.');
- if(action==='audit'){if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);return json({events:await rows(env,'SELECT action,detail,created FROM crew_audit WHERE crew_id=? ORDER BY created DESC,id DESC LIMIT 100',cid)});}
+ if(action==='audit'){
+  if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
+  if(new URL(req.url).searchParams.get('members')==='1'){
+   const events=await rows(env,`SELECT e.action,e.created,${producerNameSQL('actor')} actor_name,${producerNameSQL('target')} target_name,
+    CASE WHEN e.action='role_changed' THEN substr(e.detail,instr(e.detail,':')+1) END target_role
+    FROM crew_audit e LEFT JOIN producers actor ON actor.user_id=e.actor_id
+    LEFT JOIN producers target ON target.user_id=CASE WHEN e.action='role_changed' THEN substr(e.detail,1,instr(e.detail,':')-1) ELSE e.detail END
+    WHERE e.crew_id=? AND e.action IN ('application_approved','application_rejected','role_changed','member_removed','leadership_transferred')
+    ORDER BY e.created DESC,e.id DESC LIMIT 100`,cid);
+   return json({events});
+  }
+  return json({events:await rows(env,'SELECT action,detail,created FROM crew_audit WHERE crew_id=? ORDER BY created DESC,id DESC LIMIT 100',cid)});
+ }
  if(req.method==='GET')return json({applications:await rows(env,"SELECT a.user_id,p.name,a.created FROM crew_applications a JOIN producers p ON p.user_id=a.user_id WHERE a.crew_id=? AND a.state='pending' ORDER BY a.created",cid)});
  if(req.method!=='POST'||!target)fail(405,AifectMessages.unsupportedRequest);
  const b=await req.json();if(!['approve','reject'].includes(b.decision))fail(400,'승인 또는 거절을 선택해 주세요.');

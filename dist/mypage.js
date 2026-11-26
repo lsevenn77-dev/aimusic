@@ -61,8 +61,8 @@ function myProfileStats(d,own){
   return `<div class="mp-stats">
    <a href="#follow?tab=followers">팔로워 <b>${number(followers)}</b></a>
    <a href="#follow?tab=following">팔로잉 <b>${number(d.following_count??0)}</b></a>
-   <span title="공개된 원곡·커버·듀엣·완성 더빙">작품 <b>${number(d.profile_work_count??0)}</b></span>
-   <span title="내가 등록한 원곡 · 삭제 제외">제작곡 <b>${number(d.produced_track_count??(d.tracks||[]).length)}</b></span></div>`;
+   <span title="공개된 원곡·커버·듀엣·완성 더빙">작품 <b data-mp-work-total="profile_work_count">${number(d.profile_work_count??0)}</b></span>
+   <span title="내가 등록한 원곡 · 삭제 제외">제작곡 <b data-mp-work-total="produced_track_count">${number(d.produced_track_count??(d.tracks||[]).length)}</b></span></div>`;
  }
  const publicSongs=d.public_track_count??[...(d.tracks||[]),...(d.covers||[])].filter(t=>!t.status||t.status==='published').length;
  return `<div class="mp-stats">
@@ -294,7 +294,6 @@ function myWorksHTML(d,column='all'){
   return mySection(profileWorkTabs[tab].label,works.length?`<div class="mp-catalog-grid">${works.slice(0,limit).map(w=>profileWorkCard(w)).join('')}</div>`:myEmpty('아직 작품이 없습니다.'),myAll(profileWorksHref(d,tab)),works.length,'mp-catalog-section mp-catalog-'+tab);
  };
  const own=isMyProfile(d.profile);
- if(column==='main')return `<div class="mp-work-main">${section('original',4)}${section('complete',3)}</div>`;
  if(column==='aside')return section('recruit',4);
  return `<div class="mp-work-shelves">
   <div>${section('original',4)}${section('complete',3)}</div>
@@ -347,6 +346,9 @@ function myWorksBanner(tab='works'){
  const copy={works:['음악의 시작부터 완성까지, ','나의 모든 작품을 한눈에.'],library:['좋아하는 음악과 다시 듣고 싶은 순간을 ','한곳에.'],activity:['아이팩트에서 함께한 ','활동과 기록을 한눈에.']}[tab]||['',''];
  return `<div class="mp-works-banner">${icon('sparkles',16)}<span>${copy[0]}<span class="mp-works-banner-accent">${copy[1]}</span></span></div>`;
 }
+function myProfileDashboardPath(id,feedShell=false){
+ return '/api/producers/'+encodeURIComponent(id)+'?dashboard=1&work_list=1'+(feedShell?'&feed_shell=1':'');
+}
 async function myPageView(base,param,raw,readApi=api){
  if(base==='member'){
   const {profile}=await readApi('/api/members/'+encodeURIComponent(param));
@@ -358,20 +360,23 @@ async function myPageView(base,param,raw,readApi=api){
  const full=(base==='profile'&&param==='works')||base==='profile-works';
  if(!full&&!((base==='profile'&&param!=='edit')||base==='producer'))return null;
  if(base==='profile'&&!me){returnRoute=location.hash;return {html:gate()};}
+ const q=new URLSearchParams(raw.split('?')[1]||'');
+ const legacyLibrary=['covers','originals'].includes(q.get('section'));
+ const useFeedShell=!full&&!legacyLibrary;
  let d;
  if(base==='profile'){
   const self=me.profile_id?{profile:{id:me.profile_id}}:await readApi('/api/me/profile','GET',undefined,{fresh:true});
-  d=self.profile.id?await readApi('/api/producers/'+encodeURIComponent(self.profile.id)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true}):{profile:self.profile,followers:self.follower_count,following_count:self.following_count,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
- }else d=await readApi('/api/producers/'+encodeURIComponent(param)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true});
- const own=isMyProfile(d.profile),q=new URLSearchParams(raw.split('?')[1]||''),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
+  d=self.profile.id?await readApi(myProfileDashboardPath(self.profile.id,useFeedShell),'GET',undefined,{fresh:true}):{profile:self.profile,followers:self.follower_count,following_count:self.following_count,tracks:[],covers:[],dubbings:[],artists:[],gallery:[]};
+ }else d=await readApi(myProfileDashboardPath(param,useFeedShell&&param===me?.profile_id),'GET',undefined,{fresh:true});
+ const own=isMyProfile(d.profile),tab=own&&['activity','library'].includes(q.get('view'))?q.get('view'):'works';
  if(full)return profileWorksPage(d,q);
- const collection=own&&tab==='library'?await myLibraryView(raw,readApi):own&&tab==='works'&&['covers','originals'].includes(q.get('section'))?await browseView('library',q.get('section'),raw,true,readApi):null;
+ const collection=own&&tab==='library'?await myLibraryView(raw,readApi):own&&tab==='works'&&legacyLibrary?await browseView('library',q.get('section'),raw,true,readApi):null;
  const state={d,own,tab,account:me?.id||'',activity:null,worksRevision:myPageRevision(),worksUntil:Date.now()+30000,loadedTab:tab==='activity'?null:tab,loadedRevision:myPageRevision(),libraryRoute:tab==='library'?menuHref('profile',{},raw).slice(1):null};
  return {mypage:state,musicLibrary:collection?.musicLibrary,tracks:collection?.tracks||[...(d.tracks||[]),...(d.covers||[])],
   html:`<div class="mypage-layout mp-member-page mp-dashboard ${own?'mp-own':''}" data-mp-view="${tab}">${own?myPageRouteTargetsHTML(raw):''}${myProfileHeader(d)}
    <div class="mp-profile-collections">${myMoments(d)}${myArtists(d)}</div>
-   ${own?mySegment(tab)+myWorksBanner(tab):''}<div class="mp-main"><div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?myWorksHTML(d,own?'main':'all'):myLoading()}</div></div>
-   ${own?`<aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():myWorksHTML(d,'aside'))}</div>${myStudioBanner()}</aside>`:''}
+   ${own?mySegment(tab)+myWorksBanner(tab):''}<div class="mp-main"><div id="mp-content" ${own?'role="tabpanel" aria-labelledby="mp-tab-'+tab+'"':''}>${collection?collection.html:tab==='works'?(own?workFeedHTML({label:'내 작품'}):myWorksHTML(d)):myLoading()}</div></div>
+   ${own?`<aside class="mp-aside" id="mp-aside"><div id="mp-aside-content">${collection?.libraryAside??(tab==='activity'?myLoading():legacyLibrary?myWorksHTML(d,'aside'):'')}</div>${myStudioBanner()}</aside>`:''}
    </div>`};
 }
 async function myActivityData(readApi=api){
@@ -413,6 +418,7 @@ async function mySelectTab(tab,updateURL=true,readApi=api,force=false){
  const current=()=>mounted()&&!readApi.signal?.aborted&&(!readApi.current||readApi.current());
  s.tab=tab;s.pending=true;s.loadedTab=null;
  holdMyPageViewport(content,true);holdMyPageViewport(aside,true);
+ s.feedCleanup?.();s.feedCleanup=null;
  const page=$('.mp-dashboard');
  if(page){
   page.dataset.mpView=tab;
@@ -429,8 +435,8 @@ async function mySelectTab(tab,updateURL=true,readApi=api,force=false){
     const badge=page?.querySelector('.mp-crew-line .crew-name-badge');
     if(badge)badge.src=crewNameBadgeSrc(result.crew);
    }
-   s.d=result;content.innerHTML=myWorksHTML(result,'main');aside.innerHTML=myWorksHTML(result,'aside');routeTracks=remember([...(result.tracks||[]),...(result.covers||[])]);
-   bindProfileWorkJoins(page,result);syncSongCoverPlayback();
+   s.d=result;content.innerHTML=workFeedHTML({label:'내 작품'});aside.innerHTML='';
+   s.feedCleanup=mountMyWorkFeed(content,false);syncSongCoverPlayback();
   }else if(tab==='library'){
    content.innerHTML=result.html;aside.innerHTML=result.libraryAside;remember(result.tracks||[]);bindMusicLibrary(result.musicLibrary);s.libraryRoute=raw;
   }else{s.activity=result;content.innerHTML=myActivityHTML(result,s.d);aside.innerHTML=myActivityAside(result);routeTracks=[];}
@@ -453,9 +459,9 @@ async function mySelectTab(tab,updateURL=true,readApi=api,force=false){
   const load=async()=>{
    if(tab==='works'){
     const id=s.d.profile?.id;
-    if(id)return scopedRead('/api/producers/'+encodeURIComponent(id)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true});
+    if(id)return scopedRead(myProfileDashboardPath(id,true),'GET',undefined,{fresh:true});
     const self=await scopedRead('/api/me/profile','GET',undefined,{fresh:true});
-    return self.profile.id?scopedRead('/api/producers/'+encodeURIComponent(self.profile.id)+'?dashboard=1&work_list=1','GET',undefined,{fresh:true}):{...s.d,profile:self.profile};
+    return self.profile.id?scopedRead(myProfileDashboardPath(self.profile.id,true),'GET',undefined,{fresh:true}):{...s.d,profile:self.profile};
    }
    return tab==='library'?myLibraryView(raw,scopedRead):myActivityData(scopedRead);
   };
@@ -509,6 +515,7 @@ function bindMyPage(view){
  if(s.own){
   for(const tab of ['works','library','activity'])rememberMyPageRouteTarget(myTabHref(tab));
   const content=$('#mp-content'),aside=$('#mp-aside-content');
+  if(s.tab==='works')s.feedCleanup=mountMyWorkFeed(content,true);
   // Scrolling may release a tab-change reservation, never grow the page or
   // keep pushing the studio banner below the viewport.
   const scroll=()=>{if(myPageState===s&&!s.pending&&content?.isConnected){holdMyPageViewport(content,false,true);holdMyPageViewport(aside,false,true);}};
