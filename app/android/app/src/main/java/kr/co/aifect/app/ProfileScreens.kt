@@ -70,12 +70,11 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
    item{
     Text("오늘의 실버",fontSize=23.sp,fontWeight=FontWeight.Bold)
     Row(Modifier.fillMaxWidth().padding(top=14.dp,bottom=4.dp).background(Aqua.copy(alpha=.08f),RoundedCornerShape(16.dp)).padding(16.dp),verticalAlignment=Alignment.CenterVertically){
-     Icon(Icons.Rounded.Star,null,Modifier.size(32.dp),tint=Aqua)
      Column(Modifier.weight(1f).padding(start=12.dp)){
       Text("보유 실버",color=Muted,fontSize=12.sp)
-      Text(if(free==null)"불러오는 중…" else "${free?.optInt("balance")?:0} S",color=Aqua,fontSize=23.sp,fontWeight=FontWeight.Bold)
+      CurrencyAmount(free?.optLong("balance"),"S",iconSize=20.dp,color=Aqua,fontSize=23.sp,fontWeight=FontWeight.Bold)
      }
-     Text("하루 최대\n10 S",color=Aqua,fontSize=12.sp)
+     Text("하루 최대\n10 s",color=Aqua,fontSize=12.sp)
     }
    }
    if(free==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua)}
@@ -102,7 +101,7 @@ internal fun threadedComments(comments:List<JSONObject>):List<JSONObject>{
      }
      val action:@Composable ()->Unit={
       Column(horizontalAlignment=Alignment.End){
-       Text("${r.optInt("amount")} S",color=if(claimed)Muted else Aqua,fontSize=13.sp,fontWeight=FontWeight.Bold)
+       CurrencyAmount(r.optLong("amount"),"S",iconSize=24.dp,color=if(claimed)Muted else Aqua,fontSize=13.sp,fontWeight=FontWeight.Bold)
        BrandButton(enabled=!busy&&!claimed,onClick=claim,contentPadding=PaddingValues(horizontal=14.dp,vertical=8.dp),modifier=Modifier.padding(top=4.dp).heightIn(min=40.dp)){
         Text(if(claimed)"받음" else if(eligible)"실버 받기" else "활동하기",fontSize=13.sp)
        }

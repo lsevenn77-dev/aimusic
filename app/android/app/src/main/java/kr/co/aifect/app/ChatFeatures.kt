@@ -129,7 +129,7 @@ import org.json.JSONObject
     error?.let{message->item{Text(message,color=Pink);TextButton(onClick={scope.launch{load()}}){Text("다시 불러오기")}}}
     val fans=data?.optJSONArray("ranking").objects()
     if(data!=null&&fans.isEmpty())item{Text("아직 받은 선물이 없어요.",color=Muted)}
-    items(fans){fan->val pid=fan.optString("profile_id").takeUnless{it.isBlank()||it=="null"};Surface(onClick={if(pid!=null){open=false;m.openProfile(pid)}},enabled=pid!=null,color=Panel){Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically){Text(fan.optInt("rank").toString(),color=Aqua,modifier=Modifier.width(30.dp));Avatar(fan.optString("name"),pid?.let{payload("id" to it,"image_version" to fan.optString("image_version"))},38);Column(Modifier.weight(1f).padding(horizontal=10.dp)){Text(fan.optString("name"),fontSize=15.sp);Text("${fan.optInt("gold")} G · ${fan.optInt("stars")} S",fontSize=12.sp,color=Muted)};Text("${fan.optInt("score")}점",color=Aqua,fontSize=13.sp)}}}
+    items(fans){fan->val pid=fan.optString("profile_id").takeUnless{it.isBlank()||it=="null"};Surface(onClick={if(pid!=null){open=false;m.openProfile(pid)}},enabled=pid!=null,color=Panel){Row(Modifier.fillMaxWidth().padding(vertical=8.dp),verticalAlignment=Alignment.CenterVertically){Text(fan.optInt("rank").toString(),color=Aqua,modifier=Modifier.width(30.dp));Avatar(fan.optString("name"),pid?.let{payload("id" to it,"image_version" to fan.optString("image_version"))},38);Column(Modifier.weight(1f).padding(horizontal=10.dp)){Text(fan.optString("name"),fontSize=15.sp);Text("${currencyDigits(fan.optInt("gold"))} g · ${currencyDigits(fan.optInt("stars"))} s",fontSize=12.sp,color=Muted)};Text("${fan.optInt("score")}점",color=Aqua,fontSize=13.sp)}}}
    }
   }
  }

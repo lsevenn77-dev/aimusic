@@ -57,13 +57,13 @@ private fun JSONObject.presentAmount(key:String):String?=
    BoxWithConstraints(Modifier.fillMaxWidth()){
     val stacked=maxWidth<300.dp||LocalDensity.current.fontScale>1.2f
     if(stacked)Column(verticalArrangement=Arrangement.spacedBy(8.dp)){
-     InventoryBalanceCard("골드",wallet.data?.presentAmount("balance"),"G","충전",Icons.Rounded.AccountBalanceWallet,Pink,Modifier.fillMaxWidth().testTag("inventory-gold"),true){m.billingInitialTab="gold";m.showBilling=true}
-     InventoryBalanceCard("실버",wallet.data?.optJSONObject("free")?.presentAmount("balance"),"S","실버 받기",Icons.Rounded.Stars,Violet,Modifier.fillMaxWidth().testTag("inventory-silver"),true){m.showRewards=true}
-     InventoryBalanceCard("다이아",wallet.data?.optJSONObject("diamonds")?.presentAmount("balance"),"◇","정산 내역",Icons.Rounded.Diamond,Aqua,Modifier.fillMaxWidth().testTag("inventory-diamonds"),true){m.showDiamonds=true}
+     InventoryBalanceCard("골드",wallet.data?.opt("balance") as? Number,"G","충전",Icons.Rounded.AccountBalanceWallet,Pink,Modifier.fillMaxWidth().testTag("inventory-gold"),true){m.billingInitialTab="gold";m.showBilling=true}
+     InventoryBalanceCard("실버",wallet.data?.optJSONObject("free")?.opt("balance") as? Number,"S","실버 받기",Icons.Rounded.Stars,Violet,Modifier.fillMaxWidth().testTag("inventory-silver"),true){m.showRewards=true}
+     InventoryBalanceCard("다이아",wallet.data?.optJSONObject("diamonds")?.opt("balance") as? Number,"◇","정산 내역",Icons.Rounded.Diamond,Aqua,Modifier.fillMaxWidth().testTag("inventory-diamonds"),true){m.showDiamonds=true}
     }else Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp)){
-     InventoryBalanceCard("골드",wallet.data?.presentAmount("balance"),"G","충전",Icons.Rounded.AccountBalanceWallet,Pink,Modifier.weight(1f).testTag("inventory-gold")){m.billingInitialTab="gold";m.showBilling=true}
-     InventoryBalanceCard("실버",wallet.data?.optJSONObject("free")?.presentAmount("balance"),"S","실버 받기",Icons.Rounded.Stars,Violet,Modifier.weight(1f).testTag("inventory-silver")){m.showRewards=true}
-     InventoryBalanceCard("다이아",wallet.data?.optJSONObject("diamonds")?.presentAmount("balance"),"◇","정산 내역",Icons.Rounded.Diamond,Aqua,Modifier.weight(1f).testTag("inventory-diamonds")){m.showDiamonds=true}
+     InventoryBalanceCard("골드",wallet.data?.opt("balance") as? Number,"G","충전",Icons.Rounded.AccountBalanceWallet,Pink,Modifier.weight(1f).testTag("inventory-gold")){m.billingInitialTab="gold";m.showBilling=true}
+     InventoryBalanceCard("실버",wallet.data?.optJSONObject("free")?.opt("balance") as? Number,"S","실버 받기",Icons.Rounded.Stars,Violet,Modifier.weight(1f).testTag("inventory-silver")){m.showRewards=true}
+     InventoryBalanceCard("다이아",wallet.data?.optJSONObject("diamonds")?.opt("balance") as? Number,"◇","정산 내역",Icons.Rounded.Diamond,Aqua,Modifier.weight(1f).testTag("inventory-diamonds")){m.showDiamonds=true}
     }
    }
    InventoryEntry("프레임 · 배경","보유 아이템과 장착 상태 보기",Icons.Rounded.Inventory2,"inventory-equipment"){m.showInventory=true}
@@ -90,8 +90,8 @@ private fun JSONObject.presentAmount(key:String):String?=
    Text("받은 선물 · 응원",fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold)
    val receivedData=received.data
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-    ReceivedGiftTotal("골드 선물",receivedData?.presentAmount("total_gold")?.let{"$it G"},Modifier.weight(1f))
-    ReceivedGiftTotal("실버 선물",receivedData?.presentAmount("free_count")?.let{"$it S"},Modifier.weight(1f))
+    ReceivedGiftTotal("골드 선물",receivedData?.presentAmount("total_gold")?.let{"$it g"},Modifier.weight(1f))
+    ReceivedGiftTotal("실버 선물",receivedData?.presentAmount("free_count")?.let{"$it s"},Modifier.weight(1f))
    }
    if(receivedEnabled)InventoryEntry("선물 랭킹","나를 응원한 회원 보기",Icons.Rounded.EmojiEvents,"inventory-gift-ranking"){ranking=true}
    Text("받은 선물은 응원 내역이며, 사용 가능한 보유 선물과 달라요.",fontSize=11.sp,lineHeight=17.sp,color=Muted)
@@ -102,18 +102,22 @@ private fun JSONObject.presentAmount(key:String):String?=
  if(ranking&&receivedEnabled)MyGiftRankingPage(m,pid){ranking=false}
 }
 
-@Composable private fun InventoryBalanceCard(label:String,value:String?,unit:String,action:String,icon:ImageVector,tint:Color,modifier:Modifier,wide:Boolean=false,open:()->Unit){
+@Composable private fun InventoryBalanceCard(label:String,value:Number?,unit:String,action:String,icon:ImageVector,tint:Color,modifier:Modifier,wide:Boolean=false,open:()->Unit){
+ val amount: @Composable (Modifier)->Unit = { slot ->
+  if(unit=="G"||unit=="S")CurrencyAmount(value,unit,modifier=slot,iconSize=20.dp,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=tint)
+  else Text(value?.let{"${inventoryAmount(it)} $unit"}?:"—",fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=tint,modifier=slot)
+ }
  Surface(onClick=open,color=Panel,shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke),modifier=modifier){
   if(wide)Row(Modifier.padding(horizontal=13.dp,vertical=12.dp),verticalAlignment=Alignment.CenterVertically){
-   Icon(icon,null,Modifier.size(20.dp),tint=tint)
+   if(unit=="◇")Icon(icon,null,Modifier.size(20.dp),tint=tint)
    Column(Modifier.padding(start=10.dp)){
     Text(label,fontSize=12.sp,lineHeight=17.sp,color=Muted)
     Text(action,fontSize=10.sp,lineHeight=15.sp,color=SoftText,modifier=Modifier.padding(top=3.dp))
    }
-   Text(value?.let{"$it $unit"}?:"—",fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=tint,textAlign=TextAlign.End,modifier=Modifier.weight(1f).padding(start=12.dp).testTag("inventory-balance-$label"))
+   amount(Modifier.weight(1f).padding(start=12.dp).testTag("inventory-balance-$label"))
   }else Column(Modifier.padding(horizontal=10.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(7.dp)){
-   Row(verticalAlignment=Alignment.CenterVertically){Icon(icon,null,Modifier.size(15.dp),tint=tint);Text(label,fontSize=11.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(start=4.dp))}
-   Text(value?.let{"$it $unit"}?:"—",fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=tint,modifier=Modifier.testTag("inventory-balance-$label"))
+   Row(verticalAlignment=Alignment.CenterVertically){if(unit=="◇")Icon(icon,null,Modifier.size(15.dp),tint=tint);Text(label,fontSize=11.sp,lineHeight=16.sp,color=Muted,modifier=Modifier.padding(start=4.dp))}
+   amount(Modifier.testTag("inventory-balance-$label"))
    Text(action,fontSize=10.sp,lineHeight=15.sp,color=SoftText)
   }
  }
@@ -139,7 +143,7 @@ private fun JSONObject.presentAmount(key:String):String?=
  val read=currentRead(m,"/api/producers/$pid/gifts",valid)
  AppPage("선물 랭킹",close){
   LazyColumn(Modifier.fillMaxSize().testTag("my-gift-ranking-page"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-   item{Text("나를 응원한 회원",fontSize=19.sp,lineHeight=26.sp,fontWeight=FontWeight.Bold);Text("골드 1G · 실버 1S · AI 응원별 1개 = ★1",fontSize=12.sp,lineHeight=18.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}
+   item{Text("나를 응원한 회원",fontSize=19.sp,lineHeight=26.sp,fontWeight=FontWeight.Bold);Text("골드 1 g · 실버 1 s · AI 응원별 1개 = ★1",fontSize=12.sp,lineHeight=18.sp,color=Muted,modifier=Modifier.padding(top=5.dp))}
    if(valid)item{ReadStatus(read)}else item{Text("프로필을 불러온 뒤 다시 확인해주세요.",fontSize=13.sp,color=Muted)}
    val fans=(read.data?.optJSONArray("support_ranking")?:read.data?.optJSONArray("ranking")).objects()
    items(fans,key={it.optString("profile_id").ifBlank{it.optString("rank")}}){fan->
@@ -150,7 +154,7 @@ private fun JSONObject.presentAmount(key:String):String?=
       Avatar(fan.optString("name"),JSONObject().put("id",profileId).put("image_version",fan.optString("image_version")),36)
       Column(Modifier.weight(1f).padding(horizontal=10.dp)){
        Row(verticalAlignment=Alignment.CenterVertically){Text(fan.optString("name"),fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false));OfficialAiBadge(fan)}
-       Text(if(fan.optString("account_type")=="ai_bot")"응원별 ${inventoryAmount(fan.optLong("official_stars"))}개"else "${inventoryAmount(fan.optLong("gold"))} G · ${inventoryAmount(fan.optLong("stars"))} S",fontSize=10.sp,lineHeight=15.sp,color=Muted,modifier=Modifier.padding(top=3.dp))
+       Text(if(fan.optString("account_type")=="ai_bot")"응원별 ${inventoryAmount(fan.optLong("official_stars"))}개"else "${inventoryAmount(fan.optLong("gold"))} g · ${inventoryAmount(fan.optLong("stars"))} s",fontSize=10.sp,lineHeight=15.sp,color=Muted,modifier=Modifier.padding(top=3.dp))
       }
       Text(fan.presentAmount("score")?.let{"★x$it"}?:"—",fontSize=13.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,color=Aqua,modifier=Modifier.testTag("my-gift-rank-score-${fan.optInt("rank")}"))
      }

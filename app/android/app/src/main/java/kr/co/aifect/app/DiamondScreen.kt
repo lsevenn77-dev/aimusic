@@ -115,7 +115,7 @@ private fun diamondFormat(n:Double)=DecimalFormat("#,##0.#####").format(n)
      }else{
       Column(Modifier.fillMaxWidth().background(Aqua.copy(alpha=.06f),RoundedCornerShape(12.dp)).padding(14.dp),verticalArrangement=Arrangement.spacedBy(5.dp)){
        Text("받을 골드",fontSize=13.sp,lineHeight=20.sp,color=Muted)
-       Text("${diamondFormat(n*10.0)} G",fontSize=26.sp,lineHeight=34.sp,fontWeight=FontWeight.SemiBold,color=Aqua,modifier=Modifier.testTag("diamond-preview"))
+       Text("${diamondFormat(n*10.0)} g",fontSize=26.sp,lineHeight=34.sp,fontWeight=FontWeight.SemiBold,color=Aqua,modifier=Modifier.testTag("diamond-preview"))
        Text("${diamondFormat(n.toDouble())}다이아 사용",fontSize=13.sp,lineHeight=20.sp,color=SoftText)
       }
      }

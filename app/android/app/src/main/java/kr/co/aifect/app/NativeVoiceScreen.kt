@@ -270,15 +270,15 @@ import java.net.URLEncoder
 @Composable private fun NativeRoomGift(e:NativeVoiceEngine,target:JSONObject,done:()->Unit){
  var wallet by remember{mutableStateOf(JSONObject())};var selected by remember{mutableStateOf<JSONObject?>(null)};var quantity by remember{mutableIntStateOf(1)};var request by remember{mutableStateOf(requestIdentity())};var busy by remember{mutableStateOf(false)};var error by remember{mutableStateOf<String?>(null)};var confirm by remember{mutableStateOf(false)};val scope=rememberCoroutineScope()
  LaunchedEffect(Unit){try{wallet=e.api.call("/api/gold",fresh=true)}catch(x:Exception){error=x.message}}
- Text("${target.optString("name")}님에게 선물",fontSize=20.sp);Text("보유 ${wallet.optInt("balance")} G",color=Aqua)
+ Text("${target.optString("name")}님에게 선물",fontSize=20.sp);CurrencyAmount(wallet.optLong("balance"),"G",iconSize=20.dp,color=Aqua)
  wallet.optJSONArray("gifts").objects().forEach{g->FilterChip(selected?.optString("id")==g.getString("id"),{selected=g;request=requestIdentity()},label={
   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){
    GiftItemImage(g.optString("image"),Modifier.size(32.dp))
-   Column{Text(g.optString("name"),fontSize=12.sp);Text("${g.optInt("gold")} G",fontSize=11.sp,color=Muted)}
+   Column{Text(g.optString("name"),fontSize=12.sp);CurrencyAmount(g.optLong("gold"),"G",fontSize=11.sp,color=Muted)}
   }
  })}
  Row{OutlinedButton({quantity--;request=requestIdentity()},enabled=quantity>1&&!busy){Text("−")};Text(" $quantity ",Modifier.padding(14.dp));OutlinedButton({quantity++;request=requestIdentity()},enabled=quantity<100&&!busy){Text("+")}}
  val total=(selected?.optInt("gold")?:0).toLong()*quantity
- Button({confirm=true},enabled=!busy&&selected!=null&&total in 1..minOf(100000,wallet.optInt("balance")).toLong()){Text("${total} G 선물하기")};error?.let{Text(it,color=Pink)}
- if(confirm)AlertDialog(onDismissRequest={if(!busy)confirm=false},title={Text("${total} G를 사용해 선물할까요?")},text={Text("${target.optString("name")}님에게 ${selected?.optString("name")} ×$quantity")},confirmButton={TextButton(enabled=!busy,onClick={busy=true;scope.launch{try{e.command("gifts",payload("profile_id" to target.getString("profile_id"),"gift_type" to selected!!.getString("id"),"quantity" to quantity,"request_id" to request));done()}catch(x:Exception){error=x.message;confirm=false}finally{busy=false}}}){Text("선물 보내기")}},dismissButton={TextButton({confirm=false},enabled=!busy){Text("취소")}})
+ Button({confirm=true},enabled=!busy&&selected!=null&&total in 1..minOf(100000,wallet.optInt("balance")).toLong()){Text("${currencyDigits(total)} g 선물하기")};error?.let{Text(it,color=Pink)}
+ if(confirm)AlertDialog(onDismissRequest={if(!busy)confirm=false},title={Text("${currencyDigits(total)} g를 사용해 선물할까요?")},text={Text("${target.optString("name")}님에게 ${selected?.optString("name")} ×$quantity")},confirmButton={TextButton(enabled=!busy,onClick={busy=true;scope.launch{try{e.command("gifts",payload("profile_id" to target.getString("profile_id"),"gift_type" to selected!!.getString("id"),"quantity" to quantity,"request_id" to request));done()}catch(x:Exception){error=x.message;confirm=false}finally{busy=false}}}){Text("선물 보내기")}},dismissButton={TextButton({confirm=false},enabled=!busy){Text("취소")}})
 }

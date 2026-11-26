@@ -58,7 +58,7 @@ import kotlinx.coroutines.launch
    Text("골드 충전",fontSize=20.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=24.dp))
    Text("좋아하는 음악에 선물을 보낼 때 사용해요. 실버는 무료 보상으로 따로 모을 수 있어요.",color=Muted,modifier=Modifier.padding(vertical=12.dp))
    billing?.products?.filter{it.productType==BillingClient.ProductType.INAPP}?.sortedBy{it.productId.substringAfterLast('_').toIntOrNull()?:0}?.forEach{product->
-    OutlinedButton(onClick={billing.buy(product)},enabled=!billing.busy,modifier=Modifier.fillMaxWidth()){Text("${product.productId.substringAfterLast('_')} G");Spacer(Modifier.weight(1f));Text(billing.price(product))}
+    OutlinedButton(onClick={billing.buy(product)},enabled=!billing.busy,modifier=Modifier.fillMaxWidth()){CurrencyAmount(product.productId.substringAfterLast('_').toLongOrNull(),"G",iconSize=24.dp);Spacer(Modifier.weight(1f));Text(billing.price(product))}
    }
    billing?.message?.let{Text(it,color=Aqua,modifier=Modifier.padding(vertical=16.dp))}
    if(billing?.busy==true)LinearProgressIndicator(Modifier.fillMaxWidth())

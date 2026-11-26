@@ -82,14 +82,14 @@ import java.util.UUID
    if(wallet!=null){
     item{Text("구매해서 보내기",fontSize=19.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=8.dp).testTag("recipient-purchase-gifts"))}
     item{Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(12.dp)){
-     Surface(onClick={m.showGifts=false;m.showRewards=true},enabled=!working,color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.height(86.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){Text("실버 ${free?.optInt("balance")?:0} S",color=Violet,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.Bold);Text("실버 받기 ›",color=Muted,fontSize=12.sp,lineHeight=18.sp)}}
-     Surface(onClick={m.showGifts=false;m.billingInitialTab="gold";m.showBilling=true},enabled=!working,color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.height(86.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){Text("골드 ${wallet?.optInt("balance")} G",color=Pink,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.Bold);Text("골드 충전 ›",color=Muted,fontSize=12.sp,lineHeight=18.sp)}}
+     Surface(onClick={m.showGifts=false;m.showRewards=true},enabled=!working,color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.height(86.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){CurrencyAmount(free?.optLong("balance"),"S",iconSize=20.dp,color=Violet,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.Bold);Text("실버 받기 ›",color=Muted,fontSize=12.sp,lineHeight=18.sp)}}
+     Surface(onClick={m.showGifts=false;m.billingInitialTab="gold";m.showBilling=true},enabled=!working,color=Raised,shape=RoundedCornerShape(12.dp),modifier=Modifier.weight(1f)){Column(Modifier.height(86.dp).padding(12.dp),verticalArrangement=Arrangement.spacedBy(6.dp)){CurrencyAmount(wallet?.optLong("balance"),"G",iconSize=20.dp,color=Pink,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.Bold);Text("골드 충전 ›",color=Muted,fontSize=12.sp,lineHeight=18.sp)}}
     }}
     for((section,sectionCatalog) in listOf("실버 선물" to silverCatalog,"골드 선물" to goldCatalog)){
     item{Row(verticalAlignment=Alignment.CenterVertically){Text(section,fontSize=21.sp,fontWeight=FontWeight.Bold,color=if(section=="실버 선물")Violet else Pink,modifier=Modifier.weight(1f));TextButton(onClick={giftInfo=true}){Text("선물 안내",fontSize=12.sp)}}}
     items(sectionCatalog.chunked(giftColumns)){row->Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(7.dp)){
      row.forEach{gift->val gid=gift.optString("id");Surface(onClick={if(!working){selected=gid;requestId=UUID.randomUUID().toString();success=null;error=null}},modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),color=if(selected==gid)Stroke else Ink,border=BorderStroke(1.dp,if(selected==gid)Pink else Stroke)){
-      Column(Modifier.background(Brush.verticalGradient(listOf(Raised.copy(alpha=.45f),Panel))).padding(vertical=10.dp),horizontalAlignment=Alignment.CenterHorizontally){GiftItemImage(gift.optString("image"),Modifier.size(76.dp));Text(gift.optString("name"),fontSize=14.sp);Text(if(gift.optBoolean("free"))"${gift.optInt("silver")} S" else "${gift.optInt("gold")} G",color=if(gift.optBoolean("free"))Violet else Pink,fontSize=13.sp)}
+      Column(Modifier.background(Brush.verticalGradient(listOf(Raised.copy(alpha=.45f),Panel))).padding(vertical=10.dp),horizontalAlignment=Alignment.CenterHorizontally){GiftItemImage(gift.optString("image"),Modifier.size(76.dp));Text(gift.optString("name"),fontSize=14.sp);CurrencyAmount(if(gift.optBoolean("free"))gift.optLong("silver") else gift.optLong("gold"),if(gift.optBoolean("free"))"S" else "G",color=if(gift.optBoolean("free"))Violet else Pink,fontSize=13.sp)}
      }};repeat(giftColumns-row.size){Spacer(Modifier.weight(1f))}
     }}
     }
@@ -101,10 +101,10 @@ import java.util.UUID
       OutlinedButton(onClick={quantity++;requestId=UUID.randomUUID().toString()},enabled=!working&&quantity<100){Text("+")}
      }
      FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){listOf(1,5,10,50,100).forEach{n->FilterChip(selected=quantity==n,onClick={quantity=n;requestId=UUID.randomUUID().toString()},enabled=!working,label={Text("$n")})}}
-     if(!selection.valid)Text("한 번에 1~100개, 골드는 최대 100,000 G까지 보낼 수 있어요.",color=Pink)
+     if(!selection.valid)Text("한 번에 1~100개, 골드는 최대 100,000 g까지 보낼 수 있어요.",color=Pink)
      if(giftPath!=null){
-      Text(if(balance>=cost)"보낸 뒤 ${balance-cost} $suffix" else if(isFree)"오늘의 보상을 받아 실버를 모아주세요." else "보유 골드가 부족해요.",color=Muted,fontSize=14.sp)
-      BrandButton(onClick={confirm=true},enabled=!working&&choice!=null&&selection.affordable(balance),modifier=Modifier.fillMaxWidth().padding(top=10.dp)){Text(if(working)"보내는 중…" else "${choice?.optString("name")?:"선물"} ${quantity}개 · $cost $suffix 보내기")}
+      Text(if(balance>=cost)"보낸 뒤 ${currencyDigits(balance-cost)} ${suffix.lowercase()}" else if(isFree)"오늘의 보상을 받아 실버를 모아주세요." else "보유 골드가 부족해요.",color=Muted,fontSize=14.sp)
+      BrandButton(onClick={confirm=true},enabled=!working&&choice!=null&&selection.affordable(balance),modifier=Modifier.fillMaxWidth().padding(top=10.dp)){Text(if(working)"보내는 중…" else "${choice?.optString("name")?:"선물"} ${quantity}개 · ${currencyDigits(cost)} ${suffix.lowercase()} 보내기")}
      }else Text("곡의 재생 화면이나 상세 화면에서 선물할 수 있어요.",color=Aqua)
      BrandButton(onClick={m.showGifts=false;m.showBilling=true},modifier=Modifier.fillMaxWidth()){Text("Google Play로 골드 충전")}
      Text("받은 실버는 누적되며 매일 0시(한국 시간)에 보상 조건이 갱신돼요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=10.dp))
@@ -113,7 +113,7 @@ import java.util.UUID
    item{TextButton(onClick={history=true}){Text("보낸 선물 내역")};TextButton(onClick={m.showGifts=false;m.showDiamonds=true}){Text("◇ 다이아 · 골드 전환 · 현금 정산")}}
    ranking?.let{data->
     item{HorizontalDivider(color=Stroke);Text(if(person!=null)"받은 선물 랭킹" else "이 곡의 응원 순위",fontSize=19.sp,modifier=Modifier.padding(top=14.dp))}
-    items(data.optJSONArray("ranking").objects()){r->Row(Modifier.fillMaxWidth()){Text("${r.optInt("rank")}  ${r.optString("name")}",Modifier.weight(1f));Text("${r.optInt("score")}점 · ${r.optInt("stars")} S / ${r.optInt("gold")} G",color=Aqua,fontSize=13.sp)}}
+    items(data.optJSONArray("ranking").objects()){r->Row(Modifier.fillMaxWidth()){Text("${r.optInt("rank")}  ${r.optString("name")}",Modifier.weight(1f));Text("${r.optInt("score")}점 · ${currencyDigits(r.optInt("stars"))} s / ${currencyDigits(r.optInt("gold"))} g",color=Aqua,fontSize=13.sp)}}
     if(data.optJSONArray("ranking").objects().isEmpty())item{Text("첫 응원을 보내보세요.",color=Muted)}
    }
   }
@@ -125,11 +125,11 @@ import java.util.UUID
   Text("1 S와 1 G는 각각 응원 순위 1점이에요.")
  }},confirmButton={TextButton(onClick={giftInfo=false}){Text("확인")}})
  if(history)GiftHistorySheet(wallet,m,{history=false})
- if(confirm&&choice!=null&&giftPath!=null)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text("${choice.optString("name")} 선물하기")},text={Text("${recipient}님에게 ${choice.optString("name")} ${quantity}개 · 총 $cost $suffix 선물을 보낼까요?\n보낸 뒤 직접 취소할 수 없어요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{
+ if(confirm&&choice!=null&&giftPath!=null)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text("${choice.optString("name")} 선물하기")},text={Text("${recipient}님에게 ${choice.optString("name")} ${quantity}개 · 총 ${currencyDigits(cost)} ${suffix.lowercase()} 선물을 보낼까요?\n보낸 뒤 직접 취소할 수 없어요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{
   working=true;error=null
   try{val result=m.api.call(giftPath,"POST",payload("gift_type" to selected,"quantity" to quantity,"request_id" to requestId, (if(isFree)"silver" else "gold") to cost));success="${choice.optString("name")} ${quantity}개를 보냈어요";confirm=false
    wallet=JSONObject(wallet.toString()).apply{if(isFree)put("free",JSONObject(free.toString()).put("balance",result.optInt("free_balance")))else put("balance",result.optInt("balance"))}
    requestId=UUID.randomUUID().toString();try{ranking=m.api.call(giftPath)}catch(_:Exception){}
   }catch(e:Exception){error=e.message;confirm=false}finally{working=false}
- }}){Text(if(working)"보내는 중…" else "$cost $suffix 보내기")}})
+ }}){Text(if(working)"보내는 중…" else "${currencyDigits(cost)} ${suffix.lowercase()} 보내기")}})
 }

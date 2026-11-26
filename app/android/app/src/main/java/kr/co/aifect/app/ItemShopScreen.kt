@@ -72,11 +72,11 @@ import java.util.UUID
   LazyColumn(Modifier.fillMaxSize().testTag("item-shop"),contentPadding=PaddingValues(18.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){
    item{
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-     Column(Modifier.weight(1f)){Text("내 골드",color=Muted,fontSize=12.sp);Text(wallet?.let{"${itemNumber(it.optLong("balance"))} G"}?:"—",fontSize=22.sp,fontWeight=FontWeight.Bold)}
+     Column(Modifier.weight(1f)){Text("내 골드",color=Muted,fontSize=12.sp);CurrencyAmount(wallet?.optLong("balance"),"G",iconSize=20.dp,fontSize=22.sp,fontWeight=FontWeight.Bold)}
      FilledTonalButton(onClick={m.billingInitialTab="gold";m.showBilling=true},enabled=!working,modifier=Modifier.testTag("shop-charge")){Text("골드 충전")}
     }
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-     Text(wallet?.let{"실버 ${itemNumber(it.optJSONObject("free")?.optLong("balance")?:0)} S"}?:"실버 —",fontSize=13.sp,color=Muted,modifier=Modifier.weight(1f))
+     CurrencyAmount(wallet?.optJSONObject("free")?.optLong("balance"),"S",iconSize=20.dp,fontSize=13.sp,color=Muted,modifier=Modifier.weight(1f))
      TextButton(onClick={m.showInventory=true},enabled=!working,modifier=Modifier.testTag("shop-inventory")){Text("인벤토리")}
     }
     Text("구매한 아이템은 인벤토리에 보관돼요.",color=Muted,fontSize=13.sp)
@@ -98,7 +98,7 @@ import java.util.UUID
      Column(Modifier.padding(8.dp),horizontalAlignment=Alignment.CenterHorizontally){
       GiftItemImage(gift.optString("image"),Modifier.fillMaxWidth().aspectRatio(1f))
       Text(gift.optString("name"),fontSize=12.sp,lineHeight=18.sp,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=TextAlign.Center,modifier=Modifier.fillMaxWidth().heightIn(min=46.dp).wrapContentHeight())
-      Text(if(currency=="gold")"${itemNumber(gift.optLong("gold"))} G" else "${itemNumber(gift.optLong("silver"))} S",fontSize=12.sp,color=if(currency=="gold")Pink else Aqua)
+      CurrencyAmount(gift.optLong(currency),if(currency=="gold")"G" else "S",fontSize=12.sp,color=if(currency=="gold")Pink else Aqua)
      }
     }}
     repeat(3-row.size){Spacer(Modifier.weight(1f))}
@@ -115,14 +115,14 @@ import java.util.UUID
   AlertDialog(onDismissRequest={if(!working)selected=null},title={Text(choice.optString("name"))},text={
    Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp),horizontalAlignment=Alignment.CenterHorizontally){
     GiftItemImage(choice.optString("image"),Modifier.size(96.dp))
-    Text("1개 · ${itemNumber(unit)} $suffix",color=Muted,fontSize=13.sp)
+    Text("1개 · ${itemNumber(unit)} ${suffix.lowercase()}",color=Muted,fontSize=13.sp)
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
      IconButton(onClick={quantity--;requestId=UUID.randomUUID().toString();orderError=null},enabled=!working&&quantity>1,modifier=Modifier.testTag("shop-quantity-less")){Text("−",fontSize=24.sp)}
      Text("${quantity}개",fontWeight=FontWeight.Bold,modifier=Modifier.testTag("shop-quantity"))
      IconButton(onClick={quantity++;requestId=UUID.randomUUID().toString();orderError=null},enabled=!working&&quantity<100,modifier=Modifier.testTag("shop-quantity-more")){Text("+",fontSize=24.sp)}
     }
-    Text("총 ${itemNumber(total)} $suffix",fontWeight=FontWeight.Bold,fontSize=20.sp)
-    Text(if(balance>=total)"구매 후 ${itemNumber(balance-total)} $suffix" else if(isSilver)"실버가 부족해요." else "골드가 부족해요.",color=if(balance>=total)Muted else Pink,fontSize=13.sp)
+    CurrencyAmount(total,suffix,fontWeight=FontWeight.Bold,fontSize=20.sp)
+    Text(if(balance>=total)"구매 후 ${itemNumber(balance-total)} ${suffix.lowercase()}" else if(isSilver)"실버가 부족해요." else "골드가 부족해요.",color=if(balance>=total)Muted else Pink,fontSize=13.sp)
     Text("구매하면 인벤토리에 보관돼요.",fontSize=12.sp,color=Muted)
     orderError?.let{Text(it,color=Pink,fontSize=13.sp,modifier=Modifier.testTag("shop-order-error"))}
    }
@@ -137,7 +137,7 @@ import java.util.UUID
      }catch(e:Exception){if(e is CancellationException)throw e;orderError=e.message}
      finally{working=false}}
     }
-   }){Text(if(working)"구매 중…" else "${itemNumber(total)} $suffix 구매")}
+   }){Text(if(working)"구매 중…" else "${itemNumber(total)} ${suffix.lowercase()} 구매")}
   })
  }
 }

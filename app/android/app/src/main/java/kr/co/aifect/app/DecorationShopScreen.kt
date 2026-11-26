@@ -48,7 +48,7 @@ internal fun decorationImage(product:JSONObject):String?=CatalogAssets.decoratio
     Column(Modifier.padding(10.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
      AsyncImage(decorationImage(p),p.optString("name"),Modifier.fillMaxWidth().aspectRatio(1f),contentScale=if(category=="frames")ContentScale.Fit else ContentScale.Crop)
      Text(p.optString("name"),fontSize=14.sp,fontWeight=FontWeight.SemiBold)
-     Text("${itemNumber(p.optJSONObject("periodPrices")?.optLong("P7D")?:0)} G · ${periods.optString("P7D","7일")}",fontSize=12.sp,color=Muted)
+     Text("${itemNumber(p.optJSONObject("periodPrices")?.optLong("P7D")?:0)} g · ${periods.optString("P7D","7일")}",fontSize=12.sp,color=Muted)
     }
    }}
    if(row.size==1)Spacer(Modifier.weight(1f))
@@ -60,7 +60,7 @@ internal fun decorationImage(product:JSONObject):String?=CatalogAssets.decoratio
   AlertDialog(onDismissRequest={if(!working)selected=null},title={Text(product.optString("name"))},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(12.dp)){
    AsyncImage(decorationImage(product),product.optString("name"),Modifier.fillMaxWidth().height(180.dp),contentScale=ContentScale.Fit)
    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)){listOf("P7D","P1M","P3M").filter{product.optJSONObject("periodPrices")?.has(it)==true}.forEach{key->FilterChip(selected=period==key,onClick={period=key;request=UUID.randomUUID().toString();error=null},enabled=!working,label={Text(periods.optString(key),fontSize=12.sp)},modifier=Modifier.testTag("decoration-period-$key"))}}
-   Text("${itemNumber(price)} G",fontSize=22.sp,fontWeight=FontWeight.Bold)
+   CurrencyAmount(price,"G",fontSize=22.sp,fontWeight=FontWeight.Bold)
    Text("구매 후 인벤토리에 보관돼요. 사용할 때부터 기간이 시작돼요.",color=Muted,fontSize=13.sp)
    if(balance<price)Text("골드가 부족해요.",color=Pink)
    error?.let{Text(it,color=Pink,fontSize=13.sp)}
@@ -69,7 +69,7 @@ internal fun decorationImage(product:JSONObject):String?=CatalogAssets.decoratio
    else TextButton(enabled=!working&&price>0,modifier=Modifier.testTag("decoration-buy-confirm"),onClick={if(account==m.user?.optString("id")&&!working){setWorking(true);error=null;scope.launch{try{
     m.api.call("/api/decorations/buy","POST",payload("sku" to selected,"period" to period,"request_id" to request))
     if(account==m.user?.optString("id")){selected=null;message="${product.optString("name")}를 인벤토리에 보관했어요.";refreshWallet()}
-   }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{setWorking(false)}}}}){Text(if(working)"구매 중…" else "${itemNumber(price)} G 구매")}
+   }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{setWorking(false)}}}}){Text(if(working)"구매 중…" else "${itemNumber(price)} g 구매")}
   })
  }
 }

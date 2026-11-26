@@ -37,8 +37,8 @@ import org.json.JSONObject
   try{val d=m.api.call("/api/gold/balance",fresh=true);if(account==m.user?.optString("id")){wallet=d;failed=false}}catch(e:Exception){if(e is CancellationException)throw e;failed=true}
  }
  Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(10.dp)){
-  OutlinedButton(onClick={historyCurrency="silver"},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("wallet-silver")){Text("실버 ${wallet?.let{"${it.optInt("silver_balance")} S"}?:"—"}")}
-  OutlinedButton(onClick={historyCurrency="gold"},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("wallet-gold")){Text("골드 ${wallet?.let{"${it.optInt("balance")} G"}?:"—"}")}
+  OutlinedButton(onClick={historyCurrency="silver"},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("wallet-silver")){CurrencyAmount(wallet?.optLong("silver_balance"),"S",iconSize=20.dp)}
+  OutlinedButton(onClick={historyCurrency="gold"},modifier=Modifier.weight(1f).heightIn(min=48.dp).testTag("wallet-gold")){CurrencyAmount(wallet?.optLong("balance"),"G",iconSize=20.dp)}
  }
  if(failed)TextButton(onClick={revision++}){Text("잔액 다시 불러오기")}
  historyCurrency?.let{currency->WalletHistoryPage(m,currency){historyCurrency=null}}
@@ -64,7 +64,7 @@ import org.json.JSONObject
     val label=when(entry.optString("kind")){"purchase"->"골드 충전";"dubbing"->"더빙 배경음 제작";"dubbing_refund"->"더빙 제작 환불";"checkin"->"출석 보상";"cover"->"커버 게시 보상";"listen"->"감상 보상";"comment1","comment2","comment3"->"댓글 보상";else->entry.optString("title").ifBlank{"선물"}}
     Row(Modifier.fillMaxWidth().padding(vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
      Column(Modifier.weight(1f).padding(end=12.dp)){Text(label,fontSize=14.sp,maxLines=2);Text(java.text.SimpleDateFormat("MM.dd HH:mm",java.util.Locale.KOREA).format(java.util.Date(entry.optLong("created")*1000)),fontSize=12.sp,color=Muted,modifier=Modifier.padding(top=4.dp))}
-     Text("${if(section=="earned")"+" else "−"}${entry.optInt("amount")} $unit",fontSize=15.sp,fontWeight=FontWeight.SemiBold,color=if(section=="earned")Aqua else SoftText)
+     CurrencyAmount(entry.optLong("amount"),unit,prefix=if(section=="earned")"+" else "−",fontSize=15.sp,fontWeight=FontWeight.SemiBold,color=if(section=="earned")Aqua else SoftText)
     }
    }
    if(data!=null&&receipts.isEmpty())item{Text(if(section=="earned")"획득 내역이 없어요." else "사용 내역이 없어요.",fontSize=14.sp,color=Muted)}

@@ -173,7 +173,7 @@ private fun sentReceiptCatalog(wallet:JSONObject?,receipt:JSONObject,unit:String
     val target=g.receiptText("title")
     val targetLabel=if(trackId!=null)"작품"else "받는 사람"
     val amountKey=if(unit=="G")"gold"else "silver"
-    val amount=if(g.has(amountKey)&&!g.isNull(amountKey))"${receiptNumber(g.optLong(amountKey))} $unit"else "— $unit"
+    val amount=if(g.has(amountKey)&&!g.isNull(amountKey))g.optLong(amountKey) else null
     val canOpen=m!=null&&(trackId!=null||recipientId!=null)&&opening==null
     Surface(color=Panel,shape=RoundedCornerShape(15.dp),border=BorderStroke(1.dp,Stroke),modifier=Modifier.fillMaxWidth().testTag(key).then(if(canOpen)Modifier.clickable(onClickLabel=if(trackId!=null)"선물을 보낸 작품 보기"else "선물 받은 회원 보기"){open(g,key)}else Modifier)){
      Column(Modifier.padding(14.dp),verticalArrangement=Arrangement.spacedBy(11.dp)){
@@ -192,7 +192,7 @@ private fun sentReceiptCatalog(wallet:JSONObject?,receipt:JSONObject,unit:String
       }
       HorizontalDivider(color=Stroke.copy(alpha=.6f))
       Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.Top){
-       Text(amount,fontSize=15.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=if(unit=="G")Pink else Aqua,modifier=Modifier.weight(1f).padding(end=12.dp).testTag("$key-amount"))
+       CurrencyAmount(amount,unit,fontSize=15.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,color=if(unit=="G")Pink else Aqua,modifier=Modifier.weight(1f).padding(end=12.dp).testTag("$key-amount"))
        Text(g.optLong("created").takeIf{it>0}?.let(::activityDate)?:"일시 정보 없음",fontSize=13.sp,lineHeight=20.sp,color=Muted,textAlign=TextAlign.End,modifier=Modifier.testTag("$key-time"))
       }
       if(opening==key)LinearProgressIndicator(Modifier.fillMaxWidth(),color=Aqua,trackColor=Stroke)

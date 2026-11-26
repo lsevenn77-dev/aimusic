@@ -272,9 +272,9 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
      DubbingInfoCard(p,sound,previewing,previewAt,{if(previewing)audio.stop()else {sharedPlayer?.pause();audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))}}){
       if(p.optBoolean("isOwner")&&sound.optString("state")=="not_started")Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
        OutlinedButton({confirm="basic"},enabled=!busy,modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke)){Text("기본 배경",fontSize=12.sp,color=SoftText)}
-       BrandButton({confirm="sound"},enabled=!busy&&sound.optBoolean("aiAvailable"),modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Text("효과음 · ${sound.optInt("chargeGold",sound.optInt("priceGold",50))} G",fontSize=12.sp)}
+       BrandButton({confirm="sound"},enabled=!busy&&sound.optBoolean("aiAvailable"),modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Text("효과음 · ${currencyDigits(sound.optInt("chargeGold",sound.optInt("priceGold",50)))} g",fontSize=12.sp)}
       }
-      if(sound.optInt("refundedGold")>0)Text("${sound.optInt("refundedGold")} G 환급",fontSize=12.sp,color=Muted)
+      if(sound.optInt("refundedGold")>0)Text("${currencyDigits(sound.optInt("refundedGold"))} g 환급",fontSize=12.sp,color=Muted)
      }
     }
     if(p.optBoolean("isOwner")&&p.optString("visibility")=="private")item{BrandButton({confirm="publish"},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)){Text("배역 모집 시작",fontSize=14.sp)}}
@@ -326,7 +326,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
   }
   DubbingPlaybackBar(sharedPlayer)
  }
- if(confirm.isNotBlank()&&project!=null){val p=project!!;val action=confirm;val charge=if(action=="basic")0 else sound.optInt("chargeGold",sound.optInt("priceGold",50));AlertDialog(onDismissRequest={if(!busy)confirm=""},title={Text(when(action){"publish"->"배역 모집을 시작할까요?";"unpublish"->"모집을 중지할까요?";"delete"->"내 더빙을 삭제할까요?";"basic"->"기본 배경을 준비할까요?";else->"${charge} G로 음향을 제작할까요?"})},text={Text(when(action){"publish"->"대본을 공개하고 다른 사람과 함께 연기할 권한이 있음을 확인합니다.";"delete"->"삭제하면 이 작품을 다시 열거나 참여할 수 없어요.";"basic"->"효과음 없이 녹음에 사용할 배경을 준비해요.";"unpublish"->"새로운 참여자 모집을 중지해요.";else->"생성 전 최종 금액을 확인해주세요. 실패하면 서버에서 자동 환급돼요."})},confirmButton={TextButton(enabled=!busy,onClick={task{
+ if(confirm.isNotBlank()&&project!=null){val p=project!!;val action=confirm;val charge=if(action=="basic")0 else sound.optInt("chargeGold",sound.optInt("priceGold",50));AlertDialog(onDismissRequest={if(!busy)confirm=""},title={Text(when(action){"publish"->"배역 모집을 시작할까요?";"unpublish"->"모집을 중지할까요?";"delete"->"내 더빙을 삭제할까요?";"basic"->"기본 배경을 준비할까요?";else->"${currencyDigits(charge)} g로 음향을 제작할까요?"})},text={Text(when(action){"publish"->"대본을 공개하고 다른 사람과 함께 연기할 권한이 있음을 확인합니다.";"delete"->"삭제하면 이 작품을 다시 열거나 참여할 수 없어요.";"basic"->"효과음 없이 녹음에 사용할 배경을 준비해요.";"unpublish"->"새로운 참여자 모집을 중지해요.";else->"생성 전 최종 금액을 확인해주세요. 실패하면 서버에서 자동 환급돼요."})},confirmButton={TextButton(enabled=!busy,onClick={task{
   when(action){"delete"->{api.call("/api/dubbing/projects/$id","DELETE",payload("revision" to p.getInt("revision")));back()};"publish","unpublish"->{api.call("/api/dubbing/projects/$id/$action","POST",payload("revision" to p.getInt("revision"),"rightsAccepted" to true));if(action=="publish")back()else reload()};else->{api.call("/api/dubbing/projects/$id/sound","POST",payload("requestId" to soundRequest,"mode" to if(action=="basic")"basic" else "ai","revision" to p.getInt("revision"),"acceptedGold" to sound.optInt("priceGold",50),"acceptedChargeGold" to charge));reload()}};confirm=""
  }}){Text(if(action=="publish")"동의하고 공개" else "확인")}},dismissButton={TextButton({confirm=""},enabled=!busy){Text("취소")}})}
 }
