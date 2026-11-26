@@ -37,12 +37,26 @@ internal fun Modifier.roomGlass(radius:Int=16):Modifier{
   onDrawBehind{drawRect(hi);drawRect(lo)}
  }.border(.75.dp,Brush.linearGradient(listOf(Color.White.copy(alpha=.68f),Color.White.copy(alpha=.23f),Color.White.copy(alpha=.48f))),shape)
 }
-@Composable internal fun RoomTitle(room:JSONObject,members:Int,modifier:Modifier=Modifier){
- val created=room.optLong("created")
- var elapsed by remember(created){mutableLongStateOf(0L)}
- LaunchedEffect(created){if(created>0)while(true){elapsed=((System.currentTimeMillis()-created)/1000).coerceAtLeast(0);delay(1000)}}
- Column(modifier){Text(room.optString("title").ifBlank{"토킹룸"},fontSize=17.sp,lineHeight=22.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
-  Text(if(created>0)java.lang.String.format(java.util.Locale.ROOT,"%02d:%02d:%02d",elapsed/3600,elapsed/60%60,elapsed%60)else "참여자 "+members+"명",fontSize=12.sp,lineHeight=16.sp,color=Muted)}
+@Composable internal fun RoomTitle(room: JSONObject, members: Int, clockOffset: Long, modifier: Modifier = Modifier) {
+ val created = room.optLong("created")
+ fun seconds() = ((System.currentTimeMillis() + clockOffset - created) / 1000).coerceAtLeast(0)
+ var elapsed by remember(created, clockOffset) { mutableLongStateOf(seconds()) }
+ LaunchedEffect(created, clockOffset) {
+  if (created > 0) while (true) { elapsed = seconds(); delay(1000) }
+ }
+ val time = if (created > 0) java.lang.String.format(java.util.Locale.ROOT, "%02d:%02d:%02d", elapsed / 3600, elapsed / 60 % 60, elapsed % 60) else "–"
+ val capacity = room.optInt("max_members").takeIf { it > 0 }?.toString() ?: "–"
+ Column(modifier) {
+  Text(room.optString("title").ifBlank { "토킹룸" }, fontSize=17.sp, lineHeight=22.sp,
+   fontWeight=FontWeight.Bold, maxLines=1, overflow=TextOverflow.Ellipsis)
+  Row(verticalAlignment=Alignment.CenterVertically, horizontalArrangement=Arrangement.spacedBy(3.dp)) {
+   Icon(Icons.Outlined.Group, "방 인원", Modifier.size(12.dp), tint=Muted)
+   Text("$members/$capacity", fontSize=11.sp, lineHeight=15.sp, color=Muted, maxLines=1)
+   Text("│", fontSize=10.sp, color=Muted)
+   Icon(Icons.Outlined.Schedule, "방 개설 후 경과 시간", Modifier.size(12.dp), tint=Muted)
+   Text(time, fontSize=11.sp, lineHeight=15.sp, color=Muted, maxLines=1, softWrap=false)
+  }
+ }
 }
 internal data class RoomSticker(val key:String,val label:String,val group:String,val url:String)
 @Composable private fun roomStickers():List<RoomSticker>{

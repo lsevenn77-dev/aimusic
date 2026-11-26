@@ -15,6 +15,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -69,24 +73,51 @@ internal fun voiceGiftImage(gift:JSONObject,catalog:Map<String,JSONObject>):Stri
   }
  }
 }
-@Composable internal fun VoiceMusicBar(e:NativeVoiceEngine,state:JSONObject,openMusic:()->Unit,addPlaylist:(JSONObject)->Unit){
- val music=state.optJSONObject("music")?:JSONObject();val song=music.optJSONArray("queue")?.optJSONObject(music.optInt("index",-1));val id=song?.optString("id").orEmpty()
+@Composable internal fun VoiceSongLibraryActions(e:NativeVoiceEngine,song:JSONObject,addPlaylist:(JSONObject)->Unit){
+ val id=song.optString("id")
  var liked by remember(id){mutableStateOf(false)};var loading by remember(id){mutableStateOf(true)};var busy by remember(id){mutableStateOf(false)}
  var retry by remember{mutableIntStateOf(0)};val scope=rememberCoroutineScope()
  LaunchedEffect(id,retry){if(id.isBlank())return@LaunchedEffect;loading=true;try{liked=e.api.call("/api/library",fresh=true).optJSONArray("likes").objects().any{it.optString("id")==id};loading=false}catch(x:Exception){if(x is kotlinx.coroutines.CancellationException)throw x;e.error.value=x.message}}
- Row(Modifier.fillMaxWidth().roomGlass(16).heightIn(min=44.dp).padding(start=4.dp,end=4.dp).testTag("voice-top-music"),verticalAlignment=Alignment.CenterVertically){
-  IconButton(openMusic){Icon(Icons.Outlined.QueueMusic,"함께 듣는 음악",tint=Aqua)}
-  Column(Modifier.weight(1f).heightIn(min=48.dp).clickable(onClick=openMusic),verticalArrangement=Arrangement.Center){
-   Text(song?.optString("title")?:"함께 들을 음악",fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
-   song?.optString("artist")?.takeIf{it.isNotBlank()}?.let{Text(it,fontSize=12.sp,lineHeight=15.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)}
+ Row {
+  IconButton(enabled=!busy,onClick={if(loading){retry++;return@IconButton};busy=true;scope.launch{try{e.api.call("/api/tracks/$id/like",if(liked)"DELETE" else "PUT");liked=!liked}catch(x:Exception){if(x is kotlinx.coroutines.CancellationException)throw x;e.error.value=x.message}finally{busy=false}}}){Icon(if(liked)Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,if(loading)"좋아요 상태 다시 확인" else if(liked)"좋아요 취소" else "좋아요",tint=if(liked)Pink else Muted)}
+  IconButton({addPlaylist(song)}){Icon(Icons.Outlined.PlaylistAdd,"내 플레이리스트에 담기",tint=Muted)}
+ }
+}
+
+@Composable internal fun VoiceMusicBar(e: NativeVoiceEngine, state: JSONObject, openMusic: () -> Unit, addPlaylist: (JSONObject) -> Unit) {
+ val music = state.optJSONObject("music") ?: JSONObject()
+ val song = music.optJSONArray("queue")?.optJSONObject(music.optInt("index", -1))
+ val playing = music.optBoolean("playing") || !music.isNull("pendingStart")
+ val accent = Brush.horizontalGradient(listOf(Color(0xFF65E9DD), Color(0xFFA4A1F5), Color(0xFFC37AE8)))
+ val volume by e.localMusicVolume.collectAsState()
+ var audibleVolume by remember(e) { mutableFloatStateOf(volume.takeIf { it > 0f } ?: 1f) }
+ fun listenAt(value: Float) { if (volume > 0f) audibleVolume=volume; e.setMusicVolume(value) }
+ fun transport(operation: String) { e.launch { e.command("music", payload("operation" to operation, "request_id" to requestIdentity())) } }
+ Row(Modifier.fillMaxWidth().roomGlass(16).background(Panel.copy(alpha=.8f)).heightIn(min=52.dp)
+   .padding(horizontal=8.dp).testTag("voice-top-music"), verticalAlignment=Alignment.CenterVertically) {
+  Column(Modifier.weight(1f).heightIn(min=44.dp).clickable(onClickLabel="방 플레이리스트 열기",onClick=openMusic), verticalArrangement=Arrangement.Center) {
+   Text(song?.optString("title") ?: "선택된 곡이 없어요",fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+   song?.optString("artist")?.takeIf { it.isNotBlank() }?.let { Text(it,fontSize=12.sp,lineHeight=15.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis) }
   }
-  if(song!=null){
-   IconButton(enabled=!busy,onClick={if(loading){retry++;return@IconButton};busy=true;scope.launch{try{e.api.call("/api/tracks/$id/like",if(liked)"DELETE" else "PUT");liked=!liked}catch(x:Exception){if(x is kotlinx.coroutines.CancellationException)throw x;e.error.value=x.message}finally{busy=false}}}){Icon(if(liked)Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,if(loading)"좋아요 상태 다시 확인" else if(liked)"좋아요 취소" else "좋아요",tint=if(liked)Pink else Muted)}
-   IconButton({addPlaylist(song)}){Icon(Icons.Outlined.PlaylistAdd,"내 플레이리스트에 담기",tint=Muted)}
-   if(e.isHost())IconButton({e.launch{e.command("music",payload("operation" to if(music.optBoolean("playing"))"pause" else "play","request_id" to requestIdentity()))}}){Icon(if(music.optBoolean("playing"))Icons.Outlined.Pause else Icons.Outlined.PlayArrow,if(music.optBoolean("playing"))"공동 음악 일시정지" else "공동 음악 재생",tint=Muted)}
-  }else IconButton(openMusic){Icon(Icons.Outlined.ChevronRight,"음악 목록 열기",tint=SoftText)}
-  var volume by remember(e){mutableFloatStateOf(e.localMusicVolume)}
-  Slider(value=volume,onValueChange={volume=it;e.setMusicVolume(it)},modifier=Modifier.width(62.dp).heightIn(min=44.dp),colors=SliderDefaults.colors(thumbColor=SoftText,activeTrackColor=Aqua))
+  if (e.isHost()) {
+   IconButton({ transport("previous") }, Modifier.size(30.dp,44.dp), enabled=song!=null) { Icon(Icons.Outlined.SkipPrevious,"이전 곡",Modifier.size(18.dp)) }
+   IconButton({ transport(if (playing) "pause" else "play") }, Modifier.size(40.dp,44.dp), enabled=song!=null) {
+    Box(Modifier.size(36.dp).background(Panel,CircleShape).border(1.5.dp,accent,CircleShape),contentAlignment=Alignment.Center) {
+     Icon(if (playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,if (playing) "공동 음악 일시정지" else "공동 음악 재생",Modifier.size(18.dp))
+    }
+   }
+   IconButton({ transport("next") },Modifier.size(30.dp,44.dp),enabled=song!=null) { Icon(Icons.Outlined.SkipNext,"다음 곡",Modifier.size(18.dp)) }
+  } else if (song != null) {
+   VoiceSongLibraryActions(e,song,addPlaylist)
+  }
+  IconButton({ listenAt(if (volume>0) 0f else audibleVolume) },Modifier.size(32.dp,44.dp)) {
+   Icon(if (volume>0) Icons.Outlined.VolumeUp else Icons.Outlined.VolumeOff,if (volume>0) "개인 음소거" else "개인 음소거 해제",Modifier.size(19.dp))
+  }
+  Slider(value=volume,onValueChange=::listenAt,modifier=Modifier.width(58.dp).heightIn(min=44.dp).semantics { contentDescription="개인 음악 볼륨" },
+   thumb={ Box(Modifier.size(14.dp).background(Color.White,CircleShape)) },
+   track={ Box(Modifier.fillMaxWidth().height(5.dp).clip(CircleShape).background(Color(0xFF444754))) {
+    Box(Modifier.fillMaxHeight().fillMaxWidth(volume).background(accent))
+   } })
  }
 }
 @Composable internal fun VoiceSeatAlert(state:JSONObject,host:Boolean,open:()->Unit){

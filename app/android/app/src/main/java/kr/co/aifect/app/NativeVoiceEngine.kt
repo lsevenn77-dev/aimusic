@@ -74,7 +74,7 @@ internal class NativeVoiceEngine(private val context:Context,val roomId:String,p
  @Volatile var preset="radio"
  @Volatile var reverb=.06f
  @Volatile var voiceVolume=1.0
- var localMusicVolume=1f
+ val localMusicVolume=MutableStateFlow(1f)
  var echoCancellation=true
  var noiseSuppression=true
  private var priorSample=0f
@@ -271,13 +271,13 @@ internal class NativeVoiceEngine(private val context:Context,val roomId:String,p
  private fun stopPublisher(){micIntent.interrupt();track?.setEnabled(false);publisher?.close();publisher?.dispose();publisher=null;track?.dispose();track=null;source?.dispose();source=null;micOn.value=false;level.value=0f;micForeground(false)}
  fun setSpeaker(value:Boolean){audio.isSpeakerphoneOn=value}
  fun isSpeaker()=audio.isSpeakerphoneOn
- fun setMusicVolume(value:Float){localMusicVolume=value.coerceIn(0f,1f);syncMusic()}
+ fun setMusicVolume(value:Float){localMusicVolume.value=value.coerceIn(0f,1f);syncMusic()}
  suspend fun processing(echo:Boolean,noise:Boolean){val resume=micOn.value;echoCancellation=echo;noiseSuppression=noise;if(publisher!=null){micLock.withLock{stopPublisher();command("mute")};if(resume)microphone(true)}}
  fun setVoiceVolume(value:Float){voiceVolume=value.coerceIn(0f,1f).toDouble();receiver?.receivers?.forEach{(it.track() as? AudioTrack)?.setVolume(if(focusGranted&&!callActive)voiceVolume else 0.0)}}
  private fun syncMusic(){val m=state.value.optJSONObject("music")?:return;val current=m.optJSONArray("queue")?.optJSONObject(m.optInt("index",-1));if(current==null){music.pause();musicId="";return}
   val id=current.getString("id");if(id!=musicId){musicId=id;music.setMediaItem(MediaItem.fromUri(Endpoint.url(path("music-stream"))+"?generation=$generation&track_id=$id"));music.prepare()}
   val target=voiceMusicPosition(m,System.currentTimeMillis()+clockOffset);if(abs(music.currentPosition-target)>800)music.seekTo(target)
-  music.volume=m.optDouble("volume",.7).toFloat().coerceIn(0f,1f)*localMusicVolume;music.playWhenReady=m.optBoolean("playing")&&focusGranted&&!callActive
+  music.volume=m.optDouble("volume",.7).toFloat().coerceIn(0f,1f)*localMusicVolume.value;music.playWhenReady=m.optBoolean("playing")&&focusGranted&&!callActive
  }
  fun close(){if(closed)return;closed=true;val g=generation;scope.launch(NonCancellable){if(g.isNotBlank()&&session==NativeSession.cookie(context))runCatching{withTimeout(8000){api.call(path("leave"),"POST",payload("generation" to g))}}};socket?.close(1000,"Left");scope.cancel();stopPublisher();receiver?.close();receiver?.dispose();receiver=null;music.release();factory.dispose();adm.release();if(focusGranted&&!callActive&&audio.mode==AudioManager.MODE_IN_COMMUNICATION){audio.mode=oldMode;audio.isSpeakerphoneOn=oldSpeaker};audio.abandonAudioFocusRequest(focus);status.value="방에서 나왔어요";finished.value=true}
 }
