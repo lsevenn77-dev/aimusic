@@ -92,7 +92,7 @@ import org.json.JSONObject
     if(person)PlayerAvatarDecoration(p,60)
    }
    Column(Modifier.weight(1f).padding(start=8.dp)){
-    Text(name,fontSize=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("$context-name"))
+    MemberName(if(person)p else null,name,fontSize=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("$context-name"))
     if(person&&p.optString("partner_badge").let{it.isNotBlank()&&it!="null"})Text(p.optString("partner_badge"),fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=4.dp))
     if(person&&p.optString("bio").isNotBlank())ProfileBiography(p.optString("bio"))
    }
@@ -162,7 +162,7 @@ import org.json.JSONObject
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
      Box(Modifier.padding(6.dp).clickable{m.editProfile()}){Avatar(p.optString("name"),p,64)}
      Column(Modifier.weight(1f).padding(start=12.dp)){
-      Text(p.optString("display_name",p.optString("name")).ifBlank{p.optString("name")},fontSize=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
+      MemberName(p,p.optString("display_name",p.optString("name")).ifBlank{p.optString("name")},fontSize=19.sp,fontWeight=FontWeight.Bold,maxLines=2,overflow=TextOverflow.Ellipsis)
       Text("나의 음악 공간",fontSize=12.sp,lineHeight=17.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
       if(compactType)TextButton(onClick={p.optString("id").takeIf{it.isNotBlank()}?.let{m.openProfile(it,seed=p)}},contentPadding=PaddingValues(0.dp)){Text("프로필 보기",fontSize=11.sp,color=Pink)}
      }

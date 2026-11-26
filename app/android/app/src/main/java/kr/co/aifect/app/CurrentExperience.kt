@@ -262,7 +262,7 @@ private val NoneDescription:String?=null
      Box(Modifier.padding(5.dp).testTag("my-avatar-open").clickable{m.viewProfilePhoto(p)}){Avatar(p.optString("name",m.user?.optString("name").orEmpty()),p,72)}
      Column(Modifier.weight(1f).padding(start=10.dp)){
       Row(verticalAlignment=Alignment.CenterVertically){
-       Text(p.optString("name",m.user?.optString("name").orEmpty()),Modifier.widthIn(max=130.dp).weight(1f,false),fontSize=21.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
+       MemberName(p,p.optString("name",m.user?.optString("name").orEmpty()),Modifier.widthIn(max=130.dp).weight(1f,false),fontSize=21.sp,fontWeight=FontWeight.Bold,maxLines=1,overflow=TextOverflow.Ellipsis)
        IconButton(onClick=m::editProfile){Icon(Icons.Rounded.Edit,"프로필 수정",Modifier.size(17.dp),tint=Pink)}
       }
       val crew=data?.optJSONObject("crew")
@@ -336,6 +336,6 @@ private val NoneDescription:String?=null
 }
 @Composable private fun CurrentActivityLinks(m:MusicModel){
  CurrentPanel("내 활동"){
-  listOf("보유 이용권","내 크루","최근 활동","알림 기록","계정 관리").forEach{label->TextButton(onClick={when(label){"보유 이용권"->m.showBilling=true;"내 크루"->{m.selectTab(3);m.communityMode="crews"};"최근 활동","알림 기록"->m.showNotifications=true;else->m.showAccount=true}},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text(label,Modifier.weight(1f),fontSize=14.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp),tint=Muted)}}
+  listOf("보유 이용권","내 크루","최근 활동","알림 기록","설정","계정 관리").forEach{label->TextButton(onClick={when(label){"보유 이용권"->m.showBilling=true;"내 크루"->{m.selectTab(3);m.communityMode="crews"};"최근 활동","알림 기록"->m.showNotifications=true;"설정"->m.openAccountSettings();else->m.showAccount=true}},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp),colors=ButtonDefaults.textButtonColors(contentColor=SoftText)){Text(label,Modifier.weight(1f),fontSize=14.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(18.dp),tint=Muted)}}
  }
 }

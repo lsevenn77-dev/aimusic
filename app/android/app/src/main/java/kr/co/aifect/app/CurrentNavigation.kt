@@ -45,4 +45,8 @@ internal object CurrentNavigation {
  fun playLoaderVisible(loading:Boolean,shown:Int,offset:Int):Boolean=loading&&(shown==0||offset>0)
 }
 
-internal data class CurrentWorkspace(val route:String,val title:String){init{require(CurrentNavigation.workspaceRoute(route))}}
+internal class CurrentWorkspace private constructor(val route:String,val title:String,account:Boolean){
+ init{require(if(account)route=="account" else CurrentNavigation.workspaceRoute(route))}
+ constructor(route:String,title:String):this(route,title,false)
+ companion object{fun account()=CurrentWorkspace("account","내 계정",true)}
+}

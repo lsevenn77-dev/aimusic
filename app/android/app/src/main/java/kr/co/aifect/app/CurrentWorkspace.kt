@@ -29,7 +29,7 @@ import java.net.URI
 import org.json.JSONObject
 
 /** Authenticated gallery and crew pages; audio work uses the native performance activity. */
-@Composable internal fun CurrentWorkspacePage(m:MusicModel,destination:CurrentWorkspace){
+@Composable internal fun CurrentWorkspacePage(m:MusicModel,destination:CurrentWorkspace, closeAccount:(()->Unit)?=null, canPurchase:Boolean=false, accountRevision:Int=0, onAccountAction:(String)->Unit={}, openAccountLink:(String)->Unit={}){
  val context=LocalContext.current
  val owner=androidx.lifecycle.compose.LocalLifecycleOwner.current
  val account=m.user?.optString("id")
@@ -41,7 +41,10 @@ import org.json.JSONObject
  var currentRoute by remember{mutableStateOf(destination.route)}
  var fileReply by remember{mutableStateOf<ValueCallback<Array<Uri>>?>(null)}
  val picker=rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()){r->fileReply?.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(r.resultCode,r.data));fileReply=null}
- fun close(){m.api.invalidateReads();m.workspace=null;if(destination.route.startsWith("profile-gallery/"))m.refreshMyDashboard(fresh=true)}
+ val accountAction by rememberUpdatedState(onAccountAction)
+ val accountLink by rememberUpdatedState(openAccountLink)
+ val currentCanPurchase by rememberUpdatedState(canPurchase)
+ fun close(){if(closeAccount!=null){closeAccount();return};m.api.invalidateReads();m.workspace=null;if(destination.route.startsWith("profile-gallery/"))m.refreshMyDashboard(fresh=true)}
  fun requestClose(){close()}
  fun nativeDestination(raw:String):Boolean{
   val root=raw.substringBefore('?')
@@ -61,10 +64,10 @@ import org.json.JSONObject
   }
   close();return true
  }
- Dialog(onDismissRequest=::requestClose,properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)){
-  Surface(color=Ink,modifier=Modifier.fillMaxSize()){
-   Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().imePadding().testTag("current-workspace")){
-    TopAppBar(title={Text(destination.title,maxLines=1)},navigationIcon={IconButton(onClick={if(view?.canGoBack()==true&&!destination.route.startsWith("voice/"))view?.goBack()else requestClose()}){Icon(Icons.AutoMirrored.Rounded.ArrowBack,"이전 화면")}},actions={IconButton(onClick=::requestClose){Icon(Icons.Rounded.Close,"작업 화면 닫기")}},colors=TopAppBarDefaults.topAppBarColors(containerColor=Ink))
+ val pageContent:@Composable ()->Unit = {
+   val insets=if(closeAccount==null)Modifier.statusBarsPadding().navigationBarsPadding() else Modifier
+   Column(Modifier.fillMaxSize().then(insets).imePadding().testTag(if(closeAccount==null)"current-workspace" else "account-actions")){
+    if(closeAccount==null)TopAppBar(title={Text(destination.title,maxLines=1)},navigationIcon={IconButton(onClick={if(view?.canGoBack()==true&&!destination.route.startsWith("voice/"))view?.goBack()else requestClose()}){Icon(Icons.AutoMirrored.Rounded.ArrowBack,"이전 화면")}},actions={IconButton(onClick=::requestClose){Icon(Icons.Rounded.Close,"작업 화면 닫기")}},colors=TopAppBarDefaults.topAppBarColors(containerColor=Ink))
     if(progress in 0..99)LinearProgressIndicator(progress={progress/100f},modifier=Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)
     failure?.let{error->Column(Modifier.padding(20.dp)){Text(error,color=Muted);TextButton(onClick={failure=null;progress=0;if(rendererAlive)view?.reload() else rendererAlive=true}){Text("다시 연결")}}}
     if(rendererAlive)AndroidView(modifier=Modifier.fillMaxWidth().weight(1f),factory={ctx->WebView(ctx).apply{
@@ -79,6 +82,10 @@ import org.json.JSONObject
      settings.setSupportMultipleWindows(false)
      settings.userAgentString=settings.userAgentString+" AIFECT-Android/"+BuildConfig.VERSION_NAME
      CookieManager.getInstance().setAcceptThirdPartyCookies(this,false)
+     if(closeAccount!=null && !installAccountActions(account, m, {accountAction(it)}, {accountLink(it)})) {
+      failure="Android 시스템 WebView를 업데이트한 후 다시 열어 주세요."
+      return@apply
+     }
      webChromeClient=object:WebChromeClient(){
       override fun onProgressChanged(v:WebView?,value:Int){progress=value}
       override fun onPermissionRequest(request:PermissionRequest){request.deny()}
@@ -98,6 +105,7 @@ import org.json.JSONObject
       override fun shouldOverrideUrlLoading(v:WebView,r:WebResourceRequest):Boolean{
        if(!r.isForMainFrame)return false
        val url=r.url.toString()
+       if(closeAccount!=null && accountExternalUrl(url)){accountLink(url);return true}
        MobileExperienceRoute.fromUrl(url,Endpoint.origin)?.let{m.controller?.pause();openMobileExperience(context,it);return true}
        if(!CurrentNavigation.sameOrigin(url,Endpoint.origin)){failure="앱 작업 화면에서 외부 페이지를 열 수 없어요.";return true}
        return false
@@ -105,6 +113,7 @@ import org.json.JSONObject
       override fun onPageFinished(v:WebView,url:String){
        if(!CurrentNavigation.sameOrigin(url,Endpoint.origin))return
        v.evaluateJavascript(workspaceStyleScript(),null)
+       if(closeAccount!=null)v.updateAccountCapabilities(currentCanPurchase)
       }
       override fun doUpdateVisitedHistory(v:WebView,url:String,isReload:Boolean){
        if(!CurrentNavigation.sameOrigin(url,Endpoint.origin))return
@@ -119,16 +128,24 @@ import org.json.JSONObject
       override fun onRenderProcessGone(v:WebView,detail:RenderProcessGoneDetail):Boolean{failure="작업 화면이 종료됐어요. 저장된 작업은 다시 열 수 있어요.";if(view===v){view=null;rendererAlive=false;fileReply?.onReceiveValue(null);fileReply=null};return true}
      }
      // One origin, one account. Cookies are never printed or shared with external pages.
-     CookieManager.getInstance().removeAllCookies{
-      if(view!==this||account!=m.user?.optString("id"))return@removeAllCookies
+     fun loadWorkspace(){
+      if(view!==this||account!=m.user?.optString("id"))return
       val cookie=NativeSession.cookie(ctx)
       val url=Endpoint.origin+"/#"+currentRoute
-      if(cookie.isBlank())loadUrl(url)else CookieManager.getInstance().setCookie(Endpoint.origin,cookie+"; Path=/; HttpOnly; SameSite=Lax"+(if(Endpoint.origin.startsWith("https:"))"; Secure" else "")){if(view===this&&account==m.user?.optString("id"))loadUrl(url)}
+      if(cookie.isBlank()){
+       if(closeAccount==null)loadUrl(url) else failure="로그인이 필요합니다."
+      }else CookieManager.getInstance().setCookie(Endpoint.origin,cookie+"; Path=/; HttpOnly; SameSite=Lax"+(if(Endpoint.origin.startsWith("https:"))"; Secure" else "")){if(view===this&&account==m.user?.optString("id"))loadUrl(url)}
      }
+     if(closeAccount!=null)loadWorkspace() else CookieManager.getInstance().removeAllCookies{loadWorkspace()}
     }},onRelease={released->if(view===released)view=null;released.destroy()})
    }
-  }
  }
+ if(closeAccount!=null)AppPage(destination.title,closeAccount){pageContent()}
+ else Dialog(onDismissRequest=::requestClose,properties=DialogProperties(usePlatformDefaultWidth=false,decorFitsSystemWindows=false)){
+  Surface(color=Ink,modifier=Modifier.fillMaxSize()){pageContent()}
+ }
+ LaunchedEffect(view,canPurchase){ if(closeAccount!=null)view?.updateAccountCapabilities(canPurchase) }
+ LaunchedEffect(accountRevision){if(closeAccount!=null && accountRevision>0 && accountPage(view?.url))view?.evaluateJavascript("window.dispatchEvent(new Event(\u0027aifect-account-refresh\u0027))",null)}
  DisposableEffect(owner,account){
   val observer=LifecycleEventObserver{_,event->when(event){
    Lifecycle.Event.ON_STOP->view?.onPause()

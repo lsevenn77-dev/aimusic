@@ -104,14 +104,14 @@ import coil.compose.AsyncImage
    val heading:@Composable ()->Unit={
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(7.dp)){
      Text("가사",fontSize=17.sp,lineHeight=24.sp,fontWeight=FontWeight.Bold)
-     Text("PREMIUM",fontSize=8.sp,lineHeight=12.sp,fontWeight=FontWeight.SemiBold,color=Pink,modifier=Modifier.clip(RoundedCornerShape(4.dp)).background(Pink.copy(alpha=.13f)).padding(horizontal=5.dp,vertical=3.dp))
+
     }
    }
    val access:@Composable RowScope.()->Unit={
     OutlinedButton({frozen=index;follow=!follow},shape=RoundedCornerShape(10.dp),border=BorderStroke(.7.dp,SoftText.copy(alpha=.4f)),contentPadding=PaddingValues(horizontal=7.dp,vertical=0.dp),modifier=Modifier.heightIn(min=30.dp)){
      Icon(Icons.Rounded.GraphicEq,null,Modifier.size(12.dp),tint=if(follow)Aqua else Muted);Text("자동 따라가기",fontSize=9.sp,lineHeight=13.sp,color=if(follow)SoftText else Muted,modifier=Modifier.padding(start=3.dp))
     }
-    TextButton({if(!active){m.play(song)}else if(m.lyricsAccess=="full")full=true else m.showBilling=true},contentPadding=PaddingValues(start=9.dp,end=0.dp)){Text("전체 가사",fontSize=10.sp,lineHeight=14.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(14.dp))}
+    TextButton({full=true},contentPadding=PaddingValues(start=9.dp,end=0.dp)){Text("전체 가사",fontSize=10.sp,lineHeight=14.sp);Icon(Icons.Rounded.ChevronRight,null,Modifier.size(14.dp))}
    }
    if(stacked)Column{heading();Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End,verticalAlignment=Alignment.CenterVertically,content=access)}
    else Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Box(Modifier.weight(1f)){heading()};access()}
@@ -120,7 +120,25 @@ import coil.compose.AsyncImage
   else Text(if(active)m.lyric.ifBlank{"가사를 불러오고 있어요."}else "노래를 재생하면 현재 가사가 표시돼요.",fontSize=13.sp,lineHeight=20.sp,color=Muted,modifier=Modifier.padding(top=6.dp))
  }
  HorizontalDivider(color=Stroke)
- if(full&&active&&m.lyricsAccess=="full")AppPage("전체 가사",{full=false}){LazyColumn(contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){items(rows){Text(it.second,fontSize=17.sp,lineHeight=27.sp)}}}
+ if(full)AppPage("전체 가사",{full=false}){
+  var lines by remember(song.id){mutableStateOf<List<String>?>(null)}
+  var error by remember(song.id){mutableStateOf(false)}
+  var attempt by remember{mutableIntStateOf(0)}
+  LaunchedEffect(song.id,attempt){
+   error=false
+   try{
+    val source=m.api.call("/api/tracks/${song.id}/lyrics/text",fresh=true).getJSONArray("lines")
+    lines=List(source.length()){source.getString(it)}
+   }catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e;error=true}
+  }
+  LazyColumn(contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+   when{error->item{TextButton({attempt++}){Text("가사를 다시 불러오기")}}
+    lines==null->item{CircularProgressIndicator()}
+    lines!!.isEmpty()->item{Text("등록된 가사가 없습니다.")}
+    else->items(lines!!){Text(it,fontSize=17.sp,lineHeight=25.sp)}
+   }
+  }
+ }
 }
 
 @Composable internal fun ReferenceSupporters(m:MusicModel,song:Song){

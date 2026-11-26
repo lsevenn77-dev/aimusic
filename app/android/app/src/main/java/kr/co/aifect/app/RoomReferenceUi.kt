@@ -125,7 +125,7 @@ internal fun keepStickersWhole(old:androidx.compose.ui.text.input.TextFieldValue
   val avatar:@Composable ()->Unit={Box(Modifier.size(44.dp).clickable(role=Role.Button,onClickLabel=name+" 프로필",onClick=profile),contentAlignment=Alignment.Center){NativeMemberAvatar(author,28)}}
   if(!own)avatar()
   Column(Modifier.widthIn(max=256.dp).padding(vertical=2.dp),horizontalAlignment=if(own)Alignment.End else Alignment.Start){
-   Text(name,fontWeight=FontWeight.Bold,fontSize=13.sp,lineHeight=18.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
+   MemberName(author,name,fontWeight=FontWeight.Bold,fontSize=13.sp,lineHeight=18.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis)
    Box(Modifier.background(Color.Black.copy(alpha=.55f),RoundedCornerShape(13.dp)).padding(horizontal=9.dp,vertical=4.dp)){RoomMessageBody(body)}
   };if(own)avatar()
  }

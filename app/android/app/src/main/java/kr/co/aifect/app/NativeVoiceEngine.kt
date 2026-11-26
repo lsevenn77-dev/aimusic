@@ -146,7 +146,7 @@ internal class NativeVoiceEngine(private val context:Context,val roomId:String,p
   val previousMembers=state.value.optJSONArray("members").objects().associateBy{it.optString("id")}
   next.optJSONArray("members").objects().forEach{member->
    previousMembers[member.optString("id")]?.let{previous->
-    listOf("profile_frame","profile_frame_artwork","profile_frame_display","player_xp","player_level").forEach{key->if(!member.has(key)&&previous.has(key))member.put(key,previous.opt(key))}
+    listOf("profile_frame","profile_frame_artwork","profile_frame_display","premium_style_until","premium_default_frame","player_xp","player_level").forEach{key->if(!member.has(key)&&previous.has(key))member.put(key,previous.opt(key))}
    }
   }
   state.value=next

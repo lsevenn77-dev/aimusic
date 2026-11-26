@@ -159,8 +159,8 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   if(m.rankOpen&&m.detail==null&&m.profile==null&&!m.fullPlayer&&!m.showLogin&&m.collection==null)CoverRankingSheet(m)
   m.collection?.let { CollectionSheet(m,it,sing) }
   if(m.showLogin)LoginSheet(m,browser,social)
-  if(m.showAccount)AccountSheet(m,browser,adPrivacy)
-  if(m.showAccountSettings)AccountSettingsSheet(m)
+  if(m.showAccount)key(m.user?.optString("id")){ AccountSheet(m,browser) }
+  if(m.showAccountSettings)AccountSettingsSheet(m,adPrivacy=adPrivacy,browser=browser)
   if(m.showShop)ItemShopPage(m)
   if(m.showBilling)PlayBillingSheet(m)
   if(m.showDiamonds)DiamondSheet(m)
@@ -420,50 +420,55 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
   }
  }
 }
-@Composable private fun AccountSheet(m:MusicModel,browser:(String)->Unit,adPrivacy:()->Unit){
- var safety by remember{mutableStateOf(false)}
- var information by remember{mutableStateOf(false)}
- fun open(path:String){m.showAccount=false;browser(Endpoint.url(path))}
- AppPage(title="계정",onDismissRequest={m.showAccount=false},containerColor=Panel){
-  Column(Modifier.fillMaxWidth().heightIn(max=600.dp).verticalScroll(rememberScrollState()).padding(horizontal=22.dp).padding(bottom=24.dp).testTag("account-actions")){
-   Row(Modifier.padding(bottom=20.dp),verticalAlignment=Alignment.CenterVertically){
-    Avatar(m.user?.optString("name")?:"",m.ownProfile.optJSONObject("profile"),52)
-    Column(Modifier.weight(1f).padding(start=14.dp)){
-     Text(m.user?.optString("display_name",m.user?.optString("name")?:"")?:"내 계정",fontSize=22.sp,fontWeight=FontWeight.Bold)
-     val premium=m.membership.optLong("premium_until")>System.currentTimeMillis()/1000
-     Text(if(premium)"Premium 회원" else "무료 회원",fontSize=13.sp,color=if(premium)Pink else Muted,modifier=Modifier.padding(top=4.dp))
-    }
-   }
-   AccountMenuRow("계정 설정",Icons.Rounded.ManageAccounts){m.openAccountSettings()}
-   AccountMenuRow("로그아웃",Icons.AutoMirrored.Rounded.Logout,tint=Color(0xFFFFB4A5),enabled=!m.busy){m.logout()}
-   AccountMenuRow("Premium · 골드 구매",Icons.Rounded.ShoppingBag){m.showBilling=true}
-   AccountMenuRow("DM 보기",Icons.AutoMirrored.Rounded.Chat){m.showAccount=false;m.openMessages()}
-   AccountMenuRow("알림 기록",Icons.Rounded.NotificationsNone){m.showNotifications=true}
-   AccountMenuRow("다이아 · 내 정산",Icons.Rounded.AccountBalanceWallet){m.showDiamonds=true}
-   AccountMenuRow("오늘의 실버",Icons.Rounded.Star){m.showRewards=true}
-   AccountMenuRow("스튜디오",Icons.Rounded.Tune){m.openStudio()}
-   AccountMenuRow("선물함",Icons.Rounded.CardGiftcard,tint=Pink){m.openGifts()}
-   HorizontalDivider(Modifier.padding(vertical=12.dp),color=Stroke)
-   AccountMenuRow("차단 관리 · 계정 삭제",Icons.Rounded.ManageAccounts){safety=true}
-   TextButton(onClick={information=!information},modifier=Modifier.fillMaxWidth()){
-    Text("이용 안내",color=Muted);Spacer(Modifier.weight(1f));Icon(if(information)Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,null,tint=Muted)
-   }
-   if(information){
-    Text("제작곡은 무료 월 3곡 · Premium 월 10곡, 커버곡은 업로드 제한이 없어요. 무료회원은 제작곡 업로드 중 또는 커버 업로드 완료 후 화면 광고가 한 번 표시될 수 있어요. 감상 중 음성광고는 준비 중이며, Premium은 광고가 없어요.",fontSize=13.sp,color=Muted)
-    listOf("이용약관" to "/terms","개인정보처리방침" to "/privacy","고객센터" to "/contact","계정 삭제 안내" to "/account/delete").forEach{(label,path)->TextButton(onClick={open(path)}){Text(label)}}
-    TextButton(onClick={m.showAccount=false;adPrivacy()}){Text("광고 개인정보 설정")}
-   }
-   Text("AIFECT ${BuildConfig.VERSION_NAME}",color=Muted,fontSize=12.sp,modifier=Modifier.padding(top=12.dp))
-  }
+@Composable private fun AccountSheet(m:MusicModel,browser:(String)->Unit){
+ val owner = m.user?.optString("id")
+ if(owner.isNullOrBlank()){
+  LaunchedEffect(Unit){ m.showAccount=false; m.showLogin=true }
+  return
  }
- if(safety) SafetySettings(m,{safety=false},{browser(Endpoint.url(it))})
+ var confirmLogout by remember { mutableStateOf(false) }
+ var password by remember { mutableStateOf(false) }
+ var showDelete by remember { mutableStateOf(false) }
+ var restoring by remember { mutableStateOf(false) }
+ var restoreResult by remember { mutableStateOf<String?>(null) }
+ var revision by remember { mutableIntStateOf(0) }
+ val billing = m.playBilling
+ LaunchedEffect(owner){ billing?.load() }
+ val canPurchase = billing?.canSubscribe(owner) == true
+ CurrentWorkspacePage(m, CurrentWorkspace.account(),
+  closeAccount = { m.showAccount=false }, canPurchase = canPurchase, accountRevision = revision,
+  onAccountAction = { action ->
+   if(m.user?.optString("id")==owner) when(action){
+    "purchase" -> if(canPurchase){ m.billingInitialTab="premium"; m.showBilling=true }
+    "restore" -> if(!restoring){
+     restoring=true
+     if(billing==null){restoreResult="Google Play 결제 서비스를 연결하지 못했습니다.";restoring=false}
+     else billing.restoreAccount { result ->
+      if(m.user?.optString("id")==owner){restoreResult=result;restoring=false;revision++}
+     }
+    }
+    "password" -> if(m.user?.optString("provider")=="email") { m.accountError=null; password=true }
+    "logout" -> confirmLogout=true
+    "delete" -> showDelete=true
+    "studio" -> { m.showAccount=false; m.openStudio() }
+   }
+  }, openAccountLink=browser)
+ if(password)AccountSettingsSheet(m,passwordOnly=true,close={password=false})
+ if(showDelete)SafetySettings(m,{showDelete=false},{browser(Endpoint.url(it))},deleteOnly=true)
+ if(confirmLogout)AlertDialog(onDismissRequest={confirmLogout=false},title={Text("이 기기에서 로그아웃할까요?")},confirmButton={TextButton({confirmLogout=false;m.logout()}){Text("로그아웃")}},dismissButton={TextButton({confirmLogout=false}){Text("취소")}})
+ if(restoring || restoreResult!=null)AlertDialog(onDismissRequest={restoreResult=null},title={Text("구매 복원")},text={if(restoring)LinearProgressIndicator() else Text(restoreResult.orEmpty())},confirmButton={TextButton({restoreResult=null},enabled=!restoring){Text("확인")}})
 }
 
-@Composable private fun AccountSettingsSheet(m:MusicModel){
+@Composable private fun AccountSettingsSheet(m:MusicModel,passwordOnly:Boolean=false,close:()->Unit={m.showAccountSettings=false},adPrivacy:(()->Unit)?=null,browser:((String)->Unit)?=null){
+ var safety by remember { mutableStateOf(false) }
+ if(safety && browser!=null)SafetySettings(m,{safety=false},{browser(Endpoint.url(it))})
  var name by rememberSaveable{mutableStateOf(m.user?.optString("name")?:"")}
- var current by remember{mutableStateOf("")};var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var passwordOpen by rememberSaveable{mutableStateOf(false)}
- AppPage(title="설정",onDismissRequest={m.showAccountSettings=false},containerColor=Panel){
+ var current by remember{mutableStateOf("")};var next by remember{mutableStateOf("")};var confirm by remember{mutableStateOf("")};var passwordOpen by rememberSaveable{mutableStateOf(passwordOnly)}
+ AppPage(title=if(passwordOnly)"비밀번호 변경" else "설정",onDismissRequest=close,containerColor=Panel){
   Column(Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(22.dp).testTag("account-settings")){
+   if(!passwordOnly){
+   if(adPrivacy!=null)TextButton(adPrivacy){Text("광고 개인정보 설정")}
+   if(browser!=null)TextButton({safety=true}){Text("차단 관리")}
    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
     Text("계정 설정",Modifier.weight(1f),fontSize=22.sp,fontWeight=FontWeight.Bold)
     TextButton(onClick={m.logout()},enabled=!m.busy,modifier=Modifier.testTag("settings-logout")){Text("로그아웃",color=Color(0xFFFFB4A5))}
@@ -485,14 +490,15 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
    }
    m.nicknameCheck?.let{Text(it,fontSize=13.sp,color=Pink,modifier=Modifier.padding(top=8.dp))}
    HorizontalDivider(Modifier.padding(vertical=22.dp),color=Stroke)
+   }
    if(m.user?.optString("provider")=="email"){
-    TextButton(onClick={passwordOpen=!passwordOpen}){Text("비밀번호 변경");Icon(if(passwordOpen)Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,null)}
+    if(!passwordOnly)TextButton(onClick={passwordOpen=!passwordOpen}){Text("비밀번호 변경");Icon(if(passwordOpen)Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,null)}
     if(passwordOpen){
      listOf(Triple("현재 비밀번호",current,0),Triple("새 비밀번호 · 12자 이상",next,1),Triple("새 비밀번호 확인",confirm,2)).forEach{(label,value,index)->
       OutlinedTextField(value,{when(index){0->current=it;1->next=it;else->confirm=it};m.accountError=null},label={Text(label)},modifier=Modifier.fillMaxWidth().padding(top=12.dp),singleLine=true,visualTransformation=PasswordVisualTransformation(),keyboardOptions=androidx.compose.foundation.text.KeyboardOptions(keyboardType=KeyboardType.Password))
      }
      Text("변경하면 다른 기기의 로그인은 해제돼요.",fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=12.dp))
-     BrandButton(onClick={if(next!=confirm)m.accountError="새 비밀번호 확인이 일치하지 않습니다." else m.changePassword(current,next){current="";next="";confirm="";passwordOpen=false}},enabled=!m.busy&&current.isNotBlank()&&next.length in 12..128&&confirm.isNotBlank(),modifier=Modifier.fillMaxWidth().padding(top=14.dp)){Text("비밀번호 저장")}
+     BrandButton(onClick={if(next!=confirm)m.accountError="새 비밀번호 확인이 일치하지 않습니다." else m.changePassword(current,next){current="";next="";confirm="";passwordOpen=false;if(passwordOnly)close()}},enabled=!m.busy&&current.isNotBlank()&&next.length in 12..128&&confirm.isNotBlank(),modifier=Modifier.fillMaxWidth().padding(top=14.dp)){Text("비밀번호 저장")}
     }
    }else Text("소셜 로그인 계정의 비밀번호는 Google·카카오·Apple에서 변경해주세요.",fontSize=14.sp,color=Muted)
    m.accountError?.let{Text(it,color=Color(0xFFFFB4A5),modifier=Modifier.padding(top=12.dp))}
@@ -551,7 +557,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
     Row(Modifier.fillMaxWidth().padding(start=if(!c.isNull("parent_id"))24.dp else 0.dp).padding(vertical=12.dp),verticalAlignment=Alignment.Top){
      Avatar(c.optString("name"),JSONObject().put("id",c.optString("profile_id")).put("image_version",c.optString("image_version")),size=30)
      Column(Modifier.weight(1f).padding(start=11.dp)){
-      Text(c.optString("name")+if(c.optInt("creator")==1)" · 업로더" else "",fontSize=13.sp,fontWeight=FontWeight.Bold)
+      MemberName(c,c.optString("name")+if(c.optInt("creator")==1)" · 업로더" else "",fontSize=13.sp,fontWeight=FontWeight.Bold)
       if(!c.isNull("parent_id"))Text("└ 답글",fontSize=11.sp,color=Violet,modifier=Modifier.padding(top=4.dp))
       Text(c.optString("body"),fontSize=14.sp,color=if(c.optLong("deleted_at")>0)Muted else MaterialTheme.colorScheme.onSurface,modifier=Modifier.padding(top=7.dp))
       if(c.optLong("deleted_at")==0L)Row(verticalAlignment=Alignment.CenterVertically){
@@ -632,7 +638,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  AppPage(title="프로필",onDismissRequest=m::dismissProfile,containerColor=Ink){
   LazyColumn(Modifier.fillMaxWidth().testTag("profile-scroll"),contentPadding=PaddingValues(16.dp,0.dp,16.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    if(m.profileLoading||m.profileError!=null)item{
-    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text(p.optString("name").ifBlank{"프로필"},Modifier.weight(1f),fontSize=22.sp);IconButton(onClick=m::dismissProfile,modifier=Modifier.testTag("profile-close")){Icon(Icons.Rounded.Close,"프로필 닫기")}}
+    Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){MemberName(p,p.optString("name").ifBlank{"프로필"},Modifier.weight(1f),fontSize=22.sp);IconButton(onClick=m::dismissProfile,modifier=Modifier.testTag("profile-close")){Icon(Icons.Rounded.Close,"프로필 닫기")}}
     if(m.profileLoading){LinearProgressIndicator(Modifier.fillMaxWidth().testTag("profile-loading"));Text("프로필을 불러오는 중이에요",color=Muted,modifier=Modifier.padding(vertical=18.dp))}
     m.profileError?.let{Text(it,color=Pink);TextButton(onClick=m::retryProfile){Text("다시 불러오기")}}
    }

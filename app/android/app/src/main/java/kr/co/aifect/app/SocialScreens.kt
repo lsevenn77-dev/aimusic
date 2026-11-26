@@ -283,7 +283,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
     item{Section("크루 멤버","함께 듣고 부르는 사람들과 교류해요.")}
     items(d.optJSONArray("members").objects(),key={"member-"+it.optString("id")}){p->
      Surface(onClick={if(membership?.optString("role")=="owner"&&p.optString("role")!="owner")managing=p else m.openProfile(p.getString("id"))},color=Panel,shape=MaterialTheme.shapes.large,modifier=Modifier.testTag("crew-member-"+p.optString("id"))){
-      Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically){Avatar(p.optString("name"),p);Column(Modifier.weight(1f).padding(horizontal=12.dp)){Text(p.optString("name"));Text(CrewRoles[p.optString("role")]?:"크루원",fontSize=12.sp,color=Aqua)}
+      Row(Modifier.fillMaxWidth().padding(12.dp),verticalAlignment=Alignment.CenterVertically){Avatar(p.optString("name"),p);Column(Modifier.weight(1f).padding(horizontal=12.dp)){MemberName(p,p.optString("name"));Text(CrewRoles[p.optString("role")]?:"크루원",fontSize=12.sp,color=Aqua)}
        if(joined&&p.optString("user_id")!=m.user?.optString("id"))TextButton(onClick={m.openMessages(p.getString("id"))},modifier=Modifier.testTag("crew-member-message-"+p.optString("id"))){Text("메시지",fontSize=12.sp)}
       }
      }
@@ -445,7 +445,7 @@ private fun chatCursor(messages:List<JSONObject>,older:Boolean):String {
    if(peerId!=null)Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
     if(m.messagePeer!=null)IconButton(onClick={if(!embedded&&m.messagesReturnToProfile)m.dismissMessages() else m.messagePeer=null},modifier=Modifier.testTag("dm-back")){Icon(Icons.AutoMirrored.Rounded.ArrowBack,if(!embedded&&m.messagesReturnToProfile)"이전 페이지로" else "대화 목록으로")}
     if(m.messagePeer!=null&&peer!=null)MessageProfileAvatar(peer,"dm-peer-profile-"+peer.optString("id"),44){openMessageProfile(peer)}
-    if(!embedded||peerId!=null)Text(peer?.optString("name")?:"대화",fontSize=21.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2,overflow=TextOverflow.Ellipsis)
+    if(!embedded||peerId!=null)MemberName(peer,peer?.optString("name")?:"대화",fontSize=21.sp,fontWeight=FontWeight.SemiBold,modifier=Modifier.weight(1f),maxLines=2,overflow=TextOverflow.Ellipsis)
     if(peer!=null)UserSafety(m,peer.optString("user_id"),peer.optString("id"),peer.optString("name"),compact=true)
     DmActions(m,peerId,peer?.optString("name").orEmpty(),data?.optJSONObject("settings")?.optInt("muted")==1,{value->data=JSONObject((data?:JSONObject()).toString()).put("settings",payload("muted" to if(value)1 else 0))},{body="";messages=emptyList();conversations=conversations.filterNot{it.optString("id")==peerId};m.messagePeer=null})
     if(m.messagePeer!=null&&peer!=null){
@@ -540,11 +540,11 @@ internal fun chatJumpsToLatest(initialized:Boolean,newerLatest:Boolean,composing
     else{
      Row(Modifier.fillMaxWidth().testTag("dm-message-"+msg.optString("id")),horizontalArrangement=if(mine)Arrangement.End else Arrangement.Start,verticalAlignment=Alignment.Top){
       if(!mine){
-       val person=if(crew)payload("id" to msg.optString("profile_id"),"name" to msg.optString("name","크루원"),"image_version" to msg.optInt("image_version"),"player_xp" to msg.optInt("player_xp"),"profile_frame" to msg.optString("profile_frame"),"profile_frame_artwork" to msg.optString("profile_frame_artwork"),"profile_frame_display" to msg.opt("profile_frame_display"))else peerPerson
+       val person=if(crew)payload("id" to msg.optString("profile_id"),"name" to msg.optString("name","크루원"),"image_version" to msg.optInt("image_version"),"player_xp" to msg.optInt("player_xp"),"premium_style_until" to msg.opt("premium_style_until"),"premium_default_frame" to msg.opt("premium_default_frame"),"profile_frame" to msg.optString("profile_frame"),"profile_frame_artwork" to msg.optString("profile_frame_artwork"),"profile_frame_display" to msg.opt("profile_frame_display"))else peerPerson
        if(person!=null){MessageProfileAvatar(person,"dm-message-profile-"+msg.optString("id"),36){if(crew&&person.optString("id").isNotBlank())m.openProfile(person.optString("id"))else openPeer?.invoke()};Spacer(Modifier.width(8.dp))}
       }
       Column(Modifier.widthIn(max=260.dp),horizontalAlignment=if(mine)Alignment.End else Alignment.Start){
-       if(crew&&!mine)Text(crewName(msg),color=Muted,fontSize=12.sp,modifier=Modifier.padding(bottom=4.dp).then(if(author!=null)Modifier.clickable{author(msg)}else Modifier))
+       if(crew&&!mine)MemberName(msg,crewName(msg),color=Muted,fontSize=12.sp,modifier=Modifier.padding(bottom=4.dp).then(if(author!=null)Modifier.clickable{author(msg)}else Modifier))
        Surface(color=if(mine)Raised else Panel,shape=RoundedCornerShape(topStart=18.dp,topEnd=18.dp,bottomEnd=if(mine)4.dp else 18.dp,bottomStart=if(mine)18.dp else 4.dp)){
         if(msg.optString("image_id").isNotBlank()&&msg.optString("image_id")!="null")ChatImage(m,msg,crew=crew) else StickerText(msg.optString("body"),fontSize=15.sp,lineHeight=23.sp,stickerSize=30.sp,modifier=Modifier.padding(horizontal=13.dp,vertical=11.dp))
        }
@@ -573,7 +573,7 @@ internal fun chatJumpsToLatest(initialized:Boolean,newerLatest:Boolean,composing
 @Composable private fun CrewMemberDialog(person:JSONObject,busy:Boolean,dismiss:()->Unit,profile:()->Unit,save:(String?)->Unit){
  var role by remember(person.optString("id")){mutableStateOf(person.optString("role","member"))}
  var kick by remember{mutableStateOf(false)}
- AppFormPage(onDismissRequest=dismiss,title={Text(person.optString("name"))},text={Column(Modifier){
+ AppFormPage(onDismissRequest=dismiss,title={MemberName(person,person.optString("name"))},text={Column(Modifier){
   TextButton(onClick=profile){Text("프로필 보기")}
   if(kick)Text("이 멤버를 강퇴하면 이 크루에 다시 가입할 수 없어요.")else{
    Text("크루 직책",fontSize=18.sp)

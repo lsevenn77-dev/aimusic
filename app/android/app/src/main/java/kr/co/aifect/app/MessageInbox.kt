@@ -116,7 +116,7 @@ import java.net.URLEncoder
     else Box(Modifier.size(48.dp).testTag("dm-list-profile-"+id).combinedClickable(onClickLabel="상대 페이지 보기",onLongClickLabel="대화 기록 삭제",onLongClick=onLongClick,onClick={openProfile(p)})){Avatar(name,p,48)}
     Column(Modifier.weight(1f).padding(horizontal=12.dp)){
      Row(verticalAlignment=Alignment.CenterVertically){
-      Text(name,fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false))
+      MemberName(if(crew)null else p,name,fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false))
       if(p.optInt("muted")==1)Icon(Icons.Rounded.NotificationsOff,"알림 꺼짐",Modifier.size(13.dp),tint=Muted)
      }
      Text(stickerPreview(p.optString("last_message")).ifBlank{if(crew)"크루와 함께하는 대화" else ""},fontSize=13.sp,lineHeight=18.sp,color=SoftText,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
