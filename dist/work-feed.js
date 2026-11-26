@@ -105,6 +105,7 @@ function mountWorkFeed(root,{state,loadPage,emptyText,metadata,actions,onAction,
  const status=root.querySelector('[data-feed-status]'),order=root.querySelector('[data-feed-order]');
  const filters=[...root.querySelectorAll('[data-feed-filter]')],controller=new AbortController();
  const signal=controller.signal,account=me?.id||'guest';
+ const view=root.closest('#main');
  const isMounted=()=>root.isConnected&&!signal.aborted&&account===(me?.id||'guest');
  const rowsOptions={metadata,actions,metrics};
  let page,restore=restoreScroll&&state.scroll;
@@ -212,16 +213,21 @@ function mountWorkFeed(root,{state,loadPage,emptyText,metadata,actions,onAction,
   window.AifectDropdown?.mount(order);
   order.onchange=()=>{state.order=order.value;restore=0;select();};
  }
+ function rememberPosition(){
+  if(isMounted()&&view?.dataset.route===location.hash.slice(1)&&!root.closest('[hidden]'))state.scroll=window.scrollY||0;
+ }
  root.onclick=event=>{
+  // The browser can reset the viewport for the destination hash before route cleanup.
+  if(event.target.closest('a[href^="#"]'))rememberPosition();
   const button=event.target.closest('[data-work-feed-action]');if(!button||button.disabled)return;
   const item=page.items.get(button.closest('[data-feed-key]')?.dataset.feedKey);
   if(item)onAction?.(button,item);
  };
  next.onclick=()=>void more();
+ window.addEventListener('scroll',rememberPosition,{passive:true,signal});
  for(const event of ['play','pause','ended','emptied','loadedmetadata'])audio.addEventListener(event,syncPlay,{signal});
  select();
  const dispose=registerRouteCleanup(()=>{
-  if(root.getClientRects().length)state.scroll=window.scrollY||0;
   controller.abort();observer?.disconnect();
   for(const entry of state.pages.values())entry.pending=false;
  });
