@@ -93,7 +93,7 @@ function songDetailMetricsHTML(t,commentCount=t.comments||0){
  const metrics='<span class="metric-inline song-duration" aria-label="곡 길이 '+duration+'">'+(songDetailIsWeb?icon('clock'):'')+duration+'</span>'+
   '<span class="metric-inline" aria-label="재생 '+plays+'회">'+icon('ui-plays')+plays+'</span>'+
   '<span class="metric-inline" data-song-comment-count aria-label="'+commentLabel+'">'+icon('ui-comment')+(songDetailIsWeb?'<span data-song-comment-value>'+comments+'</span>':comments)+'</span>';
- return songDetailIsWeb?'<div class="song-metrics">'+songReleaseDateHTML(t)+metrics+'</div>':'<p class="song-metrics">'+metrics+'</p>';
+ return songDetailIsWeb?'<div class="song-metrics">'+songReleaseDateHTML(t,t.kind!=='cover')+metrics+'</div>':'<p class="song-metrics">'+metrics+'</p>';
 }
 function songActionIcon(name){
  // Header actions share one button surface. Reuse the shared glyphs without
@@ -106,8 +106,10 @@ function songDetailCreditsHTML(t){
  if(t.kind==='cover')return songCredits(t);
  const producer=trackNickname(t,'producer')||'창작자',href=t.producer_id?'#producer/'+esc(t.producer_id):'';
  const artistLabel=songDetailIsWeb?'AI 아티스트':'AI ARTIST',producerLabel=songDetailIsWeb?'제작자':'PRODUCER';
- return '<div class="song-credits">'+(hasArtist(t)?'<div><span class="song-artist-label">'+artistLabel+'</span>'+credits(t)+'</div>':'')+
- '<div><span class="song-producer-label">'+producerLabel+'</span>'+(href?'<a href="'+href+'">'+producer+'</a>':'<span class="song-producer-name">'+producer+'</span>')+'</div></div>';
+ const artistTitle=songDetailIsWeb?' title="'+esc(t.artist)+'"':'';
+ const producerTitle=songDetailIsWeb?' title="'+esc(t.producer||t.artist||'창작자')+'"':'';
+ return '<div class="song-credits">'+(hasArtist(t)?'<div'+artistTitle+'><span class="song-artist-label">'+artistLabel+'</span>'+credits(t)+'</div>':'')+
+ '<div'+producerTitle+'><span class="song-producer-label">'+producerLabel+'</span>'+(href?'<a href="'+href+'">'+producer+'</a>':'<span class="song-producer-name">'+producer+'</span>')+'</div></div>';
 }
 function songLyricsButtonHTML(t){
  return '<button type="button" class="small-button song-action-lyrics" id="lyrics-expand" data-track="'+esc(t.id)+'" aria-controls="expanded-song-lyrics" aria-expanded="false"'+(t.lyrics_mode==='synced'||t.has_lyrics_text?'':' disabled title="아직 등록된 가사가 없습니다."')+'>'+songActionIcon('lyrics')+'<span>가사</span></button>';
@@ -140,12 +142,13 @@ function songDetailHeaderHTML(t,commentCount){
  }
  const genre=genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'';
  const options=!songDetailIsWeb&&!isCover&&!songDetailIsNative?'<button type="button" class="text-link song-track-options" data-track-menu="'+esc(t.id)+'" aria-haspopup="dialog">곡 옵션</button>':'';
- const info='<h1 class="song-title">'+esc(t.title)+'</h1>'+songDetailCreditsHTML(t)+
+ const webSong=songDetailIsWeb&&!isCover,title=esc(t.title),introduction=songDescriptionHTML(t);
+ const info='<h1 class="song-title"'+(webSong?' title="'+title+'"':'')+'>'+title+'</h1>'+songDetailCreditsHTML(t)+
   (songDetailIsWeb?'':songReleaseDateHTML(t))+'<div class="song-meta-row">'+songDetailMetricsHTML(t,commentCount)+
   (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+options+'</div>';
  const divider=!songDetailIsWeb&&!isCover?'<div class="song-header-divider" aria-hidden="true"></div>':'';
  return '<section class="song-detail song-detail-refined'+(songDetailIsWeb?' song-detail-web':'')+(isCover?' cover-detail':'')+(genres?'':' song-detail-no-meta')+'">'+
   (songDetailIsWeb?'':genre)+art+'<div class="song-detail-copy">'+
   (songDetailIsWeb?'<div class="song-header-info">'+genre+info+'</div>':info+divider)+
-  songDescriptionHTML(t)+songDetailActionsHTML(t)+'</div></section>';
+  (webSong?'':introduction)+songDetailActionsHTML(t)+'</div>'+(webSong?introduction:'')+'</section>';
 }

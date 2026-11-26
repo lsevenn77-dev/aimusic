@@ -49,13 +49,13 @@ test('empty introductions do not reserve a card and saved text stays intact',()=
  assert.doesNotMatch(c.songDetailHeaderHTML(track),/song-description|음악을 듣고 감상을/);
 });
 
-test('the song title heads the page and metrics follow the date before introduction and actions',()=>{
+test('the web song title heads the page and metrics lead to the actions before the introduction',()=>{
  const c=header(),html=c.songDetailHeaderHTML({...track,creator_description:'제작자 소개'});
- const order=['song-track-meta','song-title','song-credits','song-meta-row','song-metrics','song-release-date','song-duration','song-engagement','data-report-track','song-introduction','song-actions'];
+ const order=['song-track-meta','song-title','song-credits','song-meta-row','song-metrics','song-release-date','song-duration','song-engagement','data-report-track','song-actions','song-introduction'];
  let previous=-1;for(const key of order){const at=html.indexOf(key);assert.ok(at>previous,key);previous=at;}
  assert.equal(html.match(/class="song-introduction"/g).length,1);
  assert.match(html,/<h1\b[^>]*class="song-title"[^>]*>곡 제목<\/h1>/);assert.equal((html.match(/<h1\b/g)||[]).length,1);
- assert.match(c.songDetailHeaderHTML({...track,title:'곡 <제목> "1"'}),/<h1\b[^>]*class="song-title"[^>]*>곡 &lt;제목&gt; &quot;1&quot;<\/h1>/);
+ assert.match(c.songDetailHeaderHTML({...track,title:'곡 <제목> "1"'}),/<h1\b[^>]*class="song-title" title="곡 &lt;제목&gt; &quot;1&quot;">곡 &lt;제목&gt; &quot;1&quot;<\/h1>/);
  assert.match(html,/<h3>곡 소개<\/h3>/);assert.match(html,/aria-label="재생 20회"/);assert.match(html,/aria-label="댓글 2개"/);assert.match(html,/aifect-icon-plays/);assert.match(html,/aifect-icon-comment/);
  const meta=html.match(/<span\b[^>]*class="eyebrow song-track-meta"[^>]*>([\s\S]*?)<\/span>/)?.[1];assert.equal(meta,'Pop');
  const metrics=html.match(/<div\b[^>]*class="song-metrics"[^>]*>([\s\S]*?)<\/div>/)?.[1];assert.ok(metrics);

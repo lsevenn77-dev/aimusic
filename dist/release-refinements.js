@@ -1,10 +1,11 @@
-function songReleaseDateHTML(t){
+function songReleaseDateHTML(t,wrapLabel=false){
  const stamp=Number(t.created);if(!Number.isFinite(stamp)||stamp<=0)return '';
  const date=new Date(stamp*1000);if(Number.isNaN(date.getTime()))return '';
  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(date);
  const part=name=>parts.find(p=>p.type===name).value,registered=part('year')+'-'+part('month')+'-'+part('day');
  const cover=t.kind==='cover',iso=cover?registered:(t.release_date||registered);
- return '<p class="song-release-date">'+(cover?'등록일':'발매일')+' <time datetime="'+iso+'">'+iso.replaceAll('-','.')+'</time></p>';
+ const label=cover?'등록일':'발매일';
+ return '<p class="song-release-date">'+(wrapLabel?'<span class="song-release-date-label">'+label+'</span>':label)+' <time datetime="'+iso+'">'+iso.replaceAll('-','.')+'</time></p>';
 }
 function karaokeParticipationHTML(t){
  const people=[...new Map((t.cover_participants||[]).map(p=>[p.producer_id,p])).values()];
