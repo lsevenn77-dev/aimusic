@@ -18,7 +18,7 @@ struct CreatorEarningsView: View {
                         Text(won(breakdown, "estimated_earnings_krw")).font(.largeTitle.bold()).foregroundStyle(Brand.aqua)
                         Text("누적 예상 선물 수익").font(.caption).foregroundStyle(.secondary)
                     }.padding(.vertical, 12)
-                    LabeledContent("받은 골드", value: "\(activity.int("received_gold").formatted()) G")
+                    LabeledContent("받은 골드", value: "\(activity.int("received_gold").formatted()) g")
                     LabeledContent("유효 감상", value: "\(activity.int("total_streams").formatted())회")
                 }
                 Section("수익 계산") {

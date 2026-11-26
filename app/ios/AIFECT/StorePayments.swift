@@ -121,7 +121,7 @@ struct PaymentStoreView: View {
         List {
             Section("내 계정") {
                 Text(model.user?.string("name") ?? "로그인이 필요합니다")
-                LabeledContent("보유 골드", value: "\(store.balance)개")
+                LabeledContent("보유 골드") { CurrencyAmount(value: store.balance, code: "G", size: 20) }
             }
             Section("AIFECT Premium") {
 
@@ -167,7 +167,13 @@ struct PaymentStoreView: View {
                 await store.purchase(product); model.walletRevision += 1; try? await model.loadMe(); await loadSubscription()
             }
         } label: {
-            HStack { Text(title); Spacer(); Text(product.displayPrice + suffix).bold() }
+            HStack {
+                if StorePayments.goldIDs.contains(product.id), let amount = Int(product.id.split(separator: ".").last.map(String.init) ?? "") {
+                    CurrencyAmount(value: amount, code: "G", size: 24)
+                } else { Text(title) }
+                Spacer()
+                Text(product.displayPrice + suffix).bold()
+            }
         }.disabled(store.busy || !AppStore.canMakePayments)
     }
 }

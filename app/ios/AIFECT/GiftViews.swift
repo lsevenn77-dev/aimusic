@@ -1,4 +1,23 @@
 import SwiftUI
+
+struct CurrencyAmount: View {
+    let value: Int?
+    let code: String
+    var size: CGFloat = 17
+
+    var body: some View {
+        let name = code == "S" ? "실버" : "골드"
+        let amount = value.map { $0.formatted(.number.locale(Locale(identifier: "ko_KR"))) } ?? "—"
+        HStack(spacing: 5) {
+            Image(code == "S" ? "silver-coin" : "gold-coin")
+                .renderingMode(.original).resizable().scaledToFit().frame(width: size, height: size)
+            Text(verbatim: amount).monospacedDigit()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: name + " " + amount))
+    }
+}
+
 import CryptoKit
 
 extension Dictionary where Key == String, Value == Any {
@@ -110,10 +129,10 @@ struct MyWalletSummary: View {
             let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
             layout {
                 NavigationLink { PaymentStoreView() } label: {
-                    balance("골드", value: amount(wallet.data, unit: "G"), icon: "g.circle.fill", color: Brand.pink, id: "my-gold-balance")
+                    walletBalance("골드", code: "G", value: wallet.data["balance"], id: "my-gold-balance")
                 }
                 NavigationLink { RewardsView() } label: {
-                    balance("실버", value: amount(wallet.data.object("free"), unit: "S"), icon: "star.fill", color: AifectDesign.violet, id: "my-star-balance")
+                    walletBalance("실버", code: "S", value: wallet.data.object("free")["balance"], id: "my-star-balance")
                 }
                 NavigationLink { DiamondWalletView().streamingPage() } label: {
                     balance("다이아", value: amount(wallet.data.object("diamonds"), unit: "◇"), icon: "diamond", color: Brand.aqua, id: "my-diamond-balance")
@@ -124,6 +143,17 @@ struct MyWalletSummary: View {
             }
         }
             .task(id: "\(model.userID ?? "guest"):\(model.walletRevision):\(scenePhase == .active)") { if scenePhase == .active { await reload() } }
+    }
+    private func walletBalance(_ title: String, code: String, value: Any?, id: String) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(title).font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
+            CurrencyAmount(value: wallet.error == nil ? (value as? NSNumber)?.intValue : nil, code: code, size: 20)
+                .font(.system(size: 16, weight: .semibold)).accessibilityIdentifier(id)
+            Text(code == "G" ? "충전" : "실버 받기").font(.system(size: 10)).foregroundStyle(AifectDesign.muted)
+        }.frame(maxWidth: .infinity, minHeight: 64, alignment: .leading).padding(10)
+            .background(Brand.card, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(AifectDesign.stroke))
+            .contentShape(Rectangle())
     }
     private func balance(_ title: String, value: String, icon: String, color: Color, id: String) -> some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -171,9 +201,9 @@ struct GiftWalletView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 HStack {
-                    Label("\(wallet.stars) S", systemImage: "star.fill").foregroundStyle(Brand.pink)
+                    CurrencyAmount(value: wallet.stars, code: "S", size: 20).foregroundStyle(Brand.pink)
                     Spacer()
-                    Text("골드 \(wallet.data.int("balance"))")
+                    CurrencyAmount(value: wallet.data.int("balance"), code: "G", size: 20)
                     Button("충전") { store = true }.font(.caption)
                 }.font(.headline)
                 HStack { Text("활동하고 무료 실버 받기").font(.caption).foregroundStyle(.secondary); Spacer(); Button("무료 보상") { rewards = true }.font(.caption.bold()) }
@@ -195,7 +225,7 @@ struct GiftWalletView: View {
                                         RemoteArtwork(url: CatalogArtwork.giftURL(gift), catalog: true) { $0.resizable().scaledToFit() } placeholder: { Image(systemName: "gift.fill").font(.title2) }
                                             .frame(width: 32, height: 32).accessibilityHidden(true)
                                         Text(gift.string("name")).font(.caption)
-                                        Text("\(gift.int("gold")) G").font(.caption2).foregroundStyle(.secondary)
+                                        CurrencyAmount(value: gift.int("gold"), code: "G").font(.caption2).foregroundStyle(.secondary)
                                     }
                                         .frame(width: 86, height: 82).background(Brand.card, in: RoundedRectangle(cornerRadius: 14))
                                 }.disabled(wallet.busy || !wallet.remaining.isEmpty || wallet.data.int("balance") < gift.int("gold"))
@@ -209,9 +239,9 @@ struct GiftWalletView: View {
                 if !compact {
                     Text("최근 보낸 선물").font(.headline)
                     ForEach(wallet.data.objects("sent"), id: \.selfID) { item in
-                        Text("\(item.string("title")) · \(item.string("gift_name")) · \(item.int("gold")) G").font(.caption)
+                        Text("\(item.string("title")) · \(item.string("gift_name")) · \(item.int("gold").formatted()) g").font(.caption)
                     }
-                    ForEach(wallet.data.objects("free_sent"), id: \.selfID) { item in Text("\(item.string("title")) · 1 S").font(.caption) }
+                    ForEach(wallet.data.objects("free_sent"), id: \.selfID) { item in Text("\(item.string("title")) · 1 s").font(.caption) }
                 }
             }.padding(18)
         }.background(Brand.background).navigationTitle(recipientName.map { "\($0)에게 선물" } ?? "골드 · 선물").navigationBarTitleDisplayMode(.inline)
@@ -246,12 +276,11 @@ struct RewardsView: View {
             LazyVStack(alignment: .leading, spacing: 10) {
                 Text("오늘의 실버").font(.system(size: 23, weight: .bold))
                 HStack(spacing: 12) {
-                    Image(systemName: "star.fill").font(.system(size: 32)).foregroundStyle(Brand.aqua)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("보유 실버").font(.system(size: 12)).foregroundStyle(AifectDesign.muted)
-                        Text(data.isEmpty ? "불러오는 중…" : "\(data.int("balance")) S").font(.system(size: 23, weight: .bold)).foregroundStyle(Brand.aqua)
+                        CurrencyAmount(value: data.isEmpty ? nil : data.int("balance"), code: "S", size: 24).font(.system(size: 23, weight: .bold)).foregroundStyle(Brand.aqua)
                     }.frame(maxWidth: .infinity, alignment: .leading)
-                    Text("하루 최대\n10 S").font(.system(size: 12)).foregroundStyle(Brand.aqua)
+                    Text("하루 최대\n10 s").font(.system(size: 12)).foregroundStyle(Brand.aqua)
                 }.padding(16).background(Brand.aqua.opacity(0.08), in: RoundedRectangle(cornerRadius: 16)).padding(.top, 14).padding(.bottom, 4)
                 if data.isEmpty && error == nil { ProgressView().frame(maxWidth: .infinity) }
                 if let error { RetryCard(message: error) { Task { await load() } } }
@@ -271,7 +300,7 @@ struct RewardsView: View {
                 if kind == "listen" { ProgressView(value: Double(progress) / Double(target)).tint(Brand.aqua).padding(.top, 3) }
             }.frame(maxWidth: .infinity, alignment: .leading)
             VStack(alignment: .trailing, spacing: 4) {
-                Text("\(reward.int("amount")) S").font(.system(size: 13, weight: .bold)).foregroundStyle(claimed ? AifectDesign.muted : Brand.aqua)
+                CurrencyAmount(value: reward.int("amount"), code: "S", size: 24).font(.system(size: 13, weight: .bold)).foregroundStyle(claimed ? AifectDesign.muted : Brand.aqua)
                 Button(claimed ? "받음" : eligible ? "실버 받기" : "활동하기") {
                     if eligible { Task { await claim(kind) } }
                     else {
@@ -296,7 +325,7 @@ struct ProfileGiftRankingView: View {
     @State private var error: String?
     var body: some View {
         List {
-            Section { Text("누적 선물 순위 · 1 G와 1 S는 각각 1점").font(.caption).foregroundStyle(.secondary) }
+            Section { Text("누적 선물 순위 · 1 G와 1 s는 각각 1점").font(.caption).foregroundStyle(.secondary) }
             ForEach(ranking.indices, id: \.self) { index in
                 let entry = ranking[index]
                 HStack {
@@ -311,7 +340,7 @@ struct ProfileGiftRankingView: View {
         }.navigationTitle("선물 랭킹 TOP 50").task { await load() }.refreshable { await load() }
     }
     private func rankingRow(_ entry: [String: Any]) -> some View {
-        HStack { ProfilePhoto(person: entry, size: 44); VStack(alignment: .leading) { MemberName(entry); Text("\(entry.int("gold")) G · \(entry.int("stars")) S").font(.caption).foregroundStyle(.secondary) }; Spacer(); Text("\(entry.int("score"))점").font(.caption.bold()).foregroundStyle(Brand.aqua) }
+        HStack { ProfilePhoto(person: entry, size: 44); VStack(alignment: .leading) { MemberName(entry); Text("\(entry.int("gold").formatted()) g · \(entry.int("stars").formatted()) s").font(.caption).foregroundStyle(.secondary) }; Spacer(); Text("\(entry.int("score"))점").font(.caption.bold()).foregroundStyle(Brand.aqua) }
     }
     private func load() async { do { let value = try await API.shared.call("/api/producers/\(Endpoint.pathID(profileID))/gifts"); guard !Task.isCancelled else { return }; ranking = Array(value.objects("ranking").prefix(50)); error = nil } catch { self.error = error.localizedDescription } }
 }
@@ -324,12 +353,12 @@ struct TrackGiftRankingView: View {
         List {
             Section(song.title) {
                 LabeledContent("조회수", value: "\(song.plays ?? 0)회")
-                LabeledContent("받은 골드", value: "\(data.int("total_gold")) G")
-                LabeledContent("받은 실버", value: "\(data.int("free_count")) S")
+                LabeledContent("받은 골드", value: "\(data.int("total_gold").formatted()) g")
+                LabeledContent("받은 실버", value: "\(data.int("free_count").formatted()) s")
             }
             Section("응원한 사람 TOP 10") {
                 ForEach(data.objects("ranking"), id: \.rankingID) { entry in
-                    VStack(alignment: .leading, spacing: 5) { MemberName(entry); Text("\(entry.int("gold")) G · \(entry.int("stars")) S").font(.caption).foregroundStyle(.secondary) }
+                    VStack(alignment: .leading, spacing: 5) { MemberName(entry); Text("\(entry.int("gold").formatted()) g · \(entry.int("stars").formatted()) s").font(.caption).foregroundStyle(.secondary) }
                 }
                 if data.objects("ranking").isEmpty { Text("아직 받은 선물이 없어요").foregroundStyle(.secondary) }
             }
@@ -408,15 +437,15 @@ struct ItemShopView: View {
                 if model.userID == nil { LoginPrompt(title: "로그인하고 상점을 이용하세요") }
                 else {
                     HStack {
-                        VStack(alignment: .leading, spacing: 5) { Text("내 골드").font(.caption).foregroundStyle(AifectDesign.muted); Text(wallet.isEmpty ? "—" : "\(wallet.int("balance")) G").font(.title2.bold()).accessibilityIdentifier("shop-gold") }
+                        VStack(alignment: .leading, spacing: 5) { Text("내 골드").font(.caption).foregroundStyle(AifectDesign.muted); CurrencyAmount(value: wallet.isEmpty ? nil : wallet.int("balance"), code: "G", size: 20).font(.title2.bold()).accessibilityIdentifier("shop-gold") }
                         Spacer(); NavigationLink("골드 충전") { PaymentStoreView().streamingPage() }.buttonStyle(CatalogButtonStyle())
                     }
-                    HStack { Text(wallet.isEmpty ? "실버 —" : "실버 \(wallet.object("free").int("balance")) S").font(.caption).foregroundStyle(AifectDesign.muted); Spacer(); NavigationLink("인벤토리") { PlayerInventoryView().streamingPage() }.font(.caption) }
+                    HStack { CurrencyAmount(value: wallet.isEmpty ? nil : wallet.object("free").int("balance"), code: "S", size: 20).font(.caption).foregroundStyle(AifectDesign.muted); Spacer(); NavigationLink("인벤토리") { PlayerInventoryView().streamingPage() }.font(.caption) }
                     Text("구매한 아이템은 인벤토리에 보관돼요.").font(.caption).foregroundStyle(AifectDesign.muted)
                     if let pending {
                         VStack(alignment: .leading, spacing: 10) {
                             Text("\(pending.name) 구매 결과를 확인해주세요.").font(.subheadline)
-                            Text("총 \(pending.total) \(pending.unit) · \(pending.quantity)개").font(.caption)
+                            Text("총 \(pending.total.formatted()) \(pending.unit.lowercased()) · \(pending.quantity)개").font(.caption)
                             Button("구매 결과 확인 · 재시도") { Task { await buy(pending) } }.buttonStyle(CatalogButtonStyle(filled: true)).disabled(busy).accessibilityIdentifier("shop-order-retry")
                             if let orderError { Text(orderError).font(.caption).foregroundStyle(Brand.pink) }
                         }.padding(14).background(Brand.card, in: RoundedRectangle(cornerRadius: 12))
@@ -433,7 +462,7 @@ struct ItemShopView: View {
                                     if category == "선물" { InventoryGiftArtwork(gift: product).frame(height: 84) }
                                     else { DecorationArtwork(product: product).frame(height: 130) }
                                     Text(product.string("name")).font(.system(size: category == "선물" ? 12 : 14, weight: .medium)).lineLimit(2).frame(minHeight: 38)
-                                    Text(category == "선물" ? "\(product.int(currency == "골드" ? "gold" : "silver")) \(currency == "골드" ? "G" : "S")" : "\(product.object("periodPrices").int("P7D")) G · 7일").font(.caption).foregroundStyle(Brand.aqua)
+                                    HStack(spacing: 3) { CurrencyAmount(value: category == "선물" ? product.int(currency == "골드" ? "gold" : "silver") : product.object("periodPrices").int("P7D"), code: category == "선물" && currency == "실버" ? "S" : "G"); if category != "선물" { Text("· 7일") } }.font(.caption).foregroundStyle(Brand.aqua)
                                 }.frame(maxWidth: .infinity).padding(10).background(Brand.card, in: RoundedRectangle(cornerRadius: 14)).contentShape(Rectangle())
                             }.buttonStyle(.plain).disabled(busy || pending != nil || loading).accessibilityIdentifier("shop-product-" + product.shopID)
                         }
@@ -520,11 +549,11 @@ private struct ShopCheckoutView: View {
                     } else {
                         HStack { Button { quantity -= 1 } label: { Image(systemName: "minus").frame(width: 44, height: 44) }.disabled(quantity <= 1).accessibilityIdentifier("shop-quantity-less"); Text("\(quantity)개").monospacedDigit(); Button { quantity += 1 } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.disabled(quantity >= 100).accessibilityIdentifier("shop-quantity-more") }
                     }
-                    Text("총 \(total) \(unit)").font(.title2.bold())
-                    Text(balance >= total ? "구매 후 \(balance - total) \(unit)" : "\(isSilver ? "실버" : "골드")가 부족해요.").font(.subheadline).foregroundStyle(AifectDesign.muted)
+                    CurrencyAmount(value: total, code: unit).font(.title2.bold())
+                    Text(balance >= total ? "구매 후 \((balance - total).formatted()) \(unit.lowercased())" : "\(isSilver ? "실버" : "골드")가 부족해요.").font(.subheadline).foregroundStyle(AifectDesign.muted)
                     Text(isDecoration ? "구매 후 인벤토리에 보관돼요. 사용할 때부터 기간이 시작돼요." : "구매하면 인벤토리에 보관돼요.").font(.caption).foregroundStyle(AifectDesign.muted)
                     if let error { Text(error).font(.caption).foregroundStyle(Brand.pink) }
-                    Button("\(total) \(unit) 구매") {
+                    Button("\(total.formatted()) \(unit.lowercased()) 구매") {
                         guard let owner else { return }
                         buy(InventoryOrder(id: UUID().uuidString, owner: owner, path: isDecoration ? "/api/decorations/buy" : "/api/me/gift-inventory/buy", product: product.shopID, period: isDecoration ? period : "", quantity: isDecoration ? 1 : quantity, name: product.string("name"), total: total, unit: unit))
                     }.buttonStyle(CatalogButtonStyle(filled: true)).disabled(busy || owner == nil || total <= 0 || balance < total).accessibilityIdentifier("shop-buy-confirm")
@@ -646,7 +675,7 @@ struct MyInventoryContent: View {
     private func receivedAmount(_ title: String, key: String, unit: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title).font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
-            Text((received[key] as? NSNumber).map { $0.doubleValue.formatted() + " " + unit } ?? "—").font(.system(size: 16, weight: .semibold))
+            CurrencyAmount(value: (received[key] as? NSNumber)?.intValue, code: unit).font(.system(size: 16, weight: .semibold))
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private func load() async {
@@ -820,7 +849,7 @@ struct SentGiftHistoryView: View {
                         HStack {
                             Text(Date(timeIntervalSince1970: receipt.number("created")), style: .date)
                             Spacer()
-                            Text((receipt[unit == "G" ? "gold" : "silver"] as? NSNumber).map { $0.doubleValue.formatted() + " " + unit } ?? "—")
+                            CurrencyAmount(value: (receipt[unit == "G" ? "gold" : "silver"] as? NSNumber)?.intValue, code: unit)
                         }.font(.caption)
                         if SiteWorkspace.validKey(receipt.string("recipient_profile_id")) {
                             NavigationLink("선물 받은 회원 보기") { ProfilePage(id: receipt.string("recipient_profile_id")).streamingPage() }.font(.caption).frame(minHeight: 44)

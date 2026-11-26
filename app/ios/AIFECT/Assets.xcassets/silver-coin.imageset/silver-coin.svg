@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="silver">
+<defs>
+  <linearGradient id="rim" x1="0" y1="0" x2=".85" y2="1"><stop stop-color="#FFFFFF"/><stop offset=".26" stop-color="#E5E6ED"/><stop offset=".58" stop-color="#B9BCCB"/><stop offset=".85" stop-color="#898D9F"/><stop offset="1" stop-color="#D4D7E0"/></linearGradient>
+  <linearGradient id="face" x1=".12" y1="0" x2=".8" y2="1"><stop stop-color="#FFFFFF"/><stop offset=".37" stop-color="#E5E6ED"/><stop offset="1" stop-color="#B9BCCB"/></linearGradient>
+  <linearGradient id="engrave" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="#85899E"/><stop offset="1" stop-color="#565B72"/></linearGradient>
+  <linearGradient id="bevel" x1=".15" y1="0" x2=".85" y2="1"><stop stop-color="#898D9F"/><stop offset=".46" stop-color="#85899E"/><stop offset=".76" stop-color="#F9FAFF"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient>
+</defs>
+<circle cx="32" cy="32" r="31" fill="url(#rim)" stroke="#E5E6ED" stroke-width=".5"/>
+<circle cx="32" cy="32" r="25.1" fill="url(#face)" stroke="url(#bevel)" stroke-width="1.65"/>
+<path d="M8 17 A28 28 0 0 1 25 5" fill="none" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" opacity=".85"/>
+<path d="M1227 1446V1130Q1104 1185 987.0 1213.0Q870 1241 766 1241Q628 1241 562.0 1203.0Q496 1165 496 1085Q496 1025 540.5 991.5Q585 958 702 934L866 901Q1115 851 1220.0 749.0Q1325 647 1325 459Q1325 212 1178.5 91.5Q1032 -29 731 -29Q589 -29 446.0 -2.0Q303 25 160 78V403Q303 327 436.5 288.5Q570 250 694 250Q820 250 887.0 292.0Q954 334 954 412Q954 482 908.5 520.0Q863 558 727 588L578 621Q354 669 250.5 774.0Q147 879 147 1057Q147 1280 291.0 1400.0Q435 1520 705 1520Q828 1520 958.0 1501.5Q1088 1483 1227 1446Z" transform="translate(19.17108 44.99451) scale(0.0174306 -0.0174306)" fill="url(#engrave)" stroke="#F9FAFF" stroke-width="30" paint-order="stroke fill"/>
+</svg>

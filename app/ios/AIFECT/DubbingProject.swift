@@ -128,7 +128,7 @@ struct DubbingProjectPage: View {
         .alert(action == "delete" ? "내 더빙을 삭제할까요?" : action == "publish" ? "배역 모집을 시작할까요?" : action == "unpublish" ? "모집을 중지할까요?" : action == "basic" ? "기본 배경을 준비할까요?" : "효과음을 제작할까요?", isPresented: $confirmAction) {
             Button("취소", role: .cancel) { action = "" }
             Button(action == "publish" ? "동의하고 공개" : "확인", role: action == "delete" ? .destructive : nil) { let requested = action; action = ""; Task { await perform(requested) } }.disabled(busy)
-        } message: { Text(action == "delete" ? "삭제하면 이 작품을 다시 열거나 참여할 수 없어요." : action == "publish" ? "대본을 공개하고 다른 사람과 함께 연기할 권한이 있음을 확인합니다." : action == "sound" ? "효과음 제작에 \(soundCharge) G를 사용합니다. 실패하면 서버에서 자동 환급됩니다." : "기존 녹음과 배역 상태는 서버에서 확인합니다.") }
+        } message: { Text(action == "delete" ? "삭제하면 이 작품을 다시 열거나 참여할 수 없어요." : action == "publish" ? "대본을 공개하고 다른 사람과 함께 연기할 권한이 있음을 확인합니다." : action == "sound" ? "효과음 제작에 \(soundCharge.formatted()) g를 사용합니다. 실패하면 서버에서 자동 환급됩니다." : "기존 녹음과 배역 상태는 서버에서 확인합니다.") }
         .task(id: space.key + "|" + (model.userID ?? "")) { await load() }
         .task(id: project.object("sound").string("state")) {
             while ["queued", "planning", "generating", "mixing"].contains(project.object("sound").string("state")) {
@@ -169,10 +169,10 @@ struct DubbingProjectPage: View {
             if project.flag("isOwner") && sound.string("state") == "not_started" {
                 HStack(spacing: 8) {
                     Button("기본 배경") { requestAction("basic") }.buttonStyle(CatalogButtonStyle(fullWidth: true))
-                    Button("효과음 · \(soundCharge) G") { requestAction("sound") }.buttonStyle(CatalogButtonStyle(filled: true, fullWidth: true)).disabled(!sound.flag("aiAvailable"))
+                    Button("효과음 · \(soundCharge.formatted()) g") { requestAction("sound") }.buttonStyle(CatalogButtonStyle(filled: true, fullWidth: true)).disabled(!sound.flag("aiAvailable"))
                 }.disabled(busy)
             }
-            if sound.int("refundedGold") > 0 { Text("\(sound.int("refundedGold")) G 환급").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }
+            if sound.int("refundedGold") > 0 { Text("\(sound.int("refundedGold").formatted()) g 환급").font(.system(size: 12)).foregroundStyle(AifectDesign.muted) }
             if let audioError = audio.error { Text(audioError).font(.caption) }
         }.padding(16).frame(maxWidth: .infinity, alignment: .leading)
             .background {

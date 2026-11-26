@@ -221,7 +221,7 @@ struct DiamondWalletView: View {
             if action == .exchange {
                 VStack(alignment: .leading, spacing: 5) {
                     Text("받을 골드").font(.system(size: 13)).foregroundStyle(AifectDesign.muted)
-                    Text("\((number * wallet.int("gold_per_diamond")).formatted()) G").font(.system(size: 26, weight: .semibold)).foregroundStyle(Brand.aqua).accessibilityIdentifier("diamond-preview")
+                    Text("\((number * wallet.int("gold_per_diamond")).formatted()) g").font(.system(size: 26, weight: .semibold)).foregroundStyle(Brand.aqua).accessibilityIdentifier("diamond-preview")
                     Text("\(number.formatted())다이아 사용").font(.system(size: 13))
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(14).background(Brand.aqua.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
             } else {
