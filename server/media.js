@@ -1,3 +1,5 @@
+import {readCoverEdit} from './cover-edit.js';
+import {MIN_COVER_SECONDS,MAX_COVER_SECONDS} from '../shared/recording-window.js';
 import * as AifectMessages from '../shared/system-messages.js';
 import {trackArtworkSQL} from './track-artwork.js';
 import {productionCreditFields} from '../shared/production-credits.js';
@@ -203,7 +205,9 @@ export async function internalRoute(req,env,path){
   await put(env,`${action}/${t.id}.${action==='cover'?'jpg':'m4a'}`,req,MAX_AUDIO,action==='cover'?'image/jpeg':'audio/mp4');return json({ok:true});
  }
  if(action==='finish'&&req.method==='POST'){
-  const b=await req.json(),duration=Number(b.duration);if(!Number.isFinite(duration)||duration<5||duration>1200)fail(400,'음원은 5초 이상 20분 이하여야 합니다.');
+  const b=await req.json(),duration=Number(b.duration);if(!Number.isFinite(duration)||duration<MIN_COVER_SECONDS||duration>MAX_COVER_SECONDS)fail(400,'음원은 5초 이상 20분 이하여야 합니다.');
+  const window=readCoverEdit(t.recording_edit)?.window;
+  if(window&&Math.abs(duration-(window.end-window.start))>.18)fail(400,'변환한 음원의 길이가 게시 범위와 일치하지 않습니다.');
   for(const kind of ['stream','preview',...(t.has_cover&&!t.cover_version?['cover']:[])])if(!await env.BUCKET.head(`${kind}/${t.id}.${kind==='cover'?'jpg':'m4a'}`))fail(409,'변환 파일이 누락됐습니다.');
   await env.DB.batch([
    query(env,'DELETE FROM premium_audio_jobs WHERE track_id=?',t.id),

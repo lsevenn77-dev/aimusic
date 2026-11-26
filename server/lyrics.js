@@ -3,6 +3,7 @@ import {parseLrc,serializeLrc,MAX_LYRICS,activeCueIndex} from '../shared/lyrics.
 import {published} from './catalog.js';
 import {isPremium} from './membership.js';
 import {plainLyrics,LYRIC_LANGUAGES} from '../shared/alignment.js';
+import {readCoverEdit} from './cover-edit.js';
 
 export function listenerLyrics(track,user){
  return {has_lyrics_text:!!track.lyrics?.trim(),lyrics_access:isPremium(user)?'full':'line',lyrics:isPremium(user)?track.lyrics:'',lyrics_access_until:isPremium(user)?user.premium_until:null};
@@ -11,7 +12,8 @@ export async function lyricsRoute(req,env,path,user){
  const match=path.match(/^\/api\/tracks\/([\w-]+)\/lyrics\/(line|text)$/);
  if(!match||req.method!=='GET')return null;
  const detail=await published(env,match[1]);
- const source=detail.kind==='cover'?await published(env,detail.original_id):detail;
+ const original=detail.kind==='cover'?await published(env,detail.original_id):detail;
+ const source=readCoverEdit(detail.recording_edit)?.window?detail:original;
  // Only published track lyrics are readable. Alignment job drafts stay private.
  let cues=[];
  if(source.lyrics_mode==='synced'&&source.lyrics){

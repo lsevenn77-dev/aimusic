@@ -4,6 +4,7 @@ import {one,fail,json} from './db.js';
 import {objectResponse} from './storage.js';
 import {requireUser} from './auth.js';
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
+import {coverEditWords,readCoverEdit} from './cover-edit.js';
 
 export const otherPart=part=>part==='male'?'female':'male';
 export async function duetSource(env,tid,user){
@@ -22,8 +23,10 @@ export async function duetRoute(req,env,path,user){
  requireUser(user);const {source,original}=await duetSource(env,match[1],user);
  const [track]=await trackList(env,`t.id=? AND ${VISIBLE()}`,[original.id]);
  const [partner]=await trackList(env,`t.id=? AND ${VISIBLE()}`,[source.id]);
- const job=await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',original.id);
+ const window=readCoverEdit(source.recording_edit)?.window;
+ const words=(await coverEditWords(env,original.id,window)).map(word=>word.line);
+ if(window)track.duration=window.end-window.start;
  const parts=['instrument','partner'];const files=env.BUCKET?.head?await Promise.all(parts.map(p=>env.BUCKET.head('karaoke/'+source.id+'/duet-'+p+'.mp3'))):[];
  const stems=files.length===2&&files.every(Boolean)?Object.fromEntries(parts.map(p=>[p,'/api/duets/'+source.id+'/'+p])):undefined;
- return json({track,words:JSON.parse(job.words||'[]'),mr:`/media/${source.id}/stream`,duet:{stems,parent_id:source.id,slot:'second',part:otherPart(source.duet_part),guide:readDuetGuide(source.duet_guide),partner}});
+ return json({track,words,mr:`/media/${source.id}/stream`,duet:{stems,parent_id:source.id,slot:'second',part:otherPart(source.duet_part),guide:readDuetGuide(source.duet_guide),partner}});
 }

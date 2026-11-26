@@ -1,3 +1,4 @@
+import {readCoverEdit} from './cover-edit.js';
 import * as AifectMessages from '../shared/system-messages.js';
 import {publicContentContext,trackBlockScope,artistBlockScope} from './block-policy.js';
 import {playlistEligibleSQL} from '../shared/playlist-policy.js';
@@ -175,7 +176,8 @@ export async function catalogRoute(req,env,path,user){
     creatorDescription=editorial.original_description??'';
     if(['0000','-','없음'].includes(creatorDescription.trim()))creatorDescription='';
    }
-   return json({track:{...track,creator_description:creatorDescription,gift_block_reason:await giftBlockReason(env,user?.id,detail),ai_comments:ai.n,...listenerLyrics(detail.kind==='cover'?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail,user),karaoke_ready:!!karaoke}});
+   const lyricSource=detail.kind==='cover'&&!readCoverEdit(detail.recording_edit)?.window?await one(env,'SELECT lyrics FROM tracks WHERE id=?',detail.original_id):detail;
+   return json({track:{...track,creator_description:creatorDescription,gift_block_reason:await giftBlockReason(env,user?.id,detail),ai_comments:ai.n,...listenerLyrics(lyricSource,user),karaoke_ready:!!karaoke}});
   }
   if(m[2]==='covers'){
    if(method!=='GET')fail(405,AifectMessages.unsupportedRequest);

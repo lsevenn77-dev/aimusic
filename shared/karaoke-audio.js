@@ -1,6 +1,7 @@
 // Pure pieces of the singing screen, bundled for the browser as AifectKaraoke.
 export {roomGain,roomImpulse,restoreRoomMix} from './room-reverb.js';
-export {punchLyricLines,punchLyricRange,punchClock,punchCountdown} from './punch-recording.js';
+export {punchLyricLines,punchLyricRange,punchClock,punchCountdown,planPunch,capturedPunch,analyzePunch} from './punch-recording.js';
+export {MIN_COVER_SECONDS} from './recording-window.js';
 export {vocalPresets,presetMix,editVocalMix,defaultVocalMix,restoreVocalMix,VocalProcessor,renderVocals} from './vocal-effects.js';
 import {NoiseCleaner} from './vocal-effects.js';
 
@@ -13,8 +14,12 @@ export function wordAt(lines,t){
  let line=-1;
  for(let i=0;i<lines.length;i++){if(lines[i].s<=t)line=i;else break;}
  if(line<0)return {line:-1,word:-1,progress:0};
- const words=lines[line].w;let word=-1;
- for(let j=0;j<words.length;j++){if(words[j].s<=t)word=j;else break;}
+ const words=lines[line].w||[];let word=-1;
+ for(let j=0;j<words.length;j++){
+  const part=words[j];
+  if(!Number.isFinite(part.s)||!Number.isFinite(part.e)||part.e<=part.s)continue;
+  if(part.s<=t)word=j;else break;
+ }
  const w=words[word];
  return {line,word,progress:w?Math.max(0,Math.min(1,(t-w.s)/Math.max(.05,w.e-w.s))):0};
 }

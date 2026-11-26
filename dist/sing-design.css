@@ -620,3 +620,186 @@ body:has(#sing.is-reviewing.pc-take-editor) #toast[data-message="프리미엄 �
 @media(min-width:801px){
   #sing-exit-dialog.compact-popup .sing-exit-actions [data-choice=rerecord] { background:var(--ds-gradient);color:var(--ds-ink);border-color:transparent; }
 }
+
+/* Recording review surfaces. Scoped to step one of the shared editor. */
+#main #sing.web-studio.is-reviewing:not(.take-publishing) {
+  --take-panel: #243247;
+  --take-timeline: #2a3a50;
+  --take-wave: #34465d;
+  --take-control: #2c3c52;
+  --take-border: #46576e;
+  --take-text: #ecf0f7;
+  --take-muted: #acbbd0;
+  --take-lilac: #cdb6f2;
+  --take-mint: #8eddd2;
+  --take-gold: #d9b976;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) :is(.sing-head,.take-editor) {
+  background:var(--take-panel);
+  color:var(--take-text);
+  box-shadow:none;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .sing-head {align-items:center;padding-block:12px!important}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-song-meta {align-self:center}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) :is(.review-credit,.take-length,.take-time,.take-editor .field-help,.take-edit-message) {color:var(--take-muted)}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-steps [aria-current] b {background:#306c65;color:#dffff8}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .sing-status.show-notice {
+  background:transparent;color:var(--take-text);margin:0;padding:4px 0 8px;border:0;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-wave-editor {
+  min-height:0;background:var(--take-timeline);border:1px solid var(--take-border);padding:8px;box-shadow:none;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-wave-surface {
+  position:relative;isolation:isolate;background:var(--take-wave);overflow:hidden;border:0;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) #take-waveform {touch-action:pan-y}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-wave-header {display:flex;align-items:center;gap:10px}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-wave-header .studio-time-ruler {flex:1;margin:0;color:var(--take-muted);font-variant-numeric:tabular-nums}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-wave-zoom {display:flex;gap:3px;margin-block-end:5px}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-wave-zoom button {
+  display:grid;place-items:center;width:28px;height:28px;padding:0;border:1px solid var(--take-border);border-radius:6px;background:var(--take-control);color:var(--take-text);font:inherit;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) [data-wave-pan] {display:block;width:100%;height:16px;margin:5px 0 0;accent-color:var(--take-lilac)}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) [data-take-playhead] {position:absolute;inset-block:0;width:1px;background:#f5f3ff;pointer-events:none;z-index:1}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle {
+  --take-hit:32px;
+  position:absolute;z-index:2;inset-block:0;left:var(--handle-position);width:var(--take-hit);cursor:ew-resize;touch-action:none;
+  color:var(--take-lilac);
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-range-handle="start"] {transform:translateX(-65%)}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-range-handle="end"] {transform:translateX(-35%)}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle::before,
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle::after {content:"";position:absolute;left:65%;background:currentColor;transform:translateX(-50%);pointer-events:none}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-range-handle="end"]::before,
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-range-handle="end"]::after {left:35%}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-edge="left"] {transform:none}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-edge="right"] {transform:translateX(-100%)}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-edge="left"]::before,
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-edge="left"]::after {left:2px}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-edge="right"]::before,
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle[data-edge="right"]::after {left:calc(100% - 2px)}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle::before {inset-block:0;width:2px}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle::after {top:2px;width:7px;height:7px;border-radius:50%}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle:focus-visible {z-index:3;color:#fcf8ff}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-transport.studio-audio {
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;justify-items:stretch;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-navigation button.take-play {
+  width:48px;height:48px;min-width:48px;padding:0;justify-self:center;
+  color:#fcf8ff!important;background:#7655aa!important;border:1px solid #896abb!important;box-shadow:none!important;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-navigation button.take-play:hover {background:#8866bd!important}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-navigation button.take-play svg {width:24px;height:24px;color:inherit}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .take-view [data-listen-volume] {width:clamp(35px,10vw,76px)}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-tool-workspace {
+  display:grid;grid-template-columns:231px minmax(0,1fr);align-items:stretch;gap:0;padding:0;
+  background:var(--take-control);border:1px solid var(--take-border);border-radius:10px;box-shadow:none;min-width:0;overflow:hidden;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools {padding:8px;margin:0}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools button {
+  justify-content:flex-start;gap:6px;border:1px solid transparent!important;background:transparent;color:var(--take-text);box-shadow:none;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools button[data-edit-tool="tone"] {margin-top:6px;position:relative}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools button[data-edit-tool="tone"]::before {
+  content:"";position:absolute;inset-inline:0;top:-6px;border-top:1px solid var(--take-border);
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools [aria-selected=true] {
+  background:#403e63!important;color:var(--take-text)!important;border-color:#655680!important;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools [aria-selected=true] :is(strong,svg) {color:inherit!important}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools .take-premium {
+  display:inline-flex;align-items:center;gap:3px;margin-inline-start:auto;white-space:nowrap;
+  color:var(--take-gold);font-size:10px;font-weight:600;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools .take-premium svg {width:12px;height:12px;display:block}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-detail {
+  background:none;color:var(--take-text);border:0;border-radius:0;border-inline-start:1px solid var(--take-border);box-shadow:none;overflow:auto;min-width:0;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor :is(.small-button,.studio-sync-steps button,.studio-noise-levels button,.studio-preset-tile) {
+  background:#38384f;color:var(--take-text);border:1px solid #575575;box-shadow:none;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor :is(.small-button,.studio-noise-levels button,.studio-preset-tile)[aria-pressed=true] {
+  background:#4d4165;color:#fcf8ff;border-color:#896abb;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .primary-button {
+  color:#fcf8ff!important;background:#7655aa!important;border:1px solid #896abb!important;box-shadow:none!important;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .primary-button:hover {background:#8866bd!important}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor [data-step-next] {
+  color:#dffff8!important;background:#306c65!important;border:1px solid #70b7ad!important;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor [data-step-next]:hover {background:#3d8178!important}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .take-footer>div.take-restore {margin-inline:0 auto}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .take-footer button {white-space:nowrap}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor :focus-visible {outline:1px solid var(--take-mint);outline-offset:1px;box-shadow:none}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-fields,
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-capture-options,
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-candidate-list {display:flex;align-items:center;gap:6px 10px;flex-wrap:wrap}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-fields label,
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-capture-options label {display:inline-flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-fields input,
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-capture-options select {
+  width:74px;padding:5px 6px;height:36px;border:1px solid var(--take-border);border-radius:6px;
+  background:var(--take-panel);color:var(--take-text);font-size:16px;font-variant-numeric:tabular-nums;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-fields input[aria-invalid=true] {border-color:#f1a5b3}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-fields output {color:var(--take-lilac);font-size:13px;white-space:nowrap}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-punch-actions {display:flex;gap:6px;flex-wrap:wrap;margin:7px 0 0;justify-content:flex-start}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) :is(.studio-punch-actions,.take-range-fields,.take-candidate-list) button {
+  display:inline-flex;flex:0 0 auto;align-items:center;justify-content:center;min-height:37px;padding:5px 8px;font-size:12px;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-punch-actions .take-range-reset {width:37px;height:37px;padding:0}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-punch-lyrics {margin:8px 0;max-height:116px;gap:4px;scrollbar-width:thin}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-punch-lyrics button {
+  min-height:34px;grid-template-columns:52px minmax(0,1fr) 15px;gap:6px;padding:4px 8px;
+  background:var(--take-panel);color:var(--take-text);border:1px solid var(--take-border);border-radius:6px;
+}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-punch-lyrics button strong {grid-column:auto;font-size:13px;line-height:1.35}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-punch-lyrics button span {visibility:hidden;color:var(--take-lilac)}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-punch-lyrics button[aria-pressed=true] {background:#403e63;border-color:#896abb}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .studio-punch-lyrics button[aria-pressed=true] span {visibility:visible}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) :is(.take-edit-message,[data-crop-length],[data-punch-applied],.take-punch-settings .field-help) {margin:6px 0;font-size:12px}
+#main #sing.web-studio.is-reviewing:not(.take-publishing) .take-edit-message:empty {display:none}
+#main #sing.web-studio.is-punch-recording .take-punch-readout {display:flex;align-items:center;gap:5px 12px;flex-wrap:wrap;min-height:27px;font-size:12px}
+#main #sing.web-studio.is-punch-recording [data-punch-live-count] {color:var(--take-lilac);font-size:20px;font-weight:700;min-width:1em}
+#main #sing.web-studio.is-punch-recording #sing-wheel {
+  width:100%;min-height:0;height:112px;max-height:112px;margin:4px 0;padding-block:28px 48px;
+  overflow:auto;background:none;box-shadow:none;border:0;scrollbar-width:thin;
+}
+#main #sing.web-studio.is-punch-recording #sing-wheel button {font-size:14px;min-height:27px;margin:0;opacity:.8}
+#main #sing.web-studio.is-punch-recording #sing-wheel .current {font-size:17px;opacity:1;color:var(--take-mint)}
+#main #sing.web-studio.is-punch-recording #sing-wheel .current .singing {color:var(--take-mint)}
+#main #sing.web-studio.is-punch-recording #sing-wheel .take-punch-done .sing-line-text::after {content:" ✓";color:var(--take-mint)}
+#main #sing.web-studio.is-punch-recording #sing-wheel .take-line-timing.current .sing-line-text {
+  display:block;width:100%;border-radius:3px;padding-bottom:3px;
+  background:linear-gradient(to right,var(--take-mint) var(--take-line-progress,0%),var(--take-border) 0) left bottom/100% 2px no-repeat;
+}
+@media (min-width:801px) {
+  #main #sing.web-studio.is-reviewing:not(.take-publishing):not(:has(.take-enlarged)) .take-editor .studio-edit-detail {
+    height:348px;
+  }
+  #main #sing.web-studio.is-reviewing:not(.take-publishing):not(:has(.take-enlarged)) .take-editor .studio-edit-tools button {min-height:39px}
+}
+@media (max-width:800px) {
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-tool-workspace {display:block}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools {
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:3px 6px;overflow:visible;
+  }
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools .take-paid {grid-column:1/-1}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-tools button {min-height:36px;font-size:12px;padding:4px 9px}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .studio-edit-detail {border-inline-start:0;border-top:1px solid var(--take-border);padding:10px}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-fields input {width:57px}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-range-handle {--take-hit:44px}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-transport.studio-audio {grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .take-enlarged :is(.studio-wave-surface,#take-waveform) {height:clamp(118px,20dvh,208px)}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .take-footer {padding-bottom:env(safe-area-inset-bottom,0px)}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .take-footer>div {width:auto;gap:4px}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-editor .take-footer button {font-size:12px;padding-inline:7px;min-height:40px}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing) .take-footer [data-save-status] {order:3;width:100%}
+  body:has(#sing.web-studio.is-reviewing:not(.take-publishing) .take-enlarged) {overflow:hidden}
+  #main #sing.web-studio.is-reviewing:not(.take-publishing):has(.take-enlarged) {
+    position:fixed!important;inset:0;z-index:1200;width:100%;max-width:none!important;max-height:none;
+    overflow:auto;overscroll-behavior:contain;padding-block-start:max(8px,env(safe-area-inset-top,0px))!important;
+    background:var(--ds-bg);
+  }
+}

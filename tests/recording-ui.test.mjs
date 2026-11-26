@@ -32,7 +32,7 @@ test('browser monitoring uses the selected voice gain without a hidden 25% reduc
   const ctx={currentTime:0,state:'running',destination:node(),resume:async()=>{},createGain:node,createDynamicsCompressor:()=>({...node(),threshold:{},knee:{},ratio:{},attack:{},release:{}}),createMediaStreamSource:node,createBufferSource:node,audioWorklet:{addModule:async()=>{}}};
   const input={readyState:'live',enabled:true,addEventListener(){},stop(){}},stream={getTracks:()=>[input],getAudioTracks:()=>[input]};
   const elements={'#sing-monitor':{checked:enabled},'#sing-panel':{innerHTML:''}};
-  const c=sandbox({window:{AifectKaraoke:karaoke,AudioContext:function(){}},AudioWorkletNode:function(){return node();},navigator:{mediaDevices:{getUserMedia:async()=>stream}},document:{hidden:false},audio:{pause(){}},playSerial:0,requestAnimationFrame:()=>0,$:q=>elements[q]});c.context=ctx;
+  const c=sandbox({AbortController,window:{AifectKaraoke:karaoke,AudioContext:function(){}},AudioWorkletNode:function(){return node();},navigator:{mediaDevices:{getUserMedia:async()=>stream}},document:{hidden:false},audio:{pause(){}},playSerial:0,requestAnimationFrame:()=>0,$:q=>elements[q]});c.context=ctx;
   vm.runInContext("sing={id:'test',mode:'solo',state:'idle',cursor:0,ctx:context,mr:{duration:30},mix:K().defaultVocalMix()};stopPreview=()=>{};updateTransport=()=>{};setSingStatus=()=>{};prepareSing=async()=>context;singingKey=()=>0;connectLiveBacking=()=>({close(){}});bindMixControls=()=>{};drawLyrics=()=>{}",c);
   await vm.runInContext('startSinging()',c);
   assert.equal(vm.runInContext('sing.state',c),'preroll');

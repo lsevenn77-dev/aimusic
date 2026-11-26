@@ -827,6 +827,13 @@
       "when": 1795697813439,
       "tag": "0117_product_asset_packages",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "6",
+      "when": 1795707025736,
+      "tag": "0118_cover_recording_edit",
+      "breakpoints": true
     }
   ]
 }

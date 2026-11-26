@@ -7,6 +7,9 @@ import {KARAOKE_MAX_SECONDS,karaokeLyrics,karaokeWords} from '../shared/karaoke.
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
 import {isPremium} from './membership.js';
 import {punchLyricRange} from '../shared/punch-recording.js';
+import {coverEditWords,readCoverEdit} from './cover-edit.js';
+import {duetSource} from './duets.js';
+import {validRecordingWindow,MIN_COVER_SECONDS} from '../shared/recording-window.js';
 
 const MR_TYPES=['wav','flac','mp3'];
 const key=(trackId,name)=>`karaoke/${trackId}/${name}`;
@@ -35,16 +38,26 @@ async function singRoute(req,env,path,user){
   const track=(await trackList(env,`t.id=? AND ${VISIBLE()} AND ${SINGABLE()}`,[edit[1]]))[0];if(!track)fail(404,'부를 수 있는 곡을 찾을 수 없습니다.');
   if(req.method==='GET')return json({allowed:true});
   const b=await req.json(),duration=b?.duration;
-  if(!Number.isFinite(duration)||duration<=0||duration>track.duration+.5)fail(400,'녹음 길이를 확인해 주세요.');
+  let window=null;
+  if(b?.parent){
+   const duet=await duetSource(env,b.parent,user);
+   if(duet.original.id!==track.id)fail(400,'원곡과 듀엣 녹음이 일치하지 않습니다.');
+   window=readCoverEdit(duet.source.recording_edit)?.window;
+  }
+  const total=window?window.end-window.start:track.duration;
+  if(!Number.isFinite(duration)||duration<=0||duration>total+.16)fail(400,'녹음 길이를 확인해 주세요.');
   if(crop){
    const {start,end}=b;
-   if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end>duration||end-start<.1-1e-9)fail(400,'크롭 시작·끝 시간을 확인해 주세요.');
+   if(!validRecordingWindow(b,duration,MIN_COVER_SECONDS))fail(400,'크롭 시작과 종료 시간을 확인해 주세요. 5초 이상 선택해야 합니다.');
    return json({allowed:true,range:{start,end}});
   }
-  const words=JSON.parse((await one(env,'SELECT words FROM karaoke_jobs WHERE track_id=?',track.id)).words);
+  if(b.manual===true){
+   if(!validRecordingWindow(b,Math.min(duration,total+.16)))fail(400,'재녹음 시작·끝 시간을 확인해 주세요.');
+   return json({allowed:true,range:{start:b.start,end:b.end},countdown:3});
+  }
+  const words=(await coverEditWords(env,track.id,window)).map(w=>w.line);
   let range;
-  try{range=punchLyricRange(words,Math.min(duration,track.duration),b.first,b.last);}catch(e){fail(400,e.message);}
-  if(b.manual){if(!Number.isFinite(b.start)||!Number.isFinite(b.end)||b.start<0||b.end>duration||b.end>track.duration||b.end-b.start<.1)fail(400,'재녹음 시작·끝 시간을 확인해 주세요.');range={...range,start:b.start,end:b.end};}
+  try{range=punchLyricRange(words,Math.min(duration,total),b.first,b.last);}catch(e){fail(400,e.message);}
   return json({allowed:true,range:{start:range.start,end:range.end},countdown:3});
  }
  if(path==='/api/karaoke'&&req.method==='GET'){

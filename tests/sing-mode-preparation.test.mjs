@@ -162,14 +162,14 @@ test('cancelling a mode change preserves the existing take and its draft route w
 
 test('confirmed mode changes reset only the current take and keep manually assigned duet parts and mixer settings',async()=>{
  const f=fixture(),settings=f.take.mix,guide=f.take.duetGuide,backing=f.take.mr,context=f.take.ctx;
- Object.assign(f.take,{voice:{length:32000,duration:1},beforePunch:{},processed:{},keyEvents:[{at:0,key:1}],keyMR:{},publishRequest:'old-publish',savedAt:123,editMixBaseline:{},state:'review',editingRecording:true,preparationOpen:true,selection:{start:2,end:3},abEnabled:true});
+ Object.assign(f.take,{voice:{length:32000,duration:1},beforePunch:{},processed:{},keyEvents:[{at:0,key:1}],keyMR:{},publishRequest:'old-publish',savedAt:123,editMixBaseline:{},state:'review',editingRecording:true,preparationOpen:true,crop:{start:2,end:8},punchSelection:{start:2,end:3},punchUndo:[{}]});
  f.take.routeHash=f.location.hash='#sing/one?mode=solo&draft=1';
  f.run('askSingModeChange=async()=>true');
  assert.equal(await f.run("switchSingRecordingMode('duet')"),true);
  for(const key of ['voice','beforePunch','processed','keyEvents','keyMR','publishRequest','editMixBaseline'])assert.ok(!f.take[key],key+' must not cross recording modes');
  assert.equal(f.take.savedAt,0);assert.equal(f.take.cursor,0);assert.equal(f.take.mode,'duet');
  assert.equal(f.take.mix,settings);assert.equal(f.take.duetGuide,guide);assert.equal(f.take.mr,backing);assert.equal(f.take.ctx,context);assert.equal(f.take.keySemitones,2);
- assert.equal(f.take.abEnabled,false);assert.ok(!f.take.selection);assert.doesNotMatch(f.location.hash,/draft=1/);
+ assert.equal(f.take.crop,null);assert.equal(f.take.punchSelection,null);assert.equal(f.take.punchUndo.length,0);assert.doesNotMatch(f.location.hash,/draft=1/);
  assert.equal(f.counts.deleted,0);assert.equal(f.counts.api,0);assert.equal(f.counts.render,0);
 });
 

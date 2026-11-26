@@ -8,12 +8,27 @@ async function saveSingDraft(s=sing){
  if(!s?.owner||!s.voice?.length||singExitKind(s)!=='edit'||s.state==='stopping'||s.state==='exporting')throw new Error('녹음을 완료한 뒤 초안을 저장해 주세요.');
  const revision=s.revision||0;
  if(s.draftWrite&&s.writeRevision===revision)return s.draftWrite;
- const data={key:singDraftKey(s),owner:s.owner,id:s.id,mode:s.mode,part:s.part,parent:s.parent,title:s.data.track.title,artist:s.data.track.artist,samples:s.voice?.getChannelData(0).slice()||new Float32Array(),beforePunch:s.beforePunch?.getChannelData(0),rate:s.voice?.sampleRate||32000,duetGuide:s.duetGuide,keySemitones:singingKey(s),keyEvents:s.keyEvents,mix:{...s.mix},editBaseline:s.editMixBaseline,cursor:s.cursor,description:s.description||'',coverFile:s.coverFile||null,publishRequest:s.publishRequest??=crypto.randomUUID(),updated:Date.now()};
+ const data={key:singDraftKey(s),owner:s.owner,id:s.id,mode:s.mode,part:s.part,parent:s.parent,title:s.data.track.title,artist:s.data.track.artist,samples:s.voice?.getChannelData(0).slice()||new Float32Array(),beforePunch:s.beforePunch?.getChannelData(0),rate:s.voice?.sampleRate||32000,duetGuide:s.duetGuide,keySemitones:singingKey(s),keyEvents:s.keyEvents,mix:{...s.mix},editBaseline:s.editMixBaseline,crop:s.crop??null,punchUndo:s.punchUndo||[],legacyPunch:!!s.legacyPunch,cursor:s.cursor,description:s.description||'',coverFile:s.coverFile||null,publishRequest:s.publishRequest??=crypto.randomUUID(),updated:Date.now()};
  const write=(s.draftWrite||Promise.resolve()).catch(()=>{}).then(()=>draftOp('put',data.key,data));s.draftWrite=write;s.writeRevision=revision;paintDraftStatus(s);try{await write;s.savedAt=data.updated;s.draftError=false;if((s.revision||0)===revision)s.dirty=false;}catch(e){s.draftError=true;throw e;}finally{if(s.draftWrite===write)s.draftWrite=null;paintDraftStatus(s);}
 }
 async function restoreSingDraft(s){
  try{const d=await draftOp('get',singDraftKey(s));if(sing!==s||!d||d.owner!==s.owner||!(d.samples instanceof Float32Array)||d.samples.length>600*d.rate )return;
-  const ctx=s.ctx||(s.ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE}));if(d.samples.length){s.voice=ctx.createBuffer(1,d.samples.length,d.rate);s.voice.copyToChannel(d.samples,0);if(d.beforePunch instanceof Float32Array&&d.beforePunch.length===d.samples.length){s.beforePunch=ctx.createBuffer(1,d.beforePunch.length,d.rate);s.beforePunch.copyToChannel(d.beforePunch,0);}}if(!s.parent&&d.duetGuide)s.duetGuide=d.duetGuide;s.mix={...s.mix,...K().restoreVocalMix(d.mix)};s.savedAt=d.updated;if(d.editBaseline)s.editMixBaseline={...K().defaultVocalMix(),...K().restoreVocalMix(d.editBaseline)};if(!canEditPaid())s.mix.tone=0;s.keySemitones=singingKey({keySemitones:d.keySemitones});if(Array.isArray(d.keyEvents)&&d.keyEvents.length&&d.keyEvents[0].at===0&&d.keyEvents.every((e,i)=>Number.isFinite(e.at)&&(!i||e.at>d.keyEvents[i-1].at)&&e.key===singingKey({keySemitones:e.key})))s.keyEvents=d.keyEvents;s.cursor=s.voice?Math.min(d.cursor||0,s.voice.duration):0;s.description=d.description||'';s.coverFile=d.coverFile||null;s.publishRequest=d.publishRequest||('draft:'+d.key+':'+d.updated);s.state=s.voice?'review':'idle';renderSingPanel();renderDuetGuide();drawLyrics(s.cursor);setSingStatus('이 기기에 임시저장한 녹음과 효과를 복원했습니다.');
+  const ctx=s.ctx||(s.ctx=new (window.AudioContext||window.webkitAudioContext)({sampleRate:K().MIX_RATE}));
+  if(d.samples.length){
+   s.voice=ctx.createBuffer(1,d.samples.length,d.rate);s.voice.copyToChannel(d.samples,0);
+   if(d.beforePunch instanceof Float32Array&&d.beforePunch.length===d.samples.length){
+    s.beforePunch=ctx.createBuffer(1,d.beforePunch.length,d.rate);s.beforePunch.copyToChannel(d.beforePunch,0);
+    s.punchUndo=Array.isArray(d.punchUndo)?d.punchUndo.filter(edit=>Number.isSafeInteger(edit?.first)&&edit.first>=0&&edit.samples instanceof Float32Array&&edit.first+edit.samples.length<=d.samples.length&&Number.isFinite(edit.range?.start)):[];
+    s.legacyPunch=typeof d.legacyPunch==='boolean'?d.legacyPunch:!s.punchUndo.length;
+   }
+   if(d.crop&&Number.isFinite(d.crop.start)&&Number.isFinite(d.crop.end)&&d.crop.start>=0&&d.crop.end<=reviewDuration(s)+.001&&d.crop.end-d.crop.start>=K().MIN_COVER_SECONDS-1e-7)s.crop=d.crop;
+  }
+  if(!s.parent&&d.duetGuide)s.duetGuide=d.duetGuide;s.mix={...s.mix,...K().restoreVocalMix(d.mix)};s.savedAt=d.updated;
+  if(d.editBaseline)s.editMixBaseline={...K().defaultVocalMix(),...K().restoreVocalMix(d.editBaseline)};
+  if(!canEditPaid())s.mix.tone=0;s.keySemitones=singingKey({keySemitones:d.keySemitones});
+  if(Array.isArray(d.keyEvents)&&d.keyEvents.length&&d.keyEvents[0].at===0&&d.keyEvents.every((e,i)=>Number.isFinite(e.at)&&(!i||e.at>d.keyEvents[i-1].at)&&e.key===singingKey({keySemitones:e.key})))s.keyEvents=d.keyEvents;
+  s.cursor=s.voice?Math.min(d.cursor||0,s.voice.duration):0;s.description=d.description||'';s.coverFile=d.coverFile||null;s.publishRequest=d.publishRequest||('draft:'+d.key+':'+d.updated);
+  s.state=s.voice?'review':'idle';renderSingPanel();renderDuetGuide();drawLyrics(s.cursor);setSingStatus('이 기기에 임시저장한 녹음과 효과를 복원했습니다.');
  }catch(e){if(sing===s)setSingStatus('임시저장을 읽지 못했습니다. 브라우저 저장 공간을 확인해 주세요.');}
  finally{if(sing===s&&s.state==='loading'){s.state=s.voice?'review':'idle';updateTransport();}}
 }
