@@ -22,7 +22,7 @@ async function setup(t) {
 test('gift picker uses catalog currency groups, fresh stock and shared balances',async t=>{
  const {b,calls,writes}=await setup(t);await b.open();
  assert.match(b.html,/<h2>선물하기<\/h2>/);assert.equal((b.html.match(/data-gift-category=/g)||[]).length,4);
- const catalog=(await b.c.api('/api/gold'));
+ const catalog=(await b.c.api('/api/gifts/catalog'));
  const ids=Array.from(b.html.matchAll(/data-gift-type="([^"]+)"/g),m=>m[1]);
  assert.deepEqual(ids,[...catalog.gifts,...catalog.silver_gifts].map(g=>g.id));
  assert.match(b.html,/골드 400/);assert.match(b.html,/실버 100/);assert.match(b.html,/×2/);
@@ -48,7 +48,7 @@ test('owned batch confirms quantity, cancellation and response-loss replay witho
  assert.deepEqual(b.reviews.map(v=>[v.quantity,v.recipient,v.amount]),[[2,'친구',undefined],[2,'친구',undefined],[2,'친구',undefined]]);
  assert.equal((await f.call('/api/me/gift-inventory')).body.items.length,0);
  assert.equal((await f.call('/api/gold/balance')).body.balance,400);assert.equal(b.modal.open,false);
- assert.deepEqual(b.notices,['선물을 보냈습니다.']);assert.deepEqual(b.updates,['aifect:inventory-changed']);
+ assert.deepEqual(b.notices,['선물을 보냈습니다.']);
 });
 test('immediate purchase confirms exact currency and price and resends only the original request',async t=>{
  const {b,f,writes}=await setup(t);await b.open('silver-letter');const api=b.c.api;
@@ -82,7 +82,7 @@ test('room gifts retain their supplied transport, pending guard and recipient re
  assert.ok(!calls.some(x=>x.path.includes('gift-inventory')));assert.match(b.nodes['#gift-detail'].textContent,/토킹룸에서는 골드/);
  const first=b.submit();await new Promise(r=>setImmediate(r));assert.equal(b.nodes['#gift-send'].disabled,true);
  await b.submit();assert.equal(sent.length,1);release();await first;assert.equal(sent[0].quantity,2);assert.equal(sent[0].profile_id,'friend');
- assert.equal(writes().length,0);assert.deepEqual(b.notices,['선물을 보냈습니다.']);
+ assert.equal(writes().length,0);assert.deepEqual(b.notices,['선물을 보냈습니다.']);assert.deepEqual(b.updates,['aifect:room-gift-confirmed']);
  const before=calls.length;await b.c.profileGiftDialog('outside',{id:'heart',roomGift});assert.equal(calls.length,before);
 });
 test('work and profile entry retain the actual recipient, artwork and source attribution',async t=>{
@@ -96,7 +96,7 @@ test('work and profile entry retain the actual recipient, artwork and source att
 });
 test('inventory read failures leave purchases usable and guest views never request private inventory',async()=>{
  const profile={profile:{id:'friend',user_id:'other',name:'친구'}};
- const b=giftBrowser(async p=>{if(p.includes('gift-inventory'))throw Error('offline');return p==='/api/gold'?{balance:500,free:{balance:5}}:profile;});
+ const b=giftBrowser(async p=>{if(p.includes('gift-inventory'))throw Error('offline');return p==='/api/gold/balance'?{balance:500,silver_balance:5}:profile;});
  await b.open();assert.match(b.html,/data-gift-inventory-retry/);assert.equal(b.nodes['#gift-send'].disabled,false);
  const calls=[];const guest=giftBrowser(async p=>{calls.push(p);return profile;},null);await guest.open();
  assert.ok(!calls.some(p=>p.includes('gift-inventory')));

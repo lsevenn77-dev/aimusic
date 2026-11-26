@@ -283,7 +283,7 @@ function bindRoomGiftWallet(form){
   try{
    const d=await api('/api/gold','GET',undefined,{fresh:true});if(!active())return;status.textContent='';
    const titleNode=walletView.querySelector('header strong');
-   const balance=document.createElement('span');balance.className='room-wallet-balance';titleNode.after(balance);
+   const balance=document.createElement('span');balance.className='room-wallet-balance';balance.dataset.walletCurrency=kind==='gold'?'G':'S';titleNode.after(balance);
    if(kind==='silver'){
     const labels={checkin:'오늘 출석',cover:'커버곡 공개',listen:'노래 5곡 감상',comment1:'첫 번째 댓글',comment2:'두 번째 댓글',comment3:'세 번째 댓글'};
     const paint=free=>{

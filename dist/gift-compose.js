@@ -107,21 +107,20 @@ function bindGiftCompose(form, {serial, account, initialQuantity = 1, maximum, s
  const controls = new AbortController();
  const route = location.hash;
  const active = () => form.isConnected && modal.open && serial === giftDialogSerial && me?.id === account && route === location.hash;
- const requests = new Map();
- let quantity = initialQuantity, recipient, busy = false;
+ let quantity = initialQuantity, recipient, busy = false, pending;
 
  function update(count = quantity) {
   const available = maximum();
-  quantity = Math.max(1, Math.min(count, available));
+  if (!pending) quantity = Math.max(1, Math.min(count, available));
   quantityOutput.value = number(quantity);
-  less.disabled = busy || quantity <= 1;
-  max.disabled = more.disabled = busy || quantity >= available;
-  submit.disabled = busy || !recipient || quantity > available;
+  less.disabled = busy || !!pending || quantity <= 1;
+  max.disabled = more.disabled = busy || !!pending || quantity >= available;
+  submit.disabled = busy || !pending && (!recipient || quantity > available);
   summary(quantity, available);
  }
 
  function changeQuantity(count) {
-  if (!active() || busy) return;
+  if (!active() || busy || pending) return;
   error.textContent = '';
   update(count);
  }
@@ -129,6 +128,7 @@ function bindGiftCompose(form, {serial, account, initialQuantity = 1, maximum, s
  more.onclick = () => changeQuantity(quantity+1);
  max.onclick = () => changeQuantity(maximum());
  bindGiftRecipients(form, {active,signal:controls.signal,selected(profile) {
+  if (busy || pending) return;
   recipient = profile;
   error.textContent = '';
   update();
@@ -137,28 +137,33 @@ function bindGiftCompose(form, {serial, account, initialQuantity = 1, maximum, s
  function setBusy(value) {
   busy = value;
   close.disabled = value;
-  form.setAttribute('aria-busy', String(value));
-  form.elements.query.disabled = value;
-  form.querySelector('.gift-compose-people').inert = value;
-  submit.textContent = value ? '처리 중…' : label;
+  if (value) submit.setAttribute('aria-busy','true');
+  else submit.removeAttribute('aria-busy');
+  form.elements.query.disabled = value || !!pending;
+  form.querySelector('.gift-compose-people').inert = value || !!pending;
+  submit.textContent = value ? '처리 중…' : pending ? '거래 결과 다시 확인' : label;
   update();
  }
  form.onsubmit = async event => {
   event.preventDefault();
-  if (!active() || busy || !recipient || quantity > maximum()) return;
-  const {path, body, review} = transfer(quantity, recipient);
+  if (!active() || busy || !pending && (!recipient || quantity > maximum())) return;
   setBusy(true);
   error.textContent = '';
   try {
-   if (!await confirmGiftTransfer({...review,composeAction:label}) || !active()) return;
-   const fingerprint = JSON.stringify([path,body]);
-   if (!requests.has(fingerprint)) requests.set(fingerprint,crypto.randomUUID());
-   await api(path,'POST',{...body,request_id:requests.get(fingerprint)});
+   if (!pending) {
+    const {path,body,review} = transfer(quantity,recipient);
+    if (!await confirmGiftTransfer({...review,composeAction:label}) || !active()) return;
+    pending = {path,body:{...body,request_id:crypto.randomUUID()}};
+   }
+   await api(pending.path,'POST',pending.body);
+   pending = undefined;
    if (active()) finishGiftTransfer();
   } catch (reason) {
-   if (active()) error.textContent = reason instanceof TypeError ?
-    '전송 결과를 확인할 수 없습니다. 같은 내용으로 다시 시도해 주세요.' : reason.message;
-   if (active() && refresh && [404,409].includes(reason.status)) {
+   const uncertain = !!pending && (!reason.status || reason.status === 408 || reason.status >= 500);
+   if (!uncertain) pending = undefined;
+   if (active()) error.textContent = uncertain ?
+    reason.message+' 같은 요청 번호로 거래 결과를 다시 확인해 주세요.' : reason.message;
+   if (!uncertain && active() && refresh && [404,409].includes(reason.status)) {
     try { await refresh(); } catch { /* Keep the transaction failure visible. */ }
    }
   } finally {
@@ -177,4 +182,5 @@ function bindGiftCompose(form, {serial, account, initialQuantity = 1, maximum, s
  }, {signal:controls.signal});
  update();
  form.closest('.gift-compose').querySelector('h2').focus({preventScroll:true});
+ return update;
 }
