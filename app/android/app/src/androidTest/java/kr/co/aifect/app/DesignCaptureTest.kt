@@ -1119,7 +1119,7 @@ class DesignCaptureTest {
   Espresso.closeSoftKeyboard();ui.onNodeWithTag("studio-save").performScrollTo().performClick();ready("creator-studio")
   val body=JSONObject(requestBodies.getValue("/api/studio/tracks/design-song"))
   assertEquals("수정한 밤의 산책",body.getString("title"));assertEquals("앱에서 수정한 소개",body.getString("description"))
-  assertEquals("design-artist",body.getString("artist_id"));assertEquals("[00:00.000] 오늘의 마음을 담아요",body.getString("lyrics"))
+  assertEquals("design-artist",body.getString("artist_id"));assertFalse(body.has("lyrics"));assertFalse(body.has("lyrics_mode"))
   Espresso.pressBack();assertEquals(6,model.tab)
   ui.onNodeWithTag("my-settings").performClick()
   ui.onNodeWithText("계정 관리").performScrollTo().performClick();ready("account-actions")
@@ -1166,30 +1166,40 @@ class DesignCaptureTest {
 
  @Test fun studioUploadUsesPickerBytesAndSingleDraft(){
   val file=File(context.cacheDir,"original-test.wav").apply{writeBytes(ByteArray(1024){it.toByte()})}
-  val uri=androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".fileprovider",file)
-  val result=android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_OK,Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+  val image=File(context.cacheDir,"original-test.png").apply{instrumentation.context.assets.open("design/nova.png").use{input->outputStream().use{input.copyTo(it)}}}
+  fun result(selected:File):android.app.Instrumentation.ActivityResult{
+   val uri=androidx.core.content.FileProvider.getUriForFile(context,context.packageName+".fileprovider",selected)
+   return android.app.Instrumentation.ActivityResult(android.app.Activity.RESULT_OK,Intent().setData(uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION))
+  }
   val monitor=object:android.app.Instrumentation.ActivityMonitor(){
-   override fun onStartActivity(intent:Intent):android.app.Instrumentation.ActivityResult?=if(intent.action==Intent.ACTION_OPEN_DOCUMENT)result else null
+   override fun onStartActivity(intent:Intent):android.app.Instrumentation.ActivityResult?=
+    if(intent.action==Intent.ACTION_OPEN_DOCUMENT)result(if(intent.getStringArrayExtra(Intent.EXTRA_MIME_TYPES).orEmpty().any{it.startsWith("image/")})image else file) else null
   }
   instrumentation.addMonitor(monitor)
   responses["/api/uploads"]=payload("id" to "new-original")
   responses["/api/studio/tracks/new-original"]=payload("profile" to payload("status" to "uploading"))
+  responses["/api/studio/upload-options"]=payload("terms" to payload("version" to "2026-11-23.1","text" to "음원 이용허락","notice" to "권리를 확인해 주세요."),"ai_tools" to JSONArray().put(payload("name" to "Suno")),"recommended_genres" to JSONArray().put("K-POP"))
   try{
    act{it.openStudio()};ready("creator-studio");ui.waitUntil(15000){!model.studioBusy}
    ui.onNodeWithTag("creator-studio").performScrollToNode(hasTestTag("studio-upload"));ui.onNodeWithTag("studio-upload").performClick();ready("studio-title")
-   ui.onNodeWithText("WAV · FLAC · MP3 선택 (80MB 이하)").performClick();text("original-test.wav")
-   ui.onNodeWithTag("studio-field-AI 제작 도구").performScrollTo().performTextReplacement("Suno");Espresso.closeSoftKeyboard()
+   ui.onNodeWithText("음원 선택").performScrollTo().performClick();text("original-test.wav")
+   ui.onNodeWithTag("studio-save").performScrollTo().performClick()
+   ui.onNodeWithTag("studio-save-error").assertTextContains("커버 이미지를 선택해 주세요.")
+   ui.onNodeWithTag("studio-cover-picker").performScrollTo().performClick();text("커버 이미지 교체")
+   ui.onNodeWithText("+ K-POP").performScrollTo().performClick()
+   ui.onNodeWithText("Suno").performScrollTo().performClick()
    ui.onNodeWithTag("studio-lyrics").performScrollTo().performTextReplacement("별빛 아래 걷는다")
    Espresso.closeSoftKeyboard()
-   ui.onNodeWithTag("studio-save").assertIsNotEnabled()
    ui.onNodeWithTag("studio-upload-consent").performScrollTo().performClick()
    ui.onNodeWithTag("studio-save").performScrollTo().performClick();ready("creator-studio")
    val body=JSONObject(requestBodies.getValue("/api/uploads"));assertEquals("wav",body.getString("extension"));assertEquals(1024,body.getInt("bytes"))
-   assertEquals("auto",body.getString("lyrics_mode"));assertEquals("2026-11-02.1",body.getString("upload_consent_version"))
+   assertEquals("auto",body.getString("lyrics_mode"));assertEquals("2026-11-23.1",body.getString("upload_consent_version"))
+   assertEquals("manual",body.getString("classification_mode"));assertEquals("K-POP",body.getJSONArray("genres").getString(0))
    for(flag in listOf("rights","is_ai","karaoke"))assertEquals(true,body.getBoolean(flag))
    assertEquals(1024,uploadBytes.getValue("/api/uploads/new-original/audio"));assertEquals(1,requestUrls.count{it=="/api/uploads"})
+   assertTrue(uploadBytes.getValue("/api/uploads/new-original/cover")>100)
    assertEquals(1,requestUrls.count{it=="/api/uploads/new-original/complete"})
-  }finally{instrumentation.removeMonitor(monitor);file.delete()}
+  }finally{instrumentation.removeMonitor(monitor);file.delete();image.delete()}
  }
 
  @Test fun crewRenameCooldownKeepsDescriptionEditable(){

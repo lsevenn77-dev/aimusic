@@ -26,12 +26,13 @@ internal suspend fun NativeApi.prepareStudioAudio(uri:Uri):StudioAudio=withConte
  }catch(e:Exception){file.delete();throw e}
 }
 
-internal suspend fun NativeApi.uploadStudioAudio(path:String,file:File):JSONObject=withContext(Dispatchers.IO){
- val request=Request.Builder().url(Endpoint.url(path)).put(file.asRequestBody("application/octet-stream".toMediaType())).build()
- val result=client.newBuilder().writeTimeout(180,java.util.concurrent.TimeUnit.SECONDS).readTimeout(60,java.util.concurrent.TimeUnit.SECONDS).build().newCall(request).execute().use{response->
+internal suspend fun NativeApi.uploadStudioAudio(path:String,file:File,method:String="PUT"):JSONObject=withContext(Dispatchers.IO){
+ val request=Request.Builder().url(Endpoint.url(path)).method(method,file.asRequestBody("application/octet-stream".toMediaType())).build()
+ val result=client.newBuilder().writeTimeout(180,java.util.concurrent.TimeUnit.SECONDS).readTimeout(if(method=="POST")130 else 60,java.util.concurrent.TimeUnit.SECONDS).build().newCall(request).execute().use{response->
   val result=JSONObject(response.body?.string()?:"{}")
   if(!response.isSuccessful)throw ApiException(response.code,result.optString("error","음원을 올리지 못했어요. 다시 시도해주세요."))
   result
  }
- invalidateReads();result
+ if(method=="PUT")invalidateReads()
+ result
 }

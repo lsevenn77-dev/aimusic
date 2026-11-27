@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,16 +25,44 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import coil.compose.AsyncImage
 import coil.ImageLoader
 import coil.request.CachePolicy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.util.UUID
+import java.text.Normalizer
 
-internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"hidden"->"비공개";"uploading"->"업로드 대기";"queued"->"변환 대기";"processing"->"변환 중";"failed"->"변환 실패";"rejected"->"검토 필요";else->status}
+internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"hidden"->"비공개";"uploading"->"업로드 대기";"queued"->"음원 변환 대기";"processing"->"음원 변환 중";"failed"->"음원 변환 실패";"rejected"->"검토 필요";else->status}
+
+private fun studioLyricsStatus(row:JSONObject):String?=when(row.optString("alignment_state")){
+ "queued"->"가사 싱크 대기";"processing"->"가사 싱크 작업 중";"ready"->"자동 가사 확인 필요";"failed"->"가사 싱크 재시도 필요"
+ else->when(row.optString("lyrics_mode")){"no_lyrics"->"가사 없음";"later","none"->"가사 미등록";"synced"->"가사 등록";else->null}
+}
+
+private val studioLyricsModes=linkedMapOf("auto" to "가사 입력하고 자동 싱크 (추천)","no_lyrics" to "가사가 없는 노래","later" to "나중에 등록","synced" to "직접 싱크 등록 / LRC")
+private val studioDefaultLanguages=linkedMapOf("ko" to "한국어","en" to "영어","ja" to "일본어","zh" to "중국어","es" to "스페인어","fr" to "프랑스어","de" to "독일어","pt" to "포르투갈어")
+private val studioParticipation=listOf("작사","작곡","편곡","보컬","믹싱")
+private fun JSONArray?.texts():List<String> = if(this==null)emptyList() else (0 until length()).map{optString(it)}
+private fun stripStudioAnnotations(text:String)=text.replace(Regex("\\[[^\\]\\r\\n]*]"),"")
+private fun validStudioAutoLyrics(text:String):Boolean{
+ val lines=stripStudioAnnotations(text).lineSequence().map{it.trim()}.filter{it.isNotEmpty()}.toList()
+ return text.length<=6000&&lines.size in 1..200&&lines.none{it.length>300}&&!Regex("\\[\\d{1,3}:").containsMatchIn(text)
+}
 
 @Composable internal fun CreatorStudioScreen(m:MusicModel){
  val account=m.user?.optString("id")
@@ -76,6 +105,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
     Row(verticalAlignment=Alignment.CenterVertically){if(song.art!=null)StudioImage(song.art,m,Modifier.size(68.dp))else Artwork(song,Modifier.size(68.dp));Column(Modifier.weight(1f).padding(start=12.dp)){
      Text(song.title,fontSize=16.sp,fontWeight=FontWeight.Bold);Text(studioStatus(song.raw.optString("status")),color=Aqua,fontSize=12.sp)
      Text(if(song.cover)"커버 · ${song.credit}" else song.genreLabel,color=Muted,fontSize=12.sp)
+     if(!song.cover)studioLyricsStatus(song.raw)?.let{Text(it,color=Muted,fontSize=12.sp)}
     }}
     song.raw.optString("error").takeIf{it.isNotBlank()&&it!="null"}?.let{Text(it,color=Pink,fontSize=12.sp)}
     FilledTonalButton(onClick={editing=song.id},modifier=Modifier.fillMaxWidth().testTag("studio-edit-${song.id}")){Icon(Icons.Outlined.Edit,null,Modifier.size(18.dp));Text(if(song.cover)"커버곡 정보 수정" else "커버 · 가사 · 정보 수정",Modifier.padding(start=6.dp))}
@@ -131,6 +161,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  StudioTrackForm(m,trackId,loaded!!,close)
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable private fun StudioTrackForm(m:MusicModel,trackId:String?,data:JSONObject,close:()->Unit){
  val account=m.user?.optString("id")
  val initial=data.optJSONObject("profile")?:JSONObject()
@@ -138,6 +169,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  val appearance=remember(trackId){WorkAppearance(initial.optString("listening_template"),initial.optString("description"))}
  DisposableEffect(appearance){onDispose{appearance.close()}}
  val scope=rememberCoroutineScope()
+ val creating=trackId==null
  var title by rememberSaveable{mutableStateOf(initial.optString("title"))}
  var description by rememberSaveable{mutableStateOf(initial.optString("description"))}
  var tool by rememberSaveable{mutableStateOf(initial.optString("ai_tool"))}
@@ -146,50 +178,137 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  var artistId by rememberSaveable{mutableStateOf(initial.optString("artist_id","none"))}
  var newArtist by rememberSaveable{mutableStateOf("")}
  var mode by rememberSaveable{mutableStateOf(initial.optString("performance_mode","solo"))}
- var lyricsMode by rememberSaveable{mutableStateOf(initial.optString("lyrics_mode",if(trackId==null)"auto" else "none"))}
+ var lyricsMode by rememberSaveable{mutableStateOf(if(data.optJSONObject("alignment")?.optString("state") in listOf("queued","processing","ready","failed"))"auto" else initial.optString("lyrics_mode",if(creating)"auto" else "none"))}
  var lyrics by rememberSaveable{mutableStateOf(initial.optString("lyrics"))}
  var autoSource by rememberSaveable{mutableStateOf(data.optJSONObject("alignment")?.optString("source_text").orEmpty())}
+ var lyricsLanguage by rememberSaveable{mutableStateOf(data.optJSONObject("alignment")?.optString("language","ko")?:"ko")}
+ var lyricsChanged by rememberSaveable{mutableStateOf(false)}
+ var autoFilename by rememberSaveable{mutableStateOf("")}
+ var syncedFilename by rememberSaveable{mutableStateOf("")}
  var uploadConsent by rememberSaveable(account,trackId){mutableStateOf(false)}
- var audio by remember{mutableStateOf<StudioAudio?>(null)}
- var image by remember{mutableStateOf<Uri?>(null)}
- var draftId by remember{mutableStateOf<String?>(null)}
+ var audioPath by rememberSaveable(account,trackId){mutableStateOf<String?>(null)}
+ var audioName by rememberSaveable(account,trackId){mutableStateOf("")}
+ val audio=audioPath?.let{path->File(path).takeIf{it.isFile}?.let{StudioAudio(it,audioName,it.extension)}}
+ var image by rememberSaveable(account,trackId){mutableStateOf<Uri?>(null)}
+ var draftId by rememberSaveable(account,trackId){mutableStateOf<String?>(null)}
+ var requestId by rememberSaveable(account,trackId){mutableStateOf<String?>(null)}
+ var availableOptions by remember{mutableStateOf<JSONObject?>(null)}
+ var optionsAttempt by remember{mutableIntStateOf(0)}
+ var producer by rememberSaveable(account,trackId){mutableStateOf(m.studioData.optJSONObject("producer")?.optString("name")?:m.user?.optString("name").orEmpty())}
+ var uploadGenres by rememberSaveable(account,trackId){mutableStateOf(arrayListOf<String>())}
+ var aiTools by rememberSaveable{mutableStateOf(arrayListOf<String>())}
+ var otherTool by rememberSaveable{mutableStateOf(false)}
+ var noAI by rememberSaveable{mutableStateOf(false)}
+ var participation by rememberSaveable{mutableStateOf(arrayListOf<String>())}
+ var tags by rememberSaveable{mutableStateOf("")}
+ var qa by rememberSaveable{mutableStateOf(false)}
  var working by remember{mutableStateOf(false)}
  var stage by remember{mutableStateOf("")}
  var error by remember{mutableStateOf<String?>(null)}
  var confirmLeave by remember{mutableStateOf(false)}
  var artistPicker by remember{mutableStateOf(false)}
  val artists=m.studioData.optJSONArray("artists").objects()
+ val sectionKeys=remember{listOf("audio","cover","title","producer","artist","genres","lyrics","credit","consent").associateWith{BringIntoViewRequester()}}
+ val focusKeys=remember{listOf("title","producer","artist","genres","lyrics","credit").associateWith{FocusRequester()}}
+ val terms=availableOptions?.optJSONObject("terms")
+ val creditTools=availableOptions?.optJSONArray("ai_tools").objects().map{it.optString("name")}
+ val otherCredits=tool.split(Regex("[,，;\\n]")).map{it.trim()}.filter{it.isNotEmpty()}
+ val credit=(aiTools+if(otherTool)otherCredits else emptyList()).distinctBy{it.lowercase()}.joinToString(", ")
+ LaunchedEffect(account,creating,optionsAttempt){
+  if(creating)try{availableOptions=m.api.call("/api/studio/upload-options")}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}
+ }
  fun leave(){if(!working)confirmLeave=true}
  BackHandler{leave()}
- DisposableEffect(Unit){onDispose{audio?.file?.delete()}}
+ fun discard(){audio?.file?.delete();close()}
  val audioPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null)scope.launch{
-  working=true;stage="음원 파일 확인 중…";try{val selected=m.api.prepareStudioAudio(uri);audio?.file?.delete();audio=selected;if(title.isBlank())title=selected.name.substringBeforeLast('.');error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{working=false;stage=""}
+  working=true;stage="음원 파일 확인 중…";try{val selected=m.api.prepareStudioAudio(uri);audio?.file?.delete();audioPath=selected.file.path;audioName=selected.name;if(title.isBlank())title=selected.name.substringBeforeLast('.');error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{working=false;stage=""}
  }}
- val imagePicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->if(uri!=null)image=uri}
- fun save(){scope.launch{
-  working=true;error=null
+ val imagePicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null)scope.launch{
+  try{
+   withContext(Dispatchers.IO){
+    val resolver=m.api.appContext.contentResolver
+    require(resolver.getType(uri) in listOf("image/jpeg","image/png","image/webp")){"JPG·PNG·WebP 이미지를 선택해 주세요."}
+    val size=resolver.openAssetFileDescriptor(uri,"r")?.use{it.length}?:-1
+    require(size<=5*1024*1024){"커버 이미지는 5MB 이하로 선택해 주세요."}
+    runCatching{resolver.takePersistableUriPermission(uri,android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)}
+   }
+   image=uri;error=null
+  }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}
+ }}
+ val lyricPicker=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()){uri->if(uri!=null)scope.launch{
+  try{
+   val (name,text)=withContext(Dispatchers.IO){
+    val resolver=m.api.appContext.contentResolver
+    val name=resolver.query(uri,arrayOf(android.provider.OpenableColumns.DISPLAY_NAME),null,null,null)?.use{if(it.moveToFirst())it.getString(0)else null}.orEmpty()
+    require(name.substringAfterLast('.').lowercase() in if(lyricsMode=="auto")listOf("txt")else listOf("txt","lrc")){"지원하는 가사 파일을 선택해 주세요."}
+    val bytes=resolver.openInputStream(uri)?.use{input->
+     val output=java.io.ByteArrayOutputStream();val buffer=ByteArray(8192)
+     while(output.size()<=65536){val count=input.read(buffer);if(count<0)break;output.write(buffer,0,count)}
+     output.toByteArray()
+    }?:error("가사 파일을 열 수 없습니다.")
+    require(bytes.size<=65536){"가사 파일은 64KB 이하로 선택해 주세요."}
+    name to Charsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+   }
+   if(lyricsMode=="auto"){require(validStudioAutoLyrics(text)){"자동 싱크 가사는 최대 6,000자·200줄, 한 줄 300자입니다."};autoSource=stripStudioAnnotations(text);autoFilename=name}
+   else {require(text.length<=12000){"가사는 최대 12,000자까지 입력해 주세요."};lyrics=text;syncedFilename=name}
+   lyricsChanged=true;error=null
+  }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}
+ }}
+ fun save(){
+  if(working)return
+  val missing=if(!creating)null else when{
+   audio==null->"audio" to "음원 파일을 선택해 주세요."
+   image==null->"cover" to "커버 이미지를 선택해 주세요."
+   draftId!=null->null
+   title.isBlank()->"title" to "곡 제목을 입력해 주세요."
+   producer.isBlank()->"producer" to "제작자 이름을 입력해 주세요."
+   artistId=="new"&&newArtist.isBlank()->"artist" to "아티스트 이름을 입력해 주세요."
+   uploadGenres.isEmpty()->"genres" to "장르를 추가해 주세요."
+   lyricsMode=="auto"&&!validStudioAutoLyrics(autoSource)->"lyrics" to "자동 싱크 가사를 확인해 주세요. 최대 6,000자·200줄, 한 줄 300자입니다."
+   lyricsMode=="synced"&&lyrics.isBlank()->"lyrics" to "LRC 파일을 불러오거나 타임코드를 입력해 주세요."
+   !noAI&&(credit.isBlank()||credit.length>100||otherTool&&otherCredits.isEmpty())->"credit" to "도구 또는 AI 사용 안 함을 선택해 주세요. 도구 이름은 합계 100자 이내입니다."
+   !uploadConsent||terms==null->"consent" to "음원 이용허락을 확인하고 동의해 주세요."
+   else->null
+  }
+  if(missing!=null){error=missing.second;scope.launch{sectionKeys[missing.first]?.bringIntoView();runCatching{focusKeys[missing.first]?.requestFocus()}};return}
+  working=true
+  scope.launch{
+  error=null
   try{
    var uploadAd:String?=null
    val body=if(cover)appearance.changes("description").apply{put("release_date",initial.optString("release_date").takeUnless{it=="null"}?:"")}else JSONObject(initial.toString()).apply{
-    put("title",title.trim());put("description",description);put("ai_tool",tool.trim());put("genre",genres.split(',').first().trim())
-    put("genres",JSONArray(genres.split(',').map{it.trim()}.filter{it.isNotEmpty()}));put("moods",JSONArray(moods.split(',').map{it.trim()}.filter{it.isNotEmpty()}))
+    val chosen=if(creating)uploadGenres else genres.split(',').map{it.trim()}.filter{it.isNotEmpty()}
+    put("title",title.trim());put("description",description);put("ai_tool",if(creating){if(noAI)"AI 사용 안 함" else credit}else tool.trim());put("genre",chosen.firstOrNull().orEmpty())
+    put("genres",JSONArray(chosen));put("moods",JSONArray(moods.split(',').map{it.trim()}.filter{it.isNotEmpty()}))
     if(artistId=="new"){remove("artist_id");put("artist",newArtist.trim())}else put("artist_id",artistId)
-    put("performance_mode",mode);put("lyrics_mode",lyricsMode)
-    if(lyricsMode=="auto"){put("lyrics_source",autoSource);put("lyrics_language","ko")}else put("lyrics",lyrics)
+    put("performance_mode",mode)
+    if(!creating)put("is_ai",tool.trim()!="AI 사용 안 함")
+    remove("lyrics_mode");remove("lyrics");remove("lyrics_source");remove("lyrics_language")
+    if(creating||lyricsChanged){
+     put("lyrics_mode",if(lyricsMode=="none")"later" else lyricsMode)
+     if(lyricsMode=="auto"){put("lyrics_source",autoSource);put("lyrics_language",lyricsLanguage)}
+     if(lyricsMode=="synced")put("lyrics",lyrics)
+    }
    }
    if(trackId==null){
     val file=audio?:throw IllegalArgumentException("음원 파일을 선택해주세요.")
-    body.put("producer",m.studioData.optJSONObject("producer")?.optString("name")?:m.user?.optString("name"));body.put("extension",file.extension);body.put("bytes",file.file.length());body.put("rights",uploadConsent);body.put("is_ai",uploadConsent);body.put("karaoke",uploadConsent)
-    body.put("upload_consent_version","2026-11-02.1")
+    body.put("producer",producer.trim());body.put("extension",file.extension);body.put("bytes",file.file.length());body.put("rights",uploadConsent);body.put("is_ai",!noAI);body.put("karaoke",uploadConsent)
+    body.put("upload_consent_version",terms?.optString("version"));body.put("classification_mode","manual")
+    body.put("participation",participation.joinToString(", "));body.put("tags",tags)
+    body.put("request_id",requestId?:UUID.randomUUID().toString().also{requestId=it})
     stage="1 / 3 · 업로드 준비 중…"
     val id=draftId?:m.api.call("/api/uploads","POST",body).getString("id").also{draftId=it}
     // Reuse the same draft after a network failure. A completed draft is never submitted twice.
     val status=m.api.call("/api/studio/tracks/$id",fresh=true).getJSONObject("profile").optString("status")
     if(status=="uploading"){
+     val profile=m.studioData.optJSONObject("producer")
+     if(profile!=null&&producer.trim()!=profile.optString("name"))m.api.call("/api/studio/profile","PUT",payload("name" to producer.trim(),"bio" to profile.optString("bio")))
      stage="2 / 3 · 음원 업로드 중…";m.api.uploadStudioAudio("/api/uploads/$id/audio",file.file)
-     image?.let{stage="앨범 커버 저장 중…";m.api.uploadWebp("/api/uploads/$id/cover",it)}
+     stage="앨범 커버 저장 중…";m.api.uploadWebp("/api/uploads/$id/cover",checkNotNull(image))
      stage="3 / 3 · 음악 제출 중…"
-     if(m.api.call("/api/uploads/$id/complete","POST").optBoolean("show_upload_ad"))uploadAd=id
+     if(m.api.call("/api/uploads/$id/complete","POST",payload("require_cover" to true)).optBoolean("show_upload_ad"))uploadAd=id
+    }else if(status !in listOf("queued","processing","published","hidden")){
+     error("스튜디오에서 곡 상태를 확인해 주세요.")
     }
    }else{
     stage="음원 정보 저장 중…";m.api.call("/api/studio/tracks/$trackId","PUT",body)
@@ -197,46 +316,118 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
     if(!cover)image?.let{stage="앨범 커버 저장 중…";m.api.uploadWebp("/api/studio/tracks/$trackId/image",it)}
    }
    m.api.invalidateReads()
-   if(account==m.user?.optString("id")){m.notice=if(trackId==null)"음원을 올렸어요. 변환이 끝나면 공개돼요." else "음원 정보를 저장했어요.";m.refreshLibrary(true);close();uploadAd?.let{SongAdBreaks.afterCoverUpload(it,{m.controller?.pause()},{})}}
+   if(account==m.user?.optString("id")){m.notice=if(trackId==null)"업로드 완료 · 음원 변환 후 공개됩니다." else "음원 정보를 저장했습니다.";m.refreshLibrary(true);discard();uploadAd?.let{SongAdBreaks.afterCoverUpload(it,{m.controller?.pause()},{})}}
   }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}
   finally{working=false;stage=""}
  }}
- Column(Modifier.fillMaxSize().testTag("studio-track-editor")){
-  Row(Modifier.fillMaxWidth().padding(horizontal=12.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClick=::leave,enabled=!working){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"스튜디오로 돌아가기")};Text(if(trackId==null)"음원 업로드" else "음원 수정",fontSize=21.sp,fontWeight=FontWeight.Bold)}
-  Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(18.dp).testTag("studio-editor-scroll"),verticalArrangement=Arrangement.spacedBy(14.dp)){
+ val editable=!working&&draftId==null
+ val lyricText=if(lyricsMode=="auto")autoSource else if(lyricsMode=="synced")lyrics else ""
+ Column(Modifier.fillMaxSize().imePadding().testTag("studio-track-editor")){
+  Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically){
+   IconButton(onClick=::leave,enabled=!working){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"스튜디오로 돌아가기")}
+   Text(if(creating)"음원 업로드" else "음원 수정",fontSize=21.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+   if(creating){Text("* 필수 입력",color=Pink,fontSize=12.sp);IconButton(onClick={qa=true}){Icon(Icons.AutoMirrored.Outlined.HelpOutline,"업로드 Q&A")}}
+  }
+  Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp).testTag("studio-editor-scroll"),verticalArrangement=Arrangement.spacedBy(10.dp)){
    if(!cover){
-    if(trackId==null){OutlinedButton(onClick={audioPicker.launch(arrayOf("audio/*","application/octet-stream"))},enabled=!working&&draftId==null,modifier=Modifier.fillMaxWidth()){Icon(Icons.Outlined.AudioFile,null);Text(audio?.name?:"WAV · FLAC · MP3 선택 (80MB 이하)",Modifier.padding(start=8.dp))}}
-    StudioField("곡 제목",title,{title=it.take(120)},!working&&draftId==null,"studio-title")
-    StudioPanel{
-     val picture=image?:trackId?.takeIf{initial.optInt("has_cover")>0}?.let{Endpoint.url("/media/$it/cover?v=${initial.optString("cover_version")}")}
-     picture?.let{StudioImage(it,m,Modifier.size(144.dp).align(Alignment.CenterHorizontally))}
-     OutlinedButton(onClick={imagePicker.launch("image/*")},enabled=!working,modifier=Modifier.fillMaxWidth().testTag("studio-cover-picker")){Icon(Icons.Outlined.AddPhotoAlternate,null);Text("앨범 커버 변경",Modifier.padding(start=8.dp))}
+    if(creating){
+     Column(Modifier.bringIntoViewRequester(sectionKeys.getValue("audio"))){
+      StudioRequired("원본 음원")
+      OutlinedButton(onClick={audioPicker.launch(arrayOf("audio/*","application/octet-stream"))},enabled=editable,modifier=Modifier.fillMaxWidth()){Icon(Icons.Outlined.AudioFile,null);Text(audio?.name?:"음원 선택",Modifier.padding(start=8.dp))}
+      Text("WAV · FLAC · MP3 · 최대 80MB · 5초~20분",color=Muted,fontSize=12.sp)
+     }
     }
-    OutlinedButton(onClick={artistPicker=true},enabled=!working&&draftId==null,modifier=Modifier.fillMaxWidth()){Text("AI 아티스트 · "+when(artistId){"none"->"선택 안 함 (내 활동명)";"new"->"새 아티스트";else->artists.find{it.optString("id")==artistId}?.optString("name")?:"내 활동명"})}
-    if(artistId=="new")StudioField("새 아티스트 이름",newArtist,{newArtist=it.take(60)},!working&&draftId==null)
-    StudioField("AI 제작 도구",tool,{tool=it.take(100)},!working&&draftId==null)
-    if(draftId==null){Text("노래 구성",color=Muted,fontSize=13.sp);Chips(listOf("솔로","듀엣"),if(mode=="duet")"듀엣"else"솔로"){if(!working)mode=if(it=="듀엣")"duet"else"solo"}}
-    StudioChoiceField("장르",genres,Genres.map{it to it},3,1,!working&&draftId==null){genres=it}
-    StudioChoiceField("기분",moods,MoodTiles.map{it.id to it.name},4,0,!working&&draftId==null){moods=it}
-    Text("새 제작곡은 업로드 후 AI가 음원을 분석해 장르와 기분을 분류해요.",fontSize=12.sp,color=Muted)
-    Text("가사",fontSize=18.sp,fontWeight=FontWeight.Bold)
-    if(draftId==null)Chips(listOf("자동 싱크","가사 없음","LRC 직접 입력"),when(lyricsMode){"auto"->"자동 싱크";"synced"->"LRC 직접 입력";else->"가사 없음"}){if(!working)lyricsMode=when(it){"자동 싱크"->"auto";"LRC 직접 입력"->"synced";else->"none"}}
-    if(lyricsMode!="none")OutlinedTextField(if(lyricsMode=="auto")autoSource else lyrics,{if(lyricsMode=="auto")autoSource=it.take(6000)else lyrics=it.take(12000)},label={Text(if(lyricsMode=="auto")"가사를 줄마다 입력하세요"else"[00:12.500] 가사")},minLines=5,modifier=Modifier.fillMaxWidth().testTag("studio-lyrics"),enabled=!working&&draftId==null)
-    if(lyricsMode=="auto")Text("입력한 가사로 자동 싱크를 요청해요. 완료 상태는 스튜디오에서 확인할 수 있어요.",color=Muted,fontSize=12.sp)
-    data.optJSONObject("alignment")?.let{Text("가사 싱크 · ${it.optString("state")}",fontSize=12.sp,color=Aqua)}
+    Column(Modifier.fillMaxWidth().bringIntoViewRequester(sectionKeys.getValue("cover"))){
+     if(creating)StudioRequired("커버 이미지")
+     val picture=image?:trackId?.takeIf{initial.optInt("has_cover")>0}?.let{Endpoint.url("/media/$it/cover?v=${initial.optString("cover_version")}")}
+     picture?.let{StudioImage(it,m,Modifier.size(88.dp))}
+     Row(verticalAlignment=Alignment.CenterVertically){
+      OutlinedButton(onClick={imagePicker.launch(arrayOf("image/jpeg","image/png","image/webp"))},enabled=!working,modifier=Modifier.testTag("studio-cover-picker")){Icon(Icons.Outlined.AddPhotoAlternate,null);Text(if(picture==null)"커버 이미지 선택" else "커버 이미지 교체",Modifier.padding(start=8.dp))}
+      if(image!=null&&editable)TextButton(onClick={image=null}){Text("선택 취소")}
+     }
+     if(creating)Text("JPG · PNG · WebP · 최대 5MB · 정사각형 권장",color=Muted,fontSize=12.sp)
+    }
+    if(creating)HorizontalDivider()
+    StudioField("곡 제목",title,{title=it.take(120)},editable,"studio-title",Modifier.bringIntoViewRequester(sectionKeys.getValue("title")).focusRequester(focusKeys.getValue("title")),creating)
+    if(draftId==null){
+     Text("노래 구성",color=Muted,fontSize=13.sp)
+     Chips(listOf("솔로","듀엣"),if(mode=="duet")"듀엣"else"솔로"){if(!working)mode=if(it=="듀엣")"duet"else"solo"}
+    }
+    if(creating)StudioField("작곡가 / 제작자 이름",producer,{producer=it.take(60)},editable,"studio-producer",Modifier.bringIntoViewRequester(sectionKeys.getValue("producer")).focusRequester(focusKeys.getValue("producer")),true)
+    OutlinedButton(onClick={artistPicker=true},enabled=editable,modifier=Modifier.fillMaxWidth()){Text("AI 아티스트 · "+when(artistId){"none"->"선택 안 함 (내 활동명)";"new"->"새 아티스트";else->artists.find{it.optString("id")==artistId}?.optString("name")?:"내 활동명"})}
+    if(artistId=="new")StudioField("새 아티스트 이름",newArtist,{newArtist=it.take(60)},editable,"studio-artist",Modifier.bringIntoViewRequester(sectionKeys.getValue("artist")).focusRequester(focusKeys.getValue("artist")),true)
+    if(creating){
+     HorizontalDivider()
+     StudioUploadGenres(m,audio,availableOptions,uploadGenres,editable,Modifier.bringIntoViewRequester(sectionKeys.getValue("genres")),focusKeys.getValue("genres")){uploadGenres=ArrayList(it)}
+    }else{
+     StudioField("AI 제작 도구",tool,{tool=it.take(100)},editable)
+     StudioChoiceField("장르",genres,Genres.map{it to it},3,1,editable){genres=it}
+    }
+    StudioChoiceField("기분 · 활동",moods,MoodTiles.map{it.id to it.name},4,0,editable){moods=it}
+    OutlinedTextField(description,{description=it.take(4000)},label={Text("곡 소개")},minLines=3,enabled=editable,modifier=Modifier.fillMaxWidth().testTag("studio-description"))
+    HorizontalDivider()
+    Text("가사 등록",fontSize=18.sp,fontWeight=FontWeight.Bold)
+    StudioUploadMenu("가사 등록 방식",studioLyricsModes,if(lyricsMode=="none")"later" else lyricsMode,editable){lyricsMode=it;lyricsChanged=true}
+    if(lyricsMode in listOf("auto","synced")){
+     if(lyricsMode=="auto")StudioUploadMenu("가사 언어",studioDefaultLanguages,lyricsLanguage,editable){lyricsLanguage=it;lyricsChanged=true}
+     Column(Modifier.bringIntoViewRequester(sectionKeys.getValue("lyrics"))){
+      Row(verticalAlignment=Alignment.CenterVertically){
+       Box(Modifier.weight(1f)){StudioRequired(if(lyricsMode=="auto")"가사 입력" else "LRC 입력",creating)}
+       TextButton(onClick={lyricPicker.launch(arrayOf("text/*","application/octet-stream"))},enabled=editable){Text(if(lyricsMode=="auto")"TXT 파일 불러오기" else "LRC 파일 불러오기")}
+      }
+      val lyricFile=if(lyricsMode=="auto")autoFilename else syncedFilename
+      if(lyricFile.isNotEmpty())Text(lyricFile,color=Muted,fontSize=12.sp)
+      OutlinedTextField(lyricText,{if(lyricsMode=="auto")autoSource=it.take(6000)else lyrics=it.take(12000);lyricsChanged=true},
+       placeholder={Text(if(lyricsMode=="auto")"실제 부르는 가사를 한 줄씩 입력하세요.\n반복 가사도 노래 순서대로 모두 입력하세요." else "[00:12.500] 가사")},
+       minLines=5,modifier=Modifier.fillMaxWidth().focusRequester(focusKeys.getValue("lyrics")).testTag("studio-lyrics"),enabled=editable)
+     }
+     Text(if(lyricsMode=="auto")"최대 6,000자 · 200줄 / [ ] 안의 구간 설명은 자동 제외됩니다.\n음원 변환 완료 후 가사 싱크가 자동 생성·적용됩니다.\n스튜디오에서 가사를 수정할 수 있습니다." else "LRC 또는 TXT · UTF-8 · 최대 64KB · 12,000자",color=Muted,fontSize=12.sp)
+    }
+    if(lyricsMode=="no_lyrics")Text("가사 변환 없이 등록됩니다.",color=Muted,fontSize=12.sp)
+    if(lyricsMode in listOf("none","later"))Text("스튜디오에서 가사를 추가할 수 있습니다.",color=Muted,fontSize=12.sp)
+    data.optJSONObject("alignment")?.let{studioLyricsStatus(JSONObject().put("alignment_state",it.optString("state")))?.let{label->Text(label,fontSize=12.sp,color=Aqua)}}
     if(trackId!=null)StudioBackingControls(m,trackId,data.optJSONObject("karaoke"),working)
    }else WorkAppearanceFields(appearance,Song(initial).workArtwork(),!working,noteLimit=1000)
-   if(!cover)OutlinedTextField(description,{description=it.take(4000)},label={Text("곡 소개")},minLines=3,enabled=!working&&draftId==null,modifier=Modifier.fillMaxWidth().testTag("studio-description"))
-   if(trackId==null){
-    Text("Suno 무료 플랜으로 만든 곡은 기본적으로 비상업적 용도로만 이용할 수 있어요. 다른 AI로 만든 곡도 제작 당시 요금제와 약관에서 상업적 이용과 위 이용허락이 가능한지 확인해주세요.",color=Muted,fontSize=13.sp)
-    StudioConsent("AI로 제작한 이 음원과 가사·이미지를 업로드하고 공개할 권리가 있으며, 무단 복제물이나 허락 없이 복제한 타인의 음성을 사용하지 않았습니다. AIFECT에서 반주(MR)를 만들고 다른 이용자가 커버를 제작·공개하는 데 동의합니다. 또한 아이팩트가 직접 운영하는 게임과 웹사이트에서 이 음원을 사용할 수 있도록 비독점적으로 허락합니다.",uploadConsent,!working&&draftId==null){uploadConsent=it}
+   if(creating){
+    HorizontalDivider()
+    Column(Modifier.bringIntoViewRequester(sectionKeys.getValue("credit"))){
+     StudioRequired("사용한 AI 도구 (복수 선택)")
+     FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+      creditTools.forEach{choice->FilterChip(selected=choice in aiTools,onClick={noAI=false;aiTools=ArrayList(if(choice in aiTools)aiTools-choice else aiTools+choice)},label={Text(choice)},enabled=editable)}
+      FilterChip(selected=otherTool,onClick={otherTool=!otherTool;if(otherTool)noAI=false},label={Text("기타")},enabled=editable)
+      FilterChip(selected=noAI,onClick={noAI=!noAI;if(noAI){aiTools=arrayListOf();otherTool=false}},label={Text("AI 사용 안 함")},enabled=editable)
+     }
+     if(otherTool)StudioField("기타 AI 도구",tool,{tool=it.take(100)},editable,"studio-other-tool",Modifier.focusRequester(focusKeys.getValue("credit")),true)
+    }
+    Text("사람이 참여한 부분",color=Muted,fontSize=13.sp)
+    FlowRow(horizontalArrangement=Arrangement.spacedBy(6.dp)){
+     studioParticipation.forEach{role->FilterChip(selected=role in participation,onClick={participation=ArrayList(if(role in participation)participation-role else participation+role)},label={Text(role)},enabled=editable)}
+    }
+    StudioUploadTags(m,title,lyricText,tags,editable){tags=it}
+    HorizontalDivider()
+    if(draftId==null)Column(Modifier.bringIntoViewRequester(sectionKeys.getValue("consent"))){
+     StudioRequired("등록 동의")
+     if(terms==null)TextButton(onClick={optionsAttempt++},enabled=!working){Text("이용허락 불러오기")}
+     else{
+      Text(terms.optString("notice"),color=Muted,fontSize=13.sp)
+      StudioConsent(terms.optString("text"),uploadConsent,editable){uploadConsent=it}
+     }
+    }
    }
    if(working){LinearProgressIndicator(Modifier.fillMaxWidth());Text(stage,color=Aqua)}
    error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.testTag("studio-save-error"))}
-   BrandButton(onClick=::save,enabled=!working&&!appearance.choosing&&(cover||title.isNotBlank()&&tool.isNotBlank())&&(trackId!=null||audio!=null&&uploadConsent&&(lyricsMode!="auto"||autoSource.isNotBlank())),modifier=Modifier.fillMaxWidth().testTag("studio-save")){Text(if(working)"저장 중…"else if(draftId!=null)"업로드 다시 시도"else if(trackId==null)"음원 올리기"else"변경사항 저장")}
+   BrandButton(onClick=::save,enabled=!working&&!appearance.choosing&&(creating||cover||title.isNotBlank()&&tool.isNotBlank()),modifier=Modifier.fillMaxWidth().testTag("studio-save")){
+    Text(if(working)"저장 중…" else if(draftId!=null)"업로드 다시 시도" else if(creating)"음원 등록" else "변경사항 저장")
+   }
   }
  }
- if(confirmLeave)AlertDialog(onDismissRequest={confirmLeave=false},title={Text("스튜디오로 돌아갈까요?")},text={Text("저장하지 않은 변경사항은 사라져요.")},confirmButton={TextButton(onClick=close){Text("돌아가기")}},dismissButton={TextButton(onClick={confirmLeave=false}){Text("계속 수정")}})
+ if(qa)AlertDialog(onDismissRequest={qa=false},title={Text("업로드 Q&A")},text={Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(8.dp)){
+  Text("음원은 80MB 이하 WAV·FLAC·MP3, 커버는 5MB 이하 JPG·PNG·WebP를 선택해 주세요.")
+  Text("장르는 검색·직접 입력·추천·자동 기입을 섞어서 최대 3개까지 등록할 수 있습니다.")
+  Text("가사가 없는 노래는 가사 변환 없이 등록됩니다. ‘나중에 등록’을 선택하면 스튜디오에서 가사를 추가할 수 있습니다.")
+  TextButton(onClick={m.api.appContext.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW,Uri.parse(Endpoint.url("/terms#original-upload"))).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))}){Text("음원 이용허락 약관 보기")}
+ }},confirmButton={TextButton(onClick={qa=false}){Text("닫기")}})
+ if(confirmLeave)AlertDialog(onDismissRequest={confirmLeave=false},title={Text("스튜디오로 돌아갈까요?")},text={Text("저장하지 않은 변경사항은 사라져요.")},confirmButton={TextButton(onClick=::discard){Text("돌아가기")}},dismissButton={TextButton(onClick={confirmLeave=false}){Text("계속 수정")}})
  if(artistPicker)AppFormPage(onDismissRequest={artistPicker=false},title={Text("AI 아티스트")},text={Column(Modifier){
   (listOf("none" to "선택 안 함 (내 활동명)")+(if(trackId==null)listOf("new" to "새 아티스트 만들기")else emptyList())+artists.map{it.getString("id") to it.optString("name")}).forEach{(id,name)->TextButton(onClick={artistId=id;artistPicker=false}){Text(name)}}
  }},confirmButton={TextButton(onClick={artistPicker=false}){Text("닫기")}})
@@ -248,8 +439,119 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
   Text(label,fontSize=14.sp)
  }
 }
-@Composable private fun StudioField(label:String,value:String,onChange:(String)->Unit,enabled:Boolean=true,tag:String="studio-field-$label"){
- OutlinedTextField(value,onChange,label={Text(label)},enabled=enabled,modifier=Modifier.fillMaxWidth().testTag(tag),singleLine=true,shape=RoundedCornerShape(12.dp))
+@Composable private fun StudioRequired(label:String,required:Boolean=true){
+ Row(verticalAlignment=Alignment.CenterVertically){Text(label);if(required)Text(" *",color=Pink)}
+}
+
+@Composable private fun StudioField(label:String,value:String,onChange:(String)->Unit,enabled:Boolean=true,tag:String="studio-field-$label",modifier:Modifier=Modifier,required:Boolean=false){
+ OutlinedTextField(value,onChange,label={StudioRequired(label,required)},enabled=enabled,modifier=modifier.fillMaxWidth().testTag(tag),singleLine=true,shape=RoundedCornerShape(12.dp))
+}
+
+@Composable private fun StudioUploadMenu(title:String,choices:Map<String,String>,value:String,enabled:Boolean,change:(String)->Unit){
+ var open by remember{mutableStateOf(false)}
+ Column{
+  Text(title,color=Muted,fontSize=12.sp)
+  Box{
+   OutlinedButton(onClick={open=true},enabled=enabled){Text(choices[value].orEmpty(),Modifier.weight(1f));Icon(Icons.Outlined.ArrowDropDown,null)}
+   DropdownMenu(expanded=open,onDismissRequest={open=false}){
+    choices.forEach{(key,label)->DropdownMenuItem(text={Text(label)},onClick={open=false;change(key)})}
+   }
+  }
+ }
+}
+
+private fun uploadGenreKey(value:String)=Normalizer.normalize(value,Normalizer.Form.NFKC).lowercase().replace(Regex("[\\s\\p{Z}&-]+"),"")
+
+@Composable private fun StudioUploadGenres(m:MusicModel,audio:StudioAudio?,options:JSONObject?,chosen:List<String>,enabled:Boolean,modifier:Modifier,focus:FocusRequester,change:(List<String>)->Unit){
+ var query by rememberSaveable{mutableStateOf("")}
+ var status by remember{mutableStateOf("")}
+ var analyzing by remember{mutableStateOf(false)}
+ val activeFile by rememberUpdatedState(audio?.file)
+ val selected by rememberUpdatedState(chosen)
+ val canEdit by rememberUpdatedState(enabled)
+ val scope=rememberCoroutineScope()
+ val aliases=options?.optJSONObject("genre_aliases")
+ fun optionsFor(genre:String)=listOf(genre)+aliases?.optJSONArray(genre).texts()
+ fun canonical(value:String)=Genres.firstOrNull{genre->optionsFor(genre).any{uploadGenreKey(it)==uploadGenreKey(value)}}?:value.trim()
+ fun add(value:String){
+  val genre=canonical(value)
+  status=when{
+   genre.isBlank()||genre=="분석 대기"->"장르를 1~80자로 입력해 주세요."
+   selected.any{uploadGenreKey(it)==uploadGenreKey(genre)}->"이미 추가한 장르입니다."
+   selected.size>=3->"장르는 최대 3개까지 등록할 수 있습니다."
+   else->{change(selected+genre);query="";""}
+  }
+ }
+ Column(modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(5.dp)){
+  Row(verticalAlignment=Alignment.CenterVertically){
+   Box(Modifier.weight(1f)){StudioRequired("등록 장르")}
+   FilledTonalButton(enabled=enabled&&!analyzing,onClick={
+    val file=audio
+    if(file==null)status="음원을 먼저 선택해 주세요."
+    else if(selected.size>=3)status="장르를 삭제하면 분석 결과를 추가할 수 있습니다."
+    else {
+     analyzing=true;status="음원에서 장르를 분석하고 있습니다…"
+     scope.launch{
+      try{
+       val result=m.api.uploadStudioAudio("/api/studio/upload-genre-analysis?ext="+file.extension,file.file,"POST").optJSONArray("genres").texts()
+       if(activeFile==file.file&&canEdit){
+        val combined=(selected+result.filter{it in Genres}).distinctBy(::uploadGenreKey).take(3)
+        change(combined);status=if(combined.size==selected.size)"추가할 장르가 없습니다." else "분석한 장르를 추가했습니다."
+       }else status="음원이 바뀌었습니다. 자동 장르 기입을 다시 눌러 주세요."
+      }catch(e:Exception){if(e is CancellationException)throw e;status=e.message.orEmpty()}finally{analyzing=false}
+     }
+    }
+   }){Icon(Icons.Outlined.AutoAwesome,null,Modifier.size(16.dp));Text("자동 장르 기입",Modifier.padding(start=5.dp))}
+  }
+  if(chosen.isEmpty())Text("장르를 추가해 주세요.",color=Muted,fontSize=13.sp)
+  FlowRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
+   chosen.forEachIndexed{index,genre->AssistChip(onClick={change(chosen.filterIndexed{i,_->i!=index})},label={Text("$genre ×",color=Aqua)},enabled=enabled)}
+  }
+  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
+   OutlinedTextField(query,{query=it.take(80);status=""},placeholder={Text("장르 검색 또는 직접 입력")},leadingIcon={Icon(Icons.Outlined.Search,null)},singleLine=true,
+    keyboardOptions=KeyboardOptions(imeAction=ImeAction.Done),keyboardActions=KeyboardActions(onDone={add(query)}),
+    modifier=Modifier.weight(1f).focusRequester(focus),enabled=enabled)
+   TextButton(onClick={add(query)},enabled=enabled){Text("추가")}
+  }
+  val key=uploadGenreKey(query)
+  if(key.isNotEmpty())FlowRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
+   Genres.filter{genre->genre !in chosen&&optionsFor(genre).any{uploadGenreKey(it).contains(key)}}.forEach{genre->AssistChip(onClick={add(genre)},label={Text(genre)},enabled=enabled)}
+  }
+  Text("추천 장르",color=Muted,fontSize=12.sp)
+  FlowRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
+   (options?.optJSONArray("recommended_genres").texts().ifEmpty{Genres.take(12)}).forEach{genre->
+    FilterChip(selected=genre in chosen,onClick={add(genre)},enabled=enabled,label={Text((if(genre in chosen)"✓ " else "+ ")+genre)})
+   }
+  }
+  if(status.isNotEmpty())Text(status,color=Muted,fontSize=12.sp)
+ }
+}
+
+@Composable private fun StudioUploadTags(m:MusicModel,title:String,lyrics:String,value:String,enabled:Boolean,change:(String)->Unit){
+ var suggestions by remember{mutableStateOf(emptyList<String>())}
+ var error by remember{mutableStateOf("")}
+ var refresh by remember{mutableIntStateOf(0)}
+ val contents=stripStudioAnnotations(lyrics).trim()
+ LaunchedEffect(title,contents,refresh,m.user?.optString("id")){
+  suggestions=emptyList();error=""
+  if(title.isNotBlank()||contents.isNotBlank()){
+   delay(1200)
+   try{suggestions=m.api.call("/api/studio/tag-suggestions","POST",payload("title" to title.trim(),"lyrics" to contents)).optJSONArray("tags").texts()}
+   catch(e:Exception){if(e is CancellationException)throw e;error="추천을 불러오지 못했습니다."}
+  }
+ }
+ StudioField("태그 (쉼표로 구분)",value,{change(it.take(300))},enabled)
+ val selected=value.split(',').map{it.trim()}.filter{it.isNotEmpty()}
+ FlowRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
+  selected.forEach{tag->AssistChip(onClick={change(selected.filterNot{it==tag}.joinToString(", "))},label={Text("$tag ×")},enabled=enabled)}
+ }
+ TextButton(onClick={refresh++},enabled=enabled&&(title.isNotBlank()||contents.isNotBlank())){Text("추천 새로 받기")}
+ FlowRow(horizontalArrangement=Arrangement.spacedBy(5.dp)){
+  suggestions.filterNot{tag->selected.any{it.equals(tag,true)}}.forEach{tag->AssistChip(onClick={
+   val next=(selected+tag).joinToString(", ");if(next.length<=300)change(next)else error="태그는 300자까지 입력할 수 있습니다."
+  },label={Text("+ $tag")},enabled=enabled)}
+ }
+ if(error.isNotEmpty())Text(error,color=Muted,fontSize=12.sp)
 }
 
 @Composable private fun StudioArtistEditor(m:MusicModel,a:JSONObject,close:()->Unit){
