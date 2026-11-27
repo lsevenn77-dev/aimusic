@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import org.json.JSONObject
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -21,7 +22,7 @@ import kotlinx.coroutines.launch
 
 internal fun validNativePerformanceRoute(route:String)=route in setOf("live/create","voice","dubbing","dubbing/new","dubbing?tab=mine","profile")||Regex("^(voice|dubbing)/[A-Za-z0-9_-]{1,64}$").matches(route)
 internal fun openNativePerformance(context:Context,m:MusicModel,route:String){
- if(!validNativePerformanceRoute(route)||!m.authenticated())return
+ if(!validNativePerformanceRoute(route)||(!route.startsWith("dubbing/")||route=="dubbing/new")&&!m.authenticated())return
  if(route=="profile"){m.user?.optString("profile_id")?.takeIf{it.isNotBlank()}?.let{m.openProfile(it)};return}
  m.controller?.pause()
  context.startActivity(Intent(context,NativePerformanceActivity::class.java).putExtra("route",route).apply{if(context !is android.app.Activity)addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)})
@@ -29,6 +30,7 @@ internal fun openNativePerformance(context:Context,m:MusicModel,route:String){
 
 /** Native Compose routes. Authentication and domain rules remain on the existing API. */
 class NativePerformanceActivity:ComponentActivity(){
+ private val music:MusicModel by viewModels()
  private var session=""
  private val sessionChanged=android.content.SharedPreferences.OnSharedPreferenceChangeListener{_,_->if(session!=NativeSession.cookie(this)){stopService(Intent(this,NativeVoiceService::class.java));finish()}}
  override fun onCreate(savedInstanceState:Bundle?){
@@ -59,7 +61,22 @@ class NativePerformanceActivity:ComponentActivity(){
       BackHandler{leave()}
       if(engine?.roomId==id)NativeVoiceScreen(engine!!,::leave){target->stopService(Intent(this@NativePerformanceActivity,NativeVoiceService::class.java));route=target}else{NativeAudioHeader("토킹룸",::leave);Text(error?:voiceError?:"대화에 연결하는 중…",Modifier.padding(20.dp))}
      }
-     else->NativeDubbingScreen(api,route,{route=it},{finish()})
+     else->{
+      val player=music
+      DisposableEffect(player){player.playbackVisible(true);onDispose{player.playbackVisible(false)}}
+      NativeDubbingScreen(api,player,route,{route=it},{finish()})
+      if(player.showGifts)GiftSheet(player)
+      if(player.showRewards)RewardsSheet(player)
+      if(player.showBilling){
+       val billing=remember(player){PlayBilling(this@NativePerformanceActivity,player).also{player.playBilling=it}}
+       DisposableEffect(billing){onDispose{billing.close();player.playBilling=null}}
+       PlayBillingSheet(player)
+      }
+      if(player.showDiamonds)DiamondSheet(player)
+      if(player.showLogin)AlertDialog(onDismissRequest={player.showLogin=false},title={Text("로그인이 필요합니다.")},
+       text={Text("AIFECT 홈에서 로그인한 뒤 이 작품을 다시 열어 주세요.")},
+       confirmButton={TextButton({player.showLogin=false;finish()}){Text("확인")}})
+     }
     }
    }
   }}}

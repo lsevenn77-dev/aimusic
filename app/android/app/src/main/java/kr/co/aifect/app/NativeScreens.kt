@@ -28,6 +28,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -179,6 +181,10 @@ internal val Scheme=darkColorScheme(primary=Pink,onPrimary=Ink,primaryContainer=
   m.photoPreview?.let{photo->ProfilePhotoViewer(m,photo){m.photoPreview=null}}
   if(m.showMessages)MessagesSheet(m)
   listPicker?.let { song->
+   if(song.cover&&m.user!=null)WorkPlaylistPicker(m.api,song.id,song.title,"cover",{listPicker=null}){
+    m.notice="플레이리스트에 담았습니다.";m.refreshLibrary(true)
+   }
+   else
    AppPage(title="음악 담기",onDismissRequest={listPicker=null},containerColor=Panel){
     Column(Modifier.fillMaxWidth().padding(24.dp)){
      Text("플레이리스트에 담기",fontSize=23.sp,fontWeight=FontWeight.Bold);Text(song.title,color=Muted,modifier=Modifier.padding(vertical=8.dp))
@@ -518,31 +524,35 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  var report by remember(song.id) {mutableStateOf<JSONObject?>(null)}
  val list=rememberLazyListState()
  val scope=rememberCoroutineScope()
+ var composing by rememberSaveable(song.id){mutableStateOf(!song.cover)}
+ var share by rememberSaveable(song.id){mutableStateOf(false)}
+ val commentFocus=remember{FocusRequester()}
  val detailsVisible by remember{derivedStateOf{list.firstVisibleItemIndex>0}}
  var controlsEnd by remember{mutableFloatStateOf(Float.MAX_VALUE)}
  val miniVisible by remember{derivedStateOf{list.firstVisibleItemIndex>0||list.firstVisibleItemScrollOffset>=controlsEnd}}
  var management by remember{mutableStateOf(false)}
- AppPage(title=if(detailsVisible)song.title else "AIFECT",onDismissRequest={m.detail=null},containerColor=Ink,actions={SongShareButton(song);IconButton({management=true},modifier=Modifier.testTag("song-menu")){Icon(Icons.Rounded.Menu,"곡 메뉴")}},backdrop={
-  if(!detailsVisible)AlbumListeningBackdrop(song.art,"song-art-backdrop")
+ AppPage(title=if(detailsVisible)song.title else "AIFECT",onDismissRequest={m.detail=null},containerColor=Ink,actions={if(!song.cover)IconButton({if(m.authenticated())share=true}){Icon(Icons.Rounded.Share,"공유")};IconButton({management=true},modifier=Modifier.testTag("song-menu")){Icon(Icons.Rounded.Menu,"곡 메뉴")}},backdrop={
+  if(!detailsVisible&&!song.cover)AlbumListeningBackdrop(song.art,"song-art-backdrop")
  }){
   BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()){
    val viewport=remember(maxWidth){maxHeight}
    LazyColumn(Modifier.fillMaxSize().imePadding().testTag("song-detail-scroll"),state=list,contentPadding=PaddingValues(20.dp,0.dp,20.dp,24.dp)){
-   item(key="listening"){ReferenceSongHero(m,song,viewport,{save(song)},{m.singTarget(song,sing)},{controlsEnd=it}){scope.launch{list.animateScrollToItem(1)}}}
+   item(key="listening"){
+    if(song.cover)CoverWorkHero(m,song,{save(song)},{m.singTarget(song,sing)},{
+     composing=!composing;if(composing)scope.launch{list.animateScrollToItem(1)}
+    },{if(m.authenticated())share=true})
+    else ReferenceSongHero(m,song,viewport,{save(song)},{m.singTarget(song,sing)},{controlsEnd=it}){scope.launch{list.animateScrollToItem(1)}}
+   }
    item(key="details"){Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)){
-    if(song.openDuetFor(m.user?.optString("id")))BrandButton(onClick={sing(song)},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp).testTag("song-detail-duet")){Text("듀엣 참여")}
-    if(song.cover)Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){TextButton(onClick={m.openProfile(song.producerId,showCovers=true)},modifier=Modifier.weight(1f)){Text("${song.producer}의 커버곡",fontSize=13.sp)};OutlinedButton(onClick={m.followPerson(song.producerId)},enabled=!m.busy){Text(if(m.follows.any{it.optString("target_id")==song.producerId&&it.optString("kind")=="producer"})"팔로잉" else "팔로우",fontSize=13.sp)}}
-    if(song.cover)TextButton(onClick={m.openOriginal(song)}){Icon(Icons.Rounded.Album,null);Text("이 커버의 원곡 듣기",modifier=Modifier.padding(start=8.dp))}
-    ReferenceSongDescription(song)
-
-    ReferenceLyrics(m,song)
+    if(!song.cover){ReferenceSongDescription(song);ReferenceLyrics(m,song)}
     if(!song.cover&&(song.raw.optInt("covers")>0||song.raw.optInt("accepts_covers")==1))SongCoverTabs(m,song,sing)
     HorizontalDivider(color=Stroke);Section("댓글 ${verifiedSongCommentCount(song,m)}")
     if(m.detailBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
-    if(m.user==null)TextButton(onClick={m.showLogin=true}){Text("로그인하고 첫 감상을 남겨보세요")}
-    else {
+    if(composing&&m.user==null)TextButton(onClick={m.showLogin=true}){Text("로그인하고 첫 감상을 남겨보세요")}
+    else if(composing) {
+     if(song.cover)LaunchedEffect(composing){commentFocus.requestFocus()}
      reply?.let{Row(verticalAlignment=Alignment.CenterVertically){Text("${it.optString("name")}님에게 답글",Modifier.weight(1f),color=Pink);TextButton(onClick={reply=null}){Text("취소")}}}
-     OutlinedTextField(text,{text=it.take(2000)},placeholder={Text("이 곡의 어떤 순간이 좋았나요?",fontSize=12.sp)},modifier=Modifier.fillMaxWidth(),minLines=1,maxLines=5,shape=RoundedCornerShape(12.dp),trailingIcon={
+     OutlinedTextField(text,{text=it.take(2000)},placeholder={Text("이 곡의 어떤 순간이 좋았나요?",fontSize=12.sp)},modifier=Modifier.fillMaxWidth().focusRequester(commentFocus),minLines=1,maxLines=5,shape=RoundedCornerShape(12.dp),trailingIcon={
       IconButton(onClick={m.comment(text,reply?.optString("id")){text="";reply=null}},enabled=text.isNotBlank()&&!m.busy){Icon(Icons.AutoMirrored.Rounded.Send,"댓글 남기기",Modifier.size(20.dp))}
      })
     }
@@ -556,7 +566,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
       Text(c.optString("body"),fontSize=14.sp,color=if(c.optLong("deleted_at")>0)Muted else MaterialTheme.colorScheme.onSurface,modifier=Modifier.padding(top=7.dp))
       if(c.optLong("deleted_at")==0L)Row(verticalAlignment=Alignment.CenterVertically){
        TextButton(onClick={m.commentLike(c)},contentPadding=PaddingValues(0.dp),enabled=!m.busy){Icon(if(c.optInt("liked")==1)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"댓글 좋아요",Modifier.size(14.dp));Text(" ${c.optInt("likes")}",fontSize=12.sp)}
-       TextButton(onClick={reply=if(c.isNull("parent_id"))c else m.comments.find{it.optString("id")==c.optString("parent_id")}},enabled=!m.busy){Text("답글",fontSize=13.sp)}
+       TextButton(onClick={reply=if(c.isNull("parent_id"))c else m.comments.find{it.optString("id")==c.optString("parent_id")};composing=true;scope.launch{list.animateScrollToItem(1)}},enabled=!m.busy){Text("답글",fontSize=13.sp)}
        if(c.optBoolean("can_delete"))TextButton(onClick={delete=c},enabled=!m.busy){Text("삭제",color=Muted,fontSize=12.sp)}
        if(c.optBoolean("can_report"))TextButton(onClick={report=c},enabled=!m.busy){Text("신고",color=Muted,fontSize=12.sp)}
        if(c.optInt("reported")==1)Text("신고됨",color=Muted,fontSize=12.sp)
@@ -571,6 +581,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
   if(miniVisible&&m.current!=null&&!m.fullPlayer)m.current?.let{MiniPlayer(m,it)}
  }
 
+ if(share)WorkMessageShare(m,song.id,song.title,if(song.cover)"cover" else "original"){share=false}
  if(management)AppPage("곡 메뉴",{management=false}){Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
   Text(song.title,fontSize=20.sp,fontWeight=FontWeight.Bold)
   TextButton({save(song)}){Icon(Icons.Rounded.Add,null);Text("플레이리스트에 저장")}

@@ -140,6 +140,17 @@ internal class NativeDubbingAudio(private val context:Context,private val api:Na
  }
  /** Playback position of the listen-only player, for the background sound bar. */
  fun previewPositionMs():Long=if(closed)0 else preview.currentPosition
+ fun previewDurationMs():Long=if(closed)0 else preview.duration.coerceAtLeast(0)
+ fun seekPreview(position:Long){if(!closed)preview.seekTo(position)}
+ fun togglePreview(url:String,position:Long){
+  if(closed)return
+  val address=if(url.startsWith('/'))Endpoint.url(url) else url
+  if(preview.currentMediaItem?.localConfiguration?.uri?.toString()!=address||preview.playerError!=null){
+   listen(url,position/1000.0);return
+  }
+  if(preview.isPlaying)preview.pause()
+  else{if(preview.playbackState==Player.STATE_ENDED)preview.seekTo(0);preview.play()}
+ }
  /** One complete download per recorder. Each line only seeks the same local sound. */
  suspend fun prepareBackground(url:String,soundId:String)=withContext(Dispatchers.Main.immediate){
   if(preparedUrl==url&&preparedFile?.isFile==true)return@withContext

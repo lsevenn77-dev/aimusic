@@ -108,17 +108,13 @@ internal fun currentDubbingImage(p:JSONObject):String {
 @Composable internal fun CompletedDubbingDetail(m:MusicModel,id:String,dismiss:()->Unit){
  val read=currentRead(m,"/api/dubbing/projects/$id")
  val project=read.data?.optJSONObject("project")
- val finalAudio=project?.optJSONObject("recording")?.optJSONObject("final")
- val canPlay=finalAudio?.optString("state")=="ready"&&finalAudio.opt("audioUrl") is String
- val playing=m.current?.dubbing==true&&m.current?.id==id&&m.playing
  AlertDialog(onDismissRequest=dismiss,title={Text(project?.optString("title")?:"완성된 더빙")},
   text={Column(Modifier.verticalScroll(rememberScrollState()).testTag("completed-dubbing-detail"),verticalArrangement=Arrangement.spacedBy(8.dp)){
    ReadStatus(read)
    project?.let{p->
-    val description=sequenceOf(p.optJSONObject("options")?.opt("idea"),
-     p.optJSONObject("script")?.optJSONArray("scenes").objects().firstOrNull()?.opt("description"))
-     .filterIsInstance<String>().firstOrNull{it.isNotBlank()}
-    Text(description?:"등록된 작품 소개가 없어요.",color=SoftText)
+    DubbingWorkScene(m,p)
+    Text(p.optString("ownerName"),color=Muted)
+    (p.opt("listening_description") as? String)?.takeIf{it.isNotBlank()}?.let{Text(it,color=SoftText)}
     val participants=p.optJSONArray("roles").objects().filter{it.optBoolean("claimed")}
      .distinctBy{it.opt("participantUserId") as? String?:it.optString("participant")}
     if(participants.isNotEmpty()){
@@ -136,7 +132,7 @@ internal fun currentDubbingImage(p:JSONObject):String {
     }
    }
   }},dismissButton={TextButton(dismiss){Text("닫기")}},confirmButton={
-   if(canPlay&&project!=null)TextButton({if(playing)m.controller?.pause() else m.controller?.playDubbingEdition(project)},enabled=m.controller!=null){Text(if(playing)"일시정지" else "완성작 듣기")}
+   if(project!=null)TextButton({dismiss();m.openCurrentWorkspace("dubbing/$id",project.optString("title"))}){Text("작품 열기")}
   })
 }
 

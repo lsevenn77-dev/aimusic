@@ -60,13 +60,27 @@ final class KaraokeApi {
     }
     synchronized void upload(String id,File wav)throws Exception{
         if(!id.matches("[\\w-]{1,80}"))throw new IOException("잘못된 업로드 ID예요.");
-        HttpURLConnection c=connect("/api/uploads/"+id+"/audio","PUT");
+        uploadFile("/api/uploads/"+id+"/audio",wav,wav.getName().endsWith(".mp3")?"audio/mpeg":"audio/wav");
+    }
+    synchronized void uploadCover(String id,File photo)throws Exception{
+        if(!id.matches("[\\w-]{1,80}")||photo.length()<1||photo.length()>WorkListeningPhoto.MAX_BYTES)throw new IOException("커버사진을 다시 선택해 주세요.");
+        uploadFile("/api/uploads/"+id+"/cover",photo,"image/webp");
+    }
+    private void uploadFile(String path,File file,String type)throws Exception{
+        HttpURLConnection c=connect(path,"PUT");
         try{
-            c.setDoOutput(true);c.setRequestProperty("Content-Type",wav.getName().endsWith(".mp3")?"audio/mpeg":"audio/wav");c.setFixedLengthStreamingMode(wav.length());
-            try(InputStream in=new BufferedInputStream(new FileInputStream(wav));OutputStream out=c.getOutputStream()){
+            c.setDoOutput(true);c.setRequestProperty("Content-Type",type);c.setFixedLengthStreamingMode(file.length());
+            try(InputStream in=new BufferedInputStream(new FileInputStream(file));OutputStream out=c.getOutputStream()){
                 byte[] b=new byte[65536];int n;while((n=in.read(b))!=-1){if(Thread.currentThread().isInterrupted())throw new InterruptedIOException();out.write(b,0,n);}
             }
             response(c);
+        }finally{c.disconnect();active=null;}
+    }
+    synchronized byte[] coverBytes(String path)throws Exception{
+        HttpURLConnection c=connect(path,"GET");
+        try{
+            if(c.getResponseCode()!=200){response(c);throw new IOException("커버사진을 불러오지 못했습니다.");}
+            return readBounded(c.getInputStream(),WorkListeningPhoto.MAX_BYTES);
         }finally{c.disconnect();active=null;}
     }
     void cancel(){HttpURLConnection c=active;if(c!=null)c.disconnect();}

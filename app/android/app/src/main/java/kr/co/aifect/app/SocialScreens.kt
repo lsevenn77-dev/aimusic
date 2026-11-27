@@ -552,7 +552,17 @@ internal fun chatJumpsToLatest(initialized:Boolean,newerLatest:Boolean,composing
       Column(Modifier.widthIn(max=260.dp),horizontalAlignment=if(mine)Alignment.End else Alignment.Start){
        if(crew&&!mine)Text(crewName(msg),color=Muted,fontSize=12.sp,modifier=Modifier.padding(bottom=4.dp).then(if(author!=null)Modifier.clickable{author(msg)}else Modifier))
        Surface(color=if(mine)Raised else Panel,shape=RoundedCornerShape(topStart=18.dp,topEnd=18.dp,bottomEnd=if(mine)4.dp else 18.dp,bottomStart=if(mine)18.dp else 4.dp)){
-        if(msg.optString("image_id").isNotBlank()&&msg.optString("image_id")!="null")ChatImage(m,msg,crew=crew) else StickerText(msg.optString("body"),fontSize=15.sp,lineHeight=23.sp,stickerSize=30.sp,modifier=Modifier.padding(horizontal=13.dp,vertical=11.dp))
+        if(!crew&&msg.has("shared_track")){
+         val work=msg.optJSONObject("shared_track")
+         val target=work?.optString("id").orEmpty()
+         if(work!=null&&CurrentNavigation.safeID(target)){
+          TextButton(onClick={
+           if(work.optString("kind")=="dubbing")m.openCurrentWorkspace("dubbing/$target","더빙 감상")
+           else m.openCurrentSong(target)
+          }){Text(work.optString("title")+" · 작품 보기",maxLines=2)}
+         }else Text("공유한 작품을 볼 수 없습니다.",modifier=Modifier.padding(12.dp),color=Muted)
+        }else if(msg.optString("image_id").isNotBlank()&&msg.optString("image_id")!="null")ChatImage(m,msg,crew=crew)
+        else StickerText(msg.optString("body"),fontSize=15.sp,lineHeight=23.sp,stickerSize=30.sp,modifier=Modifier.padding(horizontal=13.dp,vertical=11.dp))
        }
        msg.optString("crew_invite_id").takeIf{!crew&&it.isNotBlank()&&it!="null"}?.let{cid->
         OutlinedButton(onClick={m.openCrew(cid)},modifier=Modifier.testTag("dm-crew-invite-${msg.optString("id")}")){Text("초대받은 크루 보기",fontSize=12.sp)}

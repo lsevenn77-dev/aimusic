@@ -147,6 +147,10 @@ class NativeApi(private val context: Context) {
    }
    return result
  }
+ suspend fun uploadListeningPhoto(path:String,file:java.io.File):JSONObject=withContext(Dispatchers.IO){
+  val body=file.readBytes().toRequestBody("image/webp".toMediaType())
+  client.newCall(Request.Builder().url(Endpoint.url(path)).put(body).build()).execute().use{decode(path,it)}
+ }
  suspend fun uploadWebp(path:String,uri:android.net.Uri):JSONObject=withContext(Dispatchers.IO){
   val resolver=context.contentResolver
   val options=android.graphics.BitmapFactory.Options().apply{inJustDecodeBounds=true}

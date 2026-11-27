@@ -27,6 +27,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import coil.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -56,16 +58,18 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  return payload("version" to 1,"title" to title.trim(),"genres" to options.getJSONArray("genres"),"roles" to JSONArray(roles),"scenes" to JSONArray(listOf(payload("id" to "scene_1","title" to "첫 장면","description" to ""))),"lines" to JSONArray(lines),"soundCues" to JSONArray())
 }
 
-@Composable internal fun NativeDubbingScreen(api:NativeApi,route:String,navigate:(String)->Unit,close:()->Unit){
+@Composable internal fun NativeDubbingScreen(api:NativeApi,music:MusicModel,route:String,navigate:(String)->Unit,close:()->Unit){
  var account by remember{mutableStateOf<String?>(null)};var error by remember{mutableStateOf<String?>(null)}
  // The project detail is slow on the server; ask for it together with the account check instead of after it.
  val early=rememberCoroutineScope();val projectId=route.substringAfter('/',"").takeIf{route.startsWith("dubbing/")&&route!="dubbing/new"}
  val prefetched=remember(projectId){projectId?.let{pid->early.async{runCatching{api.call("/api/dubbing/projects/$pid",fresh=true).getJSONObject("project")}.getOrNull()}}}
  LaunchedEffect(Unit){try{account=api.call("/api/me",fresh=true).optJSONObject("user")?.optString("id").orEmpty();if(account.isNullOrBlank())error="로그인한 뒤 다시 열어주세요."}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
- if(account.isNullOrBlank()){NativeAudioHeader("더빙",close);Text(error?:"계정 확인 중…",Modifier.padding(20.dp));return}
+ if(projectId==null&&account.isNullOrBlank()){NativeAudioHeader("더빙",close);Text(error?:"계정 확인 중…",Modifier.padding(20.dp));return}
  key(account,route){when{
   route=="dubbing/new"->NativeDubbingCreate(api,account!!,null,{navigate("dubbing/$it")},{navigate("dubbing")})
-  route.startsWith("dubbing/")->NativeDubbingProject(api,account!!,route.substringAfter('/'),navigate,{navigate("dubbing")},prefetched)
+  route.startsWith("dubbing/")->NativeDubbingProject(api,music,account.orEmpty(),route.substringAfter('/'),navigate,{
+   if(account.isNullOrBlank())close() else navigate("dubbing")
+  },prefetched)
   else->NativeDubbingLibrary(api,route.contains("mine"),navigate,close)
  }}
 }
@@ -207,30 +211,75 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
  }
 }
 
-@Composable private fun NativeDubbingProject(api:NativeApi,account:String,id:String,navigate:(String)->Unit,back:()->Unit,prefetched:Deferred<JSONObject?>?=null){
+@Composable private fun NativeDubbingProject(api:NativeApi,music:MusicModel,account:String,id:String,navigate:(String)->Unit,back:()->Unit,prefetched:Deferred<JSONObject?>?=null){
  var project by remember{mutableStateOf<JSONObject?>(null)};var error by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)};var editing by remember{mutableStateOf(false)};var recording by rememberSaveable{mutableStateOf(false)};var confirm by remember{mutableStateOf("")};val scope=rememberCoroutineScope();val context=LocalContext.current
- val sharedPlayer=rememberDubbingController()
+ val sharedPlayer=music.controller
  val audio=remember{NativeDubbingAudio(context,api)};DisposableEffect(Unit){onDispose{audio.close()}}
  val lifecycleOwner=LocalLifecycleOwner.current
  DisposableEffect(lifecycleOwner){val observer=LifecycleEventObserver{_,event->if(event==Lifecycle.Event.ON_STOP)audio.stop()};lifecycleOwner.lifecycle.addObserver(observer);onDispose{lifecycleOwner.lifecycle.removeObserver(observer)}}
  var soundRequest by rememberSaveable{mutableStateOf(requestIdentity())};var performanceRequest by rememberSaveable{mutableStateOf(requestIdentity())}
  suspend fun reload(){project=api.call("/api/dubbing/projects/$id",fresh=true).getJSONObject("project")}
  fun task(block:suspend ()->Unit){if(busy)return;busy=true;error=null;scope.launch{try{block()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}
- val posterPicker=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
-  if(uri!=null && project?.optBoolean("canEditPoster")==true)task{
-   api.uploadWebp("/api/dubbing/projects/$id/poster",uri)
-   api.invalidateReads(homeSnapshot=false)
-   reload()
-  }
- }
- LaunchedEffect(id){try{val early=prefetched?.await();if(early!=null&&early.optString("id")==id)project=early else reload()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
+ var appearance by remember{mutableStateOf<WorkAppearance?>(null)}
+ DisposableEffect(appearance){val selection=appearance;onDispose{selection?.close()}}
+ fun editAppearance(p:JSONObject){appearance=WorkAppearance(p.optString("listening_template"),p.optString("listening_description"))}
+ LaunchedEffect(id){try{
+  val early=prefetched?.await();if(early!=null&&early.optString("id")==id)project=early else reload()
+  recording=project?.optJSONObject("casting")?.optJSONObject("draft")?.isNull("committedId")==true
+ }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
  val sound=project?.optJSONObject("sound")?:JSONObject();val currentRole=project?.optJSONArray("roles").objects().find{it.optBoolean("mine")}
  LaunchedEffect(sound.optString("state"),recording){if(!recording&&sound.optString("state") in listOf("queued","planning","generating","mixing")){while(isActive){delay(5000);try{reload()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message;break}}}}
  if(editing&&project!=null){NativeDubbingCreate(api,account,project,{editing=false;task{reload()}},{editing=false});return}
- if(recording&&project!=null&&currentRole!=null){NativeDubbingRecorder(api,account,project!!,currentRole,{recording=false;task{reload()}});return}
+ if(recording&&account.isNotBlank()&&project!=null&&currentRole!=null){
+  NativeDubbingRecorder(api,account,project!!,currentRole,{recording=false;task{reload()}},navigate);return
+ }
  var scriptOpen by rememberSaveable{mutableStateOf(false)};var versionsOpen by rememberSaveable{mutableStateOf(false)};var menu by remember{mutableStateOf(false)}
- val previewing by audio.previewing.collectAsState();var previewAt by remember{mutableLongStateOf(0L)}
- LaunchedEffect(previewing){while(previewing){previewAt=audio.previewPositionMs();delay(200)}}
+ var choosingRole by rememberSaveable{mutableStateOf(false)}
+ var publishMix by rememberSaveable{mutableStateOf(false)}
+ var composing by rememberSaveable{mutableStateOf(false)}
+ var sharing by rememberSaveable{mutableStateOf(false)}
+ var listPicker by rememberSaveable{mutableStateOf(false)}
+ var ranking by remember(id){mutableStateOf<JSONObject?>(null)}
+ var roleRequests by rememberSaveable{mutableStateOf("")}
+ val listState=rememberLazyListState()
+ val projectPublic=project?.optString("visibility")=="public"
+ LaunchedEffect(id,projectPublic,music.showGifts){
+  if(projectPublic&&!music.showGifts){
+   try{ranking=api.call("/api/dubbing/projects/$id/gifts",fresh=true)}
+   catch(e:Exception){if(e is CancellationException)throw e}
+  }
+ }
+ fun gift(){
+  if(!music.authenticated())return
+  task{
+   val data=api.call("/api/dubbing/projects/$id/gifts",fresh=true)
+   val recipient=data.optString("recipient_profile_id")
+   val reason=data.opt("gift_block_reason") as? String
+   check(reason.isNullOrBlank()&&CurrentNavigation.safeID(recipient)){reason?:"선물을 받을 수 있는 제작자 프로필이 없습니다."}
+   music.openPersonGift(payload("id" to recipient,"name" to project?.optString("ownerName")),id)
+  }
+ }
+ fun join(role:JSONObject){
+  if(!music.authenticated())return
+  task{
+   reload()
+   val live=project?:return@task
+   val roleId=role.getString("id")
+   check((live.optBoolean("canParticipate")||live.optBoolean("isOwner"))&&live.optJSONArray("roles").objects().any{it.optString("id")==roleId&&!it.optBoolean("claimed")}){"참여할 수 있는 배역이 없거나 모집이 마감되었습니다."}
+   val casting=live.optJSONObject("casting")
+   if(!live.optBoolean("isOwner")&&(casting?.optBoolean("isRoot")==true||casting?.optJSONObject("combination")!=null)){
+    val root=live.getString("rootId")
+    val request=roleRequests.substringAfter(":", "").takeIf{roleRequests.startsWith("$roleId:") }?:requestIdentity().also{roleRequests="$roleId:$it"}
+    val body=payload("id" to request,"roleId" to roleId)
+    if(root!=id)body.put("targetId",id)
+    val result=api.call("/api/dubbing/casting/$root/start","POST",body)
+    audio.stop();navigate("dubbing/${result.getString("projectId")}")
+   }else{
+    api.call("/api/dubbing/projects/$id/claims/$roleId","POST",payload("revision" to live.getInt("revision")))
+    reload();sharedPlayer?.pause();audio.stop();recording=true
+   }
+  }
+ }
  // Fetch the ready background while the singer reads the page, so the recorder opens without a download.
  LaunchedEffect(sound.optString("id"),sound.optString("state")){
   val soundId=sound.optString("id");if(sound.optString("state")=="ready"&&soundId.isNotBlank())withContext(Dispatchers.IO){runCatching{dubbingBackgroundFile(context,api,"/api/dubbing/projects/$id/background",soundId)}}
@@ -249,7 +298,7 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
       }},modifier=Modifier.testTag("dubbing-open-live-room"))
      }
      if(project?.optBoolean("canEditPoster")==true)DropdownMenuItem(
-      text={Text("썸네일 변경")},enabled=!busy,onClick={menu=false;posterPicker.launch("image/*")},
+      text={Text("감상 화면 수정")},enabled=!busy,onClick={menu=false;project?.let(::editAppearance)},
       modifier=Modifier.testTag("dubbing-change-poster")
      )
      project?.takeIf{it.optBoolean("isOwner")}?.let{p->
@@ -260,30 +309,75 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
     }
    }
   }
-  LazyColumn(Modifier.weight(1f),contentPadding=PaddingValues(16.dp,4.dp,16.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
+  LazyColumn(Modifier.weight(1f),state=listState,contentPadding=PaddingValues(16.dp,4.dp,16.dp,28.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
    if(error!=null)item{Text(error.orEmpty(),color=Pink)}
    if(busy||project==null&&error==null)item{LinearProgressIndicator(Modifier.fillMaxWidth(),color=Pink,trackColor=Stroke)}
    project?.let{p->
     val script=p.getJSONObject("script");val roles=p.getJSONArray("roles").objects();val lines=script.optJSONArray("lines").objects().sortedBy{it.optInt("order")}
+    val publication=p.optJSONObject("recording")?.optJSONObject("final")
+    val mayRender=p.optBoolean("isOwner")&&p.optString("state")=="complete"&&p.optJSONObject("casting")?.optJSONObject("combination")!=null&&
+     (publication==null||publication.optString("state")=="failed")
     // The singer's own role comes first, as in the approved design; script colours keep the original order.
     val roleCards=roles.sortedByDescending{it.optBoolean("mine")}
-    item{DubbingSectionTitle("작품 정보")}
     item{
-     DubbingInfoCard(p,sound,previewing,previewAt,{if(previewing)audio.stop()else {sharedPlayer?.pause();audio.listen(sound.optString("audioUrl","/api/dubbing/projects/$id/background"))}}){
+     DubbingWorkScene(music,p,audio)
+     Row(Modifier.padding(top=12.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+      Text(p.optString("title"),Modifier.weight(1f,false),fontSize=22.sp,fontWeight=FontWeight.Bold,maxLines=3,overflow=TextOverflow.Ellipsis)
+      DubbingChip("더빙",Pink)
+     }
+     Text(p.optString("ownerName"),Modifier.padding(vertical=6.dp),color=Muted)
+     p.optString("listening_description").takeIf{it.isNotBlank()&&it!="null"}?.let{Text(it,color=SoftText)}
+     if(p.optBoolean("canParticipate")){
+      Text("참여 ${roles.count{it.optBoolean("claimed")}}/${roles.size}개 배역",Modifier.padding(top=6.dp),color=Muted,fontSize=12.sp)
+      Button({if(music.authenticated())task{reload();check(project?.optBoolean("canParticipate")==true){"참여할 수 있는 배역이 없거나 모집이 마감되었습니다."};choosingRole=true}},
+       enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=44.dp),colors=ButtonDefaults.buttonColors(containerColor=Color(0xff5b438d),contentColor=Color.White)){Text("참여하기")}
+     }
+     if(projectPublic){
+      val liked=p.optJSONObject("community")?.optBoolean("liked")==true
+      val final=p.optJSONObject("recording")?.optJSONObject("final")
+      Row(Modifier.fillMaxWidth().padding(top=6.dp),horizontalArrangement=Arrangement.spacedBy(4.dp)){
+       val actions=listOf(
+        Triple("좋아요",if(liked)Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,{if(music.authenticated())task{api.call("/api/dubbing/projects/$id/like",if(liked)"DELETE" else "PUT");reload()}}),
+        Triple("댓글",Icons.Outlined.ChatBubbleOutline,{composing=!composing}),
+        Triple("담기",Icons.Outlined.Add,{if(music.authenticated())listPicker=true}),
+        Triple("선물",Icons.Outlined.CardGiftcard,::gift),
+        Triple("공유",Icons.Outlined.Share,{if(music.authenticated())sharing=true}))
+       actions.forEach{(label,icon,tap)->
+        val enabled=!busy&&(label!="담기"||final?.optString("state")=="ready")&&(label!="선물"||!p.optBoolean("isOwner"))
+        OutlinedButton(tap,Modifier.weight(1f).heightIn(min=44.dp),enabled=enabled,contentPadding=PaddingValues(vertical=5.dp),
+         shape=RoundedCornerShape(8.dp),border=BorderStroke(1.dp,Stroke)){
+         Column(horizontalAlignment=Alignment.CenterHorizontally){Icon(icon,null,Modifier.size(17.dp));Text(label,fontSize=10.sp,maxLines=1)}
+        }
+       }
+      }
+     }
       if(p.optBoolean("isOwner")&&sound.optString("state")=="not_started")Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
        OutlinedButton({confirm="basic"},enabled=!busy,modifier=Modifier.weight(1f),shape=RoundedCornerShape(12.dp),border=BorderStroke(1.dp,Stroke)){Text("기본 배경",fontSize=12.sp,color=SoftText)}
        BrandButton({confirm="sound"},enabled=!busy&&sound.optBoolean("aiAvailable"),modifier=Modifier.weight(1f),contentPadding=PaddingValues(horizontal=8.dp)){Text("효과음 · ${sound.optInt("chargeGold",sound.optInt("priceGold",50))} G",fontSize=12.sp)}
       }
       if(sound.optInt("refundedGold")>0)Text("${sound.optInt("refundedGold")} G 환급",fontSize=12.sp,color=Muted)
+    }
+    if(projectPublic){
+     item{NativeDubbingComments(api,p,composing){music.authenticated()}}
+     item{
+      CurrentPanel("응원 순위"){
+       if(ranking?.optJSONArray("support_ranking").objects().isEmpty())Text("아직 작품을 응원한 사람이 없어요.",fontSize=13.sp,color=Muted)
+       ranking?.optJSONArray("support_ranking").objects().forEach{row->
+        Text("${row.optString("name")} · ${row.optInt("score")}점",fontSize=13.sp,color=SoftText)
+       }
+       if(!p.optBoolean("isOwner"))TextButton(::gift){Text("선물로 마음 전하기")}
+       TextButton({if(music.authenticated())music.showRewards=true}){Text("무료 실버 받기")}
+      }
      }
     }
     if(p.optBoolean("isOwner")&&p.optString("visibility")=="private")item{BrandButton({confirm="publish"},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)){Text("배역 모집 시작",fontSize=14.sp)}}
+    if(mayRender)item{BrandButton({publishMix=true},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("완성 오디오 저장·게시")}}
     item{DubbingSectionTitle("배역 선택","${roles.count{it.optBoolean("claimed")}} / ${roles.size}명 참여")}
     items(roleCards,key={it.getString("id")}){r->
      var more by remember{mutableStateOf(false)}
      val mine=r.optBoolean("mine")
      val cancel=mine&&p.optJSONObject("recording")?.optJSONArray("roles").objects().none{it.getString("roleId")==r.getString("id")}
-     val fresh=p.optString("visibility")=="public"&&p.optString("rootId")==id&&sound.optString("state")=="ready"
+     val fresh=p.optString("visibility")=="public"&&p.optString("rootId")==id&&sound.optString("state")=="ready"&&p.optString("state") in listOf("recruiting","recording")
      Surface(color=Panel,shape=RoundedCornerShape(16.dp),border=BorderStroke(if(mine)1.5.dp else 1.dp,if(mine)Violet else Stroke),modifier=Modifier.fillMaxWidth().testTag("dubbing-role-${r.getString("id")}")){
       Column(Modifier.padding(horizontal=14.dp,vertical=12.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
        Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
@@ -305,7 +399,8 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
          }
         }
        }
-       if(!r.optBoolean("claimed")&&currentRole==null&&p.optString("visibility")=="public"&&p.optString("state") in listOf("recruiting","recording"))BrandButton({task{api.call("/api/dubbing/projects/$id/claims/${r.getString("id")}","POST",payload("revision" to p.getInt("revision")));reload();sharedPlayer?.pause();audio.stop();recording=true}},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Text("배역 선택하고 녹음",fontSize=14.sp)}
+       if(!r.optBoolean("claimed")&&currentRole==null&&p.optBoolean("isOwner")&&p.optString("visibility")=="public"&&p.optString("state") in listOf("recruiting","recording"))
+        BrandButton({join(r)},enabled=!busy,modifier=Modifier.fillMaxWidth().heightIn(min=44.dp)){Text("배역 선택하고 녹음",fontSize=14.sp)}
       }
      }
     }
@@ -314,17 +409,50 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
       Icon(Icons.Outlined.Mic,null,Modifier.size(22.dp));Text("녹음하기",Modifier.padding(start=8.dp),fontSize=17.sp,fontWeight=FontWeight.Bold)
      }
     }
-    p.optJSONObject("recording")?.optJSONObject("final")?.let{final->item{if(final.optString("state")=="ready"){BrandButton({audio.stop();sharedPlayer?.playDubbingEdition(p)},enabled=sharedPlayer!=null,modifier=Modifier.fillMaxWidth()){Text("완성된 더빙 듣기")}}else Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
+    p.optJSONObject("recording")?.optJSONObject("final")?.takeIf{it.optString("state")!="ready"}?.let{final->item{Text("더빙 합성 상태 · ${final.optString("state")}",color=SoftText)}}
     item{DubbingSectionTitle("대본 미리보기","총 ${lines.size}개 대사")}
     val starts=dubbingLineStarts(lines)
     items(if(scriptOpen)lines else lines.take(4),key={"line-"+it.getString("id")}){l->DubbingLineCard(l,roles,currentRole?.optString("id"),starts[l.getString("id")]?:0.0)}
     if(lines.size>4)item{DubbingExpandButton(scriptOpen){scriptOpen=!scriptOpen}}
     val others=p.optJSONArray("versions").objects().filter{it.getString("id")!=id}
     if(others.isNotEmpty())item{DubbingVersions(p,others,versionsOpen,{versionsOpen=!versionsOpen}){navigate("dubbing/$it")}}
-    if(p.optString("visibility")=="public")item{NativeDubbingComments(api,p)}
    }
   }
   DubbingPlaybackBar(sharedPlayer)
+ }
+ val p=project
+ if(p!=null){
+  if(publishMix)AlertDialog(onDismissRequest={if(!busy)publishMix=false},title={Text("완성 오디오 저장·게시")},
+   text={Text("참여자가 허용한 음성을 해당 대본의 공동 작품으로 합성해 공개합니다.")},
+   dismissButton={TextButton({publishMix=false},enabled=!busy){Text("취소")}},
+   confirmButton={TextButton({task{
+    api.call("/api/dubbing/casting/$id/render","POST",payload("rightsAccepted" to true));publishMix=false;reload()
+   }},enabled=!busy){Text("동의하고 게시")}})
+  if(composing)LaunchedEffect(id){listState.animateScrollToItem(if(error!=null)2 else 1)}
+  if(sharing)WorkMessageShare(music,id,p.optString("title"),"dubbing"){sharing=false}
+  if(listPicker)WorkPlaylistPicker(api,id,p.optString("title"),"dubbing",{listPicker=false}){
+   music.notice="플레이리스트에 담았습니다.";music.refreshLibrary(true)
+  }
+  if(choosingRole)AlertDialog(onDismissRequest={if(!busy)choosingRole=false},title={Text("배역 선택")},text={
+   Column(Modifier.verticalScroll(rememberScrollState())){
+    p.optJSONArray("roles").objects().filterNot{it.optBoolean("claimed")}.forEach{role->
+     TextButton({choosingRole=false;join(role)},enabled=!busy,modifier=Modifier.fillMaxWidth()){
+      Text(role.optString("name"),modifier=Modifier.fillMaxWidth())
+     }
+    }
+   }
+  },confirmButton={},dismissButton={TextButton({choosingRole=false}){Text("취소")}})
+  appearance?.let{selection->
+   AlertDialog(onDismissRequest={if(!busy)appearance=null},title={Text("감상 화면 수정")},text={
+    Column(Modifier.verticalScroll(rememberScrollState())){
+     WorkAppearanceFields(selection,currentDubbingImage(p),!busy)
+     error?.let{Text(it,color=Pink)}
+    }
+   },confirmButton={TextButton({task{
+    reload();selection.saveDubbing(api,"/api/dubbing/projects/$id",project!!.getInt("revision"))
+    reload();appearance=null
+   }},enabled=!busy&&!selection.choosing){Text("저장")}},dismissButton={TextButton({appearance=null},enabled=!busy){Text("취소")}})
+  }
  }
  if(confirm.isNotBlank()&&project!=null){val p=project!!;val action=confirm;val charge=if(action=="basic")0 else sound.optInt("chargeGold",sound.optInt("priceGold",50));AlertDialog(onDismissRequest={if(!busy)confirm=""},title={Text(when(action){"publish"->"배역 모집을 시작할까요?";"unpublish"->"모집을 중지할까요?";"delete"->"내 더빙을 삭제할까요?";"basic"->"기본 배경을 준비할까요?";else->"${charge} G로 음향을 제작할까요?"})},text={Text(when(action){"publish"->"대본을 공개하고 다른 사람과 함께 연기할 권한이 있음을 확인합니다.";"delete"->"삭제하면 이 작품을 다시 열거나 참여할 수 없어요.";"basic"->"효과음 없이 녹음에 사용할 배경을 준비해요.";"unpublish"->"새로운 참여자 모집을 중지해요.";else->"생성 전 최종 금액을 확인해주세요. 실패하면 서버에서 자동 환급돼요."})},confirmButton={TextButton(enabled=!busy,onClick={task{
   when(action){"delete"->{api.call("/api/dubbing/projects/$id","DELETE",payload("revision" to p.getInt("revision")));back()};"publish","unpublish"->{api.call("/api/dubbing/projects/$id/$action","POST",payload("revision" to p.getInt("revision"),"rightsAccepted" to true));if(action=="publish")back()else reload()};else->{api.call("/api/dubbing/projects/$id/sound","POST",payload("requestId" to soundRequest,"mode" to if(action=="basic")"basic" else "ai","revision" to p.getInt("revision"),"acceptedGold" to sound.optInt("priceGold",50),"acceptedChargeGold" to charge));reload()}};confirm=""
@@ -348,8 +476,10 @@ internal class DubbingSaveJobs:ViewModel(){
  suspend fun waitForSave(key:List<String>){jobs[key]?.join()}
 }
 
-@Composable private fun NativeDubbingRecorder(api:NativeApi,account:String,project:JSONObject,role:JSONObject,back:()->Unit){
+@Composable private fun NativeDubbingRecorder(api:NativeApi,account:String,project:JSONObject,role:JSONObject,back:()->Unit,navigate:(String)->Unit){
  val context=LocalContext.current;val scope=rememberCoroutineScope();val owner=LocalLifecycleOwner.current;val id=project.getString("id");val roleId=role.getString("id");val path="/api/dubbing/projects/$id"
+ val appearance=remember(id){WorkAppearance(project.optString("listening_template"),project.optString("listening_description"))}
+ DisposableEffect(appearance){onDispose{appearance.close()}}
  val audio=remember{NativeDubbingAudio(context,api)};val running by audio.running.collectAsState();val status by audio.status.collectAsState();val count by audio.countdown.collectAsState();val level by audio.level.collectAsState();val elapsed by audio.elapsed.collectAsState()
  var view by remember{mutableStateOf(JSONObject())};var sound by remember{mutableStateOf(project.optJSONObject("sound")?:JSONObject())};var error by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)};var drafts by remember{mutableStateOf<DubbingDrafts?>(null)};var changed by remember{mutableIntStateOf(0)};var selected by rememberSaveable{mutableIntStateOf(0)};var submit by remember{mutableStateOf(false)};var recordLine by remember{mutableStateOf<JSONObject?>(null)}
  var leaving by remember{mutableStateOf(false)}
@@ -395,12 +525,15 @@ internal class DubbingSaveJobs:ViewModel(){
    view=api.call("$path/recording/$roleId/start","POST",payload("soundId" to sound.getString("id")))
    background.await()
   }
-  drafts=withContext(Dispatchers.IO){DubbingDrafts(context,account,id,sound.getString("id"),roleId)};selected=view.optJSONArray("lines").objects().filter{it.getString("roleId")==roleId}.indexOfFirst{it.isNull("takeId")&&it.getString("id") !in drafts!!.takes}.coerceAtLeast(0)
+  drafts=withContext(Dispatchers.IO){DubbingDrafts(context,account,id,sound.getString("id"),roleId)}
+  if(project.optBoolean("isOwner"))appearance.restoreDraft(drafts!!.directory,context.cacheDir)
+  selected=view.optJSONArray("lines").objects().filter{it.getString("roleId")==roleId}.indexOfFirst{it.isNull("takeId")&&it.getString("id") !in drafts!!.takes}.coerceAtLeast(0)
  }
  LaunchedEffect(Unit){busy=true;try{prepare()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
  suspend fun saveAll(){
   audio.stop()
   val d=drafts?:error("녹음 준비를 확인해주세요.")
+  if(project.optBoolean("isOwner"))appearance.saveDraft(d.directory)
   audio.status.value="이 기기에 저장했어요"
   if(reconcileBeforeSave){refresh();reconcileBeforeSave=false}
   val local=mine.filter{it.getString("id") in d.takes}
@@ -548,17 +681,30 @@ internal class DubbingSaveJobs:ViewModel(){
   }
  }
 
- if(submit)AlertDialog(onDismissRequest={if(!busy)submit=false},title={Text("모든 대사를 제출할까요?")},text={Text("내 음성을 함께 만든 더빙 작품으로 공개하는 데 동의합니다. 제출한 녹음은 수정할 수 없어요.")},confirmButton={TextButton(enabled=!busy,onClick={task{
-  saveAll()
-  val rev=view.getJSONObject("recording").getJSONArray("roles").objects().first{it.getString("roleId")==roleId}.getInt("revision")
-  try{
-   view=api.call("$path/recording/$roleId/submit","POST",payload("revision" to rev,"rightsAccepted" to true))
-  }catch(e:ApiException){
-   if(e.status==409){submit=false;refresh()}
-   throw e
+ if(submit)AlertDialog(onDismissRequest={if(!busy)submit=false},title={Text("게시 설정")},text={
+  Column(Modifier.verticalScroll(rememberScrollState()),verticalArrangement=Arrangement.spacedBy(10.dp)){
+   if(project.optBoolean("isOwner"))WorkAppearanceFields(appearance,currentDubbingImage(project),!busy)
+   Text("내 음성을 함께 만든 더빙 작품으로 공개하는 데 동의합니다. 제출한 녹음은 수정할 수 없어요.")
+   if(project.optJSONObject("casting")?.optJSONObject("draft")!=null)Text("공개한 녹음은 AIFECT에서 다른 배역과 조합해 공개할 수 있습니다.",fontSize=12.sp)
+   if(project.optBoolean("isOwner"))TextButton(::saveDraft,enabled=!busy&&!appearance.choosing){Text("초안 저장")}
+   error?.let{Text(it,color=Pink)}
   }
+ },confirmButton={TextButton(enabled=!busy&&!appearance.choosing,onClick={task{
+  saveAll()
+  if(project.optBoolean("isOwner")){
+   val fresh=api.call(path,fresh=true).getJSONObject("project")
+   appearance.saveDubbing(api,path,fresh.getInt("revision"))
+  }
+  val rev=view.getJSONObject("recording").getJSONArray("roles").objects().first{it.getString("roleId")==roleId}.getInt("revision")
+  val body=payload("revision" to rev,"rightsAccepted" to true)
+  if(project.optJSONObject("casting")?.let{it.optJSONObject("draft")!=null||it.optBoolean("isRoot")&&project.optBoolean("isOwner")}==true)
+   body.put("visibility","public").put("licenseVersion","casting-2026-11-01")
+  try{view=api.call("$path/recording/$roleId/submit","POST",body)}
+  catch(e:ApiException){if(e.status==409)refresh();throw e}
+  val published=view.optJSONObject("casting")?.optString("combinationId")
   submit=false;audio.status.value="제출했어요. 모든 배역이 완료되면 더빙이 합성돼요."
- }}){Text("동의하고 제출")}},dismissButton={TextButton({submit=false},enabled=!busy){Text("취소")}})
+  if(published!=null&&CurrentNavigation.safeID(published))navigate("dubbing/$published")
+ }}){Text("동의하고 제출")}},dismissButton={TextButton({submit=false},enabled=!busy){Text("녹음 편집")}})
 }
 
 @Composable internal fun DubbingLeaveDialog(busy:Boolean,onContinue:()->Unit,onSave:()->Unit,onDiscard:()->Unit){
@@ -568,25 +714,24 @@ internal class DubbingSaveJobs:ViewModel(){
  }},confirmButton={TextButton(onSave,enabled=!busy,modifier=Modifier.testTag("dubbing-save-leave")){Text("저장하고 나가기")}},dismissButton={TextButton(onDiscard,enabled=!busy,modifier=Modifier.testTag("dubbing-discard-leave")){Text("저장 안 함")}})
 }
 
-@Composable private fun NativeDubbingComments(api:NativeApi,project:JSONObject){
- val path="/api/dubbing/projects/${project.getString("id")}";val scope=rememberCoroutineScope();var comments by remember{mutableStateOf<List<JSONObject>>(emptyList())};var text by remember{mutableStateOf("")};var request by remember{mutableStateOf(requestIdentity())};var error by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)};var community by remember{mutableStateOf(project.optJSONObject("community")?:JSONObject())}
+@Composable private fun NativeDubbingComments(api:NativeApi,project:JSONObject,composing:Boolean,authenticated:()->Boolean){
+ val path="/api/dubbing/projects/${project.getString("id")}";val scope=rememberCoroutineScope();var comments by remember{mutableStateOf<List<JSONObject>>(emptyList())};var text by rememberSaveable{mutableStateOf("")};var request by rememberSaveable{mutableStateOf(requestIdentity())};var error by remember{mutableStateOf<String?>(null)};var busy by remember{mutableStateOf(false)}
+ val focus=remember{FocusRequester()}
  suspend fun load(){comments=api.call("$path/comments",fresh=true).optJSONArray("comments").objects()}
  fun task(block:suspend ()->Unit){if(busy)return;busy=true;scope.launch{try{block()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}}
  LaunchedEffect(Unit){try{load()}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}}
- val liked=community.optBoolean("liked")||community.optInt("liked")==1
  Column(Modifier.padding(top=6.dp),verticalArrangement=Arrangement.spacedBy(10.dp)){
-  Row(verticalAlignment=Alignment.CenterVertically){
-   Text("함께 나누는 이야기",Modifier.weight(1f),fontSize=18.sp,fontWeight=FontWeight.Bold)
-   TextButton({task{community=api.call("$path/like",if(liked)"DELETE" else "PUT")}},enabled=!busy){Icon(if(liked)Icons.Outlined.Favorite else Icons.Outlined.FavoriteBorder,"좋아요",tint=if(liked)Pink else Violet);Text("좋아요 ${community.optInt("likes")}",Modifier.padding(start=6.dp),color=SoftText)}
-  }
-  comments.forEach{c->Column(Modifier.fillMaxWidth().background(Panel,RoundedCornerShape(12.dp)).padding(12.dp)){Row(verticalAlignment=Alignment.CenterVertically){Text(c.optString("name"),fontWeight=FontWeight.Bold,fontSize=14.sp);OfficialAiBadge(c)};Text(c.optString("body"),fontSize=14.sp,color=SoftText);if(c.optBoolean("canDelete"))TextButton({task{api.call("$path/comments/${c.getString("id")}","DELETE");load()}}){Text("삭제",fontSize=12.sp)}}}
-  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-   OutlinedTextField(text,{text=it.take(2000);request=requestIdentity()},Modifier.weight(1f).testTag("dubbing-comment-input"),placeholder={Text("응원의 말을 남겨주세요.",color=Muted)},shape=RoundedCornerShape(14.dp),colors=OutlinedTextFieldDefaults.colors(unfocusedContainerColor=Panel,focusedContainerColor=Panel,unfocusedBorderColor=Stroke,focusedBorderColor=Violet),maxLines=4)
+  Text("댓글",fontSize=18.sp,fontWeight=FontWeight.Bold)
+  if(composing)Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   LaunchedEffect(Unit){focus.requestFocus()}
+   OutlinedTextField(text,{text=it.take(2000);request=requestIdentity()},Modifier.weight(1f).focusRequester(focus).testTag("dubbing-comment-input"),placeholder={Text("응원의 말을 남겨주세요.",color=Muted)},shape=RoundedCornerShape(14.dp),colors=OutlinedTextFieldDefaults.colors(unfocusedContainerColor=Panel,focusedContainerColor=Panel,unfocusedBorderColor=Stroke,focusedBorderColor=Violet),maxLines=4)
    val canSend=!busy&&text.isNotBlank()
-   Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(if(canSend)BrandGradient else Brush.linearGradient(listOf(Panel,Panel))).clickable(enabled=canSend,onClickLabel="댓글 등록"){task{api.call("$path/comments","POST",payload("id" to request,"body" to text));text="";request=requestIdentity();load()}}.testTag("dubbing-comment-send"),contentAlignment=Alignment.Center){
+   Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(if(canSend)BrandGradient else Brush.linearGradient(listOf(Panel,Panel))).clickable(enabled=canSend,onClickLabel="댓글 등록"){if(authenticated())task{api.call("$path/comments","POST",payload("id" to request,"body" to text));text="";request=requestIdentity();load()}}.testTag("dubbing-comment-send"),contentAlignment=Alignment.Center){
     Icon(Icons.AutoMirrored.Outlined.Send,"댓글 등록",tint=if(canSend)Ink else Muted)
    }
   }
+  if(comments.isEmpty()&&error==null)Text("아직 댓글이 없어요.",color=Muted,fontSize=13.sp)
+  comments.forEach{c->Column(Modifier.fillMaxWidth().background(Panel,RoundedCornerShape(12.dp)).padding(12.dp)){Row(verticalAlignment=Alignment.CenterVertically){Text(c.optString("name"),fontWeight=FontWeight.Bold,fontSize=14.sp);OfficialAiBadge(c)};Text(c.optString("body"),fontSize=14.sp,color=SoftText);if(c.optBoolean("canDelete"))TextButton({task{api.call("$path/comments/${c.getString("id")}","DELETE");load()}}){Text("삭제",fontSize=12.sp)}}}
   error?.let{Text(it,color=Pink,fontSize=12.sp)}
  }
 }

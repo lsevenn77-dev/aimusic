@@ -135,6 +135,8 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
  val account=m.user?.optString("id")
  val initial=data.optJSONObject("profile")?:JSONObject()
  val cover=initial.optString("kind")=="cover"
+ val appearance=remember(trackId){WorkAppearance(initial.optString("listening_template"),initial.optString("description"))}
+ DisposableEffect(appearance){onDispose{appearance.close()}}
  val scope=rememberCoroutineScope()
  var title by rememberSaveable{mutableStateOf(initial.optString("title"))}
  var description by rememberSaveable{mutableStateOf(initial.optString("description"))}
@@ -168,7 +170,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
   working=true;error=null
   try{
    var uploadAd:String?=null
-   val body=if(cover)payload("description" to description)else JSONObject(initial.toString()).apply{
+   val body=if(cover)appearance.changes("description").apply{put("release_date",initial.optString("release_date").takeUnless{it=="null"}?:"")}else JSONObject(initial.toString()).apply{
     put("title",title.trim());put("description",description);put("ai_tool",tool.trim());put("genre",genres.split(',').first().trim())
     put("genres",JSONArray(genres.split(',').map{it.trim()}.filter{it.isNotEmpty()}));put("moods",JSONArray(moods.split(',').map{it.trim()}.filter{it.isNotEmpty()}))
     if(artistId=="new"){remove("artist_id");put("artist",newArtist.trim())}else put("artist_id",artistId)
@@ -191,6 +193,7 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
     }
    }else{
     stage="음원 정보 저장 중…";m.api.call("/api/studio/tracks/$trackId","PUT",body)
+    if(cover)appearance.imageFile?.let{stage="커버사진 저장 중…";m.api.uploadListeningPhoto("/api/studio/tracks/$trackId/image",it)}
     if(!cover)image?.let{stage="앨범 커버 저장 중…";m.api.uploadWebp("/api/studio/tracks/$trackId/image",it)}
    }
    m.api.invalidateReads()
@@ -222,15 +225,15 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
     if(lyricsMode=="auto")Text("입력한 가사로 자동 싱크를 요청해요. 완료 상태는 스튜디오에서 확인할 수 있어요.",color=Muted,fontSize=12.sp)
     data.optJSONObject("alignment")?.let{Text("가사 싱크 · ${it.optString("state")}",fontSize=12.sp,color=Aqua)}
     if(trackId!=null)StudioBackingControls(m,trackId,data.optJSONObject("karaoke"),working)
-   }else Text("커버곡의 사진은 내 프로필 사진을 사용해요. 제목과 장르는 원곡을 따릅니다.",color=Muted,fontSize=13.sp)
-   OutlinedTextField(description,{description=it.take(if(cover)1000 else 4000)},label={Text("곡 소개")},minLines=3,enabled=!working&&draftId==null,modifier=Modifier.fillMaxWidth().testTag("studio-description"))
+   }else WorkAppearanceFields(appearance,Song(initial).workArtwork(),!working,noteLimit=1000)
+   if(!cover)OutlinedTextField(description,{description=it.take(4000)},label={Text("곡 소개")},minLines=3,enabled=!working&&draftId==null,modifier=Modifier.fillMaxWidth().testTag("studio-description"))
    if(trackId==null){
     Text("Suno 무료 플랜으로 만든 곡은 기본적으로 비상업적 용도로만 이용할 수 있어요. 다른 AI로 만든 곡도 제작 당시 요금제와 약관에서 상업적 이용과 위 이용허락이 가능한지 확인해주세요.",color=Muted,fontSize=13.sp)
     StudioConsent("AI로 제작한 이 음원과 가사·이미지를 업로드하고 공개할 권리가 있으며, 무단 복제물이나 허락 없이 복제한 타인의 음성을 사용하지 않았습니다. AIFECT에서 반주(MR)를 만들고 다른 이용자가 커버를 제작·공개하는 데 동의합니다. 또한 아이팩트가 직접 운영하는 게임과 웹사이트에서 이 음원을 사용할 수 있도록 비독점적으로 허락합니다.",uploadConsent,!working&&draftId==null){uploadConsent=it}
    }
    if(working){LinearProgressIndicator(Modifier.fillMaxWidth());Text(stage,color=Aqua)}
    error?.let{Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.testTag("studio-save-error"))}
-   BrandButton(onClick=::save,enabled=!working&&(cover||title.isNotBlank()&&tool.isNotBlank())&&(trackId!=null||audio!=null&&uploadConsent&&(lyricsMode!="auto"||autoSource.isNotBlank())),modifier=Modifier.fillMaxWidth().testTag("studio-save")){Text(if(working)"저장 중…"else if(draftId!=null)"업로드 다시 시도"else if(trackId==null)"음원 올리기"else"변경사항 저장")}
+   BrandButton(onClick=::save,enabled=!working&&!appearance.choosing&&(cover||title.isNotBlank()&&tool.isNotBlank())&&(trackId!=null||audio!=null&&uploadConsent&&(lyricsMode!="auto"||autoSource.isNotBlank())),modifier=Modifier.fillMaxWidth().testTag("studio-save")){Text(if(working)"저장 중…"else if(draftId!=null)"업로드 다시 시도"else if(trackId==null)"음원 올리기"else"변경사항 저장")}
   }
  }
  if(confirmLeave)AlertDialog(onDismissRequest={confirmLeave=false},title={Text("스튜디오로 돌아갈까요?")},text={Text("저장하지 않은 변경사항은 사라져요.")},confirmButton={TextButton(onClick=close){Text("돌아가기")}},dismissButton={TextButton(onClick={confirmLeave=false}){Text("계속 수정")}})

@@ -6,6 +6,8 @@ import android.content.Intent;
 import android.content.*;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -24,6 +26,7 @@ import androidx.appcompat.widget.SwitchCompat;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.*;
 import kr.co.aifect.app.BuildConfig;
+import kr.co.aifect.app.R;
 import org.json.*;
 import java.io.*;
 import java.util.concurrent.*;
@@ -44,6 +47,17 @@ public class KaraokeActivity extends AppCompatActivity {
     private Double pendingSeek;
     private LyricsTimelineView lyricWheel;
     private File original,sessionFile;
+    private File listeningCover;
+    private Bitmap listeningPhoto;
+    private String listeningTemplate=WorkListeningArtwork.BASIC;
+    private String listeningPhotoIssue="";
+    private boolean checkingListeningPhoto;
+    private WorkListeningArtwork listeningArtwork;
+    private TextView listeningCaption,listeningClock;
+    private SeekBar listeningSeek;
+    private Button listeningPlay;
+    private ActivityResultLauncher<String[]> listeningPhotoPicker;
+    private final java.util.List<Button> listeningChoices=new java.util.ArrayList<>();
     private Button pause,restart,guide,pickLine,soloMode,duetMode;
     private String lyricTextSize="normal";
     private final java.util.ArrayList<Button> lyricSizeButtons=new java.util.ArrayList<>();
@@ -114,6 +128,20 @@ public class KaraokeActivity extends AppCompatActivity {
         api=new KaraokeApi(origin,NativeSession.cookie(this));
         String account=getIntent().getStringExtra("ownerId");
         String owner=draftOwner(origin,account==null?NativeSession.cookie(this):"user:"+account);
+        listeningPhotoPicker=registerForActivityResult(new ActivityResultContracts.OpenDocument(),uri->{
+            if(uri==null||checkingListeningPhoto||state==State.UPLOADING)return;
+            checkingListeningPhoto=true;message("커버사진을 확인하고 있습니다.");
+            files.execute(()->{
+                try(InputStream input=getContentResolver().openInputStream(uri)){
+                    Bitmap bitmap=WorkListeningPhoto.store(input,listeningCover);
+                    ui.post(()->{
+                        if(destroyed)return;
+                        checkingListeningPhoto=false;listeningPhoto=bitmap;listeningPhotoIssue="";
+                        refreshListeningArtwork();saveSession();message("커버사진을 선택했습니다.");
+                    });
+                }catch(Exception error){ui.post(()->{if(!destroyed){checkingListeningPhoto=false;message(friendly(error));}});}
+            });
+        });
         directory=new File(getFilesDir(),"karaoke-"+trackId+(coverMode.equals("duet")?"-duet-"+duetPart+"-"+(duetParent.isEmpty()?"first":duetParent):"")+"-"+owner);
         boolean restoreDraft=getIntent().getBooleanExtra("resumeDraft",false)||saved!=null&&saved.containsKey("directory");
         String chosenFolder=saved!=null&&saved.containsKey("directory")?saved.getString("directory"):getIntent().getStringExtra("draftFolder");
@@ -124,6 +152,8 @@ public class KaraokeActivity extends AppCompatActivity {
         }else if(!restoreDraft)directory=new File(getFilesDir(),expected.substring(0,expected.length()-owner.length()-1)+"-take-"+java.util.UUID.randomUUID()+"-"+owner);
         if(!directory.exists()&&!directory.mkdirs()){finish();return;}
         mr=new File(directory,"mr.m4a");baseMr=mr;dry=new File(directory,"voice.pcm");original=new File(directory,"guide.m4a");sessionFile=new File(directory,"session.json");
+        listeningCover=new File(directory,"listening-cover.webp");
+        if(listeningCover.isFile())listeningPhoto=BitmapFactory.decodeFile(listeningCover.getAbsolutePath());
         lyricTextSize=validLyricTextSize(getSharedPreferences("karaoke_display",MODE_PRIVATE).getString("lyricTextSize","normal"));
         effectPrefs=getSharedPreferences(EffectMemory.FILE,MODE_PRIVATE);
         buildUI();restoreRememberedEffects();
@@ -143,6 +173,14 @@ public class KaraokeActivity extends AppCompatActivity {
         files.execute(()->{
             try{
                 JSONObject data=api.json(duetParent.isEmpty()?"/api/karaoke/"+trackId:"/api/duets/"+duetParent,"GET",null);if(!data.getJSONObject("track").optString("id").equals(trackId))throw new IOException("듀엣 원곡을 확인해주세요.");JSONObject song=data.getJSONObject("track");
+                JSONObject duet=data.optJSONObject("duet"),partner=duet==null?null:duet.optJSONObject("partner");
+                final String sourceTemplate=partner!=null&&!partner.isNull("listening_template")?partner.optString("listening_template"):WorkListeningArtwork.BASIC;
+                Bitmap sourcePicture=null;
+                if(!listeningCover.isFile()){
+                    try{sourcePicture=loadListeningCover(partner==null?song:partner,partner!=null);}
+                    catch(Exception error){if(partner!=null)listeningPhotoIssue="참여할 작품의 커버사진을 확인하지 못했습니다. 커버사진을 선택해 주세요.";}
+                }
+                final Bitmap snapshot=sourcePicture;
                 if(song.optDouble("duration")>PcmFiles.MAX_SECONDS)throw new IOException("10분 이하 곡만 부를 수 있어요.");
                 if(directory.getUsableSpace()<200L*1024*1024)throw new IOException("녹음과 파일 저장을 위해 저장공간을 200MB 이상 비워주세요.");
                 if(mr.length()==0)api.download(data.getString("mr"),mr,(done,total)->ui.post(()->{if(!destroyed)message(total>0?"반주 다운로드 "+(done*100/total)+"%":"반주 다운로드 · "+(done/1024)+"KB");}));
@@ -155,7 +193,9 @@ public class KaraokeActivity extends AppCompatActivity {
                 }
                 ui.post(()->{
                     if(destroyed)return;
-                    words=data.optJSONArray("words");if(words==null)words=new JSONArray();if(!duetParent.isEmpty()){JSONObject duet=data.optJSONObject("duet");duetGuide=duet==null?null:duet.optJSONObject("guide");}
+                    words=data.optJSONArray("words");if(words==null)words=new JSONArray();if(!duetParent.isEmpty())duetGuide=duet==null?null:duet.optJSONObject("guide");
+                    listeningTemplate=sourceTemplate;
+                    if(snapshot!=null)listeningPhoto=snapshot;
                     setSongTitle(song.optString("title")+"\n"+song.optString("artist"));loadArtwork(song);
                     engine=new KaraokeEngine(this,mr,dry,this::audioFinished);engine.fullLengthMix=coverMode.equals("duet");if(restoreDraft)restoreSession();else cursor=0;applySettings();updateRoute();hasTake=dry.length()>PcmFiles.RATE/5;setState(hasTake?State.PAUSED:State.READY);
                     message(hasTake?"임시 녹음을 복원했어요. 가사를 밀어 다시 부를 위치를 골라주세요.":"준비됐어요. 가사를 위아래로 밀어 부를 위치를 고르세요.");drawLyrics(cursor);
@@ -288,7 +328,7 @@ public class KaraokeActivity extends AppCompatActivity {
         });
         guide=button("원곡 가이드 듣기",false);guide.setOnClickListener(v->{if(state==State.GUIDE){guideThenRecord=false;cursor=engine.position();setState(State.STOPPING);engine.stop();}else startGuide();});guide.setVisibility(View.GONE);
         reviewFields=box();reviewFields.addView(text("내 커버곡 공개하기",18,Color.WHITE));
-        description=new EditText(this);description.setTextColor(Color.WHITE);description.setHintTextColor(MUTED);description.setHint("커버곡 소개 (선택)");description.setMaxLines(4);description.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1000)});reviewFields.addView(description);
+        description=new EditText(this);description.setTextColor(Color.WHITE);description.setHintTextColor(MUTED);description.setHint("한마디 (선택)");description.setMaxLines(4);description.setFilters(new InputFilter[]{new InputFilter.LengthFilter(1000)});reviewFields.addView(description);
         ownVoice=check("제가 직접 부른 목소리이며 AI 음성 복제가 아닙니다.");rights=check("원곡자의 허용 범위 안에서 이 녹음을 공개할 권리가 있습니다.");reviewFields.addView(ownVoice);reviewFields.addView(rights);
         upload=button("커버곡으로 올리기",true);upload.setOnClickListener(v->upload());reviewFields.addView(upload);
         Button saveLocal=button("부른 구간 파일로 저장",false);saveLocal.setOnClickListener(v->{if(state==State.REVIEW||state==State.PAUSED)checkPremiumExport();});reviewFields.addView(saveLocal);
@@ -349,12 +389,12 @@ public class KaraokeActivity extends AppCompatActivity {
         LinearLayout player=box(),playRow=new LinearLayout(this);player.setPadding(dp(8),dp(8),dp(8),dp(8));playRow.setGravity(Gravity.CENTER_VERTICAL);attach(preview,playRow);((TransportButton)preview).setCompact(true);preview.setLayoutParams(new LinearLayout.LayoutParams(dp(54),dp(54)));preview.setContentDescription("녹음 들어보기");attach(previewPause,playRow);((TransportButton)previewPause).setCompact(true);previewPause.setLayoutParams(new LinearLayout.LayoutParams(dp(54),dp(54)));previewPause.setContentDescription("녹음 다시듣기 일시정지");
         LinearLayout waveColumn=new LinearLayout(this);waveColumn.setOrientation(LinearLayout.VERTICAL);waveform=new TakeWaveformView(this);waveform.listener(new TakeWaveformView.Listener(){public void begin(){beginScrub();}public void preview(double seconds){previewScrub(seconds);}public void end(double seconds){endScrub(seconds);}});waveColumn.addView(waveform,new LinearLayout.LayoutParams(-1,dp(52)));attach(clock,waveColumn);playRow.addView(waveColumn,new LinearLayout.LayoutParams(0,-2,1));player.addView(playRow);postPanel.addView(player);
         styleStep(syncFields,"1. 싱크 조절");syncFields.setBackgroundColor(Color.TRANSPARENT);syncFields.setPadding(0,dp(12),0,0);while(syncFields.getChildCount()>1)syncFields.removeViewAt(1);syncFields.addView(text("내 목소리와 반주의 싱크를 맞춰주세요.",12,MUTED));LinearLayout syncScale=new LinearLayout(this);syncLeft=text("-200ms",12,MUTED);syncRight=text("+200ms",12,MUTED);syncRight.setGravity(Gravity.END);syncScale.addView(syncLeft,new LinearLayout.LayoutParams(0,-2,1));syncValue=text("0ms",12,Color.WHITE);syncValue.setGravity(Gravity.CENTER);syncScale.addView(syncValue,new LinearLayout.LayoutParams(0,-2,1));syncScale.addView(syncRight,new LinearLayout.LayoutParams(0,-2,1));syncFields.addView(syncScale);syncFields.addView(offset,new LinearLayout.LayoutParams(-1,dp(32)));attach(syncFields,postPanel);postSound=new LinearLayout(this);postSound.setOrientation(LinearLayout.VERTICAL);postPanel.addView(text("2. 볼륨 밸런스 확인",17,Color.WHITE));postPanel.addView(postSound);postReverb=new LinearLayout(this);postReverb.setOrientation(LinearLayout.VERTICAL);postPanel.addView(text("3. 리버브 효과",17,Color.WHITE));postPanel.addView(postReverb);
-        styleStep(reviewFields,"4. 저장 및 게시");reviewFields.setBackgroundColor(Color.TRANSPARENT);reviewFields.setPadding(0,dp(10),0,0);publicationFields=new LinearLayout(this);publicationFields.setOrientation(LinearLayout.VERTICAL);while(reviewFields.getChildCount()>1){View child=reviewFields.getChildAt(1);reviewFields.removeViewAt(1);publicationFields.addView(child);}reviewFields.addView(text("저장 후 내 노래방에서 확인할 수 있습니다.",12,MUTED));attach(reviewFields,postPanel);Button again=compactButton("다시 부르기",false);again.setTag("recording-again");again.setOnClickListener(v->{returnToRecording=true;reviewPosition=false;cursor=0;if(state==State.PLAYING){pauseRequested=true;setState(State.STOPPING);engine.stop();}else setState(State.PAUSED);drawLyrics(0);scroll.smoothScrollTo(0,0);});Button draft=compactButton("임시 저장",false);draft.setTag("recording-draft");draft.setOnClickListener(v->{keepDraft=true;saveSession(()->message("이 기기에 저장했어요. 초안 목록에서 이어 편집할 수 있어요."));});LinearLayout saveRow=new LinearLayout(this);
+        styleStep(reviewFields,"4. 저장 및 게시");reviewFields.setBackgroundColor(Color.TRANSPARENT);reviewFields.setPadding(0,dp(10),0,0);publicationFields=new LinearLayout(this);publicationFields.setOrientation(LinearLayout.VERTICAL);while(reviewFields.getChildCount()>1){View child=reviewFields.getChildAt(1);reviewFields.removeViewAt(1);publicationFields.addView(child);}reviewFields.addView(text("저장 후 내 노래방에서 확인할 수 있습니다.",12,MUTED));attach(reviewFields,postPanel);Button again=compactButton("다시 부르기",false);again.setTag("recording-again");again.setOnClickListener(v->{returnToRecording=true;reviewPosition=false;cursor=0;if(state==State.PLAYING){pauseRequested=true;setState(State.STOPPING);engine.stop();}else setState(State.PAUSED);drawLyrics(0);scroll.smoothScrollTo(0,0);});Button draft=compactButton("초안 저장",false);draft.setTag("recording-draft");draft.setOnClickListener(v->{keepDraft=true;saveSession(()->message("이 기기에 저장했어요. 초안 목록에서 이어 편집할 수 있어요."));});LinearLayout saveRow=new LinearLayout(this);
         for(Button b:new Button[]{again,draft}){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),dp(8),dp(3),0);saveRow.addView(b,p);}reviewFields.addView(saveRow);
-        compactStyle(upload);upload.setText("저장 후 게시");upload.setTag("recording-publish");attach(upload,reviewFields);LinearLayout.LayoutParams publishParams=new LinearLayout.LayoutParams(-1,-2);publishParams.setMargins(0,dp(8),0,dp(8));upload.setLayoutParams(publishParams);
-        Button publication=compactButton("게시 정보 · 권리 확인  ›",false);publication.setTag("recording-publication");publication.setOnClickListener(v->publicationFields.setVisibility(publicationFields.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE));reviewFields.addView(publication,new LinearLayout.LayoutParams(-1,-2));
+        compactStyle(upload);upload.setText("게시하기");upload.setTag("recording-publish");attach(upload,reviewFields);LinearLayout.LayoutParams publishParams=new LinearLayout.LayoutParams(-1,-2);publishParams.setMargins(0,dp(8),0,dp(8));upload.setLayoutParams(publishParams);
+        Button publication=compactButton("게시 정보 · 권리 확인  ›",false);publication.setTag("recording-publication");publication.setOnClickListener(v->{publicationFields.setVisibility(publicationFields.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);refreshListeningArtwork();updateListeningTransport(cursor);});reviewFields.addView(publication,new LinearLayout.LayoutParams(-1,-2));
         Button postSettings=compactButton("잡음 · 세부 설정  ›",false);postSettings.setTag("post-settings");postSettings.setOnClickListener(v->openSettings());LinearLayout.LayoutParams settingsParams=new LinearLayout.LayoutParams(-1,-2);settingsParams.topMargin=dp(8);reviewFields.addView(postSettings,settingsParams);
-        reviewFields.addView(publicationFields);publicationFields.setVisibility(View.GONE);upload.setOnClickListener(v->{if(!ownVoice.isChecked()||!rights.isChecked()){publicationFields.setVisibility(View.VISIBLE);message("게시 정보를 확인하고 권리 동의 후 저장 후 게시를 눌러주세요.");scroll.post(()->scroll.smoothScrollTo(0,reviewFields.getTop()+postPanel.getTop()));return;}upload();});
+        publicationFields.addView(listeningSettings(),0);reviewFields.addView(publicationFields);publicationFields.setVisibility(View.GONE);upload.setOnClickListener(v->{if(!ownVoice.isChecked()||!rights.isChecked()){publicationFields.setVisibility(View.VISIBLE);message("게시 정보를 확인하고 권리 동의 후 저장 후 게시를 눌러주세요.");scroll.post(()->scroll.smoothScrollTo(0,reviewFields.getTop()+postPanel.getTop()));return;}upload();});
         status.setMinHeight(0);status.setGravity(Gravity.CENTER);status.setMaxLines(2);if(status.getParent() instanceof ViewGroup)((ViewGroup)status.getParent()).removeView(status);root.addView(status,root.indexOfChild(bottomControls),new LinearLayout.LayoutParams(-1,-2));refreshPresets();
     }
     private void mountStudioSettings(boolean reviewing){
@@ -384,6 +424,92 @@ public class KaraokeActivity extends AppCompatActivity {
     }
     private void refreshWaveform(){long stamp=dry.lastModified()+dry.length();if(!hasTake||waveform==null||stamp==waveformStamp)return;waveformStamp=stamp;files.execute(()->{try{float[] peaks=TakeWaveformView.read(dry);ui.post(()->{if(!destroyed&&waveformStamp==stamp)waveform.peaks(peaks);});}catch(IOException ignored){}});}
     private void loadArtwork(JSONObject song){if(!song.optBoolean("has_cover"))return;String path="/media/"+trackId+"/cover?v="+song.optString("cover_version","original");files.execute(()->{try{File art=new File(directory,"cover-image");api.download(path,art);android.graphics.BitmapFactory.Options options=new android.graphics.BitmapFactory.Options();options.inSampleSize=2;android.graphics.Bitmap image=android.graphics.BitmapFactory.decodeFile(art.getAbsolutePath(),options);ui.post(()->{if(!destroyed&&image!=null)songArt.setImageBitmap(image);});}catch(Exception ignored){}});}
+    private Bitmap loadListeningCover(JSONObject source,boolean snapshot)throws Exception{
+        String art=source.isNull("artwork_id")?"":source.optString("artwork_id");
+        if(!art.isEmpty()&&!art.matches("[\\w-]{1,80}"))throw new IOException("작품의 커버사진을 다시 확인해 주세요.");
+        if(art.isEmpty()){
+            if(!snapshot)return null;
+            try(InputStream input=getResources().openRawResource(R.drawable.listening_cover)){return WorkListeningPhoto.store(input,listeningCover);}
+        }
+        byte[] bytes=api.coverBytes("/media/"+art+"/cover?v="+android.net.Uri.encode(source.optString("cover_version","original")));
+        if(snapshot)return WorkListeningPhoto.store(new ByteArrayInputStream(bytes),listeningCover);
+        return BitmapFactory.decodeByteArray(bytes,0,bytes.length);
+    }
+
+    private View listeningSettings(){
+        LinearLayout section=new LinearLayout(this);section.setOrientation(LinearLayout.VERTICAL);
+        int size=Math.min(dp(420),getResources().getDisplayMetrics().widthPixels-dp(42));
+        FrameLayout stage=new FrameLayout(this);
+        listeningArtwork=new WorkListeningArtwork(this);listeningArtwork.setTag("recording-listening-preview");
+        stage.addView(listeningArtwork,new FrameLayout.LayoutParams(-1,-1));
+        LinearLayout transport=new LinearLayout(this);transport.setOrientation(LinearLayout.VERTICAL);transport.setPadding(dp(8),dp(5),dp(8),dp(3));transport.setBackgroundColor(0xB90A0E18);
+        listeningCaption=text("",16,Color.WHITE);listeningCaption.setGravity(Gravity.CENTER);listeningCaption.setMaxLines(2);
+        listeningCaption.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(this,R.font.pretendard_listening));
+        transport.addView(listeningCaption);
+        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
+        listeningPlay=compactButton("재생",false);listeningPlay.setOnClickListener(v->{if(state==State.PLAYING)previewPause.performClick();else preview.performClick();});
+        row.addView(listeningPlay,new LinearLayout.LayoutParams(-2,dp(44)));
+        listeningSeek=new SeekBar(this);listeningSeek.setContentDescription("재생 위치");listeningSeek.setMax(1000);
+        listeningSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
+            public void onStartTrackingTouch(SeekBar seek){if(engine!=null)beginScrub();}
+            public void onProgressChanged(SeekBar seek,int progress,boolean fromUser){if(fromUser&&engine!=null)previewScrub(displayDuration()*progress/1000);}
+            public void onStopTrackingTouch(SeekBar seek){if(engine!=null)endScrub(displayDuration()*seek.getProgress()/1000);}
+        });
+        row.addView(listeningSeek,new LinearLayout.LayoutParams(0,dp(44),1));
+        listeningClock=text("",11,Color.WHITE);row.addView(listeningClock);transport.addView(row);
+        stage.addView(transport,new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM));
+        LinearLayout.LayoutParams stageSize=new LinearLayout.LayoutParams(size,size);stageSize.gravity=Gravity.CENTER_HORIZONTAL;section.addView(stage,stageSize);
+        Button pick=compactButton("커버사진 변경",false);
+        pick.setOnClickListener(v->{if(state!=State.UPLOADING&&!checkingListeningPhoto)listeningPhotoPicker.launch(new String[]{"image/jpeg","image/png","image/webp"});});
+        section.addView(pick);
+        section.addView(text("JPG · PNG · WebP · 최대 5MB",12,MUTED));
+        HorizontalScrollView scroller=new HorizontalScrollView(this);scroller.setHorizontalScrollBarEnabled(false);
+        LinearLayout choices=new LinearLayout(this);
+        String[] keys={WorkListeningArtwork.BASIC,WorkListeningArtwork.TURNTABLE,WorkListeningArtwork.PROJECTOR};
+        String[] labels={"기본","턴테이블","영사기"};
+        int[] thumbnails={R.drawable.listening_cover_thumb,R.drawable.listening_turntable_thumb,R.drawable.listening_projector_thumb};
+        for(int i=0;i<keys.length;i++){
+            final String key=keys[i];Button choice=compactButton(labels[i],false);choice.setTag(key);
+            android.graphics.drawable.Drawable thumb=ContextCompat.getDrawable(this,thumbnails[i]);if(thumb!=null)thumb.setBounds(0,0,dp(52),dp(52));
+            choice.setCompoundDrawables(null,thumb,null,null);choice.setPadding(dp(6),dp(5),dp(6),dp(4));choice.setTextSize(11);
+            choice.setOnClickListener(v->{if(state!=State.UPLOADING){listeningTemplate=key;refreshListeningArtwork();saveSession();}});
+            LinearLayout.LayoutParams card=new LinearLayout.LayoutParams(dp(79),dp(86));card.setMargins(0,dp(5),dp(6),dp(5));choices.addView(choice,card);
+            listeningChoices.add(choice);
+        }
+        scroller.addView(choices);section.addView(scroller);
+        refreshListeningArtwork();return section;
+    }
+    private void refreshListeningArtwork(){
+        if(listeningArtwork==null)return;
+        listeningArtwork.show(listeningTemplate,listeningPhoto);
+        String selected=WorkListeningArtwork.isTemplate(listeningTemplate)?listeningTemplate:WorkListeningArtwork.BASIC;
+        for(Button button:listeningChoices){
+            boolean on=selected.equals(button.getTag());button.setSelected(on);
+            button.setBackgroundTintList(ColorStateList.valueOf(on?0xff3c4758:CARD));
+        }
+    }
+    private void updateListeningTransport(double seconds){
+        if(listeningArtwork==null||engine==null||publicationFields.getVisibility()!=View.VISIBLE)return;
+        double length=displayDuration();
+        boolean playing=state==State.PLAYING;
+        listeningArtwork.playback((long)(seconds*1000),playing);
+        listeningPlay.setText(playing?"일시정지":"재생");
+        listeningClock.setText(time(seconds)+" / "+time(length));
+        if(!lyricScrubbing)listeningSeek.setProgress((int)(1000*Math.min(1,seconds/Math.max(.01,length))));
+        String caption="";
+        if(words!=null&&engine!=null)for(int i=0;i<words.length();i++){
+            JSONObject line=words.optJSONObject(i);
+            if(line==null||seconds<line.optDouble("s"))break;
+            JSONArray tokens=line.optJSONArray("w");
+            JSONObject last=tokens==null?null:tokens.optJSONObject(tokens.length()-1);
+            if(last!=null&&seconds<=last.optDouble("e",length)){
+                java.util.ArrayList<String> text=new java.util.ArrayList<>();
+                for(int j=0;j<tokens.length();j++){JSONObject word=tokens.optJSONObject(j);if(word!=null)text.add(word.optString("t"));}
+                caption=String.join(" ",text);
+            }else caption="";
+        }
+        listeningCaption.setText(caption);listeningCaption.setVisibility(caption.isEmpty()?View.GONE:View.VISIBLE);
+    }
 
     private void requestRecord(){
         if(state!=State.READY&&state!=State.REVIEW&&state!=State.PAUSED)return;
@@ -507,7 +633,7 @@ public class KaraokeActivity extends AppCompatActivity {
     private void saveSession(Runnable onSaved){
         persistEffects();
         if(sessionFile==null||engine==null)return;if(presetId.equals("custom"))rememberCustom();
-        try{JSONObject data=new JSONObject().put("trackId",trackId).put("coverMode",coverMode).put("duetPart",duetPart).put("duetParent",duetParent).put("cursor",cursor).put("offset",offset.getProgress()+syncMinimum+300).put("echo",echo.getProgress()).put("room",room.getProgress()).put("roomScaleVersion",2).put("customSettings",customSettings).put("preset",presetId).put("strength",effectStrength.getProgress()).put("tone",toneAmount).put("size",size.getProgress()).put("voice",voice.getProgress()).put("backing",backing.getProgress()).put("automatic",autoSync.isChecked()).put("noise",noise.getProgress()).put("description",description.getText().toString()).put("title",title.getText().toString()).put("words",words).put("duetGuide",duetGuide);
+        try{JSONObject data=new JSONObject().put("trackId",trackId).put("coverMode",coverMode).put("duetPart",duetPart).put("duetParent",duetParent).put("cursor",cursor).put("offset",offset.getProgress()+syncMinimum+300).put("echo",echo.getProgress()).put("room",room.getProgress()).put("roomScaleVersion",2).put("customSettings",customSettings).put("preset",presetId).put("strength",effectStrength.getProgress()).put("tone",toneAmount).put("size",size.getProgress()).put("voice",voice.getProgress()).put("backing",backing.getProgress()).put("automatic",autoSync.isChecked()).put("noise",noise.getProgress()).put("description",description.getText().toString()).put("listeningTemplate",listeningTemplate).put("title",title.getText().toString()).put("words",words).put("duetGuide",duetGuide);
             data.put("inputGain",inputGain==null?100:inputGain.getProgress()).put("keySemitones",appliedKey).put("hear",hear.getProgress()).put("lyricTextSize",lyricTextSize).put("submissionId",draftId==null?JSONObject.NULL:draftId).put("publicationKind",publicationKind);
             String snapshot=data.toString();
             draftWrites.execute(()->{
@@ -525,7 +651,7 @@ public class KaraokeActivity extends AppCompatActivity {
         }catch(Exception e){message("초안 정보를 저장하지 못했어요. 다시 시도해주세요.");}
     }
     private void restoreSession(){
-        updatingPreset=true;try{JSONObject data=new JSONObject(new String(java.nio.file.Files.readAllBytes(sessionFile.toPath()),java.nio.charset.StandardCharsets.UTF_8));String submission=data.optString("submissionId","");draftId=submission.matches("[\\w-]{1,80}")?submission:null;publicationKind=data.optString("publicationKind","");chooseLyricTextSize(data.optString("lyricTextSize",lyricTextSize),false);if(duetParent.isEmpty()&&data.optJSONObject("duetGuide")!=null)duetGuide=data.optJSONObject("duetGuide");presetId=VocalPreset.index(data.optString("preset"))>=0?data.optString("preset"):"custom";if(customSettings==null)customSettings=data.optJSONObject("customSettings");toneAmount=(float)data.optDouble("tone",0);toneControl.setProgress(Math.round(toneAmount*100)+100);effectStrength.setProgress(data.optInt("strength",50));cursor=Math.min(engine.duration(),data.optDouble("cursor",dry.length()/2.0/PcmFiles.RATE));if(inputGain!=null)inputGain.setProgress(data.optInt("inputGain",100));int savedSync=data.optInt("offset",300)-300;syncMinimum=Math.min(-200,savedSync);offset.setMax(Math.max(200,savedSync)-syncMinimum);offset.setProgress(savedSync-syncMinimum);if(syncLeft!=null){syncLeft.setText(syncMinimum+"ms");syncRight.setText("+"+(offset.getMax()+syncMinimum)+"ms");}echo.setProgress(data.optInt("echo",18));room.setProgress(RoomReverb.restorePercent(data.optInt("room",16),data.optInt("roomScaleVersion",1)));size.setProgress(data.optInt("size",50));hear.setProgress(data.optInt("hear",100));voice.setProgress(data.optInt("voice",100));backing.setProgress(data.optInt("backing",80));autoSync.setChecked(data.optBoolean("automatic",true));noise.setProgress(data.optInt("noise",0));description.setText(data.optString("description"));}catch(Exception ignored){cursor=dry.length()/2.0/PcmFiles.RATE;}finally{updatingPreset=false;refreshPresets();applySettings();}
+        updatingPreset=true;try{JSONObject data=new JSONObject(new String(java.nio.file.Files.readAllBytes(sessionFile.toPath()),java.nio.charset.StandardCharsets.UTF_8));String submission=data.optString("submissionId","");draftId=submission.matches("[\\w-]{1,80}")?submission:null;publicationKind=data.optString("publicationKind","");chooseLyricTextSize(data.optString("lyricTextSize",lyricTextSize),false);if(duetParent.isEmpty()&&data.optJSONObject("duetGuide")!=null)duetGuide=data.optJSONObject("duetGuide");presetId=VocalPreset.index(data.optString("preset"))>=0?data.optString("preset"):"custom";if(customSettings==null)customSettings=data.optJSONObject("customSettings");toneAmount=(float)data.optDouble("tone",0);toneControl.setProgress(Math.round(toneAmount*100)+100);effectStrength.setProgress(data.optInt("strength",50));cursor=Math.min(engine.duration(),data.optDouble("cursor",dry.length()/2.0/PcmFiles.RATE));if(inputGain!=null)inputGain.setProgress(data.optInt("inputGain",100));int savedSync=data.optInt("offset",300)-300;syncMinimum=Math.min(-200,savedSync);offset.setMax(Math.max(200,savedSync)-syncMinimum);offset.setProgress(savedSync-syncMinimum);if(syncLeft!=null){syncLeft.setText(syncMinimum+"ms");syncRight.setText("+"+(offset.getMax()+syncMinimum)+"ms");}echo.setProgress(data.optInt("echo",18));room.setProgress(RoomReverb.restorePercent(data.optInt("room",16),data.optInt("roomScaleVersion",1)));size.setProgress(data.optInt("size",50));hear.setProgress(data.optInt("hear",100));voice.setProgress(data.optInt("voice",100));backing.setProgress(data.optInt("backing",80));autoSync.setChecked(data.optBoolean("automatic",true));noise.setProgress(data.optInt("noise",0));description.setText(data.optString("description"));listeningTemplate=data.optString("listeningTemplate",listeningTemplate);refreshListeningArtwork();}catch(Exception ignored){cursor=dry.length()/2.0/PcmFiles.RATE;}finally{updatingPreset=false;refreshPresets();applySettings();}
     }
     private void selectPreset(String id,int amount){
         if(presetId.equals("custom"))rememberCustom();
@@ -578,7 +704,7 @@ public class KaraokeActivity extends AppCompatActivity {
         routeLabel.setText("ⓘ  "+(d==null?"이어폰을 연결한 뒤 모니터링을 켤 수 있어요.":KaraokeEngine.bluetooth(d)?"블루투스 이어폰 · 모니터링 소리가 늦을 수 있어요.":"유선 / USB 이어폰 · 내 목소리를 실시간으로 들어요."));
     }
     private void drawLyrics(double seconds){
-        if(engine==null)return;double duration=displayDuration();progress.setProgress((int)(seconds/Math.max(1,duration)*1000));timeline.setProgress(progress.getProgress());clock.setText(time(seconds)+"  /  "+time(duration));if(recordingNow!=null){recordingNow.setText(time(seconds));recordingEnd.setText(time(duration));}if(waveform!=null)waveform.position(seconds,duration);
+        if(engine==null)return;updateListeningTransport(seconds);double duration=displayDuration();progress.setProgress((int)(seconds/Math.max(1,duration)*1000));timeline.setProgress(progress.getProgress());clock.setText(time(seconds)+"  /  "+time(duration));if(recordingNow!=null){recordingNow.setText(time(seconds));recordingEnd.setText(time(duration));}if(waveform!=null)waveform.position(seconds,duration);
         lyricWheel.setLyrics(words);String[] labels=new String[words.length()];for(int i=0;i<labels.length;i++)labels[i]=coverMode.equals("duet")?DuetGuide.label(duetGuide,words,i,!duetParent.isEmpty(),engine.duration()):"";String[] roles=new String[words.length()];for(int i=0;i<roles.length;i++)roles[i]=coverMode.equals("duet")?DuetGuide.role(DuetGuide.part(duetGuide,words,i,engine.duration()),!duetParent.isEmpty()):"";lyricWheel.setPartRoles(coverMode.equals("duet")?roles:new String[0]);lyricWheel.setPartLabels(labels);lyricWheel.showPosition(seconds);if(duetGuideBox!=null&&duetGuideBox.getChildCount()==0)renderDuetGuide();
     }
     private String lineText(int index){JSONObject l=words.optJSONObject(index);if(l==null)return "";JSONArray parts=l.optJSONArray("w");StringBuilder b=new StringBuilder();if(parts!=null)for(int i=0;i<parts.length();i++){if(i>0)b.append(' ');b.append(parts.optJSONObject(i).optString("t"));}return b.toString();}
@@ -600,20 +726,29 @@ public class KaraokeActivity extends AppCompatActivity {
     }
     private void submitOverNetwork(String kind){
         if(state!=State.REVIEW&&state!=State.PAUSED)return;
+        if(checkingListeningPhoto||!listeningPhotoIssue.isEmpty()){message(checkingListeningPhoto?"커버사진을 확인하고 있습니다.":listeningPhotoIssue);return;}
         if(!ownVoice.isChecked()||!rights.isChecked()){message("직접 부른 목소리와 공개 권한에 동의해주세요.");return;}
         final CoverPublication publication=new CoverPublication(kind,duetParent);try{publication.requireRecordingMode(coverMode);}catch(IllegalArgumentException e){message(e.getMessage());return;}publicationKind=kind;
-        VocalEffects.Settings settings=engine.settings;String note=description.getText().toString();JSONObject guideSnapshot=null;try{if(duetGuide!=null)guideSnapshot=new JSONObject(duetGuide.toString());}catch(Exception ignored){}final JSONObject chosenGuide=guideSnapshot;setState(State.UPLOADING);message("선택한 효과를 반영해 커버곡을 만들고 있어요…");
+        VocalEffects.Settings settings=engine.settings;String note=description.getText().toString(),sceneTemplate=listeningTemplate;JSONObject guideSnapshot=null;try{if(duetGuide!=null)guideSnapshot=new JSONObject(duetGuide.toString());}catch(Exception ignored){}final JSONObject chosenGuide=guideSnapshot;setState(State.UPLOADING);message("선택한 효과를 반영해 커버곡을 만들고 있어요…");
         files.execute(()->{
             try{
                 boolean retry=draftId!=null;JSONObject previous=retry?api.json("/api/studio/tracks/"+draftId,"GET",null).getJSONObject("profile"):null;if(previous!=null)verifyPublication(publication,previous);String extension=previous==null?"mp3":previous.optString("original_ext","wav");if(!extension.equals("mp3")&&!extension.equals("wav"))throw new IOException("이전 업로드 파일 형식을 확인해주세요.");
                 File encoded=finalCover("cover",settings,publication.mode.equals("duet"),extension);JSONObject publishGuide=publication.invitation()?(coverMode.equals("duet")&&chosenGuide!=null?chosenGuide:DuetGuide.empty()):null;if(publishGuide!=null&&publishGuide.optString("mode").equals("free"))publishGuide.put("activity",activityJson(VocalActivity.detect(dry,settings.offsetMs,engine.duration())));
-                if(draftId==null){JSONObject body=new JSONObject().put("original_id",trackId).put("publish_as",publication.kind).put("cover_mode",publication.mode).put("duet_slot",publication.slot).put("duet_parent_id",publication.parent.isEmpty()?JSONObject.NULL:publication.parent).put("duet_consent",publication.invitation()).put("duet_guide",publishGuide==null?JSONObject.NULL:publishGuide).put("description",note).put("own_voice",true).put("rights",true).put("extension",extension).put("bytes",encoded.length());draftId=api.json("/api/covers","POST",body).getString("id");ui.post(()->{if(!destroyed)saveSession();});}
+                if(draftId==null){JSONObject body=new JSONObject().put("original_id",trackId).put("publish_as",publication.kind).put("cover_mode",publication.mode).put("duet_slot",publication.slot).put("duet_parent_id",publication.parent.isEmpty()?JSONObject.NULL:publication.parent).put("duet_consent",publication.invitation()).put("duet_guide",publishGuide==null?JSONObject.NULL:publishGuide).put("description",note).put("own_voice",true).put("rights",true).put("extension",extension).put("bytes",encoded.length());if(WorkListeningArtwork.isTemplate(sceneTemplate))body.put("listening_template",sceneTemplate);draftId=api.json("/api/covers","POST",body).getString("id");ui.post(()->{if(!destroyed)saveSession();});}
                 final String submittedId=draftId;
                 JSONObject savedProfile=api.json("/api/studio/tracks/"+submittedId,"GET",null).getJSONObject("profile");verifyPublication(publication,savedProfile);
                 ui.post(()->{if(!destroyed)message("커버곡을 업로드하고 있어요…");});
                 boolean showAd=CoverSubmission.submit(new CoverSubmission.Transport(){
                     public String status()throws Exception{JSONObject profile=api.json("/api/studio/tracks/"+submittedId,"GET",null).getJSONObject("profile");verifyPublication(publication,profile);return profile.getString("status");}
-                    public void upload()throws Exception{api.upload(submittedId,encoded);}
+                    public void upload()throws Exception{
+                        if(retry){
+                            JSONObject change=new JSONObject().put("description",note);
+                            if(WorkListeningArtwork.isTemplate(sceneTemplate))change.put("listening_template",sceneTemplate);
+                            api.json("/api/studio/tracks/"+submittedId,"PUT",change);
+                        }
+                        api.upload(submittedId,encoded);
+                        if(listeningCover.isFile())api.uploadCover(submittedId,listeningCover);
+                    }
                     public boolean complete()throws Exception{return api.json("/api/uploads/"+submittedId+"/complete","POST",new JSONObject()).optBoolean("show_upload_ad",false);}
                     public boolean recoveredUploadAd()throws Exception{JSONObject membership=api.json("/api/me","GET",null).optJSONObject("membership");return membership!=null&&!"premium".equals(membership.optString("plan"));}
                 },retry);

@@ -35,8 +35,10 @@ import java.util.UUID
 @Composable internal fun GiftSheet(m:MusicModel){
  val target=m.giftTarget
  val person=m.giftPerson
- val targetKey=person?.optString("id")?:target?.id
+ val dubbingId=m.giftDubbingId
+ val targetKey=dubbingId?:person?.optString("id")?:target?.id
  val giftPath=if(person!=null)"/api/producers/${person.optString("id")}/gifts" else target?.let{"/api/tracks/${it.id}/gifts"}
+ val rankingPath=dubbingId?.let{"/api/dubbing/projects/$it/gifts"}?:giftPath
  val recipient=person?.optString("display_name",person.optString("name"))?:target?.producer.orEmpty()
  val scope=rememberCoroutineScope()
  var wallet by remember(targetKey){mutableStateOf<JSONObject?>(null)}
@@ -53,7 +55,7 @@ import java.util.UUID
  var giftInfo by remember{mutableStateOf(false)}
  suspend fun refresh(){
   wallet=m.api.call("/api/gold",fresh=true)
-  if(giftPath!=null)ranking=m.api.call(giftPath)
+  if(rankingPath!=null)ranking=m.api.call(rankingPath,fresh=true)
  }
  LaunchedEffect(targetKey,m.user?.optString("id")){
   if(m.user==null){m.showGifts=false;return@LaunchedEffect}
@@ -76,8 +78,8 @@ import java.util.UUID
    if(loading)item{LinearProgressIndicator(Modifier.fillMaxWidth())}
    error?.let{message->item{Text(message,color=Pink);if(wallet==null)TextButton(onClick={scope.launch{loading=true;error=null;try{refresh()}catch(e:Exception){error=e.message}finally{loading=false}}}){Text("다시 불러오기")}}}
    success?.let{item{Text(it,color=Aqua,fontSize=17.sp)}}
-   item{RecipientOwnedGifts(m,person?.optString("id")?:target?.producerId,recipient,target!=null,working,{working=it}){
-    scope.launch{try{if(giftPath!=null)ranking=m.api.call(giftPath,fresh=true)}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e}}
+   item{RecipientOwnedGifts(m,person?.optString("id")?:target?.producerId,recipient,target!=null,working,{working=it},dubbingId){
+    scope.launch{try{if(rankingPath!=null)ranking=m.api.call(rankingPath,fresh=true)}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e}}
    }}
    if(wallet!=null){
     item{Text("구매해서 보내기",fontSize=19.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(top=8.dp).testTag("recipient-purchase-gifts"))}
@@ -113,8 +115,9 @@ import java.util.UUID
    item{TextButton(onClick={history=true}){Text("보낸 선물 내역")};TextButton(onClick={m.showGifts=false;m.showDiamonds=true}){Text("◇ 다이아 · 골드 전환 · 현금 정산")}}
    ranking?.let{data->
     item{HorizontalDivider(color=Stroke);Text(if(person!=null)"받은 선물 랭킹" else "이 곡의 응원 순위",fontSize=19.sp,modifier=Modifier.padding(top=14.dp))}
-    items(data.optJSONArray("ranking").objects()){r->Row(Modifier.fillMaxWidth()){Text("${r.optInt("rank")}  ${r.optString("name")}",Modifier.weight(1f));Text("${r.optInt("score")}점 · ${r.optInt("stars")} S / ${r.optInt("gold")} G",color=Aqua,fontSize=13.sp)}}
-    if(data.optJSONArray("ranking").objects().isEmpty())item{Text("첫 응원을 보내보세요.",color=Muted)}
+    val rows=data.optJSONArray(if(dubbingId!=null)"support_ranking" else "ranking").objects()
+    items(rows){r->Row(Modifier.fillMaxWidth()){Text(r.optString("name"),Modifier.weight(1f));Text("${r.optInt("score")}점 · ${r.optInt("stars")} S / ${r.optInt("gold")} G",color=Aqua,fontSize=13.sp)}}
+    if(rows.isEmpty())item{Text("첫 응원을 보내보세요.",color=Muted)}
    }
   }
  }
@@ -127,9 +130,12 @@ import java.util.UUID
  if(history)GiftHistorySheet(wallet,m,{history=false})
  if(confirm&&choice!=null&&giftPath!=null)AlertDialog(onDismissRequest={if(!working)confirm=false},title={Text("${choice.optString("name")} 선물하기")},text={Text("${recipient}님에게 ${choice.optString("name")} ${quantity}개 · 총 $cost $suffix 선물을 보낼까요?\n보낸 뒤 직접 취소할 수 없어요.")},dismissButton={TextButton(onClick={confirm=false},enabled=!working){Text("취소")}},confirmButton={TextButton(enabled=!working,onClick={scope.launch{
   working=true;error=null
-  try{val result=m.api.call(giftPath,"POST",payload("gift_type" to selected,"quantity" to quantity,"request_id" to requestId, (if(isFree)"silver" else "gold") to cost));success="${choice.optString("name")} ${quantity}개를 보냈어요";confirm=false
+  try{
+   val body=payload("gift_type" to selected,"quantity" to quantity,"request_id" to requestId,(if(isFree)"silver" else "gold") to cost)
+   dubbingId?.let{body.put("dubbing_id",it)}
+   val result=m.api.call(giftPath,"POST",body);success="${choice.optString("name")} ${quantity}개를 보냈어요";confirm=false
    wallet=JSONObject(wallet.toString()).apply{if(isFree)put("free",JSONObject(free.toString()).put("balance",result.optInt("free_balance")))else put("balance",result.optInt("balance"))}
-   requestId=UUID.randomUUID().toString();try{ranking=m.api.call(giftPath)}catch(_:Exception){}
+   requestId=UUID.randomUUID().toString();try{if(rankingPath!=null)ranking=m.api.call(rankingPath,fresh=true)}catch(e:Exception){if(e is kotlinx.coroutines.CancellationException)throw e}
   }catch(e:Exception){error=e.message;confirm=false}finally{working=false}
  }}){Text(if(working)"보내는 중…" else "$cost $suffix 보내기")}})
 }

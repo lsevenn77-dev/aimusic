@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.UUID
 
-@Composable internal fun RecipientOwnedGifts(m:MusicModel,recipientId:String?,recipient:String,fromSong:Boolean,busy:Boolean,setBusy:(Boolean)->Unit,sent:()->Unit){
+@Composable internal fun RecipientOwnedGifts(m:MusicModel,recipientId:String?,recipient:String,fromSong:Boolean,busy:Boolean,setBusy:(Boolean)->Unit,dubbingId:String?=null,sent:()->Unit){
  val account=m.user?.optString("id");val scope=rememberCoroutineScope()
  var inventory by remember(account,recipientId){mutableStateOf<List<JSONObject>?>(null)}
  var error by remember(account,recipientId){mutableStateOf<String?>(null)}
@@ -59,7 +59,9 @@ import java.util.UUID
   if(!busy&&account==m.user?.optString("id")&&!recipientId.isNullOrBlank()){
    setBusy(true);error=null
    scope.launch{try{
-    val result=m.api.call("/api/me/gift-inventory/${item.optString("id")}/send","POST",payload("profile_id" to recipientId,"request_id" to requestId))
+    val body=payload("profile_id" to recipientId,"request_id" to requestId)
+    dubbingId?.let{body.put("dubbing_id",it)}
+    val result=m.api.call("/api/me/gift-inventory/${item.optString("id")}/send","POST",body)
     if(account==m.user?.optString("id")){inventory=result.optJSONArray("items").objects();selected=null;success="${item.optString("gift_name")} 1개를 보냈어요.";sent()}
    }catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{setBusy(false)}}
   }

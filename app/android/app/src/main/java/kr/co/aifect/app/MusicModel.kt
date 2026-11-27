@@ -279,8 +279,9 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var showGifts by mutableStateOf(false)
  var giftTarget by mutableStateOf<Song?>(null)
  var giftPerson by mutableStateOf<JSONObject?>(null)
- fun openPersonGift(person:JSONObject){if(!authenticated())return;giftTarget=null;giftPerson=person;showGifts=true}
- fun openGifts(song:Song?=null){if(!authenticated())return;giftPerson=null;giftTarget=song;showGifts=true}
+ internal var giftDubbingId by mutableStateOf<String?>(null)
+ fun openPersonGift(person:JSONObject,dubbingId:String?=null){if(!authenticated())return;giftTarget=null;giftPerson=person;giftDubbingId=dubbingId;showGifts=true}
+ fun openGifts(song:Song?=null){if(!authenticated())return;giftPerson=null;giftDubbingId=null;giftTarget=song;showGifts=true}
  var detailBusy by mutableStateOf(false)
  var comments by mutableStateOf<List<JSONObject>>(emptyList())
  private var selectedListState by mutableStateOf<JSONObject?>(null)
@@ -814,6 +815,12 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   else {if(c.playbackState==Player.STATE_IDLE)c.prepare();c.play()}
  }}
  fun resetLyrics(){lyricId="";lyric="";lyricRows=emptyList();lyricsAccess="line";lyricUntil=-1.0;lyricFrom=-1.0}
+ fun workCaption(id:String):String{
+  if(current?.id!=id||lyricId!=id)return ""
+  val at=position/1000.0
+  if(lyricsAccess=="full")return lyricRows.lastOrNull{it.first<=at}?.second.orEmpty()
+  return lyric.takeIf{at>=lyricFrom&&at<lyricUntil&&it!="♪"&&!it.startsWith("등록된 가사")&&!it.startsWith("가사를 연결")} .orEmpty()
+ }
  fun closePlayer(){cancelPlaylistPlay();controller?.stop();controller?.clearMediaItems();current=null;fullPlayer=false;lyricId="";lyricRows=emptyList();playbackBitrateKbps=0;playbackPreview=false;playbackHighQualityPending=false}
  fun login(email:String,password:String,name:String,register:Boolean) = action {
   api.call(if(register)"/api/auth/register" else "/api/auth/login","POST",payload("email" to email.trim(),"password" to password,"name" to name.trim()))
