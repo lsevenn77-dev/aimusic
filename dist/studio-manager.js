@@ -51,10 +51,10 @@ function studioQuotaValid(value){
  return ['free','premium'].includes(value?.plan)&&Number.isSafeInteger(q?.used)&&q.used>=0&&Number.isSafeInteger(q?.limit)&&q.limit>0&&q.covers_unlimited===true;
 }
 function studioQuotaCrown(){
- return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 6 5 4 4-7 4 7 5-4-2 13H5L3 6Zm2 10h14"/></svg>';
+ return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.55" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3.5 7.5 4.8 3.6L12 5l3.7 6.1 4.8-3.6-1.8 9.5H5.3L3.5 7.5ZM6.5 20h11"/></svg>';
 }
 function studioUploadLink(){
- return `<a class="small-button studio-upload" href="#upload">${icon('plus')} 음원 업로드</a>`;
+ return `<a class="small-button studio-upload" href="#upload">${icon('plus')}<span>음원 업로드</span></a>`;
 }
 function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status){
  const ready=status==='ready'&&studioQuotaValid(value),loading=status==='loading';
@@ -69,13 +69,20 @@ function studioQuotaCard(value=studioQuota.membership,status=studioQuota.status)
   <div class="studio-quota-upload-card">
    <div class="studio-quota-meter" style="--studio-quota-progress:${progress}%" role="progressbar" aria-label="이번 달 제작곡 업로드" aria-valuemin="0" aria-valuemax="${q.limit}" aria-valuenow="${Math.min(q.used,q.limit)}" aria-valuetext="${q.used} / ${q.limit}곡 업로드"><div class="studio-quota-summary"><span>이번 달 제작곡</span><strong>${usage}곡</strong></div></div>
    <div class="studio-quota-copy"><p class="studio-quota-eyebrow">MY STUDIO</p><h2>완성한 음악을 들려 주세요.</h2><p>나만의 제작곡을 아이팩트에 공개해 보세요.</p></div>
-   <div class="studio-quota-upload-actions">${studioUploadLink()}${remaining?'':'<span class="studio-quota-remaining">이번 달 제작곡 한도를 모두 사용했습니다.</span>'}</div>
-   <p class="studio-quota-note">매월 1일 초기화(한국시간) · 커버곡 무제한</p>
+   <div class="studio-quota-footer">
+    <ul class="studio-quota-note"><li>매월 1일 초기화(한국시간)</li><li>커버곡 무제한</li></ul>
+    ${studioUploadLink()}
+    ${remaining?'':'<p class="studio-quota-remaining">이번 달 제작곡 한도를 모두 사용했습니다.</p>'}
+   </div>
   </div>
   ${showPremium?`<aside class="studio-quota-membership" aria-label="프리미엄 ${premium?'이용 현황':'안내'}">
-   <div class="studio-quota-membership-copy"><div class="studio-quota-membership-head"><div class="studio-quota-membership-heading">${premium?`<span class="studio-premium-state">${studioQuotaCrown()} PREMIUM 이용 중</span>`:`<p class="studio-quota-eyebrow">${studioQuotaCrown()} PREMIUM</p><h2><span>더 많은 음악을,</span> <span>더 자유롭게.</span></h2>`}</div>
-    <div class="studio-quota-art" aria-hidden="true"><div class="studio-quota-art-shape"><div class="studio-quota-disc"></div><div class="studio-quota-sleeve"><div class="studio-quota-wave"><span style="--wave-height:8px"></span><span style="--wave-height:15px"></span><span style="--wave-height:24px"></span><span style="--wave-height:15px"></span><span style="--wave-height:34px"></span><span style="--wave-height:42px"></span><span style="--wave-height:23px"></span><span style="--wave-height:32px"></span><span style="--wave-height:19px"></span><span style="--wave-height:11px"></span><span style="--wave-height:6px"></span></div></div></div></div>
-   </div>${benefits}</div>
+   <div class="studio-quota-membership-copy">
+    <div class="studio-quota-membership-heading">
+     ${premium?`<h2 class="studio-premium-state">${studioQuotaCrown()}<span>PREMIUM 이용 중</span></h2>`:`<p class="studio-quota-eyebrow">${studioQuotaCrown()} PREMIUM</p><h2>더 많은 음악을, 더 자유롭게.</h2>`}
+     ${benefits}
+    </div>
+    <div class="studio-quota-disc" aria-hidden="true"></div>
+   </div>
    ${premium||typeof AifectSite!=='undefined'&&AifectSite.PREMIUM.catalogVisible===false?'':`<a class="small-button studio-upgrade" href="#membership">혜택 보기 ${icon('arrow')}</a>`}
   </aside>`:''}
  </section>`;
@@ -162,7 +169,7 @@ function studioWorksHTML(d){
 function studioManagerHTML(d){
  studioQuota.status='loading';studioQuota.membership=null;
  return `<section class="studio-manager" data-studio-root>
-  <header class="studio-topbar"><div class="studio-heading"><span class="studio-heading-label" aria-hidden="true">AIFECT STUDIO</span><h1>스튜디오</h1><p class="studio-subtitle">내가 제작한 곡과 커버곡을 한곳에서 관리하세요.</p></div></header>
+  <header class="studio-topbar"><div class="studio-heading"><span class="studio-heading-label" aria-hidden="true">AIFECT STUDIO</span><h1>스튜디오</h1><p class="studio-subtitle">제작곡 등록과 나의 음악 작품 관리를 할 수 있는 나만의 공간.</p></div></header>
   ${studioQuotaCard()}
   <nav class="studio-main-tabs aifect-main-tabs" role="tablist" aria-label="작품 종류">${Object.entries(studioKinds).map(([id,label],index)=>`<button type="button" role="tab" id="studio-tab-${id}" aria-controls="studio-works" data-studio-type="${id}" data-tab-tone="${['pink','mint','purple'][index]}" aria-selected="${studioManage.type===id}" tabindex="${studioManage.type===id?'0':'-1'}" class="studio-main-tab">${label}</button>`).join('')}</nav>
   <div id="studio-works" role="tabpanel" aria-labelledby="studio-tab-${studioManage.type}" data-studio-pane="works">${studioWorksHTML(d)}</div>

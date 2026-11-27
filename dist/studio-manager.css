@@ -79,58 +79,81 @@
 /* Approved dark/gold cards retain the existing slot and live entitlement data.
    Local type/control tokens keep shared desktop rules inside this banner. */
 .studio-manager .studio-quota-card { --ui-type-scale: 1; --ui-space-scale: 1; --ui-icon-scale: 1; --ui-control-height: 44px; --pc-font-section: 19px; --pc-font-body: 15px; --pc-font-control: 14px; --pc-font-card: 16px; --pc-font-meta: 13px; --pc-font-caption: 13px; display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: stretch; gap: 12px; margin-bottom: 12px; min-width: 0; }
-.studio-manager :is(.studio-quota-upload-card,.studio-quota-membership) { position: relative; isolation: isolate; overflow: hidden; min-width: 0; padding: 24px 24px 20px; border: 1px solid; border-radius: var(--ds-radius-card, 16px); }
-.studio-manager :is(.studio-quota-upload-card,.studio-quota-membership)::before { content: ""; position: absolute; top: 0; left: 24px; right: 24px; height: 1px; pointer-events: none; background: linear-gradient(90deg, transparent, #d8c5ec3b, transparent); }
-.studio-manager .studio-quota-upload-card { --studio-quota-body: #bec3d2; --studio-quota-muted: #9da5bb; display: grid; grid-template-columns: 160px minmax(0, 1fr); column-gap: 32px; align-content: center; background: var(--ds-bg, #0c121b); border-color: #30364b; }
-.studio-manager .studio-quota-upload-card::before { background: none; }
+.studio-manager :is(.studio-quota-upload-card,.studio-quota-membership) { min-width: 0; padding: 22px 24px; border: 1px solid; border-radius: var(--ds-radius-card, 16px); }
+.studio-manager .studio-quota-upload-card {
+  --studio-quota-body: #bec3d2;
+  --studio-quota-muted: #aeb7cb;
+  --studio-ring-size: 136px;
+  display: grid;
+  grid-template-columns: var(--studio-ring-size) minmax(0, 1fr);
+  gap: 16px 28px;
+  align-content: center;
+  background: var(--ds-bg, #0c121b);
+  border-color: #30364b;
+}
 .studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) { box-sizing: border-box; min-width: 0; width: 100%; }
-.studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) h2 { margin: 0 0 8px; color: var(--studio-ink); font-size: var(--pc-font-section); font-weight: 600; line-height: 1.45; letter-spacing: -.035em; word-break: keep-all; overflow-wrap: anywhere; }
-.studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) p { margin: 0; color: var(--studio-quota-body, var(--ds-body)); font-size: var(--pc-font-body); line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
-.studio-manager .studio-quota-card .studio-quota-eyebrow { display: flex; align-items: center; gap: 7px; margin: 0 0 10px; color: #dac4f0; font-size: calc(11px); font-weight: 600; line-height: 1.5; letter-spacing: .1em; }
-.studio-manager .studio-quota-upload-card .studio-quota-eyebrow { color: #b5b5d1; }
-.studio-manager .studio-quota-upload-card > .studio-quota-copy { grid-column: 2; grid-row: 1; }
-.studio-manager .studio-quota-meter { position: relative; grid-column: 1; grid-row: 1 / 4; align-self: center; display: grid; place-items: center; width: 160px; height: 160px; border: 0; border-radius: 50%; background: conic-gradient(#b7b9ce var(--studio-quota-progress), #60627d 0); }
-.studio-manager .studio-quota-meter::before { content: ""; position: absolute; inset: 8px; border-radius: inherit; background: var(--ds-bg, #0c121b); }
-.studio-manager .studio-quota-summary { position: relative; display: grid; justify-items: center; gap: 5px; min-width: 0; max-width: calc(100% - 20px); color: var(--studio-quota-muted, var(--studio-muted)); font-size: calc(12px); line-height: 1.5; text-align: center; }
-.studio-manager .studio-quota-summary strong { color: #e4e7f2; font-size: calc(28px); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -.035em; }
-.studio-manager .studio-quota-upload-actions { grid-column: 2; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; margin-top: 22px; }
+.studio-manager :is(.studio-quota-copy,.studio-quota-membership-copy) h2 { margin: 0 0 6px; color: var(--studio-ink); font-size: var(--pc-font-section); font-weight: 600; line-height: 1.38; letter-spacing: 0; word-break: keep-all; overflow-wrap: anywhere; }
+.studio-manager .studio-quota-copy p { margin: 0; color: var(--studio-quota-body, var(--ds-body)); font-size: var(--pc-font-body); line-height: 1.55; letter-spacing: .005em; word-break: keep-all; overflow-wrap: anywhere; }
+.studio-manager .studio-quota-card .studio-quota-eyebrow { display: flex; align-items: center; gap: 6px; margin: 0 0 7px; color: var(--ds-accent-mint); font-size: calc(11px); font-weight: 650; line-height: 1.4; letter-spacing: .14em; }
+.studio-manager .studio-quota-upload-card > .studio-quota-copy { grid-column: 2; align-self: center; }
+.studio-manager .studio-quota-meter {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1 / 3;
+  align-self: center;
+  display: grid;
+  place-items: center;
+  width: var(--studio-ring-size);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: conic-gradient(
+    #8eddd2,
+    #a7ceef calc(var(--studio-quota-progress) / 2),
+    var(--ds-lilac) var(--studio-quota-progress),
+    #3c4559 var(--studio-quota-progress) 100%
+  );
+}
+.studio-manager .studio-quota-meter::before { content: ""; position: absolute; inset: 7px; border-radius: inherit; background: var(--ds-bg, #0c121b); }
+.studio-manager .studio-quota-summary { position: relative; display: grid; justify-items: center; gap: 4px; min-width: 0; max-width: calc(100% - 18px); color: var(--studio-quota-muted); font-size: calc(12px); line-height: 1.4; text-align: center; }
+.studio-manager .studio-quota-summary strong { color: var(--studio-ink); font-size: calc(25px); font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -.01em; }
+.studio-manager .studio-quota-footer { grid-column: 2; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 16px; width: 100%; max-width: 394px; }
+.studio-manager .studio-quota-note { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; color: var(--studio-quota-muted); font-size: var(--pc-font-caption); line-height: 1.4; letter-spacing: .01em; word-break: keep-all; overflow-wrap: anywhere; }
 /* max-height also constrains the shared desktop .small-button height:auto rule. */
-.studio-manager .studio-quota-card :is(.studio-upload,.studio-upgrade) { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: 0 0 auto; width: 144px; min-width: 144px; max-width: 100%; height: 44px; min-height: 44px; max-height: 44px; margin: 0; padding: 0 16px; border: 1px solid; border-radius: 12px; font-size: var(--pc-font-control); font-weight: 600; line-height: 1.4; letter-spacing: -.015em; white-space: nowrap; text-decoration: none; transition: filter .16s; }
-.studio-manager .studio-quota-card .studio-upload { color: #241d30; background: linear-gradient(115deg, #e0d0f2, #cdb5eb 85%); border-color: #eee0ff88; box-shadow: inset 0 1px 0 #fff2ff44, 0 3px 7px #00000012; }
-.studio-manager .studio-quota-upload-card .studio-upload { color: #1d2334; background: linear-gradient(115deg, #b7b9ce, #a6aac2 85%); border-color: #c8cbe142; box-shadow: inset 0 1px 0 #e1e4f226, 0 3px 7px #00000012; }
-.studio-manager .studio-quota-card :is(.studio-upload,.studio-upgrade) svg { flex: none; width: 16px; height: 16px; color: inherit; }
-.studio-manager .studio-quota-remaining { min-width: 0; color: #b9bed2; font-size: var(--pc-font-caption); line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
-.studio-manager .studio-quota-note { grid-column: 2; grid-row: 3; margin: 12px 0 0; color: var(--studio-quota-muted, var(--studio-muted)); font-size: var(--pc-font-caption); line-height: 1.6; word-break: keep-all; overflow-wrap: anywhere; }
-.studio-manager .studio-quota-membership { --studio-quota-body: #c9bea9; display: flex; flex-direction: column; align-items: flex-start; gap: 16px; background: radial-gradient(ellipse at 100% 0, #473d2c, transparent 65%), #2b251c; border-color: #655438; }
-.studio-manager .studio-quota-membership::before { background: linear-gradient(90deg, transparent, #f2dcaa44, transparent); }
-/* Keep the gold artwork in normal flow beside the heading. The benefits always
-   use the full card width, including the active Premium state without a title. */
-.studio-manager .studio-quota-membership-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; min-height: 112px; }
-.studio-manager .studio-quota-membership-heading { min-width: 0; }
-.studio-manager .studio-quota-membership-heading > :is(.studio-quota-eyebrow,.studio-premium-state) { box-sizing: border-box; width: 100%; margin: 0 0 14px; color: #e7c889; }
-.studio-manager .studio-quota-membership-head h2 { margin: 0; }
-.studio-manager .studio-quota-membership-copy h2 > span { display: block; }
-.studio-manager .studio-quota-membership .studio-quota-eyebrow svg { width: 16px; height: 16px; flex: none; }
-.studio-manager .studio-quota-card .studio-upgrade { margin-top: auto; color: #f3dfbb; background: linear-gradient(115deg, #57462b, #493b27); border-color: #d5b47866; box-shadow: inset 0 1px 0 #ffebbd14; }
+.studio-manager .studio-quota-card :is(.studio-upload,.studio-upgrade) { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 6px; flex: none; width: auto; min-width: 0; height: 44px; min-height: 44px; max-height: 44px; margin: 0; padding: 0 14px; border: 1px solid; border-radius: var(--ds-radius-input, 12px); font-size: var(--pc-font-control); font-weight: 650; line-height: 1.4; letter-spacing: 0; white-space: nowrap; text-decoration: none; transition: filter .16s; }
+.studio-manager .studio-quota-card .studio-upload { color: var(--ds-ink); background: var(--ds-gradient); border-color: #d9d1f76b; }
+.studio-manager .studio-quota-card :is(.studio-upload,.studio-upgrade) svg { flex: none; width: 15px; height: 15px; color: inherit; }
+.studio-manager .studio-quota-remaining { grid-column: 1 / -1; margin: 0; color: var(--studio-quota-muted); font-size: var(--pc-font-caption); line-height: 1.5; word-break: keep-all; overflow-wrap: anywhere; }
+.studio-manager .studio-quota-membership {
+  --studio-premium-gold: #e4c78f;
+  --studio-disc-size: 78px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 14px;
+  background: radial-gradient(ellipse at 100% 0, #473d2c, transparent 70%), #2b251c;
+  border-color: #655438;
+}
+.studio-manager .studio-quota-membership-copy { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; }
+.studio-manager .studio-quota-membership-heading > :is(.studio-quota-eyebrow,.studio-premium-state) { color: var(--studio-premium-gold); }
+.studio-manager .studio-quota-membership-copy .studio-premium-state { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--pc-font-card); line-height: 1.45; letter-spacing: .025em; }
+.studio-manager .studio-quota-membership-heading > :is(.studio-quota-eyebrow,.studio-premium-state) svg { width: 14px; height: 14px; flex: none; }
+.studio-manager .studio-quota-card .studio-upgrade { color: #f3dfbb; background: linear-gradient(115deg, #57462b, #493b27); border-color: #d5b47866; }
 .studio-manager .studio-quota-card :is(.studio-upload,.studio-upgrade):hover { filter: brightness(1.06); }
-.studio-manager .studio-premium-state { display: flex; align-items: center; gap: 7px; min-width: 0; max-width: 100%; color: #e7c889; font-size: calc(14px); line-height: 1.6; font-weight: 600; word-break: keep-all; overflow-wrap: anywhere; }
-.studio-manager .studio-premium-state svg { width: 16px; height: 16px; flex: none; }
-.studio-manager .studio-quota-benefits { display: grid; gap: 6px; margin: 16px 0 0; padding: 0; list-style: none; color: var(--studio-quota-body, var(--ds-body)); font-size: var(--pc-font-meta); line-height: 1.6; }
+.studio-manager .studio-quota-benefits { display: grid; gap: 5px; margin: 12px 0 0; padding: 0; list-style: none; color: #d8cab4; font-size: var(--pc-font-meta); line-height: 1.45; letter-spacing: .005em; }
 .studio-manager .studio-quota-benefits li { display: flex; align-items: flex-start; gap: 7px; min-width: 0; word-break: keep-all; overflow-wrap: anywhere; }
 .studio-manager .studio-quota-benefits li > span { min-width: 0; }
-.studio-manager .studio-quota-benefits svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: #e7c889; }
-/* Decorative records use CSS only and never intercept the live controls. */
-.studio-manager .studio-quota-art { --studio-quota-art-scale: 1; position: relative; width: calc(128px * var(--studio-quota-art-scale)); height: calc(112px * var(--studio-quota-art-scale)); pointer-events: none; }
-.studio-manager .studio-quota-art-shape { position: relative; width: 128px; height: 112px; transform: scale(var(--studio-quota-art-scale)); transform-origin: top left; }
-.studio-manager .studio-quota-art-shape::after { content: ""; position: absolute; bottom: 0; left: 4px; width: 115px; height: 9px; border-radius: 50%; background: #00000033; filter: blur(5px); }
-.studio-manager .studio-quota-disc { position: absolute; top: 4px; right: 1px; width: 94px; height: 94px; pointer-events: none; border: 1px solid #e7c88966; border-radius: 50%; background: repeating-radial-gradient(circle, transparent 0 3px, #ead5a819 3.5px 4px), conic-gradient(from -28deg, #6b5738, #f2dca4 4%, #b18a4c 14%, #493b27 27%, #8d7143 38%, #e9c887 46%, #8c6c3a 53%, #51432d 68%, #9f7e48 81%, #d9bc83 94%, #6b5738); box-shadow: inset 0 0 0 5px #3b2b1726, 3px 5px 9px #20170926; }
-.studio-manager .studio-quota-disc::before { content: ""; position: absolute; inset: 32%; border-radius: 50%; border: 1px solid #fff0c766; background: linear-gradient(130deg, #f3e1b7, #b79655); box-shadow: 0 0 0 3px #3b2b1738; }
-.studio-manager .studio-quota-disc::after { content: ""; position: absolute; inset: 47%; border: 1px solid #e9d39a; border-radius: 50%; background: #4b3c28; }
-.studio-manager .studio-quota-sleeve { position: absolute; z-index: 1; left: 4px; top: 15px; width: 77px; height: 87px; overflow: hidden; transform: rotate(-8deg); border: 1px solid #e7c88966; border-radius: 3px; background: radial-gradient(ellipse at 35% 10%, #f2dca444, transparent 65%), linear-gradient(145deg, #a88c57, #6b5432); box-shadow: 4px 5px 7px #20170940, inset 1px 1px 0 #fff0c726; }
-.studio-manager .studio-quota-sleeve::before { content: ""; position: absolute; left: 9px; top: 10px; width: 22px; height: 1px; background: #f3e1b7b3; }
-.studio-manager .studio-quota-sleeve::after { content: ""; position: absolute; bottom: 10px; left: 10px; right: 10px; height: 1px; background: #e7c88940; }
-.studio-manager .studio-quota-wave { display: flex; justify-content: center; align-items: center; position: absolute; inset: 18px 9px; gap: 2px; }
-.studio-manager .studio-quota-wave > span { flex: none; width: 2px; height: var(--wave-height); border-radius: 2px; background: linear-gradient(#fff0c7, #d9bc83); opacity: .9; }
+.studio-manager .studio-quota-benefits svg { flex: none; width: 13px; height: 13px; margin-top: 3px; color: var(--studio-premium-gold); }
+.studio-manager .studio-quota-disc {
+  position: relative;
+  width: var(--studio-disc-size);
+  aspect-ratio: 1;
+  border: 1px solid #806746;
+  border-radius: 50%;
+  background: repeating-radial-gradient(circle, transparent 0 3px, #efcca41c 3px 4px), linear-gradient(145deg, #705a3e, #3d3022);
+}
+.studio-manager .studio-quota-disc::before { content: ""; position: absolute; inset: 34%; border: 1px solid #b09264; border-radius: 50%; background: #8d734b; }
+.studio-manager .studio-quota-disc::after { content: ""; position: absolute; inset: 47%; border-radius: 50%; background: #3d3022; }
 .studio-manager .studio-quota-pending { grid-template-columns: minmax(0, 1fr) auto; align-items: center; padding: 22px 24px; border: 1px solid var(--studio-line); border-radius: var(--ds-radius-card, 16px); background: var(--ds-panel); }
 .studio-manager .studio-quota-pending-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px; }
 .studio-manager .studio-quota-retry { min-height: 44px; }
@@ -284,32 +307,37 @@
   .studio-manager :is(.studio-quota-upload-card,.studio-quota-membership,.studio-quota-pending) { padding: 18px 20px; }
 }
 @media (min-width: 1001px) and (max-width: 1280px) {
-  .studio-manager .studio-quota-upload-card { grid-template-columns: 128px minmax(0, 1fr); column-gap: 20px; }
-  .studio-manager .studio-quota-meter { width: 128px; height: 128px; }
-  .studio-manager .studio-quota-membership-head { min-height: 0; gap: 12px; }
-  .studio-manager .studio-quota-membership-heading { display: contents; }
-  .studio-manager .studio-quota-membership-heading > :is(.studio-quota-eyebrow,.studio-premium-state) { grid-column: 1; grid-row: 1; margin: 0; }
-  .studio-manager .studio-quota-membership-head h2 { grid-column: 1 / -1; grid-row: 2; }
-  .studio-manager .studio-quota-art { --studio-quota-art-scale: .75; grid-column: 2; grid-row: 1; }
+  .studio-manager .studio-quota-upload-card { --studio-ring-size: 116px; column-gap: 18px; }
+  .studio-manager .studio-quota-membership { --studio-disc-size: 59px; padding-inline: 18px; }
+  .studio-manager .studio-quota-membership-copy { gap: 8px; }
+}
+@media (min-width: 801px) and (max-width: 1150px) {
+  .studio-manager .studio-quota-card { --pc-font-caption: 12px; --pc-font-control: 13px; }
+  .studio-manager .studio-quota-upload-card { --studio-ring-size: 108px; column-gap: 18px; }
+  .studio-manager .studio-quota-footer { column-gap: 10px; }
+  .studio-manager .studio-quota-footer .studio-upload { padding-inline: 11px; }
 }
 @media (min-width: 1001px) and (max-width: 1150px) {
-  .studio-manager .studio-quota-art { --studio-quota-art-scale: .625; }
+  .studio-manager .studio-quota-disc { display: none; }
 }
 @media (max-width: 767px) {
-  .studio-manager .studio-quota-card { --pc-font-section: 17px; --pc-font-body: 14px; }
-  .studio-manager :is(.studio-quota-upload-card,.studio-quota-membership) { padding-block: 20px; }
-  .studio-manager .studio-quota-upload-card { grid-template-columns: 104px minmax(0, 1fr); column-gap: 16px; }
-  .studio-manager .studio-quota-meter { grid-row: 1; width: 104px; height: 104px; }
+  .studio-manager .studio-quota-card { --pc-font-section: 17px; --pc-font-body: 14px; --pc-font-caption: 12px; --pc-font-control: 13px; }
+  .studio-manager .studio-quota-upload-card { --studio-ring-size: 96px; column-gap: 14px; }
+  .studio-manager .studio-quota-meter { grid-row: 1; }
   .studio-manager .studio-quota-meter::before { inset: 6px; }
-  .studio-manager .studio-quota-summary { gap: 3px; font-size: calc(11px); }
+  .studio-manager .studio-quota-summary { gap: 2px; font-size: calc(11px); }
   .studio-manager .studio-quota-summary strong { font-size: calc(18px); }
-  .studio-manager .studio-quota-upload-actions { grid-column: 1 / -1; margin-top: 20px; }
-  .studio-manager .studio-quota-note { grid-column: 1 / -1; }
-  .studio-manager .studio-quota-art { --studio-quota-art-scale: .75; }
-  .studio-manager .studio-quota-membership-head { min-height: 96px; }
+  .studio-manager .studio-quota-footer { grid-column: 1 / -1; gap: 8px 10px; }
+  .studio-manager .studio-quota-membership { --studio-disc-size: 66px; }
 }
 @media (max-width: 380px) {
-  .studio-manager :is(.studio-quota-upload-card,.studio-quota-membership,.studio-quota-pending) { padding-inline: 16px; }
+  .studio-manager .studio-quota-card { --pc-font-caption: 11px; --pc-font-control: 12px; }
+  .studio-manager :is(.studio-quota-upload-card,.studio-quota-membership,.studio-quota-pending) { padding-inline: 12px; }
+  .studio-manager .studio-quota-upload-card { --studio-ring-size: 86px; }
+  .studio-manager .studio-quota-footer { column-gap: 6px; }
+  .studio-manager .studio-quota-note { letter-spacing: 0; }
+  .studio-manager .studio-quota-footer .studio-upload { padding-inline: 7px; gap: 4px; }
+  .studio-manager .studio-quota-membership { --studio-disc-size: 53px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .studio-manager .studio-quota-card :is(.studio-upload,.studio-upgrade) { transition: none; }

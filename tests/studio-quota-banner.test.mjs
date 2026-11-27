@@ -23,7 +23,7 @@ function harness(){
  return {ctx,root,listeners,timers,flush,get html(){return html;},get disconnected(){return disconnected;}};
 }
 
-for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free',3,3,100],['premium',0,10,0],['premium',5,10,50],['premium',10,10,100]]){
+for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free',3,3,100],['premium',0,10,0],['premium',2,10,20],['premium',5,10,50],['premium',10,10,100]]){
  test(`banner ${plan} ${used}/${limit} renders server usage, exact progress and the right action`,()=>{
   const {ctx}=harness(),html=ctx.studioQuotaCard(membership(plan,used,limit),'ready');
   assert.match(html,new RegExp(`>${used} / ${limit}곡</strong>`));
@@ -34,14 +34,14 @@ for(const [plan,used,limit,percent] of [['free',0,3,0],['free',1,3,100/3],['free
   assert.doesNotMatch(html,/이번 달 \d+곡 더 가능/);
   if(used>=limit)assert.match(html,/이번 달 제작곡 한도를 모두 사용했습니다\./);
   assert.doesNotMatch(html,/data-icon="music"|data-icon="diamond"|PREMIUM으로 더 많이/);
-  assert.equal((html.match(/매월 1일 초기화\(한국시간\) · 커버곡 무제한/g)||[]).length,1);
+  assert.match(html,/<ul class="studio-quota-note"><li>매월 1일 초기화\(한국시간\)<\/li><li>커버곡 무제한<\/li><\/ul>\s*<a [^>]*href="#upload">/);
   assert.equal((html.match(/href="#upload"/g)||[]).length,1);
   assert.match(html,/studio-quota-benefits/);
   assert.equal((html.match(/최대 AAC 256kbps 고음질 감상/g)||[]).length,1);
   assert.match(html,/광고 없는 이용/);
   assert.doesNotMatch(html,/커버 업로드 무제한 · 광고 없음/);
   if(plan==='premium'){
-   assert.match(html,/<span class="studio-premium-state">/);assert.match(html,/PREMIUM 이용 중/);
+   assert.match(html,/<h2 class="studio-premium-state">/);assert.match(html,/PREMIUM 이용 중/);
    assert.match(html,/제작곡 월 10곡까지 업로드/);
    assert.doesNotMatch(html,/href="#membership"|<button|업그레이드|혜택 보기/);
   }else{
