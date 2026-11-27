@@ -23,7 +23,10 @@ function bindDubbingCommunity(p,root){
   if(append&&loading)return;
   const request=++readRequest;loading=true;
   try{const data=await api('/api/dubbing/projects/'+p.id+'/comments?offset='+(append?offset:0));if(!list.isConnected||request!==readRequest)return;
-  const html=data.comments.map(c=>`<article class="dubbing-comment" ${c.canDelete||c.canReport?'data-comment-card tabindex="0" aria-label="댓글"':''}><div><b>${memberNickname(c)}</b><small>${new Date(c.created*1000).toLocaleDateString('ko-KR')}</small></div><p>${esc(c.body)}</p><div class="dubbing-comment-actions comment-actions-row">${c.canDelete?`<button class="small-button" data-comment-action="delete" data-comment-delete="${esc(c.id)}">삭제</button>`:''}${c.canReport?`<button class="small-button" data-comment-action="report" data-comment-report="${esc(c.id)}">댓글 신고</button>`:''}</div></article>`).join('');
+  const html=data.comments.map(c=>{
+   const meta=commentMetaHTML({created:c.created,creator:!!p.ownerId&&c.user_id===p.ownerId},`<b class="comment-author">${memberNickname(c)}</b>`);
+   return `<article class="dubbing-comment" ${c.canDelete||c.canReport?'data-comment-card tabindex="0" aria-label="댓글"':''}>${meta}<p>${esc(c.body)}</p><div class="dubbing-comment-actions comment-actions-row">${c.canDelete?`<button class="small-button" data-comment-action="delete" data-comment-delete="${esc(c.id)}">삭제</button>`:''}${c.canReport?`<button class="small-button" data-comment-action="report" data-comment-report="${esc(c.id)}">댓글 신고</button>`:''}</div></article>`;
+  }).join('');
   if(append)list.insertAdjacentHTML('beforeend',html);else list.innerHTML=html||'<p class="dubbing-muted">첫 감상을 남겨 보세요.</p>';offset=data.nextOffset;more.hidden=offset===null;
  }catch(e){if(list.isConnected&&request===readRequest)toast(e.message);}finally{if(request===readRequest)loading=false;}};
  more.onclick=()=>load(true);load();

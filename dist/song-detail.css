@@ -310,9 +310,8 @@
 .song-main-column .comments-panel .live-comment>div:last-child{flex:1;min-width:0;overflow-wrap:anywhere}
 .song-main-column .comments-panel .live-comment{gap:12px;padding-block:10px;border-top-color:var(--ds-border)}
 .song-main-column .comments-panel .live-comment:first-child{border-top:0}
-.song-main-column .comments-panel .song-comment-meta{display:flex;align-items:center;flex-wrap:wrap;gap:4px 10px;min-height:28px;line-height:1.5}
-.song-main-column .comments-panel .song-comment-meta>strong{color:var(--ds-text);overflow-wrap:anywhere}
-.song-main-column .comments-panel .song-comment-meta>:is(.comment-age,.creator-badge){margin-left:0}
+.song-main-column .comments-panel .song-comment-meta{min-height:28px}
+.song-main-column .comments-panel .song-comment-meta>strong{color:var(--ds-text)}
 .song-main-column .comments-panel .song-comment-body{margin:6px 0 4px;line-height:1.65}
 .song-main-column .comments-panel .song-comment-actions{gap:2px 8px;align-items:center;margin:0}
 .song-main-column .comments-panel .song-comment-actions>.text-link{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:32px;min-height:32px;margin:0;padding:0 3px;border:0;border-radius:var(--ds-radius-sm);background:transparent;box-shadow:none;color:var(--ds-muted);line-height:1.5;text-decoration:none;cursor:pointer}
@@ -324,7 +323,6 @@
  .song-comment-compose-row{gap:8px}
  .song-main-column .comments-panel .song-comment-submit{min-width:88px;padding:0 10px;font-size:14px}
  .song-main-column .comments-panel .live-comment{gap:10px;padding-block:8px}
- .song-main-column .comments-panel .song-comment-meta{gap:2px 8px}
  .song-main-column .comments-panel .song-comment-actions{justify-content:flex-end;gap:4px}
  .song-main-column .comments-panel .song-comment-actions>.text-link{min-height:44px;min-width:44px}
 }

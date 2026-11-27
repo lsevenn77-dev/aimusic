@@ -41,6 +41,7 @@ await cp('dist/voice-audio.js','dist/client/voice-audio.js');
 await cp('dist/room-audio-session.js','dist/client/room-audio-session.js');
 await cp('dist/selection-states.css','dist/client/selection-states.css');
 await cp('dist/page-tabs.css','dist/client/page-tabs.css');
+for(const file of ['comment-meta.js','comment-meta.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['voice-rooms.js','voice-rooms.css','voice-room-design.css','voice-room-controls.js','voice-diagnostics.js','live-karaoke.js','live-karaoke.css'])await cp('dist/'+file,'dist/client/'+file);
 for(const file of ['library-v2.js','library-v2.css','playlist-editor.js'])await cp('dist/'+file,'dist/client/'+file);
 await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
@@ -117,7 +118,7 @@ for(const name of await readdir('dist/client')){
  if(['talking-playlist.css','room-frame.css'].includes(name))continue; // Approved room dimensions use final CSS pixels.
  // Shared chat controls, singing presentation and popup roles use final CSS pixels. Their feature
  // geometry and the verified 20/15/14/13px popup type scale must not be remapped.
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','public-discovery.css','scroll-top.css','room-release.css','room-bubbles.css','room-interior.css','chat-ui.css','messages-ui.css','page-tabs.css','crew-page.css','work-feed.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','gift-compose.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'].includes(name))continue;
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','public-discovery.css','scroll-top.css','room-release.css','room-bubbles.css','room-interior.css','chat-ui.css','messages-ui.css','page-tabs.css','comment-meta.css','crew-page.css','work-feed.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','gift-compose.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'].includes(name))continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }

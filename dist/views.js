@@ -208,7 +208,7 @@ async function renderRoute(showCachedRoute){
  if(!(cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now())&&pendingView?.cached&&canCacheRoute(raw))cached={...pendingView,account,revision:apiRevision,until:Date.now()+60000,explorer:pendingView,scroll:0};
  const restored=canCacheRoute(raw)&&cached&&cached.account===account&&cached.revision===apiRevision&&cached.until>Date.now();
  let refreshWatch=null;
- if(restored){routeTracks=remember(cached.tracks);main.innerHTML=cached.html;main.removeAttribute('aria-busy');bindRenderedRoute(base,param,cached.explorer,ticket);window.scrollTo({top:cached.scroll||0,behavior:'instant'});refreshWatch=watchCachedNavigation(main);}
+ if(restored){routeTracks=remember(cached.tracks);main.innerHTML=cached.html;refreshCommentTimes(main);main.removeAttribute('aria-busy');bindRenderedRoute(base,param,cached.explorer,ticket);window.scrollTo({top:cached.scroll||0,behavior:'instant'});refreshWatch=watchCachedNavigation(main);}
  else main.setAttribute('aria-busy','true');
  if(!restored&&base!=='home'){const titles={inventory:'인벤토리',charts:'차트',karaoke:'플레이',community:'커뮤니티',library:'내 보관함',following:'팔로우',gifts:'상점',gold:'골드',dm:'DM 메시지',crew:'크루',payouts:'정산',rewards:'오늘의 실버',producer:'프로필',artist:'AI 아티스트',profile:'내 프로필',account:'내 계정',upload:'음원 업로드',studio:'스튜디오',search:'음악 검색',discover:'음악 발견',history:'최근 들은 음악'};main.classList.remove('motion-enter');main.innerHTML=pendingView?.html||(['dm','song','notifications'].includes(base)?'':heading(titles[base]||'음악 둘러보기'))+'<div class="route-loading" role="status"><span>불러오는 중…</span><div></div><div></div><div></div></div>';window.scrollTo({top:0,behavior:'instant'});}
  main.dataset.account=account;
@@ -356,7 +356,7 @@ function songCommentRowHTML(c,t){
  const replyLabel=c.parent_id?(inline?'<span class="song-reply-icon" aria-hidden="true">'+icon('corner-down-right')+'</span>':'<span class="comment-reply-label">답글</span>'):'';
  return `<article data-comment-card tabindex="0" aria-label="${inline&&c.parent_id?'대댓글':'댓글'}" data-comment-id="${esc(c.id)}" data-comment-created="${c.created}" class="live-comment ${c.parent_id?'is-reply':''}">
  ${inline?replyLabel:''}<div class="comment-avatar profile-avatar" data-profile-preview="${esc(c.profile_id||'member:'+c.user_id)}" role="button" tabindex="0" aria-haspopup="dialog">${avatarImage({name:c.name,profile_id:c.profile_id,user_id:c.user_id,image_version:c.image_version},'producer',false)}</div>
- <div>${inline?'':replyLabel}<div class="song-comment-meta"><strong>${memberNickname(c)}</strong>${c.creator?'<span class="creator-badge">PRODUCER</span>':''}<span class="comment-age">${new Date(c.created*1000).toLocaleDateString('ko-KR')}${c.edited?' · 수정됨':''}</span></div>
+ <div>${inline?'':replyLabel}${commentMetaHTML(c,`<strong class="comment-author">${memberNickname(c)}</strong>`,{className:'song-comment-meta'})}
  <p class="song-comment-body">${c.timestamp!==null?`<button class="timestamp" data-seek="${c.timestamp}" data-track="${esc(t.id)}">${time(c.timestamp)}</button>`:''}${esc(c.body)}</p>
  <div class="inline-actions song-comment-actions comment-actions-row">
  <button type="button" class="text-link ${c.liked?'is-active':''}" data-comment-action="like" data-comment-like="${esc(c.id)}" data-liked="${!!c.liked}" aria-label="댓글 좋아요 ${c.likes}개" aria-pressed="${!!c.liked}">${icon('heart')} ${c.likes}</button>

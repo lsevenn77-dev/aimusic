@@ -16,6 +16,7 @@ import {trackArtworkSQL} from './track-artwork.js';
 import {profileGallery,PROFILE_GALLERY_LIMIT} from './profile-gallery.js';
 import {partnerBadgeSQL} from './partner-badges.js';
 import {playerIdentity,playerColumnsSQL} from './player.js';
+import {appearanceDeadlineSQL} from './premium-appearance.js';
 import {artistGallery,GALLERY_LIMIT} from './artist-gallery.js';
 import {assertUnblocked} from './account-safety.js';
 import {namedArtistSQL} from './artist-identity.js';
@@ -80,7 +81,9 @@ export async function rankedSongCovers(env,where,args,sort,offset,limit,pickId){
 export async function published(env,tid){const t=await one(env,`SELECT t.* FROM tracks t WHERE t.id=? AND ${VISIBLE()}`,tid);if(!t)fail(404,'공개된 곡을 찾을 수 없습니다.');if(!env.AIFECT_PUBLIC_CONTENT)assertUnblocked(env,t.user_id);return t;}
 async function trackComments(env,track,user,order='c.created DESC',commentId=null){
  const uid=user?.id||'',tid=track.id;
- const list=await rows(env,`SELECT u.account_type,c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ${commentId?'AND c.id=?':''} ORDER BY ${order} LIMIT 500`,uid,uid,tid,uid,uid,...(commentId?[commentId]:[]));
+ const list=await rows(env,`SELECT u.account_type,c.id,c.track_id,c.user_id,c.parent_id,c.body,c.timestamp,c.created,c.edited,c.deleted_at,p.id profile_id,p.image_version,${publicNameSQL()} name,(c.user_id=t.user_id) creator,
+ ${appearanceDeadlineSQL('u')} premium_style_until,
+ (SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id) likes,(SELECT count(*) FROM comment_likes l WHERE l.comment_id=c.id AND l.user_id=?) liked,EXISTS(SELECT 1 FROM comment_reports r WHERE r.comment_id=c.id AND r.user_id=?) reported FROM comments c JOIN users u ON u.id=c.user_id JOIN tracks t ON t.id=c.track_id LEFT JOIN producers p ON p.user_id=c.user_id WHERE c.track_id=? AND c.deleted_at=0 AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=c.user_id) OR (b.blocked_id=? AND b.user_id=c.user_id)) ${commentId?'AND c.id=?':''} ORDER BY ${order} LIMIT 500`,uid,uid,tid,uid,uid,...(commentId?[commentId]:[]));
  return list.map(c=>({...c,can_delete:!!user&&(c.user_id===uid||track.user_id===uid),can_report:!!user&&c.user_id!==uid&&!c.reported}));
 }
 export const COVER_SORTS={popular:'likes DESC,plays DESC,t.created DESC',gifts:'(gift_gold+gift_stars) DESC,likes DESC,t.created DESC',plays:'plays DESC,likes DESC,t.created DESC',recent:'t.created DESC'};

@@ -52,6 +52,56 @@ test('comments show newest threads first and oldest replies first within each th
  assert.match(html,/data-seek="5"/);
 });
 
+test('only the work creator has the creator badge in a thread',()=>{
+ const html=render([
+  comment('member'),
+  comment('creator',{creator:true,created:1,edited:2}),
+  comment('reply',{parent_id:'member',creator:true,created:1}),
+ ],'viewer');
+ assert.equal((html.match(/class="creator-badge">제작자</g)||[]).length,2);
+ assert.match(html,/datetime="1970-01-01T00:00:01\.000Z">1970\. 01\. 01\.<\/time>/);
+ assert.equal((html.match(/class="comment-edited">· 수정됨</g)||[]).length,1);
+});
+
+test('the comment clock updates existing time labels at Korean midnight',()=>{
+ const midnight=Date.parse('2026-12-31T15:00:00Z');
+ let at=midnight-1,callback,delay;
+ const date=new Date(at);
+ const timeLabel={dateTime:date.toISOString(),textContent:''};
+ const document={querySelectorAll:()=>[timeLabel],addEventListener(){}};
+ class Clock extends Date {
+  constructor(value){super(value??at);}
+ }
+ const ctx=nicknameContext({
+  document,window:{document,addEventListener(){}},Date:Clock,
+  setTimeout(next,ms){callback=next;delay=ms;},clearTimeout(){},
+ });
+ assert.equal(timeLabel.textContent,'23:59');
+ assert.equal(delay,1);
+ at=midnight;
+ callback();
+ assert.equal(timeLabel.textContent,'2026. 12. 31.');
+ assert.equal(timeLabel.dateTime,date.toISOString());
+ assert.equal(delay,86_400_000);
+ assert.equal(vm.runInContext('formatCommentTime(new Date(),new Date())',ctx),'00:00');
+});
+
+test('track comment responses expose only bounded public premium appearance metadata',async t=>{
+ const f=await fixture(t);
+ const expires=Math.floor(Date.now()/1000)+86400*30;
+ f.sql.prepare("UPDATE users SET premium_until=? WHERE id='other'").run(expires);
+ f.sql.exec(`INSERT INTO comments(id,track_id,user_id,body,created,parent_id)
+ VALUES('root','one','owner','제작자 댓글',10,NULL),('reply','one','other','프리미엄 답글',20,'root')`);
+ const {status,body}=await f.call('/api/tracks/one/comments','GET',null,null);
+ assert.equal(status,200);
+ const [reply,root]=body.comments;
+ assert.deepEqual([root.creator,root.created,root.premium_style_until],[1,10,0]);
+ assert.deepEqual([reply.creator,reply.created,reply.parent_id],[0,20,'root']);
+ assert.ok(reply.premium_style_until>Date.now()/1000);
+ assert.ok(reply.premium_style_until<expires);
+ assert.equal(reply.premium_until,undefined);
+});
+
 test('author can edit/delete and post owner can delete without edit',()=>{
  const own=render([comment('own',{user_id:'writer',can_delete:true})],'writer');
  assert.match(own,/data-edit-comment="own"/);
