@@ -1,0 +1,55 @@
+name: Native lyrics playback
+
+on:
+  push:
+    branches: [codex/verify-native-lyrics-toggle]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-lyrics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    name: Android emulator
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.gradle/wrapper
+            ~/.gradle/caches/modules-2
+          key: native-lyrics-gradle-${{ runner.os }}-${{ hashFiles('app/android/**/*.gradle', 'app/android/gradle/wrapper/gradle-wrapper.properties') }}
+      - name: Build and run the two playback tests
+        run: bash .github/scripts/lyrics-android.sh
+      - name: Save instrumentation output
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Android-lyrics-results
+          path: ${{ runner.temp }}/lyrics-android/
+          retention-days: 7
+
+  ios:
+    name: iPhone simulator
+    runs-on: macos-26
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: ${{ runner.temp }}/LyricsPackages
+          key: native-lyrics-spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('app/ios/AIFECT.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+      - name: Run the compact player and full lyrics tests
+        run: bash .github/scripts/lyrics-ios.sh
+      - name: Save XCTest output
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: iPhone-lyrics-results
+          path: ${{ runner.temp }}/lyrics-ios/
+          retention-days: 7
