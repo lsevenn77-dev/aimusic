@@ -16,7 +16,7 @@ function seed(sql) {
       ('mix','cover','two',7,120),('mix','original','one',7,10),
       ('mix','dubbing','one',7,100),('mix','original','missing',37,121),
       ('mix','cover','one',9,90);
-    INSERT INTO playlists(id,user_id,name,name_key,created) VALUES('other-list','other','원본','원본',10);
+    INSERT INTO playlists(id,user_id,name,name_key,created) VALUES('other-list','other','Mix','mix',10);
     INSERT INTO playlist_saves(user_id,playlist_id,created) VALUES('owner','other-list',12);`);
 }
 
@@ -43,6 +43,7 @@ test('verified restore and cutover preserve mixed IDs, unavailable items, stored
   assert.deepEqual(sql.prepare('SELECT * FROM my_box_items ORDER BY box_id,position,kind,content_id').all(),original);
   assert.equal(sql.prepare('SELECT count(*) n FROM playlist_saves').get().n,1);
   assert.deepEqual(sql.prepare('SELECT user_id,name,is_public FROM playlists WHERE id LIKE ? ORDER BY id').all('from-box-%').map(p=>[p.user_id,p.name,p.is_public]),[['other','Mix',0],['owner',' Ｍix ',0]]);
+  assert.equal(sql.prepare("SELECT count(*) n FROM playlists WHERE user_id='other' AND name='Mix'").get().n,2);
   const detail=(await call('/api/playlists/from-box-mix')).body;
   assert.deepEqual(detail.items.map(i=>[i.kind,i.content_id]),original.map(i=>[i.kind,i.content_id]));
   assert.equal(detail.items.find(i=>i.content_id==='missing').content,null);
@@ -54,17 +55,17 @@ test('verified restore and cutover preserve mixed IDs, unavailable items, stored
   assert.equal(sql.prepare('SELECT count(*) n FROM playlist_items WHERE playlist_id=?').get('from-box-mix').n,5);
 });
 
-test('a title collision or changed backup keeps every original accessible without partial playlists',async t => {
+test('a destination ID collision or changed backup preserves the original lists',async t => {
   const {sql,DB,call} = await fixture(t);
   seed(sql);
   const snapshot=await backup(t,sql);
   sql.exec("UPDATE my_boxes SET name='새로운 제목' WHERE id='empty'");
   await assert.rejects(applyBoxUnification({DB},snapshot),e=>e.status===409);
-  sql.exec("UPDATE my_boxes SET name='원본' WHERE id='empty'");
+  sql.exec("INSERT INTO playlists(id,user_id,name,created) VALUES('from-box-empty','other','예약한 ID',1)");
   await assert.rejects(applyBoxUnification({DB},await backup(t,sql)),e=>e.status===409);
   assert.equal((await call('/api/library/unification')).body.ready,false);
   assert.equal((await call('/api/my-boxes/mix')).status,200);
-  assert.equal(sql.prepare("SELECT count(*) n FROM playlists WHERE id LIKE 'from-box-%'").get().n,0);
+  assert.deepEqual(sql.prepare("SELECT name FROM playlists WHERE id LIKE 'from-box-%'").all().map(p=>p.name),['예약한 ID']);
   assert.equal(sql.prepare('SELECT count(*) n FROM my_box_items').get().n,5);
 });
 

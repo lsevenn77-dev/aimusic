@@ -259,10 +259,9 @@ async function playlistDialog(existing=null,initialTrack=null,{canOpen=()=>true,
  form.addEventListener('change',e=>{if(e.target.name==='image'){if(previewURL)URL.revokeObjectURL(previewURL);previewURL=e.target.files?.[0]?URL.createObjectURL(e.target.files[0]):'';}preview();});
  const reset=form.querySelector('[data-reset-image]');reset?.addEventListener('click',()=>{if(previewURL)URL.revokeObjectURL(previewURL);previewURL='';preview();});
  $('#dialog').addEventListener('close',()=>{if(previewURL)URL.revokeObjectURL(previewURL);},{once:true});preview();
- const checkTitle=libraryTitleCheck(form,()=>targetId||''),request_id=crypto.randomUUID();
+ const request_id=crypto.randomUUID();
  const active=()=>current()&&form.isConnected&&$('#dialog').open;
  form.onsubmit=busyForm(form,async fd=>{
-  if(!await checkTitle())throw Error('플레이리스트 제목을 확인해 주세요.');
   await validateImage(fd.get('image'));
   if(!active())return;
   const data=await api(targetId?`/api/playlists/${targetId}`:'/api/playlists',targetId?'PATCH':'POST',{
@@ -351,7 +350,7 @@ document.addEventListener('click',async ev=>{
    routeTracks=fresh.tracks;remember(routeTracks);if(el.hasAttribute('data-play')&&!routeTracks.some(t=>t.id===el.dataset.play))throw Error('이 곡은 플레이리스트에서 변경되었습니다. 다시 열어 주세요.');playedPlaylist=pid;
   }
   if(el.hasAttribute('data-play')){if($('#dialog').open)$('#dialog').close();if(el.hasAttribute('data-community-toggle')||el.closest('.cover-actions'))await playCommunityTrack(el.dataset.play);else await play(el.dataset.play,routeTracks.some(t=>t.id===el.dataset.play)?routeTracks:null);if(playedPlaylist&&me)void api('/api/playlists/'+playedPlaylist+'/played','POST').catch(()=>{});}
-  else if(el.hasAttribute('data-play-all')){if(el.closest('.charts-final')&&shuffle)$('#shuffle').click();if(routeTracks.length){await play(routeTracks[0].id,routeTracks);if(playedPlaylist&&me)void api('/api/playlists/'+playedPlaylist+'/played','POST').catch(()=>{});}else toast('먼저 곡을 추가해 주세요.');}
+  else if(el.hasAttribute('data-play-all')){if(routeTracks.length){await play(routeTracks[0].id,routeTracks);if(playedPlaylist&&me)void api('/api/playlists/'+playedPlaylist+'/played','POST').catch(()=>{});}else toast('먼저 곡을 추가해 주세요.');}
   else if(el.dataset.giftShop){await chooseGiftRecipient(el.dataset.giftShop);}
   else if(el.dataset.gift){await giftDialog(el.dataset.gift,el.dataset.giftType);}
   else if(el.dataset.songShare){shareSongByMessage(el.dataset.songShare);}

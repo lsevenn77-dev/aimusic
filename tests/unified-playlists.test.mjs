@@ -29,12 +29,25 @@ test('public conversion is atomic; original and dubbing IDs coexist and bookmark
  assert.equal((await call(path+'/order','PUT',{items:[dubbing,cover,audio]})).status,200);
  assert.deepEqual((await call(path)).body.items.map(i=>i.kind),['dubbing','cover','original']);
  assert.equal((await call(path+'/items','DELETE',cover)).status,200);
- assert.equal((await call(path+'/items','DELETE',dubbing)).status,409);
- assert.deepEqual((await call(path)).body.items.map(i=>i.kind),['dubbing','original']);
- assert.equal((await call(path+'/items','DELETE',{...dubbing,name:'내 편집본'})).status,200);
+ assert.equal((await call(path+'/items','DELETE',dubbing)).status,200);
+ assert.deepEqual((await call(path)).body.items.map(i=>i.kind),['original']);
  assert.equal((await call(path)).body.playlist.is_public,0);
  assert.equal((await call(path,'PATCH',{is_public:true})).status,200);
- assert.equal((await call(path,'GET',null,'other')).body.playlist.name,'내 편집본');
+ assert.equal((await call(path,'GET',null,'other')).body.playlist.name,'First Mix');
+});
+
+test('every supported content type accepts the same private title without changing publication eligibility',async t=>{
+ const {call,sql}=await fixture(t);works(sql);const seen=new Set();
+ for(const items of [[],[audio],[cover],[dubbing],[audio,cover,dubbing]]){
+  for(let i=0;i<2;i++){
+   const result=await call('/api/playlists','POST',{name:'같은 제목',items});
+   assert.equal(result.status,201);assert.ok(!seen.has(result.body.id));seen.add(result.body.id);
+   const path='/api/playlists/'+result.body.id,detail=(await call(path)).body;
+   assert.equal(detail.playlist.name,'같은 제목');assert.equal(detail.playlist.is_public,0);
+   assert.deepEqual(detail.items.map(({kind,content_id})=>({kind,content_id})),items);
+   assert.equal((await call(path,'PATCH',{is_public:true})).status,items.length&&items.every(item=>item.kind==='original')?200:400);
+  }
+ }
 });
 
 test('fork with a cover uses the original title, commits the edit and unbookmark once, and isolates the source image',async t=>{
@@ -75,7 +88,8 @@ test('deleting a content owner keeps typed unavailable covers and privatizes an 
  const deletedTrack=(await call('/api/playlists/'+mixed,'GET',null,'other')).body.items[0];
  assert.equal(deletedTrack.kind,'cover');assert.equal(deletedTrack.available,false);
  assert.equal((await call('/api/playlists/'+published,'GET',null,null)).status,404);
- assert.equal((await call('/api/playlists/'+mixed+'/items','DELETE',cover,'other')).status,409);
+ assert.equal((await call('/api/playlists/'+mixed+'/items','DELETE',cover,'other')).status,200);
+ assert.equal((await call('/api/playlists/'+mixed,'GET',null,'other')).body.items.length,0);
 });
 
 test('legacy request retries preserve the original fingerprint when a reference disappears',async t=>{
