@@ -79,3 +79,43 @@ final class VocalNoiseCleaner {
         return destination
     }
 }
+
+
+enum RecordingGain {
+    static func clamp(_ gain: Double) -> Double { gain.isFinite ? min(2, max(0, gain)) : 1 }
+    static func pcm16(_ data: Data, gain: Double) -> Data {
+        let gain = clamp(gain)
+        guard gain != 1 else { return data }
+        var bytes = [UInt8](data)
+        for at in stride(from: 0, to: bytes.count - 1, by: 2) {
+            let sample = Int16(bitPattern: UInt16(bytes[at]) | UInt16(bytes[at + 1]) << 8)
+            let scaled = Int16(max(-32768, min(32767, (Double(sample) * gain).rounded())))
+            let bits = UInt16(bitPattern: scaled); bytes[at] = UInt8(bits & 255); bytes[at + 1] = UInt8(bits >> 8)
+        }
+        return Data(bytes)
+    }
+}
+
+
+extension RecordingGain {
+    static func apply(to url: URL, gain: Double) throws {
+        guard clamp(gain) != 1 else { return }
+        var data = try Data(contentsOf: url)
+        guard data.count >= 44, String(data: data.prefix(4), encoding: .ascii) == "RIFF" else { throw DubbingWAV.failure }
+        var at = 12, valid = false
+        func value(_ offset: Int, _ count: Int) -> Int { (0..<count).reduce(0) { $0 | Int(data[offset + $1]) << ($1 * 8) } }
+        while at + 8 <= data.count {
+            let size = value(at + 4, 4), start = at + 8
+            guard size <= data.count - start else { throw DubbingWAV.failure }
+            let kind = String(data: data[at..<at + 4], encoding: .ascii)
+            if kind == "fmt " { valid = size >= 16 && value(start, 2) == 1 && value(start + 14, 2) == 16 }
+            if kind == "data" {
+                guard valid else { throw DubbingWAV.failure }
+                data.replaceSubrange(start..<start + size, with: pcm16(Data(data[start..<start + size]), gain: gain))
+                try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]); return
+            }
+            at = start + size + size % 2
+        }
+        throw DubbingWAV.failure
+    }
+}

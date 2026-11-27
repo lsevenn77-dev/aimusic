@@ -1,8 +1,10 @@
+import KakaoSDKUser
+import KakaoSDKAuth
 import SwiftUI
 import AuthenticationServices
 import CryptoKit
 
-enum AppRoute: Hashable { case player, account, menu }
+enum AppRoute: Hashable { case player, account, menu, inventory }
 
 struct MessageRoute: Hashable {
     let id: String
@@ -16,6 +18,41 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var chart: [Song] = []
     @Published var singable: [Song] = []
     @Published var feed: [Song] = []
+    @Published private(set) var coverPickUpdates: [String: CoverPickState] = [:]
+    private var pendingCoverPicks = Set<String>()
+
+    func isCoverPicked(_ song: Song) -> Bool {
+        guard song.isCover else { return false }
+        if let original = song.originalID, let update = coverPickUpdates[original], update.revision >= (song.coverPickRevision ?? 0) {
+            return update.coverID == song.id
+        }
+        return song.isCoverPicked == true
+    }
+
+    func readCoverPick(_ song: Song) async throws -> CoverPickState? {
+        guard userID != nil, song.canBePicked, let original = song.originalID else { return nil }
+        let account = accountRevision
+        let value = CoverPickState(try await API.shared.call("/api/tracks/\(Endpoint.pathID(original))/cover-pick", fresh: true))
+        try Task.checkCancellation()
+        guard account == accountRevision else { throw CancellationError() }
+        return value.canManage ? value : nil
+    }
+
+    func changeCoverPick(_ song: Song, selection: CoverPickState) async throws -> CoverPickState? {
+        guard userID != nil, song.canBePicked, selection.canManage, let original = song.originalID else { return nil }
+        let account = accountRevision
+        let requestKey = "\(account):\(original)"
+        guard pendingCoverPicks.insert(requestKey).inserted else { return nil }
+        defer { pendingCoverPicks.remove(requestKey) }
+        let removing = selection.coverID == song.id
+        let coverID: Any = removing ? (NSNull() as Any) : song.id
+        let value = CoverPickState(try await API.shared.call("/api/tracks/\(Endpoint.pathID(original))/cover-pick", method: "PUT",
+            body: ["cover_id": coverID, "expected_revision": selection.revision]))
+        guard account == accountRevision else { throw CancellationError() }
+        coverPickUpdates[original] = value
+        notice = removing ? "PICK을 해제했습니다." : "PICK을 저장했습니다."
+        return value
+    }
     @Published var likes: [Song] = []
     @Published var history: [Song] = []
     @Published var followedProducers = Set<String>()
@@ -26,6 +63,8 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var user: [String: Any]?
     @Published private(set) var inboxError: String?
     @Published private(set) var inboxUnread = 0
+    @Published private(set) var activityUnread = 0
+    var combinedUnread: Int { inboxUnread + activityUnread }
     @Published var inboxConversations: [[String: Any]] = []
     @Published private(set) var inboxCrew: [String: Any]?
     private var inboxLoading = false
@@ -33,13 +72,20 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     @Published var error: String?
     @Published var notice: String?
     @Published var visibleChats: Set<UUID> = []
+    @Published var visibleWorkspaces: Set<UUID> = []
+    @Published var homePlayRequest: String?
+    @Published var homeCommunityRequest: String?
     @Published var selectedTab = 0
     @Published var navigationPath = NavigationPath()
     @Published var playerPageVisible = false
     func selectTab(_ tab: Int) {
-        navigationPath = NavigationPath()
-        playerPageVisible = false
-        selectedTab = tab
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            if !navigationPath.isEmpty { navigationPath = NavigationPath() }
+            if playerPageVisible { playerPageVisible = false }
+            if selectedTab != tab { selectedTab = tab }
+        }
     }
     @Published var messagePath: [MessageRoute] = []
     func openCrewMessages(id: String, title: String) {
@@ -103,6 +149,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
     }
     #endif
     private var accountRevision = 0
+    private var activityReadRevision = 0
     var userID: String? { user?.string("id") }
     func requireLogin() -> Bool {
         if user == nil { showLogin = true; return false }; return true
@@ -112,16 +159,21 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         loading = true; error = nil
         defer { loading = false }
         do { try await loadMe() } catch { handle(error) }
-        // Each section can succeed independently when another endpoint is unavailable.
-        for (path, apply) in [
-            ("/api/catalog?section=tracks&limit=40", { self.latest = $0 }),
-            ("/api/catalog?section=tracks&chart=top", { self.chart = $0 }),
-            ("/api/karaoke", { self.singable = $0 }),
-            ("/api/community", { self.feed = $0 })
-        ] as [(String, ([Song]) -> Void)] {
-            do { apply(try await API.shared.call(path).songs()) }
-            catch is CancellationError { return }
-            catch { self.error = error.localizedDescription }
+        // Two requests at a time; primary navigation never waits for secondary shelves.
+        let account = accountRevision
+        let endpoints = ["/api/catalog?section=tracks&limit=40", "/api/catalog?section=tracks&chart=top", "/api/karaoke", "/api/community"]
+        for start in stride(from: 0, to: endpoints.count, by: 2) {
+            await withTaskGroup(of: (Int, [Song]?).self) { group in
+                for index in start..<min(start + 2, endpoints.count) {
+                    let path = endpoints[index]
+                    group.addTask { (index, try? await API.shared.call(path, fresh: true).songs()) }
+                }
+                for await (index, songs) in group {
+                    guard !Task.isCancelled, account == accountRevision else { continue }
+                    guard let songs else { self.error = "일부 음악을 불러오지 못했어요. 다시 시도해주세요."; continue }
+                    switch index { case 0: latest = songs; case 1: chart = songs; case 2: singable = songs; default: feed = songs }
+                }
+            }
         }
     }
     func loadMe() async throws {
@@ -140,12 +192,34 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         let version = accountRevision
         inboxLoading = true; defer { inboxLoading = false }
         do {
-            let data = try await API.shared.call("/api/dm")
+            let data = try await API.shared.call("/api/dm?notices=unified")
             guard version == accountRevision, !Task.isCancelled else { return }
-            inboxConversations = data.objects("conversations")
-            inboxUnread = data.int("unread")
-            inboxCrew = data["crew"] as? [String: Any]; inboxError = nil
+            let conversations = data.objects("conversations")
+            if !NSArray(array: inboxConversations).isEqual(to: conversations) { inboxConversations = conversations }
+            let unread = data.int("unread")
+            if inboxUnread != unread { inboxUnread = unread }
+            let crew = data["crew"] as? [String: Any]
+            if !NSDictionary(dictionary: inboxCrew ?? [:]).isEqual(to: crew ?? [:]) { inboxCrew = crew }
+            if inboxError != nil { inboxError = nil }
+            let readVersion = activityReadRevision
+            if let summary = try? await API.shared.call("/api/notifications/summary"), version == accountRevision, readVersion == activityReadRevision, !Task.isCancelled {
+                let unread = summary.int("unread")
+                if activityUnread != unread { activityUnread = unread }
+            }
         } catch { if version == accountRevision, !Task.isCancelled { inboxError = error.localizedDescription } }
+    }
+    func markActivityRead(through: Int? = nil, ids: [String] = []) async throws {
+        guard userID != nil else { throw CancellationError() }
+        let version = accountRevision
+        activityReadRevision += 1
+        let readVersion = activityReadRevision
+        let body: [String: Any] = through.map { ["through": $0] } ?? ["ids": ids]
+        let result = try await API.shared.call("/api/notifications/read", method: "POST", body: body)
+        guard version == accountRevision, !Task.isCancelled else { throw CancellationError() }
+        guard readVersion == activityReadRevision else { return }
+        // Discard summaries requested before this acknowledgement finished.
+        activityReadRevision += 1
+        activityUnread = max(0, result.int("unread"))
     }
     func loadLibrary() async {
         guard user != nil else { return }
@@ -157,7 +231,7 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
             let result = try await API.shared.call("/api/history")
             guard version == accountRevision else { return }
             history = result.songs(); libraryError = nil; libraryLoaded = true
-        } catch { if version == accountRevision { libraryError = error.localizedDescription } }
+        } catch { if version == accountRevision { if let failure = error as? APIError, [401, 403].contains(failure.status) { likes = []; playlists = []; history = []; libraryLoaded = false }; libraryError = error.localizedDescription } }
     }
     func toggleLike(_ song: Song) async {
         guard requireLogin() else { return }
@@ -214,16 +288,39 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         notice = "계정을 삭제했습니다. 업로드 파일도 삭제 처리됩니다."
     }
     private func clearPrivate() {
+        coverPickUpdates.removeAll()
+        pendingCoverPicks.removeAll()
+        API.shared.invalidateReads()
         messagePath.removeAll(); navigationPath = NavigationPath(); playerPageVisible = false
         libraryError = nil; libraryLoaded = false; followedProducers = []; followRequests = []
-        accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; visibleChats.removeAll(); inboxUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
+        accountRevision += 1; likeRequests.removeAll(); likeRevision += 1; inboxConversations = []; visibleChats.removeAll(); inboxUnread = 0; activityUnread = 0; inboxCrew = nil; likes = []; playlists = []; history = []; player.close()
     }
     func handle(_ error: Error) {
         if error is CancellationError { return }
         if (error as? APIError)?.status == 401 { API.shared.clearSession(); clearPrivate(); user = nil; showLogin = true }
         notice = error.localizedDescription
     }
-    func browserLogin(useExternalBrowser: Bool = false) async throws {
+    func kakaoLogin(usingTalk: Bool) async throws {
+        guard !authBusy else { return }
+        authBusy = true
+        defer { authBusy = false }
+        let accessToken: String = try await withCheckedThrowingContinuation { continuation in
+            let completion: (OAuthToken?, Error?) -> Void = { token, error in
+                if let token { continuation.resume(returning: token.accessToken) }
+                else { continuation.resume(throwing: error ?? CancellationError()) }
+            }
+            if usingTalk {
+                UserApi.shared.loginWithKakaoTalk(completion: completion)
+            } else {
+                UserApi.shared.loginWithKakaoAccount(completion: completion)
+            }
+        }
+        _ = try await API.shared.call("/api/auth/kakao/token", method: "POST", body: ["accessToken": accessToken])
+        try await loadMe()
+        await loadLibrary()
+        showLogin = false
+    }
+    func browserLogin(provider: String? = nil, useExternalBrowser: Bool = false) async throws {
         guard !authBusy else { return }
         var bytes = [UInt8](repeating: 0, count: 32)
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else { throw APIError(status: 0, message: "로그인을 시작하지 못했습니다.") }
@@ -231,7 +328,11 @@ final class AppModel: NSObject, ObservableObject, ASWebAuthenticationPresentatio
         let challenge = SHA256.hash(data: Data(verifier.utf8)).map { String(format: "%02x", $0) }.joined()
         authBusy = true; defer { authBusy = false }
         let start = try await API.shared.call("/api/auth/mobile/start", method: "POST", body: ["challenge": challenge])
-        guard let url = URL(string: start.string("url")), url.scheme == "https", url.host == "aifect.co.kr" else { throw URLError(.badURL) }
+        guard var parts = URLComponents(string: start.string("url")), parts.scheme == "https", parts.host == "aifect.co.kr",
+              parts.path == "/api/auth/mobile/browser", !start.string("ticket").isEmpty,
+              parts.queryItems?.first(where: { $0.name == "ticket" })?.value == start.string("ticket") else { throw URLError(.badURL) }
+        if provider == "apple" { parts.queryItems?.append(URLQueryItem(name: "provider", value: "apple")) }
+        guard let url = parts.url else { throw URLError(.badURL) }
         let callback: URL
         #if DEBUG
         if useExternalBrowser && ProcessInfo.processInfo.isiOSAppOnMac {

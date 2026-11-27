@@ -15,8 +15,9 @@ enum CoverPublisher {
         guard (me["user"] as? [String: Any])?.string("id") == draft.owner else { throw APIError(status: 401, message: "녹음한 계정으로 다시 로그인해주세요.") }
         let receiptURL = draft.directory.appendingPathComponent("submission.json")
         let frozenURL = draft.directory.appendingPathComponent("submission.wav")
+        let resumed = FileManager.default.fileExists(atPath: receiptURL.path)
         var receipt: CoverReceipt
-        if FileManager.default.fileExists(atPath: receiptURL.path) {
+        if resumed {
             receipt = try JSONDecoder().decode(CoverReceipt.self, from: Data(contentsOf: receiptURL))
             guard !receipt.id.isEmpty else {
                 throw APIError(status: 0, message: "이전 게시 요청의 응답을 확인하지 못했습니다. 중복 게시를 막기 위해 웹 스튜디오에서 업로드 상태를 확인해주세요. 녹음 초안은 보관되어 있습니다.")
@@ -35,6 +36,7 @@ enum CoverPublisher {
             try JSONEncoder().encode(receipt).write(to: receiptURL, options: .atomic)
             do {
                 var body: [String: Any] = ["original_id": draft.song.id, "cover_mode": draft.duetFirst == true || draft.duetParentID != nil ? "duet" : "solo", "extension": "wav", "bytes": bytes.count, "description": description, "own_voice": true, "rights": true]
+                if let template = draft.listeningTemplate, WorkListeningAssets.labels[template] != nil { body["listening_template"] = template }
                 if let parent = draft.duetParentID { body["duet_parent_id"] = parent; body["duet_slot"] = "second" }
                 if draft.duetFirst == true {
                     body["duet_slot"] = "first"; body["duet_consent"] = duetConsent
@@ -53,7 +55,16 @@ enum CoverPublisher {
             }
         }
         let bytes = try Data(contentsOf: frozenURL)
+        if resumed {
+            var settings: [String: Any] = ["description": description]
+            if let template = draft.listeningTemplate, WorkListeningAssets.labels[template] != nil { settings["listening_template"] = template }
+            _ = try await api.call("/api/studio/tracks/\(Endpoint.pathID(receipt.id))", method: "PUT", body: settings)
+        }
         _ = try await api.request("/api/uploads/\(Endpoint.pathID(receipt.id))/audio", method: "PUT", bytes: bytes, progress: progress)
+        let photoURL = draft.directory.appendingPathComponent("listening-photo.jpg")
+        if FileManager.default.fileExists(atPath: photoURL.path) {
+            _ = try await api.request("/api/uploads/\(Endpoint.pathID(receipt.id))/cover", method: "PUT", bytes: Data(contentsOf: photoURL), type: "image/jpeg")
+        }
         _ = try await api.call("/api/uploads/\(Endpoint.pathID(receipt.id))/complete", method: "POST", body: [:])
         receipt.phase = "submitted"
         try JSONEncoder().encode(receipt).write(to: receiptURL, options: .atomic)

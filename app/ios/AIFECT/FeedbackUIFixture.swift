@@ -2,9 +2,10 @@
 import SwiftUI
 import AVFoundation
 
-/// Explicitly opted-in, simulator-only UI fixtures. No service traffic, user
-/// messages, microphone recording, gifts or uploads occur in these UI checks.
+/// Explicitly opted-in, simulator-only UI fixtures. Service requests, messages,
+/// gifts and uploads stay local; audio integration scenarios may use AVAudioRecorder.
 enum FeedbackUIFixture {
+    static let dubbingScriptRoot = FileManager.default.temporaryDirectory.appendingPathComponent("DubbingUITests-" + UUID().uuidString)
     static var enabled: Bool {
         #if targetEnvironment(simulator)
         return ProcessInfo.processInfo.arguments.contains("-feedback-ui-test")
@@ -108,7 +109,7 @@ final class FeedbackURLProtocol: URLProtocol {
         else if path == "/api/studio/payout-account" { data = ["account": NSNull(), "can_register": false, "banks": ["테스트 은행"], "statements": []] }
         else if path == "/api/me/player" { data = Self.playerData }
         else if path == "/api/me/player/equipment" { Self.equipped = requestBody()["frame_inventory_id"] is String; data = Self.playerData }
-        else if path == "/api/gold" { data = ["balance": Self.gold, "free": ["balance": Self.stars], "gifts": []] }
+        else if path == "/api/gold" { data = ["balance": Self.gold, "free": ["balance": Self.stars], "diamonds": ["balance": Self.diamonds], "gifts": []] }
         else if path.hasSuffix("/gifts") { Self.stars = max(0, Self.stars - 1); data = ["free_balance": Self.stars] }
         else if path == "/api/me/profile" {
             if request.httpMethod == "PUT" { Self.profileName = requestBody().string("name") }
@@ -165,7 +166,7 @@ struct FeedbackUITestView: View {
             .onChange(of: model.userID) { _, owner in
                 // Account loading intentionally clears the player. Seed it only
                 // after that boundary so this fixture cannot race sign-in.
-                if owner == "fixture-user", (ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") || ProcessInfo.processInfo.arguments.contains("-streaming-ui-test")) {
+                if owner == "fixture-user", !ProcessInfo.processInfo.arguments.contains("-home-density"), (ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") || ProcessInfo.processInfo.arguments.contains("-streaming-ui-test")) {
                     model.player.current = FeedbackUIFixture.song; model.player.duration = 20; model.player.lyric = "검증용 현재 가사 한 줄"
                 }
             }
@@ -181,7 +182,7 @@ struct FeedbackUITestView: View {
                 }.padding().accessibilityIdentifier("feedback-menu") }
             }
             .sheet(isPresented: $gift) { NavigationStack { GiftWalletView(song: FeedbackUIFixture.song, compact: true).environmentObject(model) }.presentationDetents([.fraction(0.48)]) }
-            .sheet(isPresented: $track) { NavigationStack { TrackDetailView(song: FeedbackUIFixture.song).environmentObject(model) } }
+            .sheet(isPresented: $track) { NavigationStack { TrackDetailView(song: FeedbackUIFixture.song) }.environmentObject(model) }
             .sheet(isPresented: $narrowLayout) { FeedbackNarrowLayout().environmentObject(model).preferredColorScheme(.dark) }
             .fullScreenCover(item: $studio) { selection in StudioView(studio: selection.studio).environmentObject(model).preferredColorScheme(.dark) }
     }

@@ -15,22 +15,58 @@ struct MusicBannerPanel<Content: View>: View {
     }
 }
 
+struct CoverPickTitle: View {
+    @EnvironmentObject private var model: AppModel
+    let song: Song
+
+    var body: some View {
+        if model.isCoverPicked(song) {
+            HStack(alignment: .center, spacing: 6) {
+                Text(song.title).lineLimit(1).truncationMode(.tail)
+                Text("PICK")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Color(aifectHex: 0xF0EDF8))
+                    .padding(.horizontal, 7)
+                    .frame(height: 18)
+                    .overlay {
+                        Capsule().strokeBorder(LinearGradient(stops: [
+                            .init(color: Color(aifectHex: 0x8EDDD2), location: 0),
+                            .init(color: Color(aifectHex: 0xAB94F5), location: 0.48),
+                            .init(color: Color(aifectHex: 0xED8DCB), location: 1)
+                        ], startPoint: .leading, endPoint: .trailing), lineWidth: 1)
+                    }
+                    .fixedSize()
+                    .layoutPriority(1)
+                    .accessibilityHint("원곡 제작자가 선택한 커버곡입니다.")
+            }
+        } else {
+            Text(song.title)
+        }
+    }
+}
+
 struct CompactMusicRow: View {
     @EnvironmentObject private var model: AppModel
     let song: Song
     let queue: [Song]
     var onDetail: ((Song) -> Void)? = nil
+    var showsCoverOptions = false
     @State private var detail = false
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             CoverArt(song: song, size: 46).onTapGesture { showDetail() }
             VStack(alignment: .leading, spacing: 4) {
                 Button { showDetail() } label: {
-                    Text(song.title).font(.system(size: 14, weight: .semibold)).lineSpacing(3).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).multilineTextAlignment(.leading)
+                    CoverPickTitle(song: song).font(.system(size: 14, weight: .semibold)).lineSpacing(3).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).multilineTextAlignment(.leading)
                 }.buttonStyle(.plain)
                 HStack(spacing: 6) {
                     Text(song.credit).font(.system(size: 12)).foregroundStyle(AifectDesign.muted).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading)
                     Button { model.player.play(song, queue: queue) } label: { Image(systemName: "play.circle.fill").font(.system(size: 24)).foregroundStyle(Brand.pink).frame(width: 44, height: 44) }.accessibilityLabel("\(song.title) 재생")
+                    if showsCoverOptions && song.canBePicked {
+                        NavigationLink { SongMenuView(song: song).streamingPage() } label: {
+                            Image(systemName: "ellipsis").frame(width: 44, height: 44)
+                        }.accessibilityLabel("\(song.title) 더보기")
+                    }
                 }
             }
         }.padding(.vertical, 12).navigationDestination(isPresented: $detail) { TrackDetailView(song: song) }
@@ -143,7 +179,7 @@ struct SingReadyCard: View {
                 VStack(alignment: .leading, spacing: 8) { play; SingSongButton(song: song, title: "부르기") }
             }
             NavigationLink {
-                MusicCollectionView(title: "\(song.title) · 참여 커버", path: "/api/tracks/\(Endpoint.pathID(song.id))/covers", key: "covers")
+                MusicCollectionView(title: "\(song.title) · 참여 커버", path: "/api/tracks/\(Endpoint.pathID(song.id))/covers?promote_pick=1", key: "covers", pickOriginalID: song.id)
             } label: {
                 Label("커버 \(max(0, song.covers ?? 0)) · 참여 커버 보기", systemImage: "person.2")
                     .font(.system(size: 12)).foregroundStyle(Brand.aqua).frame(minHeight: 44)
@@ -174,7 +210,7 @@ struct GenreTags: View {
     }
 }
 
-private struct GenreFlowLayout: Layout {
+struct GenreFlowLayout: Layout {
     private func arrangement(_ subviews: Subviews, width: CGFloat) -> (CGSize, [CGRect]) {
         var frames: [CGRect] = []; var x: CGFloat = 0; var y: CGFloat = 0; var rowHeight: CGFloat = 0
         for view in subviews {

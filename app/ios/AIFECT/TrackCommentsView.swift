@@ -3,6 +3,8 @@ import SwiftUI
 struct TrackCommentsView: View {
     @EnvironmentObject var model: AppModel
     let song: Song
+    var composerVisible = true
+    var composerAbove = false
     @State private var comments: [[String: Any]] = []
     @State private var sort = "latest"
     @State private var text = ""
@@ -14,11 +16,13 @@ struct TrackCommentsView: View {
     @State private var atCurrentTime = false
     @State private var busy = false
     @State private var error: String?
+    @FocusState private var composing: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("이 음악에 남긴 이야기").font(.headline)
             Picker("댓글 정렬", selection: $sort) { Text("최신순").tag("latest"); Text("인기순").tag("popular"); Text("시간순").tag("timeline") }.pickerStyle(.segmented)
             if let error { Text(error).foregroundStyle(.red) }
+            if composerAbove { composer }
             if comments.isEmpty { Text("첫 번째 감상을 남겨보세요.").foregroundStyle(.secondary) }
             ForEach(orderedComments, id: \.selfID) { item in
                 VStack(alignment: .leading, spacing: 8) {
@@ -45,12 +49,7 @@ struct TrackCommentsView: View {
                     }
                 }.padding(14).background(Brand.card, in: RoundedRectangle(cornerRadius: 14)).padding(.leading, item.string("parent_id").isEmpty ? 0 : 24)
             }
-            if model.user != nil {
-                if editing != nil || reply != nil { HStack { Text(editing != nil ? "댓글 수정" : "\(reply?.displayName() ?? "")님에게 답글").font(.caption); Spacer(); Button("취소") { editing = nil; reply = nil; text = "" } } }
-                TextField("감상을 남겨주세요", text: $text, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(2...5)
-                if editing == nil && model.player.current?.id == song.id { Toggle("현재 재생 시간 함께 남기기", isOn: $atCurrentTime).font(.caption) }
-                Button(editing == nil ? "댓글 등록" : "수정 저장") { Task { await submit() } }.buttonStyle(.borderedProminent).disabled(busy || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            } else { Text("로그인하면 댓글과 답글을 남길 수 있습니다.").foregroundStyle(.secondary) }
+            if !composerAbove { composer }
         }.task(id: sort) { await load() }
             .confirmationDialog("댓글을 삭제할까요?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }), titleVisibility: .visible) {
                 Button("삭제", role: .destructive) { if let id = removing { Task { await mutate("/api/comments/\(Endpoint.pathID(id))", method: "DELETE") } }; removing = nil }
@@ -63,6 +62,23 @@ struct TrackCommentsView: View {
                     Button(reason.1) { if let id = reporting { Task { await mutate("/api/comments/\(Endpoint.pathID(id))/report", method: "POST", body: ["reason": reason.0]) } }; reporting = nil }
                 }
             }
+    }
+    @ViewBuilder private var composer: some View {
+        if composerVisible || reply != nil || editing != nil {
+            if model.user != nil {
+                if editing != nil || reply != nil {
+                    HStack {
+                        Text(editing != nil ? "댓글 수정" : "\(reply?.displayName() ?? "")님에게 답글").font(.caption)
+                        Spacer()
+                        Button("취소") { editing = nil; reply = nil; text = "" }
+                    }
+                }
+                TextField("감상을 남겨주세요", text: $text, axis: .vertical).textFieldStyle(.roundedBorder).lineLimit(2...5).focused($composing)
+                    .onAppear { if composerAbove && composerVisible { composing = true } }
+                if editing == nil && (composerAbove || model.player.current?.id == song.id) { Toggle("현재 재생 시간 함께 남기기", isOn: $atCurrentTime).font(.caption) }
+                Button(editing == nil ? "댓글 등록" : "수정 저장") { Task { await submit() } }.buttonStyle(.borderedProminent).disabled(busy || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            } else { Text("로그인하면 댓글과 답글을 남길 수 있습니다.").foregroundStyle(.secondary) }
+        }
     }
     private var orderedComments: [[String: Any]] {
         let roots = comments.filter { $0.string("parent_id").isEmpty }
@@ -81,7 +97,10 @@ struct TrackCommentsView: View {
         do {
             var body: [String: Any] = ["body": text.trimmingCharacters(in: .whitespacesAndNewlines)]
             if let reply { body["parent_id"] = reply.string("parent_id").isEmpty ? reply.string("id") : reply.string("parent_id") }
-            if atCurrentTime && model.player.current?.id == song.id { body["timestamp"] = model.player.position }
+            if atCurrentTime && editing == nil {
+                if model.player.current?.id == song.id { body["timestamp"] = model.player.position }
+                else if composerAbove { body["timestamp"] = 0 }
+            }
             let path = editing.map { "/api/comments/\(Endpoint.pathID($0))" } ?? "/api/tracks/\(Endpoint.pathID(song.id))/comments"
             _ = try await API.shared.call(path, method: editing == nil ? "POST" : "PATCH", body: body)
             text = ""; reply = nil; editing = nil; atCurrentTime = false; await load()

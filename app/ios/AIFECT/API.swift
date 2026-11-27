@@ -73,6 +73,14 @@ final class API {
     private(set) var cookie: String
     private let session: URLSession
     private var generation = 0
+    private var readGeneration = 0
+    private var reads: [String: (data: Data, at: Date)] = [:]
+    private var pendingReads: [String: Task<Data, Error>] = [:]
+    func invalidateReads() { readGeneration += 1; reads.removeAll(); pendingReads.removeAll() }
+    func peek(_ path: String) -> [String: Any]? {
+        guard ReadPolicy.ttl(path) != nil, let entry = reads[path], Date().timeIntervalSince(entry.at) < 90 else { return nil }
+        return try? JSONSerialization.jsonObject(with: entry.data) as? [String: Any]
+    }
     var sessionRevision: Int { generation }
     init(configuration: URLSessionConfiguration = .ephemeral, cookie: String? = nil) {
         #if DEBUG
@@ -90,20 +98,56 @@ final class API {
         session = URLSession(configuration: configuration, delegate: NoRedirects(), delegateQueue: nil)
     }
     func clearSession() {
-        generation += 1; cookie = ""
+        generation += 1; cookie = ""; invalidateReads()
         try? SessionVault.write("")
     }
-    func call(_ path: String, method: String = "GET", body: [String: Any]? = nil) async throws -> [String: Any] {
+    func call(_ path: String, method: String = "GET", body: [String: Any]? = nil, fresh: Bool = false) async throws -> [String: Any] {
+        try Task.checkCancellation()
+        let ttl = method == "GET" ? ReadPolicy.ttl(path) : nil
+        if !fresh, let ttl, let entry = reads[path], Date().timeIntervalSince(entry.at) < ttl,
+           let value = try? JSONSerialization.jsonObject(with: entry.data) as? [String: Any] { return value }
+        let revision = readGeneration
         let bytes = try body.map { try JSONSerialization.data(withJSONObject: $0) }
-        let data = try await request(path, method: method, bytes: bytes, type: "application/json")
-        guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
-            throw APIError(status: 0, message: "서버 응답을 읽지 못했습니다.")
+        do {
+            let data: Data
+            if ttl != nil {
+                let key = "\(revision):\(path)"
+                if let pending = pendingReads[key] { data = try await pending.value }
+                else {
+                    let pending = Task { try await self.request(path, method: method, bytes: bytes, type: "application/json") }
+                    pendingReads[key] = pending
+                    defer { pendingReads[key] = nil }
+                    data = try await pending.value
+                }
+                try Task.checkCancellation()
+                guard revision == readGeneration else { throw CancellationError() }
+            } else { data = try await request(path, method: method, bytes: bytes, type: "application/json") }
+            guard let result = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw APIError(status: 0, message: "서버 응답을 읽지 못했습니다.")
+            }
+            if ttl != nil {
+                guard revision == readGeneration else { throw CancellationError() }
+                if data.count <= 1_048_576 {
+                    reads[path] = (data, Date())
+                    while reads.count > 64 || reads.values.reduce(0, { $0 + $1.data.count }) > 8_388_608 {
+                        if let oldest = reads.min(by: { $0.value.at < $1.value.at })?.key { reads.removeValue(forKey: oldest) }
+                    }
+                }
+            }
+            return result
+        } catch {
+            if let error = error as? APIError, [401, 403, 404].contains(error.status) { reads.removeValue(forKey: path) }
+            throw error
         }
-        return result
     }
-    func request(_ path: String, method: String = "GET", bytes: Data? = nil, type: String = "application/octet-stream", progress: (@MainActor (Double) -> Void)? = nil) async throws -> Data {
+    func request(_ path: String, method: String = "GET", bytes: Data? = nil, type: String = "application/octet-stream", timeout: TimeInterval? = nil, progress: (@MainActor (Double) -> Void)? = nil) async throws -> Data {
+        try await response(path, method: method, bytes: bytes, type: type, timeout: timeout, progress: progress).0
+    }
+    func response(_ path: String, method: String = "GET", bytes: Data? = nil, type: String = "application/octet-stream", timeout: TimeInterval? = nil, progress: (@MainActor (Double) -> Void)? = nil) async throws -> (Data, HTTPURLResponse) {
         let scope = generation
+        if ReadPolicy.invalidates(path, method: method) { invalidateReads() }
         var request = URLRequest(url: try Endpoint.url(path))
+        if let timeout { request.timeoutInterval = timeout }
         request.httpMethod = method; request.httpBody = bytes
         request.setValue(Endpoint.origin.absoluteString, forHTTPHeaderField: "Origin")
         request.setValue("AIFECT-iOS/1.0", forHTTPHeaderField: "User-Agent")
@@ -122,10 +166,13 @@ final class API {
            let sessionCookie = HTTPCookie.cookies(withResponseHeaderFields: ["Set-Cookie": value], for: Endpoint.origin).first(where: { $0.name == "aifect_session" }) {
             let next = sessionCookie.value.isEmpty || (sessionCookie.expiresDate ?? .distantFuture) < Date() ? "" : "aifect_session=\(sessionCookie.value)"
             try SessionVault.write(next)
-            if next != cookie { generation += 1 }
+            if next != cookie { generation += 1; invalidateReads() }
             cookie = next
         }
-        return data
+        // A read may finish while a mutation is in flight. Drop it again after
+        // the server commits the write so the next screen sees the new value.
+        if ReadPolicy.invalidates(path, method: method) { invalidateReads() }
+        return (data, response)
     }
     func chatEvents(query: String, onChange: @MainActor () async -> Void) async throws {
         let scope = generation
@@ -147,6 +194,23 @@ final class API {
     func mediaCookies() -> [HTTPCookie] {
         guard let value = cookie.split(separator: "=", maxSplits: 1).last, !cookie.isEmpty else { return [] }
         return [HTTPCookie(properties: [.domain: "aifect.co.kr", .path: "/", .name: "aifect_session", .value: String(value), .secure: "TRUE"])].compactMap { $0 }
+    }
+}
+
+struct CoverPickState {
+    let coverID: String?
+    let hasPick: Bool
+    let revision: Int
+    let canManage: Bool
+    let performer: String
+
+    init(_ data: [String: Any]) {
+        coverID = data["cover_id"] as? String
+        hasPick = data.flag("has_pick")
+        revision = data.int("revision")
+        canManage = data.flag("can_manage")
+        let cover = data.object("cover")
+        performer = cover.isEmpty ? "표시할 수 없는 커버" : Song(cover).credit
     }
 }
 
@@ -177,6 +241,17 @@ struct Song: Identifiable, Codable, Hashable {
     var ownerID: String?
     var duetOpen: Bool?
     var karaokeReady: Bool?
+    var listeningTemplate: String?
+    var listeningArtworkPath: String?
+    var giftBlockReason: String?
+    var duetJoinable: Bool?
+    var duetParentID: String?
+    var isCoverPicked: Bool?
+    var coverPickRevision: Int?
+    var canManageCoverPick: Bool?
+    var canBePicked: Bool {
+        isCover && originalID != nil && (coverMode == "solo" || (coverMode == "duet" && duetParentID != nil && duetOpen != true))
+    }
     var chartRank: Int?
     var chartMovement: String?
     var rankChange: Int?
@@ -204,6 +279,16 @@ struct Song: Identifiable, Codable, Hashable {
         descriptionText = data["description"] as? String; coverMode = data["cover_mode"] as? String
         plays = data.int("plays"); covers = data.int("covers")
         ownerID = data["user_id"] as? String; duetOpen = data.flag("duet_open"); karaokeReady = data.flag("karaoke_ready")
+        duetParentID = data["duet_parent_id"] as? String
+        isCoverPicked = isCover && data.flag("is_composer_pick")
+        coverPickRevision = data.int("cover_pick_revision")
+        canManageCoverPick = data.flag("can_manage_cover_pick")
+        listeningTemplate = data["listening_template"] as? String
+        giftBlockReason = data["gift_block_reason"] as? String
+        duetJoinable = data["duet_joinable"].map { ($0 as? NSNumber)?.boolValue ?? false }
+        if let artwork = (data["artwork_id"] as? String) ?? (data.flag("has_cover") ? id : nil), !artwork.isEmpty {
+            listeningArtworkPath = "/media/\(Endpoint.pathID(artwork))/cover?artwork=track&v=\(Endpoint.query(data.string("cover_version", fallback: "original")))"
+        }
         chartRank = (data["chart_rank"] as? NSNumber)?.intValue
         chartMovement = data["chart_movement"] as? String
         rankChange = (data["rank_change"] as? NSNumber)?.intValue
@@ -231,3 +316,25 @@ func timeLabel(_ seconds: Double) -> String {
 
 // Matches shared/genres.js; server taxonomy is authoritative.
 let musicGenreOptions = ["K-POP","Pop","Dark Pop","Ballad","R&B","Soul","Hip-Hop","Rock","Alternative","Indie Pop","EDM","Electronic","Synth Pop","City Pop","Lo-fi","Jazz","Blues","Folk","Acoustic","Country","Classical","Ambient","Fusion","Korean Folklore Fusion","World Music","국악","트로트","J-POP","OST","Instrumental","Dance","Funk","Disco","Metal","Punk","Reggae","Latin","Reggaeton","Afrobeats","House","Techno","Trance","Drum & Bass","Trap","Gospel","New Age","Chillout","Cinematic","Orchestral","Children"]
+
+
+enum ReadPolicy {
+    static func ttl(_ path: String) -> TimeInterval? {
+        guard path.hasPrefix("/api/"), !path.contains(".."), !path.contains("#") else { return nil }
+        let base = String(path.split(separator: "?")[0])
+        if ["/api/library", "/api/history", "/api/follows", "/api/duets", "/api/me/profile"].contains(base) { return 10 }
+        if ["/api/play/works", "/api/play/songs", "/api/karaoke", "/api/catalog", "/api/search", "/api/community", "/api/community/rankings", "/api/playlists", "/api/cover-rankings"].contains(base) { return 20 }
+        if base == "/api/dubbing/projects", let query = URLComponents(string: path)?.queryItems, query.contains(where: { $0.name == "tab" && ["open", "popular"].contains($0.value ?? "") }) { return 10 }
+        if base.range(of: #"^/api/(producers|artists|followers|playlists)/[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil { return 20 }
+        if base.range(of: #"^/api/tracks/[A-Za-z0-9_-]+/covers$"#, options: .regularExpression) != nil { return 20 }
+        return nil
+    }
+    static func invalidates(_ path: String, method: String) -> Bool {
+        guard !["GET", "HEAD"].contains(method), !path.hasPrefix("/api/push/") else { return false }
+        // Notification lists/summaries are uncached; reading them does not change the catalog or library.
+        if path == "/api/notifications/read", method == "POST" { return false }
+        if ["POST", "PATCH"].contains(method), path.range(of: #"^/api/dm/[A-Za-z0-9_-]+$"#, options: .regularExpression) != nil { return false }
+        if method == "POST", path.range(of: #"^/api/crews/[A-Za-z0-9_-]+/messages$"#, options: .regularExpression) != nil { return false }
+        return true
+    }
+}

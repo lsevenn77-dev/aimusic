@@ -1,5 +1,7 @@
+import KakaoSDKUser
 import SwiftUI
 import AuthenticationServices
+import PhotosUI
 
 struct LoginView: View {
     @EnvironmentObject var model: AppModel
@@ -34,14 +36,25 @@ struct LoginView: View {
                 }
                 if !model.providers.isEmpty {
                     Section {
-                        Button {
-                            error = nil
-                            Task {
-                                do { try await model.browserLogin() }
-                                catch let failure as ASWebAuthenticationSessionError where failure.code == .canceledLogin {}
-                                catch { self.error = error.localizedDescription }
+                        if model.providers.contains("kakao") {
+                            let hasTalk = UserApi.isKakaoTalkLoginAvailable()
+                            Button(hasTalk ? "카카오톡으로 로그인" : "카카오계정으로 로그인 (웹 인증)") {
+                                authenticate { try await model.kakaoLogin(usingTalk: hasTalk) }
                             }
-                        } label: { Label("Apple · Google · 카카오로 로그인", systemImage: "person.crop.circle.badge.checkmark") }.disabled(model.authBusy)
+                            .accessibilityIdentifier("auth.kakao")
+                        }
+                        if model.providers.contains("apple") {
+                            Button("Apple로 로그인 (시스템 인증 창)") {
+                                authenticate { try await model.browserLogin(provider: "apple") }
+                            }
+                            .accessibilityIdentifier("auth.apple")
+                        }
+                        if model.providers.contains("google") {
+                            Button("Google 로그인 (브라우저)") {
+                                authenticate { try await model.browserLogin() }
+                            }
+                            .accessibilityIdentifier("auth.google")
+                        }
                         #if DEBUG
                         if ProcessInfo.processInfo.isiOSAppOnMac {
                             Button("Mac 개발 테스트: 브라우저로 로그인") {
@@ -59,8 +72,9 @@ struct LoginView: View {
                             }
                         }
                         #endif
-                        Text("안전한 시스템 인증 창에서 계정을 선택합니다.").font(.caption).foregroundStyle(.secondary)
+
                     }
+                    .disabled(model.authBusy)
                 }
                 if model.authBusy { ProgressView("로그인 중") }
                 if let error { Section { Text(error).foregroundStyle(.red) } }
@@ -74,6 +88,15 @@ struct LoginView: View {
                     loadingMethods = true; defer { loadingMethods = false }
                     do { try await model.loadMe() } catch { self.error = error.localizedDescription }
                 }
+        }
+    }
+    private func authenticate(_ action: @escaping @MainActor () async throws -> Void) {
+        error = nil
+        Task {
+            do { try await action() }
+            catch is CancellationError {}
+            catch let failure as ASWebAuthenticationSessionError where failure.code == .canceledLogin {}
+            catch { self.error = error.localizedDescription }
         }
     }
 }
@@ -124,7 +147,13 @@ struct LibraryView: View {
     init(initialSelection: Int = 0) { _selection = State(initialValue: initialSelection) }
     @State private var newList = false
     @State private var name = ""
+    @State private var isPublic = false
     @State private var creating = false
+    @State private var query = ""
+    @State private var createError: String?
+    private var lists: [[String: Any]] {
+        model.playlists.filter { query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || $0.string("name").localizedCaseInsensitiveContains(query.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    }
     var body: some View {
         Group {
             if model.user == nil {
@@ -134,46 +163,130 @@ struct LibraryView: View {
                 actions: { Button("로그인") { model.showLogin = true }.buttonStyle(.borderedProminent) }
             } else {
                 ScrollView {
-                    LazyVStack(alignment: .leading, spacing: 16) {
-                        Picker("보관함 분류", selection: $selection) { Text("전체").tag(3); Text("플레이리스트").tag(0); Text("좋아요").tag(1); Text("최근 감상").tag(2) }.pickerStyle(.segmented)
-                        HStack { NavigationLink("내 커버 · 제작곡") { MyMusicView() }; Spacer(); NavigationLink("팔로잉") { FollowingListView() }; NavigationLink("팔로워") { FollowingListView(followers: true) } }.font(.caption).frame(minHeight: 44)
+                    LazyVStack(alignment: .leading, spacing: 18) {
+                        if selection != 0 {
+                            Picker("보관함 분류", selection: $selection) { Text("전체").tag(3); Text("플레이리스트").tag(0); Text("좋아요").tag(1); Text("최근 감상").tag(2) }.pickerStyle(.segmented)
+                        }
                         if let error = model.libraryError { RetryCard(message: error) { Task { await model.loadLibrary() } } }
-                        if selection == 3 {
-                            MusicLibraryShortcuts()
-                            Text("내 플레이리스트").font(.headline)
-                            ForEach(model.playlists, id: \.selfID) { StreamingPlaylistRow(list: $0) }
-                            Button("플레이리스트 만들기", systemImage: "plus") { newList = true }.frame(minHeight: 44)
-                        } else if selection == 0 {
-                            Button { newList = true } label: { Label("플레이리스트 만들기", systemImage: "plus.circle.fill") }.disabled(creating).padding(.vertical, 10)
-                            ForEach(model.playlists, id: \.selfID) { item in
-                                NavigationLink { PlaylistView(id: item.string("id"), title: item.string("name")) } label: {
-                                    HStack(spacing: 14) { Image(systemName: "music.note.list").font(.title2).frame(width: 56, height: 56).background(Brand.card, in: RoundedRectangle(cornerRadius: 14)); Text(item.string("name")).font(.headline); Spacer(); Image(systemName: "chevron.right").font(.caption) }.foregroundStyle(.white)
-                                }.padding(.vertical, 4)
+                        if selection == 3 { MusicLibraryShortcuts() }
+                        if selection == 0 || selection == 3 {
+                            HStack {
+                                Text("내 플레이리스트").font(.system(size: 17, weight: .semibold))
+                                Spacer()
+                                Button { name = ""; isPublic = false; createError = nil; newList = true } label: { Label("새로 만들기", systemImage: "plus").font(.system(size: 12)).frame(minHeight: 44) }
+                                    .accessibilityIdentifier("my-playlist-create")
+                            }
+                            CatalogSearchField(prompt: "플레이리스트 검색", text: $query).accessibilityIdentifier("my-playlist-search")
+                            LazyVGrid(columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible())], spacing: 18) {
+                                ForEach(lists, id: \.selfID) { LibraryPlaylistTile(list: $0) }
+                            }.accessibilityElement(children: .contain).accessibilityIdentifier("my-playlist-grid")
+                            if lists.isEmpty && model.libraryLoaded && model.libraryError == nil {
+                                ContentUnavailableView(query.isEmpty ? "첫 플레이리스트를 만들어보세요" : "일치하는 목록이 없어요", systemImage: "music.note.list", description: Text(query.isEmpty ? "좋아하는 음악을 하나씩 모아보세요." : "다른 이름으로 검색해보세요."))
                             }
                         } else {
                             let songs = selection == 1 ? model.likes : model.history
-                            if songs.isEmpty { ContentUnavailableView(selection == 1 ? "좋아하는 음악을 모아보세요" : "아직 감상 기록이 없어요", systemImage: selection == 1 ? "heart" : "clock") }
+                            if songs.isEmpty && model.libraryLoaded { ContentUnavailableView(selection == 1 ? "좋아하는 음악을 모아보세요" : "아직 감상 기록이 없어요", systemImage: selection == 1 ? "heart" : "clock") }
                             if !songs.isEmpty { Button("전체 재생", systemImage: "play.fill") { model.player.play(songs[0], queue: songs) }.buttonStyle(ParityPill(filled: true)) }
                             ForEach(songs) { StreamingSongRow(song: $0, queue: songs) }
                         }
-                    }.padding(20)
+                    }.padding(.horizontal, 20).padding(.vertical, 8).padding(.bottom, 28)
                 }.refreshable { await model.loadLibrary() }
             }
         }.task(id: model.userID) { await model.loadLibrary() }
-        .alert("플레이리스트 만들기", isPresented: $newList) {
-            TextField("이름", text: $name)
-            Button("취소", role: .cancel) { name = "" }
-            Button("만들기") {
-                let title = name.trimmingCharacters(in: .whitespacesAndNewlines); name = ""
-                guard !title.isEmpty else { return }
-                creating = true
-                Task {
-                    defer { creating = false }
-                    do { _ = try await API.shared.call("/api/playlists", method: "POST", body: ["name": title, "is_public": false]); await model.loadLibrary() }
-                    catch { model.handle(error) }
-                }
+        .sheet(isPresented: $newList) {
+            NavigationStack {
+                Form {
+                    TextField("플레이리스트 이름", text: $name).accessibilityIdentifier("my-playlist-create-name")
+                    Toggle("다른 사람에게 공개하기", isOn: $isPublic)
+                    if let createError { Text(createError).foregroundStyle(Brand.pink) }
+                }.navigationTitle("새 플레이리스트").navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) { Button("취소") { newList = false }.disabled(creating) }
+                        ToolbarItem(placement: .confirmationAction) { Button("저장") { Task { await create() } }.disabled(creating || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("my-playlist-create-save") }
+                    }
+            }.presentationDetents([.medium, .large]).interactiveDismissDisabled(creating)
+        }
+    }
+    private func create() async {
+        guard let owner = model.userID, !creating else { return }
+        let title = String(name.trimmingCharacters(in: .whitespacesAndNewlines).prefix(80))
+        guard !title.isEmpty else { return }
+        creating = true; defer { creating = false }
+        do {
+            _ = try await API.shared.call("/api/playlists", method: "POST", body: ["name": title, "is_public": isPublic])
+            guard model.userID == owner else { return }
+            newList = false; await model.loadLibrary()
+        } catch { if model.userID == owner { createError = error.localizedDescription } }
+    }
+}
+
+private struct LibraryPlaylistTile: View {
+    @EnvironmentObject private var model: AppModel
+    let list: [String: Any]
+    @State private var playing = false
+    private var name: String { list.string("name") }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Color.clear.aspectRatio(1, contentMode: .fit).overlay {
+                NavigationLink { PlaylistView(id: list.selfID, title: name).streamingPage() } label: {
+                    PlaylistArtwork(list: list)
+                }.buttonStyle(.plain).accessibilityLabel(name)
+            }.overlay(alignment: .bottomTrailing) {
+                Button { Task { await play() } } label: {
+                    ZStack {
+                        Circle().fill(Brand.background).overlay(Circle().stroke(Brand.gradient, lineWidth: 1)).frame(width: 34, height: 34)
+                        if playing { ProgressView().tint(Brand.pink) } else { Image(systemName: "play.fill").font(.system(size: 15)).foregroundStyle(Brand.pink) }
+                    }.frame(width: 44, height: 44)
+                }.disabled(playing).accessibilityLabel(name + " 전체 재생").accessibilityIdentifier("playlist-play-" + list.selfID).padding(5)
+            }.clipShape(RoundedRectangle(cornerRadius: 12))
+            NavigationLink { PlaylistView(id: list.selfID, title: name).streamingPage() } label: {
+                Text(name).font(.system(size: 13, weight: .semibold)).foregroundStyle(AifectDesign.text).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
+            }.buttonStyle(.plain)
+            HStack {
+                Text("\(list.int("tracks"))곡").font(.system(size: 11)).foregroundStyle(AifectDesign.muted)
+                Spacer()
+                NavigationLink { PlaylistView(id: list.selfID, title: name).streamingPage() } label: { Image(systemName: "ellipsis").frame(width: 44, height: 36) }
+                    .accessibilityLabel("플레이리스트 상세 및 관리").accessibilityIdentifier("my-playlist-manage-" + list.selfID)
             }
-        } message: { Text("처음에는 나만 볼 수 있는 목록으로 만들어집니다.") }
+        }.accessibilityElement(children: .contain).accessibilityIdentifier("my-playlist-tile-" + list.selfID)
+    }
+    private func play() async {
+        let owner = model.userID
+        guard !playing else { return }
+        playing = true; defer { playing = false }
+        do {
+            let songs = try await API.shared.call("/api/playlists/\(Endpoint.pathID(list.selfID))").songs()
+            guard owner == model.userID, !Task.isCancelled else { return }
+            if let first = songs.first { model.player.play(first, queue: songs) }
+            else { model.notice = "아직 곡이 없는 플레이리스트입니다." }
+        } catch { if owner == model.userID { model.handle(error) } }
+    }
+}
+
+struct PlaylistArtwork: View {
+    let list: [String: Any]
+    var body: some View {
+        GeometryReader { bounds in
+            ZStack {
+                LinearGradient(colors: [Color(aifectHex: 0x403449), Color(aifectHex: 0x20363A)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                Image(systemName: "music.note.list").font(.system(size: 38, weight: .light)).foregroundStyle(AifectDesign.violet)
+                if !list.string("image_version").isEmpty,
+                   let url = try? Endpoint.url("/media/playlist/\(Endpoint.pathID(list.selfID))/image?v=\(Endpoint.query(list.string("image_version")))") {
+                    RemoteArtwork(url: url) { $0.resizable().scaledToFill() } placeholder: { Color.clear }
+                } else if let first = list.objects("covers").first {
+                    let covers = list.objects("covers")
+                    if covers.count >= 4 {
+                        VStack(spacing: 0) {
+                            ForEach(0..<2) { row in
+                                HStack(spacing: 0) {
+                                    ForEach(0..<2) { column in AlbumArtwork(song: Song(covers[row * 2 + column])).frame(width: bounds.size.width / 2, height: bounds.size.height / 2).clipped() }
+                                }
+                            }
+                        }
+                    } else { AlbumArtwork(song: Song(first)).frame(width: bounds.size.width, height: bounds.size.height).clipped() }
+                }
+            }.frame(width: bounds.size.width, height: bounds.size.height).clipped()
+        }
     }
 }
 
@@ -196,33 +309,103 @@ struct PlaylistView: View {
     @State private var isPublic = false
     @State private var busy = false
     private var owned: Bool { model.userID != nil && playlist.string("user_id") == model.userID }
+    @State private var adding = false
+    @State private var photo: PhotosPickerItem?
+    private var candidates: [Song] {
+        var seen = Set(songs.map(\.id))
+        return (model.likes + model.latest + model.chart).filter { seen.insert($0.id).inserted }
+    }
     var body: some View {
-        List {
-            if loading { ProgressView() }
-            if let error { RetryCard(message: error) { Task { await load() } } }
-            if !songs.isEmpty { Button("전체 재생") { model.player.play(songs[0], queue: songs) } }
-            if !playlist.isEmpty {
-                Text(playlist.string("description")).font(.caption)
-                if owned { Button("이름 · 공개 설정") { name = playlist.string("name"); isPublic = playlist.flag("is_public"); editing = true }; Button("플레이리스트 삭제", role: .destructive) { deleting = true } }
-                else if model.user != nil { Button(playlist.flag("saved") ? "보관함에서 제거" : "내 보관함에 저장") { Task { await bookmark() } } }
-            }
-            if songs.isEmpty && !loading && error == nil { Text(playlist.flag("active") ? "아직 곡이 없습니다." : "보관 중인 목록입니다. 활성 플레이리스트를 선택해주세요.") }
-            ForEach(songs) { SongRow(song: $0, queue: songs) }
-                .onDelete { indices in Task { await remove(indices) } }
-                .onMove { indices, target in Task { await move(indices, target) } }
-                .deleteDisabled(!owned || busy).moveDisabled(!owned || busy)
-        }.navigationTitle(playlist.string("name", fallback: title)).task { await load() }.refreshable { await load() }
-            .toolbar { if owned { EditButton() } }
-            .navigationDestination(isPresented: $editing) {
-                Group { Form { TextField("이름", text: $name); Toggle("공개 목록", isOn: $isPublic); Button("저장") { Task { await save() } }.disabled(busy || name.isEmpty); if let error { Text(error).foregroundStyle(.red) } }.navigationTitle("목록 편집").toolbar { Button("닫기") { editing = false } } }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 12) {
+                if loading && playlist.isEmpty { ProgressView() }
+                if let error { RetryCard(message: error) { Task { await load() } } }
+                if !playlist.isEmpty {
+                    PlaylistArtwork(list: playlist).frame(width: 112, height: 112).clipShape(RoundedRectangle(cornerRadius: 12))
+                    if owned {
+                        PhotosPicker(selection: $photo, matching: .images) { Label("플레이리스트 사진 변경", systemImage: "photo.badge.plus").font(.system(size: 13)) }.disabled(busy || playlist.flag("locked")).accessibilityIdentifier("playlist-cover-edit")
+                    }
+                    Text(playlist.string("name", fallback: title)).font(.system(size: 29, weight: .bold)).padding(.top, 2)
+                    Text([playlist.string("owner_name"), "\(songs.count)곡"].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 13)).foregroundStyle(AifectDesign.muted)
+                    if !playlist.string("description").isEmpty { Text(playlist.string("description")).font(.caption).foregroundStyle(AifectDesign.muted) }
+                    HStack(spacing: 7) {
+                        Button("전체 재생", systemImage: "play.fill") { if let song = songs.first { model.player.play(song, queue: songs) } }.buttonStyle(ParityPill(filled: true)).disabled(songs.isEmpty)
+                        if owned {
+                            Button("편집") { name = playlist.string("name"); isPublic = playlist.flag("is_public"); editing = true }.frame(minHeight: 44).accessibilityIdentifier("playlist-detail-edit")
+                            Button("플레이리스트 삭제", systemImage: "trash", role: .destructive) { deleting = true }.labelStyle(.iconOnly).frame(width: 44, height: 44)
+                        } else if model.user != nil { Button(playlist.flag("saved") ? "보관함에서 빼기" : "보관함 저장") { Task { await bookmark() } }.buttonStyle(ParityPill()) }
+                    }.padding(.top, 4).disabled(busy)
+                    if playlist.flag("locked") { Text("현재 요금제의 플레이리스트 한도를 넘었어요. 보관함을 정리해주세요.").font(.system(size: 13)).foregroundStyle(AifectDesign.violet) }
+                    if owned { Button(adding ? "곡 선택 닫기" : "곡 추가", systemImage: "plus") { adding.toggle() }.frame(minHeight: 44).disabled(busy).accessibilityIdentifier("playlist-detail-add") }
+                    if busy { ProgressView().frame(maxWidth: .infinity) }
+                }
+                if adding {
+                    ForEach(candidates.enumerated().map { PlaylistDisplaySong(song: $0.element, index: $0.offset, candidate: true) }) { item in
+                        let song = item.song
+                        HStack {
+                            SongRow(song: song, queue: candidates)
+                            Button { Task { await add(song) } } label: { Image(systemName: "plus").frame(width: 44, height: 44) }.disabled(busy).accessibilityLabel(song.title + " 목록에 추가").accessibilityIdentifier("playlist-add-" + song.id)
+                        }
+                    }
+                    if candidates.isEmpty { Text("추가할 음악이 없어요. 듣기에서 곡을 찾아 담아보세요.").font(.system(size: 13)).foregroundStyle(AifectDesign.muted) }
+                } else {
+                    ForEach(songs.enumerated().map { PlaylistDisplaySong(song: $0.element, index: $0.offset, candidate: false) }) { item in
+                        let song = item.song, index = item.index
+                        VStack(spacing: 0) {
+                            SongRow(song: song, queue: songs)
+                            if owned {
+                                HStack(spacing: 12) {
+                                    Spacer()
+                                    Button("위로", systemImage: "chevron.up") { Task { await move(IndexSet(integer: index), index - 1) } }.disabled(index == 0 || busy).accessibilityIdentifier("playlist-up-" + song.id)
+                                    Button("아래로", systemImage: "chevron.down") { Task { await move(IndexSet(integer: index), index + 2) } }.disabled(index == songs.count - 1 || busy).accessibilityIdentifier("playlist-down-" + song.id)
+                                    Button("빼기") { Task { await remove(IndexSet(integer: index)) } }.disabled(busy).foregroundStyle(AifectDesign.muted).accessibilityIdentifier("playlist-remove-" + song.id)
+                                }.font(.system(size: 12)).frame(minHeight: 44)
+                            }
+                        }
+                    }
+                    if songs.isEmpty && !loading && error == nil { ContentUnavailableView("이 순간에 어울리는 음악을 담아요", systemImage: "music.note.list", description: Text("좋아하는 곡으로 순서까지 직접 구성해보세요.")) }
+                }
+            }.padding(.horizontal, 22).padding(.bottom, 28)
+        }.accessibilityIdentifier("playlist-detail-scroll").navigationTitle("플레이리스트").task(id: id + (model.userID ?? "")) { await load() }.refreshable { await load() }
+            .task(id: photo) { if let photo { await uploadPhoto(photo) } }
+            .sheet(isPresented: $editing) {
+                NavigationStack {
+                    VStack(alignment: .leading, spacing: 18) {
+                        StudioTextField(title: "플레이리스트 이름", text: $name, limit: 80)
+                        Toggle("다른 사람에게 공개하기", isOn: $isPublic)
+                        if let error { Text(error).font(.caption).foregroundStyle(Brand.pink) }
+                        Button("저장") { Task { await save() } }.buttonStyle(CatalogButtonStyle(filled: true, fullWidth: true)).disabled(busy || name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        Spacer(minLength: 0)
+                    }.padding(20).background(Brand.background).navigationTitle("플레이리스트 편집").navigationBarTitleDisplayMode(.inline).toolbar { Button("취소") { editing = false } }
+                }.presentationDetents([.medium, .large])
             }
             .confirmationDialog("플레이리스트를 삭제할까요?", isPresented: $deleting, titleVisibility: .visible) {
-                Button("삭제", role: .destructive) { Task { do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))", method: "DELETE", body: [:]); await model.loadLibrary(); dismiss() } catch { self.error = error.localizedDescription } } }
-            } message: { Text("목록은 삭제되며 음원은 그대로 유지됩니다.") }
+                Button("삭제", role: .destructive) { Task { await delete() } }
+            } message: { Text("목록과 곡 순서가 삭제돼요. 원곡과 좋아요는 그대로 남아요.") }
+    }
+    private func add(_ song: Song) async {
+        guard owned, !busy else { return }; busy = true; defer { busy = false }
+        let owner = model.userID
+        do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))/tracks/\(Endpoint.pathID(song.id))", method: "PUT", body: [:]); guard owner == model.userID else { return }; await load(); await model.loadLibrary() } catch { if owner == model.userID { self.error = error.localizedDescription } }
+    }
+    private func uploadPhoto(_ item: PhotosPickerItem) async {
+        guard owned, !busy else { return }; let owner = model.userID; busy = true; defer { busy = false; photo = nil }
+        do {
+            guard let source = try await item.loadTransferable(type: Data.self) else { return }
+            let bytes = try await Task.detached { try ChatImageEncoder.encode(source) }.value
+            guard model.userID == owner, !Task.isCancelled else { return }
+            _ = try await API.shared.request("/api/playlists/\(Endpoint.pathID(id))/image", method: "PUT", bytes: bytes, type: "image/webp")
+            guard model.userID == owner else { return }; await load(); await model.loadLibrary()
+        } catch { if model.userID == owner { self.error = error.localizedDescription } }
+    }
+    private func delete() async {
+        guard owned, !busy else { return }; busy = true; defer { busy = false }; let owner = model.userID
+        do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))", method: "DELETE", body: [:]); guard owner == model.userID else { return }; await model.loadLibrary(); dismiss() } catch { if model.userID == owner { self.error = error.localizedDescription } }
     }
     private func load() async {
         loading = true; defer { loading = false }
-        do { let data = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))"); songs = data.songs(); playlist = data.object("playlist"); error = nil } catch { self.error = error.localizedDescription }
+        let owner = model.userID
+        do { let data = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))"); guard owner == model.userID, !Task.isCancelled else { return }; songs = data.songs(); playlist = data.object("playlist"); error = nil } catch { if owner == model.userID { self.error = error.localizedDescription } }
     }
     private func save() async { busy = true; defer { busy = false }; do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))", method: "PATCH", body: ["name": name, "is_public": isPublic]); editing = false; await load(); await model.loadLibrary() } catch { self.error = error.localizedDescription } }
     private func bookmark() async { do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))/save", method: playlist.flag("saved") ? "DELETE" : "PUT", body: [:]); await load(); await model.loadLibrary() } catch { self.error = error.localizedDescription } }
@@ -234,6 +417,13 @@ struct PlaylistView: View {
         guard owned, !busy else { return }; var next = songs; next.move(fromOffsets: offsets, toOffset: target); busy = true; defer { busy = false }
         do { _ = try await API.shared.call("/api/playlists/\(Endpoint.pathID(id))/order", method: "PUT", body: ["track_ids": next.map(\.id)]); songs = next } catch { self.error = error.localizedDescription; await load() }
     }
+}
+
+private struct PlaylistDisplaySong: Identifiable {
+    let song: Song
+    let index: Int
+    let candidate: Bool
+    var id: String { (candidate ? "candidate-" : "track-") + song.id }
 }
 
 struct AccountSettingsView: View {
@@ -283,20 +473,35 @@ struct TrackDetailView: View {
     @State private var busy = false
     @State private var error: String?
     @State private var loading = true
+    @State private var sharingWork = false
     var body: some View {
         Group {
+            if song.isCover { CoverWorkPage(song: song) }
+            else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    HStack(spacing: 20) { CoverArt(song: song, size: 110); VStack(alignment: .leading, spacing: 8) { Text(song.title).font(.title2.bold()); Text(song.credit).foregroundStyle(.secondary); Text(song.genreLabel).font(.caption).foregroundStyle(Brand.aqua) } }
-                    HStack {
-                        Button { model.player.play(song, queue: [song]) } label: { Label("재생", systemImage: "play.fill") }.buttonStyle(.borderedProminent)
-                        Button { Task { busy = true; await model.toggleLike(song); busy = false } } label: { Label("좋아요", systemImage: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart") }.buttonStyle(.bordered).disabled(busy)
-                        if model.user != nil {
-                            SaveMusicButton(song: song, compact: true)
+                    VStack(spacing: 10) {
+                        AlbumArtwork(song: song).frame(maxWidth: 300)
+                        Text(song.title).font(.title2.bold()).multilineTextAlignment(.center)
+                        Text(song.credit).font(.subheadline).foregroundStyle(AifectDesign.secondaryText)
+                        if !song.genreLabel.isEmpty { Text(song.genreLabel).font(.caption).foregroundStyle(Brand.aqua) }
+                    }.frame(maxWidth: .infinity)
+                    SongPlaybackControls(song: song, player: model.player)
+                    HStack(spacing: 0) {
+                        Button { Task { busy = true; await model.toggleLike(song); busy = false } } label: {
+                            SongQuickActionLabel(title: "좋아요", icon: model.likes.contains(where: { $0.id == song.id }) ? "heart.fill" : "heart", accent: Brand.pink)
+                        }.disabled(busy).accessibilityIdentifier("song-action-like")
+                        SaveMusicButton(song: song, verticalAction: true)
+                        SingSongButton(song: song, verticalAction: true)
+                        GiftSheetButton(song: song) { SongQuickActionLabel(title: "선물", icon: "gift") }
+                        Button { if model.requireLogin() { sharingWork = true } } label: {
+                            SongQuickActionLabel(title: "공유", icon: "square.and.arrow.up")
                         }
-                    }
-                    SingSongButton(song: song)
-                    if model.user != nil { GiftSheetButton(song: song) { Label("선물 보내기", systemImage: "gift") } }
+                    }.buttonStyle(.plain).accessibilityElement(children: .contain).accessibilityIdentifier("song-quick-actions")
+                    Divider()
+                    Text("\(song.plays ?? 0)회 감상 · 댓글 \(song.comments)")
+                        .font(.system(size: 11)).foregroundStyle(AifectDesign.secondaryText).frame(maxWidth: .infinity)
+                    Text("곡 이야기").font(.headline).padding(.top, 8)
                     if let id = song.producerID { NavigationLink("창작자 프로필") { ProfilePage(id: id) } }
                     if let id = song.artistID { NavigationLink("아티스트 프로필") { ProfilePage(id: id, kind: "artist") } }
                     Divider()
@@ -304,7 +509,9 @@ struct TrackDetailView: View {
                 }.padding(20)
             }.background(Brand.background).navigationTitle("곡 상세").navigationBarTitleDisplayMode(.inline)
                 .toolbar { Button("완료") { dismiss() } }
+                .sheet(isPresented: $sharingWork) { WorkMessageShareView(id: song.id, title: song.title, kind: "original") }
                 .task { await loadComments(); await model.loadLibrary() }
+            }
         }
     }
     private func loadComments() async {
@@ -312,6 +519,134 @@ struct TrackDetailView: View {
         do { comments = try await API.shared.call("/api/tracks/\(Endpoint.pathID(song.id))/comments").objects("comments") } catch { self.error = error.localizedDescription }
     }
 }
+
+private struct CoverWorkPage: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let song: Song
+    @State private var refreshed: Song?
+    @State private var composing = false
+    @State private var sharing = false
+    @State private var error: String?
+    @State private var joining = false
+    @State private var studio: WorkJoinSession?
+    @State private var supporters: [[String: Any]] = []
+
+    private struct WorkJoinSession: Identifiable {
+        let id = UUID()
+        let studio: RecordingStudio
+    }
+    var body: some View {
+        let work = refreshed ?? song
+        ScrollViewReader { scroll in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    CoverWorkPlayback(song: work, player: model.player)
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        CoverPickTitle(song: work).font(.title2.bold()).lineLimit(3)
+                        Text(work.coverMode == "duet" ? "듀엣" : "커버").font(.caption.weight(.semibold)).foregroundStyle(Brand.pink)
+                    }
+                    if let id = work.producerID {
+                        NavigationLink { ProfilePage(id: id) } label: {
+                            HStack(spacing: 8) {
+                                RemoteArtwork(url: work.producerImageVersion.flatMap { try? Endpoint.url("/media/producer/" + Endpoint.pathID(id) + "?v=" + Endpoint.query($0)) }, maxPixelSize: 96) {
+                                    $0.resizable().scaledToFill()
+                                } placeholder: { Image(systemName: "person.crop.circle.fill") }
+                                .frame(width: 26, height: 26).clipShape(Circle())
+                                Text(work.credit).foregroundStyle(AifectDesign.secondaryText)
+                            }
+                        }
+                    } else { Text(work.credit).foregroundStyle(AifectDesign.secondaryText) }
+                    if let original = work.originalID { NavigationLink("원곡 듣기") { OriginalSongPage(id: original) } }
+                    if let note = work.descriptionText, !note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { Text(note).foregroundStyle(AifectDesign.secondaryText) }
+                    if work.duetJoinable ?? (work.duetOpen == true && work.ownerID != model.userID) {
+                        Button { Task { await join(work) } } label: {
+                            Text("참여하기").frame(maxWidth: .infinity, minHeight: 44)
+                        }.buttonStyle(.borderedProminent).tint(Color(aifectHex: 0x5B438D)).foregroundStyle(.white).disabled(joining)
+                    }
+                    HStack(spacing: 3) {
+                        Button { Task { await model.toggleLike(work) } } label: {
+                            SongQuickActionLabel(title: "좋아요", icon: model.likes.contains { $0.id == work.id } ? "heart.fill" : "heart")
+                        }
+                        Button { composing.toggle(); if composing { scroll.scrollTo("cover-comments", anchor: .top) } } label: {
+                            SongQuickActionLabel(title: "댓글", icon: "bubble.left")
+                        }
+                        SaveMusicButton(song: work, verticalAction: true, workKind: "cover")
+                        if (work.giftBlockReason ?? "").isEmpty && (model.userID == nil || model.userID != work.ownerID) {
+                            GiftSheetButton(song: work) { SongQuickActionLabel(title: "선물", icon: "gift") }
+                        }
+                        Button { if model.requireLogin() { sharing = true } } label: { SongQuickActionLabel(title: "공유", icon: "square.and.arrow.up") }
+                    }.buttonStyle(.plain).environment(\.workListeningActions, true)
+                    if let error { Text(error).font(.caption).foregroundStyle(.red) }
+                    Divider()
+                    TrackCommentsView(song: work, composerVisible: composing, composerAbove: true).id("cover-comments")
+                    Divider()
+                    Text("응원 순위").font(.headline)
+                    if supporters.isEmpty { Text("아직 받은 응원이 없습니다.").font(.caption).foregroundStyle(.secondary) }
+                    ForEach(Array(supporters.enumerated()), id: \.offset) { index, supporter in
+                        HStack {
+                            Text("\(index + 1)").foregroundStyle(Brand.pink)
+                            Text(supporter.string("name"))
+                            Spacer()
+                            Text("\(supporter.int("score"))점").foregroundStyle(.secondary)
+                        }.font(.subheadline)
+                    }
+                    NavigationLink("선물로 마음 전하기") { GiftWalletView() }
+                    NavigationLink("무료 실버 받기") { RewardsView() }
+                }.padding(16)
+            }
+        }
+        .navigationTitle("작품 감상").navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if work.canManageCoverPick == true && model.userID != nil {
+                NavigationLink { SongMenuView(song: work).streamingPage() } label: {
+                    Image(systemName: "ellipsis").accessibilityLabel("곡 옵션")
+                }
+            }
+            Button("닫기") { dismiss() }
+        }
+        .background(Brand.background)
+        .sheet(isPresented: $sharing) { WorkMessageShareView(id: work.id, title: work.title, kind: "cover") }
+        .fullScreenCover(item: $studio) { session in StudioView(studio: session.studio) }
+        .task(id: (model.userID ?? "guest") + ":" + work.id) {
+            do {
+                let path = "/api/tracks/" + Endpoint.pathID(work.id)
+                refreshed = Song(try await API.shared.call(path).object("track"))
+                supporters = try await API.shared.call(path + "/gifts").objects("support_ranking")
+            } catch is CancellationError { }
+            catch { self.error = error.localizedDescription }
+        }
+    }
+    private func join(_ work: Song) async {
+        guard model.requireLogin(), let owner = model.userID, !joining else { return }
+        joining = true; error = nil
+        defer { joining = false }
+        do {
+            let result = try await API.shared.call("/api/duets/" + Endpoint.pathID(work.id))
+            guard model.userID == owner, result.object("duet").string("parent_id") == work.id else { return }
+            let track = Song(result.object("track"))
+            model.player.pause()
+            studio = WorkJoinSession(studio: RecordingStudio(song: track, owner: owner, duetParentID: work.id))
+        } catch { self.error = error.localizedDescription }
+    }
+}
+
+struct CoverWorkPlayback: View {
+    let song: Song
+    @ObservedObject var player: MusicPlayer
+    var template: String? = nil
+    var photo: UIImage? = nil
+    var playable = true
+    var body: some View {
+        let current = player.current?.id == song.id
+        WorkListeningStage(template: template ?? song.listeningTemplate, photo: photo, path: song.listeningArtworkPath,
+            position: current ? player.position : 0, duration: current && player.duration > 0 ? player.duration : song.duration,
+            playing: current && player.playing, caption: current ? player.workCaption : "",
+            play: playable ? { if current { player.toggle() } else { player.play(song, queue: [song]) } } : nil,
+            seek: playable ? { target in if current { player.seek(target) } else { player.play(song, queue: [song], startAt: target) } } : nil)
+    }
+}
+
 
 func accountIdentity(_ user: [String: Any]) -> String {
     let email = user.string("email")

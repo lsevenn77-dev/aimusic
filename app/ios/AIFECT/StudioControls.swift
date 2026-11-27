@@ -3,6 +3,7 @@ import SwiftUI
 struct StudioVocalControls: View {
     @ObservedObject var studio: RecordingStudio
     let recording: Bool
+    @Binding var expanded: Bool
     @State private var details = false
     private let presets = [("original", "원음", "minus"), ("karaoke", "노래방", "mic"), ("studio", "스튜디오", "slider.horizontal.3"), ("hall", "홀", "building.columns"), ("rap", "랩", "waveform"), ("custom", "사용자 설정", "slider.horizontal.3")]
     private var description: String {
@@ -16,23 +17,23 @@ struct StudioVocalControls: View {
         }
     }
     var body: some View {
+        DisclosureGroup(isExpanded: $expanded) {
         VStack(alignment: .leading, spacing: 16) {
-            Text(recording ? "목소리 효과" : "3. 리버브 효과").font(.title3.bold())
             if recording { Text("모니터링을 켜면 설정한 효과를 바로 들을 수 있어요.").font(.caption).foregroundStyle(.secondary) }
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
                 ForEach(presets, id: \.0) { item in
                     let selected = studio.effects.preset == item.0
                     Button {
                         if item.0 == "custom" { studio.effects.preset = "custom"; details = true }
                         else { studio.selectPreset(item.0) }
                     } label: {
-                        VStack(spacing: 14) {
-                            Image(systemName: item.2).font(.system(size: 29, weight: .light))
-                            Text(item.1).font(.system(size: 17, weight: selected ? .bold : .regular))
-                        }.frame(maxWidth: .infinity, minHeight: 115)
+                        VStack(spacing: 8) {
+                            Image(systemName: item.2).font(.system(size: 22, weight: .light))
+                            Text(item.1).font(.system(size: 12, weight: selected ? .bold : .regular)).lineLimit(2)
+                        }.frame(maxWidth: .infinity, minHeight: 74).contentShape(Rectangle())
                             .foregroundStyle(selected ? Brand.pink : Color(aifectHex: 0xC9ADBF))
-                            .background(selected ? Brand.pink.opacity(0.16) : Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 20))
-                            .overlay(RoundedRectangle(cornerRadius: 20).stroke(selected ? Brand.pink : Color.white.opacity(0.16), lineWidth: selected ? 2 : 1))
+                            .background(selected ? Brand.pink.opacity(0.16) : Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 12))
+                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(selected ? Brand.pink : Color.white.opacity(0.16), lineWidth: selected ? 2 : 1))
                     }.buttonStyle(.plain).accessibilityIdentifier("vocal-preset-\(item.0)").accessibilityAddTraits(selected ? .isSelected : [])
                 }
             }
@@ -41,7 +42,7 @@ struct StudioVocalControls: View {
                 HStack { Text("효과 강도"); Spacer(); Text("\(Int((studio.effects.strength ?? 0.5) * 100))%").foregroundStyle(.secondary).monospacedDigit() }
                 Slider(value: Binding(get: { studio.effects.strength ?? 0.5 }, set: { studio.setPresetStrength($0) }), in: 0...1, step: 0.01).accessibilityLabel("효과 강도").disabled(studio.effects.preset == "original")
             }
-            DisclosureGroup("잡음 · 세부 설정", isExpanded: $details) {
+            DisclosureGroup(studio.effects.preset == "custom" ? "사용자 설정 직접 조절" : "잡음 · 세부 설정", isExpanded: $details) {
                 VStack(alignment: .leading, spacing: 16) {
                     Text(studio.effects.noise == 0 ? "잡음 제거 · 끔" : "잡음 제거 · \(studio.effects.noise)단계").font(.headline)
                     Picker("잡음 감소", selection: $studio.effects.noise) {
@@ -60,20 +61,27 @@ struct StudioVocalControls: View {
                     Slider(value: Binding(get: { studio.effects.size }, set: { studio.effects.preset = "custom"; studio.effects.size = $0 }), in: 0...1).accessibilityLabel("룸 크기")
                 }.padding(.top, 16)
             }.font(.subheadline.bold())
+        }.padding(.top, 12)
+        } label: {
+            Text(recording ? "목소리 효과" : "3. 리버브 효과").font(.headline)
         }.tint(Brand.pink)
+            .onAppear { details = studio.effects.preset == "custom" }
+            .onChange(of: studio.effects.preset) { _, preset in details = preset == "custom" }
     }
 }
 
 struct StudioVolumeBalance: View {
     @ObservedObject var studio: RecordingStudio
+    @State private var expanded = true
     var body: some View {
+        DisclosureGroup("2. 볼륨 밸런스 확인", isExpanded: $expanded) {
         VStack(alignment: .leading, spacing: 14) {
-            Text("2. 볼륨 밸런스 확인").font(.title3.bold())
             HStack { Label("내 목소리", systemImage: "mic"); Spacer(); Text("\(Int(studio.voiceVolume * 100))%").foregroundStyle(.secondary).monospacedDigit() }
             Slider(value: $studio.voiceVolume, in: 0...1.5).accessibilityLabel("목소리 음량")
             HStack { Label("반주", systemImage: "music.note"); Spacer(); Text("\(Int(studio.backingVolume * 100))%").foregroundStyle(.secondary).monospacedDigit() }
             Slider(value: $studio.backingVolume, in: 0...1).accessibilityLabel("반주 음량")
-        }.tint(Brand.pink)
+        }.padding(.top, 12)
+        }.font(.subheadline).tint(Brand.pink)
     }
 }
 

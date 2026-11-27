@@ -28,3 +28,15 @@ enum PlayerAvatarStyle {
     static func showsLevel(kind: String, size: CGFloat, enabled: Bool) -> Bool { enabled && kind == "producer" && size >= 80 }
     static func level(_ xp: Int) -> Int { min(100, max(1, Int((1 + sqrt(1 + Double(max(0, xp)) / 12.5)) / 2))) }
 }
+
+struct CatalogBackdrop: View {
+    var body: some View {
+        GeometryReader { geo in
+            let width = max(1, geo.size.width)
+            Brand.background
+                .overlay(RadialGradient(colors: [Color(aifectHex: 0x7460C2).opacity(0.29), .clear], center: UnitPoint(x: 0.16, y: 0.09), startRadius: 0, endRadius: width * 0.60))
+                .overlay(RadialGradient(colors: [Color(aifectHex: 0x44CED8).opacity(0.20), .clear], center: UnitPoint(x: 0.68, y: 0.13), startRadius: 0, endRadius: width * 0.47))
+                .overlay(RadialGradient(colors: [Color(aifectHex: 0x69529F).opacity(0.23), .clear], center: UnitPoint(x: 0.87, y: 0.75), startRadius: 0, endRadius: width * 0.75))
+        }.allowsHitTesting(false).accessibilityHidden(true)
+    }
+}

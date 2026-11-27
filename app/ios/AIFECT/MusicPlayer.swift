@@ -2,8 +2,28 @@ import AVFoundation
 import MediaPlayer
 import Combine
 
+enum PlaybackRepeat {
+    case off, all, one
+
+    func nextMode(inFullPlayer: Bool) -> Self {
+        switch self {
+        case .off: return .all
+        case .all: return inFullPlayer ? .one : .off
+        case .one: return .off
+        }
+    }
+
+    func nextIndex(current: Int, count: Int, automatic: Bool) -> Int? {
+        guard (0..<count).contains(current) else { return nil }
+        if self == .one && automatic { return current }
+        if current + 1 < count { return current + 1 }
+        return self == .all ? 0 : nil
+    }
+}
+
 @MainActor
 final class MusicPlayer: ObservableObject {
+    @Published var dubbingProject: [String: Any]?
     @Published var current: Song?
     @Published var playing = false
     @Published var loading = false
@@ -11,9 +31,15 @@ final class MusicPlayer: ObservableObject {
     @Published var duration = 0.0
     @Published var preview = false
     @Published var lyric = ""
+    @Published private(set) var followingLyric = ""
+    @Published var miniLyricsOpen = false
     @Published var error: String?
-    @Published var repeatOne = false
-    @Published var shuffled = false
+    @Published var repeatMode: PlaybackRepeat = .off
+    @Published var shuffled = false {
+        didSet { if oldValue != shuffled { updateShuffleOrder() } }
+    }
+    private var shuffleOrder: [Song] = []
+    private var pendingAutoplay = false
     let player = AVPlayer()
     @Published private(set) var queue: [Song] = []
     private var observation: NSKeyValueObservation?
@@ -22,9 +48,14 @@ final class MusicPlayer: ObservableObject {
     private var notifications: [NSObjectProtocol] = []
     private var loadTask: Task<Void, Never>?
     private var listenID = ""
+    private var dubbingPlayRequest: String?
     private var heard = 0.0
     private var lastReport = 0.0
     private var nextLyric = 0.0
+    private var lyricSeekRevision = 0
+    private var lyricStart = Double.infinity
+    private var lyricEnd = -Double.infinity
+    var workCaption: String { position >= lyricStart && position < lyricEnd ? lyric : "" }
     private var lyricBusy = false
     private var revision = 0
     init() {
@@ -37,7 +68,7 @@ final class MusicPlayer: ObservableObject {
         notifications.append(NotificationCenter.default.addObserver(forName: .AVPlayerItemDidPlayToEndTime, object: nil, queue: .main) { [weak self] note in
             Task { @MainActor in
                 guard let self, note.object as? AVPlayerItem === self.player.currentItem else { return }
-                if self.repeatOne, let song = self.current { self.play(song, queue: self.queue) } else { self.next() }
+                self.advance(automatic: true)
             }
         })
         notifications.append(NotificationCenter.default.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: .main) { [weak self] _ in
@@ -58,12 +89,19 @@ final class MusicPlayer: ObservableObject {
             Task { @MainActor in self?.seek(event.positionTime) }; return .success
         }
     }
-    func play(_ song: Song, queue songs: [Song]) {
-        ListeningAds.shared.trackFinished(heard: heard, duration: duration, preview: preview)
+    func play(_ song: Song, queue songs: [Song], startAt: Double = 0) {
+        if dubbingProject == nil { ListeningAds.shared.trackFinished(heard: heard, duration: duration, preview: preview) }
+        dubbingProject = nil
         loadTask?.cancel(); player.pause(); revision += 1
         let version = revision
-        queue = songs.isEmpty ? [song] : songs
-        current = song; loading = true; error = nil; lyric = ""; position = 0; duration = 0
+        let newQueue = songs.isEmpty ? [song] : songs
+        let changed = newQueue != queue
+        queue = newQueue
+        current = song
+        if shuffled && (changed || shuffleOrder.isEmpty) { updateShuffleOrder() }
+        pendingAutoplay = true
+        loading = true; error = nil; lyric = ""; position = 0; duration = 0
+        followingLyric = ""
         listenID = ""; heard = 0; lastReport = 0; nextLyric = 0
         player.replaceCurrentItem(with: nil)
         loadTask = Task {
@@ -79,7 +117,8 @@ final class MusicPlayer: ObservableObject {
                 try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
                 try AVAudioSession.sharedInstance().setActive(true)
                 preview = result["preview"] as? Bool ?? true
-                duration = min(result.number("duration"), preview ? 60 : .greatestFiniteMagnitude)
+                let storedDuration = result.number("duration")
+                duration = min(storedDuration > 0 ? storedDuration : song.duration, preview ? 60 : .greatestFiniteMagnitude)
                 listenID = result.string("id")
                 let asset = AVURLAsset(url: url, options: [AVURLAssetHTTPCookiesKey: API.shared.mediaCookies()])
                 let item = AVPlayerItem(asset: asset)
@@ -89,42 +128,95 @@ final class MusicPlayer: ObservableObject {
                         if item.status == .failed { self.error = "음원을 재생하지 못했습니다. 다시 시도해주세요."; self.loading = false }
                     }
                 }
-                player.replaceCurrentItem(with: item); player.play(); nowPlaying()
+                player.replaceCurrentItem(with: item)
+                if startAt > 0 { seek(startAt) }
+                if pendingAutoplay { player.play() }
+                nowPlaying()
             } catch is CancellationError {} catch { if revision == version { self.error = error.localizedDescription } }
         }
     }
-    func pause() { player.pause() }
+    func playDubbing(_ project: [String: Any]) {
+        guard SiteWorkspace.validKey(project.selfID), project.object("recording").object("final").string("state") == "ready" else { return }
+        if dubbingProject?.selfID == project.selfID && error == nil { toggle(); return }
+        close(); dubbingProject = project; dubbingPlayRequest = UUID().uuidString.lowercased()
+        var song = Song(["id": "dubbing-" + project.selfID, "title": project.string("title"), "producer": project.string("ownerName"), "duration": project.number("duration")])
+        song.artworkPath = DubbingCover.posterURL(project).map { $0.path + ($0.query.map { "?" + $0 } ?? "") }
+        current = song; duration = project.number("duration"); position = 0; preview = false; loading = true; error = nil
+        let version = revision
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback); try AVAudioSession.sharedInstance().setActive(true)
+            let url = try Endpoint.url("/api/dubbing/projects/" + Endpoint.pathID(project.selfID) + "/final")
+            let item = AVPlayerItem(asset: AVURLAsset(url: url, options: [AVURLAssetHTTPCookiesKey: API.shared.mediaCookies()]))
+            statusObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
+                Task { @MainActor in
+                    guard let self, self.revision == version else { return }
+                    if item.status == .failed { self.error = "완성작을 재생하지 못했어요."; self.loading = false }
+                    if item.status == .readyToPlay { if item.duration.seconds.isFinite { self.duration = item.duration.seconds }; self.loading = false }
+                }
+            }
+            player.replaceCurrentItem(with: item); pendingAutoplay = true; player.play(); nowPlaying()
+        } catch { self.error = error.localizedDescription; loading = false }
+    }
+    func cyclePlaybackMode() {
+        if shuffled { shuffled = false; repeatMode = .off }
+        else if repeatMode == .off { repeatMode = .all }
+        else if repeatMode == .all { repeatMode = .one }
+        else { repeatMode = .off; shuffled = true }
+    }
+    var playbackModeLabel: String { shuffled ? "셔플" : repeatMode == .one ? "한 곡 반복" : repeatMode == .all ? "전체 반복" : "순서대로" }
+    var playbackModeIcon: String { shuffled ? "shuffle" : repeatMode == .one ? "repeat.1" : repeatMode == .all ? "repeat" : "arrow.right" }
+    func pause() { pendingAutoplay = false; player.pause() }
     func resume() {
+        if let project = dubbingProject, error != nil { playDubbing(project); return }
+        pendingAutoplay = true
+        if dubbingProject != nil && position >= duration - 0.1 { seek(0) }
         guard current != nil, player.currentItem != nil else { return }
         do { try AVAudioSession.sharedInstance().setCategory(.playback); try AVAudioSession.sharedInstance().setActive(true); player.play() }
         catch { self.error = error.localizedDescription }
     }
     func toggle() { playing ? pause() : resume() }
     func seek(_ value: Double) {
+        lyricSeekRevision += 1
         nextLyric = 0
+        lyricEnd = -.infinity
+        followingLyric = ""
         player.seek(to: CMTime(seconds: min(max(value, 0), duration), preferredTimescale: 600))
         nowPlaying()
     }
-    func next() {
-        guard let current, let index = queue.firstIndex(where: { $0.id == current.id }) else { return }
-        let candidate = shuffled ? queue.filter { $0.id != current.id }.randomElement() : (index + 1 < queue.count ? queue[index + 1] : nil)
-        if let candidate { play(candidate, queue: queue) } else {
+    private var playbackOrder: [Song] { shuffled ? shuffleOrder : queue }
+    private func updateShuffleOrder() {
+        guard shuffled, let current else { shuffleOrder = []; return }
+        shuffleOrder = [current] + queue.filter { $0.id != current.id }.shuffled()
+    }
+    private func advance(automatic: Bool) {
+        if dubbingProject != nil { pause(); return }
+        let order = playbackOrder
+        guard let current, let index = order.firstIndex(where: { $0.id == current.id }) else { return }
+        if let next = repeatMode.nextIndex(current: index, count: order.count, automatic: automatic) {
+            play(order[next], queue: queue)
+        } else if automatic {
             pause(); ListeningAds.shared.trackFinished(heard: heard, duration: duration, preview: preview); heard = 0
             Task { await ListeningAds.shared.breakIfNeeded() }
         }
     }
+    func next() { advance(automatic: false) }
     func previous() {
-        guard position < 3, let current, let index = queue.firstIndex(where: { $0.id == current.id }), index > 0 else { seek(0); return }
-        play(queue[index - 1], queue: queue)
+        let order = playbackOrder
+        guard position < 3, let current, let index = order.firstIndex(where: { $0.id == current.id }) else { seek(0); return }
+        if index > 0 { play(order[index - 1], queue: queue) }
+        else if repeatMode == .all, let last = order.last { play(last, queue: queue) }
+        else { seek(0) }
     }
     func removeQueue(at offsets: IndexSet) {
         queue.remove(atOffsets: offsets)
+        shuffleOrder.removeAll { item in !queue.contains(where: { $0.id == item.id }) }
         if let current, !queue.contains(where: { $0.id == current.id }) { if let next = queue.first { play(next, queue: queue) } else { close() } }
     }
     func moveQueue(from offsets: IndexSet, to destination: Int) { queue.move(fromOffsets: offsets, toOffset: destination) }
     func close() {
         revision += 1; loadTask?.cancel(); player.pause(); player.replaceCurrentItem(with: nil)
-        current = nil; lyric = ""; queue = []; listenID = ""; playing = false; loading = false
+        miniLyricsOpen = false; followingLyric = ""
+        current = nil; dubbingProject = nil; dubbingPlayRequest = nil; lyric = ""; queue = []; shuffleOrder = []; pendingAutoplay = false; listenID = ""; playing = false; loading = false
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
     private func tick(_ value: Double) {
@@ -132,19 +224,27 @@ final class MusicPlayer: ObservableObject {
         position = min(max(0, value), max(duration, 0))
         if preview && value >= 60 { pause() }
         if playing {
+            if let project = dubbingProject, let requestID = dubbingPlayRequest {
+                dubbingPlayRequest = nil
+                Task { _ = try? await API.shared.call("/api/dubbing/projects/" + Endpoint.pathID(project.selfID) + "/plays", method: "POST", body: ["requestId": requestID]) }
+            }
             heard += 0.5
             if heard - lastReport >= 15, !listenID.isEmpty {
                 lastReport = heard; let id = listenID; let seconds = min(heard, duration)
                 Task { _ = try? await API.shared.call("/api/listens/\(Endpoint.pathID(id))", method: "PATCH", body: ["seconds": seconds]) }
             }
         }
-        if !lyricBusy, value >= nextLyric, value < duration {
-            lyricBusy = true; nextLyric = value + 4; let version = revision
+        if dubbingProject == nil, !lyricBusy, value >= nextLyric, value < duration {
+            lyricBusy = true; nextLyric = value + 4; let version = revision, seekVersion = lyricSeekRevision
             Task {
                 defer { lyricBusy = false }
-                guard let result = try? await API.shared.call("/api/tracks/\(Endpoint.pathID(current.id))/lyrics/line?at=\(min(value, current.duration))"), revision == version else { return }
+                guard let result = try? await API.shared.call("/api/tracks/\(Endpoint.pathID(current.id))/lyrics/line?at=\(min(value, current.duration))"),
+                      revision == version, lyricSeekRevision == seekVersion else { return }
                 let line = result["line"] as? [String: Any]
                 lyric = line?.string("text") ?? ""
+                followingLyric = result.objects("lines").first { $0.number("time") > value }?.string("text") ?? ""
+                lyricStart = line?.number("from") ?? .infinity
+                lyricEnd = line?.number("until") ?? -.infinity
                 nextLyric = max(value + 1, line?.number("until") ?? value + 4)
             }
         }

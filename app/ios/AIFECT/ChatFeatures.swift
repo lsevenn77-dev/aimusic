@@ -252,9 +252,12 @@ private struct ChatRoomView: View {
     @StateObject private var room: ChatRoom
     let title: String
     @State private var photo: PhotosPickerItem?
+    @State private var stickerPicker = false
+    @State private var stickerInsertion: String?
     @State private var clearConfirmation = false
     @State private var blocking: String?
     @FocusState private var composing: Bool
+    @State private var stickerFocused = false
     @State private var chatToken = UUID()
     @State private var scrollPolicy = ChatScrollPolicy()
     @State private var userScrolling = false
@@ -263,6 +266,7 @@ private struct ChatRoomView: View {
         self.title = title; _room = StateObject(wrappedValue: ChatRoom(owner: owner, path: path, crew: crew))
     }
     private var displayTitle: String { room.crew ? title : room.peer.displayName(fallback: title) }
+    private var peerID: String { String(room.path.split(separator: "/").last ?? "") }
     var body: some View {
         ScrollViewReader { proxy in
           GeometryReader { viewport in
@@ -281,7 +285,7 @@ private struct ChatRoomView: View {
                     }
                     if let pending = room.pending, !room.messages.contains(where: { $0.string("request_id") == pending.requestID }) {
                         VStack(alignment: .trailing, spacing: 3) {
-                            Text(pending.body).padding(12).background(Brand.aqua.opacity(0.22), in: RoundedRectangle(cornerRadius: 18))
+                            ChatStickerText(bodyText: pending.body).padding(12).background(Brand.aqua.opacity(0.22), in: RoundedRectangle(cornerRadius: 18))
                             HStack(spacing: 6) {
                                 if room.busy { ProgressView().controlSize(.mini); Text("전송 중") }
                                 else { Button("전송되지 않음 · 다시 보내기") { Task { await room.send() } } }
@@ -314,28 +318,41 @@ private struct ChatRoomView: View {
                 .onChange(of: room.pending?.requestID) { _, value in if value != nil { scrollPolicy.sentMessage(); userScrolling = false; proxy.scrollTo("bottom", anchor: .bottom) } }
                 .onChange(of: composing) { _, focused in if focused && scrollPolicy.followsLatest { userScrolling = false; proxy.scrollTo("bottom", anchor: .bottom) } }
                 .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardDidChangeFrameNotification)) { _ in
-                    if composing && scrollPolicy.followsLatest { proxy.scrollTo("bottom", anchor: .bottom) }
+                    if (composing || stickerFocused) && scrollPolicy.followsLatest { proxy.scrollTo("bottom", anchor: .bottom) }
                 }
-                .onChange(of: room.text) { _, _ in if composing && scrollPolicy.followsLatest { proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onChange(of: stickerFocused) { _, focused in if focused && scrollPolicy.followsLatest { userScrolling = false; proxy.scrollTo("bottom", anchor: .bottom) } }
+                .onChange(of: room.text) { _, _ in if (composing || stickerFocused) && scrollPolicy.followsLatest { proxy.scrollTo("bottom", anchor: .bottom) } }
           }
         }.background(Brand.background)
         .safeAreaInset(edge: .bottom, spacing: 0) { composer }
         .onAppear { model.visibleChats.insert(chatToken) }
         .onDisappear { model.visibleChats.remove(chatToken) }
         .navigationTitle(displayTitle).navigationBarTitleDisplayMode(.inline)
-        .toolbar { ToolbarItemGroup(placement: .topBarTrailing) {
+        .toolbar {
             if !room.crew {
-                Button { clearConfirmation = true } label: {
-                    Image(systemName: "trash").frame(width: 44, height: 44)
-                }.disabled(room.busy).accessibilityLabel("이 대화방 내용 전체 삭제")
-            }
-            Menu {
-                Button(room.muted ? "대화 알림 켜기" : "대화 알림 끄기", systemImage: room.muted ? "bell" : "bell.slash") { Task { await room.toggleMute(); await model.refreshInbox() } }
-                if !room.crew {
-                    NavigationLink { GiftWalletView(person: GiftRecipient(id: String(room.path.split(separator: "/").last ?? ""), name: displayTitle)) } label: { Label("개인 선물 보내기", systemImage: "gift") }
+                ToolbarItem(placement: .principal) {
+                    NavigationLink { ProfilePage(id: peerID).streamingPage() } label: {
+                        HStack(spacing: 8) {
+                            ProfilePhoto(person: room.peer.merging(["id": peerID, "name": displayTitle]) { _, value in value }, size: 32, showsLevel: false)
+                            Text(displayTitle).font(.system(size: 17, weight: .semibold)).lineLimit(1)
+                        }
+                    }.buttonStyle(.plain).accessibilityLabel(displayTitle + " 프로필")
                 }
-            } label: { Image(systemName: room.muted ? "bell.slash" : "ellipsis.circle") }.disabled(room.busy).accessibilityLabel("대화 설정")
-        } }
+            }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if !room.crew {
+                    Button(model.followedProducers.contains(peerID) ? "팔로잉" : "팔로우") { Task { await model.toggleFollow(peerID) } }.font(.system(size: 12)).accessibilityIdentifier("dm-peer-follow")
+                }
+                Menu {
+                    Button(room.muted ? "대화 알림 켜기" : "대화 알림 끄기", systemImage: room.muted ? "bell" : "bell.slash") { Task { await room.toggleMute(); await model.refreshInbox() } }
+                    if !room.crew {
+                        NavigationLink { GiftWalletView(person: GiftRecipient(id: peerID, name: displayTitle)) } label: { Label("개인 선물 보내기", systemImage: "gift") }
+                        Button("이 대화방 내용 전체 삭제", systemImage: "trash", role: .destructive) { clearConfirmation = true }
+                        if !room.peer.string("user_id").isEmpty { Button("이 이용자 차단", role: .destructive) { blocking = room.peer.string("user_id") } }
+                    }
+                } label: { Image(systemName: room.muted ? "bell.slash" : "ellipsis.circle") }.disabled(room.busy).accessibilityLabel("대화 설정")
+            }
+        }.task { if !room.crew { await model.loadFollows() } }
         .confirmationDialog("이 대화방의 내용을 전부 삭제할까요?", isPresented: $clearConfirmation, titleVisibility: .visible) {
             Button("내용 전체 삭제", role: .destructive) { Task { await room.clear(); await model.refreshInbox() } }
         } message: { Text("내 화면의 이전 메시지와 사진이 모두 사라집니다. 상대방의 기록과 다른 대화방은 유지되며, 새 메시지는 계속 받을 수 있어요.") }
@@ -361,22 +378,36 @@ private struct ChatRoomView: View {
         }
     }
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: 10) {
-            Group {
-                PhotosPicker(selection: $photo, matching: .images) { Image(systemName: "photo").frame(width: 36, height: 44) }
-                    .disabled(room.busy || room.pending != nil).accessibilityLabel("사진 보내기")
+        VStack(spacing: 6) {
+            if stickerPicker && !room.crew { ChatStickerPicker { token in stickerInsertion = token; stickerPicker = false } }
+            HStack(spacing: 10) {
+                PhotosPicker(selection: $photo, matching: .images) { Image(systemName: "photo").frame(width: 44, height: 40) }.disabled(room.busy || room.pending != nil).accessibilityLabel("사진 보내기")
+                if !room.crew {
+                    NavigationLink { GiftWalletView(person: GiftRecipient(id: String(room.path.split(separator: "/").last ?? ""), name: displayTitle)) } label: { Image(systemName: "gift").foregroundStyle(Brand.pink).frame(width: 44, height: 40) }.accessibilityLabel("선물 보내기")
+                }
+                Text("사진은 서버에 14일 동안 보관돼요.").font(.system(size: 11)).foregroundStyle(AifectDesign.muted).frame(maxWidth: .infinity, alignment: .leading)
             }
-            TextField("메시지 입력", text: $room.text, axis: .vertical).lineLimit(1...4)
-                .padding(.horizontal, 14).padding(.vertical, 12).background(Brand.card, in: RoundedRectangle(cornerRadius: 22))
-                .focused($composing).accessibilityIdentifier("chat-input")
-            Button {
-                Task { await room.send(); await model.refreshInbox() }
-            } label: {
-                Image(systemName: room.pending != nil && !room.busy ? "arrow.clockwise" : "arrow.up")
-                    .font(.headline).frame(width: 44, height: 44).foregroundStyle(.black).background(Brand.aqua, in: Circle())
-            }.disabled(room.busy || (room.pending == nil && room.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
-                .accessibilityLabel(room.pending != nil ? "메시지 다시 보내기" : "메시지 보내기").accessibilityIdentifier("chat-send")
-        }.padding(.horizontal, 12).padding(.vertical, 10).background(Brand.background).disabled(room.unavailable)
+            HStack(alignment: .bottom, spacing: 8) {
+                if !room.crew {
+                    Button { stickerPicker.toggle(); if stickerPicker { stickerFocused = false } } label: { Image(systemName: "face.smiling").frame(width: 44, height: 44) }.accessibilityLabel(stickerPicker ? "이모티콘 닫기" : "이모티콘").accessibilityIdentifier("chat-sticker-toggle")
+                    ChatStickerInput(text: $room.text, insertion: $stickerInsertion, focused: $stickerFocused) { sendMessage() }
+                        .overlay(alignment: .leading) { if room.text.isEmpty { Text("메시지 입력").font(.system(size: 15)).foregroundStyle(AifectDesign.muted).padding(.leading, 14).allowsHitTesting(false) } }
+                        .background(Brand.card, in: RoundedRectangle(cornerRadius: 18))
+                } else {
+                    TextField("메시지 입력", text: $room.text, axis: .vertical).lineLimit(1...4)
+                        .padding(12).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)).focused($composing).accessibilityIdentifier("chat-input")
+                }
+                Button { sendMessage() } label: {
+                    Text(room.pending != nil && !room.busy ? "재시도" : "보내기").font(.system(size: 13, weight: .semibold)).padding(.horizontal, 12).frame(minHeight: 48)
+                        .foregroundStyle(Brand.background).background(LinearGradient(colors: [Brand.pink, Brand.aqua], startPoint: .leading, endPoint: .trailing), in: RoundedRectangle(cornerRadius: 16))
+                }.disabled(room.busy || (room.pending == nil && (room.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || room.text.count > 2000)))
+                    .accessibilityLabel(room.pending != nil ? "메시지 다시 보내기" : "메시지 보내기").accessibilityIdentifier("chat-send")
+            }
+        }.padding(.horizontal, 14).padding(.vertical, 8).background(Brand.background).disabled(room.unavailable)
+    }
+    private func sendMessage() {
+        guard !room.busy, room.text.count <= 2000 else { return }
+        stickerPicker = false; Task { await room.send(); await model.refreshInbox() }
     }
     private func sender(_ item: [String: Any]) -> String { item.string(room.crew ? "user_id" : "sender_id") }
     @ViewBuilder private func messageRow(_ item: [String: Any], showName: Bool) -> some View {
@@ -398,7 +429,20 @@ private struct ChatRoomView: View {
                     if !mine && room.crew && showName { Text(item.displayName(fallback: displayTitle)).font(.caption2).foregroundStyle(.secondary).padding(.top, 8) }
                     Group {
                         if !item.string("image_id").isEmpty { PrivateChatPhoto(item: item, owner: room.owner, crew: room.crew) }
-                        else { Text(item.string("body")).textSelection(.enabled) }
+                        else if !room.crew && SiteWorkspace.validKey(item.object("shared_track").selfID) {
+                            let work = item.object("shared_track")
+                            if work.string("kind") == "dubbing",
+                               let destination = SiteWorkspace(area: "dubbing", key: work.selfID, title: work.string("title")) {
+                                NavigationLink { DubbingProjectPage(space: destination) } label: {
+                                    Label(work.string("title"), systemImage: "theatermasks")
+                                }.buttonStyle(.plain)
+                            } else {
+                                NavigationLink { OriginalSongPage(id: work.selfID) } label: {
+                                    Label(work.string("title"), systemImage: "music.note")
+                                }.buttonStyle(.plain)
+                            }
+                        }
+                        else { ChatStickerText(bodyText: item.string("body")) }
                     }.padding(.horizontal, 13).padding(.vertical, 9)
                         .background(mine ? Brand.aqua.opacity(0.22) : Brand.card, in: RoundedRectangle(cornerRadius: 17))
                 }
@@ -417,5 +461,258 @@ private struct ChatRoomView: View {
     private func chatPerson(_ item: [String: Any]) -> [String: Any] {
         if !room.crew { return room.peer }
         var person = item; person["id"] = item.string("profile_id"); return person
+    }
+}
+
+
+struct ChatSticker: Identifiable {
+    let key: String
+    let label: String
+    let group: String
+    let version: String
+    var id: String { key }
+    var token: String { "[aifect:" + key + "]" }
+    var path: String { "/assets/chat-stickers/\(version)/\(group)/\(key).webp" }
+    // Shared catalogue from Android's room_stickers.json; unknown tags stay literal.
+    static let all: [ChatSticker] = [
+        .init(key: "cat_basic_laugh", label: "웃음", group: "basic", version: "v1"),
+        .init(key: "cat_basic_excited", label: "신남", group: "basic", version: "v1"),
+        .init(key: "cat_basic_love", label: "사랑", group: "basic", version: "v1"),
+        .init(key: "cat_basic_lol", label: "폭소", group: "basic", version: "v1"),
+        .init(key: "cat_basic_heart", label: "하트", group: "basic", version: "v1"),
+        .init(key: "cat_basic_smile", label: "방긋", group: "basic", version: "v1"),
+        .init(key: "cat_basic_surprised", label: "놀람", group: "basic", version: "v1"),
+        .init(key: "cat_basic_cool", label: "멋짐", group: "basic", version: "v1"),
+        .init(key: "cat_basic_sleep", label: "잠자기", group: "basic", version: "v1"),
+        .init(key: "cat_basic_teary", label: "울먹", group: "basic", version: "v1"),
+        .init(key: "cat_basic_curious", label: "궁금", group: "basic", version: "v1"),
+        .init(key: "cat_basic_touched", label: "감동", group: "basic", version: "v1"),
+        .init(key: "cat_basic_cry", label: "눈물", group: "basic", version: "v1"),
+        .init(key: "cat_basic_angry", label: "화남", group: "basic", version: "v1"),
+        .init(key: "cat_basic_furious", label: "분노", group: "basic", version: "v1"),
+        .init(key: "cat_basic_amazed", label: "감탄", group: "basic", version: "v1"),
+        .init(key: "cat_basic_dizzy", label: "어지러움", group: "basic", version: "v1"),
+        .init(key: "cat_basic_gloomy", label: "시무룩", group: "basic", version: "v1"),
+        .init(key: "cat_basic_playful", label: "장난", group: "basic", version: "v1"),
+        .init(key: "cat_basic_grin", label: "활짝", group: "basic", version: "v1"),
+        .init(key: "cat_basic_wink", label: "윙크", group: "basic", version: "v1"),
+        .init(key: "cat_basic_joy", label: "기쁨", group: "basic", version: "v1"),
+        .init(key: "cat_basic_cheer", label: "응원", group: "basic", version: "v1"),
+        .init(key: "cat_basic_party", label: "축하", group: "basic", version: "v1"),
+        .init(key: "cat_basic_happy", label: "행복", group: "basic", version: "v1"),
+        .init(key: "cat_basic_hehe", label: "헤헷", group: "basic", version: "v1"),
+        .init(key: "cat_basic_shy", label: "부끄", group: "basic", version: "v1"),
+        .init(key: "cat_basic_clap", label: "박수", group: "basic", version: "v1"),
+        .init(key: "cat_basic_sing", label: "노래", group: "basic", version: "v1"),
+        .init(key: "cat_basic_hello", label: "안녕", group: "basic", version: "v1"),
+        .init(key: "cat_basic_thumbsup", label: "따봉", group: "basic", version: "v1"),
+        .init(key: "cat_basic_like", label: "좋아", group: "basic", version: "v1"),
+        .init(key: "cat_basic_thanks", label: "고마워", group: "basic", version: "v1"),
+        .init(key: "cat_hand_thumbsup", label: "따봉", group: "hand", version: "v1"),
+        .init(key: "cat_hand_ok", label: "오케이", group: "hand", version: "v1"),
+        .init(key: "cat_hand_clap", label: "박수", group: "hand", version: "v1"),
+        .init(key: "cat_hand_wave", label: "손인사", group: "hand", version: "v1"),
+        .init(key: "cat_hand_finger_heart", label: "하트", group: "hand", version: "v1"),
+        .init(key: "cat_hand_heart", label: "하트손", group: "hand", version: "v1"),
+        .init(key: "cat_hand_peace", label: "브이", group: "hand", version: "v1"),
+        .init(key: "cat_hand_fighting", label: "파이팅", group: "hand", version: "v1"),
+        .init(key: "cat_hand_thanks", label: "감사", group: "hand", version: "v1"),
+        .init(key: "cat_text_gamdong", label: "감동", group: "text", version: "v2"),
+        .init(key: "cat_text_meotjyeo", label: "멋져~", group: "text", version: "v2"),
+        .init(key: "cat_text_onepick", label: "원픽", group: "text", version: "v2"),
+        .init(key: "cat_text_best", label: "최고", group: "text", version: "v3"),
+        .init(key: "cat_text_gutsong", label: "굿송!", group: "text", version: "v2"),
+        .init(key: "cat_text_nice", label: "Nice", group: "text", version: "v2"),
+        .init(key: "cat_text_wow", label: "Wow!", group: "text", version: "v2"),
+        .init(key: "cat_text_wa", label: "와~!", group: "text", version: "v2"),
+        .init(key: "cat_prop_heart", label: "하트", group: "prop", version: "v1"),
+        .init(key: "cat_prop_blue_heart", label: "하트(블루)", group: "prop", version: "v1"),
+        .init(key: "cat_prop_star", label: "별", group: "prop", version: "v1"),
+        .init(key: "cat_prop_shooting_star", label: "유성", group: "prop", version: "v1"),
+        .init(key: "cat_prop_moon", label: "달", group: "prop", version: "v1"),
+        .init(key: "cat_prop_sun", label: "해", group: "prop", version: "v1"),
+        .init(key: "cat_prop_cloud", label: "구름", group: "prop", version: "v1"),
+        .init(key: "cat_prop_snowflake", label: "눈꽃", group: "prop", version: "v1"),
+        .init(key: "cat_prop_note", label: "음표", group: "prop", version: "v1"),
+        .init(key: "cat_prop_sparkle", label: "반짝", group: "prop", version: "v1"),
+        .init(key: "cat_prop_exclaim", label: "느낌표", group: "prop", version: "v1"),
+        .init(key: "cat_prop_confetti", label: "폭죽", group: "prop", version: "v1"),
+        .init(key: "cat_prop_cake", label: "케이크", group: "prop", version: "v1"),
+        .init(key: "cat_prop_gift", label: "선물", group: "prop", version: "v1"),
+        .init(key: "cat_prop_crown", label: "왕관", group: "prop", version: "v1"),
+    ]
+    static let pattern = try! NSRegularExpression(pattern: "\\[aifect:([a-z0-9_]+)\\]")
+    static func parts(_ body: String) -> [(String, ChatSticker?)] {
+        let source = body as NSString; var cursor = 0; var result: [(String, ChatSticker?)] = []
+        for match in pattern.matches(in: body, range: NSRange(location: 0, length: source.length)) {
+            if match.range.location > cursor { result.append((source.substring(with: NSRange(location: cursor, length: match.range.location - cursor)), nil)) }
+            let sticker = all.first { $0.key == source.substring(with: match.range(at: 1)) }
+            result.append((source.substring(with: match.range), sticker)); cursor = NSMaxRange(match.range)
+        }
+        if cursor < source.length { result.append((source.substring(from: cursor), nil)) }
+        return result
+    }
+    static func preview(_ body: String) -> String { parts(body).map { text, sticker in sticker.map { "[" + $0.label + "]" } ?? text }.joined() }
+}
+
+private struct ChatStickerPicker: View {
+    let insert: (String) -> Void
+    @State private var group = "basic"
+    var body: some View {
+        VStack(spacing: 6) {
+            HStack {
+                ForEach([("basic", "표정"), ("hand", "손짓"), ("text", "텍스트"), ("prop", "효과")], id: \.0) { item in
+                    Button(item.1) { group = item.0 }.foregroundStyle(group == item.0 ? Brand.aqua : AifectDesign.muted).frame(maxWidth: .infinity, minHeight: 44)
+                }
+            }
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 46), spacing: 0)], spacing: 0) {
+                    ForEach(ChatSticker.all.filter { $0.group == group }) { sticker in
+                        Button { insert(sticker.token) } label: {
+                            RemoteArtwork(url: try? Endpoint.url(sticker.path)) { $0.resizable().scaledToFit() } placeholder: { Text(sticker.label).font(.system(size: 10)) }.frame(width: 28, height: 28).frame(maxWidth: .infinity, minHeight: 46)
+                        }.buttonStyle(.plain).accessibilityLabel(sticker.label)
+                    }
+                }
+            }.frame(maxHeight: 190)
+        }.padding(6).background(Brand.card, in: RoundedRectangle(cornerRadius: 18)).accessibilityIdentifier("chat-sticker-picker")
+    }
+}
+
+struct ChatStickerText: View {
+    let bodyText: String
+    @State private var images: [String: UIImage] = [:]
+    var body: some View {
+        ChatSticker.parts(bodyText).reduce(Text("")) { output, part in
+            if let sticker = part.1 {
+                if let image = images[sticker.key] { return output + Text(Image(uiImage: image)).baselineOffset(-6) }
+                return output + Text("[" + sticker.label + "]")
+            }
+            return output + Text(part.0)
+        }.font(.system(size: 15)).textSelection(.enabled).accessibilityLabel(ChatSticker.preview(bodyText))
+            .task(id: bodyText) {
+                for (_, sticker) in ChatSticker.parts(bodyText) {
+                    guard let sticker, images[sticker.key] == nil else { continue }
+                    if let bytes = try? await API.shared.request(sticker.path), let source = ArtworkRepository.decode(bytes), !Task.isCancelled {
+                        images[sticker.key] = UIGraphicsImageRenderer(size: CGSize(width: 30, height: 30)).image { _ in source.draw(in: CGRect(x: 0, y: 0, width: 30, height: 30)) }
+                    }
+                }
+            }
+    }
+}
+
+private final class ChatStickerAttachment: NSTextAttachment {
+    var token = ""
+}
+
+private final class ChatStickerTextView: UITextView {
+    override func deleteBackward() {
+        let selection = selectedRange
+        let range = selection.length > 0 ? selection : NSRange(location: max(0, selection.location - 1), length: selection.location > 0 ? 1 : 0)
+        if range.length > 0, NSMaxRange(range) <= textStorage.length,
+           textStorage.attribute(.attachment, at: range.location, effectiveRange: nil) is ChatStickerAttachment {
+            textStorage.deleteCharacters(in: range)
+            selectedRange = NSRange(location: range.location, length: 0)
+            delegate?.textViewDidChange?(self)
+            return
+        }
+        super.deleteBackward()
+    }
+}
+
+private struct ChatStickerInput: UIViewRepresentable {
+    @Binding var text: String
+    @Binding var insertion: String?
+    @Binding var focused: Bool
+    let send: () -> Void
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    func makeUIView(context: Context) -> UITextView {
+        let view = ChatStickerTextView(); view.delegate = context.coordinator; view.backgroundColor = .clear
+        view.textColor = .white; view.font = .systemFont(ofSize: 15); view.returnKeyType = .send
+        view.textContainerInset = UIEdgeInsets(top: 12, left: 10, bottom: 12, right: 10)
+        view.isScrollEnabled = false; view.accessibilityIdentifier = "chat-input"; view.accessibilityLabel = "메시지 입력"
+        return view
+    }
+    func updateUIView(_ view: UITextView, context: Context) {
+        let coordinator = context.coordinator; coordinator.parent = self
+        if let token = insertion, !coordinator.inserting {
+            coordinator.inserting = true
+            let attachment = coordinator.attributed(token)
+            let next = NSMutableAttributedString(attributedString: view.attributedText)
+            let range = view.selectedRange; next.replaceCharacters(in: range, with: attachment)
+            if coordinator.raw(next).count <= 2000 {
+                view.attributedText = next; view.selectedRange = NSRange(location: range.location + attachment.length, length: 0)
+                let updated = coordinator.raw(next)
+                DispatchQueue.main.async { text = updated; insertion = nil; focused = true; coordinator.inserting = false }
+            } else { DispatchQueue.main.async { insertion = nil; coordinator.inserting = false } }
+        } else if !coordinator.inserting && coordinator.raw(view.attributedText) != text && view.markedTextRange == nil {
+            view.attributedText = coordinator.attributed(text)
+            view.selectedRange = NSRange(location: view.attributedText.length, length: 0)
+        }
+        view.typingAttributes = [.font: UIFont.systemFont(ofSize: 15), .foregroundColor: UIColor.white]
+        // A UIKit tap can begin editing before SwiftUI has propagated the
+        // delegate's binding update. Only apply explicit focus transitions.
+        if coordinator.requestedFocus != focused {
+            coordinator.requestedFocus = focused
+            if focused && !view.isFirstResponder { view.becomeFirstResponder() }
+            if !focused && view.isFirstResponder { view.resignFirstResponder() }
+        }
+        coordinator.loadImages(in: view)
+    }
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UITextView, context: Context) -> CGSize? {
+        let width = proposal.width ?? 200
+        let height = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude)).height
+        uiView.isScrollEnabled = height > 110
+        return CGSize(width: width, height: min(110, max(44, height)))
+    }
+    final class Coordinator: NSObject, UITextViewDelegate {
+        var parent: ChatStickerInput
+        var inserting = false
+        var requestedFocus = false
+        var images: [String: UIImage] = [:]
+        var loading = Set<String>()
+        init(_ parent: ChatStickerInput) { self.parent = parent }
+        func raw(_ value: NSAttributedString) -> String {
+            var output = ""
+            value.enumerateAttributes(in: NSRange(location: 0, length: value.length)) { attributes, range, _ in
+                if let attachment = attributes[.attachment] as? ChatStickerAttachment { output += attachment.token }
+                else { output += (value.string as NSString).substring(with: range) }
+            }
+            return output
+        }
+        func attributed(_ text: String) -> NSAttributedString {
+            let output = NSMutableAttributedString(string: "")
+            for (value, sticker) in ChatSticker.parts(text) {
+                if let sticker {
+                    let attachment = ChatStickerAttachment(); attachment.token = sticker.token
+                    attachment.image = images[sticker.key] ?? UIImage(systemName: "face.smiling")?.withTintColor(.systemPink, renderingMode: .alwaysOriginal)
+                    attachment.bounds = CGRect(x: 0, y: -6, width: 26, height: 26)
+                    output.append(NSAttributedString(attachment: attachment))
+                } else { output.append(NSAttributedString(string: value, attributes: [.font: UIFont.systemFont(ofSize: 15), .foregroundColor: UIColor.white])) }
+            }
+            return output
+        }
+        func textViewDidChange(_ view: UITextView) { parent.text = raw(view.attributedText) }
+        func textViewDidBeginEditing(_ view: UITextView) { parent.focused = true }
+        func textViewDidEndEditing(_ view: UITextView) { parent.focused = false }
+        func textView(_ view: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
+            if text == "\n" { parent.send(); return false }
+            if view.markedTextRange != nil { return true }
+            let candidate = NSMutableAttributedString(attributedString: view.attributedText)
+            candidate.replaceCharacters(in: range, with: text)
+            return raw(candidate).count <= 2000
+        }
+        func loadImages(in view: UITextView) {
+            for (_, sticker) in ChatSticker.parts(parent.text) {
+                guard let sticker, images[sticker.key] == nil, loading.insert(sticker.key).inserted else { continue }
+                Task { @MainActor [weak self, weak view] in
+                    guard let self else { return }; defer { self.loading.remove(sticker.key) }
+                    guard let data = try? await API.shared.request(sticker.path), let image = ArtworkRepository.decode(data), let view else { return }
+                    self.images[sticker.key] = image
+                    if view.markedTextRange == nil {
+                        let selection = view.selectedRange; view.attributedText = self.attributed(self.raw(view.attributedText)); view.selectedRange = selection
+                    }
+                }
+            }
+        }
     }
 }

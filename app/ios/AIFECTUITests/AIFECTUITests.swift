@@ -22,7 +22,7 @@ final class AIFECTUITests: XCTestCase {
     @MainActor func testRedesignCrewNavigationDraftDeletionAndMiniPlayer() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-feedback-ui-test", "-redesign-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launchArguments = ["-feedback-ui-test", "-redesign-ui-test", "-streaming-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
         let collapse = app.buttons["mini-player-collapse"]
         XCTAssertTrue(collapse.waitForExistence(timeout: 15)); collapse.tap()
@@ -31,6 +31,7 @@ final class AIFECTUITests: XCTestCase {
         collapse.tap(); XCTAssertTrue(app.buttons["다음 곡"].exists)
 
         app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
+        if app.buttons["크루 찾기"].waitForExistence(timeout: 5) { app.buttons["크루 찾기"].tap() }
         let crew = app.buttons["crew-card-fixture-crew"]
         XCTAssertTrue(crew.waitForExistence(timeout: 8)); crew.tap()
         let entry = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "크루 채팅방")).firstMatch
@@ -41,14 +42,14 @@ final class AIFECTUITests: XCTestCase {
             app.scrollViews["crew-content"].swipeUp()
         }
         XCTAssertTrue(entry.isHittable); entry.tap()
-        XCTAssertTrue(app.textFields["chat-input"].waitForExistence(timeout: 8))
+        XCTAssertTrue(app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch.waitForExistence(timeout: 8))
         XCTAssertFalse(app.buttons["mini-player-collapse"].exists)
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(app.staticTexts["내 크루 · 고정"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["inbox-crew"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["main-tab-3"].isSelected)
 
         app.buttons["main-tab-2"].tap()
-        XCTAssertTrue(app.buttons["초안"].waitForExistence(timeout: 5)); app.buttons["초안"].tap()
+        XCTAssertTrue(app.buttons["내 초안"].waitForExistence(timeout: 5)); app.buttons["내 초안"].tap()
         XCTAssertTrue(app.buttons["이어 편집"].waitForExistence(timeout: 5))
         app.buttons["삭제"].firstMatch.tap()
         XCTAssertTrue(app.buttons["초안 삭제"].waitForExistence(timeout: 5))
@@ -59,16 +60,13 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(app.buttons["이어 편집"].exists)
         app.buttons["삭제"].firstMatch.tap(); app.buttons["초안 삭제"].tap()
         XCTAssertTrue(app.staticTexts["저장한 초안이 없어요"].waitForExistence(timeout: 5))
+        app.buttons["둘러보기"].tap()
+        app.buttons["최신"].tap()
+        let newCover = app.buttons["함께 부르는 검증용 멜로디"].firstMatch
+        XCTAssertTrue(newCover.waitForExistence(timeout: 8)); newCover.tap()
+        XCTAssertTrue(app.navigationBars["곡 상세"].waitForExistence(timeout: 8))
         app.navigationBars.buttons.element(boundBy: 0).tap()
-        let more = app.buttons["더보기"]
-        for _ in 0..<16 {
-            if more.isHittable && more.frame.maxY < collapse.frame.minY { break }
-            app.scrollViews.firstMatch.swipeUp()
-        }
-        XCTAssertTrue(more.isHittable); more.tap()
-        XCTAssertTrue(app.navigationBars["새로 올라온 목소리"].waitForExistence(timeout: 5))
-        app.navigationBars.buttons.element(boundBy: 0).tap()
-        XCTAssertTrue(more.isHittable)
+        XCTAssertTrue(newCover.isHittable)
         let capture = XCTAttachment(screenshot: app.screenshot()); capture.name = "Redesign singing navigation"; capture.lifetime = .keepAlways; add(capture)
     }
     @MainActor func testListeningDoesNotShowVideoAds() throws {
@@ -126,10 +124,10 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "zz_no_such_song_9417")).firstMatch.waitForExistence(timeout: 15))
         let cancel = app.buttons["취소"]; if cancel.exists { cancel.tap() }
         app.buttons["main-tab-2"].tap()
-        XCTAssertTrue(app.staticTexts["목소리를 발견하는 곳"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["노래"].waitForExistence(timeout: 5))
         app.buttons["main-tab-1"].tap()
-        XCTAssertTrue(app.buttons["추천"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["팔로잉"].exists)
+        XCTAssertTrue(app.buttons["라이브"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["랭킹"].exists)
         let messages = app.buttons["main-tab-3"]
         messages.tap()
         if !messages.isSelected { messages.tap() }
@@ -151,9 +149,9 @@ final class AIFECTUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["main-tab-3"].waitForExistence(timeout: 20))
         app.buttons["main-tab-3"].tap()
-        let peer = app.buttons.containing(NSPredicate(format: "label CONTAINS %@", "채팅 테스트")).firstMatch
+        let peer = app.buttons["inbox-dm-fixture-peer"]
         XCTAssertTrue(peer.waitForExistence(timeout: 10)); peer.tap()
-        let input = app.textFields["chat-input"]
+        let input = app.descendants(matching: .any).matching(identifier: "chat-input").firstMatch
         XCTAssertTrue(input.waitForExistence(timeout: 5)); XCTAssertTrue(input.isHittable)
         input.tap(); input.typeText("DM immediate")
         app.buttons["chat-send"].tap()
@@ -200,10 +198,12 @@ final class AIFECTUITests: XCTestCase {
         let giftShot = XCTAttachment(screenshot: app.screenshot()); giftShot.name = "Feedback gift sheet depleted balance"; giftShot.lifetime = .keepAlways; add(giftShot)
         app.buttons["닫기"].tap()
         app.buttons["main-tab-4"].tap()
-        let balance = app.staticTexts["my-star-balance"]
-        XCTAssertTrue(balance.waitForExistence(timeout: 5))
-        let depleted = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "0개"), object: balance)
-        XCTAssertEqual(XCTWaiter.wait(for: [depleted], timeout: 5), .completed)
+        app.buttons["인벤토리"].tap()
+        let silverValue = app.descendants(matching: .any).matching(NSPredicate(
+            format: "(identifier == %@ AND label == %@) OR (label CONTAINS %@ AND label CONTAINS %@)",
+            "my-star-balance", "0 S", "실버", "0 S"
+        )).firstMatch
+        XCTAssertTrue(silverValue.waitForExistence(timeout: 8))
         app.buttons["feedback-menu"].tap(); app.buttons["녹음 편집 검증"].tap()
         let description = app.textFields["이 녹음에 대한 소개"]
         for _ in 0..<10 { if description.exists && description.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
@@ -221,6 +221,11 @@ final class AIFECTUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
         app.buttons["feedback-menu"].tap(); app.buttons["음원 상세 검증"].tap()
+        XCTAssertTrue(app.buttons["셔플"].waitForExistence(timeout: 5))
+        let detailScreenshot = XCTAttachment(screenshot: app.screenshot())
+        detailScreenshot.name = "resume-track"
+        detailScreenshot.lifetime = .keepAlways
+        add(detailScreenshot)
         XCTAssertTrue(app.buttons["창작자 프로필"].waitForExistence(timeout: 5))
         app.buttons["창작자 프로필"].tap()
         XCTAssertTrue(app.staticTexts["프로필 검증 창작자"].firstMatch.waitForExistence(timeout: 10))
@@ -274,11 +279,11 @@ final class AIFECTUITests: XCTestCase {
     @MainActor func testCreatorProfileFromPlayerDetail() throws {
         continueAfterFailure = false
         let app = XCUIApplication()
-        app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
+        app.launchArguments = ["-feedback-ui-test", "-redesign-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
-        XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
-        app.buttons["feedback-menu"].tap(); app.buttons["재생창 프로필 검증"].tap()
-        app.buttons["재생 화면 열기"].tap()
+        let player = app.buttons["재생 화면 열기"]
+        XCTAssertTrue(player.waitForExistence(timeout: 15))
+        player.tap()
         let comments = app.buttons["댓글"]
         for _ in 0..<3 { if comments.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
         XCTAssertTrue(comments.isHittable); comments.tap()
@@ -294,6 +299,7 @@ final class AIFECTUITests: XCTestCase {
         app.launchArguments = ["-feedback-ui-test", "-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
         XCTAssertTrue(app.buttons["main-tab-4"].waitForExistence(timeout: 15)); app.buttons["main-tab-4"].tap()
+        app.buttons["인벤토리"].tap()
         let wallet = app.buttons["my-diamonds"]
         for _ in 0..<4 { if wallet.isHittable { break }; app.scrollViews.firstMatch.swipeUp() }
         XCTAssertTrue(wallet.isHittable); wallet.tap()
@@ -301,7 +307,7 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(balance.waitForExistence(timeout: 8))
         let loaded = XCTNSPredicateExpectation(predicate: NSPredicate(format: "label == %@", "550.125"), object: balance)
         XCTAssertEqual(XCTWaiter.wait(for: [loaded], timeout: 8), .completed)
-        XCTAssertEqual(app.staticTexts["diamond-preview"].label, "50다이아 → 500골드")
+        XCTAssertEqual(app.staticTexts["diamond-preview"].label, "500 G")
         app.buttons["diamond-submit"].tap(); app.buttons["50다이아 골드로 전환"].tap()
         XCTAssertTrue(app.staticTexts["diamond-success"].waitForExistence(timeout: 8))
         XCTAssertEqual(balance.label, "500.125")
@@ -309,14 +315,17 @@ final class AIFECTUITests: XCTestCase {
         app.navigationBars.buttons.element(boundBy: 0).tap()
         for _ in 0..<4 { if app.buttons["my-inventory"].isHittable { break }; app.scrollViews.firstMatch.swipeDown() }
         let gold = app.staticTexts["my-gold-balance"]
-        XCTAssertEqual(gold.label, "1,750개")
+        XCTAssertEqual(gold.label, "1,750 G")
         app.buttons["my-inventory"].tap()
-        XCTAssertTrue(app.buttons["해제하기"].waitForExistence(timeout: 8)); app.buttons["해제하기"].tap()
-        XCTAssertTrue(app.buttons["장착하기"].waitForExistence(timeout: 8))
+        let frame = app.buttons["inventory-item-crew-outline"]
+        XCTAssertTrue(frame.waitForExistence(timeout: 8)); XCTAssertEqual(frame.value as? String, "장착 중"); frame.tap()
+        let unequipped = XCTNSPredicateExpectation(predicate: NSPredicate(format: "value == %@", "장착 가능"), object: frame)
+        XCTAssertEqual(XCTWaiter.wait(for: [unequipped], timeout: 8), .completed)
         XCTAssertFalse(app.staticTexts["avatar-level"].exists)
+        app.buttons["레벨 · 활동 보상"].tap()
         app.scrollViews.firstMatch.swipeUp()
         XCTAssertTrue(app.staticTexts["크루 LV.5 액자"].exists)
-        XCTAssertEqual(app.buttons.matching(identifier: "장착하기").count, 1)
+        XCTAssertFalse(app.buttons["inventory-item-crew-level-5"].isEnabled)
         let inventory = XCTAttachment(screenshot: app.screenshot()); inventory.name = "Server frames and unearned reward"; inventory.lifetime = .keepAlways; add(inventory)
     }
 
@@ -328,9 +337,10 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertTrue(app.buttons["main-tab-4"].waitForExistence(timeout: 15)); app.buttons["main-tab-4"].tap()
         let edit = app.buttons["edit-my-profile"]
         XCTAssertTrue(edit.waitForExistence(timeout: 10))
+        app.buttons["인벤토리"].tap()
         XCTAssertTrue(app.staticTexts["my-gold-balance"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.staticTexts["my-gold-balance"].label, "1,250개")
-        XCTAssertEqual(app.staticTexts["my-star-balance"].label, "3개")
+        XCTAssertEqual(app.staticTexts["my-gold-balance"].label, "1,250 G")
+        XCTAssertEqual(app.staticTexts["my-star-balance"].label, "3 S")
         XCTAssertLessThan(abs(edit.frame.midY - app.staticTexts["my-profile-name"].frame.midY), 24)
         edit.tap()
         let name = app.textFields["profile-name"]
@@ -343,12 +353,20 @@ final class AIFECTUITests: XCTestCase {
         XCTAssertEqual(XCTWaiter.wait(for: [updated], timeout: 8), .completed)
         let myShot = XCTAttachment(screenshot: app.screenshot()); myShot.name = "My profile settings and balances"; myShot.lifetime = .keepAlways; add(myShot)
         app.buttons["main-tab-1"].tap(); app.buttons["크루"].tap()
+        if app.buttons["크루 찾기"].waitForExistence(timeout: 5) { app.buttons["크루 찾기"].tap() }
         XCTAssertTrue(app.buttons["crew-card-fixture-crew"].waitForExistence(timeout: 10)); app.buttons["crew-card-fixture-crew"].tap()
         XCTAssertTrue(app.staticTexts["crew-detail-name"].waitForExistence(timeout: 10))
         let crewShot = XCTAttachment(screenshot: app.screenshot()); crewShot.name = "Crew hero and experience"; crewShot.lifetime = .keepAlways; add(crewShot)
-        let about = app.buttons["소개"]
-        for _ in 0..<4 { if about.isHittable { break }; app.scrollViews["crew-content"].swipeUp() }
+        let content = app.scrollViews["crew-content"]
+        let about = content.buttons["소개"]
+        let mini = app.buttons["mini-player-collapse"]
+        for _ in 0..<6 {
+            let bottom = mini.exists ? mini.frame.minY : app.buttons["main-tab-1"].frame.minY
+            if about.isHittable && about.frame.midY > 100 && about.frame.maxY < bottom - 8 { break }
+            content.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.65)).press(forDuration: 0.05, thenDragTo: content.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.29)))
+        }
         XCTAssertTrue(about.isHittable); about.tap()
+        XCTAssertTrue(about.isSelected)
         for _ in 0..<4 { if app.staticTexts["함께 성장하는 방법"].isHittable { break }; app.scrollViews["crew-content"].swipeUp() }
         XCTAssertTrue(app.staticTexts["함께 성장하는 방법"].exists)
         XCTAssertTrue(app.staticTexts["+10 XP"].exists)
@@ -362,14 +380,23 @@ final class AIFECTUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.buttons["feedback-menu"].waitForExistence(timeout: 15))
         app.buttons["feedback-menu"].tap(); app.buttons["음원 상세 검증"].tap()
-        XCTAssertTrue(app.buttons["이 노래 부르기"].waitForExistence(timeout: 5))
-        app.buttons["이 노래 부르기"].tap()
+        XCTAssertTrue(app.buttons.matching(identifier: "sing-song-feedback-song").firstMatch.waitForExistence(timeout: 5))
+        app.buttons.matching(identifier: "sing-song-feedback-song").firstMatch.tap()
         XCTAssertTrue(app.staticTexts["부르기 검증 원곡"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.buttons["start-recording"].isHittable)
-        app.buttons["에코 · 잡음 제거 설정"].tap()
+        XCTAssertFalse(app.buttons["에코 · 잡음 제거 설정"].exists)
+        let effectsToggle = app.buttons["목소리 효과"]
+        for _ in 0..<5 { if effectsToggle.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
+        effectsToggle.tap()
+        let original = app.buttons["vocal-preset-original"], karaoke = app.buttons["vocal-preset-karaoke"], presetStudio = app.buttons["vocal-preset-studio"], hall = app.buttons["vocal-preset-hall"]
+        XCTAssertTrue(original.exists); XCTAssertEqual(original.frame.minY, karaoke.frame.minY, accuracy: 2)
+        XCTAssertEqual(original.frame.minY, presetStudio.frame.minY, accuracy: 2)
+        XCTAssertEqual(original.frame.minX, hall.frame.minX, accuracy: 2)
+        XCTAssertGreaterThan(hall.frame.minY, original.frame.minY)
         let custom = app.buttons["vocal-preset-custom"]
-        for _ in 0..<5 { if custom.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
+        for _ in 0..<5 { if custom.isHittable && custom.frame.maxY < app.buttons["start-recording"].frame.minY - 12 { break }; app.scrollViews["studio-content"].coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.65)).press(forDuration: 0.05, thenDragTo: app.scrollViews["studio-content"].coordinate(withNormalizedOffset: CGVector(dx: 0.95, dy: 0.3))) }
         custom.tap()
+        XCTAssertTrue(custom.isSelected)
         let echo = app.sliders["에코 미세 조절"]
         for _ in 0..<5 { if echo.isHittable { break }; app.scrollViews["studio-content"].swipeUp() }
         XCTAssertTrue(echo.waitForExistence(timeout: 5)); XCTAssertTrue(echo.isHittable)
@@ -378,7 +405,12 @@ final class AIFECTUITests: XCTestCase {
         app.buttons["4단계"].tap()
         XCTAssertTrue(app.staticTexts["잡음 제거 · 4단계"].exists)
         XCTAssertTrue(app.buttons["start-recording"].isHittable)
+        let compact = XCTAttachment(screenshot: app.screenshot()); compact.name = "Build20 custom controls automatically expanded"; compact.lifetime = .keepAlways; add(compact)
+        app.buttons["start-recording"].tap()
         let wheel = app.scrollViews["studio-lyric-wheel"]
+        XCTAssertTrue(wheel.waitForExistence(timeout: 5))
+        XCTAssertTrue(wheel.isHittable, "Starting from settings must return to the lyrics")
+        XCTAssertFalse(app.sliders["에코 미세 조절"].exists, "Recording start collapses settings")
         for _ in 0..<10 { if wheel.isHittable { break }; app.scrollViews["studio-content"].swipeDown() }
         XCTAssertTrue(wheel.isHittable)
         wheel.swipeUp()

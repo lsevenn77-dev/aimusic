@@ -26,6 +26,7 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>kr.co.aifect.app</string>
+				<string>kakao464b5fae1d7bb9ec91c3a772c9b1b80d</string>
 			</array>
 		</dict>
 	</array>
@@ -39,6 +40,10 @@
 	<string>ca-app-pub-5910265378731607~1879327875</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>KakaoNativeAppKey</key>
+	<string>464b5fae1d7bb9ec91c3a772c9b1b80d</string>
+	<key>LSApplicationQueriesSchemes</key>
+	<array><string>kakaokompassauth</string><string>kakaolink</string></array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>

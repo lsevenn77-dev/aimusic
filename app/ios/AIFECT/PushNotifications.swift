@@ -138,7 +138,8 @@ struct PushDestinationView: View {
     @State private var error: String?
     var body: some View {
         Group {
-            if route.kind == "dm" { ChatPage(path: "/api/dm/\(Endpoint.pathID(route.target))", title: "메시지", crew: false) }
+            if route.kind == "dm" && isOfficialNoticePeer(route.target) { OfficialNoticeConversation() }
+            else if route.kind == "dm" { ChatPage(path: "/api/dm/\(Endpoint.pathID(route.target))", title: "메시지", crew: false) }
             else if route.kind == "crew" { ChatPage(path: "/api/crews/\(Endpoint.pathID(route.target))/messages", title: "크루 채팅", crew: true) }
             else if route.kind == "person_gift" { ProfilePage(id: route.target) }
             else if let song { TrackDetailView(song: song) }
