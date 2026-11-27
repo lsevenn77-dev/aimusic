@@ -19,8 +19,21 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -50,15 +63,15 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
   item{
    TextButton(onClick={m.selectTab(m.studioReturnTab)}){Icon(Icons.AutoMirrored.Outlined.ArrowBack,null,Modifier.size(18.dp));Text("돌아가기")}
    Text("스튜디오",fontSize=25.sp,fontWeight=FontWeight.Bold)
-   Text("음악, 이미지, 프로필을 한곳에서 관리하세요.",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=8.dp))
+   Text("제작곡 등록과 나의 음악 작품 관리를 할 수 있는 나만의 공간.",color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=8.dp))
+  }
+  item { StudioUploadBanner(quota) { editing = "new" } }
+  if (quota != null && m.membership.optLong("premium_until") > System.currentTimeMillis() / 1000) {
+   item { StudioPremiumBanner(quota.optInt("limit")) }
   }
   item{val context=androidx.compose.ui.platform.LocalContext.current;Surface(onClick={openNativePerformance(context,m,"dubbing?tab=mine")},color=Panel,shape=RoundedCornerShape(14.dp),modifier=Modifier.fillMaxWidth()){
    Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.MicNone,null,tint=Aqua);Column(Modifier.weight(1f).padding(start=12.dp)){Text("내 더빙 관리",fontSize=15.sp,fontWeight=FontWeight.SemiBold);Text("대본 · 녹음 · 완성작",color=Muted,fontSize=12.sp)};Icon(Icons.Outlined.ChevronRight,null,tint=Muted)}
   }}
-  quota?.let{q->item{Column(Modifier.padding(vertical=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){
-   Text("이번 달 제작곡 ${q.optInt("used")} / ${q.optInt("limit")}곡 · ${q.optInt("remaining")}곡 남음",fontWeight=FontWeight.Bold,color=Pink)
-   Text("무료 월 3곡 · Premium 월 10곡\n매월 1일 한국시간에 새로 시작해요. 커버곡은 제한 없이 올릴 수 있어요.",color=Muted,fontSize=13.sp)
-  }}}
   item{Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){
    listOf("공개 음악" to m.myTracks.count{it.raw.optString("status")=="published"},"처리 중" to m.myTracks.count{it.raw.optString("status") in listOf("uploading","queued","processing")},"AI 아티스트" to artists.size).forEach{(name,count)->
     Column(Modifier.weight(1f).padding(vertical=8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)){Text(name,fontSize=12.sp,color=Muted);Text("$count",fontSize=24.sp,color=SoftText,fontWeight=FontWeight.Bold)}
@@ -66,7 +79,6 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
   }}
   item{
    Row(verticalAlignment=Alignment.CenterVertically){Text("내 음원 · 앨범 커버",fontSize=18.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));IconButton(onClick=m::loadStudio,enabled=!m.studioBusy){Icon(Icons.Outlined.Refresh,"스튜디오 새로고침")}}
-   BrandButton(onClick={editing="new"},enabled=quota!=null&&quota.optInt("remaining")>0,modifier=Modifier.fillMaxWidth().testTag("studio-upload")){Icon(Icons.Outlined.Upload,null,Modifier.size(20.dp));Text("음원 업로드",Modifier.padding(start=8.dp))}
    Chips(listOf("전체","제작곡","커버"),filter){filter=it}
    if(m.studioBusy)LinearProgressIndicator(Modifier.fillMaxWidth())
    m.studioError?.let{Text(it,color=Pink);TextButton(onClick=m::loadStudio){Text("다시 불러오기")}}
@@ -100,6 +112,140 @@ internal fun studioStatus(status:String)=when(status){"published"->"공개됨";"
   operation=null;m.loadStudio();m.refreshLibrary(true);m.notice="변경했어요."
  }}){Text("확인")}},dismissButton={TextButton(onClick={operation=null},enabled=!m.busy){Text("취소")}})}
  artist?.let{StudioArtistEditor(m,it){artist=null;m.loadStudio()}}
+}
+
+@Composable
+private fun StudioUploadBanner(quota: JSONObject?, onUpload: () -> Unit) {
+    val limit = quota?.optInt("limit") ?: 0
+    val canUpload = quota != null && quota.optInt("remaining") > 0
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF0C121B),
+        border = BorderStroke(1.dp, Color(0xFF30364B))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (quota != null && limit > 0) StudioQuotaRing(quota.optInt("used"), limit)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("MY STUDIO", color = Aqua, fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.SemiBold)
+                    Text("완성한 음악을 들려 주세요.", color = SoftText, fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
+                    Text("나만의 제작곡을 아이팩트에 공개해 보세요.", color = Muted, fontSize = 13.sp, lineHeight = 19.sp)
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text("매월 1일 초기화(한국시간)", color = Muted, fontSize = 12.sp, lineHeight = 16.sp)
+                    Text("커버곡 무제한", color = Muted, fontSize = 12.sp, lineHeight = 16.sp)
+                }
+                BrandButton(
+                    onClick = onUpload,
+                    modifier = Modifier.heightIn(min = 48.dp).testTag("studio-upload"),
+                    enabled = canUpload,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)
+                ) {
+                    Icon(Icons.Outlined.Upload, null, Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("음원 업로드", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            if (limit > 0 && !canUpload) {
+                Text("이번 달 제작곡 한도를 모두 사용했습니다.", color = Muted, fontSize = 12.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun StudioQuotaRing(used: Int, limit: Int) {
+    val progress = (used.toFloat() / limit).coerceIn(0f, 1f)
+    Box(
+        modifier = Modifier.size(88.dp).clearAndSetSemantics {
+            contentDescription = "이번 달 제작곡 $used / ${limit}곡"
+            progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
+        },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(Modifier.fillMaxSize()) {
+            val strokeWidth = 6.dp.toPx()
+            val stroke = DrawStroke(width = strokeWidth, cap = StrokeCap.Butt)
+            drawCircle(Color(0xFF3C4559), radius = size.minDimension / 2 - strokeWidth / 2, style = stroke)
+            if (progress > 0f) {
+                val diameter = size.minDimension - strokeWidth
+                val gradient = Brush.sweepGradient(
+                    0f to Color(0xFF8EDDD2),
+                    progress / 2f to Color(0xFFA7CEEF),
+                    progress to Pink,
+                    center = center
+                )
+                rotate(-90f) {
+                    drawArc(
+                        brush = gradient,
+                        startAngle = 0f,
+                        sweepAngle = 360f * progress,
+                        useCenter = false,
+                        topLeft = Offset(strokeWidth / 2, strokeWidth / 2),
+                        size = Size(diameter, diameter),
+                        style = stroke
+                    )
+                }
+            }
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("이번 달 제작곡", color = Muted, fontSize = 10.sp, maxLines = 1)
+            Text("$used / ${limit}곡", color = SoftText, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun StudioPremiumBanner(limit: Int) {
+    val gold = Color(0xFFE4C78F)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF2B251C),
+        border = BorderStroke(1.dp, Color(0xFF655438))
+    ) {
+        Row(
+            modifier = Modifier
+                .background(Brush.horizontalGradient(listOf(Color(0xFF2B251C), Color(0xFF3D3224))))
+                .padding(horizontal = 14.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Canvas(Modifier.size(14.dp)) {
+                        val crown = Path().apply {
+                            moveTo(size.width * .15f, size.height * .32f)
+                            lineTo(size.width * .35f, size.height * .48f)
+                            lineTo(size.width * .50f, size.height * .22f)
+                            lineTo(size.width * .65f, size.height * .48f)
+                            lineTo(size.width * .85f, size.height * .32f)
+                            lineTo(size.width * .78f, size.height * .73f)
+                            lineTo(size.width * .22f, size.height * .73f)
+                            close()
+                        }
+                        drawPath(crown, gold, style = DrawStroke(width = 1.1.dp.toPx(), join = StrokeJoin.Round))
+                        drawLine(gold, Offset(size.width * .28f, size.height * .85f), Offset(size.width * .72f, size.height * .85f), 1.1.dp.toPx(), StrokeCap.Round)
+                    }
+                    Text("PREMIUM 이용 중", color = gold, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Spacer(Modifier.height(2.dp))
+                listOf("제작곡 월 ${limit}곡까지 업로드", "최대 AAC 256kbps 고음질 감상", "광고 없는 이용").forEach { benefit ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Icon(Icons.Outlined.Check, null, Modifier.size(12.dp), tint = gold)
+                        Text(benefit, color = Color(0xFFD8CAB4), fontSize = 12.sp, lineHeight = 16.sp)
+                    }
+                }
+            }
+            Icon(Icons.Outlined.Album, null, Modifier.size(48.dp), tint = gold.copy(alpha = .4f))
+        }
+    }
 }
 
 @Composable internal fun StudioPanel(modifier:Modifier=Modifier,content:@Composable ColumnScope.()->Unit){
