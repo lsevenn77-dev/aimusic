@@ -401,6 +401,41 @@
         }
       }
     }
+
+    @media(hover:hover) and (pointer:fine) {
+      > #main > #sing {
+        &::before {
+          background-image:var(--record-cover-background,none);
+          background-size:100% 100%;
+          background-repeat:no-repeat;
+          background-clip:padding-box;
+        }
+
+        .sing-recording .studio-transport {
+          /* Leave one lyric row for the controls when the viewport has room. */
+          --record-lyric-reserve:clamp(0px,calc(30dvh - 150px),var(--record-line));
+          padding-block:calc((var(--record-transport-gutter) + var(--record-lyric-reserve)) / 2);
+
+          /* These controls share a center. Shift it halfway toward the last visible lyric. */
+          > :is([data-sing-redo-live],.studio-record-slot,[data-sing-stop]) {
+            translate:0 calc(var(--record-lyric-tail,0px) / -2);
+          }
+        }
+
+        .sing-wheel button { color:var(--ds-body)!important; }
+        .sing-wheel button.current {
+          color:var(--ds-white)!important;
+          background:none!important;
+          border-color:transparent!important;
+        }
+        .sing-wheel button:is([data-part-role="mine"],[data-part-role="partner"],[data-part-role="both"]) {
+          color:var(--line-color)!important;
+        }
+        .sing-wheel button.current:is([data-part-role="mine"],[data-part-role="partner"],[data-part-role="both"]) {
+          color:color-mix(in srgb,var(--line-color) 74%,var(--ds-white))!important;
+        }
+      }
+    }
   }
 }
 @media(max-width:800px) {

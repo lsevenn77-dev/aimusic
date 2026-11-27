@@ -6,6 +6,7 @@ function studioIcon(name){const path={stop:'M6 6h12v12H6Z',pause:'M8 5v14M16 5v1
 const nativeSinging=()=>window.Capacitor?.isNativePlatform?.()&&window.Capacitor.Plugins?.AifectKaraoke;
 const singBusy=s=>['loading','stopping','exporting','rendering'].includes(s?.state);
 const singLive=s=>['singing','preroll'].includes(s?.state);
+const recordingCoverCache=new Map();
 function singRouteHref(s){const q=new URLSearchParams();if(s.parent)q.set('duet',s.parent);else{q.set('mode',s.mode==='duet'?'duet':'solo');if(s.mode==='duet')q.set('part',s.part||'male');}return '#sing/'+encodeURIComponent(s.id)+'?'+q;}
 function desktopTakeEditor(){
  return !!window.matchMedia?.('(min-width: 801px)').matches&&!window.Capacitor?.isNativePlatform?.();
@@ -246,6 +247,99 @@ function spaceEffectsHTML(m,live=false){
 function liveSpaceControlsHTML(m){return `<div data-preset-strength>${studioRangeHTML(m,'strength','효과 강도',0,1,.01)}</div><div data-post-custom hidden>${studioRangeHTML(m,'room','잔향감',0,1,.01)}${studioRangeHTML(m,'size','룸 크기',0,1,.01)}${studioRangeHTML(m,'tone','음색 선명도',-1,2,.01)}</div>`;}
 function reviewSpaceControlsHTML(m){return `<p class="field-help" data-preset-description></p><div data-preset-strength>${studioRangeHTML(m,'strength','효과 강도',0,1,.01)}</div><details class="sing-effect-details" data-custom-controls><summary>사용자 설정</summary>${studioRangeHTML(m,'echo','에코 효과',0,.65,.001)}${studioRangeHTML(m,'size','룸 크기',0,1,.01)}${studioRangeHTML(m,'room','리버브 강도',0,1,.01)}</details>`;}
 const singStartHTML=(message='')=>`${message?`<p class="form-error">${esc(message)}</p>`:''}${nativeSinging()?`<p class="field-help">에코 · 룸 리버브와 실시간 이어폰 청음을 지원합니다.</p><button class="primary-button" data-sing-start>${icon('mic')} 노래방 열기</button>`:''}`;
+
+const recordingCoverLuma=(red,green,blue)=>.2126*red+.7152*green+.0722*blue;
+const recordingCoverLinear=value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4;
+const recordingCoverSrgb=value=>value<=.0031308?value*12.92:1.055*value**(1/2.4)-.055;
+
+function blurRecordingCover(pixels,size,radius){
+ const weights=Array.from({length:2*radius+1},(_,i)=>Math.exp(-.5*((i-radius)/(radius*.46))**2));
+ const total=weights.reduce((sum,weight)=>sum+weight,0);
+ const scratch=new Uint8ClampedArray(pixels.length);
+ for(const horizontal of [true,false]){
+  const source=horizontal?pixels:scratch,target=horizontal?scratch:pixels;
+  for(let y=0;y<size;y++)for(let x=0;x<size;x++){
+   let red=0,green=0,blue=0;
+   for(let tap=0;tap<weights.length;tap++){
+    const coordinate=Math.max(0,Math.min(size-1,(horizontal?x:y)+tap-radius));
+    const offset=4*(horizontal?y*size+coordinate:coordinate*size+x),weight=weights[tap];
+    red+=source[offset]*weight;green+=source[offset+1]*weight;blue+=source[offset+2]*weight;
+   }
+   const offset=4*(y*size+x);
+   target[offset]=red/total;target[offset+1]=green/total;target[offset+2]=blue/total;
+  }
+ }
+}
+
+function shadeRecordingCover(pixels,size){
+ let brightness=0,brightnessSquared=0,chroma=0,detail=0;
+ const count=size*size,stride=size*4;
+ for(let i=0;i<pixels.length;i+=4){
+  const red=pixels[i],green=pixels[i+1],blue=pixels[i+2],luma=recordingCoverLuma(red,green,blue)/255;
+  brightness+=luma;brightnessSquared+=luma*luma;
+  chroma+=(Math.max(red,green,blue)-Math.min(red,green,blue))/255;
+  if(i%stride)for(let channel=0;channel<3;channel++)detail+=Math.abs(pixels[i+channel]-pixels[i+channel-4]);
+  if(i>=stride)for(let channel=0;channel<3;channel++)detail+=Math.abs(pixels[i+channel]-pixels[i+channel-stride]);
+ }
+ const mean=brightness/count,spread=Math.sqrt(Math.max(0,brightnessSquared/count-mean*mean));
+ const edgeDetail=detail/((count-size)*2*3*255);
+ const radius=Math.round(7+5*Math.min(1,spread/.26)+7*Math.min(1,edgeDetail/.13));
+ blurRecordingCover(pixels,size,radius);
+ const exposure=1-Math.min(.38,Math.max(0,(mean-.12)*.6));
+ const saturation=1-.22*Math.min(1,Math.max(0,(chroma/count-.18)/.35));
+ // Limit highlights locally in linear light, preserving hue and the darker regions.
+ // The existing duet gray (#A6B5C9) still clears 4.5:1 at the luminance ceiling.
+ const knee=.033,headroom=.025;
+ for(let i=0;i<pixels.length;i+=4){
+  const gray=recordingCoverLuma(pixels[i],pixels[i+1],pixels[i+2]);
+  const red=recordingCoverLinear((gray+(pixels[i]-gray)*saturation)*exposure/255);
+  const green=recordingCoverLinear((gray+(pixels[i+1]-gray)*saturation)*exposure/255);
+  const blue=recordingCoverLinear((gray+(pixels[i+2]-gray)*saturation)*exposure/255);
+  const luma=recordingCoverLuma(red,green,blue),excess=Math.max(0,luma-knee);
+  const scale=excess?(knee+headroom*excess/(headroom+excess))/luma:1;
+  pixels[i]=255*recordingCoverSrgb(red*scale);
+  pixels[i+1]=255*recordingCoverSrgb(green*scale);
+  pixels[i+2]=255*recordingCoverSrgb(blue*scale);
+ }
+}
+
+function recordingCoverImage(image){
+ const size=48,canvas=document.createElement('canvas');
+ canvas.width=canvas.height=size;
+ const context=canvas.getContext('2d',{alpha:false,willReadFrequently:true});
+ if(!context||!image.naturalWidth||!image.naturalHeight)return null;
+ context.fillStyle='#181818';
+ context.fillRect(0,0,size,size);
+ context.imageSmoothingQuality='high';
+ context.drawImage(image,0,0,size,size);
+ const sample=context.getImageData(0,0,size,size);
+ shadeRecordingCover(sample.data,size);
+ context.putImageData(sample,0,0);
+ return canvas.toDataURL();
+}
+
+async function prepareRecordingCover(s,root,isDesktop){
+ if(!isDesktop())return;
+ const image=root.querySelector('.sing-artwork img');
+ if(!image?.getAttribute('src')?.startsWith('/media/'))return;
+ const source=image.src;
+ try{
+  await image.decode();
+  if(sing!==s||!root.isConnected||!isDesktop()||s.recordingCoverLocked||s.preview||s.standbyMonitor)return;
+  let cover=recordingCoverCache.get(source);
+  if(!cover){
+   cover=recordingCoverImage(image);
+   if(!cover)return;
+  }
+  recordingCoverCache.delete(source);
+  recordingCoverCache.set(source,cover);
+  if(recordingCoverCache.size>12)recordingCoverCache.delete(recordingCoverCache.keys().next().value);
+  root.style.setProperty('--record-cover-background',`url("${cover}")`);
+ }catch{
+  // The card already carries its standard surface when the artwork is unavailable.
+ }
+}
+
 function bindSing(id){
  cleanupSing();if(!$('#sing')||!routeSing)return;
  sing={id,routeHash:location.hash,historyKey:window.navigation?.currentEntry?.key,owner:me?.id,data:routeSing,state:'loading',cursor:0,keySemitones:0,mix:preferredRecordingMix(me?.id),mode:routeSing.mode||'solo',part:routeSing.part||'male',parent:routeSing.duet?.parent_id||null};if(!canEditPaid())sing.mix.tone=0;sing.duetGuide=sing.parent?routeSing.duet?.guide||null:{version:1,mode:'free',lines:[]};
@@ -253,9 +347,11 @@ function bindSing(id){
  s.listeningTemplate=routeSing.duet?.partner?.listening_template??AifectListening.defaultListeningTemplate;
  const transport=$('.sing-transport'),lyricLines=wheel.querySelectorAll('.sing-line-text,.field-help');
  const desktopTransport=matchMedia('(min-width:1024px), (min-width:801px) and (hover:hover) and (pointer:fine)');
+ const desktopPointer=matchMedia('(min-width:801px) and (hover:hover) and (pointer:fine)');
  s.usesDesktopLayout=()=>desktopTransport.matches&&!document.documentElement.hasAttribute('data-aifect-native');
+ const isDesktop=()=>desktopPointer.matches&&s.usesDesktopLayout();
  const alignTransport=()=>{
-  if(s.usesDesktopLayout())alignRecordingTransport(wheel,transport,lyricLines);
+  if(s.usesDesktopLayout())alignRecordingTransport(wheel,transport,lyricLines,isDesktop());
  };
  // Re-anchor after viewport, font or lyric-size changes, without touching cue data.
  s.lyricResize=new ResizeObserver(()=>{
@@ -293,6 +389,7 @@ function bindSing(id){
  const redoLive=$('[data-sing-redo-live]');if(redoLive)redoLive.onclick=()=>{void restartSinging();};
  document.querySelectorAll('[data-sing-record-mode]').forEach(button=>button.onclick=()=>{void switchSingRecordingMode(button.dataset.singRecordMode);});
  bindKeyControls();renderDuetGuide();drawLyrics(0);renderSingPanel();
+ void prepareRecordingCover(s,$('#sing'),isDesktop);
  void restoreSingDraft(s).then(()=>{if(sing===s&&s.parent&&!s.inheritedCoverFile&&!s.coverFile)void loadSingInheritedPhoto(s);});
 }
 function setSingStatus(message,notice=false){
@@ -414,6 +511,7 @@ async function startSinging(){
  }
  const s=sing,preparationOpen=s.preparationOpen,requestedRange=s.punchRange;
  if(requestedRange&&!s.punchAuthorized){setSingStatus('프리미엄 권한을 다시 확인해 주세요.');return;}
+ s.recordingCoverLocked=true;
  s.punchAuthorized=false;s.preparationOpen=false;s.startingRecording=true;let stream,run;stopPreview();s.micCheck?.prepare();s.monitorSerial=(s.monitorSerial||0)+1;stopStandbyMonitor(s);++playSerial;window.AifectAudioAds?.cancel();audio.pause();s.state='loading';updateTransport();setSingStatus('반주와 마이크를 준비하고 있습니다…');
  try{
   if(!window.AudioContext&&!window.webkitAudioContext)throw new Error('이 브라우저는 녹음을 지원하지 않습니다.');
@@ -495,7 +593,7 @@ async function startSinging(){
  }
  finally{s.startingRecording=false;s.pendingMic=null;if(sing===s)updateTransport();}
 }
-function alignRecordingTransport(wheel,transport,lines){
+function alignRecordingTransport(wheel,transport,lines,centerOnLyric){
  const {top,bottom}=wheel.getBoundingClientRect();
  if(bottom<=top)return;
  // Find the last line with text inside the viewport, without changing the scroll position.
@@ -507,14 +605,17 @@ function alignRecordingTransport(wheel,transport,lines){
  }
  const last=lines[start-1]?.getBoundingClientRect();
  const previous=lines[start-2]?.getBoundingClientRect();
- const style=getComputedStyle(transport);
- const gutter=parseFloat(style.paddingTop)+parseFloat(style.paddingBottom);
- // Hide a cut-off line when the preceding line and centered controls both fit.
- const hidePartial=last?.bottom>bottom&&previous?.top>=top&&bottom-previous.bottom<=gutter;
+ let hidePartial=last?.bottom>bottom&&previous?.top>=top;
+ if(hidePartial&&!centerOnLyric){
+  const style=getComputedStyle(transport);
+  hidePartial=bottom-previous.bottom<=parseFloat(style.paddingTop)+parseFloat(style.paddingBottom);
+ }
  const edge=hidePartial?previous:last;
  const tail=edge&&edge.bottom>top?Math.max(0,bottom-edge.bottom):0;
- wheel.style.setProperty('--record-lyric-clip',hidePartial?`inset(0 0 ${bottom-last.top}px)`:'none');
- transport.style.setProperty('--record-lyric-tail',`${tail}px`);
+ const clip=hidePartial?`inset(0 0 ${bottom-last.top}px)`:'none';
+ if(wheel.style.getPropertyValue('--record-lyric-clip')!==clip)wheel.style.setProperty('--record-lyric-clip',clip);
+ const tailLength=`${tail}px`;
+ if(transport.style.getPropertyValue('--record-lyric-tail')!==tailLength)transport.style.setProperty('--record-lyric-tail',tailLength);
 }
 
 function recordingLyricWindow(wheel,row){

@@ -11,6 +11,54 @@ function sandbox(extra={}){
  const context=nicknameContext({window:{AifectKaraoke:karaoke,addEventListener(){}},AifectDuetGuide:duet,esc:s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'),time:n=>String(n),icon:()=>'',paintPunchCountdown(){},...extra,document:{addEventListener(){},...extra.document}});
  vm.runInContext(source,context);return context;
 }
+test('recording artwork retains spatial color and keeps even the duet gray above 4.5:1',()=>{
+ const context=sandbox(),size=48;
+ const shade=vm.runInContext('shadeRecordingCover',context);
+ const luminance=vm.runInContext('(r,g,b)=>recordingCoverLuma(...[r,g,b].map(c=>recordingCoverLinear(c/255)))',context);
+ const make=colors=>Uint8ClampedArray.from(Array.from({length:size*size},(_,i)=>[...colors[i%size<size/2?0:1],255]).flat());
+ const color=make([[255,32,112],[18,250,230]]),gray=make([[255,255,255],[105,105,105]]),night=make([[8,9,17],[8,9,17]]);
+ for(const pixels of [color,gray,night]){
+  shade(pixels,size);
+  for(let i=0;i<pixels.length;i+=4){
+   assert.ok((luminance(166,181,201)+.05)/(luminance(...pixels.subarray(i,i+3))+.05)>=4.5);
+  }
+ }
+ assert.ok(color[0]>color[2]&&color.at(-2)>color.at(-4),'both sides keep their own hue');
+ assert.ok(gray[0]>gray.at(-4)&&gray[0]===gray[1]&&gray.at(-4)===gray.at(-2),'grayscale stays neutral');
+ assert.deepEqual([...night.subarray(0,4)],[8,9,17,255],'very dark artwork keeps its exposure');
+});
+
+test('recording artwork reuses the decoded cover by URL and skips a late load once recording starts',async()=>{
+ const context=sandbox(),session={},properties=new Map();
+ const image={src:'https://aifect.test/media/track/cover?v=one',getAttribute:()=>'/media/track/cover?v=one',decode:async()=>{}};
+ context.session=session;
+ context.card={isConnected:true,querySelector:()=>image,style:{setProperty:(key,value)=>properties.set(key,value)}};
+ let renders=0;
+ context.drawCover=()=>{renders++;return 'data:image/png;base64,texture';};
+ vm.runInContext('sing=session;recordingCoverImage=drawCover',context);
+ const render=()=>vm.runInContext('prepareRecordingCover(session,card,()=>true)',context);
+ await render();
+ properties.clear();
+ await render();
+ assert.equal(renders,1);
+ assert.ok(properties.has('--record-cover-background'));
+
+ properties.clear();
+ image.decode=async()=>{throw Error('unavailable');};
+ await render();
+ assert.equal(properties.size,0,'failed artwork uses the panel surface, even with a cached image');
+
+ let decoded;
+ image.src='https://aifect.test/media/track/cover?v=two';
+ image.decode=()=>new Promise(resolve=>{decoded=resolve;});
+ const pending=render();
+ session.recordingCoverLocked=true;
+ decoded();
+ await pending;
+ assert.equal(properties.size,0);
+ assert.equal(renders,1);
+});
+
 test('manual duet assignments must cover both singers before recording; free takes and inherited guides remain usable',()=>{
  const c=sandbox();c.take={mode:'duet',data:{words},duetGuide:{mode:'lyrics',lines:['A','']}};
  assert.match(vm.runInContext('duetAssignmentIssue(take)',c),/1줄/);
