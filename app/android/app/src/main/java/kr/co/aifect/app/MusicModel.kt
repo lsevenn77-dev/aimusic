@@ -378,6 +378,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  var playbackHighQualityPending by mutableStateOf(false)
  val playbackQualityLabel get()=if(playbackBitrateKbps==0)null else "${if(playbackPreview)"60초 미리 듣기 · " else ""}AAC ${playbackBitrateKbps}kbps${if(playbackHighQualityPending)" · 고음질 준비 중" else ""}"
  var fullPlayer by mutableStateOf(false)
+ var miniLyricsOpen by mutableStateOf(false)
  var lyric by mutableStateOf("")
  var lyricRows by mutableStateOf<List<Pair<Double,String>>>(emptyList())
  var lyricsAccess by mutableStateOf("line")
@@ -868,7 +869,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   if(lyricsAccess=="full")return lyricRows.lastOrNull{it.first<=at}?.second.orEmpty()
   return lyric.takeIf{at>=lyricFrom&&at<lyricUntil&&it!="♪"&&!it.startsWith("등록된 가사")&&!it.startsWith("가사를 연결")} .orEmpty()
  }
- fun closePlayer(){cancelPlaylistPlay();controller?.stop();controller?.clearMediaItems();current=null;fullPlayer=false;lyricId="";lyricRows=emptyList();playbackBitrateKbps=0;playbackPreview=false;playbackHighQualityPending=false}
+ fun closePlayer(){cancelPlaylistPlay();controller?.stop();controller?.clearMediaItems();current=null;fullPlayer=false;miniLyricsOpen=false;lyricId="";lyricRows=emptyList();playbackBitrateKbps=0;playbackPreview=false;playbackHighQualityPending=false}
  fun login(email:String,password:String,name:String,register:Boolean) = action {
   api.call(if(register)"/api/auth/register" else "/api/auth/login","POST",payload("email" to email.trim(),"password" to password,"name" to name.trim()))
   closePlayer();loadMe();showLogin=false;notice="반가워요, ${user?.optString("name")}님!"

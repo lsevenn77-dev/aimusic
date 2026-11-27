@@ -249,20 +249,21 @@ class NativeAppTest {
  }
  @Test fun duetInvitationsAndMiniPlayerLyrics(){
   ui.onNodeWithText("바로 듣기").performClick();waitText("밤길을 함께 걸어요")
+  ui.onNodeWithTag("mini-player-lyrics-toggle").performClick()
   ui.onNodeWithTag("mini-player-lyrics").assertIsDisplayed()
-  val before=ui.onNodeWithTag("mini-player-lyrics").fetchSemanticsNode().boundsInRoot
+  val before=ui.onNodeWithTag("mini-player").fetchSemanticsNode().boundsInRoot
   val model=AtomicReference<MusicModel>()
   screen.onActivity{a->model.set(androidx.lifecycle.ViewModelProvider(a)[MusicModel::class.java]);model.get().controller?.pause()}
   for(text in listOf("짧은 가사","한 줄보다 길어도 재생바의 높이를 바꾸지 않는 아주 긴 가사입니다. ".repeat(5),"첫 줄\n둘째 줄","♪")){
-   ui.runOnIdle{model.get().lyricsAccess="full";model.get().lyricRows=listOf(0.0 to text,100.0 to "다음 줄은 재생바에 표시하지 않아요")}
+   ui.runOnIdle{model.get().lyricsAccess="full";model.get().lyricRows=listOf(0.0 to text,100.0 to "재생바의 다음 가사")}
    ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).assertTextEquals(text)
    val layouts=mutableListOf<androidx.compose.ui.text.TextLayoutResult>()
    ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(androidx.compose.ui.semantics.SemanticsActions.GetTextLayoutResult){it(layouts)}
    assertEquals("Playback lyrics occupy exactly one line",1,layouts.single().lineCount)
-   assertEquals("Lyric changes must not move the playback bar",before.height,ui.onNodeWithTag("mini-player-lyrics").fetchSemanticsNode().boundsInRoot.height,1f)
-   ui.onNodeWithText("다음 줄은 재생바에 표시하지 않아요").assertDoesNotExist()
+   assertEquals("Lyric changes must not move the playback bar",before.height,ui.onNodeWithTag("mini-player").fetchSemanticsNode().boundsInRoot.height,1f)
+   ui.onNodeWithText("재생바의 다음 가사").assertIsDisplayed()
   }
-  screenshot("native-mini-lyrics-single-line-2512.png")
+  screenshot("native-mini-lyrics-two-lines.png")
   ui.onNodeWithText("부르기").performClick();waitText("참여를 기다리는 듀엣")
   ui.onNodeWithTag("sing-scroll").performScrollToNode(hasText("듀엣 참여"));waitText("듀엣 참여");ui.onNodeWithText("듀엣 참여").performClick()
   val until=System.nanoTime()+TimeUnit.SECONDS.toNanos(30);var loaded=false

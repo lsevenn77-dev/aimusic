@@ -284,7 +284,6 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  }
  val shape=RoundedCornerShape(22.dp)
  val liked=m.likes.any{it.id==song.id}
- val line=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric).first
  var seek by remember(song.id){mutableStateOf<Float?>(null)}
  BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal=3.dp,vertical=3.dp).testTag("mini-player")
   .clip(shape).background(Brush.linearGradient(listOf(Color(0xFF292541),Color(0xFF141529),Color(0xFF1C2537))))
@@ -335,8 +334,17 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
     IconButton(onClick={m.like(song)},enabled=!m.busy,modifier=actionSize){
      Icon(if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,if(liked)"좋아요 취소" else "좋아요 추가",Modifier.size(22.dp),tint=if(liked)Pink else Color.White)
     }
-    Box(Modifier.weight(1f).padding(start=5.dp,end=7.dp).testTag("mini-player-lyrics")){
-     Text(line.ifBlank{"♪"},modifier=Modifier.fillMaxWidth().testTag("mini-player-current-lyric"),fontSize=12.sp,lineHeight=15.sp,color=Pink,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+    Box(Modifier.weight(1f).height(44.dp).padding(start=5.dp,end=7.dp),contentAlignment=Alignment.Center){
+     if(m.miniLyricsOpen){
+      val (line,next)=compactLyrics(m.lyricRows,m.position/1000.0,m.lyric)
+      Column(Modifier.fillMaxWidth().testTag("mini-player-lyrics"),horizontalAlignment=Alignment.CenterHorizontally){
+       Text(line.ifBlank{"♪"},Modifier.testTag("mini-player-current-lyric"),maxLines=if(next==null)2 else 1,overflow=TextOverflow.Ellipsis,fontSize=12.sp,lineHeight=15.sp,color=Pink,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+       if(next!=null)Text(next,maxLines=1,overflow=TextOverflow.Ellipsis,fontSize=12.sp,lineHeight=15.sp,color=SoftText)
+      }
+     }
+    }
+    IconToggleButton(checked=m.miniLyricsOpen,onCheckedChange={m.miniLyricsOpen=it},modifier=actionSize.testTag("mini-player-lyrics-toggle")){
+     Text("가사",fontSize=12.sp,color=if(m.miniLyricsOpen)Color(0xFF8EDDD2) else SoftText)
     }
     val modeIcon=when{
      m.repeat==Player.REPEAT_MODE_ONE->Icons.Rounded.RepeatOne

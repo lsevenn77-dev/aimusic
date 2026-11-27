@@ -256,7 +256,7 @@ class DesignCaptureTest {
   val controller=model.controller
   ui.onNodeWithTag("mini-player-open").performClick();ready("player-art-backdrop");assertSame(controller,model.controller);assertTrue(model.playing);capture("276-summary-blur")
   ui.onNodeWithContentDescription("다음 곡").performScrollTo().performClick();ui.waitUntil(10000){model.current?.id=="design-ocean"};ready("player-art-backdrop");assertSame(controller,model.controller);assertTrue(model.playing);capture("276-summary-next-blur")
-  Espresso.pressBack();ui.waitUntil(5000){!model.fullPlayer};ready("mini-player-current-lyric");assertEquals("design-ocean",model.current?.id)
+  Espresso.pressBack();ui.waitUntil(5000){!model.fullPlayer};ready("mini-player-lyrics-toggle");assertEquals("design-ocean",model.current?.id)
  }
 
  @Test fun referenceWorksOpensConsistentFilteredPagesAndReturns(){
@@ -1222,7 +1222,7 @@ class DesignCaptureTest {
   act{it.library("플레이리스트")};ready("library-scroll");capture("07-library")
   act{it.openList("design-list")};ui.waitUntil(15000){!model.listLoading&&model.listSongs.isNotEmpty()};capture("08-playlist")
   act{it.selectedList=null;it.collection=null;it.selectTab(0);it.play(Song(song),listOf(Song(song),Song(second)))}
-  ready("mini-player-lyrics");act{it.fullPlayer=true};capture("09-player")
+  ready("mini-player-lyrics-toggle");act{it.fullPlayer=true};capture("09-player")
   act{it.fullPlayer=false;it.controller?.pause();it.openSong(Song(song))};text("밤의 산책");capture("10-song-detail")
   assertEquals(PackageManager.PERMISSION_DENIED,ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO))
  }
@@ -1494,14 +1494,32 @@ class DesignCaptureTest {
   capture("43-cover-ranking")
   act{it.detail=null;it.openList("design-list")};ready("playlist-cover-edit");capture("44-playlist-photo")
  }
- @Test fun compactPlayerShowsPlaybackControlsAndOneLyric(){
+ @Test fun compactLyricsTogglePreservesTheScreenAndPlayback(){
+  val currentLine="오늘의 마음을 이 노래에 담아요"
+  val nextLine="함께 걷는 다음 가사"
+  responses["/api/tracks/design-song/lyrics/line"]=payload(
+   "line" to payload("text" to currentLine,"from" to 0,"until" to 60),
+   "lines" to arr(payload("time" to 0,"text" to currentLine),payload("time" to 60,"text" to nextLine)))
   act{it.play(Song(song),listOf(Song(song),Song(second)))}
-  ready("mini-player-open");text("오늘의 마음을 이 노래에 담아요")
-  val layouts=mutableListOf<TextLayoutResult>()
-  ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
-  assertEquals(1,layouts.single().lineCount)
-  ui.onNodeWithContentDescription("랜덤 재생").assertDoesNotExist()
-  ui.onNodeWithContentDescription("다음 곡").assertIsDisplayed();phaseCapture("21-compact-player")
+  ui.waitUntil(15000){model.playing&&model.lyricRows.size==2}
+  val controller=model.controller
+  val tab=model.tab
+  val player=ui.onNodeWithTag("mini-player")
+  val bounds=player.fetchSemanticsNode().boundsInRoot
+  val toggle=ui.onNodeWithTag("mini-player-lyrics-toggle")
+  val preview=ui.onNodeWithTag("mini-player-lyrics")
+  toggle.assertIsOff();preview.assertDoesNotExist()
+  repeat(2){
+   val position=model.position
+   toggle.performClick().assertIsOn()
+   preview.assertIsDisplayed()
+   ui.onNodeWithText(currentLine).assertIsDisplayed()
+   ui.onNodeWithText(nextLine).assertIsDisplayed()
+   assertEquals(bounds,player.fetchSemanticsNode().boundsInRoot)
+   toggle.performClick().assertIsOff();preview.assertDoesNotExist()
+   assertSame(controller,model.controller);assertTrue(model.playing);assertTrue(model.position>=position)
+   assertEquals("design-song",model.current?.id);assertEquals(tab,model.tab);assertNull(model.detail);assertFalse(model.fullPlayer)
+  }
  }
  @Test fun captureProfileAndGiftScreens(){
   ui.onNodeWithTag("main-tab-6").performClick();ready("my-settings");ui.onNodeWithTag("my-settings").assertIsDisplayed();capture("19-my-profile")
@@ -1526,7 +1544,7 @@ class DesignCaptureTest {
  @Test fun streamingHomeTabsPlayAndRestoreDiscovery(){
   ready("home-featured-play");phaseCapture("01-home")
   listOf("추천","차트","최신곡","발견").forEach{ui.onNodeWithTag("listen-tab-$it").assertIsDisplayed()}
-  ui.onNodeWithTag("home-featured-play").performClick();ui.waitUntil(15000){model.playing};ready("mini-player-lyrics");phaseCapture("02-home-playing")
+  ui.onNodeWithTag("home-featured-play").performClick();ui.waitUntil(15000){model.playing};ready("mini-player-lyrics-toggle");phaseCapture("02-home-playing")
   ui.onNodeWithTag("listen-tab-차트").performClick();ready("chart-period-month")
   ui.onNodeWithTag("chart-period-month").performClick();ui.waitUntil(15000){requestUrls.any{it.contains("period=month")}}
   ui.onNodeWithTag("listen-scroll").performScrollToNode(hasTestTag("chart-song-design-ocean"))
@@ -1580,12 +1598,12 @@ class DesignCaptureTest {
   val verse="오늘의 마음을 이 노래에 담아 너에게 전할게 긴 밤이 지나도 우리 함께 걸어온 이 길을 언제까지나 기억할게"
   responses["/api/tracks/design-song/lyrics/line"]=payload("line" to payload("text" to verse,"from" to 0,"until" to 180))
   act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing && model.lyric==verse}
+  ui.onNodeWithTag("mini-player-lyrics-toggle").performClick()
   val node=ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true)
   val layouts=mutableListOf<TextLayoutResult>()
   node.assertTextEquals(verse).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layouts)}
   val layout=layouts.single()
-  assertFalse(layout.hasVisualOverflow)
-  assertEquals(verse.length,layout.getLineEnd(layout.lineCount-1))
+  assertTrue(layout.lineCount in 1..2)
   val lyrics=node.fetchSemanticsNode().boundsInRoot
   val transport=ui.onNodeWithTag("mini-player-controls",useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
   val heart=ui.onNode(hasContentDescription("좋아요",substring=true) and hasAnyAncestor(hasTestTag("mini-player")),useUnmergedTree=true).fetchSemanticsNode().boundsInRoot
@@ -1597,7 +1615,8 @@ class DesignCaptureTest {
   act{it.selectTab(6)};assertSame(controller,model.controller);assertEquals("design-song",model.current?.id);assertTrue(model.playing)
  }
  @Test fun streamingMiniPlayerKeepsSessionAndExpandedControls(){
-  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-open");text("오늘의 마음을 이 노래에 담아요")
+  act{it.play(Song(song),listOf(Song(song),Song(second)))};ui.waitUntil(15000){model.playing};ready("mini-player-open")
+  ui.onNodeWithTag("mini-player-lyrics-toggle").performClick();text("오늘의 마음을 이 노래에 담아요")
   val layout=mutableListOf<TextLayoutResult>()
   ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).performSemanticsAction(SemanticsActions.GetTextLayoutResult){it(layout)}
   assertEquals(1,layout.single().lineCount)
@@ -1719,7 +1738,7 @@ class DesignCaptureTest {
   ui.onNodeWithContentDescription("다음 곡").performScrollTo().performClick()
   ui.waitUntil(15000){model.current?.id=="design-ocean"&&model.lyric=="다음 곡의 가사도 이어져요"}
   ui.onNodeWithText("다음 곡의 가사도 이어져요").performScrollTo().assertIsDisplayed()
-  Espresso.pressBack();ready("mini-player-current-lyric")
+  Espresso.pressBack();ui.onNodeWithTag("mini-player-lyrics-toggle").performClick();ready("mini-player-current-lyric")
   ui.onNodeWithTag("mini-player-current-lyric",useUnmergedTree=true).assertTextEquals("다음 곡의 가사도 이어져요")
  }
 
