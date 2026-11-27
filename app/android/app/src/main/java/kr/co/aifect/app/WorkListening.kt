@@ -29,8 +29,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,6 +41,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kr.co.aifect.app.karaoke.WorkListeningArtwork
+import kr.co.aifect.app.karaoke.WorkListeningControls
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 import kr.co.aifect.app.karaoke.WorkListeningPhoto
 import org.json.JSONObject
 import java.io.File
@@ -65,24 +66,19 @@ internal fun Song.workArtwork():String? {
    failed=decoded==null;value=decoded
   }
  }
- var scrubbing by remember{mutableStateOf<Float?>(null)}
  Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(14.dp)).background(Panel).testTag("work-listening-scene")){
   AndroidView(factory={WorkListeningArtwork(it)},update={
    it.show(if(failed&&selectedPhoto==null)WorkListeningArtwork.BASIC else template,selectedPhoto?:bitmap)
    it.playback(position,playing)
   },modifier=Modifier.fillMaxSize())
-  Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().background(Color(0xBC090B15)).padding(horizontal=8.dp,vertical=4.dp)){
-   if(caption.isNotBlank())Text(caption,Modifier.align(Alignment.CenterHorizontally).padding(horizontal=8.dp,vertical=3.dp),fontSize=15.sp,lineHeight=19.sp,
-    maxLines=2,overflow=TextOverflow.Ellipsis,color=Color.White,fontFamily=FontFamily(Font(R.font.pretendard_listening)))
-   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(4.dp)){
-    IconButton(play,enabled=enabled,modifier=Modifier.size(44.dp)){Icon(if(playing)Icons.Rounded.Pause else Icons.Rounded.PlayArrow,if(playing)"일시정지" else "재생")}
-    Text(timeLabel((scrubbing?.toLong()?:position)),fontSize=10.sp,color=Color.White)
-    Slider(value=(scrubbing?:position.toFloat()).coerceIn(0f,duration.coerceAtLeast(1).toFloat()),onValueChange={scrubbing=it},
-     onValueChangeFinished={scrubbing?.let{seek(it.toLong())};scrubbing=null},enabled=enabled&&duration>0,
-     valueRange=0f..duration.coerceAtLeast(1).toFloat(),modifier=Modifier.weight(1f).height(34.dp))
-    Text(timeLabel(duration),fontSize=10.sp,color=Color.White)
-   }
-  }
+  AndroidView(factory={WorkListeningControls(it)},update={controls->
+   controls.bind(play,object:WorkListeningControls.SeekListener{
+    override fun begin() {}
+    override fun move(position:Long) {}
+    override fun end(position:Long) { seek(position) }
+   })
+   controls.show(position,duration,playing,caption,enabled)
+  },modifier=Modifier.align(Alignment.BottomCenter).fillMaxWidth().wrapContentHeight())
  }
 }
 
@@ -147,7 +143,9 @@ internal class WorkAppearance(template:String,description:String) {
  }
 }
 
-@Composable internal fun WorkAppearanceFields(state:WorkAppearance, photo:String?, enabled:Boolean=true,noteLimit:Int=500){
+@Composable internal fun WorkAppearanceFields(state:WorkAppearance, photo:String?, enabled:Boolean=true,noteLimit:Int=500,
+ preview:(@Composable ()->Unit)?=null,afterPreview:@Composable ()->Unit={},beforeNote:@Composable ()->Unit={}){
+
  val context=LocalContext.current
  val scope=rememberCoroutineScope()
  val select=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()){uri->
@@ -168,9 +166,19 @@ internal class WorkAppearance(template:String,description:String) {
   }
  }
  Column(Modifier.fillMaxWidth(),verticalArrangement=Arrangement.spacedBy(8.dp)){
-  WorkListeningScene(state.template.orEmpty(),photo,0,0,false,"",false,{},{},selectedPhoto=state.image)
-  OutlinedButton({select.launch("image/*")},enabled=enabled&&!state.choosing){Text(if(state.choosing)"사진 확인 중…" else "커버사진 선택")}
-  Text("JPG·PNG·WebP · 5MB 이하",fontSize=12.sp,color=Muted)
+  Text("미리보기",fontSize=16.sp,fontWeight=FontWeight.SemiBold)
+  if(preview==null)WorkListeningScene(state.template.orEmpty(),photo,0,0,false,"",false,{},{},selectedPhoto=state.image) else preview()
+  afterPreview()
+  Text("작품 커버사진",fontSize=14.sp,fontWeight=FontWeight.SemiBold)
+  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(12.dp)){
+   AsyncImage(model=state.image?:photo?:R.drawable.listening_cover,contentDescription="현재 작품 커버사진",
+    contentScale=ContentScale.Crop,modifier=Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)))
+   Column{
+    OutlinedButton({select.launch("image/*")},enabled=enabled&&!state.choosing){Text(if(state.choosing)"사진 확인 중…" else "커버사진 변경")}
+    Text("JPG · PNG · WebP · 최대 5MB",fontSize=12.sp,color=Muted)
+   }
+  }
+  Text("감상 화면 템플릿",fontSize=14.sp,fontWeight=FontWeight.SemiBold)
   state.error?.let{Text(it,fontSize=12.sp,color=Pink)}
   Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),horizontalArrangement=Arrangement.spacedBy(8.dp)){
    listOf(Triple("cover","기본",R.drawable.listening_cover_thumb),
@@ -180,12 +188,17 @@ internal class WorkAppearance(template:String,description:String) {
     OutlinedButton({state.template=key},enabled=enabled,contentPadding=PaddingValues(5.dp),
      border=BorderStroke(1.dp,if(selected)Aqua else Stroke),shape=RoundedCornerShape(8.dp)){
      Column(horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.spacedBy(4.dp)){
-      Image(painterResource(asset),null,Modifier.size(56.dp).clip(RoundedCornerShape(4.dp)))
+      Box{
+       Image(painterResource(asset),null,Modifier.size(66.dp).clip(RoundedCornerShape(4.dp)))
+       if(selected)Icon(Icons.Rounded.Check,"선택됨",Modifier.align(Alignment.TopEnd).padding(2.dp).size(16.dp)
+        .background(Aqua,androidx.compose.foundation.shape.CircleShape).padding(2.dp),tint=Ink)
+      }
       Text(label,fontSize=11.sp,color=if(selected)Aqua else SoftText)
      }
     }
    }
   }
+  beforeNote()
   OutlinedTextField(state.note,{state.note=it.take(noteLimit)},enabled=enabled,label={Text("작품에 남기는 한마디")},
    modifier=Modifier.fillMaxWidth(),maxLines=4)
  }
@@ -250,23 +263,34 @@ internal class WorkAppearance(template:String,description:String) {
   confirmButton={TextButton({confirmation=null;save(list,true)}){Text("비공개로 변경 후 담기")}})}
 }
 
-@Composable internal fun CoverWorkHero(m:MusicModel,song:Song,save:()->Unit,join:()->Unit,comment:()->Unit,share:()->Unit){
+@Composable internal fun CoverWorkPlayback(m:MusicModel,song:Song,template:String?,photo:Bitmap?=null,enabled:Boolean=true){
  val active=m.current?.id==song.id
- val caption=if(active)m.workCaption(song.id) else ""
+ WorkListeningScene(template.orEmpty(),song.workArtwork(),if(active)m.position else 0L,
+  if(active&&m.duration>0)m.duration else (song.duration*1000).toLong(),active&&m.playing,
+  if(active)m.workCaption(song.id) else "",enabled,
+  play={if(active)m.toggle() else m.play(song)},
+  seek={if(active)m.controller?.seekTo(it) else m.play(song,startPosition=it)},selectedPhoto=photo)
+}
+
+@Composable internal fun CoverWorkHero(m:MusicModel,song:Song,save:()->Unit,join:()->Unit,comment:()->Unit,share:()->Unit){
  Column(Modifier.fillMaxWidth().padding(top=8.dp),verticalArrangement=Arrangement.spacedBy(12.dp)){
-  WorkListeningScene(song.raw.optString("listening_template"),song.workArtwork(),if(active)m.position else 0L,
-   if(active&&m.duration>0)m.duration else (song.duration*1000).toLong(),active&&m.playing,caption,true,
-   play={if(active)m.toggle() else m.play(song)},seek={if(active)m.controller?.seekTo(it)})
+  CoverWorkPlayback(m,song,song.raw.optString("listening_template"))
   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
    CoverPickTitle(song,m,Modifier.weight(1f,false),fontSize=22.sp,fontWeight=FontWeight.Bold,maxLines=3,overflow=TextOverflow.Ellipsis)
    Text(if(song.raw.optString("cover_mode")=="duet")"듀엣" else "커버",fontSize=12.sp,color=Pink)
    if(song.raw.optBoolean("can_manage_cover_pick"))TrackActionsMenu(song,m)
   }
-  TextButton(onClick={m.openProfile(song.producerId,showCovers=true)},contentPadding=PaddingValues(0.dp)){Text(song.credit,color=SoftText)}
+  Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
+   TextButton(onClick={m.openProfile(song.producerId,showCovers=true)},contentPadding=PaddingValues(0.dp)){
+    Avatar(song.credit,JSONObject().put("id",song.producerId).put("image_version",song.raw.opt("producer_image_version")),size=26)
+    Text(song.credit,Modifier.padding(start=6.dp),color=SoftText)
+   }
+   if(song.originalId!=null)TextButton({m.openOriginal(song)}){Text("원곡 듣기")}
+  }
   if(song.description.isNotBlank())Text(song.description,color=SoftText)
   val canJoin=if(song.raw.has("duet_joinable"))song.raw.optBoolean("duet_joinable") else song.openDuetFor(m.user?.optString("id"))
   if(canJoin)Button(join,Modifier.fillMaxWidth().heightIn(min=44.dp),colors=ButtonDefaults.buttonColors(containerColor=Color(0xff5b438d),contentColor=Color.White)){
-   Icon(Icons.Rounded.Mic,null,Modifier.size(16.dp));Text("참여하기",Modifier.padding(start=6.dp))
+   Text("참여하기")
   }
   Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)){
    val liked=m.likes.any{it.id==song.id}
@@ -274,12 +298,13 @@ internal class WorkAppearance(template:String,description:String) {
     Triple("좋아요",if(liked)Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,{m.like(song)}),
     Triple("댓글",Icons.Rounded.ChatBubbleOutline,comment),Triple("담기",Icons.Rounded.Add,save),
     Triple("선물",Icons.Rounded.CardGiftcard,{m.openGifts(song)}),Triple("공유",Icons.Rounded.Share,share))
-   actions.forEach{(label,icon,tap)->
-    OutlinedButton(tap,Modifier.weight(1f).heightIn(min=44.dp),enabled=label!="선물"||(!m.ownsTrack(song)&&song.raw.optString("gift_block_reason").let{it.isBlank()||it=="null"}),
+   val giftBlocked=!song.raw.optString("gift_block_reason").let{it.isBlank()||it=="null"}||song.raw.opt("user_id")==m.user?.optString("id")&&m.user!=null
+   actions.filterNot{it.first=="선물"&&giftBlocked}.forEach{(label,icon,tap)->
+    OutlinedButton(tap,Modifier.weight(1f).heightIn(min=44.dp),
      contentPadding=PaddingValues(vertical=5.dp),shape=RoundedCornerShape(8.dp),border=BorderStroke(1.dp,Stroke)){
-     Column(horizontalAlignment=Alignment.CenterHorizontally){
+     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(2.dp)){
       Icon(icon,null,Modifier.size(17.dp),tint=if(label=="좋아요"&&liked)Pink else LocalContentColor.current)
-      Text(label,fontSize=10.sp,maxLines=1)
+      Text(label,fontSize=11.sp)
      }
     }
    }

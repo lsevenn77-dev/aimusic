@@ -526,6 +526,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  val list=rememberLazyListState()
  val scope=rememberCoroutineScope()
  var composing by rememberSaveable(song.id){mutableStateOf(!song.cover)}
+ var includePosition by rememberSaveable(song.id){mutableStateOf(true)}
  var share by rememberSaveable(song.id){mutableStateOf(false)}
  val commentFocus=remember{FocusRequester()}
  val detailsVisible by remember{derivedStateOf{list.firstVisibleItemIndex>0}}
@@ -554,8 +555,9 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
      if(song.cover)LaunchedEffect(composing){commentFocus.requestFocus()}
      reply?.let{Row(verticalAlignment=Alignment.CenterVertically){Text("${it.optString("name")}님에게 답글",Modifier.weight(1f),color=Pink);TextButton(onClick={reply=null}){Text("취소")}}}
      OutlinedTextField(text,{text=it.take(2000)},placeholder={Text("이 곡의 어떤 순간이 좋았나요?",fontSize=12.sp)},modifier=Modifier.fillMaxWidth().focusRequester(commentFocus),minLines=1,maxLines=5,shape=RoundedCornerShape(12.dp),trailingIcon={
-      IconButton(onClick={m.comment(text,reply?.optString("id")){text="";reply=null}},enabled=text.isNotBlank()&&!m.busy){Icon(Icons.AutoMirrored.Rounded.Send,"댓글 남기기",Modifier.size(20.dp))}
+      IconButton(onClick={m.comment(text,reply?.optString("id"),song.cover&&includePosition){text="";reply=null}},enabled=text.isNotBlank()&&!m.busy){Icon(Icons.AutoMirrored.Rounded.Send,"댓글 남기기",Modifier.size(20.dp))}
      })
+     if(song.cover)Row(verticalAlignment=Alignment.CenterVertically){Checkbox(includePosition,{includePosition=it});Text("현재 재생 시간 포함",fontSize=12.sp,color=Muted)}
     }
    }}
    items(threadedComments(m.comments),key={it.getString("id")}){c->

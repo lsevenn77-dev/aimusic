@@ -60,7 +60,7 @@ public final class WorkListeningArtwork extends View {
             RectF label=new RectF(.299f,.375f,.558f,.641f);
             Path clip=new Path();clip.addOval(label,Path.Direction.CW);
             canvas.save();canvas.clipPath(clip);
-            canvas.rotate((float)((elapsed%12)*30),label.centerX(),label.centerY());
+            if(ValueAnimator.areAnimatorsEnabled())canvas.rotate((float)((elapsed%12)*30),label.centerX(),label.centerY());
             drawCrop(canvas,cover,new RectF(.293f,.372f,.564f,.644f));canvas.restore();
             if(motion)drawRain(canvas,elapsed);
         }else{
@@ -68,7 +68,13 @@ public final class WorkListeningArtwork extends View {
             canvas.translate(0,-.02f);
             drawCrop(canvas,device,new RectF(0,0,1,1));
             RectF screen=new RectF(.383f,.155f,.967f,.701f);
-            drawCrop(canvas,cover,screen);
+            if(motion){
+                drawReel(canvas,new RectF(.111f,.146f,.214f,.376f),elapsed);
+                drawReel(canvas,new RectF(.177f,.587f,.233f,.747f),elapsed);
+                canvas.save();canvas.clipRect(screen);
+                canvas.translate((float)Math.sin(elapsed*4)*.0005f,(float)Math.cos(elapsed*3)*.0004f);
+                drawCrop(canvas,cover,screen);canvas.restore();
+            }else drawCrop(canvas,cover,screen);
             if(motion)drawFilm(canvas,screen,elapsed);
         }
         canvas.restore();
@@ -81,6 +87,14 @@ public final class WorkListeningArtwork extends View {
         int w=original>target?Math.round(height*target):width,h=original<target?Math.round(width/target):height;
         paint.setColor(Color.WHITE);
         canvas.drawBitmap(bitmap,new Rect((width-w)/2,(height-h)/2,(width+w)/2,(height+h)/2),area,paint);
+    }
+    private void drawReel(Canvas canvas, RectF area, double time){
+        canvas.save();
+        Path boundary=new Path();boundary.addOval(area,Path.Direction.CW);canvas.clipPath(boundary);
+        canvas.translate(area.centerX(),area.centerY());canvas.scale(area.width()/area.height(),1);
+        canvas.rotate((float)((time%7)*360/7));canvas.scale(area.height()/area.width(),1);
+        canvas.translate(-area.centerX(),-area.centerY());drawCrop(canvas,device,new RectF(0,0,1,1));
+        canvas.restore();
     }
     private void drawRain(Canvas canvas,double t){
         paint.setColor(0x83e6f5ff);paint.setStrokeWidth(.002f);paint.setStrokeCap(Paint.Cap.ROUND);

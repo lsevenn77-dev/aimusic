@@ -312,6 +312,10 @@ private fun StudioPremiumBanner(limit: Int) {
  val account=m.user?.optString("id")
  val initial=data.optJSONObject("profile")?:JSONObject()
  val cover=initial.optString("kind")=="cover"
+ var releaseDate by rememberSaveable(trackId){mutableStateOf(initial.optString("release_date").takeUnless{it=="null"}.orEmpty())}
+ val uploadDay=remember(initial){initial.optLong("created").takeIf{it>0}?.let{
+  java.text.SimpleDateFormat("yyyy-MM-dd",java.util.Locale.ROOT).apply{timeZone=java.util.TimeZone.getTimeZone("Asia/Seoul")}.format(java.util.Date(it*1000))
+ }.orEmpty()}
  val appearance=remember(trackId){WorkAppearance(initial.optString("listening_template"),initial.optString("description"))}
  DisposableEffect(appearance){onDispose{appearance.close()}}
  val scope=rememberCoroutineScope()
@@ -422,7 +426,7 @@ private fun StudioPremiumBanner(limit: Int) {
   error=null
   try{
    var uploadAd:String?=null
-   val body=if(cover)appearance.changes("description").apply{put("release_date",initial.optString("release_date").takeUnless{it=="null"}?:"")}else JSONObject(initial.toString()).apply{
+   val body=if(cover)appearance.changes("description").apply{put("release_date",releaseDate)}else JSONObject(initial.toString()).apply{
     val chosen=if(creating)uploadGenres else genres.split(',').map{it.trim()}.filter{it.isNotEmpty()}
     put("title",title.trim());put("description",description);put("ai_tool",if(creating){if(noAI)"AI 사용 안 함" else credit}else tool.trim());put("genre",chosen.firstOrNull().orEmpty())
     put("genres",JSONArray(chosen));put("moods",JSONArray(moods.split(',').map{it.trim()}.filter{it.isNotEmpty()}))
@@ -458,7 +462,10 @@ private fun StudioPremiumBanner(limit: Int) {
     }
    }else{
     stage="음원 정보 저장 중…";m.api.call("/api/studio/tracks/$trackId","PUT",body)
-    if(cover)appearance.imageFile?.let{stage="커버사진 저장 중…";m.api.uploadListeningPhoto("/api/studio/tracks/$trackId/image",it)}
+    if(cover)appearance.imageFile?.let{
+     stage="커버사진 저장 중…"
+     try{m.api.uploadListeningPhoto("/api/studio/tracks/$trackId/image",it)}catch(e:Exception){if(e !is CancellationException)appearance.close();throw e}
+    }
     if(!cover)image?.let{stage="앨범 커버 저장 중…";m.api.uploadWebp("/api/studio/tracks/$trackId/image",it)}
    }
    m.api.invalidateReads()
@@ -471,7 +478,7 @@ private fun StudioPremiumBanner(limit: Int) {
  Column(Modifier.fillMaxSize().imePadding().testTag("studio-track-editor")){
   Row(Modifier.fillMaxWidth().padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically){
    IconButton(onClick=::leave,enabled=!working){Icon(Icons.AutoMirrored.Outlined.ArrowBack,"스튜디오로 돌아가기")}
-   Text(if(creating)"음원 업로드" else "음원 수정",fontSize=21.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
+   Text(if(creating)"음원 업로드" else if(cover)"커버곡 수정" else "음원 수정",fontSize=21.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
    if(creating){Text("* 필수 입력",color=Pink,fontSize=12.sp);IconButton(onClick={qa=true}){Icon(Icons.AutoMirrored.Outlined.HelpOutline,"업로드 Q&A")}}
   }
   Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp).testTag("studio-editor-scroll"),verticalArrangement=Arrangement.spacedBy(10.dp)){
@@ -533,7 +540,17 @@ private fun StudioPremiumBanner(limit: Int) {
     if(lyricsMode in listOf("none","later"))Text("스튜디오에서 가사를 추가할 수 있습니다.",color=Muted,fontSize=12.sp)
     data.optJSONObject("alignment")?.let{studioLyricsStatus(JSONObject().put("alignment_state",it.optString("state")))?.let{label->Text(label,fontSize=12.sp,color=Aqua)}}
     if(trackId!=null)StudioBackingControls(m,trackId,data.optJSONObject("karaoke"),working)
-   }else WorkAppearanceFields(appearance,Song(initial).workArtwork(),!working,noteLimit=1000)
+   }else {
+    val work=remember(initial){Song(initial)}
+    WorkAppearanceFields(appearance,work.workArtwork(),!working,noteLimit=1000,
+     preview={CoverWorkPlayback(m,work,appearance.template,appearance.image,initial.optString("status")=="published")},
+     afterPreview={if(work.originalId!=null)TextButton({m.openOriginal(work)}){Text("원곡 보기")}},
+     beforeNote={
+      OutlinedTextField(releaseDate,{releaseDate=it.take(10)},label={Text("발매일")},placeholder={Text(uploadDay.ifEmpty{"YYYY-MM-DD"})},
+       modifier=Modifier.fillMaxWidth(),enabled=!working,singleLine=true)
+      Text("기본값은 업로드 날짜입니다. 발매일을 바꿔도 업로드 기록은 유지됩니다.",fontSize=12.sp,color=Muted)
+     })
+   }
    if(creating){
     HorizontalDivider()
     Column(Modifier.bringIntoViewRequester(sectionKeys.getValue("credit"))){

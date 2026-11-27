@@ -57,7 +57,12 @@ data class Song(val raw: JSONObject) {
  }
  val dubbing=raw.optString("kind")=="dubbing"
  val hasAiArtist get() = !cover && if(raw.has("has_ai_artist")) raw.optInt("has_ai_artist") == 1 else artist.trim().isNotEmpty() && artist.trim() !in setOf("없음","미등록","-","선택 안함","선택안함")
- val credit get() = if(cover&&raw.optString("cover_mode")=="duet"&&raw.optString("duet_partner_id").isNotBlank()) "${raw.optString("duet_partner")} & $producer" else (if(hasAiArtist) artist else producer).ifBlank { "AIFECT" }
+ val credit: String get() {
+  val partnerId=raw.opt("duet_partner_id") as? String
+  val partner=raw.opt("duet_partner") as? String
+  if(cover && raw.optString("cover_mode")=="duet" && !partnerId.isNullOrBlank() && !partner.isNullOrBlank()) return "$partner & $producer"
+  return (if(hasAiArtist) artist else producer).ifBlank { "AIFECT" }
+ }
  val art: String? get() {
   if(cover)return if(producerImageVersion.isNotBlank()&&producerImageVersion!="null")Endpoint.url("/media/producer/$producerId?v=$producerImageVersion") else Endpoint.url("/assets/default-avatar.png")
   val own=raw.optInt("has_cover")>0

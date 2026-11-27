@@ -342,8 +342,9 @@ internal fun manualDubbingScript(title:String,text:String,options:JSONObject):JS
         Triple("담기",Icons.Outlined.Add,{if(music.authenticated())listPicker=true}),
         Triple("선물",Icons.Outlined.CardGiftcard,::gift),
         Triple("공유",Icons.Outlined.Share,{if(music.authenticated())sharing=true}))
-       actions.forEach{(label,icon,tap)->
-        val enabled=!busy&&(label!="담기"||final?.optString("state")=="ready")&&(label!="선물"||!p.optBoolean("isOwner"))
+       val canGift=ranking?.let{it.opt("gift_block_reason") !is String&&it.opt("recipient_profile_id") is String}?:!p.optBoolean("isOwner")
+       actions.filterNot{it.first=="선물"&&!canGift}.forEach{(label,icon,tap)->
+        val enabled=!busy&&(label!="담기"||final?.optString("state")=="ready")
         OutlinedButton(tap,Modifier.weight(1f).heightIn(min=44.dp),enabled=enabled,contentPadding=PaddingValues(vertical=5.dp),
          shape=RoundedCornerShape(8.dp),border=BorderStroke(1.dp,Stroke)){
          Column(horizontalAlignment=Alignment.CenterHorizontally){Icon(icon,null,Modifier.size(17.dp));Text(label,fontSize=10.sp,maxLines=1)}

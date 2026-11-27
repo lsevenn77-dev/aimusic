@@ -53,9 +53,9 @@ public class KaraokeActivity extends AppCompatActivity {
     private String listeningPhotoIssue="";
     private boolean checkingListeningPhoto;
     private WorkListeningArtwork listeningArtwork;
-    private TextView listeningCaption,listeningClock;
-    private SeekBar listeningSeek;
-    private Button listeningPlay;
+    private ImageView listeningThumb,publicationThumb;
+    private TextView recorderHeading,publicationTitle,publicationLength;
+    private WorkListeningControls listeningControls;
     private ActivityResultLauncher<String[]> listeningPhotoPicker;
     private final java.util.List<Button> listeningChoices=new java.util.ArrayList<>();
     private Button pause,restart,guide,pickLine,soloMode,duetMode;
@@ -168,6 +168,7 @@ public class KaraokeActivity extends AppCompatActivity {
         }});
         ui.post(tick);
         if(restoreDraft&&duetParent.isEmpty()&&dry.length()>PcmFiles.RATE/5&&mr.length()>0&&sessionFile.exists())try{
+            restoreDefaultListeningCover();
             JSONObject cached=new JSONObject(new String(java.nio.file.Files.readAllBytes(sessionFile.toPath()),java.nio.charset.StandardCharsets.UTF_8));words=cached.optJSONArray("words");if(words==null)words=new JSONArray();setSongTitle(cached.optString("title","내 임시 녹음"));restoreBackingKey(cached);engine=new KaraokeEngine(this,mr,dry,this::audioFinished);engine.fullLengthMix=coverMode.equals("duet");restoreSession();applySettings();hasTake=true;setState(State.PAUSED);drawLyrics(cursor);message("임시 녹음을 복원했어요. 이어 부르거나 들어보고 편집하세요.");return;
         }catch(Exception ignored){}
         files.execute(()->{
@@ -360,7 +361,7 @@ public class KaraokeActivity extends AppCompatActivity {
         for(Button b:new Button[]{monitorControl,settingsControl,record,restart})transport.addView(b,new LinearLayout.LayoutParams(0,-2,1));
         bottomControls=controls;content.removeAllViews();content.setPadding(dp(16),dp(8),dp(16),dp(16));
         Button previousStop=stop;stop=button("완료",false);stop.setTag("recording-complete");stop.setOnClickListener(v->previousStop.performClick());
-        View close=header.getChildAt(1);header.removeAllViews();header.setPadding(dp(8),0,dp(8),0);header.setMinimumHeight(dp(56));header.addView(close,new LinearLayout.LayoutParams(dp(60),-2));TextView pageTitle=text("녹음",18,Color.WHITE);pageTitle.setGravity(Gravity.CENTER);pageTitle.setTypeface(null,Typeface.BOLD);header.addView(pageTitle,new LinearLayout.LayoutParams(0,-2,1));stop.setTextSize(14);stop.setMinWidth(0);stop.setMinimumWidth(0);stop.setPadding(dp(4),0,dp(4),0);header.addView(stop,new LinearLayout.LayoutParams(dp(72),-2));root.addView(header,0);
+        View close=header.getChildAt(1);header.removeAllViews();header.setPadding(dp(8),0,dp(8),0);header.setMinimumHeight(dp(56));header.addView(close,new LinearLayout.LayoutParams(dp(60),-2));TextView pageTitle=text("녹음",18,Color.WHITE);recorderHeading=pageTitle;pageTitle.setGravity(Gravity.CENTER);pageTitle.setTypeface(null,Typeface.BOLD);header.addView(pageTitle,new LinearLayout.LayoutParams(0,-2,1));stop.setTextSize(14);stop.setMinWidth(0);stop.setMinimumWidth(0);stop.setPadding(dp(4),0,dp(4),0);header.addView(stop,new LinearLayout.LayoutParams(dp(72),-2));root.addView(header,0);
         songCard=box();LinearLayout songRow=new LinearLayout(this);songRow.setGravity(Gravity.CENTER_VERTICAL);songArt=new ImageView(this);songArt.setScaleType(ImageView.ScaleType.CENTER_CROP);GradientDrawable artBg=new GradientDrawable();artBg.setColor(Color.rgb(42,35,45));artBg.setCornerRadius(dp(8));songArt.setBackground(artBg);songArt.setClipToOutline(true);songArt.setImageResource(android.R.drawable.ic_media_play);songArt.setContentDescription("앨범 표지");songRow.addView(songArt,new LinearLayout.LayoutParams(dp(64),dp(64)));styleSongCard();
         title.setTextSize(16);title.setMaxLines(3);title.setEllipsize(android.text.TextUtils.TruncateAt.END);LinearLayout.LayoutParams titleParams=new LinearLayout.LayoutParams(0,-2,1);titleParams.setMargins(dp(14),0,0,0);songRow.addView(title,titleParams);songCard.addView(songRow);add(songCard,8);
         recordingPanel=new LinearLayout(this);recordingPanel.setOrientation(LinearLayout.VERTICAL);add(recordingPanel,12);
@@ -391,10 +392,31 @@ public class KaraokeActivity extends AppCompatActivity {
         styleStep(syncFields,"1. 싱크 조절");syncFields.setBackgroundColor(Color.TRANSPARENT);syncFields.setPadding(0,dp(12),0,0);while(syncFields.getChildCount()>1)syncFields.removeViewAt(1);syncFields.addView(text("내 목소리와 반주의 싱크를 맞춰주세요.",12,MUTED));LinearLayout syncScale=new LinearLayout(this);syncLeft=text("-200ms",12,MUTED);syncRight=text("+200ms",12,MUTED);syncRight.setGravity(Gravity.END);syncScale.addView(syncLeft,new LinearLayout.LayoutParams(0,-2,1));syncValue=text("0ms",12,Color.WHITE);syncValue.setGravity(Gravity.CENTER);syncScale.addView(syncValue,new LinearLayout.LayoutParams(0,-2,1));syncScale.addView(syncRight,new LinearLayout.LayoutParams(0,-2,1));syncFields.addView(syncScale);syncFields.addView(offset,new LinearLayout.LayoutParams(-1,dp(32)));attach(syncFields,postPanel);postSound=new LinearLayout(this);postSound.setOrientation(LinearLayout.VERTICAL);postPanel.addView(text("2. 볼륨 밸런스 확인",17,Color.WHITE));postPanel.addView(postSound);postReverb=new LinearLayout(this);postReverb.setOrientation(LinearLayout.VERTICAL);postPanel.addView(text("3. 리버브 효과",17,Color.WHITE));postPanel.addView(postReverb);
         styleStep(reviewFields,"4. 저장 및 게시");reviewFields.setBackgroundColor(Color.TRANSPARENT);reviewFields.setPadding(0,dp(10),0,0);publicationFields=new LinearLayout(this);publicationFields.setOrientation(LinearLayout.VERTICAL);while(reviewFields.getChildCount()>1){View child=reviewFields.getChildAt(1);reviewFields.removeViewAt(1);publicationFields.addView(child);}reviewFields.addView(text("저장 후 내 노래방에서 확인할 수 있습니다.",12,MUTED));attach(reviewFields,postPanel);Button again=compactButton("다시 부르기",false);again.setTag("recording-again");again.setOnClickListener(v->{returnToRecording=true;reviewPosition=false;cursor=0;if(state==State.PLAYING){pauseRequested=true;setState(State.STOPPING);engine.stop();}else setState(State.PAUSED);drawLyrics(0);scroll.smoothScrollTo(0,0);});Button draft=compactButton("초안 저장",false);draft.setTag("recording-draft");draft.setOnClickListener(v->{keepDraft=true;saveSession(()->message("이 기기에 저장했어요. 초안 목록에서 이어 편집할 수 있어요."));});LinearLayout saveRow=new LinearLayout(this);
         for(Button b:new Button[]{again,draft}){LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(0,-2,1);p.setMargins(dp(3),dp(8),dp(3),0);saveRow.addView(b,p);}reviewFields.addView(saveRow);
-        compactStyle(upload);upload.setText("게시하기");upload.setTag("recording-publish");attach(upload,reviewFields);LinearLayout.LayoutParams publishParams=new LinearLayout.LayoutParams(-1,-2);publishParams.setMargins(0,dp(8),0,dp(8));upload.setLayoutParams(publishParams);
-        Button publication=compactButton("게시 정보 · 권리 확인  ›",false);publication.setTag("recording-publication");publication.setOnClickListener(v->{publicationFields.setVisibility(publicationFields.getVisibility()==View.VISIBLE?View.GONE:View.VISIBLE);refreshListeningArtwork();updateListeningTransport(cursor);});reviewFields.addView(publication,new LinearLayout.LayoutParams(-1,-2));
-        Button postSettings=compactButton("잡음 · 세부 설정  ›",false);postSettings.setTag("post-settings");postSettings.setOnClickListener(v->openSettings());LinearLayout.LayoutParams settingsParams=new LinearLayout.LayoutParams(-1,-2);settingsParams.topMargin=dp(8);reviewFields.addView(postSettings,settingsParams);
-        publicationFields.addView(listeningSettings(),0);reviewFields.addView(publicationFields);publicationFields.setVisibility(View.GONE);upload.setOnClickListener(v->{if(!ownVoice.isChecked()||!rights.isChecked()){publicationFields.setVisibility(View.VISIBLE);message("게시 정보를 확인하고 권리 동의 후 저장 후 게시를 눌러주세요.");scroll.post(()->scroll.smoothScrollTo(0,reviewFields.getTop()+postPanel.getTop()));return;}upload();});
+        compactStyle(upload);upload.setText("게시하기");upload.setTag("recording-publish");
+        Button publication=compactButton("게시 설정",true);publication.setTag("recording-publication");
+        publication.setOnClickListener(v->showPublication(true));reviewFields.addView(publication,new LinearLayout.LayoutParams(-1,-2));
+        Button postSettings=compactButton("잡음 · 세부 설정  ›",false);postSettings.setTag("post-settings");
+        postSettings.setOnClickListener(v->openSettings());reviewFields.addView(postSettings,new LinearLayout.LayoutParams(-1,-2));
+        publicationFields.addView(listeningSettings(),0);
+        LinearLayout consentHead=new LinearLayout(this);consentHead.setGravity(Gravity.CENTER_VERTICAL);
+        consentHead.addView(text("게시 전 동의",16,Color.WHITE),new LinearLayout.LayoutParams(0,-2,1));
+        CheckBox all=check("전체 동의");consentHead.addView(all);
+        all.setOnClickListener(v->{
+            boolean checked=all.isChecked();
+            ownVoice.setChecked(checked);
+            rights.setChecked(checked);
+        });
+        android.widget.CompoundButton.OnCheckedChangeListener agreement=(box,value)->all.setChecked(ownVoice.isChecked()&&rights.isChecked());
+        ownVoice.setOnCheckedChangeListener(agreement);rights.setOnCheckedChangeListener(agreement);
+        publicationFields.addView(consentHead,publicationFields.indexOfChild(ownVoice));
+        LinearLayout footer=new LinearLayout(this);footer.setGravity(Gravity.CENTER_VERTICAL);
+        Button edit=compactButton("녹음 편집",false);edit.setOnClickListener(v->showPublication(false));footer.addView(edit);
+        footer.addView(new View(this),new LinearLayout.LayoutParams(0,1,1));
+        Button saveDraft=compactButton("초안 저장",false);saveDraft.setOnClickListener(v->draft.performClick());footer.addView(saveDraft);
+        ((ViewGroup)upload.getParent()).removeView(upload);footer.addView(upload);
+        publicationFields.addView(footer);
+        reviewFields.addView(publicationFields);publicationFields.setVisibility(View.GONE);
+        upload.setOnClickListener(v->{if(!ownVoice.isChecked()||!rights.isChecked()){message("게시 정보를 확인하고 권리에 동의해 주세요.");return;}upload();});
         status.setMinHeight(0);status.setGravity(Gravity.CENTER);status.setMaxLines(2);if(status.getParent() instanceof ViewGroup)((ViewGroup)status.getParent()).removeView(status);root.addView(status,root.indexOfChild(bottomControls),new LinearLayout.LayoutParams(-1,-2));refreshPresets();
     }
     private void mountStudioSettings(boolean reviewing){
@@ -433,36 +455,94 @@ public class KaraokeActivity extends AppCompatActivity {
         }
         byte[] bytes=api.coverBytes("/media/"+art+"/cover?v="+android.net.Uri.encode(source.optString("cover_version","original")));
         if(snapshot)return WorkListeningPhoto.store(new ByteArrayInputStream(bytes),listeningCover);
-        return BitmapFactory.decodeByteArray(bytes,0,bytes.length);
+        // Cache the source separately so a restored solo draft can still inherit its artwork.
+        return WorkListeningPhoto.store(new ByteArrayInputStream(bytes),new File(directory,"source-listening-cover.webp"));
     }
 
+    private void restoreDefaultListeningCover(){
+        if(listeningPhoto!=null)return;
+        files.execute(()->{
+            try{
+                File cached=new File(directory,"source-listening-cover.webp");
+                Bitmap photo=cached.isFile()?BitmapFactory.decodeFile(cached.getAbsolutePath()):null;
+                if(photo==null){
+                    File original=new File(directory,"cover-image");
+                    if(original.isFile())photo=BitmapFactory.decodeFile(original.getAbsolutePath());
+                    if(photo==null)photo=loadListeningCover(api.json("/api/karaoke/"+trackId,"GET",null).getJSONObject("track"),false);
+                }
+                final Bitmap restored=photo;
+                ui.post(()->{
+                    if(!destroyed&&restored!=null&&listeningPhoto==null&&!listeningCover.isFile()){
+                        listeningPhoto=restored;refreshListeningArtwork();
+                    }
+                });
+            }catch(Exception ignored){ /* Offline drafts can use the built-in cover until the original is available. */ }
+        });
+    }
+
+    private void showPublication(boolean open){
+        recorderHeading.setText(open?"게시 설정":"녹음 편집");
+        for(int i=0;i<postPanel.getChildCount();i++){
+            View child=postPanel.getChildAt(i);
+            if(child!=reviewFields)child.setVisibility(open?View.GONE:View.VISIBLE);
+        }
+        for(int i=0;i<reviewFields.getChildCount();i++){
+            View child=reviewFields.getChildAt(i);
+            child.setVisibility((child==publicationFields)==open?View.VISIBLE:View.GONE);
+        }
+        refreshListeningArtwork();updateListeningTransport(cursor);
+        scroll.post(()->scroll.smoothScrollTo(0,postPanel.getTop()));
+    }
     private View listeningSettings(){
         LinearLayout section=new LinearLayout(this);section.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout heading=new LinearLayout(this);heading.setGravity(Gravity.CENTER_VERTICAL);
+        heading.setPadding(0,0,0,dp(14));
+        publicationThumb=new ImageView(this);publicationThumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        heading.addView(publicationThumb,new LinearLayout.LayoutParams(dp(38),dp(38)));
+        LinearLayout metadata=new LinearLayout(this);metadata.setGravity(Gravity.CENTER_VERTICAL);
+        metadata.setPadding(dp(8),0,dp(6),0);
+        publicationTitle=text("",17,Color.WHITE);publicationTitle.setMaxLines(2);
+        publicationTitle.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        publicationTitle.setTypeface(null,Typeface.BOLD);
+        metadata.addView(publicationTitle,new LinearLayout.LayoutParams(-2,-2));
+        TextView kind=text(coverMode.equals("duet")?"듀엣":"솔로 커버",11,0xffc8beec);
+        kind.setSingleLine(true);kind.setPadding(dp(5),0,0,0);
+        int badgeWidth=(int)Math.ceil(kind.getPaint().measureText(kind.getText().toString()))+kind.getPaddingLeft()+dp(2);
+        metadata.addView(kind,new LinearLayout.LayoutParams(badgeWidth,-2));
+        metadata.addOnLayoutChangeListener((view,l,t,r,b,ol,ot,or,ob)->{
+            int available=r-l-metadata.getPaddingLeft()-metadata.getPaddingRight()-kind.getMeasuredWidth();
+            if(available>0&&publicationTitle.getMaxWidth()!=available)publicationTitle.setMaxWidth(available);
+        });
+        heading.addView(metadata,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout recorded=new LinearLayout(this);recorded.setOrientation(LinearLayout.VERTICAL);recorded.setGravity(Gravity.END);
+        recorded.addView(text("녹음 길이",10,MUTED));publicationLength=text("0:00",15,Color.WHITE);
+        recorded.addView(publicationLength);heading.addView(recorded);section.addView(heading);
         int size=Math.min(dp(420),getResources().getDisplayMetrics().widthPixels-dp(42));
         FrameLayout stage=new FrameLayout(this);
         listeningArtwork=new WorkListeningArtwork(this);listeningArtwork.setTag("recording-listening-preview");
         stage.addView(listeningArtwork,new FrameLayout.LayoutParams(-1,-1));
-        LinearLayout transport=new LinearLayout(this);transport.setOrientation(LinearLayout.VERTICAL);transport.setPadding(dp(8),dp(5),dp(8),dp(3));transport.setBackgroundColor(0xB90A0E18);
-        listeningCaption=text("",16,Color.WHITE);listeningCaption.setGravity(Gravity.CENTER);listeningCaption.setMaxLines(2);
-        listeningCaption.setTypeface(androidx.core.content.res.ResourcesCompat.getFont(this,R.font.pretendard_listening));
-        transport.addView(listeningCaption);
-        LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);
-        listeningPlay=compactButton("재생",false);listeningPlay.setOnClickListener(v->{if(state==State.PLAYING)previewPause.performClick();else preview.performClick();});
-        row.addView(listeningPlay,new LinearLayout.LayoutParams(-2,dp(44)));
-        listeningSeek=new SeekBar(this);listeningSeek.setContentDescription("재생 위치");listeningSeek.setMax(1000);
-        listeningSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener(){
-            public void onStartTrackingTouch(SeekBar seek){if(engine!=null)beginScrub();}
-            public void onProgressChanged(SeekBar seek,int progress,boolean fromUser){if(fromUser&&engine!=null)previewScrub(displayDuration()*progress/1000);}
-            public void onStopTrackingTouch(SeekBar seek){if(engine!=null)endScrub(displayDuration()*seek.getProgress()/1000);}
+        listeningControls=new WorkListeningControls(this);
+        listeningControls.bind(()->{if(state==State.PLAYING)previewPause.performClick();else preview.performClick();},
+                new WorkListeningControls.SeekListener(){
+                    public void begin(){if(engine!=null)beginScrub();}
+                    public void move(long millis){if(engine!=null)previewScrub(millis/1000.0);}
+                    public void end(long millis){if(engine!=null)endScrub(millis/1000.0);}
+                });
+        stage.addView(listeningControls,new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM));
+        section.addView(text("미리보기",16,Color.WHITE));
+        section.addView(stage,new LinearLayout.LayoutParams(-1,size));
+        stage.addOnLayoutChangeListener((v,l,t,r,b,ol,ot,or,ob)->{
+            if(r-l>0&&v.getLayoutParams().height!=r-l){v.getLayoutParams().height=r-l;v.requestLayout();}
         });
-        row.addView(listeningSeek,new LinearLayout.LayoutParams(0,dp(44),1));
-        listeningClock=text("",11,Color.WHITE);row.addView(listeningClock);transport.addView(row);
-        stage.addView(transport,new FrameLayout.LayoutParams(-1,-2,Gravity.BOTTOM));
-        LinearLayout.LayoutParams stageSize=new LinearLayout.LayoutParams(size,size);stageSize.gravity=Gravity.CENTER_HORIZONTAL;section.addView(stage,stageSize);
+        section.addView(text("작품 커버사진",15,Color.WHITE));
+        LinearLayout photoRow=new LinearLayout(this);photoRow.setGravity(Gravity.CENTER_VERTICAL);
+        listeningThumb=new ImageView(this);listeningThumb.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        photoRow.addView(listeningThumb,new LinearLayout.LayoutParams(dp(48),dp(48)));
+        LinearLayout photoActions=new LinearLayout(this);photoActions.setOrientation(LinearLayout.VERTICAL);photoActions.setPadding(dp(9),0,0,0);
         Button pick=compactButton("커버사진 변경",false);
         pick.setOnClickListener(v->{if(state!=State.UPLOADING&&!checkingListeningPhoto)listeningPhotoPicker.launch(new String[]{"image/jpeg","image/png","image/webp"});});
-        section.addView(pick);
-        section.addView(text("JPG · PNG · WebP · 최대 5MB",12,MUTED));
+        photoActions.addView(pick);photoActions.addView(text("JPG · PNG · WebP · 최대 5MB",12,MUTED));
+        photoRow.addView(photoActions);section.addView(photoRow);section.addView(text("감상 화면 템플릿",15,Color.WHITE));
         HorizontalScrollView scroller=new HorizontalScrollView(this);scroller.setHorizontalScrollBarEnabled(false);
         LinearLayout choices=new LinearLayout(this);
         String[] keys={WorkListeningArtwork.BASIC,WorkListeningArtwork.TURNTABLE,WorkListeningArtwork.PROJECTOR};
@@ -470,10 +550,16 @@ public class KaraokeActivity extends AppCompatActivity {
         int[] thumbnails={R.drawable.listening_cover_thumb,R.drawable.listening_turntable_thumb,R.drawable.listening_projector_thumb};
         for(int i=0;i<keys.length;i++){
             final String key=keys[i];Button choice=compactButton(labels[i],false);choice.setTag(key);
-            android.graphics.drawable.Drawable thumb=ContextCompat.getDrawable(this,thumbnails[i]);if(thumb!=null)thumb.setBounds(0,0,dp(52),dp(52));
-            choice.setCompoundDrawables(null,thumb,null,null);choice.setPadding(dp(6),dp(5),dp(6),dp(4));choice.setTextSize(11);
+            android.graphics.drawable.Drawable thumb=ContextCompat.getDrawable(this,thumbnails[i]);if(thumb!=null)thumb.setBounds(0,0,dp(66),dp(66));
+            choice.setCompoundDrawables(null,thumb,null,null);choice.setPadding(dp(4),dp(4),dp(4),dp(4));choice.setTextSize(11);
             choice.setOnClickListener(v->{if(state!=State.UPLOADING){listeningTemplate=key;refreshListeningArtwork();saveSession();}});
-            LinearLayout.LayoutParams card=new LinearLayout.LayoutParams(dp(79),dp(86));card.setMargins(0,dp(5),dp(6),dp(5));choices.addView(choice,card);
+            FrameLayout tile=new FrameLayout(this);tile.addView(choice,new FrameLayout.LayoutParams(-1,-1));
+            TextView check=text("✓",12,Color.BLACK);check.setGravity(Gravity.CENTER);check.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            android.graphics.drawable.GradientDrawable badge=new android.graphics.drawable.GradientDrawable();
+            badge.setShape(android.graphics.drawable.GradientDrawable.OVAL);badge.setColor(0xff8eddd2);check.setBackground(badge);
+            FrameLayout.LayoutParams corner=new FrameLayout.LayoutParams(dp(16),dp(16),Gravity.TOP|Gravity.END);
+            corner.setMargins(0,dp(6),dp(6),0);tile.addView(check,corner);
+            LinearLayout.LayoutParams card=new LinearLayout.LayoutParams(dp(76),dp(96));card.setMargins(0,dp(5),dp(8),dp(5));choices.addView(tile,card);
             listeningChoices.add(choice);
         }
         scroller.addView(choices);section.addView(scroller);
@@ -482,20 +568,24 @@ public class KaraokeActivity extends AppCompatActivity {
     private void refreshListeningArtwork(){
         if(listeningArtwork==null)return;
         listeningArtwork.show(listeningTemplate,listeningPhoto);
+        if(listeningPhoto==null)listeningThumb.setImageResource(R.drawable.listening_cover);else listeningThumb.setImageBitmap(listeningPhoto);
+        if(listeningPhoto==null)publicationThumb.setImageResource(R.drawable.listening_cover);else publicationThumb.setImageBitmap(listeningPhoto);
         String selected=WorkListeningArtwork.isTemplate(listeningTemplate)?listeningTemplate:WorkListeningArtwork.BASIC;
         for(Button button:listeningChoices){
             boolean on=selected.equals(button.getTag());button.setSelected(on);
-            button.setBackgroundTintList(ColorStateList.valueOf(on?0xff3c4758:CARD));
+            android.graphics.drawable.GradientDrawable surface=new android.graphics.drawable.GradientDrawable();
+            surface.setColor(CARD);surface.setCornerRadius(dp(8));surface.setStroke(dp(1),on?0xff8eddd2:0xff354153);
+            button.setBackgroundTintList(null);button.setBackground(surface);
+            ((FrameLayout)button.getParent()).getChildAt(1).setVisibility(on?View.VISIBLE:View.GONE);
         }
     }
     private void updateListeningTransport(double seconds){
         if(listeningArtwork==null||engine==null||publicationFields.getVisibility()!=View.VISIBLE)return;
         double length=displayDuration();
+        String lengthLabel=time(length);
+        if(!lengthLabel.contentEquals(publicationLength.getText()))publicationLength.setText(lengthLabel);
         boolean playing=state==State.PLAYING;
         listeningArtwork.playback((long)(seconds*1000),playing);
-        listeningPlay.setText(playing?"일시정지":"재생");
-        listeningClock.setText(time(seconds)+" / "+time(length));
-        if(!lyricScrubbing)listeningSeek.setProgress((int)(1000*Math.min(1,seconds/Math.max(.01,length))));
         String caption="";
         if(words!=null&&engine!=null)for(int i=0;i<words.length();i++){
             JSONObject line=words.optJSONObject(i);
@@ -508,7 +598,7 @@ public class KaraokeActivity extends AppCompatActivity {
                 caption=String.join(" ",text);
             }else caption="";
         }
-        listeningCaption.setText(caption);listeningCaption.setVisibility(caption.isEmpty()?View.GONE:View.VISIBLE);
+        listeningControls.show((long)(seconds*1000),(long)(length*1000),playing,caption,state!=State.UPLOADING);
     }
 
     private void requestRecord(){
@@ -807,6 +897,7 @@ public class KaraokeActivity extends AppCompatActivity {
     /** Title in bold over a muted artist line, as in the approved recording design. */
     private void setSongTitle(String value){
         String text=value==null?"":value;int split=text.indexOf(10);SpannableString styled=new SpannableString(text);
+        if(publicationTitle!=null)publicationTitle.setText(split<0?text:text.substring(0,split));
         styled.setSpan(new android.text.style.StyleSpan(Typeface.BOLD),0,split<0?text.length():split,Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
         if(split>=0){styled.setSpan(new ForegroundColorSpan(MUTED),split+1,text.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);styled.setSpan(new android.text.style.RelativeSizeSpan(.88f),split+1,text.length(),Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);}
         title.setText(styled);

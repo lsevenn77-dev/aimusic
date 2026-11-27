@@ -824,7 +824,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  private var playlistPlayRequest=0L
  var playlistPlayLoading by mutableStateOf<String?>(null);private set
  private fun cancelPlaylistPlay(){playlistPlayRequest++;playlistPlayJob?.cancel();playlistPlayJob=null;playlistPlayLoading=null}
- fun play(song:Song,queue:List<Song> = listOf(song),shuffled:Boolean?=null){
+ fun play(song:Song,queue:List<Song> = listOf(song),shuffled:Boolean?=null,startPosition:Long=0){
   cancelPlaylistPlay()
   val c=controller?:run {notice="플레이어를 준비하고 있어요.";return}
   songs.putAll(queue.associateBy {it.id});songs[song.id]=song
@@ -839,7 +839,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
     c.shuffleModeEnabled=shuffled
     if(shuffled&&c.repeatMode==Player.REPEAT_MODE_ONE)c.repeatMode=Player.REPEAT_MODE_OFF
    }
-   c.setMediaItems(items,index,0);c.prepare();c.play()
+   c.setMediaItems(items,index,startPosition.coerceAtLeast(0));c.prepare();c.play()
   }
  }
  fun cyclePlaybackMode(){
@@ -980,8 +980,10 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   if(detail?.id==song.id)detail=fresh
   if(song.cover){if(rankOpen)loadRankings();loadRankHighlights()}
  }}
- fun comment(body:String,parentId:String?=null,onSuccess:()->Unit={}) {if(!authenticated()||body.isBlank())return;val song=detail?:return;action {
-  api.call("/api/tracks/${song.id}/comments","POST",payload("body" to body.trim(),"parent_id" to parentId))
+ fun comment(body:String,parentId:String?=null,includePosition:Boolean=false,onSuccess:()->Unit={}) {if(!authenticated()||body.isBlank())return;val song=detail?:return;action {
+  val bodyJson=payload("body" to body.trim(),"parent_id" to parentId)
+  if(includePosition)bodyJson.put("timestamp",if(current?.id==song.id)position/1000 else 0)
+  api.call("/api/tracks/${song.id}/comments","POST",bodyJson)
   if(detail?.id==song.id){comments=api.call("/api/tracks/${song.id}/comments",fresh=true).optJSONArray("comments").objects();detail=Song(api.call("/api/tracks/${song.id}",fresh=true).getJSONObject("track"))}
   onSuccess();notice="댓글을 남겼어요."
  }}
