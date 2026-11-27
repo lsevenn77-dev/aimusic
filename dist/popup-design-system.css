@@ -481,7 +481,7 @@ dialog .primary-button[aria-disabled="true"] {
 }
 #dialog.compact-popup .playlist-picker-row[aria-disabled="false"]:hover { background:var(--popup-soft); }
 #dialog.compact-popup .playlist-picker-row[aria-disabled="true"] { cursor:default; }
-#dialog.compact-popup :is(.playlist-picker-row,.playlist-picker-new,.playlist-picker-more,.chart-confirm):focus-visible {
+#dialog.compact-popup :is(.playlist-picker-row,.playlist-picker-new,.playlist-picker-more):focus-visible {
   outline:1px solid var(--popup-progress);
   outline-offset:-1px;
 }
@@ -519,15 +519,15 @@ dialog .primary-button[aria-disabled="true"] {
 .playlist-picker-row[aria-busy="true"] .playlist-picker-action { opacity:.55; }
 #dialog.compact-popup .playlist-picker-status { margin:0; }
 #dialog.compact-popup .playlist-picker-panel > .form-error { margin:0; }
-#dialog.compact-popup :is(.playlist-picker-panel :is(.playlist-picker-new,.playlist-picker-more),.chart-playlist-dialog .chart-confirm) {
+#dialog.compact-popup .playlist-picker-panel :is(.playlist-picker-new,.playlist-picker-more) {
   width:100%;
   gap:6px;
   color:var(--popup-progress);
   background:none;
   border:1px solid var(--popup-line);
 }
-#dialog.compact-popup :is(.playlist-picker-panel .playlist-picker-new,.chart-playlist-dialog .chart-confirm) { height:42px;min-height:42px; }
+#dialog.compact-popup .playlist-picker-panel .playlist-picker-new { height:42px;min-height:42px; }
 #dialog.compact-popup .playlist-picker-panel .playlist-picker-more { margin-top:4px; }
 @media(max-width:800px) {
-  #dialog.compact-popup:has(:is(.playlist-picker-panel,.chart-playlist-dialog)) { width:calc(100% - 40px); }
+  #dialog.compact-popup:has(.playlist-picker-panel) { width:calc(100% - 40px); }
 }

@@ -1,3 +1,4 @@
+import {playlistDuplicateTitle} from '../shared/system-messages.js';
 import {query,id,fail} from './db.js';
 
 // D1 batch is one transaction. A CHECK guard aborts the complete batch when a
@@ -10,6 +11,7 @@ export async function libraryTransaction(env,conditions,statements){
   query(env,'DELETE FROM library_write_guards WHERE id LIKE ?',token+':%')
  ]);}catch(error){
   if(/library_guard_allowed|library_write_guards.allowed/.test(error.message))fail(409,'목록이나 콘텐츠 접근 권한이 변경되었습니다. 다시 열어 확인해 주세요.');
+  if(/UNIQUE constraint failed: playlist_title_claims/.test(error.message))fail(409,playlistDuplicateTitle);
   throw error;
  }
 }

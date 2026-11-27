@@ -6,3 +6,4 @@ export const unsupportedRequest = '지원하지 않는 요청입니다.';
 export const requestTooLarge = '요청이 너무 큽니다.';
 export const notFound = '페이지를 찾을 수 없습니다.';
 export const playlistPrivatePrompt = '커버곡 또는 더빙을 추가하면 플레이리스트가 비공개로 변경됩니다. 계속하시겠습니까?';
+export const playlistDuplicateTitle = '이미 사용 중인 플레이리스트 제목입니다.';
