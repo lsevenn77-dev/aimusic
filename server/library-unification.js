@@ -18,32 +18,12 @@ export async function boxesUnified(env) {
   return !!await one(env, 'SELECT 1 ok FROM library_unification_state WHERE key=?', verifiedKey);
 }
 
-const strictSQL = "NOT EXISTS(SELECT 1 FROM playlist_items i WHERE i.playlist_id=p.id AND i.kind!='original')";
-
 async function readPlan(env) {
   const source = await inspectBoxSource((sql, offset) => one(env, sql, offset), hash);
-  const byId = new Map();
-  for (const {source:table,page} of source.pages) {
-    for (const row of JSON.parse(page)) {
-      if (table === 'boxes') byId.set(row[0], {id:row[0],name:row[2],strict:true});
-      else if (row[1] !== 'original' && byId.has(row[0])) byId.get(row[0]).strict=false;
-    }
-  }
-  const boxes = [...byId.values()];
-  const playlists = await rows(env, `SELECT p.id,p.name,p.name_key,${strictSQL} strict FROM playlists p ORDER BY p.id`);
-  const strictTitles = new Map(), conflicts = [], reservedIds = new Set(playlists.map(p => p.id));
-  function inspect(row, type) {
-    const key = normalizePlaylistTitle(row.name);
-    if (!key || (type === 'playlist' && row.name_key !== key)) conflicts.push({reason:'title_index', type, id:row.id});
-    if (type === 'box' && reservedIds.has(prefix + row.id)) conflicts.push({reason:'id', type, id:row.id});
-    if (!row.strict) return;
-    const refs = strictTitles.get(key) || [];
-    refs.push({type, id:row.id});
-    strictTitles.set(key, refs);
-  }
-  for (const p of playlists) inspect(p, 'playlist');
-  for (const b of boxes) inspect(b, 'box');
-  for (const refs of strictTitles.values()) if (refs.length > 1) conflicts.push({reason:'duplicate_title', lists:refs});
+  const boxes = source.pages.filter(page => page.source === 'boxes')
+    .flatMap(({page}) => JSON.parse(page).map(([id,,name]) => ({id,name})));
+  const matches = await rows(env, 'SELECT b.id FROM my_boxes b JOIN playlists p ON p.id=?||b.id ORDER BY b.id', prefix);
+  const conflicts = matches.map(({id}) => ({reason:'id', type:'box', id}));
   return {source, boxes, conflicts};
 }
 
@@ -55,7 +35,7 @@ export async function applyBoxUnification(env, backup) {
   const plan = await readPlan(env);
   if (!backup || backup.format !== 1 || !/^[0-9a-f]{64}$/.test(backup.file_sha256 || '') ||
       plan.source.fingerprint !== backup.source_sha256) fail(409,'DB 백업 검증 결과가 현재 마이박스와 일치하지 않습니다. 백업을 다시 확인해 주세요.');
-  if (plan.conflicts.length) fail(409,'제목 또는 식별자 충돌이 있습니다. 원본을 유지했습니다. 이전 점검 결과를 확인해 주세요.');
+  if (plan.conflicts.length) fail(409,'플레이리스트 식별자가 충돌했습니다. 이전 점검 결과를 확인해 주세요.');
   const token = id(), statements = [];
   function guard(expr, ...args) {
     statements.push(query(env, `INSERT INTO library_write_guards(id,allowed) SELECT ?,CASE WHEN (${expr}) THEN 1 ELSE 0 END`, token+':'+statements.length, ...args));
@@ -81,8 +61,6 @@ export async function applyBoxUnification(env, backup) {
   const migrated = 'SELECT b.id,i.kind,i.content_id,i.position,i.created FROM my_boxes b JOIN playlist_items i ON i.playlist_id=?||b.id';
   guard(`NOT EXISTS(${original} EXCEPT ${migrated}) AND NOT EXISTS(${migrated} EXCEPT ${original})
     AND (SELECT count(*) FROM (${migrated}))=(SELECT count(*) FROM my_box_items)`, prefix,prefix,prefix);
-  guard(`NOT EXISTS(SELECT p.name_key FROM playlists p WHERE ${strictSQL} GROUP BY p.name_key HAVING count(*)>1 OR p.name_key IS NULL)`);
-  statements.push(query(env,`INSERT OR IGNORE INTO playlist_title_claims(key) SELECT p.name_key FROM playlists p WHERE ${strictSQL}`));
   const result = {boxes:plan.source.counts.boxes,items:plan.source.counts.items,source_sha256:plan.source.fingerprint,
     backup_sha256:backup.file_sha256,verified_at:now()};
   statements.push(query(env,'INSERT INTO library_unification_state(key,value) VALUES(?,?)',verifiedKey,JSON.stringify(result)));
