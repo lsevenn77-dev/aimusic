@@ -46,7 +46,11 @@ def anchored_timings(model, source, lines, language, duration):
             raise ValueError('lyric_without_nearby_acoustic_landmarks')
         windows.append({'start':start,'end':end,'text':line})
         pos = stop
-    measured = model.align_words(str(source), windows, language=language, verbose=None,
+    # Adjacent search windows intentionally overlap for notes crossing a line.
+    # These are search bounds only. Validate the resulting measured times below.
+    from stable_whisper import WhisperResult
+    search_windows = WhisperResult(windows, check_sorted=False)
+    measured = model.align_words(str(source), search_windows, language=language, verbose=None,
                                  regroup=False, suppress_silence=False, normalize_text=False)
     if measured is None:
         raise ValueError('line_alignment_failed')
