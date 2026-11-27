@@ -5,14 +5,31 @@ import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../dist/social-chat.js',import.meta.url),'utf8');
 const make=()=>{const c=nicknameContext({document:{addEventListener(){}},esc:String,crewInboxHTML:()=>'',number:String});vm.runInContext(source,c);return c;};
-test('the notice follows message timestamps and the crew keeps its existing slot',()=>{
- const c=make();c.icon=()=>'';
- const items=[{id:'old',name:'old',updated:2},{id:'fake',name:'AIFECT 운영팀',updated:5},{id:'official',name:'아이팩트 안내',is_notice:true,notice_type:'official',updated:1,last_message:'최신 공지',unread:2},{id:'new',name:'new',updated:9}];
- c.items=items;const ordered=JSON.parse(vm.runInContext('JSON.stringify(dmOrderedConversations(items))',c));
- assert.equal(ordered.notice.id,'official');assert.deepEqual(ordered.direct.map(p=>p.id),['new','fake','old']);assert.equal(items[0].id,'old');
- c.portrait=()=>'';c.crewInboxHTML=()=>'<a>CREW</a>';
- const html=c.conversationListHTML(items);assert.ok(html.indexOf('CREW')<html.indexOf('#dm/new'));assert.ok(html.indexOf('#dm/new')<html.indexOf('#dm/old'));assert.ok(html.indexOf('#dm/old')<html.indexOf('#dm/notice'));assert.doesNotMatch(html,/dm-pin|data-dm-filter/);
- assert.equal((html.match(/href="#dm\/notice"/g)||[]).length,1);assert.match(html,/최신 공지/);assert.match(html,/안 읽은 메시지 2개/);
+test('official notice stays first while DMs and crew follow message timestamps',()=>{
+ const c=make();Object.assign(c,{icon:()=>'',portrait:()=>'',setInterval(){},window:{addEventListener(){}}});
+ vm.runInContext(readFileSync(new URL('../dist/chat-features.js',import.meta.url),'utf8'),c);
+ const official={id:'aifect-official-notice',name:'공식 채널',is_notice:true,notice_type:'official',read_only:true,updated:1,last_message:'기존 공지',unread:2};
+ const old={id:'old',name:'오래된 대화',updated:2,unread:8};
+ const namesake={id:'namesake',name:'아이팩트 안내',updated:5};
+ const recent={id:'recent',name:'새 대화',updated:9};
+ const crew={id:'crew',name:'크루',updated:7};
+ const links=html=>Array.from(html.matchAll(/href="#dm\/([^"]+)"/g),match=>match[1]);
+
+ const initial=[old,namesake,official,recent];
+ const html=c.conversationListHTML(initial,crew);
+ assert.deepEqual(links(html),['notice','recent','crew/crew','namesake','old']);
+ assert.deepEqual(initial.map(row=>row.id),['old','namesake',official.id,'recent']);
+ assert.match(html,/기존 공지/);assert.match(html,/안 읽은 메시지 2개/);
+ assert.doesNotMatch(html,/dm-pin|data-dm-filter/);
+
+ const read={...official,unread:0};
+ const delivered={...read,updated:20,last_message:'새 공지',unread:1};
+ const updated=c.conversationListHTML([read,{...old,updated:18},recent,namesake],crew);
+ assert.deepEqual(links(updated),['notice','old','recent','crew/crew','namesake']);
+ assert.doesNotMatch(updated,/안 읽은 메시지 2개/);
+ const afterDelivery=c.conversationListHTML([namesake,delivered,recent,old,official],{...crew,updated:21});
+ assert.deepEqual(links(afterDelivery),['notice','crew/crew','recent','namesake','old']);
+ assert.match(afterDelivery,/새 공지/);
 });
 
 test('empty channels stay visible and search covers channel names and previews',()=>{

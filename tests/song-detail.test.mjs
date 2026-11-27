@@ -24,9 +24,11 @@ test('web song introductions use the creator field and native readers use the st
  assert.equal(web.songDescriptionHTML(samples.legacy_auto[0]),'');
  assert.match(web.songDescriptionHTML(sample),/첫 줄\n둘째 줄/);
  assert.ok(!web.songDescriptionHTML(sample).includes(esc(sample.description)));
+ assert.match(web.songDescriptionHTML({...sample,kind:'cover'}),/<h3>커버 소개<\/h3>[\s\S]*>… 더보기<\/button>/);
  for(const platform of [{inApp:true},{navigator:{userAgent:'AIFECT-Mobile/1.0'}}]){
   const markup=header('owner',false,platform).songDescriptionHTML(sample);
   assert.ok(markup.includes(esc(sample.description)));
+  assert.match(markup,/<h3>곡 소개<\/h3>/);
   assert.match(markup,/>\+더보기<\/button>/);
  }
 });
@@ -40,7 +42,7 @@ test('creator text and paragraphs stay intact and HTML-safe',()=>{
  const description=html.match(/<p\b[^>]*id="song-description-text"[^>]*>([\s\S]*?)<\/p>/)?.[1];
  assert.ok(description);assert.ok(description.includes('<span class="song-description-content">'+esc(text)+'</span>'));
  const toggle=description.match(/<button\b[^>]*class="text-link song-description-toggle"[^>]*>/)?.[0];
- assert.ok(toggle);assert.match(toggle,/type="button"/);assert.match(toggle,/aria-controls="song-description-text"/);assert.match(toggle,/aria-expanded="false"/);assert.match(toggle,/\bhidden\b/);assert.match(description,/>… 더보기<\/button>/);
+ assert.ok(toggle);assert.match(toggle,/type="button"/);assert.match(toggle,/aria-controls="song-description-text"/);assert.match(toggle,/aria-expanded="false"/);assert.match(toggle,/\bhidden\b/);assert.match(description,/>\+더보기<\/button>/);
 });
 test('empty introductions do not reserve a card and saved text stays intact',()=>{
  const c=header();
@@ -49,14 +51,14 @@ test('empty introductions do not reserve a card and saved text stays intact',()=
  assert.doesNotMatch(c.songDetailHeaderHTML(track),/song-description|음악을 듣고 감상을/);
 });
 
-test('the web song title heads the page and metrics lead to the actions before the introduction',()=>{
+test('the web song introduction follows the report and precedes the two action rows',()=>{
  const c=header(),html=c.songDetailHeaderHTML({...track,creator_description:'제작자 소개'});
- const order=['song-track-meta','song-title','song-credits','song-meta-row','song-metrics','song-release-date','song-duration','song-engagement','data-report-track','song-actions','song-introduction'];
+ const order=['song-track-meta','song-title','song-credits','song-meta-row','song-metrics','song-release-date','song-duration','song-comment-report','data-song-comment-count','song-engagement','data-report-track','song-introduction','song-actions-primary','song-actions-secondary'];
  let previous=-1;for(const key of order){const at=html.indexOf(key);assert.ok(at>previous,key);previous=at;}
  assert.equal(html.match(/class="song-introduction"/g).length,1);
  assert.match(html,/<h1\b[^>]*class="song-title"[^>]*>곡 제목<\/h1>/);assert.equal((html.match(/<h1\b/g)||[]).length,1);
  assert.match(c.songDetailHeaderHTML({...track,title:'곡 <제목> "1"'}),/<h1\b[^>]*class="song-title" title="곡 &lt;제목&gt; &quot;1&quot;">곡 &lt;제목&gt; &quot;1&quot;<\/h1>/);
- assert.match(html,/<h3>곡 소개<\/h3>/);assert.match(html,/aria-label="재생 20회"/);assert.match(html,/aria-label="댓글 2개"/);assert.match(html,/aifect-icon-plays/);assert.match(html,/aifect-icon-comment/);
+ assert.doesNotMatch(html,/song-introduction-heading|>곡 소개</);assert.match(html,/aria-label="재생 20회"/);assert.match(html,/aria-label="댓글 2개"/);assert.match(html,/aifect-icon-plays/);assert.match(html,/aifect-icon-comment/);
  const meta=html.match(/<span\b[^>]*class="eyebrow song-track-meta"[^>]*>([\s\S]*?)<\/span>/)?.[1];assert.equal(meta,'Pop');
  const metrics=html.match(/<div\b[^>]*class="song-metrics"[^>]*>([\s\S]*?)<\/div>/)?.[1];assert.ok(metrics);
  const duration=metrics.match(/<span\b[^>]*class="metric-inline song-duration"[^>]*>[\s\S]*?<\/span>/)?.[0];

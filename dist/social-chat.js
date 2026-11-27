@@ -45,32 +45,34 @@ function conversationMetaHTML(p){
 function dmProfileLink(p,content,cls='dm-profile-link'){return '<a class="'+cls+'" href="#producer/'+esc(p.id)+'" aria-label="'+esc(chatNickname(p))+' 프로필 보기">'+content+'</a>';}
 let dmInboxQuery='';
 let dmInboxSnapshot=null;
+const officialNoticeChannelId='aifect-official-notice';
 function rememberDmInbox(data){if(dmInboxSnapshot?.uid!==me?.id)dmInboxQuery='';dmInboxSnapshot={uid:me?.id,data};}
-function dmOrderedConversations(conversations=[]){
- const direct=conversations.filter(p=>p.is_notice!==true).sort((a,b)=>Number(b.updated||0)-Number(a.updated||0));
- return {notice:conversations.find(p=>p.notice_type==='official'),direct};
-}
+function isOfficialInboxNotice(p){return p.id===officialNoticeChannelId||p.notice_type==='official';}
 function dmSearchMatch(p,query,label=''){
  return !query||[label,chatNickname(p||{}),p?.last_message_display,p?.last_message].join(' ').toLocaleLowerCase().includes(query.trim().toLocaleLowerCase());
 }
 function dmConversationRow(p,selected=''){
  return '<article data-list-row class="conversation-row'+(selected===p.id?' is-selected':'')+(Number(p.unread)>0?' is-unread':'')+'">'+dmProfileLink(p,portrait(p,'producer'))+'<a class="conversation-open" href="#dm/'+esc(p.id)+'"'+(selected===p.id?' aria-current="true"':'')+'>'+conversationCopyHTML(p,chatNickname(p),'대화를 시작해 보세요.')+conversationMetaHTML(p)+'</a></article>';
 }
-function isOfficialNoticePeer(id){return ['notice','aifect-guide','premium-open-event-20261231-v1','aifect-official-notice'].includes(id);}
+function isOfficialNoticePeer(id){return ['notice','aifect-guide','premium-open-event-20261231-v1',officialNoticeChannelId].includes(id);}
 function noticeInboxHTML(p={},selected){
  const active=isOfficialNoticePeer(selected);
  return '<a data-list-row class="conversation-row pinned-notice'+(active?' is-selected':'')+'" href="#dm/notice"'+(active?' aria-current="true"':'')+'><span class="crew-inbox-art notice-art">'+voiceGlyph('megaphone')+'</span>'+conversationCopyHTML(p,'아이팩트 안내','아직 받은 공지가 없습니다.',true)+conversationMetaHTML(p)+'</a>';
 }
 function conversationListHTML(conversations=[],crew=null,selected=''){
- const {notice:official,direct}=dmOrderedConversations(conversations),query=dmInboxQuery;
+ const official=conversations.find(isOfficialInboxNotice),query=dmInboxQuery;
  const notice=dmSearchMatch(official,query,'아이팩트 안내 공지')?noticeInboxHTML(official,selected):'';
- const crewRow=dmSearchMatch(crew,query,'크루채팅')?(crewInboxHTML(crew,selected)||'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있습니다.</p></div></a>'):'';
- const rows=direct.filter(p=>dmSearchMatch(p,query));
- const boundary=rows.findIndex(p=>Number(p.updated||0)<Number(official?.updated||0));
- const position=boundary<0?rows.length:boundary;
- const markup=rows.map(p=>dmConversationRow(p,selected));
- if(notice)markup.splice(position,0,notice);
- return '<div class="conversation-list">'+crewRow+markup.join('')+'</div>'+(!markup.length&&!crewRow?'<div class="dm-empty" role="status"><p>검색 결과가 없습니다.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해 보세요.</p></div>':'');
+ const crewLink=!crew&&dmSearchMatch(null,query,'크루채팅')?'<a class="conversation-row pinned-crew" href="#community/crews"><span class="crew-inbox-art">'+icon('users')+'</span><div class="conversation-copy"><strong>크루채팅</strong><p>크루에 가입하면 대화할 수 있습니다.</p></div></a>':'';
+ const direct=conversations.filter(p=>!p.is_notice&&!isOfficialInboxNotice(p));
+ const chats=crew?[crew,...direct]:direct;
+ chats.sort((a,b)=>Number(b.updated||0)-Number(a.updated||0));
+ const rows=chats.map(p=>{
+  const isCrew=p===crew;
+  if(!dmSearchMatch(p,query,isCrew?'크루채팅':''))return '';
+  return isCrew?crewInboxHTML(p,selected):dmConversationRow(p,selected);
+ }).join('');
+ const markup=notice+crewLink+rows;
+ return '<div class="conversation-list">'+markup+'</div>'+(!markup?'<div class="dm-empty" role="status"><p>검색 결과가 없습니다.</p></div>':!direct.length&&!query?'<div class="dm-empty"><p>새 메시지로 대화를 시작해 보세요.</p></div>':'');
 }
 function chatTextHTML(body){return esc(body).replace(/(?:[ \t]*\r?\n[ \t]*)?https:\/\/aifect\.co\.kr\/#(voice|live)\/([a-zA-Z0-9_-]{16,64})(?![a-zA-Z0-9_-])/g,(_,route,id)=>'<a class="small-button dm-room-invite" href="#'+route+'/'+id+'">방 입장하기</a>').replace(/(?:[ \t]*\r?\n[ \t]*)?https:\/\/aifect\.co\.kr\/#(producer|member)\/([a-zA-Z0-9_-]{1,80})(?![a-zA-Z0-9_/-])/g,(_,route,id)=>'<a class="dm-profile-share" href="#'+route+'/'+id+'" aria-label="공유된 프로필 보기">프로필 보기</a>');}
 function chatBodyHTML(body){return body?.includes('[aifect:')?AifectStickers.render(body,chatTextHTML):chatTextHTML(body);}
@@ -283,7 +285,7 @@ function bindSocialChat(view){
  };
  const addInboxTargets=d=>{
   addTarget('dm');addTarget('dm/notice');addTarget('dm/tools/friends');
-  for(const p of d?.conversations||[])if(!p.is_notice)addTarget('dm/'+p.id);
+  for(const p of d?.conversations||[])if(!p.is_notice&&!isOfficialInboxNotice(p))addTarget('dm/'+p.id);
   if(d?.crew)addTarget('dm/crew/'+d.crew.id);
  };
  const syncCrewInbox=crew=>{
@@ -316,7 +318,7 @@ function bindSocialChat(view){
   const noticeRead=({notice,...counts})=>{
    if(!current())return;inboxVersion++;
    if(inboxData){
-    inboxData={...inboxData,...counts,conversations:inboxData.conversations.map(p=>p.notice_type==='official'?notice:p)};
+    inboxData={...inboxData,...counts,conversations:inboxData.conversations.map(p=>isOfficialInboxNotice(p)?notice:p)};
     rememberDmInbox(inboxData);paintInbox(inboxData);
     if(Number.isFinite(inboxData.unread))paintMessageBadge(inboxData.unread);
    }

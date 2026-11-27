@@ -231,7 +231,9 @@
       }
     }
   }
+}
 
+@media(min-width:1024px), (min-width:801px) and (hover:hover) and (pointer:fine) {
   /* Keep the desktop recording frame between the top bar and mini-player. */
   :root:not([data-aifect-native]) .page-wrap:has(> #main > #sing.web-studio:not(.is-reviewing):not(.is-punch-page):not(.is-punch-recording)) {
     --record-frame-inset:clamp(3px,calc(5dvh - 24px),24px);
@@ -266,21 +268,31 @@
         padding-block:clamp(8px,calc(4dvh - 16px),20px) var(--record-setting-gap)!important;
       }
       > .sing-recording {
+        --record-transport-gutter:clamp(8px,calc(100dvh - 530px),calc(var(--record-line) + 13px));
         grid-template-rows:max-content clamp(0px,calc(5dvh - 29px),15px)
           clamp(22px,4.1dvh,35px) clamp(28px,4.5dvh,40px)
-          minmax(0,1fr) max-content;
+          minmax(0,max-content) minmax(min-content,1fr);
+        padding-block-end:0!important;
       }
       .sing-wheel {
-        /* The lyric list follows the grid track even when the song is long. */
-        contain:size;
-        height:calc(100% - 15px)!important;
+        align-self:stretch;
+        height:auto!important;
+        clip-path:var(--record-lyric-clip,none);
+      }
+      .sing-recording .studio-transport {
+        align-self:stretch;
+        align-content:center;
+        /* Move room between the two sides without changing the row's minimum size. */
+        --record-lyric-offset:min(var(--record-transport-gutter),var(--record-lyric-tail,0px));
+        padding-block:calc((var(--record-transport-gutter) - var(--record-lyric-offset)) / 2)
+          calc((var(--record-transport-gutter) + var(--record-lyric-offset)) / 2);
       }
       @media(max-height:540px) {
         > .sing-head { row-gap:4px; }
         > .sing-recording {
-          grid-template-rows:max-content 0 20px 16px minmax(0,1fr) max-content;
+          grid-template-rows:max-content 0 20px 16px minmax(0,max-content) minmax(min-content,1fr);
         }
-        .sing-wheel { height:100%!important;margin-block-start:0; }
+        .sing-wheel { margin-block-start:0; }
       }
       > .sing-status:not(.show-notice) {
         grid-area:1 / 1;
@@ -327,6 +339,65 @@
         }
         .studio-preset-icon,.studio-preset-icon svg {
           height:clamp(18px,calc(2.6dvh + 3px),26.25px);
+        }
+      }
+    }
+
+    /* Keep both recording columns on a narrow desktop or at browser zoom. */
+    @media(max-width:1023px) {
+      > .topbar { display:flex!important; }
+      > #main {
+        position:static;display:flex;justify-content:center;
+        padding-inline:clamp(10px,2vw,20px)!important;
+      }
+      > #main > #sing {
+        --record-line:60px;
+        --record-column-gap:12px;
+        grid-template-columns:minmax(0,64fr) minmax(0,44fr);
+        column-gap:var(--record-column-gap);
+        padding:0!important;
+
+        &::before {
+          content:'';position:absolute;z-index:-1;inset:0 auto 0 0;
+          width:calc((100% - var(--record-column-gap)) * 64 / 108);
+          border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);
+          background:color-mix(in srgb,var(--ds-panel) 88%,transparent);
+        }
+        > .sing-head { display:flex!important;flex-wrap:wrap;padding-inline:12px!important; }
+        .sing-artwork { width:55px;height:55px;flex-basis:55px; }
+        .studio-song-meta { flex:1 1 120px; }
+        .sing-head:has(#duet-guide) .sing-header-mode {
+          flex:1 1 100%!important;min-width:0;justify-content:flex-end;flex-wrap:wrap;
+        }
+        .sing-prep-controls { flex:0 1 auto; }
+        > .sing-recording {
+          --record-transport-gutter:clamp(20px,calc(100dvh - 560px),calc(var(--record-line) + 13px));
+          padding:0 12px!important;
+        }
+        .sing-recording-info { display:contents; }
+        .sing-recording-info [data-record-mic] { display:none; }
+        .sing-recording-info .duet-color-key { display:flex;gap:clamp(12px,2vw,20px); }
+        .sing-wheel::before,.sing-wheel::after { content:none!important; }
+        .sing-recording .studio-transport { gap:clamp(8px,2.4vw,24px)!important; }
+        @media(max-height:640px) {
+          > .sing-head { row-gap:4px!important; }
+          .sing-progress,.sing-progress input[type=range] { height:44px;min-height:44px; }
+        }
+        @media(max-height:540px) {
+          > .sing-head { padding-block:4px 0!important; }
+          .sing-artwork { width:44px;height:44px;flex-basis:44px; }
+        }
+
+        > #sing-live-settings:not([hidden]) { display:grid!important; }
+        > #sing-live-settings {
+          grid-column:2;grid-template-columns:minmax(0,1fr);min-height:0;
+          margin:0;padding:0;border:0;background:none;overflow-x:hidden;
+          .studio-setting-card {
+            padding-inline:12px;border:1px solid var(--ds-line);
+            background:color-mix(in srgb,var(--ds-panel) 88%,transparent);
+          }
+          .studio-range { grid-template-columns:68px minmax(0,1fr) 36px; }
+          :is(.studio-key,.studio-size) { grid-template-columns:60px minmax(0,1fr); }
         }
       }
     }

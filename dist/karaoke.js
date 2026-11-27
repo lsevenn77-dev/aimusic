@@ -249,8 +249,20 @@ function bindSing(id){
  cleanupSing();if(!$('#sing')||!routeSing)return;
  sing={id,routeHash:location.hash,historyKey:window.navigation?.currentEntry?.key,owner:me?.id,data:routeSing,state:'loading',cursor:0,keySemitones:0,mix:preferredRecordingMix(me?.id),mode:routeSing.mode||'solo',part:routeSing.part||'male',parent:routeSing.duet?.parent_id||null};if(!canEditPaid())sing.mix.tone=0;sing.duetGuide=sing.parent?routeSing.duet?.guide||null:{version:1,mode:'free',lines:[]};
  const s=sing,wheel=$('#sing-wheel'),seek=$('#sing-seek');
+ const transport=$('.sing-transport'),lyricLines=wheel.querySelectorAll('.sing-line-text,.field-help');
+ const desktopTransport=matchMedia('(min-width:1024px), (min-width:801px) and (hover:hover) and (pointer:fine)');
+ s.usesDesktopLayout=()=>desktopTransport.matches&&!document.documentElement.hasAttribute('data-aifect-native');
+ const alignTransport=()=>{
+  if(s.usesDesktopLayout())alignRecordingTransport(wheel,transport,lyricLines);
+ };
  // Re-anchor after viewport, font or lyric-size changes, without touching cue data.
- s.lyricResize=new ResizeObserver(()=>{if(sing===s&&!s.scrubbing){s.shownLine=null;drawLyrics(s.cursor||0);}});s.lyricResize.observe(wheel);
+ s.lyricResize=new ResizeObserver(()=>{
+  if(sing!==s)return;
+  if(!s.scrubbing){s.shownLine=null;drawLyrics(s.cursor||0);}
+  alignTransport();
+ });
+ s.lyricResize.observe(wheel);
+ wheel.addEventListener('scroll',alignTransport,{passive:true});
  const mic=$('#sing .microphone-check');if(mic){$('#sing-live-settings .studio-setting-card').append(mic);const paint=()=>{const status=mic.querySelector('[data-mic-status]'),toggle=mic.querySelector('[data-mic-toggle]'),label=$('[data-record-mic]');toggle.title=toggle.textContent+' · '+status.textContent;if(label){label.textContent=mic.classList.contains('is-connected')?'마이크 연결됨':/권한.*중|연결 중/.test(status.textContent)?'마이크 연결 중':/권한/.test(status.textContent)?'마이크 권한 필요':'마이크 연결 안 됨';label.title=status.textContent;label.classList.toggle('is-connected',mic.classList.contains('is-connected'));}};s.micObserver=new MutationObserver(paint);s.micObserver.observe(mic.querySelector('[data-mic-status]'),{childList:true});s.micObserver.observe(mic,{attributes:true,attributeFilter:['class']});paint();}
  s.micCheck=window.AifectMicrophoneCheck?.bind($('#sing .microphone-check'),{beforeTest(){s.monitorSerial=(s.monitorSerial||0)+1;stopStandbyMonitor(s);$('#sing-monitor').checked=false;document.querySelectorAll('[data-monitor-toggle]').forEach(b=>b.setAttribute('aria-pressed','false'));}});
  const begin=()=>{if(sing!==s||singBusy(s)||s.scrubbing||s.punchRange)return;s.scrubbing=true;s.resumeMode=singLive(s)?'record':s.state==='playing'?'play':s.state==='guide'?'guide':s.state==='backing'?'backing':null;s.settling=singLive(s)?finishSinging():Promise.resolve();if(s.preview)stopPreview();};
@@ -265,7 +277,11 @@ function bindSing(id){
  wheel.addEventListener('click',e=>{if(singBusy(s)||s.punchRange)return;if(singLive(s)||s.preview){void pauseLyrics();return;}const row=e.target.closest('[data-second]');if(row){s.cursor=clampPosition(Number(row.dataset.second));s.shownLine=-1;drawLyrics(s.cursor);setSingStatus('선택한 소절부터 다시 부를 준비가 되었습니다.');}});
  wheel.addEventListener('keydown',e=>{if(!['ArrowUp','ArrowDown'].includes(e.key))return;e.preventDefault();if(singLive(s)||s.preview){void pauseLyrics();return;}if(singBusy(s)||s.punchRange)return;const lines=s.data.words,i=K().wordAt(lines,s.cursor).line,j=Math.max(0,Math.min(lines.length-1,i+(e.key==='ArrowDown'?1:-1)));if(lines[j]){s.cursor=lines[j].s;s.shownLine=-1;drawLyrics(s.cursor);}});
  $('#sing-monitor').onchange=e=>setMonitorEnabled(e.target.checked);const monitorButton=$('[data-monitor-toggle]');if(monitorButton)monitorButton.onclick=()=>setMonitorEnabled(!$('#sing-monitor').checked);
- document.querySelectorAll('button[data-lyric-size]').forEach(button=>button.onclick=()=>applyLyricSize(button.dataset.lyricSize));applyLyricSize(preferredLyricSize());
+ document.querySelectorAll('button[data-lyric-size]').forEach(button=>button.onclick=()=>{
+  applyLyricSize(button.dataset.lyricSize);
+  alignTransport();
+ });
+ applyLyricSize(preferredLyricSize());
  // The favorite uses the shared data-like handler, so it is saved to the account.
  $('[data-editor-back]').onclick=()=>s.editorStep===2?showEditorStep(s,1,true):requestFreshRecording(s);
  $('[data-editor-exit]').onclick=()=>requestSingExit(s,()=>{
@@ -476,8 +492,30 @@ async function startSinging(){
  }
  finally{s.startingRecording=false;s.pendingMic=null;if(sing===s)updateTransport();}
 }
+function alignRecordingTransport(wheel,transport,lines){
+ const {top,bottom}=wheel.getBoundingClientRect();
+ if(bottom<=top)return;
+ // Find the last line with text inside the viewport, without changing the scroll position.
+ let start=0,end=lines.length;
+ while(start<end){
+  const middle=Math.floor((start+end)/2);
+  if(lines[middle].getBoundingClientRect().top<bottom)start=middle+1;
+  else end=middle;
+ }
+ const last=lines[start-1]?.getBoundingClientRect();
+ const previous=lines[start-2]?.getBoundingClientRect();
+ const style=getComputedStyle(transport);
+ const gutter=parseFloat(style.paddingTop)+parseFloat(style.paddingBottom);
+ // Hide a cut-off line when the preceding line and centered controls both fit.
+ const hidePartial=last?.bottom>bottom&&previous?.top>=top&&bottom-previous.bottom<=gutter;
+ const edge=hidePartial?previous:last;
+ const tail=edge&&edge.bottom>top?Math.max(0,bottom-edge.bottom):0;
+ wheel.style.setProperty('--record-lyric-clip',hidePartial?`inset(0 0 ${bottom-last.top}px)`:'none');
+ transport.style.setProperty('--record-lyric-tail',`${tail}px`);
+}
+
 function recordingLyricWindow(wheel,row){
- const s=sing,mobile=window.matchMedia?.('(max-width:1023px)').matches&&!s.punchPage&&!s.punchRange&&!$('#sing').classList.contains('is-reviewing');
+ const s=sing,mobile=window.matchMedia?.('(max-width:1023px)').matches&&!s.usesDesktopLayout?.()&&!s.punchPage&&!s.punchRange&&!$('#sing').classList.contains('is-reviewing');
  if(!mobile){for(const name of ['--record-window-height','--record-window-before','--record-window-after'])wheel.style.removeProperty(name);return null;}
  const rows=Array.from(wheel.querySelectorAll('[data-sing-line]')),index=Math.max(0,rows.indexOf(row)),current=rows[index];if(!current)return null;
  const extent=el=>{const css=getComputedStyle(el);return el.offsetHeight+parseFloat(css.marginTop)+parseFloat(css.marginBottom);},fallback=extent(current);

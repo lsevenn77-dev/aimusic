@@ -2,14 +2,17 @@
 // their existing delegated data attributes and server permission checks.
 const songDetailIsNative=typeof inApp!=='undefined'&&inApp;
 const songDetailIsWeb=!songDetailIsNative&&!/AIFECT-Mobile\//i.test(globalThis.navigator?.userAgent||'');
-const songDescriptionMoreLabel=songDetailIsWeb?'… 더보기':'+더보기';
+const songDescriptionMoreLabel=webCover=>webCover?'… 더보기':'+더보기';
 function songCreatorDescription(t){
  const text=songDetailIsWeb?t.creator_description:t.description;
  return typeof text==='string'&&text.trim()?text:'';
 }
 function songDescriptionHTML(t){
- const text=songCreatorDescription(t),label=t.kind==='cover'?'커버 소개':'곡 소개';
- return text?'<section class="song-introduction" aria-label="'+label+'" data-song-description-track="'+esc(t.id)+'"><div class="song-introduction-heading"><h3>'+label+'</h3></div><p class="song-description" id="song-description-text"><span class="song-description-content">'+esc(text)+'</span><button type="button" class="text-link song-description-toggle" aria-controls="song-description-text" aria-expanded="false" hidden>'+songDescriptionMoreLabel+'</button></p></section>':'';
+ const text=songCreatorDescription(t);
+ if(!text)return '';
+ const isCover=t.kind==='cover',label=isCover?'커버 소개':'곡 소개';
+ const heading=isCover||!songDetailIsWeb?'<div class="song-introduction-heading"><h3>'+label+'</h3></div>':'';
+ return '<section class="song-introduction" aria-label="'+label+'" data-song-description-track="'+esc(t.id)+'">'+heading+'<p class="song-description" id="song-description-text"><span class="song-description-content">'+esc(text)+'</span><button type="button" class="text-link song-description-toggle" aria-controls="song-description-text" aria-expanded="false" hidden>'+songDescriptionMoreLabel(songDetailIsWeb&&isCover)+'</button></p></section>';
 }
 let songDescriptionBinding=null;
 function bindSongDescription(){
@@ -17,6 +20,7 @@ function bindSongDescription(){
  const previous=songDescriptionBinding,expanded=previous?.track===root?.dataset.songDescriptionTrack&&previous?.expanded;
  previous?.release();
  if(!root||!description||!content||!button)return;
+ const webCover=songDetailIsWeb&&!!root.closest('.cover-detail'),moreLabel=songDescriptionMoreLabel(webCover);
  const text=content.textContent||'',characters=typeof Intl.Segmenter==='function'?Array.from(new Intl.Segmenter('ko',{granularity:'grapheme'}).segment(text),part=>part.segment):Array.from(text);
  const nativeRemainder=songDetailIsWeb?null:document.createElement('p');
  if(nativeRemainder){
@@ -46,13 +50,13 @@ function bindSongDescription(){
   if(!overflow)state.expanded=false;
   root.classList.toggle('is-expanded',state.expanded);
   button.setAttribute('aria-expanded',String(state.expanded));
-  button.textContent=state.expanded&&songDetailIsWeb?'접기':songDescriptionMoreLabel;
+  button.textContent=state.expanded&&songDetailIsWeb?'접기':moreLabel;
   button.hidden=!overflow;
   if(nativeRemainder)nativeRemainder.hidden=!state.expanded;
   if(overflow&&(!state.expanded||nativeRemainder)){
    // Include the inline control in each fit check so it stays within two lines.
    const prefix=count=>characters.slice(0,count).join('').trimEnd();
-   const suffix=nativeRemainder?'…':'';
+   const suffix=webCover?'':'…';
    let low=0,high=characters.length;
    while(low<high){
     const middle=Math.ceil((low+high)/2);
@@ -87,12 +91,13 @@ function bindSongDescription(){
  });
  paint(true);document.fonts?.ready.then(()=>paint(true));
 }
-function songDetailMetricsHTML(t,commentCount=t.comments||0){
+function songDetailMetricsHTML(t,commentCount=t.comments||0,engagement=''){
  const duration=time(t.duration),plays=number(t.plays||0),comments=commentCount===null?'—':number(commentCount);
  const commentLabel=commentCount===null?'댓글 수 확인 중':'댓글 '+comments+'개';
+ const comment='<span class="metric-inline" data-song-comment-count aria-label="'+commentLabel+'">'+icon('ui-comment')+(songDetailIsWeb?'<span data-song-comment-value>'+comments+'</span>':comments)+'</span>';
  const metrics='<span class="metric-inline song-duration" aria-label="곡 길이 '+duration+'">'+(songDetailIsWeb?icon('clock'):'')+duration+'</span>'+
   '<span class="metric-inline" aria-label="재생 '+plays+'회">'+icon('ui-plays')+plays+'</span>'+
-  '<span class="metric-inline" data-song-comment-count aria-label="'+commentLabel+'">'+icon('ui-comment')+(songDetailIsWeb?'<span data-song-comment-value>'+comments+'</span>':comments)+'</span>';
+  (engagement?'<div class="song-comment-report">'+comment+engagement+'</div>':comment);
  return songDetailIsWeb?'<div class="song-metrics">'+songReleaseDateHTML(t,t.kind!=='cover')+metrics+'</div>':'<p class="song-metrics">'+metrics+'</p>';
 }
 function songActionIcon(name){
@@ -142,13 +147,14 @@ function songDetailHeaderHTML(t,commentCount){
  }
  const genre=genres?'<span class="eyebrow song-track-meta">'+esc(genres)+'</span>':'';
  const options=!songDetailIsWeb&&!isCover&&!songDetailIsNative?'<button type="button" class="text-link song-track-options" data-track-menu="'+esc(t.id)+'" aria-haspopup="dialog">곡 옵션</button>':'';
- const webSong=songDetailIsWeb&&!isCover,title=esc(t.title),introduction=songDescriptionHTML(t);
+ const webSong=songDetailIsWeb&&!isCover,title=esc(t.title);
+ const engagement=moderation?'<div class="song-engagement">'+moderation+'</div>':'';
  const info='<h1 class="song-title"'+(webSong?' title="'+title+'"':'')+'>'+title+'</h1>'+songDetailCreditsHTML(t)+
-  (songDetailIsWeb?'':songReleaseDateHTML(t))+'<div class="song-meta-row">'+songDetailMetricsHTML(t,commentCount)+
-  (moderation?'<div class="song-engagement">'+moderation+'</div>':'')+options+'</div>';
+  (songDetailIsWeb?'':songReleaseDateHTML(t))+'<div class="song-meta-row">'+songDetailMetricsHTML(t,commentCount,webSong?engagement:'')+
+  (webSong?'':engagement)+options+'</div>';
  const divider=!songDetailIsWeb&&!isCover?'<div class="song-header-divider" aria-hidden="true"></div>':'';
  return '<section class="song-detail song-detail-refined'+(songDetailIsWeb?' song-detail-web':'')+(isCover?' cover-detail':'')+(genres?'':' song-detail-no-meta')+'">'+
   (songDetailIsWeb?'':genre)+art+'<div class="song-detail-copy">'+
   (songDetailIsWeb?'<div class="song-header-info">'+genre+info+'</div>':info+divider)+
-  (webSong?'':introduction)+songDetailActionsHTML(t)+'</div>'+(webSong?introduction:'')+'</section>';
+  songDescriptionHTML(t)+songDetailActionsHTML(t)+'</div></section>';
 }
