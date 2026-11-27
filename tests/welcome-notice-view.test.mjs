@@ -125,17 +125,16 @@ function acknowledgeHarness({hidden=false,renderState='ready',readAt=0,anchor=''
 }
 const settle=()=>new Promise(resolve=>setImmediate(resolve));
 
-test('the selected notice opens after visible paint and scrolling reads only the notices in view',async()=>{
+test('opening a visible notice conversation reads both on-screen and off-screen notices in one request',async()=>{
  const h=acknowledgeHarness({hidden:true,renderState:'loading',anchor:'premium'});
  h.paint();assert.equal(h.calls.length,0);
  h.document.hidden=false;h.document.emit('visibilitychange');h.paint();assert.equal(h.calls.length,0);
  h.document.documentElement.dataset.renderState='ready';h.observers.at(-1).callback();h.paint();
  assert.equal(h.pane.scrollTop,408);assert.equal(h.calls[0].path,'/api/notices/official');
- assert.equal(h.calls[0].method,'PATCH');assert.deepEqual(h.calls[0].body,{ids:['campaign:premium']});
+ assert.equal(h.calls[0].method,'PATCH');assert.deepEqual(h.calls[0].body,{ids:['campaign:guide','campaign:premium']});
  h.calls[0].resolve({ok:true});await settle();h.paint();assert.equal(h.calls.length,1);
- h.pane.scrollTop=0;h.pane.emit('scroll');h.paint();assert.deepEqual(h.calls[1].body,{ids:['campaign:guide']});
- h.calls[1].resolve({ok:true});await settle();
- assert.equal(h.acknowledged(),2);h.cleanup();assert.ok(h.observers.every(o=>o.closed));
+ h.pane.scrollTop=0;h.pane.emit('scroll');h.paint();assert.equal(h.calls.length,1);
+ assert.equal(h.acknowledged(),1);h.cleanup();assert.ok(h.observers.every(o=>o.closed));
  assert.equal(h.window.listenerCount('focus'),0);assert.equal(h.document.listenerCount('visibilitychange'),0);
 });
 

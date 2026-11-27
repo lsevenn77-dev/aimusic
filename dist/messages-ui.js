@@ -70,6 +70,7 @@ function bindOfficialNotices(host,feed,{anchor='',onRead=()=>{}}={}){
  const ticket=renderId,uid=me?.id;
  const current=()=>!events.signal.aborted&&ticket===renderId&&uid===me?.id&&!!uid&&pane.isConnected;
  const knownRead=new Set(),items=new Map();
+ let historyRead=false;
  let before=feed.before,loading=false,refreshing=false,refreshAgain=false,acking=false,ackFrame=null,retryTimer=null,retries=0,positioned=false;
  const remember=entries=>entries.forEach(entry=>{
   items.set(entry.id,entry);
@@ -93,18 +94,16 @@ function bindOfficialNotices(host,feed,{anchor='',onRead=()=>{}}={}){
    positioned=true;
   }
   if(retryTimer!==null||retries>3)return;
-  const bounds=pane.getBoundingClientRect();
-  const ids=children().filter(node=>{
-   if(knownRead.has(node.dataset.noticeId))return false;
-   const rect=node.querySelector('article').getBoundingClientRect();
-   return Math.min(bounds.bottom,rect.bottom)-Math.max(bounds.top,rect.top)>=Math.min(rect.height,48)&&rect.height>0;
-  }).map(node=>node.dataset.noticeId).slice(0,100);
-  if(!ids.length)return;
+  const ids=Array.from(items.keys()).filter(id=>!knownRead.has(id)).slice(0,100);
+  const latest=feed.items.at(-1);
+  const through=before && !historyRead && latest ? latest.created+'|'+latest.id : null;
+  if(!ids.length&&!through)return;
   acking=true;
   const controller=new AbortController();
   const deadline=setTimeout(()=>controller.abort(),10000);
   try{
-   const updated=await api(officialNoticePath,'PATCH',{ids},{signal:controller.signal});
+   const updated=await api(officialNoticePath,'PATCH',through?{through}:{ids},{signal:controller.signal});
+   if(through)historyRead=true;
    ids.forEach(id=>knownRead.add(id));
    if(current()){retries=0;status.hidden=true;onRead(updated);schedule();}
   }catch(error){

@@ -104,15 +104,17 @@ export async function officialNoticeRoute(req,env,path,user){
  }
  if(req.method!=='PATCH')fail(405,AifectMessages.unsupportedRequest);
  const body=await req.json().catch(()=>null);
- if(!Array.isArray(body?.ids)||!body.ids.length||body.ids.length>pageSize||
-    Object.keys(body).length!==1||body.ids.some(id=>typeof id!=='string'||!validId.test(id)))fail(400,'읽은 공지를 다시 확인해 주세요.');
- const ids=JSON.stringify(body.ids),at=now(),uid=user.id;
+ const through=typeof body?.through==='string' && validCursor.exec(body.through);
+ const validIds=Array.isArray(body?.ids)&&body.ids.length>0&&body.ids.length<=pageSize&&body.ids.every(id=>typeof id==='string'&&validId.test(id));
+ if((!through&&!validIds)||Object.keys(body).length!==1)fail(400,'읽은 공지를 다시 확인해 주세요.');
+ const select=through?'SELECT id FROM official_history WHERE (created,id)<=(?,?)':'SELECT value FROM json_each(?)';
+ const uid=user.id,at=now(),args=through?[Number(through[1]),through[2]]:[JSON.stringify(body.ids)];
  await env.DB.batch([
-  query(env,`UPDATE welcome_receipts AS r SET read_at=? WHERE r.user_id=? AND r.read_at=0
+  query(env,`${through?history:''} UPDATE welcome_receipts AS r SET read_at=? WHERE r.user_id=? AND r.read_at=0
     AND EXISTS(SELECT 1 FROM welcome_campaigns c WHERE c.id=r.campaign_id AND ${noticeVisible})
-    AND 'campaign:'||r.campaign_id IN (SELECT value FROM json_each(?))`,at,uid,ids),
+    AND 'campaign:'||r.campaign_id IN (${select})`,...(through?scope(env,uid):[]),at,uid,...args),
   query(env,`${history} UPDATE direct_messages SET read_at=? WHERE recipient_id=? AND read_at=0 AND 'dm:'||id IN (
-    SELECT id FROM official_history WHERE kind='dm' AND mine=0 AND id IN (SELECT value FROM json_each(?)))`,...scope(env,uid),at,uid,ids)
+    SELECT id FROM official_history WHERE kind='dm' AND mine=0 AND id IN (${select}))`,...scope(env,uid),at,uid,...args)
  ]);
  const [summary,notice]=await Promise.all([chatSummary(env,user),officialNoticeChannel(env,uid)]);
  return json({unread:summary.unread,direct_unread:summary.direct_unread,notice_unread:summary.notice_unread,notice});
