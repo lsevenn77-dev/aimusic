@@ -53,6 +53,12 @@ enum StreamingUIFixture {
         var result: [String: Any]
         var status = 200
         switch path {
+        case "/api/tracks/lyrics-test-track" where FeedbackUIFixture.lyricsPlaybackTest:
+            result = ["track": ["id": "lyrics-test-track", "lyrics_access": "full", "lyrics_mode": "synced",
+                                "lyrics": "[00:00.000] 검증 첫 줄\n[01:30.000] 검증 둘째 줄\n[02:30.000] 전체 화면 마지막 줄"]]
+        case "/api/tracks/lyrics-test-track/lyrics/line" where FeedbackUIFixture.lyricsPlaybackTest:
+            result = ["line": ["text": "검증 첫 줄", "from": 0, "until": 90],
+                      "lines": [["time": 0, "text": "검증 첫 줄"], ["time": 90, "text": "검증 둘째 줄"]]]
         case "/api/gold" where args.contains("-shop-parity"):
             result = ["balance": FeedbackURLProtocol.gold, "free": ["balance": FeedbackURLProtocol.stars], "gifts": [["id": "rose", "name": "장미", "gold": 20, "image": "/media/gift/rose"]], "silver_gifts": [["id": "star", "name": "응원별", "silver": 1, "free": true, "image": "/media/gift/star"]]]
         case "/api/decorations":

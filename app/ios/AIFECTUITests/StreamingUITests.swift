@@ -91,6 +91,62 @@ final class StreamingUITests: XCTestCase {
             XCTAssertEqual(XCTWaiter.wait(for: [selected], timeout: 5), .completed)
         }
     }
+    @MainActor func testCompactLyricsPreserveReaderAndRunningAudio() {
+        let app = launch(["-lyrics-playback-test"])
+        let probe = app.staticTexts["lyrics-test-playback"]
+        let toggle = app.buttons["mini-player-lyrics-toggle"]
+        let compact = app.staticTexts["mini-player-lyric"]
+        let full = app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "전체 화면 마지막 줄")).firstMatch
+        func position() -> Int {
+            guard probe.exists else { return -1 }
+            let fields = probe.label.components(separatedBy: "|")
+            guard fields.count == 4, fields[0...2].elementsEqual(["1","1","0"]) else { return -1 }
+            return Int(fields[3]) ?? -1
+        }
+        func waitForProgress(since start: Int) {
+            let deadline = Date().addingTimeInterval(10)
+            while Date() < deadline && position() <= start + 300 { Thread.sleep(forTimeInterval: 0.2) }
+            XCTAssertGreaterThan(position(), start + 300, probe.exists ? probe.label : "missing playback clock")
+        }
+        func exercise(readerOpen: Bool) {
+            XCTAssertTrue(toggle.waitForExistence(timeout: 10))
+            XCTAssertFalse(toggle.isSelected)
+            XCTAssertEqual(full.exists, readerOpen)
+            let start = position(), began = Date()
+            XCTAssertGreaterThanOrEqual(start, 0)
+            for _ in 0..<2 {
+                toggle.tap()
+                XCTAssertTrue(toggle.isSelected)
+                XCTAssertTrue(compact.waitForExistence(timeout: 4))
+                XCTAssertEqual(compact.label, "검증 첫 줄")
+                XCTAssertTrue(app.staticTexts["검증 둘째 줄"].exists)
+                XCTAssertEqual(full.exists, readerOpen)
+                toggle.tap()
+                XCTAssertFalse(toggle.isSelected)
+                XCTAssertFalse(compact.exists)
+                XCTAssertEqual(full.exists, readerOpen)
+            }
+            waitForProgress(since: start)
+            let end = position()
+            XCTAssertLessThanOrEqual(end - start, Int(Date().timeIntervalSince(began) * 1000) + 2000)
+            print("LyricsDeviceTest reader=\(readerOpen) playbackMs=\(start)->\(end) AVPlayer item unchanged, stops=0")
+            capture(app, readerOpen ? "lyrics-reader-open" : "lyrics-reader-closed")
+        }
+        waitForProgress(since: 0)
+        exercise(readerOpen: false)
+        app.buttons["재생 화면 열기"].tap()
+        let readerLink = app.buttons["전체 가사"].firstMatch
+        reveal(readerLink, in: app.scrollViews.firstMatch, app: app)
+        readerLink.tap()
+        XCTAssertTrue(full.waitForExistence(timeout: 12))
+        exercise(readerOpen: true)
+        back(app)
+        XCTAssertFalse(full.exists)
+        let close = app.buttons["닫기"].firstMatch
+        reveal(close, in: app.scrollViews.firstMatch, app: app, towardTop: true)
+        close.tap()
+        exercise(readerOpen: false)
+    }
     @MainActor func testIPhoneHomeKeepsAndroidBannerAndSectionProportions() {
         let app = launch(["-home-density"])
         let banner = app.buttons["home-promotion-studio"]

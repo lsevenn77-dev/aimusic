@@ -277,7 +277,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
   }
  }
 }
-@Composable private fun MiniPlayer(m:MusicModel,song:Song){
+@Composable internal fun MiniPlayer(m:MusicModel,song:Song){
  if(song.dubbing){
   DubbingPlaybackBar(m.controller)
   return

@@ -1,6 +1,7 @@
 #if DEBUG
 import SwiftUI
 import AVFoundation
+import Combine
 
 /// Explicitly opted-in, simulator-only UI fixtures. Service requests, messages,
 /// gifts and uploads stay local; audio integration scenarios may use AVAudioRecorder.
@@ -14,6 +15,25 @@ enum FeedbackUIFixture {
         #endif
     }
     static let song = Song(["id": "feedback-song", "title": "편집 검증용 녹음", "duration": 20, "kind": "cover", "original_id": "fixture-original", "producer_id": "fixture-profile", "plays": 12])
+    static let lyricsPlaybackTest = ProcessInfo.processInfo.arguments.contains("-lyrics-playback-test")
+    static let lyricsSong = Song(["id": "lyrics-test-track", "title": "두 줄 가사 검증곡", "duration": 180])
+    @MainActor static func startLyricsPlayback(_ player: MusicPlayer) throws -> AVPlayerItem {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("lyrics-playback-test.wav")
+        let format = AVAudioFormat(standardFormatWithSampleRate: 8000, channels: 1)!
+        let tone = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 8000)!
+        tone.frameLength = tone.frameCapacity
+        for i in 0..<Int(tone.frameLength) { tone.floatChannelData![0][i] = Float(sin(2 * .pi * 220 * Double(i) / 8000)) * 0.02 }
+        do {
+            let file = try AVAudioFile(forWriting: url, settings: format.settings)
+            for _ in 0..<Int(lyricsSong.duration) { try file.write(from: tone) }
+        }
+        let item = AVPlayerItem(url: url)
+        player.current = lyricsSong
+        player.duration = lyricsSong.duration
+        player.player.replaceCurrentItem(with: item)
+        player.resume()
+        return item
+    }
     static let draftID = "AC24A8E1-CA7D-42E5-938E-5E290B00CFE1"
     static let chartTracks: [[String: Any]] = (1...5).map { ["id": "chart-\($0)", "title": "차트곡 \($0)", "producer_id": "fixture-profile", "producer": "프로필 검증 창작자", "duration": 20] }
     static let lyrics: [[String: Any]] = [["time": 0, "text": "첫 구간"], ["time": 10, "text": "두 번째 구간"], ["time": 12, "text": "세 번째 구간"], ["time": 14, "text": "네 번째 구간"], ["time": 16, "text": "다섯 번째 구간"], ["time": 18, "text": "마지막 구간"]]
@@ -155,6 +175,10 @@ struct FeedbackUITestView: View {
     @State private var gift = false
     @State private var track = false
     @State private var narrowLayout = false
+    @State private var lyricsItem: AVPlayerItem?
+    @State private var playbackStarted = false
+    @State private var playbackStops = 0
+    @State private var playbackSample = "waiting"
     var body: some View {
         RootView().environmentObject(model).preferredColorScheme(.dark).tint(Brand.aqua)
             .environment(\.dynamicTypeSize, ProcessInfo.processInfo.arguments.contains("-streaming-large") ? .accessibility1 : .large)
@@ -167,11 +191,31 @@ struct FeedbackUITestView: View {
                 // Account loading intentionally clears the player. Seed it only
                 // after that boundary so this fixture cannot race sign-in.
                 if owner == "fixture-user", !ProcessInfo.processInfo.arguments.contains("-home-density"), (ProcessInfo.processInfo.arguments.contains("-redesign-ui-test") || ProcessInfo.processInfo.arguments.contains("-streaming-ui-test")) {
-                    model.player.current = FeedbackUIFixture.song; model.player.duration = 20; model.player.lyric = "검증용 현재 가사 한 줄"
+                    if FeedbackUIFixture.lyricsPlaybackTest {
+                        do { lyricsItem = try FeedbackUIFixture.startLyricsPlayback(model.player) }
+                        catch { playbackSample = error.localizedDescription }
+                    } else {
+                        model.player.current = FeedbackUIFixture.song; model.player.duration = 20; model.player.lyric = "검증용 현재 가사 한 줄"
+                    }
                 }
+            }
+            .onReceive(model.player.$playing.removeDuplicates()) { playing in
+                guard FeedbackUIFixture.lyricsPlaybackTest else { return }
+                if playing { playbackStarted = true } else if playbackStarted { playbackStops += 1 }
+            }
+            .onReceive(model.player.$position) { _ in
+                guard let lyricsItem, FeedbackUIFixture.lyricsPlaybackTest else { return }
+                let player = model.player.player
+                let seconds = player.currentTime().seconds
+                guard seconds.isFinite else { return }
+                let sameItem = player.currentItem === lyricsItem && model.player.current?.id == FeedbackUIFixture.lyricsSong.id
+                playbackSample = "\(sameItem ? 1 : 0)|\(player.timeControlStatus == .playing ? 1 : 0)|\(playbackStops)|\(Int(seconds * 1000))"
             }
             .onReceive(NotificationCenter.default.publisher(for: Notification.Name("feedback-profile-loaded"))) { _ in model.chart = []; model.singable = [] }
             .overlay(alignment: .topTrailing) {
+                if FeedbackUIFixture.lyricsPlaybackTest {
+                    Text(playbackSample).font(.system(size: 8)).accessibilityIdentifier("lyrics-test-playback").allowsHitTesting(false)
+                }
                 if !ProcessInfo.processInfo.arguments.contains("-streaming-ui-test") { Menu("검증") {
                     Button("녹음 편집 검증") { if let draft { studio = FeedbackStudioSelection(studio: makeStudio(draft, stopped: false)) } }
                     Button("녹음 멈춤 검증") { if let draft { studio = FeedbackStudioSelection(studio: makeStudio(draft, stopped: true)) } }

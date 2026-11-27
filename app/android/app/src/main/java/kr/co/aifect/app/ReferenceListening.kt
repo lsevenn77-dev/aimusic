@@ -120,7 +120,12 @@ import coil.compose.AsyncImage
   else Text(if(active)m.lyric.ifBlank{"가사를 불러오고 있어요."}else "노래를 재생하면 현재 가사가 표시돼요.",fontSize=13.sp,lineHeight=20.sp,color=Muted,modifier=Modifier.padding(top=6.dp))
  }
  HorizontalDivider(color=Stroke)
- if(full&&active&&m.lyricsAccess=="full")AppPage("전체 가사",{full=false}){LazyColumn(contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){items(rows){Text(it.second,fontSize=17.sp,lineHeight=27.sp)}}}
+ if(full&&active&&m.lyricsAccess=="full")AppPage("전체 가사",{full=false}){
+  LazyColumn(Modifier.weight(1f).fillMaxWidth().testTag("full-song-lyrics"),contentPadding=PaddingValues(20.dp),verticalArrangement=Arrangement.spacedBy(18.dp)){
+   items(rows){Text(it.second,fontSize=17.sp,lineHeight=27.sp)}
+  }
+  MiniPlayer(m,song)
+ }
 }
 
 @Composable internal fun ReferenceSupporters(m:MusicModel,song:Song){

@@ -1521,6 +1521,46 @@ class DesignCaptureTest {
    assertEquals("design-song",model.current?.id);assertEquals(tab,model.tab);assertNull(model.detail);assertFalse(model.fullPlayer)
   }
  }
+ @Test fun compactLyricsPreserveOpenAndClosedReaderDuringPlayback(){
+  val lyrics="[00:00.000]첫 번째 가사\n[01:10.000]두 번째 가사\n[02:20.000]전체 가사 마지막 줄"
+  val track=JSONObject(song.toString()).put("lyrics_access","full").put("lyrics",lyrics)
+  responses["/api/tracks/design-song"]=payload("track" to track)
+  act{it.play(Song(track));it.openSong(Song(track))}
+  ui.waitUntil(20000){model.playing && model.position>500 && model.lyricRows.size==3}
+  ui.onNodeWithTag("song-detail-scroll").performScrollToNode(hasText("전체 가사"))
+  val openReader=ui.onNodeWithText("전체 가사")
+  openReader.performScrollTo()
+  val reader=ui.onNodeWithTag("full-song-lyrics")
+  val toggle=ui.onNodeWithTag("mini-player-lyrics-toggle")
+  val compact=ui.onNodeWithTag("mini-player-lyrics")
+  val controller=ui.runOnIdle{requireNotNull(model.controller)}
+  var pauses=0
+  var discontinuities=0
+  val listener=object:androidx.media3.common.Player.Listener{
+   override fun onPlayWhenReadyChanged(playWhenReady:Boolean,reason:Int){if(!playWhenReady)pauses++}
+   override fun onPositionDiscontinuity(oldPosition:androidx.media3.common.Player.PositionInfo,newPosition:androidx.media3.common.Player.PositionInfo,reason:Int){discontinuities++}
+  }
+  ui.runOnIdle{controller.addListener(listener)}
+  try {
+   for(showReader in listOf(false,true,false)){
+    if(showReader)openReader.performClick() else if(ui.onAllNodesWithTag("full-song-lyrics").fetchSemanticsNodes().isNotEmpty())ui.onNodeWithTag("page-back").performClick()
+    fun assertReader(){if(showReader)reader.assertIsDisplayed() else{reader.assertDoesNotExist();openReader.assertExists()}}
+    assertReader()
+    val position=ui.runOnIdle{controller.currentPosition}
+    repeat(2){
+     toggle.performClick().assertIsOn();compact.assertIsDisplayed();assertReader()
+     toggle.performClick().assertIsOff();compact.assertDoesNotExist();assertReader()
+    }
+    ui.waitUntil(8000){model.position>position+350}
+    ui.runOnIdle{
+     assertSame(controller,model.controller);assertTrue(controller.isPlaying)
+     assertEquals("design-song",controller.currentMediaItem?.mediaId);assertEquals("design-song",model.detail?.id)
+     assertEquals(0,pauses);assertEquals(0,discontinuities)
+     android.util.Log.i("LyricsDeviceTest","reader=$showReader playbackMs=$position->${controller.currentPosition} pauses=$pauses discontinuities=$discontinuities")
+    }
+   }
+  }finally{ui.runOnIdle{controller.removeListener(listener)}}
+ }
  @Test fun captureProfileAndGiftScreens(){
   ui.onNodeWithTag("main-tab-6").performClick();ready("my-settings");ui.onNodeWithTag("my-settings").assertIsDisplayed();capture("19-my-profile")
   ui.onNodeWithText("내 활동").performClick();ui.onNodeWithTag("my-music-page").performScrollToNode(hasTestTag("my-music-layout-grid"));capture("20-my-music")
