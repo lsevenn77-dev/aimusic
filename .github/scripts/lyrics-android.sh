@@ -4,12 +4,22 @@ out="$RUNNER_TEMP/lyrics-android"
 mkdir -p "$out"
 export JAVA_HOME="$JAVA_HOME_17_X64"
 export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$ANDROID_HOME/cmdline-tools/latest/bin:$PATH"
+export ANDROID_USER_HOME="$RUNNER_TEMP/lyrics-android-user"
+export ANDROID_EMULATOR_HOME="$ANDROID_USER_HOME"
+export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+mkdir -p "$ANDROID_AVD_HOME"
 cd "$RUNNER_TEMP/lyrics-apks"
 sha256sum --check SHA256SUMS
 test -e /dev/kvm
 sudo chmod a+rw /dev/kvm
 emulator -accel-check
-echo no | avdmanager create avd --name LyricsQA --package "$AVD_IMAGE" --device pixel_4
+avd="$ANDROID_AVD_HOME/LyricsQA.avd"
+echo no | avdmanager create avd --name LyricsQA --path "$avd" --package "$AVD_IMAGE" --device pixel_4
+test -s "$avd/config.ini"
+if [[ ! -s "$ANDROID_AVD_HOME/LyricsQA.ini" ]]; then
+  printf 'avd.ini.encoding=UTF-8\npath=%s\ntarget=android-30\n' "$avd" >"$ANDROID_AVD_HOME/LyricsQA.ini"
+fi
+emulator -list-avds | grep -Fx LyricsQA
 adb start-server
 emulator -avd LyricsQA -port 5554 -accel on -cores 2 -memory 2048 -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect >"$out/emulator.log" 2>&1 &
 emu_pid=$!
