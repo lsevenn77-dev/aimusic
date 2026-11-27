@@ -6,6 +6,7 @@ Android 네이티브 앱은 [app/android](app/android/)에, SwiftUI 기반 iPhon
 - **[안드로이드 디자인과 iOS 적용 자료](app/design/README.md)** — 실제 화면 23장, 화면별 구성·동작 기준, 새 A 마크, Xcode용 앱 아이콘·로고, SwiftUI 디자인 토큰. [화면 갤러리](app/design/index.html)는 내려받은 저장소에서 브라우저로 열 수 있습니다.
 
 - 서비스: https://aifect.co.kr
+- [운영 Sites·Cafe24 배포 절차](deploy/cafe24-public/README.md#운영-sites와-cafe24-동시-배포)
 - [실행 및 개발 안내](ai음원사이트/README.md)
 - [프로젝트 인수인계](ai음원사이트/docs/인수인계.md)
 - [NICEPAY 제출현황](ai음원사이트/docs/NICEPAY-제출현황.md)
