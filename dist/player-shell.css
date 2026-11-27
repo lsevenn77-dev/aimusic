@@ -110,9 +110,11 @@
 .player .player-actions>.player-gift{margin:0!important;padding:0 10px!important;background:transparent!important;border:0!important}
 .player .player-actions>[data-like][aria-pressed=true]{color:var(--ds-social)!important}
 .player .player-actions>[data-like][aria-pressed=true] svg{fill:currentColor}
-.player .player-actions>[data-add],.player #player-lyrics-toggle{color:var(--player-mint)}
+.player .player-actions>[data-add]{color:var(--player-mint)}
 .player #player-lyrics-toggle{font-size:12px;font-weight:500;line-height:1}
-.player #player-lyrics-toggle[aria-pressed=true]{font-weight:700;color:var(--ds-selected)}
+.player #player-lyrics-toggle[aria-pressed=true]{font-weight:700}
+/* Keep the closed state visible even while the pointer or keyboard focus stays here. */
+.player #player-lyrics-toggle[aria-pressed=false]{color:var(--ds-body)!important}
 .player :is(button,a).icon-button svg,.player #queue-toggle svg{color:inherit;stroke:currentColor;transition:color 180ms ease}
 .player #play-toggle .player-toggle-icon{width:40px;height:40px;margin:0;padding:0;border:0;background:none;fill:none;stroke:none}
 .player #play-toggle{transition:filter 180ms ease;cursor:pointer}
@@ -135,6 +137,8 @@
 .player[data-player-time-hidden=true] .player-clock{display:none}
 /* Below the minimum inline budget, lyrics stays reachable in the existing + panel. */
 .player[data-player-narrow=true] .player-controls{gap:0}
+.player[data-player-narrow=true][data-player-view=lyrics] .player-extension{display:flex;align-items:center}
+.player[data-player-narrow=true] .player-extension>#player-lyric{flex:1}
 .player[data-player-narrow=true] #player-utility-panel{width:100%}
 .player[data-player-narrow=true] .player-utility-buttons{flex-wrap:wrap}
 @media(prefers-reduced-motion:reduce){.player :is(button,a),.player svg{transition:none}}

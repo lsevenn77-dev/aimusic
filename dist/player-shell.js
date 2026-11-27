@@ -44,7 +44,12 @@ function renderPlayerActions(track){
  function paintView(){
   const visible=view==='lyrics'||view==='actions';
   player.dataset.playerView=view;player.classList.toggle('show-lyrics',view==='lyrics');extension.hidden=!visible;panel.hidden=view!=='actions';
+  if(player.dataset.playerNarrow==='true'){
+   if(view==='lyrics'&&lyrics.parentElement!==extension)extension.append(lyrics);
+   if(view!=='lyrics'&&lyrics.parentElement!==utilities)utilities.append(lyrics);
+  }
   for(const [button,name] of [[lyrics,'lyrics'],[more,'actions']]){button.setAttribute('aria-pressed',String(view===name));button.setAttribute('aria-expanded',String(view===name&&visible));}
+  lyrics.title=view==='lyrics'?'두 줄 가사 닫기':'두 줄 가사 열기';
  }
  function setView(next){view=next;paintView();}
  function paintModes(){
@@ -77,7 +82,6 @@ function renderPlayerActions(track){
   if(layout==='compact'){
    if(shuffleButton.parentElement!==utilities)utilities.prepend(shuffleButton,repeatButton);
    utilities.prepend(volumeToggle,volume);
-   if(width<308)utilities.append(lyrics);
    if(utilityPanel.parentElement!==panel)panel.prepend(utilityPanel);
   }
   else {
@@ -92,17 +96,24 @@ function renderPlayerActions(track){
  }
  window.AifectPlayerShell={close:()=>setView('none'),refresh:()=>{measureLayout();paintModes();},paintModes,get scrubbing(){return scrubbing;}};
  lyrics.addEventListener('click',()=>{
-  if(!current)return;
+  if(!current||current.kind==='dubbing')return;
+  const restoreFocus=player.dataset.playerNarrow==='true'&&document.activeElement===lyrics;
   setView(view==='lyrics'?'none':'lyrics');
-  openPlayerLyrics();
+  if(restoreFocus)(view==='lyrics'?lyrics:more).focus({preventScroll:true});
  });
  document.querySelector('#player-lyric')?.addEventListener('click',event=>{
   if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey)return;
   event.preventDefault();openPlayerLyrics();
  });
  more.addEventListener('click',()=>{if(current)setView(view==='actions'?'none':'actions');});
- player.addEventListener('keydown',event=>{if(event.key==='Escape'){if(view!=='none'){const trigger=view==='lyrics'?lyrics:more;setView('none');trigger.focus();}event.stopPropagation();}});
- document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]'))setView('none');});
+ player.addEventListener('keydown',event=>{
+  if(event.key!=='Escape'||view==='none')return;
+  const trigger=view==='lyrics'&&player.dataset.playerNarrow!=='true'?lyrics:more;
+  setView('none');trigger.focus({preventScroll:true});event.stopPropagation();
+ });
+ document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&!document.querySelector('dialog[open], #expanded-song-lyrics:not([hidden])'))setView('none');
+ });
  function paintProgress(previewValue){
   if(window.AifectAudioAds?.active)return;
   let max=Number(seek.max);if(!Number.isFinite(max)||max<=0)max=Number.isFinite(audio.duration)?Math.max(0,audio.duration):0;

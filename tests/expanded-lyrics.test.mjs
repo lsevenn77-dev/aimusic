@@ -175,7 +175,7 @@ test('free playback uses the server cue index for repeated text, never guessed t
  f.audio.currentTime=20;f.c.updateExpandedLyrics();assert.deepEqual(f.card.lines.map(x=>x.active),[false,true]);
  f.audio.currentTime=8;f.c.updateExpandedLyrics();assert.deepEqual(f.card.lines.map(x=>x.active),[false,false]);
 });
-test('player uses the current track and repeated requests on the same page do not navigate',()=>{
+test('the explicit lyric text link opens the track transcript without duplicating it',()=>{
  const f=fixture();f.c.location.hash='#song/other';f.c.openPlayerLyrics();assert.equal(f.c.location.hash,'#song/song');f.c.bindLyricsPanel();assert.equal(f.inserted,1);
  f.c.location.hash='#song/song?covers=all';f.c.openPlayerLyrics();f.c.openPlayerLyrics();
  assert.equal(f.c.location.hash,'#song/song?covers=all');assert.equal(f.inserted,1);assert.equal(f.card.scrolls,0);assert.equal(f.paused,0);

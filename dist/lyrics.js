@@ -118,7 +118,7 @@ function bindLyricsPanel(){
  };
  const track=trackMap.get(trackId);if(track&&current?.id===track.id){current=track;try{currentCues=hasFullLyrics(track)?AifectLyrics.parseLrc(track.lyrics):[];}catch{currentCues=[];}}
  if(expand&&track&&(pendingPlayerLyricsTrack===track.id||location.hash.endsWith('?lyrics=1'))){
-  void openExpandedLyrics(track,$('#player-lyrics-toggle'));
+  void openExpandedLyrics(track,pendingPlayerLyricsTrack===track.id?$('#player-lyric'):expand);
  }
  pendingPlayerLyricsTrack=null;
  if(!panel){updateSyncedLyrics(true);return;}
@@ -132,7 +132,7 @@ function openPlayerLyrics(){
  const route='#song/'+encodeURIComponent(current.id);
  const button=$('#lyrics-expand'),samePage=location.hash.split('?')[0]===route;
  if(samePage&&button?.dataset.track===current.id&&$('.song-main-column')){
-  void openExpandedLyrics(trackMap.get(current.id)||current,$('#player-lyrics-toggle'));
+  void openExpandedLyrics(trackMap.get(current.id)||current,$('#player-lyric'));
   return;
  }
  // Wait for the full detail view, including clicks during its first header paint.

@@ -21,9 +21,16 @@ function fixture(){
  vm.runInContext(artistRule,context);vm.runInContext(source,context);
  return {e,context,audio,audioEvents,documentEvents,requestedLyrics,click:s=>e(s).events.click(),view:()=>e('.player').dataset.playerView,run:s=>vm.runInContext(s,context),resize:n=>{width=n;context.window.AifectPlayerShell.refresh();}};
 }
-test('lyrics requests the playing track even when its preview is already open',()=>{
- const f=fixture();f.click('#player-lyrics-toggle');f.context.current={id:'next'};f.click('#player-lyrics-toggle');
- assert.deepEqual(f.requestedLyrics,['one','next']);assert.equal(f.audio.currentTime,25);assert.equal(f.audio.paused,false);
+test('the footer lyrics button toggles only the compact preview across track changes',()=>{
+ const f=fixture(),button=f.e('#player-lyrics-toggle');
+ for(const [track,open] of [['one',true],['next',false]]){
+  f.context.current={id:track};f.click('#player-lyrics-toggle');
+  assert.equal(f.view(),open?'lyrics':'none');
+  assert.equal(button.getAttribute('aria-pressed'),String(open));
+  assert.equal(button.getAttribute('aria-expanded'),String(open));
+  assert.equal(f.e('#player-extension').hidden,!open);
+ }
+ assert.deepEqual(f.requestedLyrics,[]);assert.equal(f.audio.currentTime,25);assert.equal(f.audio.paused,false);
 });
 test('all six explicit panel transitions remain exclusive without touching audio',()=>{const f=fixture();for(const [id,view] of [['#player-lyrics-toggle','lyrics'],['#player-lyrics-toggle','none'],['#player-more','actions'],['#player-lyrics-toggle','lyrics'],['#player-more','actions'],['#player-more','none']]){f.click(id);assert.equal(f.view(),view);assert.equal(f.e('#player-extension').hidden,view==='none');assert.equal(f.e('#player-action-panel').hidden,view!=='actions');assert.equal(f.audio.currentTime,25);}});
 test('a cover updates playlist and media action targets and preserves the open panel',()=>{const f=fixture();for(const [trigger,view] of [['#player-more','actions'],['#player-lyrics-toggle','lyrics']]){f.click(trigger);f.run("renderPlayerActions({id:'next',title:'<unsafe>',kind:'cover',producer:'Creator'})");assert.equal(f.view(),view);const html=f.e('#player-actions').innerHTML;for(const target of ['data-add="next"','data-like="next"','data-gift="next"','#song/next?comments=1','data-share="next"'])assert.ok(html.includes(target));assert.ok(f.e('#now-playing').innerHTML.includes('&lt;unsafe>'));assert.ok(f.e('#now-playing').innerHTML.includes('Creator'));}});
@@ -88,6 +95,9 @@ test('only the narrowest player moves the same lyrics control into the existing 
  f.resize(256);assert.equal(f.e('.player').dataset.playerNarrow,'true');
  assert.equal(lyrics.parentElement,f.e('.player-utility-buttons'));
  f.click('#player-more');f.click('#player-lyrics-toggle');assert.equal(f.view(),'lyrics');
+ assert.equal(lyrics.parentElement,f.e('#player-extension'));
+ f.click('#player-lyrics-toggle');assert.equal(f.view(),'none');
+ assert.equal(lyrics.parentElement,f.e('.player-utility-buttons'));
  f.resize(390);assert.equal(f.e('.player').dataset.playerNarrow,'false');
  assert.equal(lyrics.parentElement,f.e('.player-controls'));
  assert.equal(f.audio.currentTime,25);assert.equal(f.audio.paused,false);
