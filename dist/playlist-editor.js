@@ -88,9 +88,7 @@ async function unifiedPlaylistEditor({id=null,initial=null,fork=false,focusItems
   </section><p class="form-error" role="alert"></p><button type="submit" class="primary-button">저장</button></form>`);
  const form=$('#playlist-form'),field=form.elements,rows=form.querySelector('#playlist-editor-items'),candidatePanel=form.querySelector('.playlist-candidates'),results=form.querySelector('[data-candidate-results]'),more=form.querySelector('[data-candidate-more]');
  const live=()=>form.isConnected&&$('#dialog').open&&current();
- const needsTitle=()=>!restrictedItems(items);
  let consent=false,previewURL='',savedId=null,serial=0,timer,candidates=[],offset=null;
- const titleCheck=libraryTitleCheck(form,()=>!fork&&id?id:'',needsTitle);
  const resetPreview=()=>{if(previewURL)URL.revokeObjectURL(previewURL);previewURL='';};
  const preview=()=>{
   const p={...original,id:id||'',name:field.name.value||'플레이리스트 제목',description:field.description.value,owner_name:me.display_name||me.name,user_id:me.id,owner_profile_id:me.profile_id,tracks:items.length,covers:items.filter(i=>i.content).slice(0,4).map(i=>({...i.content,kind:i.kind}))};
@@ -104,7 +102,7 @@ async function unifiedPlaylistEditor({id=null,initial=null,fork=false,focusItems
  };
  const paint=()=>{
   rows.innerHTML=editableItemRows(items);form.querySelector('[data-item-count]').textContent=number(items.length);
-  const restricted=!needsTitle();if(restricted||!items.length)field.is_public.checked=false;
+  const restricted=restrictedItems(items);if(restricted||!items.length)field.is_public.checked=false;
   field.is_public.disabled=restricted||!items.length;
   form.querySelector('[data-privacy-note]').textContent=restricted?'커버곡 또는 더빙이 포함된 플레이리스트는 비공개로 저장됩니다.':!items.length?'빈 플레이리스트는 비공개로 저장됩니다.':field.is_public.checked?'공개 플레이리스트입니다.':'비공개 플레이리스트입니다.';
   if(!candidatePanel.hidden)paintCandidates();preview();
@@ -144,7 +142,6 @@ async function unifiedPlaylistEditor({id=null,initial=null,fork=false,focusItems
  form.onsubmit=busyForm(form,async fd=>{
   if(!live())throw Error('화면이나 계정이 변경되었습니다. 다시 열어 주세요.');
   if(!savedId){
-   if(!await titleCheck())throw Error('플레이리스트 제목을 확인해 주세요.');
    const restricted=restrictedItems(items);
    if(!fork&&original.is_public&&restricted&&!consent){
     if(!await confirmPrivatePlaylist()){
