@@ -22,6 +22,52 @@ import android.util.Base64
 
 class MusicModel(app:Application):AndroidViewModel(app) {
  val api=NativeApi(app)
+ internal val coverPickUpdates=mutableStateMapOf<String,CoverPickState>()
+ private val savingCoverPicks=mutableStateMapOf<String,ReadScope>()
+ internal fun isCoverPicked(song:Song):Boolean{
+  if(!song.cover)return false
+  val changed=song.originalId?.let{coverPickUpdates[it]}
+  return if(changed!=null&&changed.revision>=song.coverPickRevision)changed.coverId==song.id else song.isCoverPicked
+ }
+ internal suspend fun readCoverPick(song:Song):CoverPickState?{
+  val original=song.originalId?:return null
+  val scope=readScope()
+  if(scope.account==null||!song.canBePicked)return null
+  val value=CoverPickState(api.call("/api/tracks/$original/cover-pick",fresh=true))
+  ensureRead(scope)
+  return value.takeIf{it.canManage}
+ }
+ internal fun changeCoverPick(song:Song,selection:CoverPickState){
+  val original=song.originalId?:return
+  val scope=readScope()
+  if(scope.account==null||!song.canBePicked||!selection.canManage||savingCoverPicks.containsKey(original))return
+  savingCoverPicks[original]=scope
+  val coverId=song.id.takeUnless{it==selection.coverId}
+  val path="/api/tracks/$original/cover-pick"
+  fun applyPick(value:CoverPickState){
+   if(!sameAccount(scope))return
+   coverPickUpdates[original]=value
+   collection?.takeIf{it.path?.substringBefore('?')=="/api/tracks/$original/covers"}?.let{
+    browseCollection(it.title,it.path!!,it.caption,it.resultKey,it.asPage)
+   }
+  }
+  viewModelScope.launch{
+   try{
+    val value=CoverPickState(api.call(path,"PUT",payload("cover_id" to coverId,"expected_revision" to selection.revision)))
+    if(!sameAccount(scope))return@launch
+    applyPick(value)
+    notice=if(coverId==null)"PICK을 해제했습니다." else "PICK을 저장했습니다."
+   }catch(e:Exception){
+    if(e is CancellationException)throw e
+    if(sameAccount(scope)){
+     failure(e)
+     if(e is ApiException&&e.status==409){
+      try{readCoverPick(song)?.let(::applyPick)}catch(reload:Exception){if(reload is CancellationException)throw reload}
+     }
+    }
+   }finally{if(savingCoverPicks[original]===scope)savingCoverPicks.remove(original)}
+  }
+ }
  internal var workspace by mutableStateOf<CurrentWorkspace?>(null)
  internal var playMode by mutableStateOf("song")
  internal var playSection by mutableStateOf("recommended")
@@ -377,6 +423,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
  private fun currentRead(scope:ReadScope)=sameAccount(scope)&&scope.mutation==mutationRevision&&scope.apiRevision==api.readRevision
  private suspend fun ensureRead(scope:ReadScope){currentCoroutineContext().ensureActive();if(!currentRead(scope))throw CancellationException("A newer account or action replaced this read")}
  private fun clearPrivateState(stopPlayback:Boolean){
+  coverPickUpdates.clear();savingCoverPicks.clear()
   duetRequest++;duetLoading=false
   listOf(ownDashboardJob,libraryJob,ownProfileJob,listJob,studioJob,profileJob,detailJob,feedJob,searchJob,collectionJob,rankJob,highlightsJob,originalJob).forEach{it?.cancel()}
   likes=emptyList();playlists=emptyList();history=emptyList();follows=emptyList();ownProfile=JSONObject();myTracks=emptyList();ownDashboard=null;ownDashboardLoading=false;ownDashboardError=null;ownDashboardRevision=-1L;pendingTrackDelete=null
@@ -634,7 +681,7 @@ class MusicModel(app:Application):AndroidViewModel(app) {
   if(detail?.id==song.id)comments=updated
   onDone();notice="신고가 접수됐어요. 운영자가 확인할게요."
  }}
- fun openCovers(song:Song){detail=null;browseCollection("${song.title} · 다른 목소리","/api/tracks/${song.id}/covers","같은 원곡을 각자의 목소리로 부른 커버곡","covers")}
+ fun openCovers(song:Song){detail=null;browseCollection("${song.title} · 다른 목소리","/api/tracks/${song.id}/covers?promote_pick=1","같은 원곡을 각자의 목소리로 부른 커버곡","covers")}
  fun openOriginal(song:Song){
   originalJob?.cancel();val scope=readScope()
   originalJob=viewModelScope.launch{try{val original=Song(api.call("/api/tracks/${song.raw.getString("original_id")}",fresh=true).getJSONObject("track"));ensureRead(scope);openSong(original)}catch(e:Exception){if(e is CancellationException)throw e;if(sameAccount(scope))failure(e)}}

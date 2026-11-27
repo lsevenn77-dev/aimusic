@@ -218,6 +218,7 @@ internal fun communityRankChange(row:JSONObject,rank:Int):Pair<String,String>{
  var track by remember(id,account,category){mutableStateOf(if(category=="work")m.api.peek("/api/tracks/$id")?.optJSONObject("track")else null)}
  LaunchedEffect(id,account,category){if(category=="work"&&CurrentNavigation.safeID(id)&&track==null)try{track=m.api.call("/api/tracks/$id").optJSONObject("track")}catch(e:Exception){if(e is CancellationException)throw e}}
  val song=remember(track){track?.let(::Song)}
+ val rankedCover=remember(row){if(row.clean("kind")=="cover")Song(JSONObject(row.toString()).put("title",name))else null}
  val detail=listOfNotNull(song?.credit?.takeIf{it.isNotBlank()},row.clean("detail").takeIf{it.isNotBlank()}).joinToString(" · ")
  val change=communityRankChange(row,rank)
  val open={if(CurrentNavigation.safeID(id))when(category){"work"->m.openCurrentSong(id);"aiArtist"->m.openProfile(id,"artist");"crew"->m.openCurrentWorkspace("crew/$id",name);"dubbing"->m.openCurrentWorkspace("dubbing/$id",name);else->Unit}}
@@ -234,7 +235,10 @@ internal fun communityRankChange(row:JSONObject,rank:Int):Pair<String,String>{
    }
    Column(Modifier.fillMaxWidth().align(Alignment.BottomCenter).padding(horizontal=6.dp,vertical=8.dp),horizontalAlignment=Alignment.CenterHorizontally){
     if(song!=null)Box(Modifier.align(Alignment.End)){HomePlaybackButton(song,m,listOf(song))}
-    Text(name,fontSize=if(rank==1)15.sp else 13.sp,lineHeight=18.sp,fontWeight=FontWeight.Bold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
+    val titleSize=if(rank==1)15.sp else 13.sp
+    val titleAlignment=androidx.compose.ui.text.style.TextAlign.Center
+    if(rankedCover!=null)CoverPickTitle(rankedCover,m,fontSize=titleSize,lineHeight=18.sp,fontWeight=FontWeight.Bold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=titleAlignment)
+    else Text(name,fontSize=titleSize,lineHeight=18.sp,fontWeight=FontWeight.Bold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=titleAlignment)
     if(detail.isNotBlank())Text(detail,fontSize=10.sp,lineHeight=13.sp,color=SoftText,maxLines=2,overflow=TextOverflow.Ellipsis,textAlign=androidx.compose.ui.text.style.TextAlign.Center)
     Spacer(Modifier.height(5.dp));RankScore(row,accent)
    }
@@ -244,7 +248,8 @@ internal fun communityRankChange(row:JSONObject,rank:Int):Pair<String,String>{
    Text("$rank",fontSize=18.sp,fontWeight=FontWeight.Bold,color=Violet,modifier=Modifier.widthIn(min=22.dp))
    RankingArtwork(row,id,name,category,crew,track,Modifier.size(51.dp))
    Column(Modifier.weight(1f)){
-    Text(name,fontSize=14.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+    if(rankedCover!=null)CoverPickTitle(rankedCover,m,fontSize=14.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+    else Text(name,fontSize=14.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
     if(detail.isNotBlank())Text(detail,fontSize=11.sp,lineHeight=15.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
     Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)){RankScore(row,Violet);RankMovement(change,category,id)}
    }

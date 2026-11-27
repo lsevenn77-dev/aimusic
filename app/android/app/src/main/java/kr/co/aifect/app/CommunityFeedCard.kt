@@ -57,7 +57,7 @@ internal fun socialTime(seconds:Long):String {
    Box(Modifier.matchParentSize().background(Brush.verticalGradient(0f to Color.Transparent,.43f to Color.Transparent,1f to Color.Black.copy(alpha=.9f))).clickable{m.openSong(song)})
    Text(when{isDuet->"DUET";song.cover->"COVER";else->"ORIGINAL"},fontSize=9.sp,fontWeight=FontWeight.SemiBold,color=Color.White,modifier=Modifier.align(Alignment.TopStart).padding(9.dp).background(Color.Black.copy(alpha=.5f),RoundedCornerShape(50)).padding(horizontal=7.dp,vertical=3.dp))
    Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(start=11.dp,end=60.dp,bottom=11.dp)){
-    Text(song.title,fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.Bold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("feed-title-${song.id}"))
+    CoverPickTitle(song,m,fontSize=16.sp,lineHeight=21.sp,fontWeight=FontWeight.Bold,color=Color.White,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("feed-title-${song.id}"))
     if(song.description.isNotBlank())Text(song.description,fontSize=11.sp,lineHeight=16.sp,color=Color(0xFFE0DCEA),maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp))
    }
    Column(Modifier.align(Alignment.BottomEnd).padding(9.dp),horizontalAlignment=Alignment.CenterHorizontally){

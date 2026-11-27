@@ -237,7 +237,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
  Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(if(m.current?.id==song.id)Pink.copy(alpha=.10f)else Panel.copy(alpha=.45f)).clickable {m.openSong(song)}.padding(horizontal=8.dp,vertical=9.dp),verticalAlignment=Alignment.CenterVertically){
   Box(Modifier.size(50.dp).clickable{m.play(song,queue)}){Artwork(song,Modifier.fillMaxSize());if(m.current?.id==song.id)Box(Modifier.fillMaxSize().background(Ink.copy(alpha=.45f)),contentAlignment=Alignment.Center){Icon(if(m.playing)Icons.Rounded.GraphicEq else Icons.Rounded.PlayArrow,"재생",tint=Aqua)}}
   Column(Modifier.weight(1f).padding(horizontal=13.dp)){
-   Text(song.title,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+   CoverPickTitle(song,m,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
    Text(song.credit,fontSize=13.sp,color=Muted,maxLines=1,modifier=Modifier.padding(top=5.dp))
    Text("재생 ${song.plays} · 좋아요 ${song.likes} · 댓글 ${verifiedSongCommentCount(song,m)}",fontSize=10.sp,color=Muted,modifier=Modifier.padding(top=4.dp))
   }
@@ -296,7 +296,8 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
     Row(Modifier.weight(1f).heightIn(min=40.dp).testTag("mini-player-open").clickable{m.fullPlayer=true},verticalAlignment=Alignment.CenterVertically){
      Artwork(song,Modifier.size(35.dp).testTag("mini-player-art"),corner=7.dp)
      Column(Modifier.weight(1f).padding(horizontal=8.dp)){
-      Text(song.title,Modifier.fillMaxWidth().testTag("mini-player-title").basicMarquee(iterations=Int.MAX_VALUE),maxLines=1,softWrap=false,fontSize=14.sp,lineHeight=17.sp,fontWeight=FontWeight.SemiBold)
+      if(m.isCoverPicked(song))CoverPickTitle(song,m,Modifier.fillMaxWidth().testTag("mini-player-title"),fontSize=14.sp,lineHeight=17.sp,fontWeight=FontWeight.SemiBold)
+      else Text(song.title,Modifier.fillMaxWidth().testTag("mini-player-title").basicMarquee(iterations=Int.MAX_VALUE),maxLines=1,softWrap=false,fontSize=14.sp,lineHeight=17.sp,fontWeight=FontWeight.SemiBold)
       Row(verticalAlignment=Alignment.CenterVertically){
        Text(song.credit,Modifier.weight(1f,fill=false),maxLines=1,fontSize=10.sp,lineHeight=13.sp,color=Muted,overflow=TextOverflow.Ellipsis)
        if(m.playing)Icon(Icons.Rounded.Equalizer,null,Modifier.padding(start=3.dp).size(11.dp),tint=Pink)
@@ -369,7 +370,7 @@ internal fun neutralChipBorder(selected:Boolean)=BorderStroke(1.dp,if(selected)P
    item{
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("NOW PLAYING",color=Muted,fontSize=12.sp,letterSpacing=2.sp,modifier=Modifier.weight(1f));SongShareButton(song);IconButton(onClick={queueOpen=true},modifier=Modifier.testTag("player-queue")){Icon(Icons.AutoMirrored.Rounded.QueueMusic,"재생목록",tint=Aqua)};IconButton(onClick=m::closePlayer){Icon(Icons.Rounded.Close,"재생 종료",tint=Muted)}}
     Box(Modifier.fillMaxWidth(),contentAlignment=Alignment.Center){Artwork(song,Modifier.widthIn(max=380.dp).fillMaxWidth().aspectRatio(1f))}
-    Row(Modifier.fillMaxWidth().padding(top=22.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){Text(song.title,fontSize=25.sp,fontWeight=FontWeight.Bold,maxLines=2);Text(song.credit,color=Muted,modifier=Modifier.padding(top=7.dp))};IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}}
+    Row(Modifier.fillMaxWidth().padding(top=22.dp),verticalAlignment=Alignment.CenterVertically){Column(Modifier.weight(1f)){CoverPickTitle(song,m,fontSize=25.sp,fontWeight=FontWeight.Bold,maxLines=2);Text(song.credit,color=Muted,modifier=Modifier.padding(top=7.dp))};IconButton(onClick={m.like(song)},enabled=!m.busy){Icon(if(m.likes.any{it.id==song.id})Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,"좋아요",tint=Pink)}}
     m.playbackQualityLabel?.let{Text(it,fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=8.dp).testTag("player-quality"))}
     Slider(value=seek?:m.position.toFloat(),onValueChange={seek=it},onValueChangeFinished={seek?.let{m.controller?.seekTo(it.toLong())};seek=null},valueRange=0f..m.duration.coerceAtLeast(1).toFloat(),modifier=Modifier.fillMaxWidth().padding(top=15.dp),colors=SliderDefaults.colors(thumbColor=Color.White,activeTrackColor=Aqua,inactiveTrackColor=Stroke))
     Row(Modifier.fillMaxWidth()){Text(timeLabel((seek?:m.position.toFloat()).toLong()),fontSize=12.sp,color=Muted);Spacer(Modifier.weight(1f));Text(timeLabel(m.duration),fontSize=12.sp,color=Muted)}

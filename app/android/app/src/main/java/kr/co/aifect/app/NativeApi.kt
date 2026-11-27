@@ -47,6 +47,14 @@ data class Song(val raw: JSONObject) {
  val comments=raw.optInt("comments")
  val plays=raw.optInt("plays")
  val cover=raw.optString("kind")=="cover"
+ internal val originalId=raw.opt("original_id") as? String
+ internal val coverPickRevision=raw.optLong("cover_pick_revision")
+ internal val isCoverPicked=cover&&(raw.optBoolean("is_composer_pick")||raw.optInt("is_composer_pick")==1)
+ internal val canBePicked get()=cover&&originalId!=null&&when(raw.optString("cover_mode")){
+  "solo"->true
+  "duet"->raw.opt("duet_parent_id") is String&&!raw.optBoolean("duet_open")&&raw.optInt("duet_open")==0
+  else->false
+ }
  val dubbing=raw.optString("kind")=="dubbing"
  val hasAiArtist get() = !cover && if(raw.has("has_ai_artist")) raw.optInt("has_ai_artist") == 1 else artist.trim().isNotEmpty() && artist.trim() !in setOf("없음","미등록","-","선택 안함","선택안함")
  val credit get() = if(cover&&raw.optString("cover_mode")=="duet"&&raw.optString("duet_partner_id").isNotBlank()) "${raw.optString("duet_partner")} & $producer" else (if(hasAiArtist) artist else producer).ifBlank { "AIFECT" }

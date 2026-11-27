@@ -258,8 +258,9 @@ internal class WorkAppearance(template:String,description:String) {
    if(active&&m.duration>0)m.duration else (song.duration*1000).toLong(),active&&m.playing,caption,true,
    play={if(active)m.toggle() else m.play(song)},seek={if(active)m.controller?.seekTo(it)})
   Row(verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(8.dp)){
-   Text(song.title,Modifier.weight(1f,false),fontSize=22.sp,fontWeight=FontWeight.Bold,maxLines=3,overflow=TextOverflow.Ellipsis)
+   CoverPickTitle(song,m,Modifier.weight(1f,false),fontSize=22.sp,fontWeight=FontWeight.Bold,maxLines=3,overflow=TextOverflow.Ellipsis)
    Text(if(song.raw.optString("cover_mode")=="duet")"듀엣" else "커버",fontSize=12.sp,color=Pink)
+   if(song.raw.optBoolean("can_manage_cover_pick"))TrackActionsMenu(song,m)
   }
   TextButton(onClick={m.openProfile(song.producerId,showCovers=true)},contentPadding=PaddingValues(0.dp)){Text(song.credit,color=SoftText)}
   if(song.description.isNotBlank())Text(song.description,color=SoftText)

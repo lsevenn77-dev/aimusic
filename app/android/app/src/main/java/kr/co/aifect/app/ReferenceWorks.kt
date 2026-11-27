@@ -50,7 +50,8 @@ internal suspend fun deleteSelectedWorks(targets:List<ReferenceWork>,delete:susp
    work.song?.let{Artwork(it,Modifier.fillMaxSize(),12.dp)}?:work.dubbing?.let{DubbingImage(currentDubbingImage(it),Modifier.fillMaxSize())}
    if(selecting)Checkbox(checked,null,Modifier.align(Alignment.TopEnd).background(Ink,RoundedCornerShape(8.dp))) else BrandPlayButton("${work.title} 듣기",{work.song?.let{m.play(it,queue)}?:open()},Modifier.align(Alignment.BottomEnd).padding(6.dp),diameter=32.dp)
   }
-  Text(work.title,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
+  if(work.song!=null)CoverPickTitle(work.song,m,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
+  else Text(work.title,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
   Row(Modifier.padding(top=5.dp),verticalAlignment=Alignment.CenterVertically){
    if(work.type!="original")Text(work.label,fontSize=9.sp,lineHeight=13.sp,color=Pink,modifier=Modifier.clip(RoundedCornerShape(5.dp)).background(Pink.copy(alpha=.1f)).padding(horizontal=6.dp,vertical=3.dp))
    Text(work.song?.credit?:work.dubbing?.optString("ownerName",work.dubbing.optString("owner_name")).orEmpty(),fontSize=10.sp,lineHeight=14.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(start=if(work.type=="original")0.dp else 6.dp).weight(1f))

@@ -44,7 +44,7 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
        Icon(Icons.Rounded.ChevronRight,null,tint=Muted,modifier=Modifier.size(16.dp))
       }
       Row(verticalAlignment=Alignment.CenterVertically){
-       if(song!=null){Artwork(song,Modifier.size(40.dp));Column(Modifier.weight(1f).padding(start=10.dp)){Text(song.title,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text(song.credit,fontSize=11.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))}}
+       if(song!=null){Artwork(song,Modifier.size(40.dp));Column(Modifier.weight(1f).padding(start=10.dp)){CoverPickTitle(song,m,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis);Text(song.credit,fontSize=11.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))}}
        else Text(if(m.highlightsBusy)"목소리를 찾고 있어요" else if(m.highlightsError!=null)"랭킹 열어보기" else "첫 좋아요를 기다려요",fontSize=12.sp,color=Muted,modifier=Modifier.heightIn(min=40.dp))
       }
      }
@@ -77,7 +77,7 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
      Row(verticalAlignment=Alignment.CenterVertically){
       Text("${song.raw.optInt("rank")}",fontSize=25.sp,color=if(song.raw.optInt("rank")<=3)Pink else Muted,fontWeight=FontWeight.Bold,modifier=Modifier.width(34.dp))
       Artwork(song,Modifier.size(56.dp).clickable{m.openSong(song)})
-      Column(Modifier.weight(1f).padding(start=12.dp).clickable{m.openSong(song)}){Text(song.title,fontSize=16.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis);Text(song.credit,fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=5.dp));Text("$selected 좋아요 ${song.raw.optInt("rank_likes")}",fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=5.dp))}
+      Column(Modifier.weight(1f).padding(start=12.dp).clickable{m.openSong(song)}){CoverPickTitle(song,m,fontSize=16.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis);Text(song.credit,fontSize=13.sp,color=Muted,modifier=Modifier.padding(top=5.dp));Text("$selected 좋아요 ${song.raw.optInt("rank_likes")}",fontSize=12.sp,color=Aqua,modifier=Modifier.padding(top=5.dp))}
       IconButton(onClick={m.play(song,m.rankTracks)}){Icon(Icons.Rounded.PlayArrow,"${song.title} 재생",tint=Pink)}
      }
      Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End){
@@ -116,7 +116,7 @@ private val RankColors=listOf(Pink,Aqua,Violet,Color(0xFFE8CFA0))
     Box(Modifier.align(Alignment.BottomEnd).padding(4.dp).size(26.dp).background(Ink.copy(alpha=.88f),CircleShape).border(1.dp,BrandGradient,CircleShape),contentAlignment=Alignment.Center){Icon(Icons.Rounded.PlayArrow,null,tint=Pink,modifier=Modifier.size(18.dp))}
    }
    Column(Modifier.weight(1f).padding(start=12.dp).testTag("karaoke-copy-${song.id}"),verticalArrangement=Arrangement.spacedBy(4.dp)){
-    Text(song.title,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().clickable{m.openSong(song)}.testTag("karaoke-title-${song.id}"))
+    CoverPickTitle(song,m,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.fillMaxWidth().clickable{m.openSong(song)}.testTag("karaoke-title-${song.id}"))
     Row(Modifier.fillMaxWidth().clickable(role=Role.Button){m.openProfile(song.producerId,showCovers=true)}.semantics{contentDescription="${song.credit} 가수 보기"}.testTag("karaoke-artist-${song.id}"),verticalAlignment=Alignment.CenterVertically){
      Text(song.credit,fontSize=13.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f,false))
      Icon(Icons.Rounded.ChevronRight,null,tint=Muted,modifier=Modifier.padding(start=2.dp).size(13.dp))

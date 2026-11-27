@@ -293,7 +293,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
    Artwork(song,Modifier.size(artSize).clickable{m.play(song,queue)}.testTag("stream-play-${song.id}").semantics{contentDescription="${song.title} 재생"},corner=10.dp)
    Column(Modifier.weight(1f).padding(start=12.dp).testTag("home-song-copy-${song.id}"),verticalArrangement=Arrangement.spacedBy(6.dp)){
     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-     Text(song.title,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f).testTag("music-title-${song.id}"))
+     CoverPickTitle(song,m,fontSize=16.sp,lineHeight=22.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f).testTag("music-title-${song.id}"))
      if(sing!=null)IconButton(onClick=sing,modifier=Modifier.width(44.dp).height(24.dp)){Icon(Icons.Rounded.Mic,"${song.title} 부르기",tint=Violet,modifier=Modifier.size(18.dp))}
      TrackActionsMenu(song,m,Modifier.width(if(sing!=null)44.dp else 24.dp).height(24.dp))
     }
@@ -322,7 +322,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
   Row(Modifier.fillMaxWidth().padding(vertical=7.dp),verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(artSize).testTag("home-song-art-${song.id}").clickable{m.play(song,queue)}.semantics{contentDescription="${song.title} 앨범 표지 재생"},corner=10.dp)
    Column(Modifier.weight(1f).padding(start=12.dp,end=2.dp).clickable{m.openSong(song)}.testTag("home-song-copy-${song.id}")){
-    Text(song.title,fontSize=15.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
+    CoverPickTitle(song,m,fontSize=15.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
     Column(Modifier.padding(top=3.dp).testTag("home-song-meta-${song.id}")){
      Text(song.credit,fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("home-song-artist-${song.id}"))
      CompactSongStats(song,m)
@@ -358,7 +358,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
    Row(Modifier.weight(1f).clickable{m.openSong(song)}.semantics{contentDescription="${song.title} 곡 정보"},verticalAlignment=Alignment.CenterVertically){
     Artwork(song,Modifier.size(50.dp),corner=9.dp)
     Column(Modifier.weight(1f).padding(start=10.dp,end=4.dp)){
-     Text(song.title,fontSize=15.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
+     CoverPickTitle(song,m,fontSize=15.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
      Text(song.credit,fontSize=12.sp,lineHeight=17.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
      CompactSongStats(song,m)
     }
@@ -378,7 +378,7 @@ private enum class HomeSection(val label:String, val icon:ImageVector) {
      Artwork(song,Modifier.fillMaxSize(),corner=11.dp)
      BrandPlayButton("${song.title} 재생",{m.play(song,tracks)},Modifier.align(Alignment.BottomEnd).padding(4.dp),diameter=30.dp)
     }
-    Text(song.title,fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=7.dp).clickable{m.openSong(song)})
+    CoverPickTitle(song,m,fontSize=14.sp,lineHeight=19.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=7.dp).clickable{m.openSong(song)})
     Text(song.credit,fontSize=11.sp,lineHeight=16.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp,bottom=12.dp))
    }}
   }
@@ -449,7 +449,7 @@ private fun HomePromotion.imageUrl():String {
   LazyRow(horizontalArrangement=Arrangement.spacedBy(8.dp)){
    items(tracks,key={it.id}){song->Column(Modifier.width(width)){
     Box(Modifier.size(width).clip(RoundedCornerShape(9.dp)).clickable{m.play(song,tracks)}.semantics{contentDescription="${song.title} 재생"}){Artwork(song,Modifier.fillMaxSize(),corner=9.dp)}
-    Text(song.title,fontSize=12.sp,lineHeight=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp).clickable{m.openSong(song)})
+    CoverPickTitle(song,m,fontSize=12.sp,lineHeight=16.sp,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp).clickable{m.openSong(song)})
     Text(song.credit,fontSize=10.sp,lineHeight=14.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
    }}
   }
@@ -461,7 +461,7 @@ private fun HomePromotion.imageUrl():String {
    Artwork(song,Modifier.size(64.dp).clickable{m.openSong(song)})
    Column(Modifier.weight(1f).padding(start=14.dp)){
     Text("MR 준비 완료",fontSize=12.sp,color=Aqua,fontWeight=FontWeight.SemiBold)
-    Text(song.title,fontSize=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=6.dp))
+    CoverPickTitle(song,m,fontSize=17.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=6.dp))
     Text(song.credit,color=Muted,fontSize=13.sp,modifier=Modifier.padding(top=4.dp))
    }
   }
@@ -508,7 +508,7 @@ private fun HomePromotion.imageUrl():String {
  Row(Modifier.fillMaxWidth().clickable{m.openSong(song)}.padding(vertical=12.dp),verticalAlignment=Alignment.Top){
   Artwork(song,Modifier.size(46.dp))
   Column(Modifier.weight(1f).padding(start=10.dp)){
-   Text(song.title,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.bodyMedium.copy(lineBreak=LineBreak.Paragraph),modifier=Modifier.fillMaxWidth().testTag("music-title-${song.id}"))
+   CoverPickTitle(song,m,fontSize=14.sp,lineHeight=20.sp,fontWeight=FontWeight.SemiBold,style=MaterialTheme.typography.bodyMedium.copy(lineBreak=LineBreak.Paragraph),modifier=Modifier.fillMaxWidth().testTag("music-title-${song.id}"))
    Row(Modifier.fillMaxWidth().padding(top=4.dp),verticalAlignment=Alignment.CenterVertically){
     Text(song.credit,fontSize=12.sp,lineHeight=17.sp,color=Muted,modifier=Modifier.weight(1f))
     IconButton(onClick={m.play(song,queue)}){Icon(Icons.Rounded.PlayCircle,"${song.title} 재생",tint=Pink,modifier=Modifier.size(24.dp))}
@@ -699,7 +699,7 @@ private fun HomePromotion.imageUrl():String {
      val mine=song.raw.optString("user_id")==m.user?.optString("id")
      Surface(color=Panel,shape=RoundedCornerShape(18.dp),border=BorderStroke(1.dp,Violet.copy(alpha=.35f)),modifier=Modifier.fillMaxWidth().padding(bottom=12.dp).testTag("duet-invitation-${song.id}")){
       Column(Modifier.padding(16.dp)){
-       Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(72.dp).clickable{m.openSong(song)});Column(Modifier.weight(1f).padding(start=14.dp)){Text("듀엣 · 참여 대기",color=Aqua,fontSize=12.sp);Text(song.title,fontWeight=FontWeight.Bold,fontSize=17.sp,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=6.dp));Text(song.producer,color=Muted,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}}
+       Row(verticalAlignment=Alignment.CenterVertically){Artwork(song,Modifier.size(72.dp).clickable{m.openSong(song)});Column(Modifier.weight(1f).padding(start=14.dp)){Text("듀엣 · 참여 대기",color=Aqua,fontSize=12.sp);CoverPickTitle(song,m,fontWeight=FontWeight.Bold,fontSize=17.sp,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=6.dp));Text(song.producer,color=Muted,fontSize=13.sp,maxLines=1,overflow=TextOverflow.Ellipsis)}}
        Row(Modifier.padding(top=12.dp),verticalAlignment=Alignment.CenterVertically){IconButton(onClick={m.play(song,tracks)}){Icon(Icons.Rounded.PlayCircle,"${song.title} 먼저 듣기",tint=Pink)};BrandButton(onClick={if(mine)m.openSong(song)else sing(song)},modifier=Modifier.weight(1f).testTag("duet-join-${song.id}")){Text(if(mine)"내 듀엣 보기" else "듀엣 참여")}}
       }
      }

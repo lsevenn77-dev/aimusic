@@ -113,8 +113,8 @@ import org.json.JSONObject
  var busy by remember(song.id,tab){mutableStateOf(true)}
  var error by remember(song.id,tab){mutableStateOf<String?>(null)}
  var revision by remember{mutableIntStateOf(0)}
- val path="/api/tracks/${song.id}/covers?mode="+(if(tab=="랭킹")"all" else if(tab=="듀엣")"duet" else "solo")+"&sort="+(if(tab=="랭킹")"plays" else "recent")
- LaunchedEffect(path,revision){busy=true;try{tracks=m.api.call(path,fresh=true).tracks("covers");error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
+ val path="/api/tracks/${song.id}/covers?mode="+(if(tab=="랭킹")"all" else if(tab=="듀엣")"duet" else "solo")+"&sort="+(if(tab=="랭킹")"plays&promote_pick=1" else "recent")
+ LaunchedEffect(path,revision,m.coverPickUpdates[song.id]?.revision){busy=true;try{tracks=m.api.call(path,fresh=true).tracks("covers");error=null}catch(e:Exception){if(e is CancellationException)throw e;error=e.message}finally{busy=false}}
  Column(Modifier.fillMaxWidth().padding(vertical=6.dp).testTag("song-cover-tabs")){
   Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){Text("커버곡",fontSize=18.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f));OutlinedButton({m.singTarget(song,sing)},shape=RoundedCornerShape(8.dp),contentPadding=PaddingValues(horizontal=10.dp,vertical=4.dp)){Text("+ 커버 올리기",fontSize=12.sp)}}
   CurrentTabs(listOf("솔로","듀엣","랭킹").map{it to it},tab,"song-covers"){tab=it}
@@ -123,10 +123,10 @@ import org.json.JSONObject
   error?.let{Text(it,color=Pink);TextButton(onClick={revision++}){Text("다시 불러오기")}}
   tracks.take(5).forEachIndexed{index,cover->
    Row(Modifier.fillMaxWidth().padding(vertical=9.dp).testTag("song-cover-row-${cover.id}"),verticalAlignment=Alignment.CenterVertically){
-    if(tab=="랭킹")Text("${index+1}",fontSize=11.sp,color=Muted,modifier=Modifier.width(22.dp))
+    if(tab=="랭킹")Text(cover.raw.optInt("rank",index+1).toString(),fontSize=11.sp,color=Muted,modifier=Modifier.width(22.dp))
     Artwork(cover,Modifier.size(44.dp).clickable{m.openSong(cover)},7.dp)
     Column(Modifier.weight(1f).padding(horizontal=10.dp).clickable{m.openSong(cover)}){
-     Text(cover.title,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+     CoverPickTitle(cover,m,fontSize=13.sp,lineHeight=18.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis)
      Text("${cover.credit} · ${if(cover.raw.optString("cover_mode")=="duet")"듀엣"else "솔로"}",fontSize=10.sp,lineHeight=15.sp,color=Muted,maxLines=1,overflow=androidx.compose.ui.text.style.TextOverflow.Ellipsis,modifier=Modifier.padding(top=3.dp))
     }
     BrandPlayButton("${cover.title} 재생",{m.play(cover,tracks)},diameter=30.dp)

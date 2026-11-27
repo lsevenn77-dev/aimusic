@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke as DrawStroke
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 
 internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Violet,1f to Aqua)
 
@@ -51,7 +52,16 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
 }
 
 @Composable internal fun TrackActionsMenu(song:Song,m:MusicModel,modifier:Modifier=Modifier,includeRelated:Boolean=false){
- var open by remember(song.id){mutableStateOf(false)}
+ val account=m.user?.optString("id")
+ var open by remember(song.id,account){mutableStateOf(false)}
+ var pick by remember(song.id,account){mutableStateOf<CoverPickState?>(null)}
+ var replacement by remember(song.id,account){mutableStateOf<CoverPickState?>(null)}
+ LaunchedEffect(open,song.id,account){
+  pick=null
+  if(open&&account!=null&&song.canBePicked){
+   try{pick=m.readCoverPick(song)}catch(e:Exception){if(e is CancellationException)throw e}
+  }
+ }
  Box{
   IconButton(onClick={open=true},modifier=modifier){Icon(Icons.Rounded.Menu,"${song.title} 더보기",modifier=Modifier.size(18.dp),tint=Muted)}
   DropdownMenu(
@@ -62,6 +72,13 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
    containerColor=Panel,
    border=BorderStroke(1.dp,Stroke)
   ){
+   pick?.let{selection->
+    val remove=selection.coverId==song.id
+    DropdownMenuItem(text={Text(if(remove)"PICK 해제" else if(selection.hasPick)"이 커버로 PICK 변경" else "PICK 지정")},onClick={
+     open=false
+     if(selection.hasPick&&!remove)replacement=selection else m.changeCoverPick(song,selection)
+    })
+   }
    DropdownMenuItem(text={Text("플레이리스트 담기")},onClick={open=false;m.pickPlaylist(song)})
    DropdownMenuItem(text={Text("선물하기")},onClick={open=false;m.openGifts(song)})
    if(m.ownsTrack(song))DropdownMenuItem(text={Text("삭제")},onClick={open=false;m.requestTrackDelete(song)})
@@ -69,5 +86,13 @@ internal val BrandGradient get()=Brush.horizontalGradient(0f to Pink,.48f to Vio
    if(includeRelated&&song.cover)DropdownMenuItem(text={Text("원곡 듣기")},onClick={open=false;m.openOriginal(song)})
    else if(includeRelated&&song.raw.optInt("accepts_covers")==1)DropdownMenuItem(text={Text("다른 목소리")},onClick={open=false;m.openCovers(song)})
   }
+ }
+ replacement?.let{selection->
+  AlertDialog(
+   onDismissRequest={replacement=null},title={Text("이 커버로 PICK을 변경할까요?")},
+   text={Text("현재 PICK  ${selection.performer}\n새 PICK  ${song.credit}")},
+   dismissButton={TextButton({replacement=null}){Text("취소")}},
+   confirmButton={TextButton({replacement=null;m.changeCoverPick(song,selection)}){Text("변경하기")}}
+  )
  }
 }

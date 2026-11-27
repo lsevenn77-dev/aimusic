@@ -84,7 +84,7 @@ internal val StreamBorder=Stroke
   Row(Modifier.weight(1f).clickable{m.openSong(song)}.semantics{contentDescription="${song.title} 곡 정보"}.padding(start=if(rank==null)0.dp else 5.dp),verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(50.dp),corner=10.dp)
    Column(Modifier.weight(1f).padding(horizontal=12.dp)){
-    Text(song.title,fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
+    CoverPickTitle(song,m,fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,modifier=Modifier.testTag("music-title-${song.id}"))
     Text(song.credit,fontSize=13.sp,lineHeight=18.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
    }
   }

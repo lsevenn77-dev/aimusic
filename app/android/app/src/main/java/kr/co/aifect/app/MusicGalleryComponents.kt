@@ -77,7 +77,7 @@ private fun Song.galleryStatus()=when(raw.optString("status")){"hidden"->"비공
     Icon(if(m.current?.id==song.id&&m.playing)Icons.Rounded.GraphicEq else Icons.Rounded.PlayCircle,"${song.title} ${if(song.cover)"커버 " else ""}재생",tint=if(playable)Pink else Muted,modifier=Modifier.size(30.dp))
    }
    Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(10.dp)){
-    Text(song.title,fontSize=14.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,color=Color.White)
+    CoverPickTitle(song,m,fontSize=14.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis,color=Color.White)
     Row(Modifier.padding(top=5.dp),verticalAlignment=Alignment.CenterVertically){
      Icon(if(playable)Icons.Rounded.Headphones else Icons.Rounded.Lock,null,Modifier.size(13.dp),tint=Muted)
      Text(if(playable)" ${song.plays}회 재생" else " ${song.galleryStatus()}",fontSize=11.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis)
@@ -100,7 +100,7 @@ private fun Song.galleryStatus()=when(raw.optString("status")){"hidden"->"비공
   Row(Modifier.fillMaxWidth().padding(start=12.dp,top=12.dp,end=4.dp,bottom=4.dp),verticalAlignment=Alignment.CenterVertically){
    Artwork(song,Modifier.size(60.dp))
    Column(Modifier.weight(1f).padding(horizontal=12.dp)){
-    Text(song.title,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
+    CoverPickTitle(song,m,fontSize=15.sp,fontWeight=FontWeight.SemiBold,maxLines=2,overflow=TextOverflow.Ellipsis)
     Text(song.credit,fontSize=12.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=5.dp))
     Text(if(!playable)song.galleryStatus() else "${if(song.cover)if(song.raw.optString("cover_mode")=="duet")"듀엣" else "솔로 커버" else song.genre} · ${song.plays}회 재생",fontSize=11.sp,color=Muted,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.padding(top=4.dp))
    }

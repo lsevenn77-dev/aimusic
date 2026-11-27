@@ -48,7 +48,7 @@ import org.json.JSONObject
   Row(Modifier.fillMaxWidth().heightIn(min=44.dp),verticalAlignment=Alignment.CenterVertically){
    Row(Modifier.weight(1f).clickable{m.openSong(song)},verticalAlignment=Alignment.CenterVertically){
     if(song.cover){Icon(if(song.raw.optString("cover_mode")=="duet")Icons.Rounded.PeopleOutline else Icons.Rounded.Mic,null,Modifier.size(15.dp),tint=Muted);Spacer(Modifier.width(4.dp))}
-    Text(song.title,fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
+    CoverPickTitle(song,m,fontSize=15.sp,lineHeight=21.sp,fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
    }
    TrackActionsMenu(song,m,Modifier.size(36.dp))
   }
