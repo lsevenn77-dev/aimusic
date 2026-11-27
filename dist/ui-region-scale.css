@@ -34,6 +34,7 @@
  #main :is(.section-heading>a,.tab)>svg:not(.aifect-control-icon){width:calc(16px * var(--ui-icon-scale));height:calc(16px * var(--ui-icon-scale))}
  #main :is(.section-heading,.page-heading){align-items:center}
  #main .home-content-refresh .home-music-grid{grid-template-columns:repeat(var(--home-grid-fill,auto-fit),minmax(180px,1fr));gap:25px 20px}
+ #main .charts-final .chart-toolbar .chart-action{height:44px;min-height:44px}
  #main .song-table-row{min-height:79px}
  /* Existing recording/editing geometry, lyric-size preferences and maxima win. */
  #main :is(#sing.web-studio,.dubbing-record-layout,.studio-edit-panel,.studio-edit-workspace){--ui-type-scale:1;--ui-space-scale:1;--ui-icon-scale:1;--ui-control-height:44px}

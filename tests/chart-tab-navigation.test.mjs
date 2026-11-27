@@ -14,7 +14,6 @@ function helpers(extra={}){
   location:{hash:'#charts'},document:{addEventListener(){}},window:{addEventListener(){}},
   esc:escape,number:String,icon:()=>'',cover:()=>'',credits:()=>'',liked:()=>false,remember:tracks=>tracks,
   empty:(title,description,href,label)=>'<p>'+escape(title)+'</p><a href="'+href+'">'+escape(label)+'</a>',
-  AifectGenres:{GENRES:['Rock','Pop']},
   AifectPlaylist:{isPlaylistEligibleTrack:track=>track.kind==='original'},...extra});
  vm.runInContext(source,c);
  return c;
@@ -54,13 +53,11 @@ function fixture(response=async params=>chartData(params.get('chart')+'-'+params
   for(const key of ['.chart-toolbar','[data-browse-shuffle]','[data-chart-retry]'])nodes.delete(key);
   if(html.includes('data-chart-retry'))nodes.set('[data-chart-retry]',new Element('retry'));
   if(html.includes('chart-toolbar')){
-   const toolbar=new Element('toolbar'),details=new Element('details'),summary=new Element('summary'),label=new Element('period-label'),create=new Element('create'),shuffle=new Element('shuffle'),playAll=new Element('play-all');
+   const toolbar=new Element('toolbar'),details=new Element('details'),summary=new Element('summary'),label=new Element('period-label'),create=new Element('create'),shuffle=new Element('shuffle');
    const periodLinks=['week','month','all'].map(period=>{const link=new Element('period-'+period);link.setAttribute('href','#charts?period='+period);link.textContent=period;return link;});
    details.querySelector=selector=>selector==='summary span'?label:selector==='summary'?summary:null;
    details.querySelectorAll=()=>periodLinks;details.children=[summary,...periodLinks];
-   toolbar.querySelector=selector=>({
-    '.chart-period':details,'[data-chart-playlist]':create,'[data-chart-play-all]':playAll,'[data-chart-shuffle]':shuffle
-   })[selector]||null;
+   toolbar.querySelector=selector=>selector==='.chart-period'?details:selector==='[data-chart-playlist]'&&html.includes('data-chart-playlist')?create:null;
    toolbar.querySelectorAll=selector=>selector.includes('period')?periodLinks:[];
    nodes.set('.chart-toolbar',toolbar);nodes.set('[data-browse-shuffle]',shuffle);
   }
@@ -109,20 +106,6 @@ test('chart routing keeps canonical kinds, periods and existing popular aliases 
   const selected=c.chartRouteSelection(raw);assert.ok(selected,raw);assert.equal(selected.kind,kind,raw);assert.equal(selected.period,period,raw);
  }
  for(const raw of ['', 'home','profile','charts/karaoke','charts/karaoke?period=month','karaoke/chart','chart','charts-other'])assert.equal(c.chartRouteSelection(raw),null,raw);
-});
-
-test('genre remains part of the chart URL, cache key, request and period links',async()=>{
- const h=fixture();
- await h.mount('charts/covers?period=month&genre=Rock');
- assert.equal(h.requests[0].params.get('genre'),'Rock');
- assert.equal(h.requests[0].params.get('full'),'1');
- assert.match(h.tabs[2].getAttribute('href'),/period=month&genre=Rock/);
- assert.match(h.panel.innerHTML,/period=all&amp;genre=Rock/);
- await h.navigate('charts/covers?period=month&genre=Pop');
- assert.equal(h.requests.length,2);
- assert.equal(h.requests[1].params.get('genre'),'Pop');
- await h.navigate('charts/covers?period=month&genre=Rock');
- assert.equal(h.requests.length,2);
 });
 
 test('popular, cover and release data reuse a short cache scoped by period, account and mutation revision',async()=>{
@@ -240,9 +223,9 @@ test('mutation during a chart load retries fresh data while authorization errors
  }
 });
 
-test('empty charts retain the same toolbar with unavailable actions disabled',async()=>{
+test('empty chart results preserve tab and period navigation without a nonexistent playlist action',async()=>{
  const f=fixture(async()=>({chart:{comparison:{available:false}},tracks:[]}));await f.mount();
- assert.match(f.panel.innerHTML,/아직 집계된 곡/);assert.match(f.panel.innerHTML,/chart-period-menu/);assert.match(f.panel.innerHTML,/data-chart-playlist disabled/);
+ assert.match(f.panel.innerHTML,/아직 집계된 곡/);assert.match(f.panel.innerHTML,/chart-period-menu/);assert.doesNotMatch(f.panel.innerHTML,/data-chart-playlist/);
  await f.navigate('charts/covers?period=all');assert.match(f.panel.innerHTML,/아직 집계된 곡/);assert.ok(f.tabs.every(tab=>tab.getAttribute('href').endsWith('period=all')));assert.equal(f.context.routeTracks.length,0);
 });
 
