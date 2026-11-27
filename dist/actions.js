@@ -71,16 +71,17 @@ async function reloadComments(tid,refreshCount=false){
  if(!list||list.dataset.track!==tid)return;
  const request=String(Number(list.dataset.request||0)+1);list.dataset.request=request;
  const replyRevision=list.dataset.replyRevision;
+ const editRevision=commentEditRevision;
  if(refreshCount&&!songDetailIsWeb)list.dataset.countPending='true';
  const [{comments},detail]=await Promise.all([
   api('/api/tracks/'+tid+'/comments'),
   list.dataset.countPending?api('/api/tracks/'+tid):null
  ]);
  if(!list.isConnected||list.dataset.request!==request)return;
- if(list.dataset.replyRevision!==replyRevision)return reloadComments(tid,refreshCount);
+ if(list.dataset.replyRevision!==replyRevision||editRevision!==commentEditRevision)return reloadComments(tid,refreshCount);
  const track=trackMap.get(tid);
  const form=list.querySelector('.song-reply-form'),focus=form?.contains(document.activeElement)?document.activeElement:null;
- list.innerHTML=commentsHTML(comments,track);
+ replaceCommentRows(list,commentsHTML(comments,track));
  if(form){
   const card=list.querySelector('[data-comment-id="'+CSS.escape(form.dataset.replyTo)+'"]');
   if(card){placeSongReply(form,card);focus?.focus({preventScroll:true});}
@@ -337,6 +338,108 @@ document.addEventListener('reset',event=>{
 });
 window.addEventListener('resize',()=>document.querySelectorAll('textarea[data-comment-input]').forEach(sizeCommentInput));
 
+const commentEditors=new WeakMap();
+let commentEditRevision=0;
+
+function mountCommentEditor(editor,trigger){
+ const body=trigger.closest('[data-comment-card]').querySelector('[data-comment-body]');
+ editor.body=body;
+ editor.trigger=trigger;
+ body.hidden=true;
+ body.closest('p').after(editor.form);
+}
+
+function replaceCommentRows(list,html){
+ const editors=[...list.querySelectorAll('.comment-edit-form')].map(form=>commentEditors.get(form));
+ const focus=document.activeElement;
+ list.innerHTML=html;
+ for(const editor of editors){
+  const card=list.querySelector('[data-comment-id="'+CSS.escape(editor.id)+'"]');
+  const trigger=card?.querySelector('[data-comment-action="edit"]');
+  if(!trigger||trigger.closest('[data-comment-card]')!==card)continue;
+  mountCommentEditor(editor,trigger);
+  if(editor.form.contains(focus))focus.focus({preventScroll:true});
+ }
+}
+
+function openCommentEditor(trigger,save){
+ const card=trigger.closest('[data-comment-card]');
+ const active=card.querySelector('.comment-edit-form');
+ if(active?.closest('[data-comment-card]')===card){active.elements.body.focus({preventScroll:true});return;}
+ const form=document.createElement('form');
+ form.className='comment-edit-form';
+ const errorId='comment-edit-error-'+card.dataset.commentId;
+ form.innerHTML=`<textarea name="body" data-comment-input rows="1" maxlength="2000" required aria-label="댓글 수정" aria-describedby="${esc(errorId)}"></textarea>
+  <p class="form-error" role="alert" id="${esc(errorId)}"></p>
+  <div class="comment-edit-actions"><button type="button" class="small-button">취소</button><button type="submit" class="primary-button">저장</button></div>`;
+ const input=form.elements.body,cancel=form.querySelector('[type=button]'),submit=form.querySelector('[type=submit]');
+ const editor={form,id:card.dataset.commentId};
+ commentEditors.set(form,editor);
+ mountCommentEditor(editor,trigger);
+ input.value=editor.body.textContent;
+ const updateSave=()=>{submit.disabled=form._busy||!input.value.trim();};
+ const finish=()=>{
+  const restore=form.contains(document.activeElement)||document.activeElement===document.body;
+  editor.body.hidden=false;
+  form.remove();
+  form.dispatchEvent(new Event('comment-edit-closed'));
+  if(restore){
+   const target=editor.trigger.getClientRects().length?editor.trigger:editor.trigger.closest('[data-comment-card]');
+   target?.focus({preventScroll:true});
+  }
+ };
+ updateSave();
+ input.oninput=updateSave;
+ cancel.onclick=finish;
+ form.onkeydown=event=>{if(event.key==='Escape'&&!event.isComposing&&!form._busy){event.preventDefault();finish();}};
+ const send=busyForm(form,async()=>{
+  const text=input.value.trim();
+  await save(text);
+  commentEditRevision++;
+  if(!form.isConnected)return;
+  editor.body.textContent=text;
+  const meta=editor.trigger.closest('[data-comment-card]').querySelector('.comment-meta');
+  if(meta&&!meta.querySelector('.comment-edited'))meta.insertAdjacentHTML('beforeend','<span class="comment-edited">· 수정됨</span>');
+  finish();
+ });
+ form.onsubmit=async event=>{
+  event.preventDefault();
+  if(form._busy||!input.value.trim())return;
+  cancel.disabled=true;
+  input.readOnly=true;
+  try{await send(event);}
+  finally{input.readOnly=false;cancel.disabled=false;updateSave();}
+ };
+ input.setSelectionRange(input.value.length,input.value.length);
+ input.focus({preventScroll:true});
+}
+
+// The visual viewport shrinks above the mobile keyboard even when the page height stays fixed.
+function revealFocusedCommentEditor(){
+ const form=document.activeElement?.closest('.comment-edit-form');
+ if(!form||!window.matchMedia('(max-width:800px), (pointer:coarse)').matches)return;
+ const viewport=window.visualViewport;
+ const offset=viewport?.offsetTop||0;
+ const viewportBottom=offset+(viewport?.height||window.innerHeight);
+ const headerBottom=document.querySelector('.page-wrap > .topbar')?.getBoundingClientRect().bottom||0;
+ const top=Math.max(offset,headerBottom)+12,bottom=viewportBottom-12;
+ const covered=Math.max(0,document.documentElement.clientHeight-viewportBottom);
+ form.closest('#main')?.style.setProperty('--comment-edit-scroll-room',covered+'px');
+ const rect=form.getBoundingClientRect();
+ const field=rect.height>bottom-top?form.elements.body.getBoundingClientRect():rect;
+ const delta=field.top<top?field.top-top:Math.max(0,field.bottom-bottom);
+ if(delta)window.scrollBy({top:delta,behavior:'instant'});
+}
+let commentEditorFrame;
+function scheduleCommentEditorReveal(){
+ if(commentEditorFrame||!document.activeElement?.closest('.comment-edit-form'))return;
+ commentEditorFrame=requestAnimationFrame(()=>{commentEditorFrame=0;revealFocusedCommentEditor();});
+}
+document.addEventListener('focusin',scheduleCommentEditorReveal);
+document.addEventListener('input',scheduleCommentEditorReveal);
+window.visualViewport?.addEventListener('resize',scheduleCommentEditorReveal);
+window.addEventListener('resize',scheduleCommentEditorReveal);
+
 const pendingCoverPhotos=new Set();
 document.addEventListener('change',async event=>{
  const input=event.target;
@@ -400,8 +503,9 @@ document.addEventListener('click',async ev=>{
   else if(el.dataset.deletePlaylist){if(confirm('이 플레이리스트를 삭제할까요?')){await api('/api/playlists/'+el.dataset.deletePlaylist,'DELETE');if($('#dialog').open)$('#dialog').close();const target='#profile?view=library&section=playlists';if(location.hash===target)await render();else location.hash=target;}}
   else if(el.dataset.commentLike){if(!me)return askLogin();await api(`/api/comments/${el.dataset.commentLike}/like`,el.dataset.liked==='true'?'DELETE':'PUT');await reloadComments(location.hash.split('/')[1]?.split('?')[0]);}
   else if(el.dataset.deleteComment){if(confirm('댓글을 삭제할까요?')){await api('/api/comments/'+el.dataset.deleteComment,'DELETE');await reloadComments(el.closest('[data-track]')?.dataset.track,true);}}
+  else if(el.dataset.editComment){if(!me)return askLogin();openCommentEditor(el,text=>api('/api/comments/'+el.dataset.editComment,'PATCH',{body:text}));}
   else if(el.dataset.reply&&!inApp)toggleSongReply(el);
-  else if(el.dataset.editComment||el.dataset.reply){if(!me)return askLogin();const edit=el.dataset.editComment;dialog(`<h2>${edit?'댓글 수정':'답글 남기기'}</h2><form id="reply-form"><textarea data-comment-input rows="1" name="body" required maxlength="2000" aria-label="${edit?'댓글 수정':'답글'}">${esc(edit?el.dataset.body:'')}</textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>`);const form=$('#reply-form');sizeCommentInput(form.elements.body);form.onsubmit=busyForm(form,async fd=>{await api(edit?`/api/comments/${edit}`:`/api/tracks/${el.dataset.track}/comments`,edit?'PATCH':'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(edit?el.closest('#comments')?.dataset.track:el.dataset.track,!edit);});}
+  else if(el.dataset.reply){if(!me)return askLogin();dialog('<h2>답글 남기기</h2><form id="reply-form"><textarea data-comment-input rows="1" name="body" required maxlength="2000" aria-label="답글"></textarea><button class="primary-button">등록</button><p class="form-error" role="alert"></p></form>');const form=$('#reply-form');sizeCommentInput(form.elements.body);form.onsubmit=busyForm(form,async fd=>{await api(`/api/tracks/${el.dataset.track}/comments`,'POST',{body:fd.get('body'),parent_id:el.dataset.reply||null});$('#dialog').close();await reloadComments(el.dataset.track,true);});}
   else if(el.hasAttribute('data-seek')){if(window.AifectAudioAds?.active){toast('광고가 끝나면 곡의 재생 위치를 바꿀 수 있습니다.');return;}if(current?.id!==el.dataset.track)await play(el.dataset.track);if(el.hasAttribute('data-lyric-index')&&!hasFullLyrics(current)){refreshLyricsPanel();toast('전체 싱크 가사는 Premium에서 이용할 수 있습니다.');return;}const seconds=Number(el.dataset.seek);if(preview&&seconds>=60){askLogin();return;}audio.currentTime=seconds;await audio.play();}
   else if(el.matches('.detail-photo-change')){const input=el.nextElementSibling;if(!pendingCoverPhotos.has(input.dataset.coverPhoto))input.click();}
   else if(el.dataset.deleteTrack)deleteTrackDialog(el.dataset.deleteTrack,el.dataset.trackTitle,el.dataset.trackKind);
@@ -530,7 +634,30 @@ document.addEventListener('click',e=>{if(e.target.closest('[data-purge-all-cover
   function dismiss(source=null){
    if(sheet.dataset.closing)return;
    sheet.dataset.closing='true';selected=source;
-   if(history.state?.commentMenu===marker&&location.href===url)history.back();else finish();
+   const back=history.state?.commentMenu===marker&&location.href===url;
+   if(!back){finish();return;}
+   if(source?.dataset.commentAction==='edit'){
+    // Keep the history entry until editing ends. Traversing it now would steal focus
+    // from the field, and iOS requires focus in the tap handler to open the keyboard.
+    finish();
+    const form=card.querySelector('.comment-edit-form');
+    if(form?.closest('[data-comment-card]')===card){
+     const navigation=new AbortController();
+     const atEditor=()=>history.state?.commentMenu===marker&&location.href===url;
+     form.addEventListener('comment-edit-closed',()=>{
+      navigation.abort();
+      if(atEditor())history.back();
+     },{once:true});
+     window.addEventListener('popstate',()=>{
+      if(atEditor())return;
+      navigation.abort();
+      if(location.href===url&&!form._busy)form.querySelector('[type=button]').click();
+     },{signal:navigation.signal});
+     window.addEventListener('hashchange',()=>navigation.abort(),{once:true,signal:navigation.signal});
+     return;
+    }
+   }
+   history.back();
   }
   for(const source of sources){
    const action=source.dataset.commentAction,button=document.createElement('button');

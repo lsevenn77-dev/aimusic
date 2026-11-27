@@ -30,22 +30,35 @@ function bindDubbingCommunity(p,root){
   else like.textContent='♥ 좋아요 '+result.likes;
   like.setAttribute('aria-pressed',String(!!result.liked));}catch(e){toast(e.message);}finally{like.disabled=false;}};
  const list=root.querySelector('#dubbing-comments'),form=root.querySelector('#dubbing-comment-form'),more=root.querySelector('#dubbing-comments-more');if(!list)return;
+ const path='/api/dubbing/projects/'+p.id+'/comments';
  let offset=0,loading=false,readRequest=0,pendingId=null,pendingText='';
  const load=async(append=false)=>{
   if(append&&loading)return;
-  const request=++readRequest;loading=true;
-  try{const data=await api('/api/dubbing/projects/'+p.id+'/comments?offset='+(append?offset:0));if(!list.isConnected||request!==readRequest)return;
+  const request=++readRequest,editRevision=commentEditRevision;loading=true;
+  try{const data=await api(path+'?offset='+(append?offset:0));if(!list.isConnected||request!==readRequest)return;
+  if(!append&&editRevision!==commentEditRevision)return load();
   const html=data.comments.map(c=>{
-   const meta=commentMetaHTML({created:c.created,creator:!!p.ownerId&&c.user_id===p.ownerId},`<b class="comment-author">${memberNickname(c)}</b>`);
-   return `<article class="dubbing-comment" ${c.canDelete||c.canReport?'data-comment-card tabindex="0" aria-label="댓글"':''}>${meta}<p>${esc(c.body)}</p><div class="dubbing-comment-actions comment-actions-row">${c.canDelete?`<button class="small-button" data-comment-action="delete" data-comment-delete="${esc(c.id)}">삭제</button>`:''}${c.canReport?`<button class="small-button" data-comment-action="report" data-comment-report="${esc(c.id)}">댓글 신고</button>`:''}</div></article>`;
+   const meta=commentMetaHTML({...c,creator:!!p.ownerId&&c.user_id===p.ownerId},`<b class="comment-author">${memberNickname(c)}</b>`);
+   return `<article class="dubbing-comment" data-comment-id="${esc(c.id)}" ${c.canDelete||c.canReport?'data-comment-card tabindex="0" aria-label="댓글"':''}>${meta}<p data-comment-body>${esc(c.body)}</p><div class="dubbing-comment-actions comment-actions-row">
+    ${c.mine?'<button class="small-button" data-comment-action="edit">수정</button>':''}
+    ${c.canDelete?`<button class="small-button" data-comment-action="delete" data-comment-delete="${esc(c.id)}">삭제</button>`:''}
+    ${c.canReport?`<button class="small-button" data-comment-action="report" data-comment-report="${esc(c.id)}">댓글 신고</button>`:''}</div></article>`;
   }).join('');
-  if(append)list.insertAdjacentHTML('beforeend',html);else list.innerHTML=html||'<p class="dubbing-muted">첫 감상을 남겨 보세요.</p>';offset=data.nextOffset;more.hidden=offset===null;
+  if(append)list.insertAdjacentHTML('beforeend',html);else replaceCommentRows(list,html||'<p class="dubbing-muted">첫 감상을 남겨 보세요.</p>');offset=data.nextOffset;more.hidden=offset===null;
  }catch(e){if(list.isConnected&&request===readRequest)toast(e.message);}finally{if(request===readRequest)loading=false;}};
  more.onclick=()=>load(true);load();
  form.onsubmit=async e=>{e.preventDefault();if(!needLogin())return;const button=form.querySelector('button'),text=form.elements.body.value.trim();if(!text)return;
   if(text!==pendingText||!pendingId){pendingId=crypto.randomUUID();pendingText=text;}button.disabled=true;
-  try{await api('/api/dubbing/projects/'+p.id+'/comments','POST',{id:pendingId,body:text});pendingId=null;form.reset();dubbingMessage(form,'댓글을 남겼습니다.');await load();}catch(err){dubbingMessage(form,err.message);}finally{button.disabled=false;}};
- list.onclick=async e=>{const b=e.target.closest('[data-comment-delete],[data-comment-report]');if(!b)return;const deleting=!!b.dataset.commentDelete,cid=b.dataset.commentDelete||b.dataset.commentReport;
+  try{await api(path,'POST',{id:pendingId,body:text});pendingId=null;form.reset();dubbingMessage(form,'댓글을 남겼습니다.');await load();}catch(err){dubbingMessage(form,err.message);}finally{button.disabled=false;}};
+ list.onclick=async e=>{
+  const edit=e.target.closest('[data-comment-action="edit"]');
+  if(edit){
+   if(!needLogin())return;
+   const id=edit.closest('[data-comment-id]').dataset.commentId;
+   openCommentEditor(edit,text=>api(path+'/'+encodeURIComponent(id),'PATCH',{body:text}));
+   return;
+  }
+  const b=e.target.closest('[data-comment-delete],[data-comment-report]');if(!b)return;const deleting=!!b.dataset.commentDelete,cid=b.dataset.commentDelete||b.dataset.commentReport;
   if(deleting&&!confirm('이 댓글을 삭제할까요?'))return;
   if(!deleting){dialog(`<section class="dubbing-page"><h2>댓글 신고</h2><form id="dubbing-comment-report-form"><label>사유<select name="reason"><option value="abuse">욕설·괴롭힘</option><option value="spam">스팸</option><option value="privacy">개인정보</option><option value="sexual">음란 내용</option><option value="other">기타</option></select></label><label>상세 설명<textarea name="details" maxlength="500" rows="3"></textarea></label><p class="dubbing-feedback" role="status"></p><button class="primary-button" type="submit">신고 접수</button></form></section>`);const rf=$('#dubbing-comment-report-form');rf.onsubmit=async ev=>{ev.preventDefault();rf.querySelector('button').disabled=true;try{await api('/api/dubbing/projects/'+p.id+'/comments/'+cid+'/report','POST',{reason:rf.elements.reason.value,details:rf.elements.details.value});$('#dialog').close();toast('댓글 신고를 접수했습니다.');await load();}catch(err){dubbingMessage(rf,err.message);}finally{rf.querySelector('button').disabled=false;}};return;}
   b.disabled=true;try{await api('/api/dubbing/projects/'+p.id+'/comments/'+cid,'DELETE');await load();}catch(err){toast(err.message);b.disabled=false;}};

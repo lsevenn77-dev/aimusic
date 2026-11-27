@@ -372,13 +372,13 @@ function songCommentRowHTML(c,t){
  return `<article data-comment-card tabindex="0" aria-label="${inline&&c.parent_id?'대댓글':'댓글'}" data-comment-id="${esc(c.id)}" data-comment-created="${c.created}" class="live-comment ${c.parent_id?'is-reply':''}">
  ${inline?replyLabel:''}<div class="comment-avatar profile-avatar" data-profile-preview="${esc(c.profile_id||'member:'+c.user_id)}" role="button" tabindex="0" aria-haspopup="dialog">${avatarImage({name:c.name,profile_id:c.profile_id,user_id:c.user_id,image_version:c.image_version},'producer',false)}</div>
  <div>${inline?'':replyLabel}${commentMetaHTML(c,`<strong class="comment-author">${memberNickname(c)}</strong>`,{className:'song-comment-meta'})}
- <p class="song-comment-body">${c.timestamp!==null?`<button class="timestamp" data-seek="${c.timestamp}" data-track="${esc(t.id)}">${time(c.timestamp)}</button>`:''}${esc(c.body)}</p>
+ <p class="song-comment-body">${c.timestamp!==null?`<button class="timestamp" data-seek="${c.timestamp}" data-track="${esc(t.id)}">${time(c.timestamp)}</button>`:''}<span data-comment-body>${esc(c.body)}</span></p>
  <div class="inline-actions song-comment-actions comment-actions-row">
  <button type="button" class="text-link ${c.liked?'is-active':''}" data-comment-action="like" data-comment-like="${esc(c.id)}" data-liked="${!!c.liked}" aria-label="댓글 좋아요 ${c.likes}개" aria-pressed="${!!c.liked}">${icon('heart')} ${c.likes}</button>
  <button type="button" class="text-link" data-comment-action="reply" data-reply="${esc(c.parent_id||c.id)}" data-track="${esc(t.id)}" aria-label="답글"${inline?' data-reply-author="'+esc(c.name)+'" aria-expanded="false"':''}>${icon('message')}<span>답글</span></button>
  ${c.can_report?`<button type="button" class="text-link" data-comment-action="report" data-report-comment="${esc(c.id)}">신고</button>`:''}
  ${c.can_delete?`<button type="button" class="text-link" data-comment-action="delete" data-delete-comment="${esc(c.id)}">삭제</button>`:''}
- ${me?.id===c.user_id?`<button type="button" class="text-link" data-comment-action="edit" data-edit-comment="${esc(c.id)}" data-body="${esc(c.body)}">수정</button>`:''}
+ ${me?.id===c.user_id?`<button type="button" class="text-link" data-comment-action="edit" data-edit-comment="${esc(c.id)}">수정</button>`:''}
  </div></div></article>`;
 }
 function songCommentThreads(comments){

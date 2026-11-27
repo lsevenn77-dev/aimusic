@@ -50,6 +50,14 @@ export async function dubbingCommunityRoute(req,env,p,user,action,tail){
  }
  const [cid,sub,...extra]=(tail||'').split('/');if(extra.length)fail(404,'댓글 경로가 없습니다.');
  const c=await one(env,'SELECT * FROM comments WHERE id=? AND dubbing_id=?',cid,p.id);if(!c||env.AIFECT_BLOCKED?.includes(c.user_id))fail(404,'댓글을 찾을 수 없습니다.');
+ if(!sub&&method==='PATCH'){
+  if(c.user_id!==uid)fail(403,'내 댓글만 수정할 수 있습니다.');
+  if(c.deleted_at)fail(409,'이미 삭제된 댓글입니다.');
+  const body=await req.json(),text=str(body.body,2000);
+  const saved=await one(env,'UPDATE comments SET body=?,edited=? WHERE id=? AND deleted_at=0 RETURNING id',text,now(),c.id);
+  if(!saved)fail(409,'이미 삭제된 댓글입니다.');
+  return json({ok:true});
+ }
  if(!sub&&method==='DELETE'){
   if(c.user_id!==uid&&p.owner_id!==uid)fail(403,'이 댓글을 삭제할 수 없습니다.');await removeComment(env,c.id,uid);return json({ok:true});
  }

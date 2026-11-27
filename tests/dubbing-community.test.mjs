@@ -35,6 +35,25 @@ test('community keeps music state separate and supports idempotent likes and com
  await f.call(base+'/like','DELETE');assert.equal((await f.call(base)).body.project.community.likes,0);
  await f.call(base+'/comments/'+id,'DELETE');assert.equal((await f.call(base+'/comments')).body.comments.length,0);
 });
+test('dubbing comment edits are author-only, keep the original time and enforce the existing length limit',async t=>{
+ const f=await setup(t),p=await f.create(),base='/api/dubbing/projects/'+p.id+'/comments',id=crypto.randomUUID();
+ assert.equal((await f.call(base,'POST',{id,body:'원본 감상'},'other')).status,201);
+ const before=(await f.call(base,'GET',null,'other')).body.comments[0];
+ const edit=(body,user)=>f.call(base+'/'+id,'PATCH',{body},user);
+ assert.equal((await edit('다른 내용',null)).status,401);
+ assert.equal((await edit('다른 내용','owner')).status,403);
+ assert.equal((await edit('   ','other')).status,400);
+ assert.equal((await edit('😀'.repeat(1001),'other')).status,400);
+ const body='가'.repeat(1998)+'😀';
+ assert.deepEqual(await edit(' '+body+' ','other'),{status:200,body:{ok:true}});
+ const after=(await f.call(base,'GET',null,'other')).body.comments[0];
+ assert.ok(after.edited>0);
+ assert.deepEqual(after,{...before,body,edited:after.edited});
+ const another=await f.create();
+ assert.equal((await f.call('/api/dubbing/projects/'+another.id+'/comments/'+id,'PATCH',{body:'다른 작품'},'other')).status,404);
+ assert.equal((await f.call(base+'/'+id,'DELETE',null,'owner')).status,200);
+ assert.equal((await edit('다시 수정','other')).status,409);
+});
 test('private works, blocking and existing comment moderation apply to dubbing',async t=>{
  const f=await setup(t),priv=await f.create(false);assert.equal((await f.call('/api/dubbing/projects/'+priv.id+'/comments','GET',null,'other')).status,404);
  const p=await f.create(),base='/api/dubbing/projects/'+p.id,cid=crypto.randomUUID();await f.call(base+'/comments','POST',{id:cid,body:'감상 내용'});

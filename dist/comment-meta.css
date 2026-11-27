@@ -52,3 +52,36 @@
  letter-spacing: normal;
  color: var(--ds-muted);
 }
+
+.song-comment-body:has(> [data-comment-body][hidden]):not(:has(> .timestamp)) { display: none; }
+
+#main .comment-edit-form {
+ display: grid;
+ grid-template-columns: minmax(0,1fr);
+ gap: 8px;
+ margin: 6px 0 4px;
+}
+
+#main .comment-edit-form textarea {
+ background: var(--ds-panel);
+ border-radius: var(--ds-radius-input);
+ color: var(--ds-text);
+}
+#main .comment-edit-form .form-error { margin: 0; }
+#main .comment-edit-form .form-error:empty { display: none; }
+
+.comment-edit-actions {
+ display: flex;
+ flex-wrap: wrap;
+ justify-content: flex-end;
+ align-items: center;
+ gap: 8px;
+}
+
+#main .comment-edit-actions > button { width: auto; min-height: 44px; margin: 0; }
+
+#main:has(.comment-edit-form:focus-within)::after {
+ content: '';
+ display: block;
+ block-size: var(--comment-edit-scroll-room, 0px);
+}

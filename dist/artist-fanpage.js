@@ -233,21 +233,24 @@ function bindArtistFanpage(){
    const meta=comment
     ? commentMetaHTML({created:p.created,creator:p.official,edited:p.edited},author,{className:'fan-post-meta',extra})
     : '<div class="fan-post-meta">'+author+(p.official?'<span class="fan-official">공식 제작자</span>':'')+extra+'<time datetime="'+new Date(p.created*1000).toISOString()+'">'+new Date(p.created*1000).toLocaleDateString('ko-KR')+'</time>'+(p.edited?' · 수정됨':'')+'</div>';
-   return '<article class="fan-post" '+(comment&&!p.deleted?'data-comment-card tabindex="0" aria-label="응원글" ':'')+'data-post="'+esc(p.id)+'">'+meta+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body">'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions'+(comment?' comment-actions-row':'')+'">'+button('like',icon('ui-heart',16)+' '+p.likes)+(comment?button('reply',icon('message')+'<span>답글 '+p.replies+'</span>'):'')+(own?button('edit','수정'):me?button('report','신고'):'')+(canDelete?button('delete','삭제'):'')+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
+   return '<article class="fan-post" '+(comment&&!p.deleted?'data-comment-card data-comment-id="'+esc(p.id)+'" tabindex="0" aria-label="응원글" ':'')+'data-post="'+esc(p.id)+'">'+meta+(p.title?'<h3>'+esc(p.title)+'</h3>':'')+'<p class="fan-post-body"'+(comment?' data-comment-body':'')+'>'+(p.deleted?'삭제된 글입니다.':esc(p.body))+'</p>'+(!p.deleted?'<div class="fan-post-actions'+(comment?' comment-actions-row':'')+'">'+button('like',icon('ui-heart',16)+' '+p.likes)+(comment?button('reply',icon('message')+'<span>답글 '+p.replies+'</span>'):'')+(own?button('edit','수정'):me?button('report','신고'):'')+(canDelete?button('delete','삭제'):'')+(d.can_manage&&!p.parent_id?button('pin',p.pinned?'고정 해제':'상단 고정'):'')+'</div>':'')+'<div data-fan-replies="'+esc(p.id)+'"></div></article>';
  }
  const postMap=new Map(),feedRequests=new WeakMap();
  async function loadFeed(target,kind,offset=0,parent=null){
-  const request=(feedRequests.get(target)||0)+1;feedRequests.set(target,request);
+  const request=(feedRequests.get(target)||0)+1,editRevision=commentEditRevision;feedRequests.set(target,request);
   try{const res=await read('/posts'+(parent?'/'+encodeURIComponent(parent)+'/replies':'')+'?kind='+kind+'&offset='+offset);if(signal.aborted||!target.isConnected||feedRequests.get(target)!==request)return;
-   res.items.forEach(p=>postMap.set(p.id,p));if(!offset)target.innerHTML='';target.querySelector('[data-feed-more]')?.remove();
+   if(!offset&&editRevision!==commentEditRevision)return loadFeed(target,kind,offset,parent);
+   res.items.forEach(p=>postMap.set(p.id,p));target.querySelector('[data-feed-more]')?.remove();
    const items=d.tab==='home'&&!parent?res.items.slice(0,3):res.items;
    if(parent){
     // The API pages from newest to oldest, so older pages go above the loaded replies.
-    const loaded=new Set([...target.children].map(el=>el.dataset.post));
+    const loaded=new Set(offset?[...target.children].map(el=>el.dataset.post):[]);
     const replies=items.filter(p=>!loaded.has(p.id)).reverse();
-    target.insertAdjacentHTML('afterbegin',replies.map(postHTML).join('')||(!offset?'<p class="fan-empty">아직 답글이 없습니다.</p>':''));
+    const html=replies.map(postHTML).join('');
+    if(offset)target.insertAdjacentHTML('afterbegin',html);else replaceCommentRows(target,html||'<p class="fan-empty">아직 답글이 없습니다.</p>');
    }else{
-    target.insertAdjacentHTML('beforeend',items.map(postHTML).join('')||(!offset?'<p class="fan-empty">'+(kind==='news'?'아직 등록된 소식이 없습니다.':'첫 응원글을 남겨 보세요.')+'</p>':''));
+    const html=items.map(postHTML).join('');
+    if(offset)target.insertAdjacentHTML('beforeend',html);else replaceCommentRows(target,html||'<p class="fan-empty">'+(kind==='news'?'아직 등록된 소식이 없습니다.':'첫 응원글을 남겨 보세요.')+'</p>');
    }
    if(res.next!==null&&(parent||d.tab!=='home')){const button=document.createElement('button');button.className='small-button';button.dataset.feedMore='';button.textContent='더 불러오기';button.onclick=()=>{button.disabled=true;void loadFeed(target,kind,res.next,parent);};target.append(button);}
    return res;
@@ -291,7 +294,15 @@ function bindArtistFanpage(){
  }
  on(root,'click',async e=>{
   const el=e.target.closest('[data-post-action]');if(!el||el.disabled)return;const p=postMap.get(el.dataset.postId),action=el.dataset.postAction;if(!p)return;
-  if(action==='edit'){compose(p.kind,p);return;}
+  if(action==='edit'){
+   if(p.kind==='lounge')openCommentEditor(el,async text=>{
+    await read('/posts/'+encodeURIComponent(p.id),'PUT',{kind:p.kind,title:p.title||'',body:text});
+    const current=postMap.get(p.id);
+    if(current){current.body=text;current.edited=Math.floor(Date.now()/1000);}
+   });
+   else compose(p.kind,p);
+   return;
+  }
   if(action==='reply'){
    const parentId=p.parent_id||p.id,target=root.querySelector('[data-fan-replies="'+parentId+'"]');
    const existing=target.querySelector('.fan-reply-form');if(existing){existing.elements.body.focus({preventScroll:true});return;}
