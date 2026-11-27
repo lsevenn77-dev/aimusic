@@ -27,7 +27,24 @@
               linear-gradient(to right, transparent, #000 6% 94%, transparent);
   mask-composite: intersect;
 }
-/* Use the full-column shared aurora. Suppress the copy on the capped content box. */
+/* Keep the existing banner in the native WebView. The web artwork fills the
+   visible content column and fades into the page base on longer lists. */
+:root:not([data-aifect-native]) .page-wrap:has(> #main > .studio-manager) {
+  &::before { content: none; }
+  &::after {
+    --studio-backdrop-shade: color-mix(in srgb, var(--af-bg, var(--ds-bg, #0c121b)) 40%, transparent);
+    height: calc(100svh - var(--topbar-height, 88px));
+    max-height: calc(100% - var(--topbar-height, 88px));
+    background: linear-gradient(var(--studio-backdrop-shade), var(--studio-backdrop-shade)) no-repeat,
+      url('/assets/studio/studio-background.webp') 55% center / cover no-repeat;
+    opacity: 1;
+    mask: linear-gradient(#000 84%, transparent);
+  }
+  @media (max-width: 800px) {
+    &::after { background-position: center, 88% center; }
+  }
+}
+/* Suppress the shared artwork on the capped content box. */
 #main[data-route]:has(> .studio-manager)::before { content: none; display: none; }
 .studio-manager {
   --ui-type-scale: 1.25;
@@ -303,3 +320,21 @@
 
 /* During card review, preserve quota tools without the new-subscription promotion. */
 .studio-manager .studio-quota-card.studio-quota-manage-only { grid-template-columns: minmax(0, 1fr); }
+
+:root:not([data-aifect-native]) .studio-manager {
+  .studio-topbar { display: block; min-height: 0; padding: 0 0 20px; }
+  .studio-heading-label { font-size: clamp(12px, 1.2vw, 13px); letter-spacing: .16em; }
+  .studio-heading h1 {
+    --pc-font-page: clamp(26px, 4vw, 32px);
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  .studio-subtitle { font-size: var(--pc-font-body, 14px); }
+
+  .studio-bulk-bar { background-color: color-mix(in srgb, var(--ds-panel) 55%, var(--ds-bg)); }
+  :is(.studio-action,.studio-bulk-button) {
+    background-color: var(--ds-panel);
+    border: 1px solid var(--studio-line);
+    &:hover:not(:disabled) { background-color: var(--ds-raised); }
+  }
+}
