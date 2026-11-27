@@ -267,19 +267,13 @@
  }
  .song-detail-web:not(.cover-detail) .song-credits{flex-wrap:nowrap}
  .song-detail-web:not(.cover-detail) .song-metrics{flex:1 1 0}
- .song-detail-web:not(.cover-detail) .song-engagement{flex:none;margin-inline-start:0}
+ .song-detail-web:not(.cover-detail) .song-engagement{flex:none}
  .song-detail-web:not(.cover-detail) .song-engagement [data-report-track]{order:1}
  #main[data-route^="song/"] .song-detail-web:not(.cover-detail) .song-introduction{
   margin-block:calc(8px) calc(12px);padding-block-start:calc(8px);
  }
- :root:not([data-aifect-native]) .song-detail-web:not(.cover-detail) .song-action-groups>.song-actions{
-  display:flex;flex-wrap:wrap;justify-content:flex-start;
- }
- :root:not([data-aifect-native]) #main .song-detail-web:not(.cover-detail) .song-action-groups>.song-actions>:is(button,a){
-  width:auto;min-width:44px;flex:none;padding-inline:8px;
- }
- :root:not([data-aifect-native]) #main .song-detail-web:not(.cover-detail) .song-action-groups>.song-actions-primary>:is(button,a){
-  padding-inline:10px;
+ .song-detail-web:not(.cover-detail) .song-action-groups>.song-actions-primary{
+  grid-template-columns:repeat(2,minmax(0,1fr));
  }
 }
 @media(width < 801px){
