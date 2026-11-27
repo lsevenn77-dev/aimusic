@@ -1,5 +1,5 @@
 import {SEARCH_ALIASES} from '../shared/search.js';
-import {producerNameSQL} from './identity.js';
+import {producerNameSQL,producerLookupNameSQL} from './identity.js';
 // Shared, parameterized search matching for music and related entities.
 // Keep the raw substring match; add spacing/punctuation-insensitive matching without schema changes.
 const SQL_SEPARATORS = [' ', '\t', '\n', '\r', '　', '-', '_', '.', '·', 'ㆍ', '/', '\\', '(', ')', '[', ']', "'", '"', '+', '&', '!', '?'];
@@ -57,4 +57,8 @@ export function flexibleSearchCondition(input, fields, flexibleFields = fields) 
 export function songTextMatch(q) {
  const fields = ['t.title','a.name',producerNameSQL(),'t.genre','t.tags'];
  return flexibleSearchCondition(q, fields, [...fields,'t.genres_json']);
+}
+
+export function karaokeSearchMatch(q) {
+ return flexibleSearchCondition(q, ['t.title','a.name',producerLookupNameSQL()], ['t.title','a.name',producerNameSQL()]);
 }

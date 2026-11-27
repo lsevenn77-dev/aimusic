@@ -6,7 +6,7 @@ import {KARAOKE_MAX_SECONDS,karaokeLineTimings} from '../shared/karaoke.js';
 const inventory=`SELECT t.id,t.title,t.status,t.duration,t.rights_accepted,t.karaoke_at,t.karaoke_terms,t.lyrics_mode,t.lyrics,
  j.id lyric_job,j.state lyric_state,j.error lyric_error,j.attempts lyric_attempts,length(j.source_text) source_chars,j.updated lyric_updated,
  k.id job,k.state job_state,k.mr_source,k.mr_ext,k.mr_ready,k.words_state,k.words,k.lyrics_text,k.error job_error,k.attempts job_attempts,k.updated job_updated,
- EXISTS(SELECT 1 FROM admin_audit WHERE id='karaoke-align-v1:'||j.id) retried_alignment
+ EXISTS(SELECT 1 FROM admin_audit WHERE id='karaoke-align-anchors-v2:'||j.id) retried_alignment
  FROM tracks t LEFT JOIN lyric_jobs j ON j.track_id=t.id LEFT JOIN karaoke_jobs k ON k.track_id=t.id
  WHERE t.kind='original'`;
 function wordLines(value){
@@ -40,7 +40,7 @@ async function repair(env,t,s){
  const guard=[t.id,t.karaoke_at,t.duration,t.lyrics_mode,t.lyrics],at=now();
  let write,auditId=id();
  if(s.action==='retry_alignment'){
-  auditId='karaoke-align-v1:'+t.lyric_job;
+  auditId='karaoke-align-anchors-v2:'+t.lyric_job;
   write=query(env,`UPDATE lyric_jobs SET state='queued',attempts=0,lease_until=0,lease_token=NULL,error=NULL,updated=?
    WHERE track_id=? AND id=? AND state='failed' AND updated=? AND source_text!='' AND ${trackGuard}
    AND NOT EXISTS(SELECT 1 FROM admin_audit WHERE id=?)`,at,t.id,t.lyric_job,t.lyric_updated,...guard,auditId);

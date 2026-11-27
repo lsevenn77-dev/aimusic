@@ -4,6 +4,21 @@ import {liveFixture} from './live-karaoke-fixture.mjs';
 import voiceWorker from '../realtime/worker-live-karaoke.js';
 import {DECORATIONS} from '../shared/decorations.js';
 
+test('Play, mobile song list and karaoke reservation find the same Korean title across spacing and long queries',async t=>{
+ const f=await liveFixture(t),room=await f.create({visibility:'private'});
+ const title='올해는 둘이 둘이 함께 걸으며 부르는 우리의 노래';
+ f.sql.prepare('UPDATE tracks SET title=? WHERE id=?').run(title,'one');
+ for(const query of ['올해는둘이둘이',title]){
+  const encoded=encodeURIComponent(query);
+  const results=[await f.call('/api/play/songs?tab=latest&q='+encoded),await f.call('/api/karaoke?q='+encoded),await f.search(room,room.state,query)];
+  for(const result of results){
+   assert.equal(result.status,200,JSON.stringify(result.body));
+   assert.deepEqual(result.body.tracks.map(track=>track.id),['one']);
+  }
+ }
+ const reservation=await f.command(room,room.state,'request',{track_id:'one'});
+ assert.equal(reservation.body.karaoke.active.track.title,title);
+});
 
 test('live Site bridge creates karaoke rooms, lists only available consented originals and does not trust client track metadata',async t=>{
  const f=await liveFixture(t);

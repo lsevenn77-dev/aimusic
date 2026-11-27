@@ -1,8 +1,62 @@
 """Align supplied lyrics; never replace a creator's words with transcription."""
 import json, math, pathlib, subprocess, sys, unicodedata
+from bisect import bisect_left
+from difflib import SequenceMatcher
 
 def sung_text(text):
     return ''.join(c for c in unicodedata.normalize('NFKC', text).casefold() if c.isalnum())
+
+def anchored_timings(model, source, lines, language, duration):
+    """Locate the supplied lines on the recording before measuring them individually."""
+    # Recognition provides acoustic landmarks only. All returned lyrics still
+    # come from the creator. Never publish the transcription or search windows.
+    segments, _ = model.transcribe_original(str(source), language=language, beam_size=3,
+                                             word_timestamps=True, condition_on_previous_text=False)
+    heard, seconds = [], []
+    for segment in segments:
+        for word in segment.words or []:
+            token = sung_text(word.word)
+            if token and 0 <= word.start < word.end <= duration + .25:
+                heard.append(token)
+                seconds.extend([min(duration, (word.start + word.end) / 2)] * len(token))
+    lengths = [len(sung_text(line)) for line in lines]
+    written = ''.join(sung_text(line) for line in lines)
+    matches = SequenceMatcher(None, written, ''.join(heard), autojunk=False).get_matching_blocks()
+    anchors = [(i + j + .5, seconds[k + j]) for i,k,n in matches if n >= 3 for j in range(n)]
+    coverage = len(anchors) / max(1, len(written))
+    if not all(lengths) or coverage < .30:
+        raise ValueError(f'insufficient_recognized_lyrics: matched {coverage:.0%}')
+    positions = [0] + [p for p,_ in anchors] + [len(written)]
+    times = [0] + [t for _,t in anchors] + [duration]
+    def locate(position):
+        right = bisect_left(positions, position)
+        if right == 0 or positions[right] == position:
+            return times[right]
+        left = right - 1
+        ratio = (position - positions[left]) / (positions[right] - positions[left])
+        return times[left] + (times[right] - times[left]) * ratio
+    windows, supported = [], []
+    pos = 0
+    for line, length in zip(lines, lengths):
+        stop = pos + length
+        first, last = bisect_left(positions,pos+.5), bisect_left(positions,stop)
+        supported.append(last - first >= min(length, max(2, math.ceil(length * .3))))
+        start, end = max(0, locate(pos) - 1.2), min(duration, locate(stop) + 1.2)
+        if end - start > 30 or end <= start:
+            raise ValueError('lyric_without_nearby_acoustic_landmarks')
+        windows.append({'start':start,'end':end,'text':line})
+        pos = stop
+    measured = model.align_words(str(source), windows, language=language, verbose=None,
+                                 regroup=False, suppress_silence=False, normalize_text=False)
+    if measured is None:
+        raise ValueError('line_alignment_failed')
+    measured_lines = measured.to_dict()['segments']
+    if len(measured_lines) != len(lines):
+        raise ValueError('line_count_mismatch')
+    for i, (verified, segment) in enumerate(zip(supported, measured_lines)):
+        if not verified and not any(w['end'] > w['start'] and w.get('probability',0) >= .45 for w in segment.get('words',[])):
+            raise ValueError(f'insufficient_acoustic_evidence_at_line_{i+1}')
+    return regroup_timings(measured, lines, duration)
 
 def regroup_timings(result, lines, duration):
     """Use measured word boundaries when the model moves punctuation or line breaks."""
@@ -80,7 +134,10 @@ def align(source,text,language,duration):
     # all lyrics are aligned. Retry the same recording without speech-duration caps.
     result = model.align(str(source), text, **options, token_step=0, fast_mode=True,
                          suppress_silence=False, nonspeech_skip=None, word_dur_factor=None, max_word_dur=None)
-    return regroup_timings(result,lines,duration)
+    try:
+        return regroup_timings(result,lines,duration)
+    except ValueError:
+        return anchored_timings(model,source,lines,language,duration)
 
 if __name__=='__main__':
     root=pathlib.Path(sys.argv[1]);job=json.loads((root/'job.json').read_text())

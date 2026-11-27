@@ -5,7 +5,8 @@ import {rows,json,fail} from './db.js';
 import {requireUser} from './auth.js';
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
-import {publicNameSQL,producerLookupNameSQL} from './identity.js';
+import {publicNameSQL} from './identity.js';
+import {karaokeSearchMatch} from './search-match.js';
 import {chartPublication} from './popular-chart.js';
 
 const unblocked=`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))`;
@@ -54,7 +55,7 @@ export async function playRoute(req,env,path,user){
   let where=duet?`${VISIBLE()} AND t.kind='cover' AND t.cover_mode='duet' AND t.duet_open=1 AND t.duet_parent_id IS NULL AND EXISTS(SELECT 1 FROM tracks d WHERE d.id=t.original_id AND ${VISIBLE('d')} AND ${SINGABLE('d')})`:`${VISIBLE()} AND ${SINGABLE()}`;
   if(duet&&user){where+=' AND t.user_id!=?';args.push(user.id);}
   // Use the catalog's public display names, including the inherited AI artist on duets.
-  if(q){where+=' AND (t.title LIKE ? OR a.name LIKE ? OR ('+producerLookupNameSQL()+') LIKE ?)';args.push(...Array(3).fill('%'+q+'%'));}
+  if(q){const match=karaokeSearchMatch(q);where+=' AND '+match.sql;args.push(...match.args);}
   const recent=chartPublication()+' DESC,t.id';
   const tracks=await trackList(env,where,args,tab==='recommended'?'(plays+likes*3) DESC,'+recent:recent,26,false,false,offset);
   const page=tracks.slice(0,25),ids=[...new Set(page.map(t=>t.id))],blocked=env.AIFECT_BLOCKED||[];

@@ -5,6 +5,7 @@ import {json,fail,rows} from './db.js';
 import {VISIBLE,SINGABLE} from './catalog.js';
 import {namedArtistSQL} from './artist-identity.js';
 import {producerNameSQL} from './identity.js';
+import {karaokeSearchMatch} from './search-match.js';
 import {identifier} from '../realtime/protocol.js';
 
 const readable=t=>({id:t.id,title:t.title,artist:t.artist||t.producer,artist_id:t.artist_id,has_ai_artist:t.has_ai_artist,producer:t.producer,producer_id:t.producer_id,user_id:t.user_id,duration:t.duration,
@@ -41,8 +42,8 @@ export async function voiceKaraokeRoute(req,env,room,action,body,call){
    const tracks=await liveTracks(env,'t.id IN ('+ids.map(()=>'?').join(',')+')',ids,100),order=new Map(ids.map((id,i)=>[id,i]));
    return json({tracks:tracks.sort((a,b)=>order.get(a.id)-order.get(b.id)).slice(offset,offset+30).map(readable),next:tracks.length>offset+30?offset+30:null});
   }
-  const where=`(t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ?)`;
-  const tracks=await liveTracks(env,where,['%'+q+'%','%'+q+'%','%'+q+'%'],31,offset);
+  const match=karaokeSearchMatch(q);
+  const tracks=await liveTracks(env,match.sql,match.args,31,offset);
   return json({tracks:tracks.slice(0,30).map(readable),next:tracks.length>30?offset+30:null});
  }
  if(action!=='karaoke'||req.method!=='POST')fail(405,'허용되지 않는 요청입니다.');

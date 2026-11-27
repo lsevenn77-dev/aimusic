@@ -7,6 +7,7 @@ import {KARAOKE_MAX_SECONDS,karaokeLineTimings,karaokeLyrics,karaokeWords} from 
 import {karaokeRepairRoute} from './karaoke-repair.js';
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
 import {chartPublication} from './popular-chart.js';
+import {karaokeSearchMatch} from './search-match.js';
 import {isPremium} from './membership.js';
 import {punchLyricRange} from '../shared/punch-recording.js';
 import {coverEditWords,readCoverEdit} from './cover-edit.js';
@@ -72,9 +73,9 @@ async function singRoute(req,env,path,user){
   const blocked=env.AIFECT_BLOCKED||[],params=new URL(req.url).searchParams;
   const offset=Number(params.get('offset')||0),q=(params.get('q')||'').trim().slice(0,100);
   if(!Number.isSafeInteger(offset)||offset<0||offset>10000)fail(400,'목록 위치를 확인해 주세요.');
-  const filter=q?` AND (t.title LIKE ? OR a.name LIKE ? OR (${producerNameSQL()}) LIKE ?)`:'';
+  const match=q?karaokeSearchMatch(q):null;
   const [tracks,participants,recent_covers]=await Promise.all([
-   trackList(env,`${VISIBLE()} AND ${SINGABLE()}`+filter,q?Array(3).fill('%'+q+'%'):[],'(plays+likes*3) DESC,'+chartPublication()+' DESC,t.id',101,false,false,offset),
+   trackList(env,`${VISIBLE()} AND ${SINGABLE()}`+(match?' AND '+match.sql:''),match?.args||[],'(plays+likes*3) DESC,'+chartPublication()+' DESC,t.id',101,false,false,offset),
    rows(env,`WITH recent AS (SELECT t.id,t.original_id,t.producer_id,${producerNameSQL()} name,p.image_version,
     count(*) OVER(PARTITION BY t.original_id) cover_count,
     row_number() OVER(PARTITION BY t.original_id ORDER BY t.created DESC,t.id) position
