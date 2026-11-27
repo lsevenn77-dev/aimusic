@@ -15,6 +15,7 @@ import {recordVisit,pruneVisits} from './visitors.js';
 import {publicPath,tryPublicOrigin} from './cafe24-origin.js';
 import {brandAliases,brandPublicDocument} from '../shared/web-brand.js';
 import {publicDiscoveryRoute} from './public-discovery.js';
+import {appDownloadRoute} from './app-download.js';
 import {aboutPresentation} from './about-presentation.js';
 import {guidePresentation,isGuidePath} from './guide-pages.js';
 import {queueLyricAnalysis,runLyricBatch,lyricAnalysisAdmin} from './lyric-analysis.js';
@@ -170,6 +171,7 @@ async function fetchRequest(req,env,ctx){
   if(brandAliases.has(path)&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL(brandAliases.get(path),url),302);
   const songPath=path.match(/^\/song\/([\w-]+)\/?$/);
   if(songPath&&['GET','HEAD'].includes(req.method))return Response.redirect(new URL('/#song/'+songPath[1]+url.search,url),302);
+  const downloadPage=appDownloadRoute(req,path);if(downloadPage)return downloadPage;
   const originPage=await publicDiscoveryRoute(req,env,path)??await tryPublicOrigin(req,env,path);if(originPage)return originPage;
   const accountPage=accountPageRoute(req,path);if(accountPage)return accountPage;
   const musicResponse=await publicMusicRoute(req,env,path);if(musicResponse)return musicResponse;

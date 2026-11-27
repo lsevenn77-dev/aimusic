@@ -14,6 +14,7 @@ import {regionTokenCSS} from './ui-region-tokens.mjs';
 import {readdir} from 'node:fs/promises';
 await mkdir('dist/server',{recursive:true});
 await mkdir('dist/client',{recursive:true});
+for(const file of ['app-download.css','app-download.js'])await cp('dist/'+file,'dist/client/'+file);
 await buildAuthoringKit('dist/client/product-authoring');
 // Shop banners supplied by the owner; public/ maps to the static URL root.
 await cp('public/images/shop','dist/client/images/shop',{recursive:true});
