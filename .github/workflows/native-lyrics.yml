@@ -12,10 +12,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  android:
-    name: Android emulator
+  android-build:
+    name: Build Android test APKs
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
@@ -24,7 +24,49 @@ jobs:
             ~/.gradle/wrapper
             ~/.gradle/caches/modules-2
           key: native-lyrics-gradle-${{ runner.os }}-${{ hashFiles('app/android/**/*.gradle', 'app/android/gradle/wrapper/gradle-wrapper.properties') }}
-      - name: Build and run the two playback tests
+      - name: Install Android build tools
+        timeout-minutes: 12
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-36' 'build-tools;36.0.0' 'ndk;27.1.12297006' 'cmake;3.22.1'
+      - name: Assemble the app and instrumentation
+        working-directory: app/android
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          bash gradlew --console=plain --max-workers=3 -PaifectTest :app:assembleDebug :app:assembleDebugAndroidTest
+          mkdir -p "$RUNNER_TEMP/lyrics-apks"
+          cp app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk "$RUNNER_TEMP/lyrics-apks/"
+          cd "$RUNNER_TEMP/lyrics-apks"
+          sha256sum *.apk > SHA256SUMS
+      - name: Save both APKs
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: Android-lyrics-apks
+          path: ${{ runner.temp }}/lyrics-apks/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+  android:
+    name: Android emulator
+    needs: android-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 28
+    env:
+      AVD_IMAGE: system-images;android-30;google_apis;x86_64
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: Android-lyrics-apks
+          path: ${{ runner.temp }}/lyrics-apks
+      - name: Install the Android 11 emulator image
+        timeout-minutes: 12
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install emulator "$AVD_IMAGE"
+      - name: Run the two playback tests on the emulator
+        timeout-minutes: 14
         run: bash .github/scripts/lyrics-android.sh
       - name: Save instrumentation output
         if: always()
