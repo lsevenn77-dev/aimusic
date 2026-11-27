@@ -6,6 +6,7 @@ import {requireUser} from './auth.js';
 import {trackList,VISIBLE,SINGABLE} from './catalog.js';
 import {dubbingVisibleSQL} from './dubbing-access.js';
 import {publicNameSQL,producerLookupNameSQL} from './identity.js';
+import {chartPublication} from './popular-chart.js';
 
 const unblocked=`NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))`;
 const finished=`p.state='complete' AND (EXISTS(SELECT 1 FROM dubbing_combinations c WHERE c.project_id=p.id AND c.expired_at=0) OR EXISTS(SELECT 1 FROM dubbing_final_jobs j WHERE j.project_id=p.id AND j.script_key=p.script_key AND j.state='ready' AND j.output_key!=''))`;
@@ -54,8 +55,9 @@ export async function playRoute(req,env,path,user){
   if(duet&&user){where+=' AND t.user_id!=?';args.push(user.id);}
   // Use the catalog's public display names, including the inherited AI artist on duets.
   if(q){where+=' AND (t.title LIKE ? OR a.name LIKE ? OR ('+producerLookupNameSQL()+') LIKE ?)';args.push(...Array(3).fill('%'+q+'%'));}
-  const tracks=await trackList(env,where,args,tab==='recommended'?'(plays+likes*3) DESC,t.created DESC,t.id':'t.created DESC,t.id',offset+26);
-  const page=tracks.slice(offset,offset+25),ids=[...new Set(page.map(t=>t.id))],blocked=env.AIFECT_BLOCKED||[];
+  const recent=chartPublication()+' DESC,t.id';
+  const tracks=await trackList(env,where,args,tab==='recommended'?'(plays+likes*3) DESC,'+recent:recent,26,false,false,offset);
+  const page=tracks.slice(0,25),ids=[...new Set(page.map(t=>t.id))],blocked=env.AIFECT_BLOCKED||[];
   const block=blocked.length?' AND cv.user_id NOT IN ('+blocked.map(()=>'?').join(',')+')':'';
   // Recruitment counts must belong to this exact half, not every cover of its original.
   const counts=ids.length?await rows(env,duet?`SELECT cv.duet_parent_id parent_id,COUNT(*) completions,
@@ -64,9 +66,9 @@ export async function playRoute(req,env,path,user){
    WHERE cv.kind='cover' AND cv.cover_mode='duet' AND cv.duet_open=0 AND cv.original_id=parent.original_id AND ${VISIBLE('cv')}
    AND cv.duet_parent_id IN (${ids.map(()=>'?').join(',')})${block} GROUP BY cv.duet_parent_id`:
    `SELECT cv.original_id,COUNT(DISTINCT cv.user_id) participants FROM tracks cv WHERE cv.kind='cover' AND ${VISIBLE('cv')} AND cv.original_id IN (${ids.map(()=>'?').join(',')})${block} GROUP BY cv.original_id`,...ids,...blocked):[];
-  return json({tracks:page.map(t=>{const c=counts.find(c=>duet?c.parent_id===t.id:c.original_id===t.id);return {...t,participants:c?.participants||0,...(duet?{completions:c?.completions||0,can_join:true}:{} )};}),nextOffset:tracks.length>offset+25?offset+25:null});
+  return json({tracks:page.map(t=>{const c=counts.find(c=>duet?c.parent_id===t.id:c.original_id===t.id);return {...t,participants:c?.participants||0,...(duet?{completions:c?.completions||0,can_join:true}:{} )};}),nextOffset:tracks.length>25?offset+25:null});
  }
- if(path==='/api/play/latest')return json({tracks:await trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],'t.created DESC,t.id',100)});
+ if(path==='/api/play/latest')return json({tracks:await trackList(env,`${VISIBLE()} AND ${SINGABLE()}`,[],chartPublication()+' DESC,t.id',100)});
  if(path==='/api/play/participate'){
   if(env.DUBBING_ENABLED!=='true')fail(503,'더빙 스튜디오를 준비하고 있습니다.');
   const projects=await dubbings(env,user,{tab:'join',offset,q});

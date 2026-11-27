@@ -1,4 +1,4 @@
-import json, os, pathlib, subprocess, sys, tempfile, time, urllib.request
+import json, os, pathlib, subprocess, sys, tempfile, time, urllib.error, urllib.request
 
 BASE=os.environ['AIFECT_ORIGIN'].rstrip('/')
 TOKEN=os.environ['TRANSCODER_TOKEN']
@@ -63,7 +63,15 @@ def karaoke(job):
             except Exception as exc:
                 # The MR is still usable; the server marks only the word timings as failed.
                 print(json.dumps({'event':'karaoke_words_error','type':type(exc).__name__,'job':job['id']}),flush=True)
-        with request(path+'/finish','POST',result,job): pass
+        try:
+            with request(path+'/finish','POST',result,job): pass
+        except urllib.error.HTTPError as exc:
+            if exc.code != 400 or result['words'] is None:
+                raise
+            # Keep the completed MR. The server can use the creator's verified
+            # line timestamps when a word-level result fails its stricter checks.
+            result = {'words': None}
+            with request(path+'/finish','POST',result,job): pass
         print(json.dumps({'event':'karaoke_ready','job':job['id'],'words':result['words'] is not None}),flush=True)
 
 def report_failure(kind,job,exc):

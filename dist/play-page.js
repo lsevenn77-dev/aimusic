@@ -225,7 +225,7 @@ function cachedPlayView(raw){
  return {...entry.view,play:{...entry.view.play},items:[...entry.view.items],tracks:[...entry.view.tracks]};
 }
 function cachePlayView(view){
- if(view.pending||view.error||view.gated||view.play.mode==='song'&&view.play.tab==='drafts'||view.account!==playCacheAccount()||view.revision!==playCacheRevision())return;
+ if(view.query||view.pending||view.error||view.gated||view.play.mode==='song'&&view.play.tab==='drafts'||view.account!==playCacheAccount()||view.revision!==playCacheRevision())return;
  const key=playViewKey(view.raw,view.account);
  const {html,...data}=view;playNavigationCache.delete(key);
  playNavigationCache.set(key,{view:data,revision:view.revision,until:Date.now()+30000});
@@ -386,7 +386,8 @@ function bindPlay(view){
  form.inert=!!view.pending;
  const controller=new AbortController(),account=playCacheAccount(),routeTicket=renderId;
  let generation=0;
- root._playListCleanup=()=>{generation++;controller.abort();};
+ let refreshTimer;
+ root._playListCleanup=()=>{generation++;controller.abort();clearInterval(refreshTimer);};
  const current=()=>root.isConnected&&root._playView===view&&!controller.signal.aborted&&account===playCacheAccount()&&routeTicket===renderId;
  const s=view.play;
  const paint=()=>{
@@ -396,17 +397,24 @@ function bindPlay(view){
   if(s.mode==='dubbing'&&s.tab!=='mine')bindDubbingCasting(view,root);
   icons();paintInteractions();holdPlayViewport(root);
  };
- const load=async(append=false)=>{
+ const load=async(append=false,background=false)=>{
   if(view.pending||!current()||append&&view.nextOffset==null)return;
   const ticket=++generation,revision=playCacheRevision();more.disabled=true;results.setAttribute('aria-busy','true');
   try{
    const d=await api(playDataPath(s,view.query||'',append?view.nextOffset:0),'GET',undefined,{fresh:true,signal:controller.signal});
    if(ticket!==generation||!current()||revision!==playCacheRevision())return;
-   const items=d.tracks||d.works||d.projects||[];view.items=append?[...view.items,...items]:items;view.nextOffset=d.nextOffset??null;view.revision=revision;
+   const items=d.tracks||d.works||d.projects||[];
+   if(background&&view.nextOffset===(d.nextOffset??null)&&items.length===view.items.length&&items.every((item,i)=>item.id===view.items[i].id))return;
+   view.items=append?[...view.items,...items]:items;view.nextOffset=d.nextOffset??null;view.revision=revision;
    paint();
-  }catch(e){if(e.name!=='AbortError'&&ticket===generation&&current()){let note=root.querySelector('.play-load-error');if(!note){note=document.createElement('p');note.className='play-load-error';note.setAttribute('role','alert');results.before(note);}note.textContent=e.message+' · 다시 검색하거나 더 보기를 눌러 주세요.';}}
+  }catch(e){if(!background&&e.name!=='AbortError'&&ticket===generation&&current()){let note=root.querySelector('.play-load-error');if(!note){note=document.createElement('p');note.className='play-load-error';note.setAttribute('role','alert');results.before(note);}note.textContent=e.message+' · 다시 검색하거나 더 보기를 눌러 주세요.';}}
   finally{if(ticket===generation&&current()){more.disabled=false;results.removeAttribute('aria-busy');}}
  };
  form.onsubmit=e=>{e.preventDefault();view.query=form.querySelector('input').value.trim();root.querySelector('.play-load-error')?.remove();void load();};
  more.onclick=()=>load(true);
+ if(!view.pending&&!view.gated&&!view.error&&s.mode==='song'&&['latest','recommended'].includes(s.tab)){
+  refreshTimer=setInterval(()=>{
+   if(current()&&!document.hidden&&!more.disabled&&view.items.length<=25&&!results.contains(document.activeElement))void load(false,true);
+  },30000);
+ }
 }

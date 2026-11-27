@@ -238,13 +238,13 @@ export async function internalRoute(req,env,path){
   const window=readCoverEdit(t.recording_edit)?.window;
   if(window&&Math.abs(duration-(window.end-window.start))>.18)fail(400,'변환한 음원의 길이가 게시 범위와 일치하지 않습니다.');
   for(const kind of ['stream','preview',...(t.has_cover&&!t.cover_version?['cover']:[])])if(!await env.BUCKET.head(`${kind}/${t.id}.${kind==='cover'?'jpg':'m4a'}`))fail(409,'변환 파일이 누락됐습니다.');
+  const karaokeWrites=await karaokeQueue(env,{...t,status:'published',duration},{publishing:true});
   await env.DB.batch([
+   ...karaokeWrites,
    query(env,'DELETE FROM premium_audio_jobs WHERE track_id=?',t.id),
    query(env,"UPDATE tracks SET status='published',duration=?,error=NULL,lease_until=0,lease_token=NULL WHERE id=? AND lease_token=?",duration,t.id,t.lease_token)
   ]);
   if(t.kind==='cover'||t.classification_source==='legacy')await queueClassification(env,t.id);
-  // A fresh transcode means fresh audio, so any earlier MR no longer matches it.
-  const writes=await karaokeQueue(env,{...t,status:'published',duration},{mr:'auto'});if(writes.length)await env.DB.batch(writes);
   return json({ok:true});
  }
  if(action==='fail'&&req.method==='POST'){await run(env,"UPDATE tracks SET status='failed',error='파일을 변환하지 못했습니다. 음원 형식과 파일을 확인해 주세요.',lease_until=0 WHERE id=? AND lease_token=?",t.id,t.lease_token);return json({ok:true});}

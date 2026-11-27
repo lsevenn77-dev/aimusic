@@ -84,6 +84,13 @@ test('tab data is reused during the 30-second window and expires at its boundary
  assert.equal(f.requests.length,2);assert.equal(refreshed.items[0].id,'read-2');
 });
 
+test('an empty song search cannot replace the unfiltered song list in navigation history',async()=>{
+ const f=fixture(async()=>({tracks:[track('original')],nextOffset:null}));
+ const initial=await f.view('karaoke/latest');
+ f.context.cachePlayView({...initial,query:'없는 제목',items:[],tracks:[]});
+ assert.equal((await f.view('karaoke/latest')).items[0].id,'original');
+});
+
 test('tab caches are separated by account, data revision, subtype and direct-link query',async()=>{
  const f=fixture(async()=>({tracks:[],projects:[],works:[],nextOffset:null}));
  await f.view('karaoke/latest');await f.view('karaoke/latest');assert.equal(f.requests.length,1);

@@ -1,17 +1,24 @@
 import {parseLrc} from './lyrics.js';
-import {plainLyrics} from './alignment.js';
 
 // Separation runs on the shared server one song at a time; long tracks would hold the queue for too long.
 export const KARAOKE_MAX_SECONDS=600;
 
 // The creator's own synced lyrics are the only word source: returns the sung lines, or '' when there is nothing to align.
-export function karaokeLyrics(track){
- if(track.lyrics_mode!=='synced'||!track.lyrics)return '';
+export function karaokeLineTimings(track){
+ if(track.lyrics_mode!=='synced'||!track.lyrics)return [];
  try{
-  // Imported LRC often contains section headings; they are not sung words.
-  const lines=parseLrc(track.lyrics,track.duration||1200).flatMap(c=>c.text.split('\n')).map(s=>s.trim()).filter(s=>s&&!/^\[[^\]]+\]$/.test(s));
-  return plainLyrics(lines.join('\n'));
- }catch{return '';}
+  const duration=track.duration||1200,cues=parseLrc(track.lyrics,duration);
+  return cues.flatMap((cue,i)=>{
+   const end=cues[i+1]?.time??duration;
+   return cue.text.split('\n').map(text=>text.trim()).filter(Boolean).map(text=>({
+    s:cue.time,e:end,w:[{t:text,s:cue.time,e:end}]
+   }));
+  });
+ }catch{return [];}
+}
+
+export function karaokeLyrics(track){
+ return karaokeLineTimings(track).map(line=>line.w[0].t).join('\n');
 }
 
 const squash=s=>s.replace(/\s+/g,'');

@@ -65,11 +65,11 @@ const SELECT=`SELECT t.id,t.title,t.genre,t.genres_json,t.moods_json,t.classific
  (SELECT COALESCE(sum(g.gold),0) FROM gifts g WHERE g.track_id=t.id) gift_gold,
  (SELECT COALESCE(sum(g.silver),0) FROM free_gifts g WHERE g.track_id=t.id) gift_stars
  FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id LEFT JOIN producers op ON op.id=o.producer_id LEFT JOIN tracks dt ON dt.id=t.duet_parent_id LEFT JOIN producers fp ON fp.id=dt.producer_id LEFT JOIN song_cover_picks sp ON t.kind='cover' AND sp.original_id=t.original_id`;
-export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100,includeStatus=false,profileWorks=false)=>{
+export const trackListQuery=(env,where=VISIBLE(),args=[],sort='t.created DESC',limit=100,includeStatus=false,profileWorks=false,offset=0)=>{
  const block=trackBlockScope(env);
  const fields=[includeStatus?'t.status':'',profileWorks?`${producerNameSQL()} work_nickname,${chartPublication()} published_at,${VISIBLE()} work_public`:''].filter(Boolean);
  const select=fields.length?SELECT.replace('SELECT t.id,','SELECT t.id,'+fields.join(',')+','):SELECT;
- return query(env,`${select} WHERE ${where}${block.sql} ORDER BY ${sort} LIMIT ${limit}`,...args,...block.args);
+ return query(env,`${select} WHERE ${where}${block.sql} ORDER BY ${sort} LIMIT ${limit}${offset?' OFFSET ?':''}`,...args,...block.args,...(offset?[offset]:[]));
 };
 export const trackList=async(...args)=>(await trackListQuery(...args).all()).results.map(trackClassification);
 // Rank the full visible set before paging or promoting its one composer PICK.

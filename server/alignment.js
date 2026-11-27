@@ -43,7 +43,7 @@ export async function alignmentInternalRoute(req,env,path){
   return json({job});
  }
  const m=path.match(/^\/internal\/lyrics\/([\w-]+)\/(audio|finish|fail)$/);if(!m)fail(404,'작업 경로를 찾을 수 없습니다.');
- const job=await one(env,"SELECT j.*,t.duration FROM lyric_jobs j JOIN tracks t ON t.id=j.track_id WHERE j.id=? AND j.state='processing' AND j.lease_token=? AND j.lease_until>?",m[1],req.headers.get('x-job-token')||'',now());if(!job)fail(409,'가사 작업이 변경되었거나 만료됐습니다.');
+ const job=await one(env,"SELECT j.*,t.duration,t.kind,t.status,t.karaoke_at FROM lyric_jobs j JOIN tracks t ON t.id=j.track_id WHERE j.id=? AND j.state='processing' AND j.lease_token=? AND j.lease_until>?",m[1],req.headers.get('x-job-token')||'',now());if(!job)fail(409,'가사 작업이 변경되었거나 만료됐습니다.');
  if(m[2]==='audio'&&req.method==='GET'){
   // Separated vocals align far better than the full mix; fall back to the mix before the karaoke build exists.
   const obj=await env.BUCKET.get(`karaoke/${job.track_id}/vocals.m4a`)||await env.BUCKET.get(`stream/${job.track_id}.m4a`);if(!obj)fail(404,'감상용 음원을 찾을 수 없습니다.');
@@ -52,13 +52,14 @@ export async function alignmentInternalRoute(req,env,path){
  if(m[2]==='finish'&&req.method==='POST'){
   if(Number(req.headers.get('content-length')||0)>32768)fail(413,'결과가 너무 큽니다.');
   const body=await req.json();let result;try{result=alignedLrc(job.source_text,body.timings,job.duration);}catch(e){fail(400,e.message);}
+  const karaoke=await karaokeQueue(env,{...job,id:job.track_id,lyrics:result,lyrics_mode:'synced'});
   const at=now();
   await env.DB.batch([
    query(env,"UPDATE tracks SET lyrics=?,lyrics_mode='synced' WHERE id=? AND status!='deleted' AND EXISTS(SELECT 1 FROM lyric_jobs WHERE track_id=tracks.id AND id=? AND lease_token=? AND state='processing' AND lease_until>?)",result,job.track_id,job.id,job.lease_token,at),
-   query(env,"UPDATE lyric_jobs SET state='applied',result_lrc=?,needs_attention=?,error=NULL,lease_until=0,lease_token=NULL,updated=? WHERE id=? AND lease_token=? AND state='processing' AND lease_until>? AND EXISTS(SELECT 1 FROM tracks WHERE id=lyric_jobs.track_id AND status!='deleted' AND lyrics=? AND lyrics_mode='synced')",result,body.needs_attention===true?1:0,at,job.id,job.lease_token,at,result)
+   query(env,"UPDATE lyric_jobs SET state='applied',result_lrc=?,needs_attention=?,error=NULL,lease_until=0,lease_token=NULL,updated=? WHERE id=? AND lease_token=? AND state='processing' AND lease_until>? AND EXISTS(SELECT 1 FROM tracks WHERE id=lyric_jobs.track_id AND status!='deleted' AND lyrics=? AND lyrics_mode='synced')",result,body.needs_attention===true?1:0,at,job.id,job.lease_token,at,result),
+   ...karaoke
   ]);
   if(!await one(env,"SELECT id FROM lyric_jobs WHERE id=? AND state='applied'",job.id))fail(409,'가사 작업이 변경됐습니다.');
-  const writes=await karaokeQueue(env,await one(env,'SELECT * FROM tracks WHERE id=?',job.track_id));if(writes.length)await env.DB.batch(writes);
   return json({ok:true});
  }
  if(m[2]==='fail'&&req.method==='POST'){

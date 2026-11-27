@@ -1,5 +1,46 @@
 """Align supplied lyrics; never replace a creator's words with transcription."""
-import json, math, pathlib, subprocess, sys
+import json, math, pathlib, subprocess, sys, unicodedata
+
+def sung_text(text):
+    return ''.join(c for c in unicodedata.normalize('NFKC', text).casefold() if c.isalnum())
+
+def regroup_timings(result, lines, duration):
+    """Use measured word boundaries when the model moves punctuation or line breaks."""
+    if result is None:
+        raise ValueError('alignment_failed')
+    words = [(sung_text(w['word']), w) for segment in result.to_dict()['segments'] for w in segment.get('words', [])]
+    spans = []
+    position = 0
+    for text, word in words:
+        if text:
+            spans.append((position, position + len(text), word))
+            position += len(text)
+    expected = [sung_text(line) for line in lines]
+    if not all(expected) or ''.join(expected) != ''.join(text for text, _ in words):
+        raise ValueError('text_mismatch')
+    timings = []
+    position = index = 0
+    for text in expected:
+        stop = position + len(text)
+        measured = []
+        while index < len(spans) and spans[index][0] < stop:
+            _, end, word = spans[index]
+            start_time, end_time = float(word['start']), float(word['end'])
+            if not math.isfinite(start_time) or not math.isfinite(end_time) or start_time < 0 or end_time > duration + .25:
+                raise ValueError('invalid_timing')
+            if min(end_time, duration) > start_time:
+                measured.append((start_time, min(end_time, duration)))
+            if end > stop:
+                break
+            index += 1
+        if not measured:
+            raise ValueError('line_without_timed_audio')
+        start, end = round(measured[0][0], 3), round(measured[-1][1], 3)
+        if end <= start or timings and start < timings[-1]['start']:
+            raise ValueError('unordered_timing')
+        timings.append({'start': start, 'end': end})
+        position = stop
+    return {'timings': timings, 'needs_attention': True}
 
 def extract_timings(result, lines, duration):
     segments=result.to_dict()['segments']
@@ -24,10 +65,22 @@ def align(source,text,language,duration):
     import torch, stable_whisper
     torch.set_num_threads(2)
     model=stable_whisper.load_faster_whisper('/models/small',device='cpu',compute_type='int8',cpu_threads=2,num_workers=1,local_files_only=True)
-    result=model.align(str(source),text,language=language,original_split=True,verbose=None,regroup=False,suppress_silence=True)
-    if result is None:
-        raise ValueError('alignment_failed')
-    return extract_timings(result,text.splitlines(),duration)
+    lines = text.splitlines()
+    options = dict(language=language, original_split=True, verbose=None, regroup=False)
+    result=model.align(str(source),text,**options,suppress_silence=True)
+    if result is not None:
+        try:
+            return extract_timings(result,lines,duration)
+        except ValueError:
+            try:
+                return regroup_timings(result,lines,duration)
+            except ValueError:
+                pass
+    # Long pauses and elongated syllables in music can exhaust the audio before
+    # all lyrics are aligned. Retry the same recording without speech-duration caps.
+    result = model.align(str(source), text, **options, token_step=0, fast_mode=True,
+                         suppress_silence=False, nonspeech_skip=None, word_dur_factor=None, max_word_dur=None)
+    return regroup_timings(result,lines,duration)
 
 if __name__=='__main__':
     root=pathlib.Path(sys.argv[1]);job=json.loads((root/'job.json').read_text())

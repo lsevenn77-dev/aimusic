@@ -26,6 +26,52 @@ async function karaokeFixture(t){
 }
 const words=[{words:[{t:'처음',s:1,e:1.5},{t:'가사',s:1.5,e:2}]},{words:[{t:'다음',s:5,e:5.4},{t:'가사',s:5.4,e:6}]}];
 
+test('a lyric edit during separation keeps the lease and finishes with the current LRC and one MR',async t=>{
+ const {sql,call,internal,BUCKET}=await karaokeFixture(t);
+ await call('/api/studio/tracks/one/karaoke','POST',{});
+ const job=(await internal('/internal/karaoke/claim')).body.job;
+ const profile=(await call('/api/studio/tracks/one')).body.profile;
+ await call('/api/studio/tracks/one','PUT',{...profile,lyrics:'[00:02]새 가사\n[00:06]\n[00:08]마지막'});
+ assert.equal(sql.prepare('SELECT id FROM karaoke_jobs').get().id,job.id);
+ BUCKET.files.set('karaoke/one/mr.m4a',new Uint8Array([7,8,9]));
+ assert.equal((await internal('/internal/karaoke/'+job.id+'/finish',{body:{words},token:job.lease_token})).status,200);
+ const singer=await call('/api/karaoke/one');
+ assert.deepEqual(singer.body.words.map(line=>[line.s,line.e,line.w[0].t]),[[2,6,'새 가사'],[8,20,'마지막']]);
+ assert.equal((await internal('/internal/karaoke/claim')).body.job,null);
+});
+
+test('catalogue recovery links the original object exactly once and preserves creator and engagement records',async t=>{
+ const {sql,call,internal,BUCKET}=await karaokeFixture(t);
+ const path='/internal/karaoke/catalog-audit?track_id=one',fix='/internal/karaoke/catalog-repair?track_id=one';
+ const original=sql.prepare("SELECT * FROM tracks WHERE id='one'").get(),mr=new Uint8Array([7,8,9]);
+ BUCKET.files.set('karaoke/one/mr.m4a',mr);
+ assert.equal((await call(path)).status,401);
+ const before=(await internal(path,{method:'GET'})).body.tracks[0];
+ assert.equal(before.action,'link_existing_mr');assert.equal(before.mr_bytes,3);
+ const results=await Promise.all([internal(fix,{body:{action:before.action}}),internal(fix,{body:{action:before.action}})]);
+ assert.ok(results.every(r=>r.status===200));
+ assert.equal(sql.prepare("SELECT count(*) n FROM admin_audit WHERE action='karaoke_catalog_repair'").get().n,1);
+ assert.equal(sql.prepare('SELECT count(*) n FROM karaoke_jobs').get().n,1);
+ assert.equal((await internal(path,{method:'GET'})).body.tracks[0].action,'ready');
+ assert.deepEqual(sql.prepare("SELECT * FROM tracks WHERE id='one'").get(),original);
+ assert.equal(BUCKET.files.get('karaoke/one/mr.m4a'),mr);
+ assert.equal((await call('/api/play/songs?tab=latest&q=one')).body.tracks[0].id,'one');
+ assert.equal((await call('/api/karaoke/one')).body.mr,'/media/one/mr');
+ for(const tid of ['two','hidden'])assert.equal((await internal('/internal/karaoke/catalog-repair?track_id='+tid,{body:{action:'link_existing_mr'}})).body.action,'not_offered');
+});
+
+test('only an explicitly submitted failed lyric source is retried, and only once per generation',async t=>{
+ const {sql,internal,BUCKET}=await karaokeFixture(t);
+ sql.exec("UPDATE tracks SET lyrics_mode='none',lyrics='' WHERE id='one'; INSERT INTO lyric_jobs(track_id,id,source_text,language,state,attempts,created,updated) VALUES('one','failed-lyrics','보관된 원문','ko','failed',1,1,1)");
+ BUCKET.files.set('karaoke/one/mr.m4a',new Uint8Array([1]));
+ const fix='/internal/karaoke/catalog-repair?track_id=one';
+ assert.equal((await internal(fix,{body:{action:'retry_alignment'}})).body.outcome,'retry_alignment');
+ sql.exec("UPDATE lyric_jobs SET state='failed'");
+ assert.equal((await internal(fix,{body:{action:'retry_alignment'}})).body.action,'alignment_review');
+ assert.equal(sql.prepare('SELECT source_text FROM lyric_jobs').get().source_text,'보관된 원문');
+ assert.equal(sql.prepare('SELECT count(*) n FROM karaoke_jobs').get().n,0);
+});
+
 test('karaoke lyrics come only from the creator synced lyrics and word output must spell them exactly',()=>{
  assert.equal(karaokeLyrics({lyrics_mode:'synced',lyrics:'[00:01]처음 가사\n[00:03]\n[00:05]다음 가사',duration:20}),'처음 가사\n다음 가사');
  assert.equal(karaokeLyrics({lyrics_mode:'none',lyrics:''}),'');
