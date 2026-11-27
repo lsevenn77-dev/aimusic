@@ -146,8 +146,7 @@ function openCrewDialog(trigger,path,detail,action,targetId) {
  document.body.append(modal);
  modal.showModal();
  if(action.key==='info') bindCrewInfo(ui,detail);
- if(action.key==='members') bindCrewMemberList(ui,detail,targetId);
- if(action.key==='applications'||action.key==='audit') bindCrewActivity(ui,action.key);
+ if(['members','applications','audit'].includes(action.key)) bindCrewActivity(ui,action.key,detail,targetId);
  if(action.key==='leadership') bindCrewTransfer(ui,detail);
 }
 
@@ -208,7 +207,7 @@ function bindCrewInfo(ui,detail) {
 
 function bindCrewMemberList(ui,detail,targetId) {
  const {body,tools}=ui;
- if(!targetId)tools.innerHTML='<input type="search" aria-label="멤버 닉네임 검색" placeholder="닉네임 검색">';
+ if(!targetId)tools.insertAdjacentHTML('beforeend','<input type="search" aria-label="멤버 닉네임 검색" placeholder="닉네임 검색">');
  const search=tools.querySelector('input');
  function show(){
   const role=detail.membership?.role;
@@ -243,26 +242,44 @@ function bindCrewMemberList(ui,detail,targetId) {
  show();
 }
 
-function bindCrewActivity(ui,initialTab) {
- const {body,tools}=ui;
- tools.innerHTML='<div class="crew-activity-tabs" role="tablist" aria-label="크루 운영"><button id="crew-tab-applications" role="tab" aria-controls="crew-panel" data-tab="applications">가입 신청</button><button id="crew-tab-audit" role="tab" aria-controls="crew-panel" data-tab="audit">운영 기록</button></div>';
- body.id='crew-panel';body.setAttribute('role','tabpanel');
+function bindCrewActivity(ui,initialTab,detail,targetId) {
+ const {body:panel,tools}=ui,memberList=initialTab==='members';
+ const first=memberList?['roster','멤버 목록']:['applications','가입 신청'];
+ const tabButton=([key,label])=>`<button type="button" id="crew-manage-tab-${key}" role="tab" aria-controls="crew-manage-panel" data-tab="${key}">${label}</button>`;
+ tools.innerHTML='<div class="crew-activity-tabs" role="tablist" aria-label="크루 운영">'+[first,['audit','운영 기록']].map(tabButton).join('')+'</div>';
+ panel.id='crew-manage-panel';panel.setAttribute('role','tabpanel');
+ const body=document.createElement('div');
+ panel.append(body);
+ let roster,search;
+ if(memberList){
+  roster=document.createElement('div');
+  panel.prepend(roster);
+  bindCrewMemberList({...ui,body:roster},detail,targetId);
+  search=tools.querySelector('input');
+ }
  const tabs=[...tools.querySelectorAll('[role=tab]')];
  let current='',serial=0;
- const labels={application_approved:'가입 승인',application_rejected:'가입 거절',role_changed:'직책 변경',member_removed:'멤버 강퇴',leadership_transferred:'크루장 위임'};
+ const labels={member_joined:'크루 가입',member_left:'크루 탈퇴',application_approved:'가입 승인',application_rejected:'가입 거절',role_changed:'직책 변경',member_removed:'멤버 강퇴',leadership_transferred:'크루장 위임'};
  async function load(tab){
   const ticket=++serial;
   current=tab;
-  for(const b of tabs){const active=b.dataset.tab===tab;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;if(active)body.setAttribute('aria-labelledby',b.id);}
-  body.innerHTML='<p role="status">불러오는 중…</p>';body.scrollTop=0;
+  for(const b of tabs){const active=b.dataset.tab===tab;b.setAttribute('aria-selected',String(active));b.tabIndex=active?0:-1;if(active)panel.setAttribute('aria-labelledby',b.id);}
+  panel.scrollTop=0;
   ui.error.textContent='';
+  if(memberList){
+   roster.hidden=tab!=='roster';
+   if(search)search.hidden=roster.hidden;
+   body.hidden=tab==='roster';
+   if(body.hidden)return;
+  }
+  body.innerHTML='<p role="status">불러오는 중…</p>';
   try{
    const d=await api(ui.path+'/'+tab+(tab==='audit'?'?members=1':''),'GET',undefined,{fresh:true,signal:ui.signal});
    if(!ui.modal.open||ticket!==serial)return;
    body.innerHTML=tab==='applications'?d.applications.map(a=>`<div class="crew-manage-row" data-applicant="${esc(a.user_id)}"><strong>${memberNickname(a)}</strong><div class="crew-row-actions"><button class="small-button" data-decision="approve">승인</button><button class="small-button" data-decision="reject">거절</button></div></div>`).join('')||'<p>대기 중인 가입 신청이 없습니다.</p>':
     d.events.map(e=>`<article class="crew-audit-event"><strong>${esc(labels[e.action])}</strong><small>${esc(new Date(e.created*1000).toLocaleString('ko-KR',{timeZone:'Asia/Seoul'}))}</small>
      <p>${esc(e.target_name||'회원')}${e.target_role?' · '+esc(crewRoleLabels[e.target_role]||'크루원'):''}</p>
-     <small>처리한 운영진 ${esc(e.actor_name||'크루 운영진')}</small></article>`).join('')||'<p>아직 멤버 운영 기록이 없습니다.</p>';
+     ${['member_joined','member_left'].includes(e.action)?'':'<small>처리한 운영진 '+esc(e.actor_name||'크루 운영진')+'</small>'}</article>`).join('')||'<p>아직 멤버 운영 기록이 없습니다.</p>';
   }catch(e){if(ui.modal.open&&ticket===serial){ui.error.textContent=e.message;body.innerHTML='<button class="small-button" data-retry>다시 불러오기</button>';}}
  }
  for(const b of tabs){
@@ -280,7 +297,7 @@ function bindCrewActivity(ui,initialTab) {
    if(ui.modal.open){toast(b.dataset.decision==='approve'?'가입을 승인했습니다.':'가입을 거절했습니다.');await load('applications');}
   });
  };
- void load(initialTab);
+ void load(memberList?'roster':initialTab);
 }
 
 function bindCrewTransfer(ui,detail) {

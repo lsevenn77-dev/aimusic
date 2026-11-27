@@ -16,19 +16,20 @@ function crewHeroHTML(c,m,join=''){
  const frame=c.level>=10?4:c.level>=8?3:c.level>=5?2:c.level>=3?1:0;
  const settings=canManageCrew(m)?`<div class="crew-settings-anchor"><button type="button" class="crew-settings-trigger" data-edit-crew="${esc(c.id)}" aria-label="크루 설정" aria-haspopup="menu" aria-expanded="false" aria-controls="crew-settings-menu" title="크루 설정">${icon('settings',22)}</button><div id="crew-settings-menu" class="fan-settings-menu" role="menu" aria-label="크루 관리" hidden></div></div>`:'';
  const description=c.description?.trim();
- const next=c.next_xp==null?'최고 레벨 달성':'다음 레벨까지 '+number(Math.max(0,c.next_xp-c.xp))+' XP';
  const name=usesCrewNameBadges()?crewNameWithBadgeHTML(c):crewNameHTML(c);
- const activities=crewActivities(c);
+ const activities=crewActivities(c).join(' · ');
  return `<header class="crew-detail-header crew-frame-${frame}">
-   <div class="crew-detail-top">
-    <div class="crew-identity">${crewPicture(c,'crew-detail-picture')}<div class="crew-identity-copy">
-    <h1 title="${esc(c.name)}">${name}<small class="crew-level">Lv.${number(c.level)}</small></h1>
-    <span>멤버 ${number(c.members)} / ${number(c.capacity)}명</span>
-    ${activities.length?'<ul class="crew-activities" aria-label="활동 방향">'+activities.map(tag=>'<li>'+esc(tag)+'</li>').join('')+'</ul>':''}
-    </div>${description?'<p class="crew-profile-description">'+esc(description)+'</p>':''}</div>${settings}${join}
+   <div class="crew-identity">
+    ${crewPicture(c,'crew-detail-picture')}
+    <div class="crew-identity-copy">
+     <div class="crew-name-row"><h1 title="${esc(c.name)}">${name}</h1>${settings}</div>
+     <p class="crew-member-count">멤버 ${number(c.members)} / ${number(c.capacity)}명 · Lv.${number(c.level)}</p>
+     ${activities?'<p class="crew-activities" title="'+esc(activities)+'">'+esc(activities)+'</p>':''}
+     ${description?'<p class="crew-profile-description">'+esc(description)+'</p>':''}
+     ${join}
+    </div>
    </div>
-   <div class="crew-detail-xp"><div><span>${number(c.xp)} / ${c.next_xp==null?'MAX':number(c.next_xp)} XP</span><small>${next}</small></div>
-   <progress max="1" value="${Number(c.progress||0)}" aria-label="크루 경험치"></progress></div>
+   ${crewChallengeHTML(c,m)}
  </header>`;
 }
 function crewMusicRows(tracks){return tracks.length?songTable(tracks):'<p class="social-empty">조건에 맞는 음악이 없습니다. 검색어나 필터를 바꿔 보세요.</p>';}

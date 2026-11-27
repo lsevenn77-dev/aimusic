@@ -45,15 +45,31 @@ test('crew settings follow live staff roles and legacy management links land on 
   assert.equal(view.crewTab,'music');
   assert.match(view.html,/data-crew-panel="music" aria-labelledby="crew-tab-music">/);
   const header=view.html.match(/<header class="crew-detail-header[\s\S]*?<\/header>/)[0];
-  assert.doesNotMatch(header,/crew-game-entry/);
-  assert.equal(view.html.includes('href="#crew-jump/crew"'),!!role);
-  assert.ok(view.html.indexOf('크루 소식')<view.html.indexOf('crew-room-tabs'));
-  assert.doesNotMatch(view.html,/tab=manage|data-crew-member=|crew-cover-bg/);
-  const nav=view.html.match(/<nav class="tabs crew-room-tabs"[^>]*>(.*?)<\/nav>/)[1];
+  assert.equal(header.includes('href="#crew-jump/crew"'),!!role);
+  assert.match(header,/멤버 2 \/ 10명 · Lv\.1/);
+  assert.match(header,/<a class="crew-find-link" href="#community\/crews\?browse=1"/);
+  assert.doesNotMatch(header.match(/<h1\b[^>]*>[\s\S]*?<\/h1>/)[0],/Lv\./);
+  assert.doesNotMatch(view.html,/크루 소식|data-crew-news|tab=manage|data-crew-member=|crew-cover-bg/);
+  const nav=view.html.match(/<nav class="crew-room-tabs"[^>]*>(.*?)<\/nav>/)[1];
   assert.deepEqual([...nav.matchAll(/href="([^"]+)"/g)].map(m=>m[1]),[
    '#crew/crew?tab=music','#crew/crew?tab=members','#crew/crew?tab=notice','#crew/crew?tab=about',
   ]);
-  assert.match(view.html,/<\/nav><a class="crew-find-link" href="#community\/crews\?browse=1"/);
+  assert.equal((nav.match(/class="secondary-button"/g)||[]).length,4);
+  assert.match(view.html,/<\/nav><div class="crew-detail-xp">/);
+  assert.equal((view.html.match(/<progress\b/g)||[]).length,1);
+ }
+});
+
+test('the crew gauge uses server level progress, including later tiers and a capped level',()=>{
+ const {context:c}=fixture();
+ for(const [xp,next_xp,progress,hint] of [
+  [0,300,0,'다음 레벨까지 300 XP'],[85,300,85/300,'다음 레벨까지 215 XP'],
+  [350,800,.1,'다음 레벨까지 450 XP'],[300,300,1,'다음 레벨까지 0 XP'],[30000,null,1,'최고 레벨 달성']
+ ]){
+  const html=c.crewExperienceHTML({xp,next_xp,progress});
+  assert.ok(html.includes('value="'+progress+'"'));
+  assert.ok(html.includes(xp+' / '+(next_xp??'MAX')+' XP'));
+  assert.ok(html.includes(hint));
  }
 });
 

@@ -7,7 +7,7 @@ function crewDetailView(detail,id,tab='music'){
  const internal=crewInternalTabs.some(([key])=>key===tab);
  if(!internal&&tab!=='chat')tab='music';
  const tabs=crewInternalTabs.map(([key,label])=>
-  '<a id="crew-tab-'+key+'" class="tab'+(tab===key?' active':'')+'" href="#'+base+'?tab='+key+
+  '<a id="crew-tab-'+key+'" class="secondary-button" href="#'+base+'?tab='+key+
   '" aria-controls="crew-panel-'+key+'"'+(tab===key?' aria-current="page"':'')+'>'+label+'</a>').join('');
  const targets=[base,...crewInternalTabs.map(([key])=>base+'?tab='+key)];
  const tabPanels=crewInternalTabs.map(([key])=>'<section id="crew-panel-'+key+'" data-crew-panel="'+key+
@@ -20,32 +20,28 @@ function crewDetailView(detail,id,tab='music'){
  return {html:communityNavigation('crews')+
   '<section class="crew-page" data-crew-detail'+(membership?' data-current-crew="'+esc(crew.id)+'"':'')+'>'+
   '<div hidden aria-hidden="true">'+targets.map(route=>'<span data-crew-route-target id="'+esc(route)+'"></span>').join('')+'</div>'+
-  crewHeroHTML(crew,membership,join)+crewHighlightsHTML(crew,membership,base)+
-  '<div class="crew-tabs-bar"><nav class="tabs crew-room-tabs" aria-label="크루 활동">'+tabs+'</nav>'+
-  '<a class="crew-find-link" href="'+crewFindHref+'">크루 찾기 '+icon('chevron',16)+'</a></div>'+
+  crewHeroHTML(crew,membership,join)+
+  '<div class="crew-tabs-bar"><nav class="crew-room-tabs" aria-label="크루 활동">'+tabs+'</nav>'+crewExperienceHTML(crew)+'</div>'+
   '<div id="crew-tab-content">'+tabPanels+legacy+'</div></section>',
   tracks:detail.tracks,crew,crewDetail:detail,crewTab:tab,
   chat:membership&&tab==='chat'?{path:'/api/crews/'+encodeURIComponent(id)+'/messages',crew:{id:crew.id,owner:membership.role==='owner'}}:null};
 }
 
-function crewHighlightsHTML(crew,membership,base){
- return `<div class="crew-highlights">
-  <section class="crew-news" aria-labelledby="crew-news-heading">
-   <header><h2 id="crew-news-heading">크루 소식</h2><a class="text-link" href="#${base}?tab=notice">전체보기 ${icon('chevron',14)}</a></header>
-   <div data-crew-news role="status"><p>공지를 불러오는 중…</p></div>
-  </section>
-  ${membership?`<section class="crew-challenge" aria-labelledby="crew-challenge-heading">
-   <h2 id="crew-challenge-heading">크루 챌린지</h2>
-   <div class="crew-weekly-games" data-crew-games="${esc(crew.id)}">${crewGameMenuHTML(membership.game_catalog)}</div>
-  </section>`:''}
- </div>`;
+function crewChallengeHTML(crew,membership){
+ const find='<a class="crew-find-link" href="'+crewFindHref+'">크루 찾기 '+icon('chevron',16)+'</a>';
+ if(!membership)return find;
+ return `<section class="crew-challenge" aria-labelledby="crew-challenge-heading">
+  <div class="crew-challenge-heading"><h2 id="crew-challenge-heading">크루 챌린지</h2>${find}</div>
+  <div class="crew-weekly-games" data-crew-games="${esc(crew.id)}">${crewGameMenuHTML(membership.game_catalog)}</div>
+ </section>`;
 }
 
-function paintCrewNews(root,base,items,error){
- root.innerHTML=items.length?'<ul>'+items.slice(0,2).map(notice=>
-  `<li><span class="crew-news-type">${notice.is_pinned?'고정':'공지'}</span>
-   <a href="#${base}?tab=notice&amp;notice=${encodeURIComponent(notice.id)}" title="${esc(notice.title)}">${esc(notice.title)}</a></li>`
- ).join('')+'</ul>':'<p>'+(error?'공지를 불러오지 못했습니다.':'등록된 공지가 없습니다.')+'</p>';
+function crewExperienceHTML(crew){
+ const xp=number(crew.xp)+' / '+(crew.next_xp==null?'MAX':number(crew.next_xp))+' XP';
+ const next=crew.next_xp==null?'최고 레벨 달성':'다음 레벨까지 '+number(Math.max(0,crew.next_xp-crew.xp))+' XP';
+ return `<div class="crew-detail-xp"><span>${xp}</span>
+  <progress max="1" value="${Number(crew.progress||0)}" aria-label="크루 경험치" aria-valuetext="${xp}"></progress>
+  <small>${next}</small></div>`;
 }
 
 function bindCrewDetailPanels(view){
@@ -55,11 +51,10 @@ function bindCrewDetailPanels(view){
  const homeAlias=['crew','community/crews'].includes(viewRoute)?viewRoute:null;
  const account=me?.id||'guest',controller=new AbortController();
  const panels=[...root.querySelectorAll('[data-crew-panel]')];
- const links=[...root.querySelectorAll('.crew-room-tabs .tab')];
+ const links=[...root.querySelectorAll('.crew-room-tabs a')];
  const initialized=new Set();
- const news=root.querySelector('[data-crew-news]');
  const noticePanel=panels.find(panel=>panel.dataset.crewPanel==='notice');
- const notices=mountCrewNotices(noticePanel,detail.crew.id,controller.signal,(items,error)=>paintCrewNews(news,base,items,error));
+ let notices;
  if(view.crewTab==='chat'){
   registerRouteCleanup(()=>controller.abort());
   return;
@@ -68,10 +63,10 @@ function bindCrewDetailPanels(view){
   for(const panel of panels)panel.hidden=panel.dataset.crewPanel!==tab;
   for(const link of links){
    const selected=link.id==='crew-tab-'+tab;
-   link.classList.toggle('active',selected);
    if(selected)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
   }
-  notices.select(tab==='notice'?noticeId:null);
+  if(tab==='notice')notices??=mountCrewNotices(noticePanel,detail.crew.id,controller.signal);
+  notices?.select(tab==='notice'?noticeId:null);
   if(initialized.has(tab))return;
   initialized.add(tab);
   const panel=panels.find(panel=>panel.dataset.crewPanel===tab);

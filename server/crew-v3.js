@@ -25,12 +25,22 @@ export async function crewV3Route(req,env,path,user){
  if(action==='audit'){
   if(req.method!=='GET')fail(405,AifectMessages.unsupportedRequest);
   if(new URL(req.url).searchParams.get('members')==='1'){
-   const events=await rows(env,`SELECT e.action,e.created,${producerNameSQL('actor')} actor_name,${producerNameSQL('target')} target_name,
+   // Direct joins and voluntary departures are already stored as server-authored chat notices.
+   // Approved applications have their own audit event and a separate join: greeting.
+   const events=await rows(env,`WITH membership_events AS (
+    SELECT id,action,actor_id,detail,created FROM crew_audit
+    WHERE crew_id=? AND action IN ('application_approved','application_rejected','role_changed','member_removed','leadership_transferred')
+    UNION ALL
+    SELECT id,CASE WHEN body LIKE '%님이 크루에서 나갔습니다.' THEN 'member_left' ELSE 'member_joined' END,
+     user_id,user_id,created FROM crew_messages
+    WHERE crew_id=? AND kind='system' AND request_id GLOB 'system:*' AND
+     (body LIKE '%님이 크루에서 나갔습니다.' OR body LIKE '%님이 크루에 참여했습니다. 인사를 나눠 보세요.')
+    ORDER BY created DESC,id DESC LIMIT 100
+   ) SELECT e.action,e.created,${producerNameSQL('actor')} actor_name,${producerNameSQL('target')} target_name,
     CASE WHEN e.action='role_changed' THEN substr(e.detail,instr(e.detail,':')+1) END target_role
-    FROM crew_audit e LEFT JOIN producers actor ON actor.user_id=e.actor_id
+    FROM membership_events e LEFT JOIN producers actor ON actor.user_id=e.actor_id
     LEFT JOIN producers target ON target.user_id=CASE WHEN e.action='role_changed' THEN substr(e.detail,1,instr(e.detail,':')-1) ELSE e.detail END
-    WHERE e.crew_id=? AND e.action IN ('application_approved','application_rejected','role_changed','member_removed','leadership_transferred')
-    ORDER BY e.created DESC,e.id DESC LIMIT 100`,cid);
+    ORDER BY e.created DESC,e.id DESC`,cid,cid);
    return json({events});
   }
   return json({events:await rows(env,'SELECT action,detail,created FROM crew_audit WHERE crew_id=? ORDER BY created DESC,id DESC LIMIT 100',cid)});

@@ -51,6 +51,20 @@ test('info changes exclude locked or absent fields and ignore legacy capacity fi
  assert.equal('join_policy' in before,false);
 });
 
+test('member audit includes direct joins and voluntary departures from existing system notices',async t=>{
+ const f=await fixture(t);
+ await f.call('/api/me/profile','PUT',{name:'Member'},'other');
+ const crew=(await f.call('/api/crews','POST',{name:'Audit crew'})).body.crew;
+ const path='/api/crews/'+crew.id;
+ assert.equal((await f.call(path+'/join','POST',{},'other')).status,200);
+ assert.equal((await f.call(path+'/audit?members=1','GET',undefined,'other')).status,403);
+ await f.call(path+'/messages','POST',{body:'Member님이 크루에서 나갔습니다.',request_id:crypto.randomUUID()},'other');
+ assert.equal((await f.call(path+'/leave','POST',{},'other')).status,200);
+ const {events}=(await f.call(path+'/audit?members=1')).body;
+ assert.deepEqual(events.map(e=>e.action).sort(),['member_joined','member_left']);
+ assert.ok(events.every(e=>e.target_name==='Member'));
+});
+
 test('separate management actions persist to the existing API and update rights after transfer',async t=>{
  const f=await fixture(t);
  const profile=(await f.call('/api/me/profile','PUT',{name:'Singer'},'other')).body.profile.id;

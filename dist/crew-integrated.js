@@ -22,7 +22,7 @@ function crewNoticeFeed(items,canManage){
      '">수정</button><button type="button" class="text-link" data-notice-delete="'+esc(n.id)+'">삭제</button></div>':'')+'</article>';
   }).join(''):'<p class="crew-empty">등록된 공지가 없습니다.</p>');
 }
-function mountCrewNotices(root,cid,signal,onNews){
+function mountCrewNotices(root,cid,signal){
  const path='/api/crews/'+encodeURIComponent(cid)+'/notices';
  let data,loading=false,selectedId;
  function focusNotice(){
@@ -40,13 +40,12 @@ function mountCrewNotices(root,cid,signal,onNews){
   try{
    data=await api(path,'GET',undefined,{fresh:true,signal});
    if(root.isConnected&&!signal.aborted){
-    root.innerHTML=crewNoticeFeed(data.items,data.can_manage);onNews?.(data.items);focusNotice();
+    root.innerHTML=crewNoticeFeed(data.items,data.can_manage);focusNotice();
    }
   }catch(e){
    if(root.isConnected&&!signal.aborted){
     root.innerHTML='<h2>크루 공지</h2><p class="crew-empty" role="alert">'+esc(e.message)+
      '</p><button type="button" class="small-button" data-notice-retry>다시 시도</button>';
-    onNews?.([],true);
    }
   }finally{loading=false;root.removeAttribute('aria-busy');}
  }
