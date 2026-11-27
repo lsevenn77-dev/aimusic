@@ -12,16 +12,21 @@ function listeningArtworkHTML(template,photo){
  const src=listeningAssetRoot+device;
  const motion=device==='turntable'
   ?'<div class="listening-rain" aria-hidden="true">'+Array.from({length:10},()=>'<i></i>').join('')+'</div>'
-  :'<div class="listening-beam" aria-hidden="true"></div><div class="listening-film" aria-hidden="true"></div>';
+  :'<div class="listening-reel reel-upper"><i></i></div><div class="listening-reel reel-lower"><i></i></div><div class="listening-beam" aria-hidden="true"></div><div class="listening-film" aria-hidden="true"></div>';
  return '<img class="listening-device" src="'+src+'-512.webp" srcset="'+src+'-512.webp 512w, '+src+'-1024.webp 1024w" sizes="(max-width: 800px) 94vw, 480px" alt="" decoding="async">'+
   '<div class="listening-photo-mask">'+image+'</div>'+motion;
+}
+
+function listeningTransportIcon(playing){
+ const path=playing?'M6 4h4v16H6zm8 0h4v16h-4z':'M7 3.5v17l14-8.5z';
+ return '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="'+path+'"/></svg>';
 }
 
 function listeningSceneHTML(template,photo,duration=0,playable=true){
  const mode=AifectListening.displayListeningTemplate(template);
  return '<div class="listening-scene" data-listening-scene data-template="'+mode+'"><div class="listening-artwork" aria-hidden="true">'+listeningArtworkHTML(mode,photo)+'</div>'+
   '<p class="listening-caption" hidden></p><div class="listening-transport">'+
-  '<button class="listening-toggle" type="button" aria-label="재생" aria-pressed="false"'+(playable?'':' disabled')+'>'+icon('player-play')+'</button>'+
+  '<button class="listening-toggle" type="button" aria-label="재생" aria-pressed="false"'+(playable?'':' disabled')+'>'+listeningTransportIcon(false)+'</button>'+
   '<span data-listening-elapsed>0:00</span><input type="range" aria-label="재생 위치" min="0" max="'+(Number(duration)||0)+'" value="0" step=".1"'+(playable?'':' disabled')+'><span data-listening-duration>'+time(duration)+'</span></div></div>';
 }
 
@@ -46,15 +51,16 @@ function bindListeningArtwork(scene,template,photo){
  return (choice,coverSource)=>draw(choice,coverSource,true);
 }
 
-function listeningEditorHTML(template,photo,photoField,duration=0,playable=false){
+function listeningEditorHTML(template,photo,photoField,duration=0,playable=false,{afterPreview='',fields='',previewTitle=false}={}){
  const mode=AifectListening.displayListeningTemplate(template);
  const choices=AifectListening.listeningTemplates.map(({id,label})=>{
   const sample=listeningDevices[id]||'cover';
   return '<button class="listening-choice" type="button" data-listening-template="'+id+'" aria-pressed="'+(id===mode)+'">'+
-   '<img src="'+listeningAssetRoot+sample+'-thumb.webp" width="68" height="68" loading="lazy" alt=""><span>'+label+'</span><span class="listening-choice-check" aria-hidden="true">'+icon('check',12)+'</span></button>';
+   '<img src="'+listeningAssetRoot+sample+'-thumb.webp?v=ae09414d" width="76" height="76" loading="lazy" alt=""><span>'+label+'</span><span class="listening-choice-check" aria-hidden="true">'+icon('check',12)+'</span></button>';
  }).join('');
- return '<div class="listening-editor">'+listeningSceneHTML(template,photo,duration,playable)+
-  '<div class="listening-editor-fields">'+photoField+'<fieldset><legend>감상 화면</legend><div class="listening-choices">'+choices+'</div></fieldset></div></div>';
+ return '<div class="listening-editor"><div class="listening-preview">'+(previewTitle?'<h3>미리보기</h3>':'')+
+  listeningSceneHTML(template,photo,duration,playable)+afterPreview+'</div><div class="listening-editor-fields">'+
+  photoField+'<fieldset><legend>감상 화면 템플릿</legend><div class="listening-choices">'+choices+'</div></fieldset>'+fields+'</div></div>';
 }
 
 function bindListeningEditor(form,settings){
@@ -86,11 +92,11 @@ function listeningSceneState(scene){
   if(toggle.getAttribute('aria-pressed')!==String(playing)){
    toggle.setAttribute('aria-pressed',String(playing));
    toggle.setAttribute('aria-label',playing?'일시정지':'재생');
-   toggle.innerHTML=icon(playing?'player-pause':'player-play');
+   toggle.innerHTML=listeningTransportIcon(playing);
   }
   if(!scrubbing){range.max=length;range.value=position;}
   range.style.setProperty('--listening-progress',(Number(range.value)*100/Math.max(1,Number(range.max)))+'%');
-  const shown=time(scrubbing?range.value:position),total=time(length);
+  const shown=time(scrubbing?range.value:position),total=!length&&scene.hasAttribute('data-duration-unknown')?'–:––':time(length);
   if(elapsed.textContent!==shown)elapsed.textContent=shown;
   if(duration.textContent!==total)duration.textContent=total;
   if(caption.textContent!==(line||''))caption.textContent=line||'';
@@ -111,17 +117,45 @@ function bindListeningMotion(scene,controls,isPlaying,stopSignal){
 }
 
 let listeningPlayback=null;
+// The existing owner-only preview serves fast-start M4A. Read its movie header
+// for legacy covers with no stored length, without opening another player or play session.
+async function coverEditMediaDuration(id,signal){
+ const response=await fetch('/api/studio/tracks/'+encodeURIComponent(id)+'/lyrics/audio',{signal});
+ if(!response.ok||!response.body)return 0;
+ const reader=response.body.getReader(),prefix=new Uint8Array(8192),header=new DataView(prefix.buffer);
+ let used=0,offset=0;
+ try{
+  while(used<prefix.length){
+   const {done,value}=await reader.read();if(done)break;
+   const chunk=value.subarray(0,prefix.length-used);prefix.set(chunk,used);used+=chunk.length;
+   while(offset+8<=used){
+    const size=header.getUint32(offset),type=String.fromCharCode(...prefix.subarray(offset+4,offset+8));
+    if(size<8)return 0;
+    if(type==='moov'){offset+=8;continue;}
+    if(type==='mvhd'){
+     if(offset+40>used)break;
+     const version=prefix[offset+8];if(version>1)return 0;
+     const scale=header.getUint32(offset+(version?28:20));
+     const ticks=version?Number(header.getBigUint64(offset+32)):header.getUint32(offset+24);
+     return scale&&Number.isSafeInteger(ticks)?ticks/scale:0;
+    }
+    offset+=size;
+   }
+  }
+ }finally{await reader.cancel().catch(()=>{});}
+ return 0;
+}
 function mountListeningPlayback(track,region){
  listeningPlayback?.abort.abort();
  listeningPlayback=null;
- const scene=region.querySelector('.work-listening [data-listening-scene]');
+ const scene=region.querySelector('.work-listening [data-listening-scene],#cover-edit-form [data-listening-scene]');
  if(!track||!scene)return;
  const dubbing=track.kind==='dubbing',abort=new AbortController(),signal=abort.signal;
  const state=listeningSceneState(scene),matches=()=>current?.id===track.id&&current.kind===track.kind;
  const active=()=>matches()&&!window.AifectAudioAds?.active;
  const playing=()=>active()&&!audio.paused&&!audio.ended;
  const artwork=dubbing?dubbingListeningArtwork(track):trackArtworkPath(track);
- bindListeningArtwork(scene,track.listening_template,artwork);
+ if(!scene.closest('#cover-edit-form'))bindListeningArtwork(scene,track.listening_template,artwork);
  const paintMotion=bindListeningMotion(scene,state,playing,signal);
  const transcript=dubbing?dubbingListeningCues(track):[];
  const captionAt=at=>{
@@ -130,7 +164,12 @@ function mountListeningPlayback(track,region){
   if(hasFullLyrics(current))return currentCues[AifectLyrics.activeCueIndex(currentCues,at)]?.text||'';
   return lineAtTime(at)?.text||'';
  };
- const length=()=>active()?Number($('#seek')?.max)||track.duration:!dubbing&&!me?Math.min(60,track.duration):track.duration;
+ let fileDuration=0;
+ const length=()=>{
+  const mediaLength=active()&&audio.readyState>0&&Number.isFinite(audio.duration)?audio.duration:0;
+  const total=mediaLength||Number(track.duration)||fileDuration;
+  return !dubbing&&!me?Math.min(60,total):total;
+ };
  const position=()=>active()?(audio.readyState?audio.currentTime:restoredPosition):0;
  let scrubbing=false,busy=false;
  const paint=()=>{
@@ -167,7 +206,14 @@ function mountListeningPlayback(track,region){
  state.range.oninput=()=>{scrubbing=true;paint();};
  state.range.onchange=()=>{const to=Number(state.range.value);scrubbing=false;void operate(to);};
  state.range.onpointercancel=state.range.onblur=()=>{scrubbing=false;paint();};
- for(const event of ['timeupdate','play','pause','seeking','seeked','loadedmetadata','ended','emptied'])audio.addEventListener(event,paint,{signal});
+ for(const event of ['timeupdate','play','pause','seeking','seeked','loadedmetadata','durationchange','ended','emptied'])audio.addEventListener(event,paint,{signal});
+ if(!Number(track.duration)&&scene.closest('#cover-edit-form')){
+  scene.setAttribute('data-duration-unknown','');
+  coverEditMediaDuration(track.id,signal).then(seconds=>{
+   if(signal.aborted)return;
+   fileDuration=seconds;paint();
+  }).catch(()=>{});
+ }
  paint();
 }
 
@@ -254,15 +300,18 @@ function coverListeningHTML(t,comments,gifts){
   action({label:'가사',symbol:'lyrics',attributes:'id="lyrics-expand" data-track="'+id+'" aria-expanded="false"',cls:'listening-desktop-action'}),
   action({label:'댓글',symbol:'message',attributes:'data-listening-comment aria-controls="comment-form" aria-expanded="false"',cls:'listening-mobile-action'}),
   action({label:'담기',symbol:'plus',attributes:'data-listening-add="'+id+'" aria-haspopup="dialog"'}),
-  action({label:'선물',symbol:'gift',attributes:t.gift_block_reason?'disabled title="'+esc(t.gift_block_reason)+'"':'data-gift="'+id+'" aria-haspopup="dialog"'}),
+  t.gift_block_reason?'':action({label:'선물',symbol:'gift',attributes:'data-gift="'+id+'" aria-haspopup="dialog"'}),
   action({label:'공유',symbol:'share-2',attributes:'data-song-share="'+id+'" aria-haspopup="dialog"'}),
  ];
  return '<article class="work-listening">'+listeningBackHTML('#play')+'<section class="listening-hero">'+
   listeningSceneHTML(t.listening_template,trackArtworkPath(t),t.duration)+
   '<div class="listening-work-info"><div class="listening-title"><h1>'+esc(t.title)+'</h1><span>'+type+'</span></div>'+
-  '<div class="listening-credit">'+credits(t)+'</div>'+
-  (t.description?'<p class="listening-note">'+esc(t.description)+'</p>':'')+
-  (t.duet_joinable?'<div class="listening-participation"><button type="button" class="small-button" data-listening-join>'+icon('mic',18)+' 참여하기</button></div>':'')+
+  '<div class="listening-credit"><a class="listening-author" href="#producer/'+esc(t.producer_id)+'">'+
+  avatarImage({profile_id:t.producer_id,name:t.producer,image_version:t.producer_image_version},'producer',false)+userNickname(t.producer,{profileId:t.producer_id})+'</a>'+
+  (t.duet_partner_id?' &amp; <a href="#producer/'+esc(t.duet_partner_id)+'">'+userNickname(t.duet_partner,{profileId:t.duet_partner_id})+'</a>':'')+'</div>'+
+  '<a class="text-link listening-original" href="#song/'+esc(t.original_id)+'">원곡 듣기 '+icon('chevron',14)+'</a>'+
+  (t.description?.trim()?'<p class="listening-note">'+esc(t.description)+'</p>':'')+
+  (t.duet_joinable?'<div class="listening-participation"><button type="button" class="small-button" data-listening-join>참여하기</button></div>':'')+
   '<div class="listening-actions">'+buttons.join('')+'</div></div></section>'+
   '<div class="listening-detail"><div class="song-main-column">'+songDetailLyricsHTML()+
   '<section class="surface comments-panel"><div class="section-heading"><h2>댓글</h2></div>'+songCommentComposerHTML()+
@@ -437,12 +486,12 @@ function dubbingListeningHTML(p,gifts){
   action({label:'대사',symbol:'lyrics',attributes:'data-listening-transcript aria-controls="dubbing-listening-transcript" aria-expanded="false"',cls:'listening-desktop-action'}),
   action({label:'댓글',symbol:'message',attributes:'data-listening-comment aria-controls="dubbing-comment-form" aria-expanded="false"',cls:'listening-mobile-action'}),
   action({label:'담기',symbol:'plus',attributes:showSave?'data-listening-add aria-haspopup="dialog"':'disabled title="완성된 더빙을 담을 수 있습니다."'}),
-  action({label:'선물',symbol:'gift',attributes:gifts.gift_block_reason?'disabled title="'+esc(gifts.gift_block_reason)+'"':'data-dubbing-listening-gift aria-haspopup="dialog"'}),
+  gifts.gift_block_reason?'':action({label:'선물',symbol:'gift',attributes:'data-dubbing-listening-gift aria-haspopup="dialog"'}),
   action({label:'공유',symbol:'share-2',attributes:'data-dubbing-listening-share aria-haspopup="dialog"'}),
  ];
  const occupied=p.roles.filter(role=>role.claimed||role.participant).length;
  const participation=p.canParticipate?'<div class="listening-participation"><span>참여 '+occupied+'/'+p.roles.length+'개 배역</span>'+
-  '<button type="button" class="small-button" data-listening-join>'+icon('mic',18)+' 참여하기</button></div>':'';
+  '<button type="button" class="small-button" data-listening-join>참여하기</button></div>':'';
  const cast='<span>'+userNickname(p.ownerName,{userId:p.ownerId})+'</span>';
  const timeline=dubbingListeningCues(p);
  const list=p.script.lines.map(line=>{
@@ -455,7 +504,7 @@ function dubbingListeningHTML(p,gifts){
  return '<article class="work-listening">'+listeningBackHTML('#karaoke/dubbing?tab=discover')+
   '<section class="listening-hero">'+listeningSceneHTML(p.listening_template,dubbingListeningArtwork(p),p.duration,canPlay)+
   '<div class="listening-work-info"><div class="listening-title"><h1>'+esc(p.title)+'</h1><span>더빙</span></div>'+
-  '<div class="listening-credit">'+cast+'</div>'+(p.listening_description?'<p class="listening-note">'+esc(p.listening_description)+'</p>':'')+
+  '<div class="listening-credit">'+cast+'</div>'+(p.listening_description?.trim()?'<p class="listening-note">'+esc(p.listening_description)+'</p>':'')+
   participation+'<div class="listening-actions">'+actions.join('')+'</div><div class="inline-actions listening-work-links">'+
   (p.isOwner?'<a class="text-link" href="'+manage+'">작품 관리</a>':'<button type="button" class="text-link" data-dubbing-rights-report>권리 침해 신고</button>')+
   '<a class="text-link listening-mobile-action" href="'+manage+'">대본 보기</a></div></div></section>'+
@@ -510,8 +559,8 @@ function dubbingListeningSettingsHTML(p,{recorder=false}={}){
  const photo=dubbingListeningArtwork(p);
  return '<form class="dubbing-listening-settings" data-dubbing-listening-settings>'+
   (recorder?'':'<h3>감상 화면</h3>')+
-  listeningEditorHTML(p.listening_template,photo,workPhotoField(photo),p.duration,recorder||dubbingListeningPlayable(p))+
-  '<label class="form-field">한마디 (선택)<textarea name="listening_description" maxlength="1000" rows="2" placeholder="감상 화면에 남길 한마디를 적어 주세요.">'+esc(p.listening_description||'')+'</textarea></label>'+
+  listeningEditorHTML(p.listening_template,photo,workPhotoField(photo),p.duration,recorder||dubbingListeningPlayable(p),{fields:
+   '<label class="form-field">한마디 (선택)<textarea name="listening_description" maxlength="1000" rows="2" placeholder="감상 화면에 남길 한마디를 적어 주세요.">'+esc(p.listening_description||'')+'</textarea></label>'})+
   '<p class="form-error" role="alert"></p>'+
   (recorder?'':'<button type="submit" class="small-button">감상 설정 저장</button>')+'</form>';
 }

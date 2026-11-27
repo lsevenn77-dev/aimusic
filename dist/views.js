@@ -56,7 +56,7 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
 function bindRenderedRoute(base,param,explorer,ticket){
  const region=$('#main');
  if(typeof mountListeningPlayback==='function'){
-  mountListeningPlayback(explorer?.listeningWork,region);
+  mountListeningPlayback(explorer?.listeningWork||explorer?.listeningEdit,region);
   if(explorer?.listeningWork)bindListeningPage(region,explorer.listeningWork);
  }
  if(region?.prepend&&!region.querySelector('h1')){
@@ -329,7 +329,15 @@ async function renderRoute(showCachedRoute){
   else if(base==='admin'&&param==='track-review'){const q=new URLSearchParams(paramQuery?.split('?')[1]||'');html=trackReviewHTML(await readApi('/api/admin/track-review?'+q.toString()));if(authConfig?.admin)html+='<section class="surface"><button class="small-button danger-button" data-purge-all-covers>사이트 전체 커버곡 삭제</button></section>';}
   else if(base==='admin'&&param==='partners')html=partnerAdminHTML(await readApi('/api/admin/diamonds'));
   else if(base==='admin')html=adminHTML(await readApi('/api/admin/payouts'+(param?'?period='+encodeURIComponent(param):'')));
-  else if(base==='manage'&&param){studioData=await readApi('/api/studio');const {profile,alignment,karaoke}=await readApi('/api/studio/tracks/'+param);const fromWorks=new URLSearchParams(paramQuery?.split('?')[1]||'').get('from')==='works';html=profile.kind==='cover'?coverEditHTML(profile,fromWorks):trackEditHTML({...profile,alignment,karaoke},studioData,fromWorks);}
+  else if(base==='manage'&&param){
+   studioData=await readApi('/api/studio');
+   const {profile,alignment,karaoke}=await readApi('/api/studio/tracks/'+param);
+   const fromWorks=new URLSearchParams(paramQuery?.split('?')[1]||'').get('from')==='works';
+   if(profile.kind==='cover'){
+    html=coverEditHTML(profile,fromWorks);
+    if(profile.status==='published')explorer={listeningEdit:profile};
+   }else html=trackEditHTML({...profile,alignment,karaoke},studioData,fromWorks);
+  }
   else if(base==='studio'||base==='manage'){
    const d=await readApi('/api/studio','GET',undefined,{fresh:true});
    await studioLoadComplete(d,readApi);

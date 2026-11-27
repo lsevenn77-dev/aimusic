@@ -756,10 +756,11 @@ function bindReview(){
  const select=form.querySelector('select[name=publish_as]');
  if(select){select.value=s.mobilePublication||'';select.onchange=()=>{s.mobilePublication=select.value;queueSingDraft(s);};}
  const all=form.querySelector('[data-consent-all]'),items=[...form.querySelectorAll('.rights-check input')];
- const paint=()=>{const count=items.filter(box=>box.checked).length;all.checked=count===items.length;all.indeterminate=count>0&&!all.checked;};
+ const paint=()=>{const visible=items.filter(box=>!box.disabled),count=visible.filter(box=>box.checked).length;all.checked=count>0&&count===visible.length;all.indeterminate=count>0&&!all.checked;};
+ form._paintConsents=paint;
  const remember=()=>{s.consents=Object.fromEntries(items.map(box=>[box.name,box.checked]));queueSingDraft(s);paint();};
  items.forEach(box=>{box.checked=!!s.consents?.[box.name];box.onchange=remember;});
- all.onchange=()=>{items.forEach(box=>box.checked=all.checked);remember();};
+ all.onchange=()=>{items.filter(box=>!box.disabled).forEach(box=>box.checked=all.checked);remember();};
  paint();form.onsubmit=busyForm(form,uploadSung);
 }
 function voiceBuffer(s){
@@ -1038,6 +1039,7 @@ function syncTakeLayout(s){
  root.querySelector('.studio-edit-tools').setAttribute('aria-orientation',desktop?'vertical':'horizontal');
  const joined=form.querySelector('[data-joined-consent]');
  if(joined){joined.hidden=!desktop;joined.querySelector('input').disabled=!desktop;}
+ form._paintConsents?.();
 }
 window.matchMedia?.('(min-width: 801px)')?.addEventListener?.('change',()=>{
  if(sing?.voice&&$('#sing-upload-form')){syncTakeLayout(sing);updateTransport();drawTakeWaveform();}
