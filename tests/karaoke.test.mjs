@@ -31,6 +31,28 @@ test('new original upload records the combined license only after explicit agree
  assert.ok(track.karaoke_at>0 && track.rights_accepted>0);
 });
 
+test('Android AI original upload accepts the consent shown by the released app without changing the audit version',async t=>{
+ const f=await fixture(t);
+ const body={...upload,ai_tool:'Donna',extension:'mp3',genres:[],moods:[],performance_mode:'solo',
+  lyrics_mode:'auto',lyrics_source:'테스트 가사',lyrics_language:'ko',karaoke:true,upload_consent_version:'2026-11-02.1'};
+ for(const invalid of [
+  {rights:false},{karaoke:false},{ai_tool:'AI 사용 안 함',is_ai:false},
+  {upload_consent_version:'2026-11-02.0'},{extension:'exe'},{bytes:99}
+ ]){
+  assert.equal((await f.call('/api/uploads','POST',{...body,...invalid})).status,400);
+ }
+ const uploaded=await f.call('/api/uploads','POST',body);
+ assert.equal(uploaded.status,201,JSON.stringify(uploaded.body));
+ const profile=await f.call('/api/studio/tracks/'+uploaded.body.id);
+ assert.equal(profile.status,200);
+ assert.equal(profile.body.profile.status,'uploading');
+ const row=f.sql.prepare('SELECT karaoke_terms,karaoke_at,rights_accepted,is_ai,original_ext FROM tracks WHERE id=?').get(uploaded.body.id);
+ assert.equal(row.karaoke_terms,body.upload_consent_version);
+ assert.ok(row.karaoke_at>0 && row.rights_accepted>0);
+ assert.equal(row.is_ai,1);
+ assert.equal(row.original_ext,'mp3');
+});
+
 test('tracks uploaded before the clause opt in once, only by their owner',async t=>{
  const f=await fixture(t);
  assert.equal(f.sql.prepare("SELECT karaoke_at FROM tracks WHERE id='one'").get().karaoke_at,0);

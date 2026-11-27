@@ -28,6 +28,9 @@ import {premiumGrantInternalRoute} from './premium-grant.js';
 import {karaokeQueue,karaokeInternalRoute} from './karaoke.js';
 import {closeDeletedContentReports} from './deleted-content-reports.js';
 import {coverCompressionInternal} from './cover-compression.js';
+// Released clients still show the previous AI-only wording. It grants the same
+// rights for AI tracks, but must not be recorded as the current consent.
+const AI_ONLY_UPLOAD_TERMS_VERSION = '2026-11-02.1';
 export {parseRange};
 export async function listener(req,user){return user?.id||await hash((req.headers.get('cf-connecting-ip')||'local')+'|'+(req.headers.get('user-agent')||'')+'|'+new Date().toISOString().slice(0,10));}
 export async function mediaRoute(req,env,path,user){
@@ -69,7 +72,10 @@ export async function mediaRoute(req,env,path,user){
   if(b.rights!==true)fail(400,'음원 권리 보유 확인이 필요합니다.');
   if(b.karaoke!==true)fail(400,'노래방 MR 제공과 커버 허락에 동의해야 업로드할 수 있습니다.');
   const termsVersion='upload_consent_version' in b?b.upload_consent_version:KARAOKE_TERMS_VERSION;
-  if('upload_consent_version' in b && termsVersion!==ORIGINAL_UPLOAD_TERMS_VERSION)fail(400,'현재 음원 이용허락 내용을 확인하고 다시 동의해 주세요.');
+  if('upload_consent_version' in b && termsVersion!==ORIGINAL_UPLOAD_TERMS_VERSION &&
+    !(termsVersion===AI_ONLY_UPLOAD_TERMS_VERSION && credit.is_ai===1)){
+   fail(400,'현재 음원 이용허락 내용을 확인하고 다시 동의해 주세요.');
+  }
   const classification=classificationFields(b);b.genre=classification.genres[0];
   if(!validGenre(b.genre)||!['wav','flac','mp3'].includes(b.extension)||!Number.isInteger(b.bytes)||b.bytes<100||b.bytes>MAX_AUDIO)fail(400,'지원하는 장르와 80MB 이하 WAV·FLAC·MP3 파일을 선택해 주세요.');
   let producer=await one(env,'SELECT * FROM producers WHERE user_id=?',user.id);
