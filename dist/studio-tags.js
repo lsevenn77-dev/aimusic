@@ -48,14 +48,18 @@ function bindSongTagSuggestions(root=document){
   const selected=field.querySelector('[data-song-tag-selected]'),suggestions=field.querySelector('[data-song-tag-suggestions]');
   const refresh=field.querySelector('[data-song-tag-refresh]'),status=field.querySelector('[data-song-tag-status]');
   const state={alive:true,serial:0,timer:null,request:null,observer:null,importHandlers:[],key:null,payload:null,tags:[],phase:'empty',message:'',tagMessage:'',tagsDirty:false,composing:false};
+  let paintedTags='',paintedSuggestions='';
   const valid=()=>state.alive&&field.isConnected&&form.contains(field);
   function render(){
    if(!valid())return;
    const tags=songTagList(input.value),keys=new Set(tags.map(songTagKey));
    selected.hidden=!tags.length;
-   selected.innerHTML=tags.map(tag=>`<button type="button" class="song-tag-chip is-selected" data-song-tag-remove="${esc(songTagKey(tag))}" aria-label="${esc(tag)} 태그 삭제"><span>${esc(tag)}</span><span class="song-tag-remove" aria-hidden="true">×</span></button>`).join('');
+   const selectedMarkup=tags.map(tag=>`<button type="button" class="song-tag-chip is-selected" data-song-tag-remove="${esc(songTagKey(tag))}" aria-label="${esc(tag)} 태그 삭제"><span>${esc(tag)}</span><span class="song-tag-remove" aria-hidden="true">×</span></button>`).join('');
+   if(selectedMarkup!==paintedTags){selected.innerHTML=selectedMarkup;paintedTags=selectedMarkup;}
    suggestions.hidden=!state.tags.length;
-   suggestions.innerHTML=state.tags.map(tag=>{const added=keys.has(songTagKey(tag));return `<button type="button" class="song-tag-chip${added?' is-added':''}" data-song-tag-add="${esc(tag)}" aria-disabled="${added}" aria-label="${esc(tag)} 태그 ${added?'추가됨':'추가'}"><span>${esc(tag)}</span>${added?'<small>추가됨</small>':''}</button>`;}).join('');
+   const suggestedMarkup=state.tags.map(tag=>{const added=keys.has(songTagKey(tag));return `<button type="button" class="song-tag-chip${added?' is-added':''}" data-song-tag-add="${esc(tag)}" aria-disabled="${added}" aria-label="${esc(tag)} 태그 ${added?'추가됨':'추가'}"><span>${esc(tag)}</span>${added?'<small>추가됨</small>':''}</button>`;}).join('');
+   // Pointer activation spans input blur. Keep identical buttons mounted until click.
+   if(suggestedMarkup!==paintedSuggestions){suggestions.innerHTML=suggestedMarkup;paintedSuggestions=suggestedMarkup;}
    refresh.disabled=state.phase==='loading'||!state.payload||!(state.payload.title||state.payload.lyrics)||state.composing;
    refresh.textContent=state.phase==='loading'?'추천 중…':'추천 새로 받기';
    field.setAttribute('aria-busy',String(state.phase==='loading'));

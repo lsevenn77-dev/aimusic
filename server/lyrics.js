@@ -36,7 +36,7 @@ export function lyricsFields(body,existing={}){
  if(mode==='auto'){
   try{const source=plainLyrics(body.lyrics_source),language=body.lyrics_language||'ko';if(!Object.hasOwn(LYRIC_LANGUAGES,language))throw new Error('가사 언어를 선택해 주세요.');return {mode:existing.lyrics_mode||'none',lyrics:existing.lyrics||'',source,language,auto:true};}catch(e){fail(400,e.message);}
  }
- if(mode==='none')return {mode,lyrics:''};
+ if(['none','no_lyrics','later'].includes(mode))return {mode:mode==='none'&&['no_lyrics','later'].includes(existing.lyrics_mode)?existing.lyrics_mode:mode,lyrics:''};
  if(mode!=='synced')fail(400,'가사 등록 방식을 선택해 주세요.');
  try{const lyrics=serializeLrc(parseLrc(value,existing.duration||1200));if(lyrics.length>MAX_LYRICS)throw new Error('시간을 포함한 가사는 최대 12,000자까지 등록할 수 있습니다.');return {mode,lyrics};}
  catch(e){fail(400,e.message);}

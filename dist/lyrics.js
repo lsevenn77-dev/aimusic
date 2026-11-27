@@ -4,12 +4,34 @@ function cleanLyricsTextInput(input,preserveLrc=false){
  if(cleaned.removed){const direction=input.selectionDirection;input.value=cleaned.text;input.setSelectionRange(cleaned.selectionStart,cleaned.selectionEnd,direction||'none');}
  return cleaned.removed;
 }
-function lyricsEditorHTML(t={}){const mode=t.alignment&&['queued','processing','ready','failed'].includes(t.alignment.state)?'auto':t.lyrics_mode||(t.id?'none':'auto');return `<section id="lyrics-editor" class="lyrics-editor" data-duration="${Number(t.duration)||1200}"><div class="form-section-heading"><span>♪</span><h2>노래에 맞춰 흐르는 가사</h2></div><label class="form-field">가사 등록 방식<select name="lyrics_mode" id="lyrics-mode"><option value="auto" ${mode==='auto'?'selected':''}>가사 입력하고 자동 싱크 (추천)</option><option value="none" ${mode==='none'?'selected':''}>가사 없음 / 나중에 등록</option><option value="synced" ${mode==='synced'?'selected':''}>직접 싱크 등록 / LRC</option></select></label>${alignmentEditorHTML(t,mode==='auto')}<div id="lyrics-edit-body" ${mode!=='synced'?'hidden':''}><p class="field-help">LRC 파일에 담긴 시간을 불러오거나, 가사를 붙여넣고 음원을 들으며 줄마다 시작 시간을 지정하세요.</p><label class="form-field">가사 파일 불러오기<input id="lyrics-file" type="file" accept=".lrc,.txt"><small class="field-help">LRC 또는 TXT · UTF-8 · 최대 64KB</small></label><label class="form-field">가사 붙여넣기<textarea id="lyrics-source" maxlength="12000" placeholder="가사를 한 줄씩 입력하거나, 시간 정보가 있는 LRC 내용을 붙여넣으세요.">${esc(t.lyrics||'')}</textarea></label><button type="button" id="lyrics-build" class="small-button">가사 줄 불러오기</button><div class="lyric-preview-player"><audio id="lyrics-audio" preload="metadata" ${t.duration>0?`src="/api/studio/tracks/${t.id}/lyrics/audio"`:''}></audio><div class="inline-actions"><button type="button" id="lyrics-preview-play" class="small-button" disabled>${icon('audio-play')} 음원 미리 듣기</button><output id="lyrics-clock">00:00.000</output><button type="button" id="lyrics-stamp-next" class="small-button" disabled>다음 줄에 현재 시간 찍기</button></div><input id="lyrics-preview-seek" type="range" min="0" max="0" step="0.01" value="0" aria-label="가사 싱크 미리 듣기 위치" disabled><p class="field-help" id="lyrics-audio-help">${t.status==='published'?'공개된 음원을 들으며 시간을 조정할 수 있습니다.':'위에서 원본 음원을 선택하면 미리 들으며 시간을 지정할 수 있습니다. LRC 파일은 음원 재생 없이 불러올 수 있습니다.'}</p></div><div id="lyrics-rows" class="lyrics-rows"></div><p class="field-help">분:초.밀리초 형식으로 직접 수정할 수 있습니다. 예: 00:12.500. 가사를 저장하면 리스너 화면에서 해당 시간에 자동으로 표시됩니다.</p><p id="lyrics-editor-error" class="form-error" role="alert"></p></div></section>`;}
+function lyricsEditorHTML(t={}){
+ const mode=t.alignment&&['queued','processing','ready','failed'].includes(t.alignment.state)?'auto':t.lyrics_mode||(t.id?'none':'auto');
+ const mark=t.id?'':uploadRequiredMark;
+ const later=mode==='none'?'none':'later';
+ const choices=[['auto','가사 입력하고 자동 싱크 (추천)'],['no_lyrics','가사가 없는 노래'],[later,'나중에 등록'],['synced','직접 싱크 등록 / LRC']];
+ return `<section id="lyrics-editor" class="lyrics-editor ${t.id?'':'upload-section'}" data-track="${esc(t.id||'')}" data-duration="${Number(t.duration)||1200}">
+ ${t.id?'<div class="form-section-heading"><span>♪</span><h2>노래에 맞춰 흐르는 가사</h2></div>':'<h2>가사 등록</h2>'}
+ <label class="form-field">가사 등록 방식<select name="lyrics_mode" id="lyrics-mode">${choices.map(([value,label])=>`<option value="${value}" ${mode===value?'selected':''}>${label}</option>`).join('')}</select></label>
+ <p class="field-help" data-lyrics-note="no_lyrics" ${mode==='no_lyrics'?'':'hidden'}>가사 변환 없이 등록됩니다.</p>
+ <p class="field-help" data-lyrics-note="later" ${['none','later'].includes(mode)?'':'hidden'}>스튜디오에서 가사를 추가할 수 있습니다.</p>
+ ${alignmentEditorHTML(t,mode==='auto')}
+ <div id="lyrics-edit-body" ${mode!=='synced'?'hidden':''}>
+  <label class="form-field">가사 파일 불러오기<input id="lyrics-file" type="file" accept=".lrc,.txt"><small class="field-help">LRC 또는 TXT · UTF-8 · 최대 64KB</small></label>
+  <label class="form-field"><span>가사 붙여넣기${mark}</span><textarea id="lyrics-source" maxlength="12000" placeholder="가사 또는 타임코드가 포함된 LRC를 붙여넣으세요.">${esc(t.lyrics||'')}</textarea></label>
+  <button type="button" id="lyrics-build" class="small-button">가사 줄 불러오기</button>
+  <div class="lyric-preview-player"><audio id="lyrics-audio" preload="metadata" ${t.duration>0?`src="/api/studio/tracks/${t.id}/lyrics/audio"`:''}></audio>
+   <div class="inline-actions"><button type="button" id="lyrics-preview-play" class="small-button" disabled>${icon('audio-play')} 음원 미리 듣기</button><output id="lyrics-clock">00:00.000</output><button type="button" id="lyrics-stamp-next" class="small-button" disabled>다음 줄에 현재 시간 찍기</button></div>
+   <input id="lyrics-preview-seek" type="range" min="0" max="0" step="0.01" value="0" aria-label="가사 싱크 미리 듣기 위치" disabled>
+   <p class="field-help" id="lyrics-audio-help">${t.status==='published'?'음원을 들으며 시간을 조정할 수 있습니다.':'음원을 선택하면 미리 들으며 시간을 지정할 수 있습니다.'}</p>
+  </div><div id="lyrics-rows" class="lyrics-rows"></div><p class="field-help">시간은 직접 입력할 수 있습니다. 예 00:12.500 · 최대 12,000자</p>
+  <p id="lyrics-editor-error" class="form-error" role="alert"></p>
+ </div></section>`;
+}
 function cleanupLyricsEditor(){if(lyricEditor){clearTimeout(lyricEditor.alignmentTimer);for(const event of ['onpause','onplay','ontimeupdate','onloadedmetadata','onerror'])lyricEditor.audio[event]=null;lyricEditor.audio.pause();lyricEditor.audio.removeAttribute('src');lyricEditor.audio.load();if(lyricEditor.url)URL.revokeObjectURL(lyricEditor.url);lyricEditor=null;}lyricPanelState=null;closeExpandedLyrics();}
 function bindLyricsEditor(){
  const root=$('#lyrics-editor');if(!root)return;
  const source=$('#lyrics-source'),player=$('#lyrics-audio'),box=$('#lyrics-rows'),error=$('#lyrics-editor-error'),mode=$('#lyrics-mode');
- const state=lyricEditor={root,audio:player,url:null,dirty:false};
+ const state=lyricEditor={root,audio:player,url:null,dirty:false,manualChanged:false,initialMode:mode.value};
  function rowsFrom(cues){box.innerHTML=cues.flatMap(c=>(c.text||'').split('\n').map(text=>({time:c.time,text}))).map((c,i)=>`<div class="lyric-edit-row"><button type="button" class="lyric-number" data-preview-row="${i}" aria-label="${i+1}번째 가사부터 미리 듣기">${i+1}</button><input class="lyric-time-input" aria-label="${i+1}번째 가사 시작 시간" placeholder="00:00.000" value="${c.time==null?'':AifectLyrics.timestamp(c.time)}"><input class="lyric-text-input" aria-label="${i+1}번째 가사" maxlength="500" value="${esc(c.text)}"><button type="button" class="text-link" data-stamp-row="${i}">현재 시간</button></div>`).join('');state.dirty=false;}
  function buildRows(){
   error.textContent='';const cleaned=AifectLyrics.cleanLyricAnnotations(source.value,true),text=cleaned.text;source.value=text;if(text.length>AifectLyrics.MAX_LYRICS)throw new Error('가사는 최대 12,000자까지 입력해 주세요.');
@@ -17,13 +39,22 @@ function bindLyricsEditor(){
   else{const lines=text.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);if(!lines.length||lines.length>500)throw new Error('가사를 1줄 이상, 500줄 이하로 입력해 주세요.');rowsFrom(lines.map(text=>({time:null,text})));}
  }
  state.build=buildRows;
- mode.onchange=()=>{$('#lyrics-edit-body').hidden=mode.value!=='synced';$('#auto-lyrics-editor').hidden=mode.value!=='auto';if(mode.value!=='synced')player.pause();};
- source.oninput=e=>{state.dirty=true;if(!e.isComposing)cleanLyricsTextInput(source,true);};
- source.addEventListener('compositionend',()=>{cleanLyricsTextInput(source,true);state.dirty=true;});
- box.addEventListener('input',e=>{if(!e.isComposing&&e.target.matches('.lyric-text-input'))cleanLyricsTextInput(e.target);});
+ const autoSource=$('#auto-lyrics-source'),language=$('#auto-lyrics-language');
+ mode.onchange=()=>{
+  const manual=mode.value==='synced',automatic=mode.value==='auto';
+  $('#lyrics-edit-body').hidden=!manual;$('#auto-lyrics-editor').hidden=!automatic;
+  const noLyrics=$('[data-lyrics-note="no_lyrics"]'),later=$('[data-lyrics-note="later"]');
+  if(noLyrics)noLyrics.hidden=mode.value!=='no_lyrics';
+  if(later)later.hidden=!['none','later'].includes(mode.value);
+  if(!root.dataset.track){autoSource.required=automatic;source.required=manual;}
+  if(!manual)player.pause();
+ };
+ source.oninput=e=>{state.dirty=true;state.manualChanged=true;if(!e.isComposing)cleanLyricsTextInput(source,true);};
+ source.addEventListener('compositionend',()=>{cleanLyricsTextInput(source,true);state.dirty=true;state.manualChanged=true;});
+ box.addEventListener('input',e=>{state.manualChanged=true;if(!e.isComposing&&e.target.matches('.lyric-text-input'))cleanLyricsTextInput(e.target);});
  box.addEventListener('compositionend',e=>{if(e.target.matches('.lyric-text-input'))cleanLyricsTextInput(e.target);});
  $('#lyrics-build').onclick=()=>{try{buildRows();}catch(e){error.textContent=e.message;}};
- $('#lyrics-file').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>65536)throw new Error('가사 파일은 64KB 이하로 선택해 주세요.');let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());}catch{throw new Error('UTF-8로 저장된 LRC 또는 TXT 파일을 선택해 주세요.');}if(!root.isConnected)return;source.value=text;state.dirty=true;mode.value='synced';mode.onchange();buildRows();}catch(err){error.textContent=err.message;}};
+ $('#lyrics-file').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>65536)throw new Error('가사 파일은 64KB 이하로 선택해 주세요.');let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());}catch{throw new Error('UTF-8로 저장된 LRC 또는 TXT 파일을 선택해 주세요.');}if(!root.isConnected)return;source.value=text;state.dirty=true;state.manualChanged=true;mode.value='synced';mode.onchange();buildRows();}catch(err){error.textContent=err.message;}};
  const ready=()=>{const available=Number.isFinite(player.duration)&&player.duration>0;$('#lyrics-preview-play').disabled=!available;$('#lyrics-stamp-next').disabled=!available;$('#lyrics-preview-seek').disabled=!available;if(available){$('#lyrics-preview-seek').max=player.duration;root.dataset.duration=player.duration;}};
  player.onloadedmetadata=ready;
  player.ontimeupdate=()=>{$('#lyrics-clock').textContent=AifectLyrics.timestamp(player.currentTime);$('#lyrics-preview-seek').value=player.currentTime;let selected=-1;const rows=[...box.children];rows.forEach((row,i)=>{const parts=row.querySelector('.lyric-time-input').value.split(':');const seconds=parts.length===2?Number(parts[0])*60+Number(parts[1]):-1;if(seconds>=0&&seconds<=player.currentTime)selected=i;});rows.forEach((row,i)=>row.classList.toggle('is-preview-current',i===selected));};
@@ -32,19 +63,31 @@ function bindLyricsEditor(){
  player.onerror=()=>{error.textContent='이 브라우저에서 원본을 미리 듣지 못했습니다. LRC로 등록하거나 음원 변환 후 스튜디오에서 시간을 지정해 주세요.';};
  $('#lyrics-preview-play').onclick=async()=>{try{if(player.paused)await player.play();else player.pause();}catch{error.textContent='음원을 먼저 선택해 주세요.';}};
  $('#lyrics-preview-seek').oninput=e=>{player.currentTime=Number(e.target.value);};
- function stamp(row){if(!Number.isFinite(player.duration))throw new Error('음원을 먼저 선택해 주세요.');const input=row.querySelector('.lyric-time-input');input.value=AifectLyrics.timestamp(player.currentTime);input.setCustomValidity('');row.classList.add('has-time');}
+ function stamp(row){if(!Number.isFinite(player.duration))throw new Error('음원을 먼저 선택해 주세요.');const input=row.querySelector('.lyric-time-input');input.value=AifectLyrics.timestamp(player.currentTime);input.setCustomValidity('');row.classList.add('has-time');state.manualChanged=true;}
  root.addEventListener('click',e=>{const previewButton=e.target.closest('[data-preview-row]');if(previewButton){const input=previewButton.closest('.lyric-edit-row').querySelector('.lyric-time-input');const parts=input.value.split(':');if(parts.length===2&&Number.isFinite(Number(parts[1]))){player.currentTime=Number(parts[0])*60+Number(parts[1]);player.play().catch(()=>{error.textContent='음원이 준비된 뒤 다시 미리 들어 주세요.';});}return;}const button=e.target.closest('[data-stamp-row]');if(!button)return;try{stamp(button.closest('.lyric-edit-row'));}catch(err){error.textContent=err.message;}});
  $('#lyrics-stamp-next').onclick=()=>{try{if(state.dirty||!box.children.length)buildRows();const row=[...box.children].find(row=>!row.querySelector('.lyric-time-input').value);if(!row){error.textContent='모든 줄의 시간이 지정되었습니다. 각 줄의 시간을 직접 수정할 수 있습니다.';return;}stamp(row);row.scrollIntoView({block:'nearest',behavior:'smooth'});}catch(e){error.textContent=e.message;}};
  const fileInput=$('#upload-form input[name="audio"]');if(fileInput)fileInput.addEventListener('change',()=>{player.pause();if(state.url)URL.revokeObjectURL(state.url);const file=fileInput.files[0];if(file){state.url=URL.createObjectURL(file);player.src=state.url;}else{player.removeAttribute('src');player.load();}ready();});
  if(source.value){try{buildRows();}catch(e){error.textContent=e.message;}}bindAlignmentEditor();
+ state.initialAuto=[autoSource.value,language.value];
+ if(root.dataset.track==='')mode.onchange();
 }
 function applyLyrics(fd){
- if(fd.get('lyrics_mode')==='auto'){cleanAutoLyricsInput();let text;try{text=AifectAlignment.plainLyrics($('#auto-lyrics-source').value);}catch(e){$('#alignment-error').textContent=e.message;throw Object.assign(e,{field:'#auto-lyrics-source'});}fd.set('lyrics_source',text);fd.set('lyrics_language',$('#auto-lyrics-language').value);fd.delete('lyrics');return;}
- if(fd.get('lyrics_mode')!=='synced'){fd.set('lyrics_mode','none');fd.set('lyrics','');return;}
+ const mode=fd.get('lyrics_mode'),state=lyricEditor;
+ fd.delete('lyrics_source');fd.delete('lyrics_language');
+ if(state?.root.dataset.track&&mode===state.initialMode&&(
+  mode==='auto'?state.initialAuto[0]===$('#auto-lyrics-source').value&&state.initialAuto[1]===$('#auto-lyrics-language').value:
+  mode!=='synced'||!state.manualChanged&&!state.loadedJobId
+ )){fd.delete('lyrics_mode');fd.delete('lyrics');return;}
+ if(mode==='auto'){cleanAutoLyricsInput();let text;try{text=AifectAlignment.plainLyrics($('#auto-lyrics-source').value);}catch(e){$('#alignment-error').textContent=e.message;throw Object.assign(e,{field:'#auto-lyrics-source'});}fd.set('lyrics_source',text);fd.set('lyrics_language',$('#auto-lyrics-language').value);fd.delete('lyrics');return;}
+ if(mode!=='synced'){fd.set('lyrics','');return;}
  if(!lyricEditor)throw new Error('가사 편집기를 다시 열어 주세요.');
- if(lyricEditor.dirty||!$('#lyrics-rows').children.length)lyricEditor.build();
- const rows=[...$('#lyrics-rows').children],text=rows.map((row,i)=>{const input=row.querySelector('.lyric-time-input'),value=input.value.trim();if(!/^\d{1,3}:[0-5]\d(?:[.:]\d{1,3})?$/.test(value))throw new Error(`${i+1}번째 가사 시작 시간을 지정해 주세요.`);return `[${value}]${row.querySelector('.lyric-text-input').value}`;}).join('\n');
- const normalized=AifectLyrics.serializeLrc(AifectLyrics.parseLrc(text,Number(lyricEditor.root.dataset.duration)));if(normalized.length>AifectLyrics.MAX_LYRICS)throw new Error('시간을 포함한 가사는 최대 12,000자까지 등록할 수 있습니다.');fd.set('lyrics',normalized);if(lyricEditor.loadedJobId)fd.set('lyrics_job_id',lyricEditor.loadedJobId);
+ try{
+  if(lyricEditor.dirty||!$('#lyrics-rows').children.length)lyricEditor.build();
+  const rows=[...$('#lyrics-rows').children],text=rows.map((row,i)=>{const value=row.querySelector('.lyric-time-input').value.trim();if(!/^\d{1,3}:[0-5]\d(?:[.:]\d{1,3})?$/.test(value))throw Object.assign(new Error(`${i+1}번째 가사 시작 시간을 지정해 주세요.`),{field:`#lyrics-rows .lyric-edit-row:nth-child(${i+1}) .lyric-time-input`});return `[${value}]${row.querySelector('.lyric-text-input').value}`;}).join('\n');
+  const normalized=AifectLyrics.serializeLrc(AifectLyrics.parseLrc(text,Number(lyricEditor.root.dataset.duration)));
+  if(normalized.length>AifectLyrics.MAX_LYRICS)throw new Error('시간을 포함한 가사는 최대 12,000자까지 등록할 수 있습니다.');
+  fd.set('lyrics',normalized);if(lyricEditor.loadedJobId)fd.set('lyrics_job_id',lyricEditor.loadedJobId);
+ }catch(error){$('#lyrics-editor-error').textContent=error.message;error.field||='#lyrics-source';throw error;}
 }
 const hasFullLyrics=t=>!!me&&t?.lyrics_access==='full'&&Number(t.lyrics_access_until)*1000>Date.now();
 let lyricLines=[],lyricDisplay=null,lyricRequest=0,lyricPending=null,lyricRetryAt=0;

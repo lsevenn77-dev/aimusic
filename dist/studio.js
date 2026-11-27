@@ -1,4 +1,31 @@
 let studioData={producer:null,artists:[],tracks:[]};
+let uploadFormDraft=null;
+const uploadDraftControls=form=>[...form.querySelectorAll('input:not([name="genres"]),textarea,select')].filter(field=>!field.closest('#lyrics-rows'));
+function rememberUploadForm(){
+ const owner=me?.id,form=$('#upload-form');
+ if(uploadFormDraft?.owner!==owner)uploadFormDraft=null;
+ if(!owner||form?.dataset.owner!==owner||form._submitted)return;
+ uploadFormDraft={
+  owner,artist:form.elements.artist_id.value,genres:[...form.querySelectorAll('[name="genres"]')].map(i=>i.value),
+  values:uploadDraftControls(form).map(field=>({value:field.value,checked:field.checked,files:field.type==='file'?[...field.files]:null})),
+  filename:$('#auto-lyrics-filename')?.textContent||'',
+  directRows:[...form.querySelectorAll('#lyrics-rows input')].map(field=>field.value),
+  dirty:lyricEditor?.dirty,draft:form._draft,request:form._request
+ };
+}
+function restoreUploadForm(form,stored){
+ form._draft=stored.draft;form._request=stored.request;
+ uploadDraftControls(form).forEach((field,index)=>{
+  const draft=stored.values[index];if(!draft)return;
+  if(field.type==='file'){
+   if(!draft.files?.length)return;
+   const selected=new DataTransfer();for(const file of draft.files)selected.items.add(file);field.files=selected.files;
+  }else if(field.type==='checkbox')field.checked=draft.checked;
+  else field.value=draft.value;
+ });
+ const filename=$('#auto-lyrics-filename');
+ if(stored.filename&&filename){filename.textContent=stored.filename;filename.hidden=false;}
+}
 const bioField=(label,name,value='',hint='')=>`<label class="form-field">${label}<textarea name="${name}" maxlength="1000" placeholder="${esc(hint)}">${esc(value)}</textarea><small class="field-help">최대 1,000자</small></label>`;
 function genreField(value='K-POP'){const custom=!genres.includes(value);return `<div class="genre-field"><label class="form-field">장르<select data-genre-select ${custom?'':'name="genre"'}>${genres.slice(1).map(g=>`<option value="${esc(g)}" ${g===value?'selected':''}>${esc(g)}</option>`).join('')}<option value="__custom" ${custom?'selected':''}>직접 입력</option></select></label><label class="form-field" data-custom-genre ${custom?'':'hidden'}>장르 직접 입력<input name="genre" value="${custom?esc(value):''}" maxlength="80" required ${custom?'':'disabled'} placeholder="예: Dark Contemporary Korean Folklore Fusion"></label><small class="field-help">어울리는 장르가 없으면 직접 입력하세요. 세부 분위기·스타일은 태그에도 추가할 수 있습니다.</small></div>`;}
 document.addEventListener('change',e=>{if(!e.target.matches('[data-genre-select]'))return;const select=e.target,custom=select.value==='__custom',label=select.closest('.genre-field').querySelector('[data-custom-genre]'),input=label.querySelector('input');label.hidden=!custom;input.disabled=!custom;if(custom){select.removeAttribute('name');input.focus();}else select.name='genre';});
@@ -6,10 +33,66 @@ document.addEventListener('focusout',e=>{if(e.target.matches('[data-custom-genre
 
 const profileImageURL=(p,kind)=>p?.image_version?`/media/${kind}/${p.id}?v=${p.image_version}`:'';
 const bannerURL=p=>p?.banner_version?`/media/banner/${p.id}?v=${p.banner_version}`:'';
-function imageField(label,name,src='',round=false){return `<div class="image-field ${round?'is-portrait':''}"><div class="image-preview ${round?'profile-avatar':''}">${src||round?`<img class="${round?'profile-avatar-image':''}" src="${esc(src||DEFAULT_AVATAR)}" alt="${label} 미리보기">`:`<span>${icon('plus')}</span>`}</div><div class="image-field-controls"><label class="form-field">${label}<input type="file" name="${name}" accept="image/jpeg,image/png,image/webp" data-image-input></label><p class="field-help">JPG · PNG · WebP / 최대 5MB<br>업로드 시 WebP로 자동 압축합니다 (최대 1600px).<br>정사각형 이미지를 권장합니다.</p><span class="image-selection" role="status"></span><button type="button" class="text-link" data-reset-image hidden>선택 취소</button></div></div>`;}
+function imageField(label,name,src='',round=false,required=false){return `<div class="image-field ${round?'is-portrait':''}"><div class="image-preview ${round?'profile-avatar':''}">${src||round?`<img class="${round?'profile-avatar-image':''}" src="${esc(src||DEFAULT_AVATAR)}" alt="${label} 미리보기">`:`<span>${icon('plus')}</span>`}</div><div class="image-field-controls"><label class="form-field"><span>${label}${required?uploadRequiredMark:''}</span><input type="file" name="${name}" accept="image/jpeg,image/png,image/webp" ${required?'required':''} aria-label="${label}" data-image-input></label><p class="field-help">${required?'JPG · PNG · WebP · 최대 5MB · 정사각형 권장<br>최대 1,600px WebP로 자동 압축합니다.':'JPG · PNG · WebP / 최대 5MB<br>업로드 시 WebP로 자동 압축합니다 (최대 1600px).<br>정사각형 이미지를 권장합니다.'}</p><span class="image-selection" role="status"></span><button type="button" class="text-link" data-reset-image hidden>선택 취소</button></div></div>`;}
 function uploadQuotaHTML(q){return q?`<section class="upload-quota" aria-label="이번 달 제작곡 업로드"><strong>이번 달 제작곡 ${q.used} / ${q.limit}곡 · ${q.remaining}곡 남음</strong><p>매월 1일 한국시간에 새로 시작합니다. 커버곡은 제한 없이 올릴 수 있습니다.</p></section>`:'';}
-function uploadHTML(d){const p=d.producer;return heading('음원 업로드','음악과 창작자의 이야기를 함께 들려 주세요.')+uploadQuotaHTML(d.upload_quota)+`<div class="upload-layout"><form id="upload-form" class="surface upload-form"><div class="form-section-heading"><span>01</span><h2>음악과 앨범 커버</h2></div><label class="file-zone">${icon('upload')}<strong>원본 음원 선택</strong><span>WAV · FLAC · MP3 / 최대 80MB</span><input name="audio" type="file" accept=".wav,.flac,.mp3" required aria-label="원본 음원 선택"></label>${imageField('앨범 / 싱글 커버','cover')}<div class="form-section-heading"><span>02</span><h2>곡 정보</h2></div>${formField('곡 제목','title','text','','required maxlength="120"')}${musicClassificationHTML()}${songTagFieldHTML()}<label class="form-field">곡 소개<textarea name="description" maxlength="4000" placeholder="음악에 담은 이야기, 가사와 분위기를 소개해 주세요."></textarea></label><div class="form-section-heading"><span>03</span><h2>AI 가수 · 아티스트</h2></div><label class="form-field">표시할 이름<select name="artist_id" id="upload-artist"><option value="none">AI 가수 선택 안 함 · 내 활동명으로 표시</option><option value="">새 AI 가수 만들기</option>${d.artists.map(a=>`<option value="${a.id}">${esc(a.name)}</option>`).join('')}</select></label><p class="field-help">AI 가수를 선택하면 가수 이름으로, 선택하지 않으면 내 활동명으로 표시됩니다.</p><div id="upload-artist-fields"></div><div class="form-section-heading"><span>04</span><h2>작곡가 · 제작자</h2></div><p class="field-help">음악을 만드는 사람의 공개 프로필입니다. 변경하면 기존 곡에도 함께 반영됩니다.</p>${imageField('작곡가 / 제작자 사진','producer_image',profileImageURL(p,'producer'),true)}${formField('작곡가 / 제작자 이름','producer','text',p?.name||me.name,'required maxlength="60"')}${bioField('작곡가 / 제작자 소개','producer_bio',p?.bio||'','작업 스타일, 음악 활동, 전하고 싶은 이야기를 소개해 주세요.')}${lyricsEditorHTML()}<div class="form-section-heading"><span>06</span><h2>제작 크레딧</h2></div>${productionCreditsFieldsHTML()}${participationFields()}<p class="field-help">선택한 AI 도구 또는 AI 사용 안 함과 제작 참여 내용이 곡 이야기의 크레딧에 표시됩니다.</p>${originalUploadConsentHTML()}<button type="submit" class="primary-button" id="upload-submit">음원 업로드 ${icon('upload')}</button><div class="upload-progress" hidden><progress aria-label="파일 전송 진행률" max="100" value="0"></progress><p role="status" aria-live="polite"></p><small>전송이 끝날 때까지 이 화면을 유지해 주세요.</small></div><p class="form-error" role="alert"></p></form><aside class="surface upload-guide"><span class="eyebrow">MADE BY YOU</span><h2>음악의 첫인상부터<br>당신의 이야기까지.</h2><p>앨범 커버는 곡 목록과 플레이어에, AI 가수와 작곡가 사진·소개는 각 프로필에 표시됩니다.</p><p>이미지는 선택 사항입니다. 스튜디오에서 사진과 소개를 언제든 수정할 수 있습니다.</p><hr><p>음원은 5초부터 20분까지. 업로드 후 감상용 음원과 60초 미리 듣기를 자동으로 만들고 공개합니다.</p></aside></div>`;}
-function artistUploadFields(a){return `${a?'<p class="field-help">선택한 아티스트의 공통 프로필을 수정합니다. 기존 곡에도 반영됩니다.</p>':''}${imageField('AI 가수 / 아티스트 사진','artist_image',profileImageURL(a,'artist'),true)}${formField('AI 가수 / 아티스트 이름','artist','text',a?.name||'','required maxlength="60"')}${bioField('AI 가수 / 아티스트 소개','artist_bio',a?.bio||'','목소리, 성격, 음악 스타일과 세계관을 소개해 주세요.')}`;}
+const uploadRequiredMark='<span class="upload-required-mark" aria-hidden="true">*</span>';
+function uploadHTML(d){
+ const producer=d.producer;
+ return `<div class="upload-page-heading"><h1>음원 업로드</h1>
+  <div class="upload-heading-tools"><span>${uploadRequiredMark} 필수 입력</span><button type="button" class="small-button upload-qa-button" data-upload-qa><span aria-hidden="true">?</span> 업로드 Q&A</button></div>
+ </div>${uploadQuotaHTML(d.upload_quota)}
+ <div class="upload-layout"><form id="upload-form" class="surface upload-form">
+  <section class="upload-section">
+   <h2>음원 및 커버 이미지</h2>
+   <div class="upload-files">
+    <label class="file-zone"><strong>원본 음원${uploadRequiredMark}</strong><span>WAV · FLAC · MP3 · 최대 80MB · 5초~20분</span><input name="audio" type="file" accept=".wav,.flac,.mp3" required aria-label="원본 음원"></label>
+    ${imageField('커버 이미지','cover','',false,true)}
+   </div>
+  </section>
+  <section class="upload-section"><h2>곡 기본 정보</h2>
+   ${formField(`<span>곡 제목${uploadRequiredMark}</span>`,'title','text','','required maxlength="120" placeholder="곡 제목 · 최대 120자"')}
+  </section>
+  <section class="upload-section"><h2>제작자 및 아티스트</h2>
+   <div class="upload-profile-grid">
+    <div><h3>작곡가 · 제작자</h3>
+     ${formField(`<span>작곡가 / 제작자 이름${uploadRequiredMark}</span>`,'producer','text',producer?.name||me.name,'required maxlength="60"')}
+     ${imageField('작곡가 / 제작자 사진','producer_image',profileImageURL(producer,'producer'),true)}
+     ${bioField('작곡가 / 제작자 소개','producer_bio',producer?.bio||'','작업 스타일이나 음악 활동을 소개해 주세요.')}
+     <p class="field-help">프로필을 수정하면 기존 곡에도 반영됩니다.</p>
+    </div>
+    <div><h3>AI 가수 · 아티스트</h3>
+     <label class="form-field">표시할 이름<select name="artist_id" id="upload-artist"><option value="none">내 활동명으로 표시</option><option value="">새 AI 가수 만들기</option>${d.artists.map(a=>`<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('')}</select></label>
+     <div id="upload-artist-fields"></div>
+    </div>
+   </div>
+  </section>
+  <section class="upload-section"><h2>장르 및 곡 소개</h2>
+   ${uploadGenresHTML()}
+   <label class="form-field">곡 소개<textarea name="description" maxlength="4000" placeholder="곡에 담은 이야기를 소개해 주세요. (최대 4,000자)"></textarea></label>
+  </section>
+  ${lyricsEditorHTML()}
+  <section class="upload-section"><h2>제작 크레딧 및 태그</h2>
+   ${productionCreditsFieldsHTML('',true)}${participationFields()}${songTagFieldHTML()}
+  </section>
+  <section class="upload-section"><h2>등록 동의${uploadRequiredMark}</h2>
+   ${originalUploadConsentHTML()}
+   <button type="submit" class="primary-button" id="upload-submit">음원 등록 ${icon('upload')}</button>
+   <div class="upload-progress" hidden><progress aria-label="파일 전송 진행률" max="100" value="0"></progress><p role="status" aria-live="polite"></p><small>전송이 끝날 때까지 이 화면을 유지해 주세요.</small></div>
+  </section>
+  <p class="form-error" role="alert"></p>
+ </form></div>`;
+}
+function uploadQaHTML(){
+ return `<div class="upload-qa"><h2>업로드 Q&A</h2><dl>
+  <dt>어떤 파일을 준비해야 하나요?</dt><dd>5초~20분, 80MB 이하 WAV·FLAC·MP3와 5MB 이하 JPG·PNG·WebP 커버가 필요합니다. 커버는 정사각형을 권장하며 최대 1,600px WebP로 압축됩니다.</dd>
+  <dt>장르는 어떻게 추가하나요?</dt><dd>최대 3개까지 등록할 수 있으며 첫 장르가 대표 장르입니다. 검색·직접 입력·추천 버튼을 함께 사용하세요. 자동 장르 기입을 누르면 AI가 선택한 음원을 분석해 빈자리에 추가합니다.</dd>
+  <dt>어떤 가사 방식을 선택하나요?</dt><dd>자동 싱크는 음원 변환 후 적용됩니다. 가사가 없는 곡은 ‘가사가 없는 노래’, 스튜디오에서 가사를 추가할 곡은 ‘나중에 등록’을 선택하세요. 타임코드를 직접 지정하거나 LRC 파일을 불러올 수도 있습니다.</dd>
+  <dt>가사 파일과 입력 제한은 무엇인가요?</dt><dd>자동 싱크는 최대 6,000자·200줄·줄당 300자입니다. 반복 가사는 모두 적고, 대괄호 안 설명은 자동으로 제외합니다. UTF-8 TXT(자동 싱크) 또는 LRC·TXT(직접 싱크)는 최대 64KB입니다.</dd>
+  <dt>등록하면 어디에 표시되나요?</dt><dd>커버는 곡 목록과 플레이어에, 제작자와 아티스트의 사진·소개는 각 프로필에 표시됩니다. 프로필은 스튜디오에서 수정할 수 있습니다. 감상용 음원과 60초 미리 듣기가 자동으로 생성됩니다.</dd>
+  <dt>업로드 횟수와 이용 조건은 어디에서 확인하나요?</dt><dd>이번 달 제작곡 한도는 화면 상단에 표시됩니다. 매월 1일 한국시간에 초기화되며 커버곡은 제한이 없습니다. 저작권과 반주·커버 이용허락은 <a href="/terms#original-upload" target="_blank" rel="noopener">음원 이용허락 약관</a>에서 확인할 수 있습니다.</dd>
+ </dl></div>`;
+}
+function artistUploadFields(a){return `${formField(`<span>AI 가수 / 아티스트 이름${uploadRequiredMark}</span>`,'artist','text',a?.name||'','required maxlength="60"')}${imageField('AI 가수 / 아티스트 사진','artist_image',profileImageURL(a,'artist'),true)}${bioField('AI 가수 / 아티스트 소개','artist_bio',a?.bio||'','목소리, 음악 스타일과 세계관을 소개해 주세요.')}${a?'<p class="field-help">프로필을 수정하면 기존 곡에도 반영됩니다.</p>':''}`;}
 function participationFields(value=''){return `<div class="participation">사람이 참여한 부분 ${['작사','작곡','편곡','보컬','믹싱'].map(v=>`<label><input type="checkbox" name="participation" value="${v}" ${value.split(',').map(s=>s.trim()).includes(v)?'checked':''}>${v}</label>`).join('')}</div>`;}
 function studioHTML(d){return heading('스튜디오','음악, 이미지, 프로필을 한곳에서 관리하세요.')+uploadQuotaHTML(d.upload_quota)+`<div class="stats-grid"><div class="stat-card"><span>공개한 음악</span><strong>${d.tracks.filter(t=>t.status==='published').length}</strong></div><div class="stat-card"><span>업로드 · 변환 중</span><strong>${d.tracks.filter(t=>['queued','processing','uploading'].includes(t.status)).length}</strong></div><div class="stat-card"><span>AI 아티스트</span><strong>${d.artists.length}</strong></div></div><div class="section-heading"><h2>내 음원 · 앨범 커버</h2><a class="primary-button" href="#upload">음원 업로드 ${icon('plus')}</a></div><div class="surface">${d.tracks.length?d.tracks.map(t=>`<div class="studio-track"><div class="studio-track-title">${cover(t,'mini-cover')}<div><strong>${esc(t.title)}${t.kind==='cover'?' <b class="ai-mini cover-mini">COVER</b>':''}</strong><p>${{uploading:'파일 전송 대기',queued:'변환 대기',processing:'음원 변환 중',published:'공개됨',hidden:'비공개',failed:'변환 실패'}[t.status]}</p>${alignmentBadge(t.alignment_state)}<small class="classification-summary">${t.classification_source==='ai'?'AI · '+esc(AifectGenres.parseList(t.genres_json).join(' · '))+' / '+esc(AifectGenres.parseList(t.moods_json).map(id=>AifectGenres.MOODS.find(m=>m.id===id)?.name||id).join(' · ')):t.classification_state==='failed'?'AI 분류를 완료하지 못했습니다. 곡 정보에서 다시 요청할 수 있습니다.':['queued','processing'].includes(t.classification_state)?'AI가 장르와 기분을 분석하고 있습니다.':''}</small>${t.error?`<small class="form-error">${esc(t.error)}</small>`:''}</div></div><div class="inline-actions studio-track-actions"><a class="small-button" href="#manage/${t.id}">수정</a><button type="button" class="small-button danger-button" data-delete-track="${t.id}" data-track-title="${esc(t.title)}" data-track-kind="${t.kind}">삭제</button>${t.status==='published'?`<a class="small-button" href="#song/${t.id}">곡 보기</a><button class="small-button" data-hide-track="${t.id}">비공개</button>`:['failed','hidden'].includes(t.status)?`<button class="small-button" data-retry-track="${t.id}">${t.status==='hidden'?'다시 공개':'다시 변환'}</button>`:''}</div></div>`).join(''):'아직 업로드한 곡이 없습니다.'}</div>${section('내 프로필')}<a class="small-button" href="#profile/edit">프로필 수정</a>${section('AI 가수 · 아티스트 프로필')}<div class="artist-editors">${d.artists.length?d.artists.map(a=>`<details class="surface artist-editor"><summary>${portrait(a,'artist')}<div><strong>${userNickname(a.name,{artistId:a.id,entityType:'artist'})}</strong><span>${esc(a.genre)} · 사진과 소개 수정</span></div>${icon('chevron')}</summary><form class="upload-form artist-form" data-id="${a.id}">${imageField('AI 가수 / 아티스트 사진','image',profileImageURL(a,'artist'),true)}${formField('AI 가수 / 아티스트 이름','name','text',a.name,'required maxlength="60"')}${bioField('AI 가수 / 아티스트 소개','bio',a.bio)}${genreField(a.genre)}<button class="primary-button">아티스트 프로필 저장</button><p class="form-error" role="alert"></p></form></details>`).join(''):'<p class="quiet">음원 업로드에서 첫 AI 아티스트를 등록해 보세요.</p>'}</div>`;}
 function originalUploadConsentHTML(){
@@ -127,10 +210,37 @@ function finishStudioWorkEdit(form){
 }
 function bindStudioForms(){
  bindDiamondForms();
- bindImageInputs();bindLyricsEditor();bindTrackCoverForm();bindProductionCredits();bindSongTagSuggestions();
  if($('#work-photo-editor'))bindWorkPhotoEditor($('#work-photo-editor'));
  if($('#cover-upload-form'))bindWorkPhoto($('#cover-upload-form'));
- if($('#upload-artist'))$('#upload-artist').onchange=e=>{$('#upload-artist-fields').innerHTML=e.target.value==='none'?'':artistUploadFields(studioData.artists.find(a=>a.id===e.target.value));bindImageInputs($('#upload-artist-fields'));};
+ const uploadForm=$('#upload-form');
+ const remembered=uploadForm&&uploadFormDraft?.owner===me?.id?uploadFormDraft:null;
+ if(uploadForm){
+  uploadForm.dataset.owner=me.id;
+  bindUploadGenres(uploadForm,remembered?.genres);
+  const qa=$('[data-upload-qa]');qa.onclick=()=>dialog(uploadQaHTML());
+  const select=$('#upload-artist'),fields=$('#upload-artist-fields'),profileDrafts=new Map();
+  let selected=select.value;
+  select.onchange=()=>{
+   profileDrafts.set(selected,[...fields.childNodes]);selected=select.value;
+   if(profileDrafts.has(selected))fields.replaceChildren(...profileDrafts.get(selected));
+   else fields.innerHTML=selected==='none'?'':artistUploadFields(studioData.artists.find(a=>a.id===selected));
+   bindImageInputs(fields);
+  };
+  if(remembered){
+   select.value=remembered.artist;
+   if(select.value!==remembered.artist)select.value='none';
+   if(select.value!=='none')select.onchange();
+   if(select.value===remembered.artist)restoreUploadForm(uploadForm,remembered);
+   uploadFormDraft=null;
+  }
+ }
+ bindImageInputs();bindLyricsEditor();bindTrackCoverForm();bindProductionCredits();bindSongTagSuggestions();
+ if(remembered){
+  const rows=uploadForm.querySelectorAll('#lyrics-rows input');
+  if(rows.length===remembered.directRows.length)rows.forEach((field,index)=>{field.value=remembered.directRows[index];});
+  if(lyricEditor)lyricEditor.dirty=!!remembered.dirty;
+  for(const field of uploadForm.querySelectorAll('input[name="audio"],[data-image-input]'))if(field.files.length)field.dispatchEvent(new Event('change',{bubbles:true}));
+ }
 
  const payout=$('#payout-form');if(payout)payout.onsubmit=busyForm(payout,async fd=>{await api('/api/studio/payout-account','PUT',{holder:fd.get('holder'),bank:fd.get('bank'),account:fd.get('account'),resident_number:fd.get('resident_number'),consent:fd.has('consent')});toast('정산 정보를 저장했습니다.');await render();});
  const coverEdit=$('#cover-edit-form');if(coverEdit)coverEdit.onsubmit=busyForm(coverEdit,async fd=>{await api(`/api/studio/tracks/${coverEdit.dataset.id}`,'PUT',{description:fd.get('description')||'',release_date:fd.get('release_date')||''});toast('커버곡 정보를 저장했습니다.');await finishStudioWorkEdit(coverEdit);});

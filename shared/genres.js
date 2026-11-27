@@ -1,5 +1,23 @@
+import {normalizeSearch,SEARCH_ALIASES} from './search.js';
+
 export const GENRES=['K-POP','Pop','Dark Pop','Ballad','R&B','Soul','Hip-Hop','Rock','Alternative','Indie Pop','EDM','Electronic','Synth Pop','City Pop','Lo-fi','Jazz','Blues','Folk','Acoustic','Country','Classical','Ambient','Fusion','Korean Folklore Fusion','World Music','국악','트로트','J-POP','OST','Instrumental','Dance','Funk','Disco','Metal','Punk','Reggae','Latin','Reggaeton','Afrobeats','House','Techno','Trance','Drum & Bass','Trap','Gospel','New Age','Chillout','Cinematic','Orchestral','Children'];
 export const validGenre=value=>typeof value==='string'&&value.trim().length>0&&value===value.trim()&&value.length<=80&&!/[\x00-\x1f\x7f]/.test(value);
+export const RECOMMENDED_GENRES=GENRES.slice(0,12);
+const genreAliases=new Map(SEARCH_ALIASES.filter(([genre])=>GENRES.includes(genre)).map(group=>[group[0],group]));
+genreAliases.set('Pop',['Pop','팝']);
+genreAliases.set('국악',['국악','Korean Traditional Music','Gugak']);
+genreAliases.set('트로트',['트로트','Trot']);
+export const uploadGenreAliases=Object.fromEntries(genreAliases);
+const genreSearchKey=value=>normalizeSearch(value.normalize('NFKC'));
+export function searchGenres(value){
+ const key=genreSearchKey(value);
+ return key?GENRES.filter(genre=>(genreAliases.get(genre)||[genre]).some(alias=>genreSearchKey(alias).includes(key))):GENRES;
+}
+export function canonicalGenre(value){
+ const name=value.trim(),key=genreSearchKey(name);
+ return GENRES.find(genre=>(genreAliases.get(genre)||[genre]).some(alias=>genreSearchKey(alias)===key))||name;
+}
+export const genreIdentity=value=>canonicalGenre(value).normalize('NFKC').toLowerCase();
 export const MOODS=[
  {id:'comfort',name:'위로 · 감성',caption:'마음을 다독이는 음악',symbol:'heart'},
  {id:'energy',name:'기분 업',caption:'오늘의 에너지를 채웁니다',symbol:'sparkles'},

@@ -23,7 +23,21 @@ function busyForm(form,work){return async ev=>{
 };}
 function bindUploadForm(form,work){
  form.onsubmit=busyForm(form,work);
- form.addEventListener('invalid',e=>{if(form._invalidCycle)return;form._invalidCycle=true;setTimeout(()=>form._invalidCycle=false,0);const field=e.target,label=field.getAttribute('aria-label')||field.labels?.[0]?.textContent.trim().split('\n')[0]||'필수 항목';const error=formError(form);if(error)error.textContent=`${label.slice(0,70)}: ${field.validationMessage}`;uploadStage(form,'아직 업로드가 시작되지 않았습니다. 필수 항목을 확인해 주세요.',null,'error');},true);
+ form.addEventListener('invalid',e=>{
+  const field=e.target;
+  if(form.id==='upload-form')e.preventDefault();
+  if(form._invalidCycle)return;
+  form._invalidCycle=true;setTimeout(()=>form._invalidCycle=false,0);
+  const required={audio:'음원 파일을 선택해 주세요.',cover:'커버 이미지를 선택해 주세요.',title:'곡 제목을 입력해 주세요.',producer:'제작자 이름을 입력해 주세요.',artist:'아티스트 이름을 입력해 주세요.',lyrics_source:'가사를 입력해 주세요.',upload_consent_version:'음원 이용허락에 동의해 주세요.'};
+  const error=formError(form),message=field.validity.valueMissing?(required[field.name]||(field.id==='lyrics-source'?'가사를 입력하거나 가사 파일을 불러와 주세요.':field.validationMessage)):field.validationMessage;
+  if(error)error.textContent=message;
+  uploadStage(form,'입력한 정보를 확인해 주세요.',null,'error');
+  if(form.id==='upload-form'){
+   field.setAttribute('aria-invalid','true');field.focus({preventScroll:true});field.scrollIntoView({block:'center'});
+   toast(message);
+  }
+ },true);
+ if(form.id==='upload-form')for(const event of ['input','change'])form.addEventListener(event,e=>e.target.removeAttribute('aria-invalid'));
 }
 function bindForms(base,param){
  bindSearchForms();
@@ -159,19 +173,35 @@ async function uploadRequest(path,method='GET',body){
 async function existingUploadSubmitted(form,fingerprint){
  if(form._draft?.fingerprint!==fingerprint)return false;
  const {profile}=await uploadRequest(`/api/studio/tracks/${form._draft.id}`);
- if(['queued','processing','published'].includes(profile.status)){toast('이미 전송이 완료된 곡입니다. 스튜디오에서 진행 상태를 확인해 주세요.');location.hash='studio';return true;}
+ if(['queued','processing','published','hidden'].includes(profile.status)){form._submitted=true;toast('이미 전송이 완료된 곡입니다. 스튜디오에서 진행 상태를 확인해 주세요.');location.hash='studio';return true;}
  if(profile.status!=='uploading')throw Error('이 곡의 상태가 바뀌었습니다. 스튜디오에서 확인해 주세요.');return false;
 }
 async function upload(fd){
  const form=$('#upload-form');applyLyrics(fd);
- const file=fd.get('audio'),image=fd.get('cover');if(!file?.size)throw new Error('음원 파일을 선택해 주세요.');if(file.size>80*1024*1024)throw new Error('음원은 80MB 이하로 업로드해 주세요.');
- for(const name of ['cover','artist_image','producer_image'])await validateImage(fd.get(name));
+ const file=fd.get('audio'),image=fd.get('cover');
+ const invalid=(name,message)=>Object.assign(Error(message),{field:`[name="${name}"]`});
+ const ext=file?.name?.split('.').pop().toLowerCase();
+ if(!file?.size)throw invalid('audio','음원 파일을 선택해 주세요.');
+ if(file.size<100||file.size>80*1024*1024||!['wav','flac','mp3'].includes(ext))throw invalid('audio','80MB 이하 WAV·FLAC·MP3 음원을 선택해 주세요.');
+ if(!image?.size)throw invalid('cover','커버 이미지를 선택해 주세요.');
+ for(const name of ['cover','artist_image','producer_image']){
+  try{await validateImage(fd.get(name));}catch(error){throw invalid(name,error.message);}
+ }
+ for(const [name,label] of [['title','곡 제목'],['producer','제작자 이름'],['artist','아티스트 이름']]){
+  if(fd.has(name)&&!String(fd.get(name)).trim())throw invalid(name,`${label}을 입력해 주세요.`);
+ }
+ if(!fd.getAll('genres').length)throw Object.assign(Error('장르를 추가해 주세요.'),{field:'#upload-genre-search'});
  const consent=fd.get('upload_consent_version');
- if(consent!==AifectSite.ORIGINAL_UPLOAD_TERMS_VERSION)throw new Error('음원 권리 확인 및 이용허락에 동의해 주세요.');
- const body={...textFields(fd),participation:fd.getAll('participation').join(', '),...productionCreditPayload(fd),rights:true,karaoke:true,upload_consent_version:consent,extension:file.name.split('.').pop().toLowerCase(),bytes:file.size};
+ if(consent!==AifectSite.ORIGINAL_UPLOAD_TERMS_VERSION)throw invalid('upload_consent_version','음원 권리 확인 및 이용허락에 동의해 주세요.');
+ const body={...textFields(fd),participation:fd.getAll('participation').join(', '),...productionCreditPayload(fd),rights:true,karaoke:true,upload_consent_version:consent,extension:ext,bytes:file.size};
  uploadStage(form,'1 / 3 · 곡 정보와 프로필을 저장하고 있습니다.');form.querySelector('#upload-submit').textContent='업로드 중…';
  const fingerprint=JSON.stringify([body,file.name,file.lastModified]);if(await existingUploadSubmitted(form,fingerprint))return;
- let draft=form._draft;if(!draft||draft.fingerprint!==fingerprint){draft={...await uploadRequest('/api/uploads','POST',body),fingerprint};form._draft=draft;}
+ let draft=form._draft;
+ if(!draft||draft.fingerprint!==fingerprint){
+  if(form._request?.fingerprint!==fingerprint)form._request={fingerprint,id:crypto.randomUUID()};
+  draft={...await uploadRequest('/api/uploads','POST',{...body,request_id:form._request.id}),fingerprint};form._draft=draft;
+  if(['queued','processing','published','hidden'].includes(draft.status)){form._submitted=true;toast('이미 전송이 완료된 곡입니다.');location.hash='studio';return;}
+ }
  const {id,artist_id,producer_id}=draft;
  await uploadRequest('/api/studio/profile','PUT',{name:body.producer,bio:body.producer_bio});
  if(artist_id)await uploadRequest(`/api/studio/artists/${artist_id}`,'PUT',{name:body.artist,bio:body.artist_bio,genre:body.genre});
@@ -198,7 +228,7 @@ async function sendUploadFiles(form,id,file,image){
  await uploadFile(`/api/uploads/${id}/audio`,file,value=>uploadStage(form,value>=100?'2 / 3 · 전송 100% · 서버에 파일을 저장하고 있습니다.':`2 / 3 · 음원 전송 ${Math.floor(value)}% · 화면을 닫지 마세요.`,value));
  if(image?.size){uploadStage(form,'2 / 3 · 앨범 이미지를 올리고 있습니다.');await uploadFile(`/api/uploads/${id}/cover`,image);}
  uploadStage(form,'3 / 3 · 전송한 파일을 확인하고 음원 변환을 요청하고 있습니다.');
- const completed=await uploadRequest(`/api/uploads/${id}/complete`,'POST');uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개됩니다.',100,'done');
+ const completed=await uploadRequest(`/api/uploads/${id}/complete`,'POST',form.id==='upload-form'?{require_cover:true}:undefined);form._submitted=true;uploadStage(form,'업로드 완료 · 음원 변환이 끝나면 공개됩니다.',100,'done');
  toast('전송 완료! 음원 변환은 화면을 닫아도 계속됩니다. 스튜디오에서 상태를 확인해 주세요.');location.hash='studio';if(completed.show_upload_ad)window.AifectUploadAds?.afterCoverUpload(id);
 }
 function deleteTrackDialog(id,title,kind,onDeleted){

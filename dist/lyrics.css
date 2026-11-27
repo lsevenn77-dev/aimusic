@@ -48,3 +48,7 @@
 }
 .song-detail-lyrics .expanded-lyrics-close{border:0;box-shadow:none}
 @media(max-width:600px){.song-detail-lyrics > .section-heading h2{font-size:18px}}
+.auto-lyrics-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;margin-bottom:5px}
+.auto-lyrics-heading label{color:var(--ds-text);font-weight:550}
+.auto-lyrics-heading button{min-height:44px}
+#auto-lyrics-filename:not([hidden]),#auto-lyrics-limit{display:block;overflow-wrap:anywhere}

@@ -84,13 +84,16 @@ export async function studioRoute(req,env,path,user){
  if(table==='tracks'){
   const credit=productionCreditFields(b,entity);
   const performance=b.performance_mode??entity.performance_mode;if(!['solo','duet'].includes(performance))fail(400,'솔로 또는 듀엣을 선택해 주세요.');
-  const lyricData=lyricsFields(b,entity);
+  const editLyrics=['lyrics_mode','lyrics','lyrics_source','lyrics_job_id'].some(key=>b[key]!==undefined);
+  const lyricData=editLyrics?lyricsFields(b,entity):null;
   const classification=classificationFields(b,entity);b.genre=classification.genres[0];
   if(!validGenre(b.genre))fail(400,'장르를 선택해 주세요.');
   const artist=await chooseArtist(env,entity.producer_id,{artist_id:b.artist_id||'none'},b.genre);
-  const jobWrites=await alignmentWrite(env,entityId,user.id,lyricData,b);
+  const jobWrites=lyricData?await alignmentWrite(env,entityId,user.id,lyricData,b):[];
+  const lyricArgs=lyricData&&!lyricData.auto?[lyricData.lyrics,lyricData.mode]:[];
+  const lyricUpdate=lyricArgs.length?',lyrics=?,lyrics_mode=?':'';
   const guard=b.lyrics_job_id?" AND EXISTS(SELECT 1 FROM lyric_jobs WHERE track_id=tracks.id AND id=? AND state='ready')":'';
-  await env.DB.batch([query(env,'UPDATE tracks SET title=?,genre=?,genres_json=?,moods_json=?,classification_source=?,classification_revision=classification_revision+1,tags=?,description=?,ai_tool=?,is_ai=?,participation=?,artist_id=?,lyrics=?,lyrics_mode=?,performance_mode=?,release_date=? WHERE id=?'+guard,str(b.title,120),b.genre,JSON.stringify(classification.genres),JSON.stringify(classification.moods),(JSON.stringify(classification.genres)===entity.genres_json&&JSON.stringify(classification.moods)===entity.moods_json)?entity.classification_source:'manual',str(b.tags||'',300,false),str(b.description||'',4000,false),credit.ai_tool,credit.is_ai,str(b.participation||'',100,false),artist.id,lyricData.lyrics,lyricData.mode,performance,release,entityId,...(b.lyrics_job_id?[b.lyrics_job_id]:[])),...jobWrites,...coverClassificationWrites(env,{originalId:entityId})]);
+  await env.DB.batch([query(env,'UPDATE tracks SET title=?,genre=?,genres_json=?,moods_json=?,classification_source=?,classification_revision=classification_revision+1,tags=?,description=?,ai_tool=?,is_ai=?,participation=?,artist_id=?,performance_mode=?,release_date=?'+lyricUpdate+' WHERE id=?'+guard,str(b.title,120),b.genre,JSON.stringify(classification.genres),JSON.stringify(classification.moods),(JSON.stringify(classification.genres)===entity.genres_json&&JSON.stringify(classification.moods)===entity.moods_json)?entity.classification_source:'manual',str(b.tags||'',300,false),str(b.description||'',4000,false),credit.ai_tool,credit.is_ai,str(b.participation||'',100,false),artist.id,performance,release,...lyricArgs,entityId,...(b.lyrics_job_id?[b.lyrics_job_id]:[])),...jobWrites,...coverClassificationWrites(env,{originalId:entityId})]);
   if(b.lyrics_job_id&&!await one(env,"SELECT id FROM lyric_jobs WHERE track_id=? AND id=? AND state='applied'",entityId,b.lyrics_job_id))fail(409,'자동 싱크 결과가 변경됐습니다. 최신 결과를 다시 불러와 주세요.');
   // Changed lyrics need new word timings; the MR itself is kept.
   const karaoke=await karaokeQueue(env,await one(env,'SELECT * FROM tracks WHERE id=?',entityId));if(karaoke.length)await env.DB.batch(karaoke);

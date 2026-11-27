@@ -1,356 +1,174 @@
-/* Original-upload presentation only. The existing form, dynamic fields,
-   artwork previews and upload/lyrics state remain owned by their renderers. */
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-quota {
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;
-  gap:calc(12px) calc(24px);margin:0 0 calc(24px);padding:calc(20px) calc(24px);
-  background:var(--ds-panel);border:1px solid var(--ds-line);border-radius:var(--ds-radius-card);
-  color:var(--ds-body);box-shadow:none;line-height:1.7;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-quota strong {
-  min-width:0;color:var(--ds-text);font-size:var(--pc-font-card,16px);font-weight:600;
-  overflow-wrap:anywhere;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-quota p {
-  margin:0;color:var(--ds-muted);font-size:var(--pc-font-meta,13px);line-height:1.8;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-layout {
-  display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,280px);
-  align-items:start;gap:calc(24px);min-width:0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-layout > * {
-  min-width:0;max-width:100%;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form {
-  margin:0;padding:calc(28px);color:var(--ds-body);
-  font-size:var(--pc-font-body,14px);line-height:1.7;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-section-heading {
-  flex-wrap:nowrap;align-items:center;gap:calc(12px);
-  margin:calc(32px) 0 calc(20px);padding-top:calc(24px);border-top:1px solid var(--ds-line);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form > .form-section-heading:first-child {
-  margin-top:0;padding-top:0;border-top:0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-section-heading > span {
-  width:32px;height:32px;border:0;border-radius:var(--ds-radius-sm);
-  background:var(--ds-bg);color:var(--ds-muted);font-size:var(--pc-font-caption,13px);
-  font-weight:500;line-height:1;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-section-heading h2 {
-  min-width:0;margin:0;font-size:var(--pc-font-section,18px);font-weight:600;
-  line-height:1.5;overflow-wrap:anywhere;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-field {
-  margin-bottom:calc(20px);font-weight:500;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-field :is(input,select,textarea) {
-  font-weight:400;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form [aria-invalid="true"] {
-  border-color:var(--ds-error)!important;outline-color:var(--ds-error);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form textarea {
-  min-height:112px;resize:vertical;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .field-help {
-  margin:calc(8px) 0 calc(16px);color:var(--ds-muted);
-  font-size:var(--pc-font-meta,13px)!important;font-weight:400;line-height:1.8;
-  overflow-wrap:anywhere;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-field > .field-help {
-  margin:0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone {
-  gap:calc(12px);min-height:0;padding:calc(24px);
-  background:var(--ds-bg);border:1px dashed var(--ds-line);border-radius:var(--ds-radius-input);
-  text-align:center;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone > svg {
-  width:24px;height:24px;color:var(--ds-muted);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone strong {
-  color:var(--ds-text);font-size:var(--pc-font-card,16px);font-weight:500;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone > span {
-  color:var(--ds-muted);font-size:var(--pc-font-meta,13px);line-height:1.6;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form input[type="file"] {
-  width:100%;min-width:0;max-width:100%;min-height:44px;margin:0;padding:0;
-  border:0;border-radius:0;background:transparent;color:var(--ds-body);
-  font-family:inherit;font-size:var(--pc-font-control,14px);line-height:1.5;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone input[type="file"] {
-  width:min(100%,360px);text-align:left;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form input[type="file"]::file-selector-button {
-  min-height:44px;margin:0 calc(12px) 0 0;padding:calc(10px) calc(12px);
-  border:1px solid var(--ds-line);border-radius:var(--ds-radius-sm);
-  background:var(--ds-soft);color:var(--ds-text);font:inherit;font-weight:500;cursor:pointer;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form input[type="file"]::file-selector-button:hover {
-  border-color:var(--ds-lavender);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field {
-  gap:calc(20px);margin:calc(20px) 0 calc(24px);padding:calc(20px);
-  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);background:var(--ds-bg);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-preview {
-  background:var(--ds-panel);border-color:var(--ds-line);color:var(--ds-muted);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field .form-field {
-  margin:0;gap:calc(10px);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field .field-help {
-  margin:calc(12px) 0 0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-selection {
-  margin-top:calc(8px);color:var(--ds-body);font-size:var(--pc-font-meta,13px);line-height:1.7;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-selection:empty {
-  display:none;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form [data-reset-image]:not([hidden]) {
-  display:inline-flex;align-items:center;min-height:44px;margin:calc(4px) 0 0;padding:0;
-  color:var(--ds-selected);font-size:var(--pc-font-control,14px);line-height:1.5;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .music-classification {
-  margin:0 0 calc(20px);padding:calc(20px);background:var(--ds-bg);
-  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading {
-  gap:calc(12px);align-items:flex-start;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading > div {
-  min-width:0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading strong {
-  color:var(--ds-text);font-size:var(--pc-font-card,16px);font-weight:600;line-height:1.5;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading .field-help {
-  margin:calc(8px) 0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-badge {
-  flex:none;padding:calc(4px) calc(8px);border-radius:var(--ds-radius-sm);
-  background:var(--ds-soft);color:var(--ds-body);font-size:var(--pc-font-caption,13px);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .music-classification fieldset {
-  padding:calc(16px) 0 0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .music-classification legend {
-  margin-bottom:calc(12px);color:var(--ds-text);font-size:var(--pc-font-control,14px);line-height:1.6;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .music-classification legend small {
-  margin-top:calc(4px);color:var(--ds-muted);font-size:var(--pc-font-caption,13px);line-height:1.6;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options {
-  gap:calc(8px);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options span {
-  display:flex;align-items:center;min-height:44px;padding:calc(8px) calc(12px);
-  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
-  background:var(--ds-panel);color:var(--ds-body);font-size:var(--pc-font-control,14px);line-height:1.5;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options input:checked + span {
-  background:var(--ds-soft);border-color:transparent;color:var(--ds-selected);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyrics-editor {
-  margin:calc(28px) 0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #auto-lyrics-source {
-  min-height:200px;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #lyrics-source {
-  min-height:160px;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form :is(.auto-lyrics-note,.alignment-status,.lyrics-cleanup-note,.lyric-preview-player) {
-  margin:calc(20px) 0;padding:calc(16px);background:var(--ds-bg);
-  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);
-  color:var(--ds-body);font-size:var(--pc-font-meta,13px);line-height:1.8;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-preview-player .inline-actions {
-  align-items:center;gap:calc(8px) calc(12px);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-preview-player output {
-  color:var(--ds-body);font-size:var(--pc-font-meta,14px);line-height:1.5;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #lyrics-preview-seek {
-  min-height:44px;margin-top:calc(8px);accent-color:var(--ds-progress);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-preview-player .field-help {
-  margin:calc(8px) 0 0;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyrics-rows {
-  margin-top:calc(16px);scrollbar-color:var(--ds-muted) var(--ds-bg);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row {
-  grid-template-columns:44px 112px minmax(0,1fr) 92px;
-  gap:calc(8px);padding:calc(10px) 0;border-bottom-color:var(--ds-line);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row input {
-  min-height:44px;padding:calc(10px) calc(8px);border:1px solid var(--ds-line);
-  border-radius:var(--ds-radius-sm);background:var(--ds-bg);color:var(--ds-text);
-  font-size:var(--pc-font-control,14px);line-height:1.5;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row .lyric-number {
-  grid-column:1;grid-row:1;min-width:44px;min-height:44px;padding:0;
-  border:0;border-radius:var(--ds-radius-sm);background:transparent;color:var(--ds-muted);
-  font-size:var(--pc-font-control,14px);text-align:center;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row .lyric-time-input {
-  grid-column:2;grid-row:1;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row .lyric-text-input {
-  grid-column:3;grid-row:1;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row [data-stamp-row] {
-  grid-column:4;grid-row:1;justify-self:stretch;justify-content:center;
-  min-width:0;min-height:44px;padding:calc(8px) calc(4px);margin:0;
-  color:var(--ds-selected);font-size:var(--pc-font-control,14px);line-height:1.5;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row.has-time .lyric-time-input {
-  border-color:var(--ds-line);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row.is-preview-current {
-  background:var(--ds-soft);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row.is-preview-current .lyric-number {
-  color:var(--ds-selected);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .participation {
-  gap:calc(8px) calc(16px);margin-top:calc(20px);
-  color:var(--ds-body);font-size:var(--pc-font-control,14px);line-height:1.6;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .participation label {
-  gap:calc(8px);min-height:44px;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form :is(.participation,.checkbox-line) input[type="checkbox"] {
-  flex:none;width:18px;height:18px;margin:0;accent-color:var(--ds-selected);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check {
-  margin:calc(24px) 0;padding:calc(20px);border:1px solid var(--ds-line);
-  border-radius:var(--ds-radius-input);background:var(--ds-bg);color:var(--ds-body);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check .field-help {
-  margin:0 0 calc(12px);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check .checkbox-line {
-  min-height:44px;align-items:flex-start;gap:calc(10px);margin:0;
-  font-size:var(--pc-font-control,14px);line-height:1.8;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check .checkbox-line input {
-  margin-top:calc(4px);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check .checkbox-line > span {
-  min-width:0;overflow-wrap:anywhere;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .rights-check > a {
-  display:inline-flex;align-items:center;min-height:44px;max-width:100%;margin-top:calc(8px);
-  color:var(--ds-selected);font-size:var(--pc-font-control,14px);line-height:1.6;text-underline-offset:4px;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #upload-submit {
-  min-width:160px;min-height:44px;padding:calc(12px) calc(20px);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form button:disabled {
-  background:var(--ds-bg);border-color:var(--ds-line);color:var(--ds-muted);opacity:1;filter:none;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress {
-  margin-top:calc(20px);padding:calc(20px);background:var(--ds-bg);
-  border:1px solid var(--ds-line);border-radius:var(--ds-radius-input);color:var(--ds-body);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress progress {
-  accent-color:var(--ds-progress);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress progress::-webkit-progress-bar {
-  background:var(--ds-line);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress progress::-webkit-progress-value {
-  background:var(--ds-progress);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress progress::-moz-progress-bar {
-  background:var(--ds-progress);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress p {
-  margin:calc(12px) 0 calc(8px);font-size:var(--pc-font-body,14px);font-weight:500;line-height:1.7;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress small {
-  color:var(--ds-muted);font-size:var(--pc-font-meta,13px);line-height:1.7;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .upload-progress[data-state="error"] {
-  border-color:var(--ds-error);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) #upload-form > .form-error:not(:empty) {
-  margin:calc(16px) 0 0;padding:calc(12px) calc(16px);border-left:2px solid var(--ds-error);
-  border-radius:var(--ds-radius-sm);background:var(--ds-bg);color:var(--ds-error);line-height:1.7;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide {
-  margin:0;padding:calc(24px);color:var(--ds-body);
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide .eyebrow {
-  color:var(--ds-muted);font-size:var(--pc-font-caption,13px);font-weight:500;letter-spacing:.08em;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide h2 {
-  margin:calc(12px) 0 calc(16px);font-size:var(--pc-font-section,20px);font-weight:600;line-height:1.6;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide p {
-  margin:calc(12px) 0 0;color:var(--ds-muted);font-size:var(--pc-font-body,14px);line-height:1.8;
-}
-#main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide hr {
-  margin:calc(20px) 0;border-top-color:var(--ds-line);
-}
-@media(max-width:1100px) {
-  #main:is([data-route="upload"],[data-route^="upload?"]) .upload-layout {
-    grid-template-columns:minmax(0,1fr);
-  }
-}
-@media(max-width:800px) {
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form :is(input[type="file"],.lyric-edit-row input) {
-    font-size:16px!important;
-  }
-}
-@media(max-width:600px) {
-  #main:is([data-route="upload"],[data-route^="upload?"]) .upload-quota {
-    align-items:flex-start;gap:calc(10px);margin-bottom:calc(20px);padding:calc(16px);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) .upload-layout {
-    gap:calc(20px);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form {
-    padding:calc(20px) calc(16px);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .form-section-heading {
-    gap:calc(10px);margin-top:calc(28px);padding-top:calc(20px);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .file-zone {
-    padding:calc(20px) calc(16px);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field {
-    flex-direction:column;align-items:stretch;gap:calc(16px);padding:calc(16px);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .image-field .image-preview {
-    align-self:flex-start;
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form :is(.music-classification,.rights-check,.upload-progress,.lyric-preview-player) {
-    padding:calc(16px);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-heading {
-    flex-wrap:nowrap;
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .classification-options span {
-    padding:calc(8px) calc(10px);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row {
-    grid-template-columns:44px 112px minmax(0,1fr);
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row .lyric-text-input {
-    grid-column:1 / -1;grid-row:2;
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form .lyric-edit-row [data-stamp-row] {
-    grid-column:3;grid-row:1;
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) #upload-form #upload-submit {
-    width:100%;min-width:0;
-  }
-  #main:is([data-route="upload"],[data-route^="upload?"]) .upload-guide {
-    padding:calc(20px);
-  }
+/* Only the original upload route uses these layout and control styles. */
+#main:where([data-route="upload"],[data-route^="upload?"]) {
+  --upload-line: var(--ds-line);
+  --upload-accent: var(--ds-accent-mint, #8eddd2);
+  --upload-pink: var(--ds-accent-pink, #efb3d2);
+  --upload-purple: var(--ds-accent-purple, var(--ds-lavender));
+}
+#main .upload-page-heading {
+  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px 20px;
+  margin-bottom:16px;
+}
+.upload-page-heading h1 {margin:0;font-size:clamp(1.4rem,2vw,1.8rem)}
+.upload-heading-tools {display:flex;align-items:center;gap:14px;margin-inline-start:auto;color:var(--ds-muted);font-size:.82rem}
+.upload-required-mark {margin-inline-start:.24em;color:var(--upload-pink);font-weight:700}
+.upload-heading-tools .upload-required-mark {margin-inline-start:0}
+.upload-qa-button {display:inline-flex;gap:7px;min-height:40px;padding-inline:10px}
+.upload-qa-button span {display:grid;place-items:center;width:16px;height:16px;border:1px solid currentColor;border-radius:50%;font-size:11px}
+
+#main:where([data-route="upload"],[data-route^="upload?"]) .upload-quota {
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 20px;margin:0 0 16px;padding:9px 0;
+  border:0;border-radius:0;background:none;color:var(--ds-text);box-shadow:none;
+}
+#main:where([data-route="upload"],[data-route^="upload?"]) .upload-quota p {margin:0;color:var(--ds-muted);font-size:.83rem}
+#main:where([data-route="upload"],[data-route^="upload?"]) .upload-layout {display:block}
+#main #upload-form {
+  margin:0;padding:24px clamp(16px,3vw,36px);
+  border:1px solid var(--upload-line);border-radius:var(--ds-radius-card);
+  color:var(--ds-body);box-shadow:none;
+}
+#upload-form .upload-section {min-width:0;padding:22px 0;border-top:1px solid var(--upload-line)}
+#upload-form .upload-section:first-child {padding-top:0;border-top:0}
+#upload-form .upload-section:last-of-type {padding-bottom:0}
+#upload-form .upload-section h2 {margin:0 0 16px;color:var(--ds-text);font-size:1.12rem;font-weight:650;line-height:1.4}
+#upload-form .upload-section h3 {margin:0 0 10px;color:var(--ds-text);font-size:.95rem;font-weight:600}
+#upload-form .form-field {min-width:0;margin:0 0 12px;font-weight:500}
+#upload-form .form-field :is(input,select,textarea),#upload-form #auto-lyrics-source {font-weight:400;max-width:100%;min-width:0}
+#main #upload-form select {color:var(--ds-text);background-color:var(--ds-bg)}
+#upload-form :is(input,textarea,select,button) {scroll-margin-block:95px}
+#upload-form :is(input,select,textarea)[aria-invalid="true"] {border-color:var(--ds-error)!important;outline-color:var(--ds-error)}
+#upload-form input[type=file][aria-invalid="true"] {outline:1px solid var(--ds-error);outline-offset:2px}
+#upload-form textarea {min-height:90px;resize:vertical}
+#upload-form .field-help {
+  margin:5px 0 8px;color:var(--ds-muted);font-size:var(--pc-font-meta,13px);font-weight:400;line-height:1.65;overflow-wrap:anywhere;
+}
+#upload-form .form-field > .field-help {margin:0}
+#upload-form .upload-section:first-child .field-help {margin-bottom:0}
+#upload-form input[type=file] {
+  width:100%;min-width:0;min-height:44px;padding:0;border:0;border-radius:0;background:transparent;color:var(--ds-body);font:inherit;
+}
+#upload-form input[type=file]::file-selector-button {
+  min-height:42px;margin:0 8px 0 0;padding:6px 10px;border:1px solid var(--upload-line);
+  border-radius:var(--ds-radius-sm);background:var(--ds-soft);color:var(--ds-text);font:inherit;cursor:pointer;
+}
+#upload-form .upload-files,#upload-form .upload-profile-grid {
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start;gap:12px 26px;
+}
+#upload-form .upload-files {align-items:stretch;gap:12px}
+#upload-form .file-zone {
+  display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:5px;
+  margin:0;padding:12px 14px;text-align:start;
+  border:1px dashed var(--upload-line);border-radius:var(--ds-radius-input);background:var(--ds-bg);
+}
+#upload-form .file-zone strong {color:var(--ds-text);font-weight:550}
+#upload-form .file-zone > span {color:var(--ds-muted);font-size:var(--pc-font-meta,13px)}
+#upload-form .file-zone input[type=file] {margin:2px 0 0}
+#upload-form .image-field {
+  display:flex;align-items:center;gap:11px;margin:0 0 10px;padding:0;border:0;border-radius:0;background:none;
+}
+#upload-form .upload-files > .image-field {
+  margin:0;padding:12px 14px;border:1px dashed var(--upload-line);border-radius:var(--ds-radius-input);background:var(--ds-bg);
+}
+#upload-form .image-preview {width:64px;height:64px;flex:0 0 64px;background:var(--ds-panel);border-color:var(--upload-line)}
+#upload-form .image-field-controls {min-width:0;flex:1}
+#upload-form .image-field .form-field {gap:5px;margin:0}
+#main #upload-form .image-field input[type=file] {padding:0;border:0;background:transparent}
+#upload-form .image-selection {display:block;margin-top:3px;color:var(--ds-body);font-size:.81rem;overflow-wrap:anywhere}
+#upload-form .image-selection:empty {display:none}
+#upload-form [data-reset-image]:not([hidden]) {min-height:44px;margin:0;padding:0;color:var(--ds-selected)}
+
+#upload-form .upload-genres {padding:0;margin:0 0 16px;border:none;background:none}
+#upload-form .upload-genre-heading {display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:7px}
+#upload-form .upload-genre-heading label {color:var(--ds-text);font-weight:600}
+#upload-form .upload-genre-auto {
+  display:inline-flex;align-items:center;gap:5px;min-height:44px;padding-inline:10px;border-color:transparent;
+  background:color-mix(in srgb,var(--upload-purple) 15%,var(--ds-bg));color:var(--ds-text);
+}
+#upload-form .upload-genre-auto svg,#upload-form .upload-genre-search svg {width:16px;height:16px;flex:none;color:var(--upload-purple)}
+#upload-form .upload-genre-values,#upload-form .upload-genre-chips {display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+#upload-form .upload-genre-values {
+  min-height:49px;margin:0 0 8px;padding:3px 9px;border:1px solid var(--upload-line);
+  border-radius:var(--ds-radius-input);background:var(--ds-bg);overflow-wrap:anywhere;
+}
+#upload-form .upload-genre-placeholder {color:var(--ds-muted)}
+#upload-form .upload-genre-chip {
+  display:inline-flex;align-items:center;min-width:0;max-width:100%;padding-inline:9px 0;border-radius:var(--ds-radius-sm);
+  background:color-mix(in srgb,var(--upload-accent) 15%,var(--ds-bg));color:var(--upload-accent);
+}
+#upload-form .upload-genre-chip button {
+  flex:none;min-width:44px;min-height:40px;padding:0;background:none;border:0;color:inherit;font-size:1.05rem;cursor:pointer;
+}
+#upload-form .upload-genre-panel {padding:11px;border:1px solid var(--upload-line);border-radius:var(--ds-radius-input);background:var(--ds-bg)}
+#upload-form .upload-genre-search {display:flex;align-items:center;gap:7px}
+#upload-form .upload-genre-search input {flex:1;min-width:0;min-height:44px;margin:0}
+#upload-form .upload-genre-search button {flex:none;min-height:44px;padding-inline:10px}
+#upload-form .upload-genre-recommend {display:grid;gap:5px;margin-top:9px}
+#upload-form .upload-genre-recommend strong {color:var(--ds-muted);font-size:.83rem;font-weight:550}
+#upload-form .upload-genre-chips button,#upload-form .upload-genre-results button {
+  min-height:42px;padding:4px 8px;border:1px solid var(--upload-line);border-radius:var(--ds-radius-sm);
+  background:var(--ds-panel);color:var(--ds-body);font:inherit;font-size:.82rem;cursor:pointer;
+}
+#upload-form .upload-genre-chips button[aria-pressed=true] {color:var(--ds-text);background:var(--ds-soft)}
+#upload-form .upload-genre-chips button[aria-pressed=true] span {color:var(--upload-accent)}
+#upload-form .upload-genre-results:not([hidden]) {
+  display:flex;flex-wrap:wrap;gap:5px;max-height:176px;overflow:auto;padding:8px 0 0;margin:0;list-style:none;
+}
+#upload-form #upload-genre-status:empty {display:none}
+#upload-form .upload-genres fieldset {min-width:0;margin-top:12px;padding:2px 0 0;border:0}
+#upload-form .upload-genres legend {margin-bottom:4px;color:var(--ds-text);font-weight:550}
+#upload-form .upload-genres legend small {display:inline;margin-inline-start:5px;color:var(--ds-muted)}
+#upload-form .classification-options {flex-wrap:wrap;gap:5px}
+#upload-form .classification-options label > span {
+  display:flex;align-items:center;min-height:42px;padding:4px 8px;
+  border:1px solid var(--upload-line);border-radius:var(--ds-radius-sm);background:var(--ds-bg);color:var(--ds-body);
+}
+#upload-form .classification-options input:checked + span {background:var(--ds-soft);color:var(--upload-accent)}
+#upload-form .classification-options input:focus-visible + span {outline:2px solid var(--upload-accent);outline-offset:1px}
+#upload-form .song-tag-chip {max-width:100%;overflow-wrap:anywhere}
+#upload-form .participation label {min-height:44px}
+
+#upload-form .lyrics-editor {margin:0}
+#upload-form #auto-lyrics-source {display:block;width:100%;min-height:180px}
+#upload-form #lyrics-source {min-height:140px}
+#upload-form .auto-lyrics-note {margin:7px 0 0;padding:0;border:0;background:none;color:var(--ds-muted);font-size:.83rem}
+#upload-form .alignment-status:empty,#upload-form .form-error:empty {display:none}
+#upload-form .lyric-preview-player {margin-top:12px;padding:12px;border-color:var(--upload-line);background:var(--ds-bg)}
+#upload-form .lyric-preview-player .inline-actions {flex-wrap:wrap;gap:6px}
+#upload-form .lyric-edit-row {min-width:0}
+#upload-form .rights-check {margin:0 0 12px;padding:0;border:0;background:none}
+#upload-form .rights-check .checkbox-line {padding:7px 0;min-height:44px;align-items:flex-start;color:var(--ds-text)}
+#upload-form .rights-check input {flex:none;accent-color:var(--upload-accent)}
+#upload-form #upload-submit {
+  width:auto;min-width:130px;min-height:44px;padding:8px 18px;border:0;
+  background:var(--upload-accent);color:var(--ds-bg);
+}
+#upload-form #upload-submit:disabled {opacity:.7}
+#upload-form .upload-progress {margin-top:12px;padding:12px;border-color:var(--upload-line);background:var(--ds-bg)}
+#upload-form .upload-progress progress {max-width:100%;accent-color:var(--upload-accent)}
+#upload-form .upload-progress progress::-webkit-progress-value {background:var(--upload-accent)}
+#upload-form .upload-progress progress::-moz-progress-bar {background:var(--upload-accent)}
+#upload-form .upload-progress p {margin:6px 0;font-size:.92rem}
+#upload-form .upload-progress small {font-size:.82rem}
+#upload-form > .form-error:not(:empty) {margin:10px 0 0;color:var(--ds-error)}
+.upload-qa dt {margin-top:14px;color:var(--ds-text);font-weight:650}
+.upload-qa dd {margin:4px 0 0;color:var(--ds-body);line-height:1.65}
+.upload-qa a {color:var(--ds-selected)}
+
+@media(max-width:760px) {
+  #main #upload-form {padding:16px 13px}
+  #upload-form .upload-section {padding-block:17px}
+  #upload-form .upload-section h2 {margin-bottom:12px}
+  #upload-form .upload-files,#upload-form .upload-profile-grid {grid-template-columns:minmax(0,1fr);gap:10px}
+  #upload-form .upload-files > .image-field,#upload-form .file-zone {padding:9px}
+  #upload-form .image-preview {width:48px;height:48px;flex-basis:48px}
+  #upload-form :is(input:not([type=checkbox]),textarea,select) {font-size:16px}
+  #main #upload-form select {font-size:14px}
+  #upload-form .lyric-edit-row {grid-template-columns:36px minmax(0,1fr) minmax(0,1fr)}
+  #upload-form .lyric-edit-row .lyric-text-input {grid-column:1 / -1;grid-row:2}
+  #upload-form .lyric-edit-row [data-stamp-row] {grid-column:3;grid-row:1}
+  #upload-form #upload-submit {width:100%}
+}
+@media(max-width:380px) {
+  #upload-form .upload-files > .image-field {align-items:flex-start}
+  #upload-form .upload-genre-search input::placeholder {font-size:12px}
 }

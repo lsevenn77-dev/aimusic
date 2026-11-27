@@ -193,6 +193,7 @@ async function renderRoute(showCachedRoute){
  if(base!=='home'&&typeof dubbingRefreshList==='function'&&await dubbingRefreshList(raw,ticket,readApi))return;
  if(ticket!==renderId)return;
  clearInterval(socialTimer);socialTimer=null;socialCleanup?.();socialCleanup=null;
+ if(typeof rememberUploadForm==='function')rememberUploadForm();
  cleanupLyricsEditor();cleanupSing();
  if(typeof cleanupHome==='function')cleanupHome();
  // Voice leave disposes local media/subscriptions synchronously. Its keepalive

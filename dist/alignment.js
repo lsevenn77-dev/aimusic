@@ -3,7 +3,20 @@ function cleanAutoLyricsInput(){
  const removed=cleanLyricsTextInput(input,true);
  if(removed){const note=$('#lyrics-cleanup-note');if(note){note.hidden=false;note.textContent=`대괄호 안의 설명 ${removed}개를 자동으로 지웠습니다. [male], [female], [기타] 같은 표시도 모두 제외합니다.`;}}
 }
-function alignmentEditorHTML(t={},visible=false){const job=t.alignment;return `<div id="auto-lyrics-editor" data-track="${t.id||''}" data-job="${esc(JSON.stringify(job||null))}" ${visible?'':'hidden'}><p class="field-help">음원과 가사만 준비하세요. 각 줄의 시작 시간을 자동으로 맞춘 뒤 미리 듣고 수정할 수 있습니다. 싱크가 완성되면 자동으로 적용됩니다. 이후에 미리 듣고 수정할 수 있습니다.</p><label class="form-field">가사 언어<select id="auto-lyrics-language" name="lyrics_language">${Object.entries(AifectAlignment.LYRIC_LANGUAGES).map(([code,name])=>`<option value="${code}" ${(job?.language||'ko')===code?'selected':''}>${name}</option>`).join('')}</select></label><label class="form-field">가사 입력<textarea id="auto-lyrics-source" aria-describedby="lyrics-cleanup-note alignment-error" name="lyrics_source" maxlength="6000" placeholder="실제로 부르는 가사를 한 줄씩 입력해 주세요.\n반복되는 후렴도 노래 순서대로 모두 넣어 주세요.">${esc(job?.source_text||'')}</textarea><small class="field-help">최대 6,000자 · 200줄. [ ] 안의 구간 설명은 모두 자동으로 제외합니다. 반복되는 가사는 그대로 남겨 주세요.</small></label><p id="lyrics-cleanup-note" class="lyrics-cleanup-note" role="status" hidden></p><label class="form-field">TXT 파일로 불러오기<input type="file" id="auto-lyrics-file" accept=".txt,text/plain"></label>${t.id?'<button type="button" class="small-button" id="align-lyrics">자동 싱크 만들기</button>':'<p class="auto-lyrics-note">음원 업로드와 변환이 끝나면 자동으로 시작합니다. 완성되면 재생 가사에 자동으로 적용됩니다. 스튜디오에서 수정할 수 있습니다.</p>'}<div id="alignment-status" class="alignment-status" role="status"></div><p id="alignment-error" class="form-error" role="alert"></p></div>`;}
+function alignmentEditorHTML(t={},visible=false){
+ const job=t.alignment,mark=t.id?'':uploadRequiredMark;
+ return `<div id="auto-lyrics-editor" data-track="${t.id||''}" data-job="${esc(JSON.stringify(job||null))}" ${visible?'':'hidden'}>
+  <label class="form-field upload-lyrics-language">가사 언어<select id="auto-lyrics-language" name="lyrics_language">${Object.entries(AifectAlignment.LYRIC_LANGUAGES).map(([code,name])=>`<option value="${code}" ${(job?.language||'ko')===code?'selected':''}>${name}</option>`).join('')}</select></label>
+  <div class="auto-lyrics-heading"><label for="auto-lyrics-source">가사 입력${mark}</label><button type="button" class="small-button" id="auto-lyrics-pick" title="UTF-8 TXT · 최대 64KB">TXT 파일 불러오기</button></div>
+  <input type="file" id="auto-lyrics-file" accept=".txt,text/plain" hidden>
+  <span id="auto-lyrics-filename" class="field-help" role="status" hidden></span>
+  <textarea id="auto-lyrics-source" aria-describedby="auto-lyrics-limit lyrics-cleanup-note alignment-error" name="lyrics_source" maxlength="6000" placeholder="실제 부르는 가사를 한 줄씩 입력하세요.\n반복 가사도 노래 순서대로 모두 입력하세요.">${esc(job?.source_text||'')}</textarea>
+  <small id="auto-lyrics-limit" class="field-help">최대 6,000자 · 200줄 / [ ] 안의 구간 설명은 자동 제외됩니다.</small>
+  <p id="lyrics-cleanup-note" class="lyrics-cleanup-note" role="status" hidden></p>
+  ${t.id?'<button type="button" class="small-button" id="align-lyrics">자동 싱크 만들기</button>':'<p class="auto-lyrics-note">음원 변환 완료 후 가사 싱크가 자동 생성·적용됩니다.<br>스튜디오에서 가사를 수정할 수 있습니다.</p>'}
+  <div id="alignment-status" class="alignment-status" role="status"></div><p id="alignment-error" class="form-error" role="alert"></p>
+ </div>`;
+}
 function bindAlignmentEditor(){
  const root=$('#auto-lyrics-editor');if(!root)return;const state=lyricEditor,source=$('#auto-lyrics-source'),language=$('#auto-lyrics-language'),error=$('#alignment-error');
  let job=JSON.parse(root.dataset.job||'null');root.removeAttribute('data-job');
@@ -21,7 +34,18 @@ function bindAlignmentEditor(){
  source.addEventListener('compositionend',()=>{if(valid()){cleanAutoLyricsInput();paint();}});
  source.addEventListener('paste',()=>setTimeout(()=>{if(valid()){cleanAutoLyricsInput();paint();}},0));
  source.addEventListener('blur',()=>{if(valid()){cleanAutoLyricsInput();paint();}});
- $('#auto-lyrics-file').onchange=async e=>{try{const file=e.target.files[0];if(!file)return;if(file.size>65536)throw Error('TXT 파일은 64KB 이하로 선택해 주세요.');const text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());const normalized=AifectAlignment.plainLyrics(text);if(valid()){source.value=text;cleanAutoLyricsInput();source.value=normalized;error.textContent='';paint();}}catch(e){if(valid())error.textContent=e.message;}};
+ const importFile=$('#auto-lyrics-file'),pick=$('#auto-lyrics-pick'),filename=$('#auto-lyrics-filename');
+ if(pick)pick.onclick=()=>importFile.click();
+ importFile.onchange=async e=>{
+  const file=e.target.files[0];if(!file)return;
+  try{
+   if(file.size>65536)throw Error('TXT 파일은 64KB 이하로 선택해 주세요.');
+   let text;try{text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer());}catch{throw Error('UTF-8로 저장된 TXT 파일을 선택해 주세요.');}
+   const normalized=AifectAlignment.plainLyrics(text);
+   if(valid()){source.value=text;cleanAutoLyricsInput();source.value=normalized;source.removeAttribute('aria-invalid');error.textContent='';if(filename){filename.textContent=file.name;filename.hidden=false;}paint();}
+  }catch(err){if(valid()){error.textContent=err.message;if(filename)filename.hidden=true;}}
+  finally{importFile.value='';}
+ };
  if($('#align-lyrics'))$('#align-lyrics').onclick=async e=>{const button=e.currentTarget;button.disabled=true;error.textContent='';try{cleanAutoLyricsInput();const text=AifectAlignment.plainLyrics(source.value);const d=await api('/api/studio/tracks/'+root.dataset.track+'/lyrics/align','POST',{lyrics_source:text,lyrics_language:language.value});if(!valid())return;job=d.alignment;state.loadedJobId=null;paint();schedule();}catch(e){if(valid()){error.textContent=e.message;button.disabled=false;}}};
  cleanAutoLyricsInput();paint();schedule();
 }

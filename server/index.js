@@ -214,7 +214,8 @@ async function fetchRequest(req,env,ctx){
    /^\/api\/admin\/products(?:\/[\w-]+)?$/.test(path)||
    /^\/api\/admin\/products\/[\w-]+\/versions(?:\/[\w-]+\/review)?$/.test(path)
   );
-  if(!['GET','HEAD'].includes(req.method)&&!binary&&!noticeUpload&&!profileMultipart&&!officialAudioUpload&&!productMultipart&&req.body){
+  const uploadGenreAudio=path==='/api/studio/upload-genre-analysis'&&req.method==='POST';
+  if(!['GET','HEAD'].includes(req.method)&&!binary&&!uploadGenreAudio&&!noticeUpload&&!profileMultipart&&!officialAudioUpload&&!productMultipart&&req.body){
    if(Number(req.headers.get('content-length')||0)>maxJson)fail(413,AifectMessages.requestTooLarge);
    const reader=req.body.getReader(),chunks=[];let size=0;
    try{while(true){const {value,done}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxJson){await reader.cancel().catch(()=>{});fail(413,AifectMessages.requestTooLarge);}chunks.push(value);}}finally{reader.releaseLock();}

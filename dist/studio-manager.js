@@ -3,7 +3,12 @@ const studioLegacyBindForms=bindStudioForms;
 const studioManage={type:'original',status:'all',search:'',searchOpen:false,selected:new Set(),loading:false};
 const studioKinds={original:'제작곡',cover:'커버곡'};
 const studioProcessing=new Set(['uploading','queued','processing']);
-const studioStatusText={published:'공개',hidden:'비공개',uploading:'업로드 중',queued:'변환 대기',processing:'변환 중',failed:'변환 실패',removed:'운영자 비공개'};
+const studioStatusText={published:'공개',hidden:'비공개',uploading:'업로드 중',queued:'음원 변환 대기',processing:'음원 변환 중',failed:'음원 변환 실패',removed:'운영자 비공개'};
+function studioLyricsLabel(track){
+ if(track.kind!=='original')return '';
+ const alignment={queued:'가사 싱크 대기',processing:'가사 싱크 작업 중',ready:'자동 가사 확인 필요',failed:'가사 싱크 재시도 필요'}[track.alignment_state];
+ return alignment||{no_lyrics:'가사 없음',later:'가사 미등록',none:'가사 미등록',synced:'가사 등록'}[track.lyrics_mode]||'';
+}
 function studioResetFilters(type='original'){
  Object.assign(studioManage,{type,status:'all',search:'',searchOpen:false});
  studioManage.selected.clear();
@@ -28,11 +33,12 @@ function studioRow(t){
  const selected=studioManage.selected.has(t.id);
  const kind=t.kind==='cover'?'커버곡':'제작곡';
  const state=Object.hasOwn(studioStatusText,t.status)?t.status:'unknown';
+ const lyrics=studioLyricsLabel(t);
  const actions=`<a class="studio-action" href="#manage/${esc(t.id)}">수정</a>${t.status==='published'?`<a class="studio-action" href="#song/${esc(t.id)}">보기</a><button type="button" class="studio-action" data-studio-hide="${esc(t.id)}">비공개</button>`:t.status==='hidden'||t.status==='failed'?`<button type="button" class="studio-action" data-studio-retry="${esc(t.id)}">${t.status==='hidden'?'다시 공개':'재시도'}</button>`:''}<button type="button" class="studio-action is-danger" data-studio-delete="${esc(t.id)}" data-track-title="${esc(t.title)}" data-track-kind="${esc(t.kind)}">삭제</button>`;
  return `<article class="studio-work-row ${selected?'is-selected':''}">
   <label class="studio-work-select"><input type="checkbox" data-studio-select="${esc(t.id)}" aria-label="${esc(t.title)} 선택" ${selected?'checked':''}></label>
   <div class="studio-work-info">${cover(t,'mini-cover')}<div class="studio-work-details"><strong title="${esc(t.title)}">${esc(t.title)}</strong>
-   <div class="studio-work-meta"><span>${kind}</span><span class="studio-status is-${state}">${studioStatusText[state]||'상태 확인 필요'}</span></div>
+   <div class="studio-work-meta"><span>${kind}</span><span class="studio-status is-${state}">${studioStatusText[state]||'상태 확인 필요'}</span>${lyrics?`<span>${lyrics}</span>`:''}</div>
   </div></div>
   <div class="studio-work-actions">${actions}</div>
  </article>`;

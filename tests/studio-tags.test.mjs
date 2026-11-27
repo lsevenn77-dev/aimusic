@@ -120,6 +120,17 @@ test('tag limit failure leaves the existing input intact and does not block manu
  assert.equal(e.aiTool.value,'AI 사용 안 함');
 });
 
+test('normalizing direct input on blur keeps a pending suggestion click on the original button',async()=>{
+ const e=harness({title:'새벽의 음악'});
+ e.timers.tick(1200);e.requests[0].resolve({tags:['새벽']});await flush();
+ e.edit(e.input,'  수동 태그  ');
+ const button=e.suggestions.querySelector('[data-song-tag-add]');
+ e.emit(e.input,'change');
+ assert.equal(e.input.value,'수동 태그');
+ assert.equal(e.suggestions.querySelector('[data-song-tag-add]'),button);
+ e.emit(button,'click');assert.equal(e.input.value,'수동 태그, 새벽');
+});
+
 test('out-of-order and aborted responses never replace suggestions for the current title',async()=>{
  const e=harness({title:'이별'});e.timers.tick(1200);const first=e.requests[0];
  e.edit(e.titleInput,'새로운 시작');assert.equal(first.signal.aborted,true);e.timers.tick(1200);
