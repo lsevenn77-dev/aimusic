@@ -5,6 +5,7 @@ import {giftBrowser} from './gift-popup-fixture.mjs';
 import {nicknameContext} from './nickname-context.mjs';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
+import {GIFT_CATALOG,SILVER_GIFT_CATALOG} from '../shared/gifts.js';
 
 async function setup(t) {
  const f=await fixture(t);
@@ -96,10 +97,17 @@ test('work and profile entry retain the actual recipient, artwork and source att
 });
 test('inventory read failures leave purchases usable and guest views never request private inventory',async()=>{
  const profile={profile:{id:'friend',user_id:'other',name:'친구'}};
- const b=giftBrowser(async p=>{if(p.includes('gift-inventory'))throw Error('offline');return p==='/api/gold/balance'?{balance:500,silver_balance:5}:profile;});
+ const catalog={gifts:GIFT_CATALOG,silver_gifts:SILVER_GIFT_CATALOG};
+ const b=giftBrowser(async p=>{
+  if(p.includes('gift-inventory'))throw Error('offline');
+  if(p==='/api/gifts/catalog')return catalog;
+  return p==='/api/gold/balance'?{balance:500,silver_balance:5}:profile;
+ });
  await b.open();assert.match(b.html,/data-gift-inventory-retry/);assert.equal(b.nodes['#gift-send'].disabled,false);
- const calls=[];const guest=giftBrowser(async p=>{calls.push(p);return profile;},null);await guest.open();
+ const calls=[];const guest=giftBrowser(async p=>{calls.push(p);return p==='/api/gifts/catalog'?catalog:profile;},null);await guest.open();
  assert.ok(!calls.some(p=>p.includes('gift-inventory')));
+ assert.ok(calls.includes('/api/gifts/catalog'));
+ assert.match(guest.html,/data-gift-type="heart"/);
 });
 test('profile more button opens its preview and only other profiles expose the gift entry',()=>{
  const handlers={};const c=nicknameContext({me:{id:'self'},esc:String,number:String,icon:()=>'',avatarImage:()=>'',document:{addEventListener:(type,fn)=>handlers[type]=fn},window:{addEventListener(){}}});

@@ -12,12 +12,10 @@ import {allocateLots} from '../shared/gifts.js';
 import {PERIOD_LABELS,PERMANENT_PERIOD,decorationExpiry} from '../shared/decorations.js';
 import {catalog,sold,productById,decorationRuntime,assertProductAction,productWriteGuard} from './product-catalog.js';
 import {bumpGiftArrivalVersion} from './notice-visibility.js';
+import {decorationTimeSQL,stockDeadlineSQL} from './product-rights.js';
 export const decorationSpendableSQL=`status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded')`;
 export const decorationFundingSQL=a=>`NOT EXISTS(SELECT 1 FROM decoration_orders co JOIN decoration_order_lots cl ON cl.order_id=co.id JOIN gold_purchases ON gold_purchases.id=cl.purchase_id WHERE (co.inventory_id=${a}.id OR co.inventory_id IN (SELECT inventory_id FROM decoration_redemptions WHERE active_inventory_id=${a}.id)) AND NOT (${decorationSpendableSQL}))`;
-const decorationTimeSQL=a=>`(${a}.expires_at>unixepoch() OR (${a}.expires_at=0 AND COALESCE(${a}.period_code,'')='PERMANENT'))`;
 export const activeDecorationSQL=a=>`${a}.source='decoration' AND ${a}.revoked=0 AND ${decorationTimeSQL(a)} AND ${decorationFundingSQL(a)}`;
-const stockDeadlineSQL=a=>`(${a}.redeem_before IS NULL OR ${a}.redeem_before>unixepoch())
- AND (${a}.season_ends_at IS NULL OR ${a}.season_ends_at>unixepoch())`;
 export const stockDecorationSQL=a=>`${a}.source='decoration_stock' AND ${a}.revoked=0 AND ${stockDeadlineSQL(a)} AND ${decorationFundingSQL(a)}`;
 export const permanentHeldSQL=(user,sku)=>`EXISTS(SELECT 1 FROM player_inventory p
  WHERE p.user_id=${user} AND p.item_key=${sku} AND p.period_code='PERMANENT' AND
@@ -88,7 +86,7 @@ async function buyDecoration(env,user,b,gifting=false){
  // Stock grant, immutable receipt and FIFO debits commit in one D1 transaction.
  try{await env.DB.batch([
   query(env,`INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at) VALUES(?,?,${sku.sql},'decoration_stock',?,?)`,inventoryId,recipient,...sku.args,orderId,at),
-  query(env,'INSERT INTO decoration_orders(id,payer_id,recipient_id,request_id,sku,period_code,gold,inventory_id,created) VALUES(?,?,?,?,?,?,?,?,?)',orderId,user.id,recipient,key,quote.sku,quote.period,quote.gold,inventoryId,at),
+  query(env,'INSERT INTO decoration_orders(id,payer_id,recipient_id,request_id,sku,period_code,gold,inventory_id,created,product_name) VALUES(?,?,?,?,?,?,?,?,?,?)',orderId,user.id,recipient,key,quote.sku,quote.period,quote.gold,inventoryId,at,product.name),
   ...spent.flatMap(l=>[query(env,`UPDATE gold_purchases SET used=CASE WHEN ${decorationSpendableSQL} THEN used+? ELSE -1 END WHERE id=? AND user_id=?`,l.gold,l.purchase_id,user.id),query(env,'INSERT INTO decoration_order_lots(order_id,purchase_id,gold,net_mw) VALUES(?,?,?,?)',orderId,l.purchase_id,l.gold,l.net_mw)]),
   ...(gifting?[
    transferReceipts(env,[{id:transferId,stock:inventoryId,key}],user.id,receiver,at),

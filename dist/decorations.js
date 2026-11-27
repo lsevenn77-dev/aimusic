@@ -196,7 +196,7 @@ function shopBannerHTML(banner){
  return '<a class="home-feature-slide shop-banner-link" data-shop-banner="'+esc(banner.id)+'" href="#gifts/'+esc(banner.id)+'" aria-label="'+esc(banner.title+' · '+banner.cta)+'" draggable="false">'+art+'<span class="home-feature-copy shop-banner-copy"><span class="shop-banner-label">'+esc(banner.label)+'</span><span class="shop-banner-title">'+banner.heading.map(line=>'<span>'+esc(line)+'</span>').join('')+'</span><span class="shop-banner-description">'+esc(banner.description)+'</span><span class="shop-banner-cta">'+esc(banner.cta)+' <span aria-hidden="true">&gt;</span></span></span></a>';
 }
 async function finalGiftShopView(category,readApi=api){
- const [wallet,d,c]=await Promise.all([me?readApi('/api/gold/balance').catch(error=>{if(error.name==='AbortError')throw error;return null;}):null,readApi('/api/decorations','GET',undefined,{fresh:true}),readApi('/api/gifts/catalog')]);
+ const [wallet,d,c]=await Promise.all([me?readApi('/api/gold/balance').catch(error=>{if(error.name==='AbortError')throw error;return null;}):null,readApi('/api/decorations','GET',undefined,{fresh:true}),readApi('/api/gifts/catalog','GET',undefined,{fresh:true})]);
  const active=['frames','themes'].includes(category)?category:'gifts';
  const tabs=[['gifts','선물','gift'],['frames','테두리','frame'],['themes','테마','image']];
  // The API catalog defines what is on sale. Retired legacy choices stay excluded.

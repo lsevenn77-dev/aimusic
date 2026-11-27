@@ -25,6 +25,12 @@ export async function fixture(t,extraEnv={},signupAt=Date.parse('2027-01-01T00:0
  }
  sql.exec("INSERT INTO producers(id,user_id,name,created) VALUES('producer','owner','QA',0); INSERT INTO artists(id,producer_id,name,created) VALUES('artist','producer','QA',0)");
  for(const tid of ['one','two','three','hidden'])sql.prepare("INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,ai_tool,rights_accepted,original_ext,original_bytes,created,status) VALUES(?,'owner','artist','producer',?,'Rock','QA',1,'wav',128,0,?)").run(tid,tid,tid==='hidden'?'hidden':'published');
- const call=async(path,method='GET',body,user='owner')=>{const r=await worker.fetch(new Request('https://aifect.test'+path,{method,headers:{Origin:'https://aifect.test',...(user?{Cookie:'aifect_session='+user}:{}),'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}),{...extraEnv,DB},{waitUntil(p){p.catch(()=>{});}});return {status:r.status,body:await r.json()};};
- return {sql,call,DB};
+ const background=new Set();
+ const ctx={waitUntil(p){
+  background.add(p);
+  p.catch(()=>{}).finally(()=>background.delete(p));
+ }};
+ const drain=async()=>{while(background.size)await Promise.allSettled([...background]);};
+ const call=async(path,method='GET',body,user='owner')=>{const r=await worker.fetch(new Request('https://aifect.test'+path,{method,headers:{Origin:'https://aifect.test',...(user?{Cookie:'aifect_session='+user}:{}),'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined}),{...extraEnv,DB},ctx);return {status:r.status,body:await r.json()};};
+ return {sql,call,DB,drain};
 }

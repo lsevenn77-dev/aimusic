@@ -54,7 +54,7 @@ export async function songCovers(env,detail,params,user){
   const guides=await rows(env,`SELECT id,duet_guide FROM tracks WHERE id IN (${covers.map(()=>'?').join(',')})`,...covers.map(t=>t.id));
   for(const t of covers){const s=stats.find(s=>s.parent_id===t.id),guide=readDuetGuide(guides.find(g=>g.id===t.id)?.duet_guide);Object.assign(t,{participants:s?.participants||0,completions:s?.completions||0,can_join:true,remaining_part:otherPart(t.duet_part),part_description:duetPartDescription(guide)});}
  }
- return json({view,pick,covers:covers.map(t=>{if(view!=='all')delete t.rank;return {...t,is_composer_pick:t.id===pick.cover_id};}),counts,total,
+ return json({view,pick,covers:covers.map(t=>{if(view!=='all')delete t.rank;return {...t,is_composer_pick:t.id===pick.cover_id,cover_pick_revision:pick.revision};}),counts,total,
   next_offset:offset+covers.length<total?offset+covers.length:null,
   ranking_basis:view==='all'?'qualified_plays':null,
   accepts_covers:detail.kind==='original'&&detail.karaoke_at>0});

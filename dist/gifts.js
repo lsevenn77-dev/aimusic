@@ -104,7 +104,8 @@ function giftPickerHTML({profile,canChange,choices,roomGift,ownedHTML,wallet,sel
 async function giftDialog(tid, initial = null, personal = false) {
  const serial = ++giftDialogSerial, route = globalThis.location?.hash, roomGift = initial?.roomGift;
  const artistId = personal ? initial?.artistId : null;
- const fromMessage = !artistId && personal && (initial?.fromMessage === true || route?.split('?')[0] === '#dm/'+tid);
+ const dubbingId = personal ? initial?.dubbingId : null;
+ const fromMessage = !artistId && !dubbingId && personal && (initial?.fromMessage === true || route?.split('?')[0] === '#dm/'+tid);
  if (roomGift && (!personal || typeof roomGift.send !== 'function' || !roomGift.recipients?.some(p => p.id === tid))) {
   toast('선물할 토킹룸 참여자를 다시 선택해 주세요.'); return;
  }
@@ -114,7 +115,7 @@ async function giftDialog(tid, initial = null, personal = false) {
   const account = me?.id;
   const current = () => serial === giftDialogSerial && route === globalThis.location?.hash && account === me?.id;
   const [catalog,walletData,track,inventory] = await Promise.all([
-   api('/api/gifts/catalog'),
+   api('/api/gifts/catalog','GET',undefined,{fresh:true}),
    me ? api('/api/gold/balance') : null,
    api(artistId ? '/api/artist-preview/'+encodeURIComponent(artistId) : '/api/'+(personal?'producers/':'tracks/')+encodeURIComponent(tid)+(personal?'?gift_summary=0':'')),
    me && !roomGift ? api('/api/me/gift-inventory','GET',undefined,{fresh:true}).catch(() => ({error:true,items:[]})) : {items:[]}
@@ -140,11 +141,11 @@ async function giftDialog(tid, initial = null, personal = false) {
   let quantity = Number.isInteger(initial?.quantity) && initial.quantity > 0 ? initial.quantity : 1;
   const requests = new Map();
   const context = {...(artistId ? {artist_id:artistId} : {}), ...(fromMessage ? {from_message:true} : {}),
-   ...(!personal ? {track_id:tid} : !artistId && !fromMessage && !/^#(?:inventory|gift-inventory|gifts)\b/.test(route) ? {from_profile:true} : {})};
+   ...(!personal ? {track_id:tid} : dubbingId ? {dubbing_id:dubbingId} : !artistId && !fromMessage && !/^#(?:inventory|gift-inventory|gifts)\b/.test(route) ? {from_profile:true} : {})};
   const ownedHTML = inventory.error ? '<p class="gift-owned-empty" role="alert">보유 아이템을 불러오지 못했습니다. <button type="button" class="text-link" data-gift-inventory-retry>다시 불러오기</button></p>' :
    giftInventorySection('선물',groups.map(g => storedGiftCard(g,'data-owned-gift')).join(''));
   $('#gift-form')?._giftCleanup?.();
-  dialog(giftPickerHTML({profile,canChange:personal && !artistId,choices,roomGift,ownedHTML,wallet}));
+  dialog(giftPickerHTML({profile,canChange:personal && !artistId && !dubbingId,choices,roomGift,ownedHTML,wallet}));
   const form = $('#gift-form'), input = $('#gift-quantity'), send = $('#gift-send'), summary = $('#gift-send-summary');
   const detail = $('#gift-detail'), periodBox = $('#gift-decoration-detail'), footer = form.querySelector('.gift-checkout');
   const active = () => current() && form.isConnected && $('#dialog').open;
@@ -271,10 +272,10 @@ async function giftDialog(tid, initial = null, personal = false) {
      path = '/api/decorations/gift';
      body = {sku:decoration.p.sku,period:decoration.period,profile_id:recipientId,...context};
     } else {
-     const checkout = !artistId && personal && /^#gifts(?:[/?]|$)/.test(route);
+     const checkout = !artistId && !dubbingId && personal && /^#gifts(?:[/?]|$)/.test(route);
      path = roomGift ? 'room' : checkout ? '/api/gifts/checkout' : '/api/'+(personal?'producers':'tracks')+'/'+encodeURIComponent(tid)+'/gifts';
      body = {gift_type:chosen.id,quantity:count,...(roomGift||checkout?{profile_id:recipientId}:{}),
-      ...(!roomGift?{...(artistId?{artist_id:artistId}:{}),...(fromMessage?{from_message:true}:{}),[chosen.free?'silver':'gold']:item.price*count}:{})};
+      ...(!roomGift?{...(artistId?{artist_id:artistId}:{}),...(dubbingId?{dubbing_id:dubbingId}:{}),...(fromMessage?{from_message:true}:{}),[chosen.free?'silver':'gold']:item.price*count}:{})};
     }
     const fingerprint = JSON.stringify([path,body]);
     if (!requests.has(fingerprint)) requests.set(fingerprint,crypto.randomUUID());

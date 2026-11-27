@@ -4,7 +4,6 @@ paths.star='m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6
 paths['search-star']='m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5Z';
 paths['clipboard-clock']='M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h5M15 4h2a2 2 0 0 1 2 2v3M10 2h4a1 1 0 0 1 1 1v2a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1ZM23 17a5 5 0 1 1-10 0 5 5 0 0 1 10 0ZM18 14.5V17l1.6 1';
 paths['chevron-left']='m15 18-6-6 6-6';
-paths['composer-pin']='M9 3h6M10 3v6l-3 4v2h10v-2l-3-4V3M12 15v7';
 paths['file-text']='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Zm0 0v6h6M8 13h8m-8 4h8';
 paths['corner-down-right']='m15 10 5 5-5 5M4 4v7a4 4 0 0 0 4 4h12';
 paths['share-2']='M21 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM9 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm12 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0ZM8.6 10.5l6.8-4m-6.8 7 6.8 4';

@@ -1,4 +1,5 @@
-import {dubbingPosterSQL} from './dubbing-poster.js';
+import {copyDubbingPoster,discardDubbingPoster,dubbingPosterSQL} from './dubbing-poster.js';
+import {initialListeningTemplate} from './listening.js';
 import {one,rows,query,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -35,14 +36,17 @@ export async function startDubbingPerformance(req,env,p,user){
  if(!bg)fail(409,'대본 작성자가 배경 오디오를 준비한 뒤 새 더빙을 시작할 수 있습니다.');
  const source=await env.BUCKET.get(bg.output_key);if(!source)fail(409,'배경 오디오를 준비하고 있습니다.');
  const scriptKey=`dubbing/${user.id}/${pid}/scripts/${id()}.json`,audioKey=`dubbing/${user.id}/${pid}/audio/${id()}.m4a`,at=now();
- await env.BUCKET.put(scriptKey,JSON.stringify({script,timeline:JSON.parse(bg.timeline_json)}),{httpMetadata:{contentType:'application/json',cacheControl:'private, no-store'}});
- await env.BUCKET.put(audioKey,source.body,{httpMetadata:{contentType:'audio/mp4',cacheControl:'private, no-store'}});
+ const destination={id:pid,owner_id:user.id},artwork=p.poster_version||p.listening_template!=null?p:root;
+ let poster='';
  try{
+  poster=await copyDubbingPoster(env,artwork,destination);
+  await env.BUCKET.put(scriptKey,JSON.stringify({script,timeline:JSON.parse(bg.timeline_json)}),{httpMetadata:{contentType:'application/json',cacheControl:'private, no-store'}});
+  await env.BUCKET.put(audioKey,source.body,{httpMetadata:{contentType:'audio/mp4',cacheControl:'private, no-store'}});
   const writes=await env.DB.batch([
-   query(env,`INSERT INTO dubbing_projects(id,owner_id,title,options_json,script_json,script_key,creation_hash,source,root_id,role_count,duration,write_token,created,updated,visibility,state,rights_at)
-    SELECT ?,?,?,?,?,?,?,'performance',?,?,?,?,?,?,'public','recruiting',? WHERE EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=? AND p.revision=? AND p.visibility='public' AND ${dubbingVisibleSQL()})
+   query(env,`INSERT INTO dubbing_projects(id,owner_id,title,options_json,script_json,script_key,creation_hash,source,root_id,role_count,duration,write_token,created,updated,visibility,state,rights_at,listening_template,poster_version)
+    SELECT ?,?,?,?,?,?,?,'performance',?,?,?,?,?,?,'public','recruiting',?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects p WHERE p.id=? AND p.revision=? AND p.visibility='public' AND ${dubbingVisibleSQL()})
     AND EXISTS(SELECT 1 FROM users WHERE id=? AND provider!='deleted') ON CONFLICT(id) DO NOTHING RETURNING id`,
-    pid,user.id,root.title,root.options_json,root.script_json,scriptKey,root.creation_hash,root.id,root.role_count,root.duration,id(),at,at,at,root.id,root.revision,user.id),
+    pid,user.id,root.title,root.options_json,root.script_json,scriptKey,root.creation_hash,root.id,root.role_count,root.duration,id(),at,at,at,initialListeningTemplate(p),poster,root.id,root.revision,user.id),
    query(env,`INSERT INTO dubbing_role_claims(project_id,role_id,user_id,created) SELECT ?,?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND script_key=?)`,pid,roleId,user.id,at,pid,scriptKey),
    query(env,`INSERT INTO dubbing_sound_jobs(id,project_id,script_key,mode,timeline_json,state,output_key,output_meta,created,updated)
     SELECT ?,?,?,?,?,'ready',?,?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND script_key=?)`,
@@ -54,6 +58,7 @@ export async function startDubbingPerformance(req,env,p,user){
   }
  }finally{
   // Keep committed objects after an uncertain acknowledgement.
+  await discardDubbingPoster(env,destination,poster);
   if(!await one(env,'SELECT id FROM dubbing_projects WHERE script_key=?',scriptKey)){await env.BUCKET.delete(scriptKey);await env.BUCKET.delete(audioKey);}
  }
  return json({id:pid},201);

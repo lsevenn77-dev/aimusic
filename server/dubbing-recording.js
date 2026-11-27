@@ -19,11 +19,22 @@ async function audioResponse(req,env,key,type='audio/wav'){
 }
 export async function dubbingRecordingStatus(env,p,user){
  const recordings=await rows(env,`SELECT r.id,r.role_id,r.user_id,r.state,r.revision,(SELECT visibility FROM dubbing_recording_permissions v WHERE v.recording_id=r.id) casting_visibility,(SELECT COUNT(*) FROM dubbing_recording_lines l WHERE l.recording_id=r.id) saved FROM dubbing_recordings r JOIN users u ON u.id=r.user_id WHERE r.project_id=? AND u.provider!='deleted'`,p.id);
- const final=await one(env,'SELECT state,error FROM dubbing_final_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
+ const final=await one(env,'SELECT state,error,manifest_json FROM dubbing_final_jobs WHERE project_id=? AND script_key=?',p.id,p.script_key);
  const allSubmitted=recordings.length===p.role_count&&recordings.every(r=>r.state==='submitted');
  const blocked=recordings.some(r=>env.AIFECT_BLOCKED?.includes(r.user_id));
+ const ready=allSubmitted&&!blocked&&final?.state==='ready';
+ const captions=[];
+ if(ready){
+  const lines=JSON.parse(p.script_json).lines;
+  for(const cue of JSON.parse(final.manifest_json||'{}').lines||[]){
+   const line=lines.find(line=>line.id===cue.id);
+   if(line&&Number.isFinite(cue.start)&&Number.isFinite(cue.end)&&cue.end>cue.start)
+    captions.push({id:cue.id,start:cue.start,end:cue.end,text:line.text});
+  }
+  captions.sort((a,b)=>a.start-b.start);
+ }
  return {available:recordingEnabled(env),roles:recordings.map(r=>({roleId:r.role_id,state:r.state,saved:r.saved,...(r.user_id===user?.id?{revision:r.revision,castingVisibility:r.casting_visibility}: {})})),
-  final:final?{state:allSubmitted?final.state:'invalidated',error:final.error,audioUrl:allSubmitted&&!blocked&&final.state==='ready'?`/api/dubbing/projects/${p.id}/final`:null}:null};
+  final:final?{state:allSubmitted?final.state:'invalidated',error:final.error,audioUrl:ready?`/api/dubbing/projects/${p.id}/final`:null,captions}:null};
 }
 async function recordingView(env,p,user){
  const script=JSON.parse(p.script_json),bg=await one(env,"SELECT timeline_json FROM dubbing_sound_jobs WHERE project_id=? AND script_key=? AND state='ready'",p.id,p.script_key);

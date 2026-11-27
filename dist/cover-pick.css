@@ -1,0 +1,16 @@
+.composer-pick-title:not(:has(>.composer-pick-badge)) .composer-pick-song-name,
+.composer-pick-title:has(>.composer-pick-badge) .composer-pick-caption{display:none}
+.composer-pick-title:has(>.composer-pick-badge){display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:100%;vertical-align:middle}
+.composer-pick-title:has(>.composer-pick-badge)>.composer-pick-title-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.composer-pick-badge{
+ --ds-pick-gradient:linear-gradient(105deg,#8EDDD2,#AB94F5 48%,#ED8DCB);
+ display:inline-flex;align-items:center;justify-content:center;flex:none;position:relative;box-sizing:border-box;
+ width:max-content;height:18px;margin-block:-2px;padding-inline:6px;border:1px solid transparent;border-radius:999px;
+ background:transparent;color:#F0EDF8;font-size:11px;font-weight:600;line-height:1;white-space:nowrap;letter-spacing:normal;
+}
+.composer-pick-badge::before{
+ content:"";position:absolute;inset:-1px;padding:1px;border-radius:inherit;background:var(--ds-pick-gradient);pointer-events:none;
+ -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);-webkit-mask-composite:xor;
+ mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);mask-composite:exclude;
+}
+.track-option.composer-pick-option{display:flex;justify-content:flex-start}

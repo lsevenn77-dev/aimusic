@@ -1,5 +1,4 @@
-/* Song entry and the shared composer badge only. The shell and player retain
-   their existing layout. Scoped foregrounds prevent native button black text. */
+/* Song entry controls and list layout. Scoped foregrounds preserve button contrast. */
 #main .song-entry{color:var(--ds-text);min-width:0}
 #main .song-entry-heading{display:flex;align-items:center;gap:12px;margin:0 0 24px}
 #main .song-entry-heading h1{margin:0;color:var(--ds-text);font-size:var(--pc-font-page-title,25px)}
@@ -24,8 +23,6 @@
 #main .song-entry-tabs>.tab.active{color:var(--ds-accent-mint);box-shadow:inset 0 -2px var(--ds-accent-mint)}
 #main .song-entry .song-cover-list{color:var(--ds-text);min-height:120px}
 #main .song-entry-error{padding:20px 0;color:var(--ds-body)}
-.composer-pick-badge{display:inline-flex;align-items:center;flex:0 0 auto;gap:3px;padding:2px 5px;border-radius:var(--ds-radius-sm);color:#8EDDD2;background:color-mix(in srgb,var(--ds-panel) 85%,#8EDDD2);font-size:11px;font-weight:700;line-height:1.5;white-space:nowrap;vertical-align:middle}
-.composer-pick-badge>svg{width:13px;height:13px;transform:rotate(25deg);flex:0 0 13px}
 #main .song-covers-panel .song-cover-row .song-cover-detail .song-cover-copy>.song-cover-name{display:flex;align-items:center;gap:6px;min-width:0}
 #main .song-covers-panel .song-cover-name>strong{flex:0 1 auto;min-width:0}
 #main .song-covers-panel .is-composer-pick .song-cover-detail{grid-template-columns:var(--list-thumb-size,52px) minmax(0,1fr)}

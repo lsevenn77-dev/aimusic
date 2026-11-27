@@ -439,12 +439,16 @@ function rankingCoverActions(r){
   <div class="ranking-buttons">${songCoverPlayButton(r.id,r.name)}<button type="button" class="list-action song-cover-like" data-like="${id}" aria-pressed="${liked(r.id)}" aria-label="${title} 좋아요">${icon('ui-heart')}</button></div>
  </div>`;
 }
+function communityRankingTitleHTML(r){
+ const title=esc(r.name);
+ return '<strong title="'+title+'">'+(r.kind==='cover'?AifectCoverPick.titleHTML({...r,title:r.name},title):title)+'</strong>';
+}
 function communityRankingRow(r,rank){
- return '<li><a class="ranking-row" href="'+esc(r.href)+'" aria-label="'+rank+'위 '+esc(r.name)+'"><span class="ranking-number">'+rank+'</span>'+communityRankingImage(r)+'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a>'+rankingCoverActions(r)+'</li>';
+ return '<li><a class="ranking-row" href="'+esc(r.href)+'" aria-label="'+rank+'위 '+esc(r.name)+'"><span class="ranking-number">'+rank+'</span>'+communityRankingImage(r)+communityRankingTitleHTML(r)+'</a>'+rankingCoverActions(r)+'</li>';
 }
 function communityRankingResults(rows,period='week'){
  if(!rows.length)return '<div class="ranking-empty" role="status"><h2>아직 집계된 순위가 없습니다</h2><p>'+(period==='month'?'이번 달':'이번 주')+' 유효한 활동이 쌓이면 순위를 표시합니다.</p></div>';
- const podium=rows.slice(0,3).map((r,i)=>'<li class="ranking-place ranking-place-'+(i+1)+'"><a href="'+esc(r.href)+'" aria-label="'+(i+1)+'위 '+esc(r.name)+'">'+communityRankingImage(r)+'<span class="ranking-medal" aria-hidden="true">'+(i+1)+'</span><strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong></a>'+rankingCoverActions(r)+'</li>').join('');
+ const podium=rows.slice(0,3).map((r,i)=>'<li class="ranking-place ranking-place-'+(i+1)+'"><a href="'+esc(r.href)+'" aria-label="'+(i+1)+'위 '+esc(r.name)+'">'+communityRankingImage(r)+'<span class="ranking-medal" aria-hidden="true">'+(i+1)+'</span>'+communityRankingTitleHTML(r)+'</a>'+rankingCoverActions(r)+'</li>').join('');
  return '<ol class="ranking-podium" aria-label="상위 3위">'+podium+'</ol><ol class="ranking-list" start="4" aria-label="4위 이하">'+rows.slice(3).map((r,i)=>communityRankingRow(r,i+4)).join('')+'</ol>';
 }
 function communityRankingInfo(d){

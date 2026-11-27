@@ -130,7 +130,8 @@ function songDetailActionsHTML(t){
  if(t.kind==='cover'){
   const remove=mine?'<button type="button" class="small-button danger-button" data-delete-track="'+id+'" data-track-title="'+esc(t.title)+'" data-track-kind="cover">커버 삭제</button>':'';
   const join=t.cover_mode==='duet'&&t.duet_open&&!mine?'<a class="text-link detail-duet-entry" href="#sing/'+esc(t.original_id)+'?duet='+id+'">'+songActionIcon('sing')+'듀엣 참여</a>':'';
-  return '<div class="inline-actions song-actions cover-actions'+(mine?' cover-actions-owner':'')+'" role="group" aria-label="커버 작품 기능">'+listen+like+lyrics+(globalThis.AifectUnifiedPlaylists?save:'')+share+remove+'</div>'+join;
+  const options=t.can_manage_cover_pick?'<button type="button" class="small-button song-action-more" data-track-menu="'+id+'" aria-label="곡 옵션" aria-haspopup="dialog">'+songActionIcon('menu')+'</button>':'';
+  return '<div class="inline-actions song-actions cover-actions'+(mine?' cover-actions-owner':'')+'" role="group" aria-label="커버 작품 기능">'+listen+like+lyrics+(globalThis.AifectUnifiedPlaylists?save:'')+share+remove+options+'</div>'+join;
  }
  const sing=t.karaoke_ready?'<a class="primary-button song-action-sing" href="#sing/'+id+'" aria-label="노래 부르기">'+songActionIcon('sing')+'<span>부르기</span></a>':'';
 
@@ -149,7 +150,7 @@ function songDetailHeaderHTML(t,commentCount){
  const options=!songDetailIsWeb&&!isCover&&!songDetailIsNative?'<button type="button" class="text-link song-track-options" data-track-menu="'+esc(t.id)+'" aria-haspopup="dialog">곡 옵션</button>':'';
  const webSong=songDetailIsWeb&&!isCover,title=esc(t.title);
  const engagement=moderation?'<div class="song-engagement">'+moderation+'</div>':'';
- const info='<h1 class="song-title"'+(webSong?' title="'+title+'"':'')+'>'+title+'</h1>'+songDetailCreditsHTML(t)+
+ const info='<h1 class="song-title"'+(webSong?' title="'+title+'"':'')+'>'+(isCover?AifectCoverPick.titleHTML(t,title):title)+'</h1>'+songDetailCreditsHTML(t)+
   (songDetailIsWeb?'':songReleaseDateHTML(t))+'<div class="song-meta-row">'+songDetailMetricsHTML(t,commentCount,webSong?engagement:'')+
   (webSong?'':engagement)+options+'</div>';
  const divider=!songDetailIsWeb&&!isCover?'<div class="song-header-divider" aria-hidden="true"></div>':'';

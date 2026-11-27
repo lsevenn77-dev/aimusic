@@ -1,5 +1,6 @@
 import {currencyIcon,currencyAmount} from '../shared/currency.js';
 import * as AifectPlaylist from '../shared/playlist-policy.js';
+import * as AifectCoverPick from '../shared/cover-pick-ui.js';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../dist/user-nickname.js',import.meta.url),'utf8');
@@ -14,6 +15,7 @@ export function nicknameContext(sandbox,options){
  sandbox.shopCoin ??= currencyIcon;
  sandbox.shopPrice ??= (amount,code,size)=>currencyAmount(amount,code,{size});
  sandbox.AifectPlaylist=AifectPlaylist;const context=vm.createContext(sandbox,options);
+ sandbox.AifectCoverPick=AifectCoverPick;
  vm.runInContext(source,context);
  vm.runInContext(commentMeta,context);
  vm.runInContext(chatUI,context);

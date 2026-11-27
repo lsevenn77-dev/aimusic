@@ -56,7 +56,9 @@ export async function communityRankingRoute(req,env,path){
 export async function workRankingData(env,period,category='work',kind='solo'){
  const artist=category==='aiArtist';
  const filter=artist?`t.kind='original' AND ${namedArtistSQL()}`:`t.original_id IS NOT NULL AND ${completedCoverSQL()}${kind==='all'?'':' AND t.cover_mode=?'}`;
- const coverFields=artist?'':`t.cover_mode,t.producer_id,${producerNameSQL()} producer,`;
+ const coverFields=artist?'':`t.cover_mode,t.original_id,t.producer_id,${producerNameSQL()} producer,
+  COALESCE(sp.cover_id=t.id,0) is_composer_pick,COALESCE(sp.revision,0) cover_pick_revision,`;
+ const coverPickJoin=artist?'':"LEFT JOIN song_cover_picks sp ON sp.original_id=t.original_id";
  const data=await rows(env,`WITH window AS (SELECT ? start,? finish) SELECT t.id,t.title name,t.kind,${coverFields}${trackArtworkSQL()},t.artist_id,a.name artist_name,a.image_version artist_image_version,
  (SELECT count(*) FROM tracks o WHERE o.artist_id=t.artist_id AND o.kind='original' AND ${VISIBLE('o')}) original_count,
  (SELECT count(DISTINCT l.listener) FROM listens l,window w WHERE l.track_id=t.id AND l.qualified=1 AND (l.user_id IS NULL OR l.user_id!=t.user_id) AND l.started>=w.start AND l.started<w.finish) listeners,
@@ -64,6 +66,6 @@ export async function workRankingData(env,period,category='work',kind='solo'){
  (SELECT count(*) FROM likes l,window w WHERE l.track_id=t.id AND l.user_id!=t.user_id AND l.created>=w.start AND l.created<w.finish)+(SELECT count(DISTINCT p.user_id) FROM playlist_tracks pt JOIN playlists p ON p.id=pt.playlist_id,window w WHERE pt.track_id=t.id AND NOT ${restrictedSQL()} AND p.user_id!=t.user_id AND pt.created>=w.start AND pt.created<w.finish) reactions,
  (SELECT COALESCE(sum(amount),0) FROM (SELECT min(sum(gl.gold),10000) amount FROM gifts g JOIN gift_lots gl ON gl.gift_id=g.id JOIN gold_purchases gp ON gp.id=gl.purchase_id,window w WHERE g.track_id=t.id AND g.sender_id!=t.user_id AND gp.status='paid' AND gp.channel!='admin_test' AND NOT EXISTS(SELECT 1 FROM gold_orders go WHERE go.id=gp.id AND go.state!='paid') AND g.created>=w.start AND g.created<w.finish GROUP BY g.sender_id)) gold,
  (SELECT COALESCE(sum(amount),0) FROM (SELECT min(sum(g.silver),100) amount FROM free_gifts g,window w WHERE g.track_id=t.id AND g.sender_id!=t.user_id AND g.created>=w.start AND g.created<w.finish GROUP BY g.sender_id)) silver
- FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id WHERE ${VISIBLE()} AND ${filter}`,period.from,period.until,...(!artist&&kind!=='all'?[kind]:[]));
+ FROM tracks t JOIN artists a ON a.id=t.artist_id JOIN producers p ON p.id=t.producer_id LEFT JOIN tracks o ON o.id=t.original_id ${coverPickJoin} WHERE ${VISIBLE()} AND ${filter}`,period.from,period.until,...(!artist&&kind!=='all'?[kind]:[]));
  return data;
 }

@@ -9,6 +9,9 @@ import {presentationHash,reviewBuilds,reviewPlan,productReviewStatus} from '../s
 import {productZip} from '../server/product-zip.js';
 import {DECORATIONS,FREE_ROOM_THEMES} from '../shared/decorations.js';
 import {GIFT_CATALOG,SILVER_GIFT_CATALOG} from '../shared/gifts.js';
+import {checkPendingDeletions} from '../server/product-deletion-policy.js';
+import {runProductPurgeJobs} from '../server/product-purge.js';
+import {decorateRoomResult} from '../server/room-decorations.js';
 
 const root='/api/admin/products',uid='owner',key=()=>crypto.randomUUID();
 const bodyFor=(more={})=>({action:'create',type:'gift',currency:'G',distribution:'shop',name:'테스트 상품',description:'',
@@ -157,69 +160,264 @@ test('selling and dispatch stay independent and archive restores the original fl
  assert.equal((await productBy(f,'coffee')).dispatch_available,false);
 });
 
-test('mixed deletion confirms eligible products once and preserves even expired or indirect references',async t=>{
+test('mixed deletion distinguishes clean products, finite and unlimited rights, gifts and required defaults',async t=>{
  const f=await fixture(t,{...scope,ADMIN_USER_IDS:'owner,other'});
  const create=async(name,extra={})=>{
   const result=await mutate(f,null,bodyFor({name,...extra}));
   assert.equal(result.status,201,JSON.stringify(result.body));
   return result.body.id;
  };
- const clean=await create('삭제 후보'),used=await create('보유 이력');
- const room=await create('방 설정',{type:'theme',options:{P7D:10},uiMode:'dark'}),late=await create('확인 후 참조');
- const holdings=product=>f.sql.prepare(`INSERT INTO gift_inventory
+ const clean=await create('삭제 후보'),used=await create('보유 이력'),gift=await create('미사용 선물');
+ const room=await create('방 설정',{type:'theme',options:{P7D:10},uiMode:'dark'});
+ const frame=await create('무제한 테두리',{type:'frame',distribution:'grant',options:{PERMANENT:0}});
+ const holdings=(product,usedAt,expiresAt)=>f.sql.prepare(`INSERT INTO gift_inventory
   (id,user_id,gift_type,gift_name,currency,value,source,request_id,unit,created,used_at,expires_at)
-  VALUES(?,'other',?,'사용한 선물','gold',0,'purchase',?,0,1,2,3)`).run(key(),product,key());
- holdings(used);
- f.sql.prepare("INSERT INTO room_decorations(room_id,host_id,sku,revision,updated) VALUES('room','owner',?,1,1)").run(room);
- const version=key();
- f.sql.prepare(`INSERT INTO product_asset_versions(product_id,id,label,mode,renderer,files,originals,hash,created)
-  VALUES(?,?,'1.0.0','static','gift-standard','{}','{}','shared',1)`).run(clean,version);
- const candidates=[target(clean,1),target(used,1),target(room,1),target(late,1),target('heart')];
- const pending=await apply(f,'delete_request',candidates);
- assert.ok(pending.body.items.every(item=>item.status==='success'));
- assert.equal((await f.call(root+'?deletion=1')).body.total,5);
- assert.equal((await f.call('/api/gifts/catalog')).body.gifts.some(item=>item.id==='heart'),false);
- const items=candidates.map(item=>target(item.id,item.revision+1));
+  VALUES(?,'other',?,'테스트 선물','gold',0,'purchase',?,0,1,?,?)`).run(key(),product,key(),usedAt,expiresAt);
+ holdings(used,2,3);
+ holdings(gift,0,null);
+ f.sql.prepare(`INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,period_code,expires_at)
+  VALUES('live','owner',?,'decoration','live',1,'P7D',unixepoch()+2000),
+   ('forever','other',?,'decoration','forever',1,'PERMANENT',0)`).run(room,frame);
+ f.sql.prepare(`INSERT INTO room_decorations(room_id,host_id,sku,revision,updated,inventory_id)
+  VALUES('room','owner',?,1,1,'live')`).run(room);
+ const items=[target(clean,1),target(used,1),target(room,1),target(gift,1),target(frame,1),target('basic_dark'),target('star')];
  assert.equal((await operate(f,{action:'delete',items,preview:true},null)).status,401);
  assert.equal((await operate(f,{action:'delete',items,preview:true},'other')).status,403);
  const preview=await operate(f,{action:'delete',items,preview:true});
  assert.equal(preview.status,200,JSON.stringify(preview.body));
- assert.deepEqual(preview.body.items.map(x=>x.status),['eligible','excluded','excluded','eligible','excluded']);
- assert.match(preview.body.items[1].reason,/보유 이력/);
- assert.match(preview.body.items[2].reason,/방 설정/);
- assert.equal((await productBy(f,used)).holders,0);
- holdings(late);
- const operation={action:'delete',items,confirmed_ids:[clean,late],request_id:key()};
+ assert.deepEqual(preview.body.items.map(x=>x.outcome),['ready','ready','pending','pending','pending',undefined,undefined]);
+ assert.match(preview.body.items[5].reason,/기본으로 제공/);
+ assert.match(preview.body.items[6].reason,/일일 보상/);
+ assert.equal(preview.body.items[2].details.service_refs,1);
+ assert.equal(preview.body.items[3].details.gift_units,1);
+ assert.equal(preview.body.items[4].details.permanent_users,1);
+ assert.equal(preview.body.items[4].details.last_end,null);
+ const operation={action:'delete',items,confirmed_ids:[clean,used,room,gift,frame],request_id:key()};
  const [first,retry]=await Promise.all([operate(f,operation),operate(f,operation)]);
  for(const result of [first,retry]){
   assert.equal(result.status,200,JSON.stringify(result.body));
-  assert.deepEqual(result.body.items.map(x=>x.status),['success','excluded','excluded','excluded','excluded']);
+  assert.deepEqual(result.body.items.map(x=>x.status),['success','success','success','success','success','excluded','excluded']);
  }
  assert.equal(Number(first.body.replayed)+Number(retry.body.replayed),1);
  assert.equal((await operate(f,{...operation,confirmed_ids:[clean]})).status,409);
- assert.equal((await f.call(root+'/'+clean)).status,404);
+ assert.equal((await productBy(f,clean)).deletion.state,'ready');
  assert.equal((await f.call(root+'?q='+clean)).body.total,0);
- assert.equal(table(f,'product_asset_versions').find(v=>v.id===version).hash,'shared');
+ assert.equal((await f.call(root+'?archived=1')).body.total,0);
+ const pending=(await f.call(root+'?deletion=1')).body;
+ assert.deepEqual(pending.counts,{deletion:5,ready:2,purging:0});
+ assert.ok(pending.products.slice(0,2).every(product=>product.deletion.state==='ready'));
  const audit=table(f,'admin_audit').filter(row=>row.action==='product_delete');
  assert.equal(audit.length,1);
  assert.equal(JSON.parse(audit[0].target).result.items[0].status,'success');
  assert.equal(table(f,'gift_inventory').length,2);
- assert.equal((await apply(f,'delete_cancel',[target('heart',1)])).body.items[0].status,'success');
- assert.equal((await f.call('/api/gifts/catalog')).body.gifts.some(item=>item.id==='heart'),true);
+ await f.drain();
 });
 
-test('a reference added during deletion is checked inside the write batch',async t=>{
+test('irreversible deletion checks live rights again inside the commit',async t=>{
  const f=await fixture(t,scope),{body:{id}}=await mutate(f,null,bodyFor({type:'theme',options:{P7D:1},uiMode:'dark'}));
- assert.equal((await apply(f,'delete_request',[target(id,1)])).body.items[0].status,'success');
+ assert.equal((await apply(f,'delete',[target(id,1)])).body.items[0].outcome,'ready');
  const original=f.DB.batch.bind(f.DB);
  f.DB.batch=statements=>{
-  f.sql.prepare("INSERT INTO room_decorations(room_id,host_id,sku,revision,updated) VALUES('late-room','owner',?,1,1)").run(id);
+  f.DB.batch=original;
+  f.sql.prepare(`INSERT INTO player_inventory(id,user_id,item_key,source,source_ref,granted_at,period_code)
+    VALUES('new-right','owner',?,'decoration_stock','new-right',unixepoch(),'P7D')`).run(id);
   return original(statements);
  };
- const result=await apply(f,'delete',[target(id,2)]);
+ const result=await apply(f,'purge',[target(id,2)]);
  assert.equal(result.status,200,JSON.stringify(result.body));
  assert.equal(result.body.items[0].status,'failed');
- assert.equal((await f.call(root+'/'+id)).status,200);
+ assert.match(result.body.items[0].reason,/사용 시작 대기/);
+ assert.equal((await productBy(f,id)).deletion.state,'pending');
+ assert.equal(table(f,'admin_audit').some(row=>row.action==='product_delete_started'),false);
+});
+
+function deletionBucket(){
+ const objects=new Map(),deleted=[];
+ const bucket={
+  async list({prefix}){return {objects:[...objects.keys()].filter(key=>key.startsWith(prefix)).map(key=>({key})),truncated:false};},
+  async get(key){return objects.has(key)?{body:objects.get(key)}:null;},
+  async delete(keys){for(const key of keys){deleted.push(key);objects.delete(key);}}
+ };
+ return {bucket,objects,deleted};
+}
+
+test('Aurora Ring can leave a live shop, preserves stock and activated time, and retains its purchase receipt after deletion',async t=>{
+ const {bucket}=deletionBucket(),f=await fixture(t,{...scope,BUCKET:bucket});assignFunds(f);
+ const sku='frame_aurora_ring',purchase={sku,period:'P7D',request_id:key()},buy='/api/decorations/buy';
+ const pre=(await f.call('/api/decorations')).body;
+ assert.ok(pre.products.some(p=>p.sku===sku));
+ const bought=await f.call(buy,'POST',purchase);
+ assert.equal(bought.status,201,JSON.stringify(bought.body));
+ const {order}=bought.body;
+ assert.equal(order.product_name,'오로라 링');
+ const prepared=await operate(f,{action:'delete',items:[target(sku)],preview:true});
+ assert.equal(prepared.body.items[0].details.unused_users,1);
+ assert.equal(prepared.body.items[0].details.last_end,null);
+ assert.equal((await apply(f,'purge',[target(sku)])).body.items[0].status,'excluded');
+ assert.equal((await apply(f,'delete',[target(sku)])).body.items[0].outcome,'pending');
+ assert.equal((await f.call(buy,'POST',{...purchase,request_id:key()})).status,409);
+ assert.equal((await apply(f,'sale_resume',[target(sku,1)])).body.items[0].status,'excluded');
+ const shop=(await f.call('/api/decorations')).body;
+ assert.ok(!shop.products.some(p=>p.sku===sku)&&shop.inventory.some(item=>item.product.sku===sku&&item.available));
+ assert.equal((await f.call(buy,'POST',purchase)).body.order.id,order.id);
+ const activated=await f.call('/api/decorations/inventory/'+order.inventory_id+'/use','POST',{request_id:key(),equip:true});
+ assert.equal(activated.status,200,JSON.stringify(activated.body));
+ const active=(await productBy(f,sku)).deletion;
+ assert.equal(active.unused_users,0);
+ assert.equal(active.active_users,1);
+ assert.equal(active.service_refs,1);
+ assert.equal(active.last_end,activated.body.receipt.created+7*86400);
+ assert.equal((await apply(f,'purge',[target(sku,1)])).body.items[0].status,'failed');
+ await f.drain();
+ f.sql.exec("UPDATE player_inventory SET expires_at=unixepoch()-1 WHERE source='decoration'; UPDATE product_deletions SET checked_at=0");
+ await checkPendingDeletions({DB:f.DB});
+ await runProductPurgeJobs({DB:f.DB,BUCKET:bucket});
+ assert.equal(table(f,'product_deletions')[0].state,'ready');
+ assert.equal((await apply(f,'purge',[target(sku,1)])).body.items[0].status,'success');
+ await f.drain();
+ assert.equal(table(f,'product_deletions')[0].state,'deleted');
+ assert.equal((await f.call(root+'/'+sku)).status,404);
+ assert.equal((await f.call(root+'?deletion=1')).body.total,0);
+ assert.equal(table(f,'decoration_orders')[0].id,order.id);
+ assert.ok((await f.call('/api/gold/history?currency=gold')).body.spent.some(row=>row.title==='오로라 링 · 7일 구매'));
+ assert.deepEqual(Object.keys(JSON.parse(table(f,'product_catalog')[0].definition)),['deletedAt']);
+ assert.throws(()=>f.sql.exec("UPDATE product_catalog SET definition='{}'"),/product_id_retired/);
+ f.sql.exec("DELETE FROM product_catalog WHERE product_id='frame_aurora_ring'");
+ assert.throws(()=>f.sql.exec("INSERT INTO product_catalog VALUES('frame_aurora_ring','{}',1,NULL,'seed',1)"),/product_id_retired/);
+ assert.ok(!(await f.call('/api/decorations')).body.products.some(p=>p.sku===sku));
+ await f.drain();
+});
+
+test('retirement wins against a stale concurrent purchase without charging or issuing stock',async t=>{
+ const f=await fixture(t,scope);assignFunds(f);
+ const original=f.DB.batch.bind(f.DB);
+ let reached,release;
+ const atWrite=new Promise(resolve=>{reached=resolve;}),resume=new Promise(resolve=>{release=resolve;});
+ f.DB.batch=statements=>{
+  f.DB.batch=original;reached();
+  return resume.then(()=>original(statements));
+ };
+ const buy=f.call('/api/decorations/buy','POST',{sku:'frame_aurora_ring',period:'P7D',request_id:key()});
+ try{
+  await atWrite;
+  assert.equal((await apply(f,'delete',[target('frame_aurora_ring')])).body.items[0].outcome,'ready');
+ }finally{release();}
+ assert.equal((await buy).status,409);
+ assert.equal(table(f,'decoration_orders').length,0);
+ assert.equal(table(f,'gold_purchases')[0].used,0);
+});
+
+test('R2 failure keeps the manifest recoverable and shared objects survive until their last live reference',async t=>{
+ const {bucket,objects,deleted}=deletionBucket();
+ const f=await fixture(t,{...scope,BUCKET:bucket}),first=(await mutate(f,null,bodyFor({name:'삭제 에셋'}))).body.id;
+ const other=(await mutate(f,null,bodyFor({name:'공유 에셋'}))).body.id;
+ const shared='product-media/'+first+'/version/shared.webp',original='product-media/'+first+'/version/original.png';
+ const orphan='product-media/'+first+'/staging/unused.webp',unrelated='product-media/unrelated/version/keep.webp';
+ for(const object of [shared,original,orphan,unrelated])objects.set(object,'fixture-image');
+ const version=f.sql.prepare(`INSERT INTO product_asset_versions
+  (product_id,id,label,mode,renderer,files,originals,hash,created,published_at)
+  VALUES(?,?,'1.0.0','static','gift-standard',?,?,'fixture',1,2)`);
+ const file=key=>({key,extension:'webp',sha256:'sha',size:13});
+ version.run(first,key(),JSON.stringify({base:file(shared)}),JSON.stringify({base:file(original)}));
+ version.run(other,key(),JSON.stringify({base:file(shared)}),'{}');
+ const items=[target(first,1),target(other,1)];
+ assert.equal((await apply(f,'delete',items)).body.items.every(item=>item.outcome==='ready'),true);
+ const targets=[target(first,2),target(other,2)];
+ const preview=await operate(f,{action:'purge',items:targets,preview:true});
+ assert.ok(preview.body.items[0].assets.retain.includes(shared));
+ assert.ok(preview.body.items[0].assets.remove.includes(original));
+ const deleteFiles=bucket.delete;
+ bucket.delete=async keys=>{
+  bucket.delete=deleteFiles;
+  await deleteFiles(keys.slice(0,1));
+  throw Error('Injected R2 outage');
+ };
+ const purge={action:'purge',items:targets,confirmed_ids:[first],request_id:key()};
+ const result=await operate(f,purge);
+ assert.deepEqual(result.body.items.map(item=>item.status),['success','excluded']);
+ await f.drain();
+ assert.equal((await productBy(f,first)).deletion.state,'failed');
+ assert.ok(objects.has(shared)&&objects.has(unrelated));
+ assert.ok(table(f,'product_deletions').find(row=>row.product_id===first).plan);
+ assert.equal((await operate(f,purge)).body.replayed,true);
+ await f.drain();
+ assert.equal((await apply(f,'purge',[target(first,2)])).body.items[0].status,'success');
+ await f.drain();
+ assert.equal((await f.call(root+'/'+first)).status,404);
+ assert.ok(!objects.has(original)&&!objects.has(orphan));
+ assert.deepEqual([...objects.keys()],[shared,unrelated]);
+ const history=(await f.call(root+'/deletion-history?product_id='+first)).body.events;
+ for(const action of ['requested','ready','started','failed','retry','assets','completed']){
+  assert.ok(history.some(event=>event.action==='product_delete_'+action),action);
+ }
+ assert.ok(history.find(event=>event.action==='product_delete_assets').data.retained.includes(shared));
+ assert.equal((await apply(f,'purge',[target(other,2)])).body.items[0].status,'success');
+ await f.drain();
+ assert.ok(!objects.has(shared));
+ assert.ok(!deleted.includes(unrelated));
+});
+
+test('confirmed dispatch can finish and members can consume existing stock while retirement blocks new dispatch',async t=>{
+ const {bucket,objects}=deletionBucket(),f=await fixture(t,{...scope,BUCKET:bucket,AIFECT_GIFT_DISPATCH_OPERATOR_IDS:uid});
+ const dispatch='/api/admin/gift-dispatch',sku='heart',version=key();
+ const thumbnail='product-media/heart/version/thumb.webp',base='product-media/heart/version/base.webp';
+ const file=key=>({key,extension:'webp',sha256:'sha',size:7});
+ objects.set(thumbnail,'fixture');objects.set(base,'fixture');
+ await mutate(f,sku,{action:'status',revision:0,sale:true,grant:true});
+ f.sql.prepare(`INSERT INTO product_asset_versions
+  (product_id,id,label,mode,renderer,files,originals,hash,created,published_at)
+  VALUES('heart',?,'1.0.0','static','gift-standard',?,'{}','fixture',1,2)`).run(version,JSON.stringify({base:file(base),thumbnail:file(thumbnail)}));
+ f.sql.prepare("UPDATE product_catalog SET active_version=? WHERE product_id='heart'").run(version);
+ const payload={audience:{type:'specific',ids:['other']},origin:'admin',reason:'격리 테스트',
+  products:[{product_id:sku,revision:1,option:'unit',quantity:1}]};
+ const send=async(path,body={})=>f.call(dispatch+path,'POST',body);
+ const confirmed=(await send('/preview',payload)).body.id,stale=(await send('/preview',payload)).body.id;
+ assert.equal((await send('/'+confirmed+'/confirm')).status,200);
+ assert.equal((await apply(f,'delete',[target(sku,1)])).body.items[0].outcome,'pending');
+ assert.equal((await productBy(f,sku)).deletion.pending_dispatches,1);
+ assert.equal((await send('/'+stale+'/confirm')).status,409);
+ assert.equal((await send('/preview',payload)).status,409);
+ assert.equal((await send('/'+confirmed+'/process')).status,200);
+ await f.drain();
+ const owned=(await f.call('/api/me/gift-inventory','GET',undefined,'other')).body.items[0];
+ assert.ok(owned.available&&owned.image.includes(version));
+ assert.equal((await productBy(f,sku)).deletion.gift_units,1);
+ assert.equal((await f.call('/api/me/gift-inventory/'+owned.id+'/send','POST',{profile_id:'producer',request_id:key()},'other')).status,200);
+ await f.drain();
+ assert.equal(table(f,'product_deletions')[0].state,'ready','consumption refreshes stored readiness');
+ assert.equal((await productBy(f,sku)).deletion.state,'ready');
+ assert.equal((await apply(f,'purge',[target(sku,2)])).body.items[0].status,'success');
+ await f.drain();
+ const record=(await f.call(dispatch+'/'+confirmed)).body;
+ assert.equal(record.products[0].name,'하트');
+ assert.equal(record.products[0].thumbnail,'/api/product-assets/heart/'+version+'/thumbnail.webp');
+ assert.ok(objects.has(thumbnail)&&!objects.has(base));
+ const historical=await worker.fetch(new Request('https://aifect.test'+record.products[0].thumbnail),
+  {DB:f.DB,BUCKET:bucket},{waitUntil(){}});
+ assert.equal(await historical.text(),'fixture');
+ const room=await decorateRoomResult({DB:f.DB},{chat:[{gift:{type:sku}}]});
+ assert.equal(room.chat[0].gift.image,record.products[0].thumbnail);
+ assert.equal(table(f,'free_gifts').find(row=>row.id===owned.id).gift_name,'하트');
+});
+
+test('a linked refund review remains a blocker after the loan expires and an archived item can enter the deletion queue',async t=>{
+ const f=await fixture(t,scope);assignFunds(f);
+ const sku='frame_aurora_ring';
+ const bought=await f.call('/api/decorations/buy','POST',{sku,period:'P7D',request_id:key()});
+ assert.equal(bought.status,201);
+ assert.equal((await f.call('/api/decorations/inventory/'+bought.body.order.inventory_id+'/use','POST',{request_id:key()})).status,200);
+ await f.drain();
+ f.sql.exec(`UPDATE player_inventory SET expires_at=unixepoch()-1 WHERE source='decoration';
+  INSERT INTO gold_orders(id,user_id,request_id,state,created,expires,updated)
+  VALUES('product-funds','owner','fixture-refund','refund_review',1,2,3);`);
+ assert.equal((await apply(f,'archive',[target(sku)])).body.items[0].status,'success');
+ assert.equal((await apply(f,'delete',[target(sku,1)])).body.items[0].outcome,'pending');
+ const d=(await productBy(f,sku)).deletion;
+ assert.equal(d.refund_pending,1);
+ assert.equal(d.active_users,0);
+ assert.deepEqual(d.reasons.map(reason=>reason.code),['refund']);
+ assert.equal((await f.call(root+'?archived=1&q='+sku)).body.total,0);
+ assert.equal((await apply(f,'unarchive',[target(sku,2)])).body.items[0].status,'excluded');
 });
 
 test('native product links authorize one read-only preview and become stale on a product revision',async t=>{

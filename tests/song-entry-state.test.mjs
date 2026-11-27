@@ -6,7 +6,7 @@ const source=readFileSync(new URL('../dist/song-entry.js',import.meta.url),'utf8
 function setup(){
  const requests=[],notices=[],list={innerHTML:'old rows',setAttribute(){},removeAttribute(){}},buttons=['all','duet'].map(tab=>({dataset:{songEntryTab:tab},classList:{toggle(){}},setAttribute(){},querySelector(){return {textContent:''};}}));
  const panel={isConnected:true,dataset:{coverOriginal:'one',pickId:'',pickRevision:'0',pickManage:'true',pickExists:'false'},querySelector(){return list;},querySelectorAll(){return buttons;}};
- const c=vm.createContext({document:{addEventListener(){},querySelector:()=>panel},me:{id:'owner'},trackMap:new Map([['b',{id:'b',producer:'B'}]]),URLSearchParams,esc:String,number:String,remember(){},paintInteractions(){},syncSongCoverPlayback(){},toast:m=>notices.push(m),$:()=>({close(){}}),api:(...args)=>new Promise((resolve,reject)=>requests.push({args,resolve,reject}))});
+ const c=vm.createContext({document:{addEventListener(){},querySelector:()=>panel},location:{hash:'#sing/one'},me:{id:'owner'},trackMap:new Map([['b',{id:'b',producer:'B'}]]),URLSearchParams,esc:String,number:String,remember(){},paintInteractions(){},syncSongCoverPlayback(){},toast:m=>notices.push(m),$:()=>({close(){}}),api:(...args)=>new Promise((resolve,reject)=>requests.push({args,resolve,reject}))});
  vm.runInContext(source,c);c.songEntryListHTML=d=>d.covers.map(t=>t.id).join(',');
  return {c,panel,list,requests,notices};
 }

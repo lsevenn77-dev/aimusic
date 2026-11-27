@@ -242,8 +242,10 @@ export async function productFileRoute(req,env,path,actor){
  const role=original?match[1].slice(9):match[1];
  if(!roles.includes(role)&&!(original&&role==='package'))fail(404,'상품 에셋을 찾을 수 없습니다.');
  const row=await one(env,'SELECT files,originals,published_at FROM product_asset_versions WHERE product_id=? AND id=?',product,version);
- if(!row||!admin&&!row.published_at)fail(404,'상품 에셋을 찾을 수 없습니다.');
- const file=JSON.parse(original?row.originals:row.files)[role];
+ const historical=!row&&!original&&role==='thumbnail'?
+  await one(env,'SELECT file FROM product_history_assets WHERE product_id=? AND version_id=?',product,version):null;
+ if(!historical&&(!row||!admin&&!row.published_at))fail(404,'상품 에셋을 찾을 수 없습니다.');
+ const file=historical?JSON.parse(historical.file):JSON.parse(original?row.originals:row.files)[role];
  if(!file||file.extension!==match[2])fail(404,'상품 에셋을 찾을 수 없습니다.');
  if(!env.BUCKET)fail(503,'상품 저장소에 연결할 수 없습니다.');
  const headers={'content-type':types[file.extension],'content-length':String(file.size),'x-content-type-options':'nosniff',

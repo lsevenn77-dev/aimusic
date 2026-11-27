@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {fixture} from './fixture.mjs';
+import worker from '../server/index.js';
 
 async function setup(t){
  const f=await fixture(t);
@@ -34,6 +35,39 @@ test('PICK outside page one is promoted once; ranks, total and subsequent pages 
  assert.equal(result.length,107);assert.equal(new Set(result.map(t=>t.id)).size,107);assert.equal(result[0].id,'work-000');assert.equal(result[0].rank,107);assert(result[0].is_composer_pick);assert.deepEqual(result.slice(1).map(t=>t.rank),Array.from({length:106},(_,i)=>i+1));
  const recent=(await f.call('/api/tracks/one/covers?view=recent')).body;assert.equal(recent.covers[0].id,'work-000');assert.equal(recent.pick.cover_id,result[0].id);
  await f.pick(null,1);assert.equal((await f.list('&offset=50&pick_revision=1')).status,409);assert.equal((await f.list()).body.covers[0].id,'work-106');
+});
+test('details and feeds expose PICK while only an opted-in original cover ranking changes display order',async t=>{
+ const f=await setup(t);f.seed('selection',{created:1});f.seed('popular',{created:2});
+ f.sql.exec("INSERT INTO likes(user_id,track_id,created) VALUES('owner','popular',2)");
+ assert.equal((await f.pick('selection')).status,200);
+ const detail=async user=>(await f.call('/api/tracks/selection','GET',undefined,user)).body.track;
+ assert.equal((await detail('owner')).can_manage_cover_pick,true);
+ for(const user of [null,'other']){
+  const track=await detail(user);
+  assert.ok(track.is_composer_pick);
+  assert.equal(track.cover_pick_revision,1);
+  assert.ok(!track.can_manage_cover_pick);
+  assert.equal((await f.pick(null,1,user)).status,user?403:401);
+ }
+ const read=async(path,key)=>(await f.call(path,'GET',undefined,null)).body[key];
+ const legacy='/api/tracks/one/covers',feed='/api/community?kind=cover';
+ assert.deepEqual((await read(legacy,'covers')).map(x=>x.id),['popular','selection']);
+ assert.deepEqual((await read(feed,'tracks')).map(x=>[x.id,!!x.is_composer_pick]),[['popular',false],['selection',true]]);
+ const publicHTML=async path=>(await worker.fetch(new Request('https://aifect.test'+path),{DB:f.DB},{})).text();
+ assert.match(await publicHTML('/music?kind=cover'),/data-pick-title="selection"[^<]*><span[^>]+>[^<]+<\/span><span class="composer-pick-badge"/);
+ assert.match(await publicHTML('/music/selection'),/<h1>.*composer-pick-badge/);
+ const popular=async()=>(await read(legacy+'?promote_pick=1','covers')).map(x=>[x.id,x.rank,x.likes,x.plays]);
+ assert.deepEqual(await popular(),[['selection',2,0,0],['popular',1,1,0]]);
+ f.sql.exec("UPDATE likes SET created=unixepoch(); INSERT INTO likes(user_id,track_id,created) VALUES('owner','selection',unixepoch())");
+ const community=()=>read('/api/community/rankings?category=cover','rows');
+ const ranked=await community();
+ assert.ok(ranked.some(row=>row.id==='selection'&&row.is_composer_pick));
+ assert.equal((await f.pick(null,1)).status,200);
+ assert.deepEqual(await popular(),[['popular',1,1,0],['selection',2,1,0]]);
+ const cleared=await community();
+ assert.deepEqual(cleared.map(row=>[row.id,row.score]),ranked.map(row=>[row.id,row.score]));
+ assert.ok(cleared.every(row=>!row.is_composer_pick));
+ assert.ok(!(await detail(null)).is_composer_pick);
 });
 test('hiding/deleting a work, original or parent clears PICK; republication never reselects',async t=>{
  for(const change of ["UPDATE tracks SET status='hidden' WHERE id='solo'","UPDATE tracks SET status='deleted' WHERE id='solo'","DELETE FROM tracks WHERE id='solo'","UPDATE tracks SET status='hidden' WHERE id='one'","UPDATE tracks SET karaoke_at=0 WHERE id='one'","UPDATE tracks SET cover_mode='duet',duet_open=1 WHERE id='solo'"]){

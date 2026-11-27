@@ -109,7 +109,7 @@ export const giftInventory=sqliteTable('gift_inventory',{
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),giftType:text('gift_type').notNull(),giftName:text('gift_name').notNull(),currency:text('currency').notNull(),value:integer('value').notNull(),source:text('source').notNull(),requestId:text('request_id').notNull(),unit:integer('unit').notNull(),created:integer('created').notNull(),usedAt:integer('used_at').notNull().default(0),sendRequestId:text('send_request_id'),recipientId:text('recipient_id').references(()=>producers.id),
  expiresAt:integer('expires_at'),grantTerms:text('grant_terms'),dispatchItem:text('dispatch_item'),
  recalledAt:integer('recalled_at'),selectedForSend:text('selected_for_send')
-},t=>[uniqueIndex('gift_inventory_request_unit').on(t.userId,t.requestId,t.unit),uniqueIndex('gift_inventory_send_request').on(t.userId,t.sendRequestId),index('gift_inventory_owner').on(t.userId,t.usedAt),index('gift_inventory_dispatch').on(t.dispatchItem),check('gift_inventory_currency',sql`${t.currency} IN ('gold','silver','reward')`),check('gift_inventory_value',sql`${t.value}>=0`)]);
+},t=>[uniqueIndex('gift_inventory_request_unit').on(t.userId,t.requestId,t.unit),uniqueIndex('gift_inventory_send_request').on(t.userId,t.sendRequestId),index('gift_inventory_owner').on(t.userId,t.usedAt),index('gift_inventory_dispatch').on(t.dispatchItem),index('gift_inventory_product').on(t.giftType,t.usedAt),check('gift_inventory_currency',sql`${t.currency} IN ('gold','silver','reward')`),check('gift_inventory_value',sql`${t.value}>=0`)]);
 export const giftDispatches=sqliteTable('gift_dispatches',{
  id:text('id').primaryKey(),adminId:text('admin_id').notNull(),checkId:text('check_id').notNull(),
  audience:text('audience').notNull(),targetCount:integer('target_count').notNull(),plan:text('plan').notNull(),
@@ -124,6 +124,7 @@ export const giftDispatchItems=sqliteTable('gift_dispatch_items',{
 },t=>[
  uniqueIndex('gift_dispatch_member_line').on(t.dispatchId,t.userId,t.line),
  index('gift_dispatch_pending').on(t.dispatchId,t.state,t.id),
+ index('gift_dispatch_product_check').on(t.state,t.dispatchId,t.line),
  index('gift_dispatch_token').on(t.dispatchId,t.token),
  index('gift_dispatch_arrivals').on(t.dispatchId,t.line,t.noticeState,t.id)
 ]);
@@ -154,6 +155,20 @@ export const productAssetReviews=sqliteTable('product_asset_reviews',{
  surface:text('surface').notNull(),build:text('build').notNull(),report:text('report').notNull(),passed:integer('passed').notNull(),
  created:integer('created').notNull()
 },t=>[primaryKey({columns:[t.productId,t.versionId,t.platform,t.surface]})]);
+export const productDeletions=sqliteTable('product_deletions',{
+ productId:text('product_id').primaryKey(),name:text('name').notNull(),type:text('type').notNull(),snapshot:text('snapshot').notNull(),
+ state:text('state').notNull(),requestedBy:text('requested_by').notNull(),requestedAt:integer('requested_at').notNull(),
+ requestId:text('request_id').notNull(),checkedAt:integer('checked_at').notNull().default(0),
+ purgeRequest:text('purge_request'),purgeActor:text('purge_actor'),lease:text('lease'),leaseUntil:integer('lease_until').notNull().default(0),
+ plan:text('plan'),progress:integer('progress').notNull().default(0),lastError:text('last_error'),completedAt:integer('completed_at')
+},t=>[index('product_deletion_check').on(t.state,t.checkedAt,t.productId),index('product_deletion_work').on(t.state,t.leaseUntil,t.requestedAt),
+ check('product_deletion_state',sql`${t.state} IN ('pending','ready','purging','failed','deleted')`)]);
+export const productHistoryAssets=sqliteTable('product_history_assets',{
+ productId:text('product_id').notNull(),versionId:text('version_id').notNull(),file:text('file').notNull(),objectKey:text('object_key').notNull(),publishedAt:integer('published_at').notNull()
+},t=>[primaryKey({columns:[t.productId,t.versionId]}),index('product_history_asset_object').on(t.objectKey)]);
+export const productAssetUploads=sqliteTable('product_asset_uploads',{
+ uploadId:text('upload_id').primaryKey(),productId:text('product_id').notNull(),expiresAt:integer('expires_at').notNull()
+},t=>[index('product_asset_upload_by_product').on(t.productId,t.expiresAt)]);
 export const giftInventoryLots=sqliteTable('gift_inventory_lots',{
  inventoryId:text('inventory_id').notNull().references(()=>giftInventory.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
 },t=>[primaryKey({columns:[t.inventoryId,t.purchaseId]}),check('gift_inventory_lot_positive',sql`${t.gold}>0 AND ${t.netMw}>=0`)]);
@@ -180,6 +195,7 @@ export const songCoverPicks=sqliteTable('song_cover_picks',{
 },t=>[index('song_cover_picks_cover').on(t.coverId),check('song_cover_picks_revision',sql`${t.revision}>0`)]);
 export const tracks=sqliteTable('tracks',{
  releaseDate:text('release_date').notNull().default(''),
+ listeningTemplate:text('listening_template'),
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id),artistId:text('artist_id').notNull().references(()=>artists.id),producerId:text('producer_id').notNull().references(()=>producers.id),title:text('title').notNull(),genre:text('genre').notNull(),genresJson:text('genres_json').notNull().default('[]'),moodsJson:text('moods_json').notNull().default('[]'),classificationSource:text('classification_source').notNull().default('legacy'),classificationUpdated:integer('classification_updated').notNull().default(0),classificationRevision:integer('classification_revision').notNull().default(0),tags:text('tags').notNull().default(''),description:text('description').notNull().default(''),lyrics:text('lyrics').notNull().default(''),lyricsMode:text('lyrics_mode').notNull().default('none'),aiTool:text('ai_tool').notNull(),isAi:integer('is_ai').notNull().default(1),participation:text('participation').notNull().default(''),rightsAccepted:integer('rights_accepted').notNull(),status:text('status').notNull().default('uploading'),originalKey:text('original_key').notNull().default(''),originalExt:text('original_ext').notNull(),originalBytes:integer('original_bytes').notNull(),duration:real('duration').notNull().default(0),hasCover:integer('has_cover').notNull().default(0),coverVersion:text('cover_version').notNull().default(''),coverType:text('cover_type').notNull().default(''),error:text('error'),created:integer('created').notNull(),leaseUntil:integer('lease_until').notNull().default(0),leaseToken:text('lease_token'),attempts:integer('attempts').notNull().default(0),karaokeTerms:text('karaoke_terms').notNull().default(''),karaokeAt:integer('karaoke_at').notNull().default(0),kind:text('kind').notNull().default('original'),originalId:text('original_id'),performanceMode:text('performance_mode').notNull().default('solo'),coverMode:text('cover_mode').notNull().default('solo'),duetParentId:text('duet_parent_id').references(()=>tracks.id),duetPart:text('duet_part').notNull().default(''),duetOpen:integer('duet_open').notNull().default(0),duetGuide:text('duet_guide').notNull().default(''),recordingEdit:text('recording_edit').notNull().default(''),uploadedAt:integer('uploaded_at').notNull().default(0),firstPublishedAt:integer('first_published_at').notNull().default(0)
 },t=>[index('tracks_status_created').on(t.status,t.created),index('tracks_original').on(t.originalId,t.status),index('tracks_user').on(t.userId),index('tracks_duet_parent').on(t.duetParentId,t.status),index('tracks_duet_open').on(t.coverMode,t.duetOpen,t.status,t.created),index('tracks_upload_quota').on(t.userId,t.kind,t.uploadedAt),index('tracks_artist').on(t.artistId),index('tracks_producer').on(t.producerId)]);
 export const likes=sqliteTable('likes',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),trackId:text('track_id').references(()=>tracks.id,{onDelete:'cascade'}),dubbingId:text('dubbing_id').references(()=>dubbingProjects.id,{onDelete:'cascade'}),created:integer('created').notNull()},t=>[uniqueIndex('likes_user_track').on(t.userId,t.trackId),uniqueIndex('likes_user_dubbing').on(t.userId,t.dubbingId),index('likes_track').on(t.trackId),index('likes_track_created').on(t.trackId,t.created),check('likes_one_target',sql`(${t.trackId} IS NOT NULL) != (${t.dubbingId} IS NOT NULL)`)]);
@@ -187,8 +203,9 @@ export const follows=sqliteTable('follows',{userId:text('user_id').notNull().ref
 export const comments=sqliteTable('comments',{id:text('id').primaryKey(),trackId:text('track_id').references(()=>tracks.id,{onDelete:'cascade'}),dubbingId:text('dubbing_id').references(()=>dubbingProjects.id,{onDelete:'cascade'}),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),parentId:text('parent_id'),body:text('body').notNull(),timestamp:real('timestamp'),created:integer('created').notNull(),edited:integer('edited'),deletedAt:integer('deleted_at').notNull().default(0),deletedBy:text('deleted_by')},t=>[index('comments_track').on(t.trackId,t.created),index('comments_dubbing').on(t.dubbingId,t.created),check('comments_one_target',sql`(${t.trackId} IS NOT NULL) != (${t.dubbingId} IS NOT NULL)`)]);
 export const commentLikes=sqliteTable('comment_likes',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),commentId:text('comment_id').notNull().references(()=>comments.id,{onDelete:'cascade'})},t=>[primaryKey({columns:[t.userId,t.commentId]})]);
 export const playlists=sqliteTable('playlists',{nameKey:text('name_key'),updated:integer('updated').notNull().default(0),revision:integer('revision').notNull().default(1),sourceId:text('source_id'),imageVersion:text('image_version').notNull().default(''),imageType:text('image_type').notNull().default(''),id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),name:text('name').notNull(),description:text('description').notNull().default(''),isPublic:integer('is_public').notNull().default(0),created:integer('created').notNull()},t=>[index('playlists_owner').on(t.userId),index('playlists_name_key').on(t.nameKey),index('playlists_owner_updated').on(t.userId,t.updated,t.id),index('playlists_public_updated').on(t.isPublic,t.updated,t.id)]);
+// The preceding Worker can still write to this table while Sites rolls out the new Worker.
+export const playlistTitleClaims=sqliteTable('playlist_title_claims',{key:text('key').notNull()});
 // Legacy duplicates are preserved in playlists; the unique reservation serializes new titles.
-export const playlistTitleClaims=sqliteTable('playlist_title_claims',{key:text('key').primaryKey()});
 export const libraryRequests=sqliteTable('library_requests',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),requestId:text('request_id').notNull(),fingerprint:text('fingerprint').notNull(),resultId:text('result_id').notNull(),created:integer('created').notNull()},t=>[primaryKey({columns:[t.userId,t.requestId]})]);
 export const libraryWriteGuards=sqliteTable('library_write_guards',{id:text('id').primaryKey(),allowed:integer('allowed').notNull()},t=>[check('library_guard_allowed',sql`${t.allowed}=1`)]);
 export const playlistRecents=sqliteTable('playlist_recents',{userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),playlistId:text('playlist_id').notNull().references(()=>playlists.id,{onDelete:'cascade'}),played:integer('played').notNull()},t=>[primaryKey({columns:[t.userId,t.playlistId]}),index('playlist_recents_user').on(t.userId,t.played)]);
@@ -234,7 +251,7 @@ export const gifts=sqliteTable('gifts',{
  quantity:integer('quantity').notNull().default(1),
  giftType:text('gift_type'),giftName:text('gift_name'),requestId:text('request_id'),
  id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').references(()=>tracks.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull(),singerProfileId:text('singer_profile_id'),creatorProfileId:text('creator_profile_id').notNull(),singerMw:integer('singer_mw').notNull().default(0),creatorMw:integer('creator_mw').notNull(),platformMw:integer('platform_mw').notNull(),month:text('month').notNull(),created:integer('created').notNull()
-},t=>[index('gifts_track').on(t.trackId,t.created),index('gifts_sender').on(t.senderId,t.created),index('gifts_singer').on(t.singerProfileId,t.month),index('gifts_creator').on(t.creatorProfileId,t.month),uniqueIndex('gifts_request').on(t.senderId,t.requestId)]);
+},t=>[index('gifts_track').on(t.trackId,t.created),index('gifts_sender').on(t.senderId,t.created),index('gifts_singer').on(t.singerProfileId,t.month),index('gifts_creator').on(t.creatorProfileId,t.month),index('gifts_product').on(t.giftType),uniqueIndex('gifts_request').on(t.senderId,t.requestId)]);
 // Free cheers are earned, never sold or converted into gold or payout earnings.
 export const freeGiftWallets=sqliteTable('free_gift_wallets',{
  userId:text('user_id').primaryKey().references(()=>users.id),balance:integer('balance').notNull().default(0)
@@ -245,7 +262,7 @@ export const freeGiftClaims=sqliteTable('free_gift_claims',{
 export const freeGifts=sqliteTable('free_gifts',{
  silver:integer('silver').notNull().default(1),giftType:text('gift_type').notNull().default('star'),giftName:text('gift_name').notNull().default('은화'),quantity:integer('quantity').notNull().default(1),
  recipientProfileId:text('recipient_profile_id').references(()=>producers.id),id:text('id').primaryKey(),senderId:text('sender_id').notNull().references(()=>users.id),trackId:text('track_id').references(()=>tracks.id),requestId:text('request_id').notNull(),created:integer('created').notNull()
-},t=>[uniqueIndex('free_gifts_request').on(t.senderId,t.requestId),index('free_gifts_track').on(t.trackId,t.created)]);
+},t=>[uniqueIndex('free_gifts_request').on(t.senderId,t.requestId),index('free_gifts_track').on(t.trackId,t.created),index('free_gifts_product').on(t.giftType)]);
 export const giftLots=sqliteTable('gift_lots',{
  giftId:text('gift_id').notNull().references(()=>gifts.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
 },t=>[primaryKey({columns:[t.giftId,t.purchaseId]})]);
@@ -346,14 +363,14 @@ export const playerInventory=sqliteTable('player_inventory',{
  id:text('id').primaryKey(),userId:text('user_id').notNull().references(()=>users.id,{onDelete:'cascade'}),itemKey:text('item_key').notNull(),source:text('source').notNull(),sourceRef:text('source_ref').notNull(),grantedAt:integer('granted_at').notNull(),expiresAt:integer('expires_at').notNull().default(0),revoked:integer('revoked').notNull().default(0),
  periodCode:text('period_code'),redeemBefore:integer('redeem_before'),seasonEndsAt:integer('season_ends_at'),
  grantTerms:text('grant_terms'),dispatchItem:text('dispatch_item')
-},t=>[uniqueIndex('player_inventory_grant').on(t.userId,t.source,t.sourceRef),index('player_inventory_user').on(t.userId),index('player_inventory_dispatch').on(t.dispatchItem)]);
+},t=>[uniqueIndex('player_inventory_grant').on(t.userId,t.source,t.sourceRef),index('player_inventory_user').on(t.userId),index('player_inventory_dispatch').on(t.dispatchItem),index('player_inventory_product').on(t.itemKey,t.source,t.revoked)]);
 export const playerEquipment=sqliteTable('player_equipment',{
  userId:text('user_id').primaryKey().references(()=>users.id,{onDelete:'cascade'}),frameInventoryId:text('frame_inventory_id').references(()=>playerInventory.id,{onDelete:'set null'})
-});
+},t=>[index('player_equipment_inventory').on(t.frameInventoryId)]);
 // Cosmetic sales spend existing gold lots; they never enter creator gift settlement.
 export const decorationOrders=sqliteTable('decoration_orders',{
- id:text('id').primaryKey(),payerId:text('payer_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),requestId:text('request_id').notNull(),sku:text('sku').notNull(),periodCode:text('period_code').notNull(),gold:integer('gold').notNull(),inventoryId:text('inventory_id').notNull().references(()=>playerInventory.id),created:integer('created').notNull()
-},t=>[uniqueIndex('decoration_order_request').on(t.payerId,t.requestId),index('decoration_order_inventory').on(t.inventoryId),check('decoration_price_positive',sql`${t.gold}>0`),check('decoration_period',sql`${t.periodCode} IN ('P7D','P1M','P3M')`)]);
+ id:text('id').primaryKey(),payerId:text('payer_id').notNull().references(()=>users.id),recipientId:text('recipient_id').notNull().references(()=>users.id),requestId:text('request_id').notNull(),sku:text('sku').notNull(),periodCode:text('period_code').notNull(),gold:integer('gold').notNull(),inventoryId:text('inventory_id').notNull().references(()=>playerInventory.id),created:integer('created').notNull(),productName:text('product_name')
+},t=>[uniqueIndex('decoration_order_request').on(t.payerId,t.requestId),index('decoration_order_inventory').on(t.inventoryId),index('decoration_order_product').on(t.sku),check('decoration_price_positive',sql`${t.gold}>0`),check('decoration_period',sql`${t.periodCode} IN ('P7D','P1M','P3M')`)]);
 export const decorationOrderLots=sqliteTable('decoration_order_lots',{
  orderId:text('order_id').notNull().references(()=>decorationOrders.id),purchaseId:text('purchase_id').notNull().references(()=>goldPurchases.id),gold:integer('gold').notNull(),netMw:integer('net_mw').notNull()
 },t=>[primaryKey({columns:[t.orderId,t.purchaseId]}),check('decoration_lot_positive',sql`${t.gold}>0 AND ${t.netMw}>=0`)]);
@@ -367,7 +384,7 @@ export const decorationTransfers=sqliteTable('decoration_transfers',{
 export const roomDecorations=sqliteTable('room_decorations',{
  roomId:text('room_id').primaryKey(),hostId:text('host_id').notNull().references(()=>users.id),sku:text('sku').notNull(),revision:integer('revision').notNull(),updated:integer('updated').notNull(),inventoryId:text('inventory_id').references(()=>playerInventory.id),
  assetVersion:text('asset_version')
-});
+},t=>[index('room_decoration_product').on(t.sku,t.hostId)]);
 // Immutable completed applications. No reservation starts a rental clock.
 export const roomThemeApplications=sqliteTable('room_theme_applications',{
  userId:text('user_id').notNull().references(()=>users.id),requestId:text('request_id').notNull(),roomId:text('room_id').notNull(),action:text('action').notNull(),fingerprint:text('fingerprint').notNull(),revision:integer('revision').notNull(),created:integer('created').notNull()
@@ -403,6 +420,7 @@ export const voiceMusicPermissions=sqliteTable('voice_music_permissions',{trackI
 
 // Dubbing is a separate content domain: it never enters the music settlement ledger.
 export const dubbingProjects=sqliteTable('dubbing_projects',{posterVersion:text('poster_version').notNull().default(''),lastSubmittedBy:text('last_submitted_by').notNull().default(''),
+ listeningTemplate:text('listening_template'),listeningDescription:text('listening_description').notNull().default(''),
  id:text('id').primaryKey(),ownerId:text('owner_id').notNull().references(()=>users.id,{onDelete:'cascade'}),
  title:text('title').notNull(),optionsJson:text('options_json').notNull(),scriptJson:text('script_json').notNull(),scriptKey:text('script_key').notNull(),
  creationHash:text('creation_hash').notNull(),source:text('source').notNull().default('manual'),generationId:text('generation_id'),

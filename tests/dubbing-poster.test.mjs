@@ -5,7 +5,7 @@ import {fixture} from './fixture.mjs';
 import {memoryBucket,options,sampleScript} from './dubbing-fixtures.mjs';
 import worker from '../server/index.js';
 
-test('original author can replace a poster after release, with inherited artwork and access checks',async t=>{
+test('dubbing performances keep their copied poster and can replace their own artwork',async t=>{
  const bucket=memoryBucket(),env={DUBBING_ENABLED:'true',BUCKET:bucket};
  const {DB,call,sql}=await fixture(t,env);
  const poster=readFileSync(new URL('../dist/assets/dubbing-genres/fantasy.webp',import.meta.url));
@@ -26,8 +26,13 @@ test('original author can replace a poster after release, with inherited artwork
  const child=crypto.randomUUID();
  const c=await call(root+'/performances','POST',{id:child,roleId:'role_1'},'other');
  assert.equal(c.status,201,JSON.stringify(c.body));
+ const childRoute='/api/dubbing/projects/'+child+'/poster';
+ const inherited=(await call('/api/dubbing/projects/'+child,'GET',null,'other')).body.project;
+ assert.ok(inherited.posterUrl.startsWith(childRoute+'?v='));
+ assert.equal(inherited.canEditPoster,true);
+ assert.deepEqual(Buffer.from(await (await raw(inherited.posterUrl,{user:'other'})).arrayBuffer()),poster);
  assert.equal((await raw(route,{method:'PUT',user:'other',body:poster})).status,403);
- assert.equal((await raw('/api/dubbing/projects/'+child+'/poster',{method:'PUT',user:'other',body:poster})).status,404);
+ assert.equal((await raw(childRoute,{method:'PUT',user:'owner',body:poster})).status,403);
  const repeat=await raw(route,{method:'PUT',body:poster}),second=(await repeat.json()).posterUrl;
  assert.equal(repeat.status,200);assert.notEqual(first,second);
  assert.equal((await raw(first)).status,404);
@@ -35,7 +40,12 @@ test('original author can replace a poster after release, with inherited artwork
   assert.equal((await raw(route,{method:'PUT',body:bad})).status,400);
  }
  const item=(await call('/api/dubbing/projects/'+child,'GET',null,'other')).body.project;
- assert.equal(item.posterUrl,second);assert.equal(item.canEditPoster,false);
+ assert.equal(item.posterUrl,inherited.posterUrl);
+ const childUpdate=await raw(childRoute,{method:'PUT',user:'other',body:poster});
+ assert.equal(childUpdate.status,200);
+ const childPoster=(await childUpdate.json()).posterUrl;
+ assert.notEqual(childPoster,inherited.posterUrl);
+ assert.equal((await call(root,'GET')).body.project.posterUrl,second);
  assert.equal((await call(root,'GET',null,'other')).body.project.canEditPoster,false);
  assert.equal((await call('/api/dubbing/projects?tab=open&discovery=1','GET',null,null)).body.projects[0].posterUrl,second);
  assert.equal((await call('/api/dubbing/casting/'+id,'GET',null,null)).body.root.posterUrl,second);
@@ -46,6 +56,7 @@ test('original author can replace a poster after release, with inherited artwork
  assert.equal((await raw(second,{method:'HEAD',headers})).status,304);
  sql.prepare("INSERT INTO user_blocks VALUES('other','owner',0)").run();
  assert.equal((await raw(second,{user:'other',headers})).status,404);
+ assert.equal((await raw(childPoster,{user:'owner'})).status,404);
  sql.prepare('UPDATE dubbing_projects SET deleted_at=1 WHERE id=?').run(id);
  assert.equal((await raw(second,{headers})).status,404);
 });

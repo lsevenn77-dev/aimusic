@@ -205,6 +205,7 @@ function releaseRun(run){
 function cleanupSing(){
  const s=sing;if(!s)return;if(($('#dialog').classList.contains('recording-settings-dialog')||$('#dialog').classList.contains('record-settings-dialog')||$('#dialog').classList.contains('duet-editor-dialog')||$('#dialog').classList.contains('sing-draft-delete-popup')||$('#dialog').classList.contains('sing-mode-change-popup')))$('#dialog').close();sing=null;cleanupPunch(s);s.abort?.abort();s.pendingMic?.getTracks().forEach(track=>track.stop());clearTimeout(s.scrollTimer);cancelAnimationFrame(s.frame);
  s.takeWaveResize?.disconnect();
+ s.inheritedCoverAbort?.abort();s.listeningMotion?.abort();
  s.previewPitch?.close();s.lyricResize?.disconnect();s.micObserver?.disconnect();s.micCheck?.destroy();cancelKeyProcessing(s);cancelVocalEffects(s);if($('#dialog')?.classList.contains('punch-complete-dialog'))$('#dialog').close();stopStandbyMonitor(s);releaseRun(s.run);s.preview?.forEach(n=>{try{n.stop();}catch{}});s.wake?.release?.().catch(()=>{});s.ctx?.close().catch(()=>{});
 }
 function karaokeListHTML(tracks,duets=[]){
@@ -249,6 +250,7 @@ function bindSing(id){
  cleanupSing();if(!$('#sing')||!routeSing)return;
  sing={id,routeHash:location.hash,historyKey:window.navigation?.currentEntry?.key,owner:me?.id,data:routeSing,state:'loading',cursor:0,keySemitones:0,mix:preferredRecordingMix(me?.id),mode:routeSing.mode||'solo',part:routeSing.part||'male',parent:routeSing.duet?.parent_id||null};if(!canEditPaid())sing.mix.tone=0;sing.duetGuide=sing.parent?routeSing.duet?.guide||null:{version:1,mode:'free',lines:[]};
  const s=sing,wheel=$('#sing-wheel'),seek=$('#sing-seek');
+ s.listeningTemplate=routeSing.duet?.partner?.listening_template??AifectListening.defaultListeningTemplate;
  const transport=$('.sing-transport'),lyricLines=wheel.querySelectorAll('.sing-line-text,.field-help');
  const desktopTransport=matchMedia('(min-width:1024px), (min-width:801px) and (hover:hover) and (pointer:fine)');
  s.usesDesktopLayout=()=>desktopTransport.matches&&!document.documentElement.hasAttribute('data-aifect-native');
@@ -290,7 +292,8 @@ function bindSing(id){
  });
  const redoLive=$('[data-sing-redo-live]');if(redoLive)redoLive.onclick=()=>{void restartSinging();};
  document.querySelectorAll('[data-sing-record-mode]').forEach(button=>button.onclick=()=>{void switchSingRecordingMode(button.dataset.singRecordMode);});
- bindKeyControls();renderDuetGuide();drawLyrics(0);renderSingPanel();if(new URLSearchParams(location.hash.split('?')[1]||'').get('draft')==='1')void restoreSingDraft(s);else{s.state='idle';updateTransport();}
+ bindKeyControls();renderDuetGuide();drawLyrics(0);renderSingPanel();
+ void restoreSingDraft(s).then(()=>{if(sing===s&&s.parent&&!s.inheritedCoverFile&&!s.coverFile)void loadSingInheritedPhoto(s);});
 }
 function setSingStatus(message,notice=false){
  const status=$('#sing-status');
@@ -539,6 +542,7 @@ function drawLyrics(t,follow=true){
   if(end>line.s)row.style.setProperty('--take-line-progress',100*Math.max(0,Math.min(1,(t-line.s)/(end-line.s)))+'%');
  }
  if(follow&&!s.scrubbing&&at.line!==s.shownLine){s.shownLine=at.line;const mobileTop=recordingLyricWindow(wheel,row);if(mobileTop!==null)wheel.scrollTo({top:mobileTop,behavior:singLive(s)?'smooth':'instant'});else if(row)wheel.scrollTop=Math.max(0,row.offsetTop+row.offsetHeight/2-wheel.clientHeight*.3125);}
+ paintSingListening(s,t);
 }
 async function finishSinging({discardPunch=false}={}){
  const s=sing;if(!singLive(s))return;const run=s.run,ctx=s.ctx,end=Math.min(run.punchRange?.end||s.mr.duration,run.from+Math.max(0,ctx.currentTime-run.t0));s.state='stopping';cancelAnimationFrame(s.frame);paintPunchCountdown(s,null);updateTransport();setSingStatus('녹음한 구간을 정리하고 있습니다…');
@@ -640,14 +644,19 @@ function bindMixControls(){
  refreshEffectControls();
 }
 function bindReview(){
- const s=sing,form=$('#sing-upload-form');bindWorkPhoto(form,s);
+ const s=sing,form=$('#sing-upload-form'),source=s.data.duet?.partner||s.data.track;
+ const scene=bindListeningEditor(form,{template:s.listeningTemplate,photo:trackArtworkPath(source),photoSession:s,
+  onTemplate(value){s.listeningTemplate=value;queueSingDraft(s);}});
+ bindSingListening(s,scene);
+ const retry=form.querySelector('[data-retry-inherited-photo]');if(retry)retry.onclick=()=>loadSingInheritedPhoto(s);
+ paintSingInheritedStatus(s);
  form.elements.description.value=s.description||'';
  form.elements.description.oninput=()=>{s.description=form.elements.description.value;queueSingDraft(s);};
  const select=form.querySelector('select[name=publish_as]');
- if(select){select.value=s.mobilePublication||'';select.onchange=()=>{s.mobilePublication=select.value;};}
+ if(select){select.value=s.mobilePublication||'';select.onchange=()=>{s.mobilePublication=select.value;queueSingDraft(s);};}
  const all=form.querySelector('[data-consent-all]'),items=[...form.querySelectorAll('.rights-check input')];
  const paint=()=>{const count=items.filter(box=>box.checked).length;all.checked=count===items.length;all.indeterminate=count>0&&!all.checked;};
- const remember=()=>{s.consents=Object.fromEntries(items.map(box=>[box.name,box.checked]));paint();};
+ const remember=()=>{s.consents=Object.fromEntries(items.map(box=>[box.name,box.checked]));queueSingDraft(s);paint();};
  items.forEach(box=>{box.checked=!!s.consents?.[box.name];box.onchange=remember;});
  all.onchange=()=>{items.forEach(box=>box.checked=all.checked);remember();};
  paint();form.onsubmit=busyForm(form,uploadSung);
@@ -752,16 +761,19 @@ function coverPublication(s,fd){
  return {publish_as:kind,cover_mode:mode,duet_slot:kind==='solo'?'':s.parent?'second':'first',duet_parent_id:s.parent||null,duet_consent:desktopTakeEditor()?fd.has('duet_consent'):kind==='duet_invitation',duet_guide:guide};
 }
 async function uploadSung(fd){
- const s=sing;if(!s?.voice||singBusy(s)||singLive(s))return;const publication=coverPublication(s,fd),form=$('#sing-upload-form');if(form._photoError)throw Error(form._photoError);
+ const s=sing;if(!s?.voice||singBusy(s)||singLive(s))return;const publication=coverPublication(s,fd),form=$('#sing-upload-form');
+ if(form._photoPending)throw new Error('커버사진을 확인하고 있습니다. 잠시 뒤 다시 게시해 주세요.');
+ await ensureSingListeningPhoto(s);
+ if(sing!==s)return;
  const edits={rerecorded:!!(s.punchUndo?.length||s.legacyPunch),tone:s.mix.tone!==0,...(s.crop?{crop:s.crop}:{})};
  const premiumEdit=edits.rerecorded||edits.tone||edits.crop;
  if(premiumEdit&&!canEditPaid())throw Error('프리미엄 편집을 게시하려면 이용권이 필요합니다. 원본 복원 후 다시 시도할 수 있습니다.');
- s.publishRequest??=crypto.randomUUID();const photo=s.coverFile;
+ s.publishRequest??=crypto.randomUUID();const photo=s.coverFile||s.inheritedCoverFile;
  stopPreview();s.state='exporting';updateTransport();
  const progress=$('#sing-upload-form .upload-progress'),note=progress.querySelector('p');progress.hidden=false;note.textContent='부른 구간을 합치고 있습니다…';
  try{
   refreshVocalGuide(s);const file=await renderSung(s,p=>{if(sing===s)note.textContent='고음질 MP3로 변환 중 '+Math.round(p*100)+'%';},publication.cover_mode);if(sing!==s)return;
-  const draft=await api('/api/covers','POST',{request_id:s.publishRequest,original_id:s.id,...publication,...(premiumEdit?{recording_edit:edits}:{}),description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:'mp3',bytes:file.size});
+  const draft=await api('/api/covers','POST',{request_id:s.publishRequest,original_id:s.id,...publication,...(premiumEdit?{recording_edit:edits}:{}),listening_template:form._listeningTemplate,description:fd.get('description')||'',own_voice:fd.has('own_voice'),rights:fd.has('rights'),extension:'mp3',bytes:file.size});
   if(draft.cover_mode!==publication.cover_mode||draft.publish_as!==publication.publish_as||(draft.duet_parent_id||null)!==publication.duet_parent_id)throw new Error('저장된 공개 종류가 선택과 달라 업로드를 중단했습니다. 녹음은 그대로 보관됩니다.');
   let completed={};
   if(!['published','processing','queued'].includes(draft.status)){

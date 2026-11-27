@@ -302,6 +302,7 @@ function updateSyncedLyrics(force=false){
   if(!line)void fetchCurrentLine();
   else if(!audio.paused&&line.until-audio.currentTime<=LYRIC_PREFETCH_SECONDS&&line.until<current.duration&&(me||line.until<60)&&!lineAtTime(line.until))void fetchCurrentLine(line.until,true);
  }
+ if(typeof refreshListeningCaptions==='function')refreshListeningCaptions();
 }
 audio.addEventListener('seeking',()=>{lyricDisplay=null;lyricRequest++;lyricPending=null;lyricRetryAt=0;updateSyncedLyrics(true);});
 for(const event of ['timeupdate','play','pause','seeked','loadedmetadata','ended','emptied'])audio.addEventListener(event,()=>updateSyncedLyrics());

@@ -47,7 +47,9 @@ for(const file of ['library-v2.js','library-v2.css','playlist-editor.js'])await 
 await cp('dist/music-card-controls.css','dist/client/music-card-controls.css');
 await cp('dist/song-sidebar.css','dist/client/song-sidebar.css');
 for(const file of ['song-covers.js','song-covers.css'])await cp('dist/'+file,'dist/client/'+file);
-for(const file of ['song-detail.js','song-detail.css','song-entry.js','song-entry.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['song-detail.js','song-detail.css','song-entry.js','song-entry.css','cover-pick.css'])await cp('dist/'+file,'dist/client/'+file);
+for(const file of ['listening.js','listening.css'])await cp('dist/'+file,'dist/client/'+file);
+await build({entryPoints:['shared/listening.js'],outfile:'dist/client/listening-core.js',bundle:true,format:'iife',globalName:'AifectListening',target:'es2022',minify:true});
 for(const file of ['dubbing-casting.js','dubbing-casting.css','dubbing-editor.css','dubbing-editor-storage.js','dubbing-editor-view.js','dubbing-editor-commands.js','dubbing-editor.js','dubbing-editor-embed.js','dubbing-community.js','dubbing.js','dubbing.css','dubbing-rewarded.js','dubbing-recording.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 for(const file of ['mobile-ux.js','mobile-ux.css','player-shell.js','player-shell.css','public-music.css','design-system.css','design-system.js'])await cp(`dist/${file}`,`dist/client/${file}`);
 await cp('dist/footer-layout.js','dist/client/footer-layout.js');
@@ -118,7 +120,7 @@ for(const name of await readdir('dist/client')){
  if(['talking-playlist.css','room-frame.css'].includes(name))continue; // Approved room dimensions use final CSS pixels.
  // Shared chat controls, singing presentation and popup roles use final CSS pixels. Their feature
  // geometry and the verified 20/15/14/13px popup type scale must not be remapped.
- if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','public-discovery.css','scroll-top.css','room-release.css','room-bubbles.css','room-interior.css','chat-ui.css','messages-ui.css','page-tabs.css','comment-meta.css','crew-page.css','work-feed.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','gift-compose.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'].includes(name))continue;
+ if(!name.endsWith('.css')||name.startsWith('aifect-app-')||['ui-region-scale.css','public-discovery.css','scroll-top.css','room-release.css','room-bubbles.css','room-interior.css','chat-ui.css','messages-ui.css','page-tabs.css','comment-meta.css','crew-page.css','work-feed.css','cover-pick.css','sing-design.css','popup-design-system.css','popup-commerce-design.css','gift-compose.css','popup-room-design.css','room-popup-layout.css','popup-game-design.css','sing-popup-design.css'].includes(name))continue;
  const file='dist/client/'+name;
  await writeFile(file,regionTokenCSS(await readFile(file,'utf8')));
 }
@@ -129,6 +131,7 @@ await cp('dist/focus.js', 'dist/client/focus.js');
 const designSystemPath = 'dist/client/design-system.css';
 await writeFile(designSystemPath, focusStyles + '\n' + await readFile(designSystemPath, 'utf8'));
 if(!indexHTML.includes('<!--BUSINESS_FOOTER-->'))throw new Error('Business footer placeholder is missing');
+await build({entryPoints:['shared/cover-pick-ui.js'],outfile:'dist/client/cover-pick-ui.js',bundle:true,format:'iife',globalName:'AifectCoverPick',target:'es2022',minify:true});
 await build({entryPoints:['shared/playlist-policy.js'],outfile:'dist/client/playlist-policy.js',bundle:true,format:'iife',globalName:'AifectPlaylist',target:'es2022',minify:true});
 await build({entryPoints:['shared/player.js'],outfile:'dist/client/player-core.js',bundle:true,format:'iife',globalName:'AifectPlayer',target:'es2022',minify:true});
 await build({entryPoints:['shared/dubbing.js'],outfile:'dist/client/dubbing-core.js',bundle:true,format:'iife',globalName:'AifectDubbing',target:'es2022',minify:true});

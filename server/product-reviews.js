@@ -95,7 +95,10 @@ export async function productEvidenceRoute(req,env,path,allowed){
  const [product,version,record,name,...rest]=path.slice('/api/admin/product-evidence/'.length).split('/');
  const m=/^(actual|preview)([0-2])\.(png|webp)$/.exec(name||'');
  if(rest.length||!PRODUCT_ID.test(product||'')||!VERSION_ID.test(version||'')||!VERSION_ID.test(record||'')||!m||
-  !await one(env,'SELECT id FROM product_asset_versions WHERE product_id=? AND id=?',product,version))fail(404,'검수 캡처를 찾을 수 없습니다.');
+  !await one(env,`SELECT 1 found WHERE EXISTS(SELECT 1 FROM product_asset_versions WHERE product_id=? AND id=?)
+   OR EXISTS(SELECT 1 FROM admin_audit WHERE action='product_review' AND json_extract(target,'$.product_id')=?
+    AND json_extract(target,'$.result.version_id')=? AND json_extract(target,'$.result.evidence')=?)`,
+   product,version,product,version,record))fail(404,'검수 캡처를 찾을 수 없습니다.');
  if(!env.BUCKET)fail(503,'상품 저장소에 연결할 수 없습니다.');
  const file=await env.BUCKET.get(['product-evidence',product,version,record,name].join('/'));
  if(!file)fail(404,'검수 캡처를 찾을 수 없습니다.');

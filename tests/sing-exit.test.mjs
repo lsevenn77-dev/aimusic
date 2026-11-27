@@ -7,10 +7,11 @@ import {readFileSync} from 'node:fs';
 function session(mode){
  const records=new Map(),c=nicknameContext({
   document:{addEventListener(){},querySelectorAll:()=>[]},window:{addEventListener(){}},me:{id:'account'},Float32Array,
+  $:()=>null,
   setTimeout(){throw Error('Draft persistence must not be scheduled');}, clearTimeout(){},
   singingKey:()=>0,records,crypto,
  });
- for(const file of ['karaoke.js','sing-drafts.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
+ for(const file of ['karaoke.js','sing-drafts.js','listening.js'])vm.runInContext(readFileSync(new URL('../dist/'+file,import.meta.url),'utf8'),c);
  const run=js=>vm.runInContext(js,c);
  c.mode=mode;
  run(`sing={id:'song',mode,part:'female',owner:'account',state:'review',data:{track:{title:'take'}},mix:{offset:0},voice:{length:2,sampleRate:32000,getChannelData:()=>new Float32Array([.4,.7])}};

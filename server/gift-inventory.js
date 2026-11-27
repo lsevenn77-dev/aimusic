@@ -11,6 +11,7 @@ import {parseProductDeadline,productGrantExpiry} from './product-deadline.js';
 import {producerNameSQL} from './identity.js';
 import {giftDispatchPermissions,requireGiftDispatchOrigin} from './gift-dispatch-permissions.js';
 import {bumpGiftArrivalVersion} from './notice-visibility.js';
+import {giftStockSQL as ready} from './product-rights.js';
 
 const requestId=b=>{if(typeof b.request_id!=='string'||!/^[a-zA-Z0-9-]{16,64}$/.test(b.request_id))fail(400,'요청 번호를 다시 확인해 주세요.');return b.request_id;};
 // Codes are allocated and reserved by public_profile_ids; a lookup never
@@ -22,11 +23,6 @@ const publicIdentity=(value,legacy=false)=>{
  fail(400,'회원 ID를 확인해 주세요. 영문 3자리와 숫자 4자리로 입력해 주세요.');
 };
 const paid=`status='paid' AND NOT EXISTS(SELECT 1 FROM gold_orders o WHERE o.id=gold_purchases.id AND o.state!='paid') AND NOT EXISTS(SELECT 1 FROM play_purchases pp WHERE 'play_'||pp.token_hash=gold_purchases.id AND pp.state='refunded')`;
-const ready=(alias='')=>{
- const column=name=>alias?alias+'.'+name:name;
- return `${column('used_at')}=0 AND ${column('recalled_at')} IS NULL
-  AND (${column('expires_at')} IS NULL OR ${column('expires_at')}>unixepoch())`;
-};
 const priority='expires_at IS NULL,expires_at,created DESC,id';
 export async function giftInventoryList(env,uid){
  const items=await rows(env,`SELECT i.id,i.gift_type,i.gift_name,i.currency,i.value,i.source,i.created,i.expires_at,i.grant_terms,

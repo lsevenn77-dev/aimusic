@@ -1,6 +1,14 @@
-function dubbingCommunityHTML(p){
+function dubbingCommunityHTML(p,{listening=false}={}){
  if(p.visibility!=='public')return '';
- return `<section class="dubbing-panel dubbing-community"><div class="dubbing-section-heading"><div><span class="eyebrow">TOGETHER</span><h2>이 장면에 마음을 남겨 주세요.</h2></div><button class="small-button" id="dubbing-like" aria-pressed="${!!p.community?.liked}">♥ 좋아요 ${Number(p.community?.likes)||0}</button></div><div class="dubbing-comment-layout"><div><form id="dubbing-comment-form"><label>감상 남기기<textarea data-comment-input name="body" rows="1" maxlength="2000" placeholder="함께 연기한 목소리에 응원을 보내 주세요." required></textarea></label><button class="primary-button" type="submit">댓글 남기기</button><p class="dubbing-feedback" role="status"></p></form><div id="dubbing-comments" aria-live="polite"></div><button class="small-button" id="dubbing-comments-more" hidden>댓글 더 보기</button></div><aside class="dubbing-community-note">${officialSupportHTML(p.community?.official_ai)}<h3>함께 만드는 작품</h3><p>서로의 목소리와 창작의 권리를 존중해 주세요.</p>${p.isOwner?'':`<button class="small-button" data-dubbing-rights-report>권리 침해 신고</button><small>접수 내용과 연락처는 운영자에게만 전달됩니다.</small>`}</aside></div></section>`;
+ const composer='<form id="dubbing-comment-form"><label>감상 남기기<textarea data-comment-input name="body" rows="1" maxlength="2000" placeholder="함께 연기한 목소리에 응원을 보내 주세요." required></textarea></label><button class="primary-button" type="submit">댓글 남기기</button><p class="dubbing-feedback" role="status"></p></form>';
+ const discussion='<div>'+composer+'<div id="dubbing-comments" aria-live="polite"></div><button class="small-button" id="dubbing-comments-more" hidden>댓글 더 보기</button></div>';
+ if(listening)return '<section class="surface comments-panel dubbing-community"><div class="section-heading"><h2>댓글</h2></div><div class="dubbing-comment-layout">'+discussion+'</div></section>';
+ return '<section class="dubbing-panel dubbing-community"><div class="dubbing-section-heading"><div><span class="eyebrow">TOGETHER</span><h2>이 장면에 마음을 남겨 주세요.</h2></div>'+
+  '<button class="small-button" id="dubbing-like" aria-pressed="'+!!p.community?.liked+'">♥ 좋아요 '+(Number(p.community?.likes)||0)+'</button></div>'+
+  '<div class="dubbing-comment-layout">'+discussion+'<aside class="dubbing-community-note">'+officialSupportHTML(p.community?.official_ai)+
+  '<h3>함께 만드는 작품</h3><p>서로의 목소리와 창작의 권리를 존중해 주세요.</p>'+
+  (p.isOwner?'':'<button class="small-button" data-dubbing-rights-report>권리 침해 신고</button><small>접수 내용과 연락처는 운영자에게만 전달됩니다.</small>')+
+  '</aside></div></section>';
 }
 function dubbingRemovedHTML(p){
  const status={pending:'검토 중',removed:'공개 중단',appealed:'이의신청 검토 중',upheld:'공개 중단 유지',restored:'복원',dismissed:'신고 종결'};
@@ -16,7 +24,11 @@ function bindDubbingCommunity(p,root){
  const needLogin=()=>{if(me)return true;returnRoute=location.hash;location.hash='#account';return false;};
  root.querySelectorAll('[data-dubbing-appeal]').forEach(b=>b.onclick=()=>dubbingRightsForm(p,{id:b.dataset.dubbingAppeal,version:Number(b.dataset.version)}));
  const report=root.querySelector('[data-dubbing-rights-report]');if(report)report.onclick=()=>{if(needLogin())dubbingRightsForm(p);};
- const like=root.querySelector('#dubbing-like');if(like)like.onclick=async()=>{if(!needLogin())return;like.disabled=true;try{const result=await api('/api/dubbing/projects/'+p.id+'/like',p.community.liked?'DELETE':'PUT');p.community=result;like.textContent='♥ 좋아요 '+result.likes;like.setAttribute('aria-pressed',String(!!result.liked));}catch(e){toast(e.message);}finally{like.disabled=false;}};
+ const like=root.querySelector('#dubbing-like');if(like)like.onclick=async()=>{if(!needLogin())return;like.disabled=true;try{const result=await api('/api/dubbing/projects/'+p.id+'/like',p.community.liked?'DELETE':'PUT');p.community=result;
+  const count=like.querySelector('[data-like-count]');
+  if(count){count.textContent=result.likes;like.classList.toggle('is-active',!!result.liked);}
+  else like.textContent='♥ 좋아요 '+result.likes;
+  like.setAttribute('aria-pressed',String(!!result.liked));}catch(e){toast(e.message);}finally{like.disabled=false;}};
  const list=root.querySelector('#dubbing-comments'),form=root.querySelector('#dubbing-comment-form'),more=root.querySelector('#dubbing-comments-more');if(!list)return;
  let offset=0,loading=false,readRequest=0,pendingId=null,pendingText='';
  const load=async(append=false)=>{

@@ -1,6 +1,6 @@
 import {one,rows,run,now,fail} from './db.js';
 import {FREE_ROOM_THEMES,DEFAULT_ROOM_SKIN,DEFAULT_ROOM_THEME,isRetiredRoomTheme,roomUIMode} from '../shared/decorations.js';
-import {catalog,catalogRoomTheme,giftRuntime,publishedThemeVersions} from './product-catalog.js';
+import {archivedGiftImages,catalog,catalogRoomTheme,giftRuntime,publishedThemeVersions} from './product-catalog.js';
 import {activeDecorationSQL,decorationInventory} from './decorations.js';
 import {playerColumnsSQL} from './player.js';
 export async function roomThemeChoices(env,uid){
@@ -66,9 +66,11 @@ export async function decorateRoomResult(env,data){
  }
  const giftMessages=data.chat?.filter(message=>message.gift?.type);
  if(giftMessages?.length){
-  const products=await catalog(env,giftMessages.map(message=>message.gift.type));
+  const keys=giftMessages.map(message=>message.gift.type);
+  const products=await catalog(env,keys);
+  const historical=await archivedGiftImages(env,keys.filter(key=>!products.has(key)));
   data={...data,chat:data.chat.map(message=>{
-   const image=giftRuntime(products.get(message.gift?.type))?.image;
+   const image=giftRuntime(products.get(message.gift?.type))?.image||historical.get(message.gift?.type);
    return image?{...message,gift:{...message.gift,image}}:message;
   })};
  }

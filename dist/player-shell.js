@@ -5,7 +5,7 @@ function renderPlayerActions(track){
  const id=esc(track.id),credit=playerCredit(track),details=document.querySelector('.player-track-details');
  const dubbing=track.kind==='dubbing',route=(dubbing?'#dubbing/':'#song/')+id;
  document.querySelector('.player').dataset.mediaKind=track.kind;
- document.querySelector('#now-playing').innerHTML='<a href="'+route+'" aria-label="'+esc(track.title)+(dubbing?' 작품 보기':' 곡 보기')+'">'+cover(track,'mini-cover')+'</a><div class="player-metadata"><strong title="'+esc(track.title)+'">'+esc(track.title)+'</strong><div class="player-meta-line"><span class="player-credit" title="'+esc(credit)+'">'+esc(credit)+'</span></div></div>';
+ document.querySelector('#now-playing').innerHTML='<a href="'+route+'" aria-label="'+esc(track.title)+(dubbing?' 작품 보기':' 곡 보기')+'">'+cover(track,'mini-cover')+'</a><div class="player-metadata"><strong title="'+esc(track.title)+'">'+AifectCoverPick.titleHTML(track)+'</strong><div class="player-meta-line"><span class="player-credit" title="'+esc(credit)+'">'+esc(credit)+'</span></div></div>';
  document.querySelector('.player-meta-line').append(details);
  // Genre precedes the stable clock in visual and reading order.
  details.append(document.querySelector('.player-clock'));

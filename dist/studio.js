@@ -126,58 +126,80 @@ function workPhotoField(src,custom=false){
  ${custom?'<button type="button" class="small-button" data-inherit-photo>원곡 커버로 되돌리기</button>':''}
  <small class="field-help">JPG · PNG · WebP · 최대 5MB</small><span role="status" class="work-photo-status"></span></div></fieldset>`;
 }
-function bindWorkPhoto(form,session){
+function bindWorkPhoto(form,session,options={}){
  const field=form?.querySelector('.work-photo');if(!field)return;
  const input=field.querySelector('input'),img=field.querySelector('img'),cancel=field.querySelector('[data-cancel-photo]'),status=field.querySelector('[role=status]');
+ let preview=null,observer=null,revision=0;
+ const release=()=>{if(preview)URL.revokeObjectURL(preview);preview=null;observer?.disconnect();observer=null;};
  const pick=file=>{
-  const previous=img.dataset.previewUrl;if(previous)URL.revokeObjectURL(previous);
-  delete img.dataset.previewUrl;
-  form._photo=file;cancel.hidden=!file;form._photoError='';status.textContent=file?.name||'';
-  if(file){
-   const url=URL.createObjectURL(file);img.dataset.previewUrl=url;
-   img.onload=img.onerror=()=>{URL.revokeObjectURL(url);};img.src=url;
-  }else{input.value='';img.src=img.dataset.savedSrc;}
- };
- const changed=file=>{pick(file);if(session){session.coverFile=file;queueSingDraft(session);}};
- field.querySelector('[data-pick-photo]').onclick=()=>{if(!form._busy)input.click();};
- cancel.onclick=()=>{if(!form._busy)changed(null);};input.oncancel=cancel.onclick;
- input.onchange=()=>{
-  if(form._busy)return;
-  const file=input.files[0];
-  if(file&&(!file.size||file.size>5*1024*1024||!['image/jpeg','image/png','image/webp'].includes(file.type))){
-   changed(null);form._photoError='5MB 이하의 JPG·PNG·WebP 이미지를 선택해 주세요.';status.textContent=form._photoError;cancel.hidden=false;return;
+  release();
+  form._photo=file;cancel.hidden=!file;status.textContent=file?.name||'';
+  const source=file||session?.inheritedCoverFile;
+  if(source){
+   preview=URL.createObjectURL(source);
+   observer=new MutationObserver(()=>{if(!field.isConnected)release();});
+   observer.observe(document.querySelector('#main')||document.body,{childList:true,subtree:true});
   }
-  changed(file||null);
+  const src=preview||img.dataset.savedSrc;
+  img.src=src;options.onPhoto?.(src);
  };
- if(session?.coverFile)pick(session.coverFile);
-}
-function workPhotoEditor(t){
- return `<form id="work-photo-editor" data-id="${esc(t.id)}" class="surface upload-form track-cover-editor">${workPhotoField(trackArtworkPath(t),!!t.work_has_cover)}<button type="submit" class="primary-button">커버사진 저장</button><p class="form-error" role="alert"></p></form>`;
+ const changed=file=>{pick(file);options.onChange?.();if(session){session.coverFile=file;queueSingDraft(session);}};
+ const cancelSelection=()=>{revision++;input.value='';changed(null);};
+ field.querySelector('[data-pick-photo]').onclick=()=>{if(!form._busy)input.click();};
+ cancel.onclick=()=>{if(!form._busy)cancelSelection();};
+ input.onchange=async()=>{
+  if(form._busy)return;
+  const file=input.files[0];if(!file)return;
+  input.value='';
+  const attempt=++revision;
+  if(!file.size||file.size>5*1024*1024||!['image/jpeg','image/png','image/webp'].includes(file.type)){
+   status.textContent='5MB 이하의 JPG·PNG·WebP 이미지를 선택해 주세요.';return;
+  }
+  status.textContent='커버사진을 확인하고 있습니다.';
+  const pending=optimizeUploadImage(file,{allowFallback:true});
+  form._photoPending=pending;
+  try{
+   await pending;
+   if(form.isConnected&&attempt===revision)changed(file);
+  }catch(error){if(form.isConnected&&attempt===revision)status.textContent=error.message;}
+  finally{if(form._photoPending===pending)form._photoPending=null;}
+ };
+ form._paintInheritedPhoto=()=>{if(!form._photo)pick(null);};
+ form._clearWorkPhoto=cancelSelection;
+ if(session?.coverFile||session?.inheritedCoverFile||options.selectedFile)pick(session?.coverFile||options.selectedFile||null);
 }
 function applyWorkPhoto(profile){
  const update=t=>{if(t?.id===profile.id)Object.assign(t,{artwork_id:profile.artwork_id,cover_version:profile.cover_version,has_cover:profile.has_cover,work_cover_version:profile.work_cover_version,work_has_cover:profile.work_has_cover});};
  update(trackMap.get(profile.id));update(current);library.likes.forEach(update);
  if(current?.id===profile.id){const art=$('#now-playing .mini-cover');if(art)art.outerHTML=cover(current,'mini-cover');window.dispatchEvent(new Event('aifect-artwork-change'));}
 }
-function bindWorkPhotoEditor(form){
- bindWorkPhoto(form);
- const save=async reset=>{
-  if(!reset&&form._photoError)throw Error(form._photoError);
-  const url='/api/studio/tracks/'+encodeURIComponent(form.dataset.id)+'/image';
-  if(reset)await api(url,'DELETE');
-  else{
-   if(!form._photo)throw Error('저장할 커버사진을 선택해 주세요.');
-   await uploadFile(url,form._photo,undefined,{allowFallback:true});
-  }
-  const {profile}=await api('/api/studio/tracks/'+encodeURIComponent(form.dataset.id),'GET',undefined,{fresh:true});
+function bindCoverListeningEdit(form){
+ const url='/api/studio/tracks/'+encodeURIComponent(form.dataset.id);
+ const photo=form.querySelector('.work-photo-preview').dataset.savedSrc;
+ bindListeningEditor(form,{template:form.dataset.listeningTemplate,photo});
+ form.onsubmit=busyForm(form,async fd=>{
+  if(form._photoPending)throw new Error('커버사진을 확인하고 있습니다. 잠시 뒤 다시 저장해 주세요.');
+  if(form._photo)await uploadFile(url+'/image',form._photo,undefined,{allowFallback:true});
+  await api(url,'PUT',{description:fd.get('description')||'',release_date:fd.get('release_date')||'',listening_template:form._listeningTemplate});
+  const {profile}=await api(url,'GET',undefined,{fresh:true});
   applyWorkPhoto(profile);
-  if(typeof markMyWorkChanged==='function')markMyWorkChanged('track:'+profile.id);
-  if(form.isConnected){const host=form.parentNode;form.outerHTML=workPhotoEditor(profile);bindWorkPhotoEditor(host.querySelector('#work-photo-editor'));}
-  toast(reset?'원곡 커버로 되돌렸습니다.':'커버사진을 저장했습니다.');
- };
- form.onsubmit=busyForm(form,()=>save(false));
+  toast('커버곡 정보를 저장했습니다.');
+  await finishStudioWorkEdit(form);
+ });
  const reset=form.querySelector('[data-inherit-photo]');
- if(reset)reset.onclick=busyForm(form,()=>save(true));
+ if(reset)reset.onclick=busyForm(form,async()=>{
+  await api(url+'/image','DELETE');
+  const {profile}=await api(url,'GET',undefined,{fresh:true});
+  applyWorkPhoto(profile);
+  form.querySelector('.work-photo-preview').dataset.savedSrc=trackArtworkPath(profile);
+  form._clearWorkPhoto();
+  reset.remove();
+  toast('원곡 커버로 되돌렸습니다.');
+ });
+}
+function coverListeningFields(track,template=track.listening_template,{canReset=false,playable=false,duration=0}={}){
+ const photo=trackArtworkPath(track);
+ return listeningEditorHTML(template,photo,workPhotoField(photo,canReset),duration,playable);
 }
 function trackCoverFormHTML(t){
  return `<form id="track-cover-form" data-id="${esc(t.id)}" class="surface upload-form track-cover-editor"><h2>앨범 커버 변경</h2>${imageField('새 앨범 커버 선택','image',t.has_cover?`/media/${t.id}/cover?v=${t.cover_version||'original'}`:'').replace('업로드 시 WebP로 자동 압축합니다 (최대 1600px).','사진을 자동으로 압축해 저장합니다 (최대 1600px).')}<button type="submit" class="primary-button">앨범 커버 저장</button><p class="field-help">사진을 선택한 뒤 저장해 주세요. 곡 정보와 가사는 바뀌지 않습니다.</p><div class="upload-progress" hidden><progress aria-label="커버 전송 진행률" max="100" value="0"></progress><p role="status" aria-live="polite"></p></div><p class="form-error" role="alert"></p></form>`;
@@ -210,8 +232,8 @@ function finishStudioWorkEdit(form){
 }
 function bindStudioForms(){
  bindDiamondForms();
- if($('#work-photo-editor'))bindWorkPhotoEditor($('#work-photo-editor'));
- if($('#cover-upload-form'))bindWorkPhoto($('#cover-upload-form'));
+ const coverUpload=$('#cover-upload-form'),preview=coverUpload?.querySelector('.work-photo-preview');
+ if(preview)bindListeningEditor(coverUpload,{template:AifectListening.defaultListeningTemplate,photo:preview.dataset.savedSrc});
  const uploadForm=$('#upload-form');
  const remembered=uploadForm&&uploadFormDraft?.owner===me?.id?uploadFormDraft:null;
  if(uploadForm){
@@ -243,15 +265,15 @@ function bindStudioForms(){
  }
 
  const payout=$('#payout-form');if(payout)payout.onsubmit=busyForm(payout,async fd=>{await api('/api/studio/payout-account','PUT',{holder:fd.get('holder'),bank:fd.get('bank'),account:fd.get('account'),resident_number:fd.get('resident_number'),consent:fd.has('consent')});toast('정산 정보를 저장했습니다.');await render();});
- const coverEdit=$('#cover-edit-form');if(coverEdit)coverEdit.onsubmit=busyForm(coverEdit,async fd=>{await api(`/api/studio/tracks/${coverEdit.dataset.id}`,'PUT',{description:fd.get('description')||'',release_date:fd.get('release_date')||''});toast('커버곡 정보를 저장했습니다.');await finishStudioWorkEdit(coverEdit);});
+ const coverEdit=$('#cover-edit-form');if(coverEdit)bindCoverListeningEdit(coverEdit);
  document.querySelectorAll('.artist-form').forEach(form=>{form.onsubmit=busyForm(form,async fd=>{await validateImage(fd.get('image'));await api(`/api/studio/artists/${form.dataset.id}`,'PUT',textFields(fd));if(fd.get('image')?.size)await uploadFile(`/api/studio/artists/${form.dataset.id}/image`,fd.get('image'));toast('AI 아티스트 사진과 소개를 저장했습니다.');await render();});});
  const mr=$('[data-karaoke-upload]');if(mr)mr.onchange=async()=>{const file=mr.files[0];if(!file)return;const ext=file.name.split('.').pop().toLowerCase();
   if(!['wav','flac','mp3'].includes(ext)||file.size>80*1024*1024){toast('반주 파일은 80MB 이하 WAV·FLAC·MP3만 올릴 수 있습니다.');mr.value='';return;}
   try{toast('반주 파일을 올리고 있습니다…');await uploadFile(`/api/studio/tracks/${mr.dataset.karaokeUpload}/karaoke/mr?ext=${ext}`,file);toast('반주 파일을 올렸습니다. 변환이 끝나면 여기에서 들을 수 있습니다.');await render();}catch(e){toast(e.message);mr.value='';}};
  const track=$('#track-edit-form');if(track)track.onsubmit=busyForm(track,async fd=>{applyLyrics(fd);await api(`/api/studio/tracks/${track.dataset.id}`,'PUT',{...textFields(fd),...productionCreditPayload(fd),participation:fd.getAll('participation').join(', ')});toast('곡 정보를 저장했습니다.');await finishStudioWorkEdit(track);});
 }
-function coverUploadHTML(o){return heading('커버곡 올리기','원곡자가 허락한 곡을 내 목소리로 들려 주세요.')+`<div class="upload-layout"><form id="cover-upload-form" class="surface upload-form" data-original="${o.id}"><div class="cover-original">${cover(o,'mini-cover')}<div><span class="eyebrow">원곡</span><strong>${esc(o.title)}</strong><p>${trackNickname(o)} · ${trackNickname(o,'producer')}</p></div></div>${o.accepts_covers?`<label class="file-zone">${icon('upload')}<strong>커버 녹음 파일 선택</strong><span>WAV · FLAC · MP3 / 최대 80MB</span><input name="audio" type="file" accept=".wav,.flac,.mp3" required aria-label="커버 녹음 파일 선택"></label><fieldset class="sing-mix-group"><legend>공개 종류</legend><label class="form-field">솔로 커버 · 듀엣 참여 모집<select name="cover_kind" required><option value="">공개할 종류를 선택해 주세요</option><option value="solo">솔로 커버 · 내 녹음으로 완성</option><option value="duet">듀엣 참여 모집 · 다른 사람이 이어 부르기</option></select></label><p class="field-help">듀엣은 내 파트를 먼저 올린 뒤 다른 사람이 이어 불러 완성합니다. 반주는 곡 끝까지 포함해 주세요.</p><label class="checkbox-line"><input name="duet_consent" type="checkbox">다른 사람이 이 녹음에 목소리를 더하는 것에 동의합니다. (듀엣 필수)</label></fieldset>${workPhotoField(trackArtworkPath(o))}<label class="form-field">커버 소개 (선택)<textarea name="description" maxlength="1000" placeholder="어떤 마음으로 불렀는지 들려 주세요."></textarea></label><label class="checkbox-line rights-check"><input name="own_voice" type="checkbox" required> <span>제가 직접 부른 녹음입니다. 다른 사람의 목소리나 AI 음성 복제가 아닙니다.</span></label><label class="checkbox-line rights-check"><input name="rights" type="checkbox" required> <span>이 녹음을 AIFECT에 공개할 권리가 있고, 원곡 정보와 함께 공개되는 데 동의합니다.</span></label><button class="primary-button">커버곡 올리기 ${icon('upload')}</button><div class="upload-progress" hidden><progress aria-label="파일 전송 진행률" max="100" value="0"></progress><p role="status" aria-live="polite"></p><small>전송이 끝날 때까지 이 화면을 유지해 주세요.</small></div><p class="form-error" role="alert"></p>`:'<p class="empty-note">원곡자가 노래방 · 커버를 허락하지 않은 곡이라 커버를 올릴 수 없습니다.</p>'}</form><aside class="surface upload-guide"><span class="eyebrow">COVER</span><h2>원곡을<br>내 목소리로.</h2><p>커버곡은 횟수 제한 없이 올릴 수 있습니다. 무료회원은 업로드 완료 후 광고가 표시될 수 있습니다.</p><p>커버곡은 원곡 페이지의 커버곡 목록과 내 프로필의 커버곡 탭에 함께 표시됩니다.</p><p>원곡이 비공개로 바뀌면 커버곡도 함께 비공개가 됩니다.</p></aside></div>`;}
-function coverEditHTML(t,fromWorks=false){return heading('커버곡 수정','작품의 커버사진과 소개를 수정할 수 있습니다.')+`${studioWorkBackHTML(fromWorks)}${workPhotoEditor(t)}<form id="cover-edit-form" data-id="${t.id}" class="surface upload-form track-editor"><p class="field-help"><a href="#song/${t.original_id}">원곡 「${esc(t.title)}」 보기</a></p>${releaseDateField(t)}<label class="form-field">커버 소개<textarea name="description" maxlength="1000">${esc(t.description)}</textarea></label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;}
+function coverUploadHTML(o){return heading('커버곡 올리기','원곡자가 허락한 곡을 내 목소리로 들려 주세요.')+`<div class="upload-layout"><form id="cover-upload-form" class="surface upload-form" data-original="${o.id}"><div class="cover-original">${cover(o,'mini-cover')}<div><span class="eyebrow">원곡</span><strong>${esc(o.title)}</strong><p>${trackNickname(o)} · ${trackNickname(o,'producer')}</p></div></div>${o.accepts_covers?`<label class="file-zone">${icon('upload')}<strong>커버 녹음 파일 선택</strong><span>WAV · FLAC · MP3 / 최대 80MB</span><input name="audio" type="file" accept=".wav,.flac,.mp3" required aria-label="커버 녹음 파일 선택"></label><fieldset class="sing-mix-group"><legend>공개 종류</legend><label class="form-field">솔로 커버 · 듀엣 참여 모집<select name="cover_kind" required><option value="">공개할 종류를 선택해 주세요</option><option value="solo">솔로 커버 · 내 녹음으로 완성</option><option value="duet">듀엣 참여 모집 · 다른 사람이 이어 부르기</option></select></label><p class="field-help">듀엣은 내 파트를 먼저 올린 뒤 다른 사람이 이어 불러 완성합니다. 반주는 곡 끝까지 포함해 주세요.</p><label class="checkbox-line"><input name="duet_consent" type="checkbox">다른 사람이 이 녹음에 목소리를 더하는 것에 동의합니다. (듀엣 필수)</label></fieldset>${coverListeningFields(o,AifectListening.defaultListeningTemplate)}<label class="form-field">한마디 (선택)<textarea name="description" maxlength="1000" placeholder="어떤 마음으로 불렀는지 들려 주세요."></textarea></label><label class="checkbox-line rights-check"><input name="own_voice" type="checkbox" required> <span>제가 직접 부른 녹음입니다. 다른 사람의 목소리나 AI 음성 복제가 아닙니다.</span></label><label class="checkbox-line rights-check"><input name="rights" type="checkbox" required> <span>이 녹음을 AIFECT에 공개할 권리가 있고, 원곡 정보와 함께 공개되는 데 동의합니다.</span></label><button class="primary-button">커버곡 올리기 ${icon('upload')}</button><div class="upload-progress" hidden><progress aria-label="파일 전송 진행률" max="100" value="0"></progress><p role="status" aria-live="polite"></p><small>전송이 끝날 때까지 이 화면을 유지해 주세요.</small></div><p class="form-error" role="alert"></p>`:'<p class="empty-note">원곡자가 노래방 · 커버를 허락하지 않은 곡이라 커버를 올릴 수 없습니다.</p>'}</form><aside class="surface upload-guide"><span class="eyebrow">COVER</span><h2>원곡을<br>내 목소리로.</h2><p>커버곡은 횟수 제한 없이 올릴 수 있습니다. 무료회원은 업로드 완료 후 광고가 표시될 수 있습니다.</p><p>커버곡은 원곡 페이지의 커버곡 목록과 내 프로필의 커버곡 탭에 함께 표시됩니다.</p><p>원곡이 비공개로 바뀌면 커버곡도 함께 비공개가 됩니다.</p></aside></div>`;}
+function coverEditHTML(t,fromWorks=false){return heading('커버곡 수정','작품의 커버사진과 소개를 수정할 수 있습니다.')+`${studioWorkBackHTML(fromWorks)}<form id="cover-edit-form" data-id="${esc(t.id)}" data-listening-template="${esc(t.listening_template||"")}" class="surface upload-form track-editor">${coverListeningFields(t,t.listening_template,{canReset:!!t.work_has_cover})}<p class="field-help"><a href="#song/${t.original_id}">원곡 「${esc(t.title)}」 보기</a></p>${releaseDateField(t)}<label class="form-field">한마디<textarea name="description" maxlength="1000">${esc(t.description)}</textarea></label><button class="primary-button">저장</button><p class="form-error" role="alert"></p></form>`;}
 function earningsOverviewHTML(e){
  const a=e.activity||{},original=Number(a.original_streams)||0,covers=Number(a.cover_streams)||0,total=original+covers,share=total?original/total*100:0;
  const schedule=e.current_schedule||AifectGifts.earningsSchedule(e.current_month);

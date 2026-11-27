@@ -14,8 +14,10 @@ export async function artistGiftSource(env,artistId,profileId,viewer){
  return {type:'artist',id:artist.id,title:artist.name};
 }
 export async function checkArtistGiftReplay(env,currency,giftId,source){
- const prior=await one(env,"SELECT source_id FROM gift_sources WHERE currency=? AND gift_id=? AND source_type='artist'",currency,giftId);
- if((prior?.source_id||null)!==(source?.type==='artist'?source.id:null))fail(409,'이미 다른 선물에 사용한 요청입니다.');
+ const prior=await one(env,"SELECT source_type,source_id,work_kind FROM gift_sources WHERE currency=? AND gift_id=? AND (source_type='artist' OR work_kind='dubbing')",currency,giftId);
+ const contextual=source?.type==='artist'||source?.workKind==='dubbing';
+ if(contextual?(prior?.source_type!==source.type||prior.source_id!==source.id||(prior.work_kind||null)!==(source.workKind||null)):!!prior)
+  fail(409,'이미 다른 선물에 사용한 요청입니다.');
 }
 
 // Callers construct this from a verified route target, never from a client label.

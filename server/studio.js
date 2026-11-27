@@ -1,5 +1,6 @@
 import * as AifectMessages from '../shared/system-messages.js';
 import {trackArtworkSQL} from './track-artwork.js';
+import {listeningTemplateInput} from './listening.js';
 import {productionCreditFields} from '../shared/production-credits.js';
 import {classificationFields,coverClassificationWrites} from './music-classification.js';
 import {trackClassification} from '../shared/genres.js';
@@ -77,8 +78,8 @@ export async function studioRoute(req,env,path,user){
  const b=await req.json();
  const release=table==='tracks'?releaseDate(b.release_date,entity.release_date):'';
  if(table==='tracks'&&entity.kind==='cover'){
-  // A cover takes its title, genre and credits from the original; the singer edits the note independently of artwork.
-  await run(env,'UPDATE tracks SET description=?,release_date=? WHERE id=?',str(b.description||'',1000,false),release,entityId);
+  const description=Object.hasOwn(b,'description')?str(b.description||'',1000,false):null;
+  await run(env,'UPDATE tracks SET description=COALESCE(?,description),release_date=?,listening_template=COALESCE(?,listening_template) WHERE id=? AND user_id=?',description,release,listeningTemplateInput(b)??null,entityId,user.id);
   return json({ok:true,id:entityId});
  }
  if(table==='tracks'){

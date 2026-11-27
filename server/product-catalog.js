@@ -44,13 +44,14 @@ export function assetUrl(product,version,role,file,privateAccess=false){
 
 function entry(id,row){
  const base=legacy.get(id)||compatibility.get(id);
- if(!base&&!row)return undefined;
- if(!row)return {...base,revision:0,archived:false,eventOnly:false,grantDeadline:null,activeVersion:null};
+ if(row?.deletion_state==='deleted'||!base&&!row?.definition)return undefined;
+ if(!row?.definition)return {...base,revision:0,archived:false,eventOnly:false,grantDeadline:null,activeVersion:null};
  const stored=JSON.parse(row.definition);
  if(stored.deletedAt)return undefined;
  const asset=row.asset_files?{...publishedVersionAsset(id,row.active_version,row.asset_mode,row.asset_renderer,row.asset_files,row.asset_package),
   originalUpload:!!row.asset_original_zip}:base?.asset??null;
- return {...base,...stored,id,revision:row.revision,asset,activeVersion:row.active_version};
+ return {...base,...stored,id,revision:row.revision,asset,activeVersion:row.active_version,
+  ...(row.deletion_state?{deletionState:row.deletion_state}:{})};
 }
 
 function publishedVersionAsset(id,version,mode,renderer,fileJSON,packageJSON){
@@ -71,11 +72,16 @@ export async function publishedThemeVersions(env,pins){
 export async function catalog(env,ids){
  const keys=ids&&[...new Set(ids.filter(key=>typeof key==='string'&&PRODUCT_ID.test(key)))];
  if(keys?.length===0)return new Map();
- const records=await rows(env,`SELECT p.*, a.mode asset_mode,a.renderer asset_renderer,a.files asset_files,a.package_metadata asset_package,
-   json_extract(a.originals,'$.package.sha256') asset_original_zip
-   FROM product_catalog p LEFT JOIN product_asset_versions a ON a.product_id=p.product_id AND a.id=p.active_version
-   ${keys?'WHERE p.product_id IN (SELECT value FROM json_each(?))':''}
-   ORDER BY p.product_id`,...(keys?[JSON.stringify(keys)]:[]));
+ const records=await rows(env,`WITH products AS (
+    ${keys?'SELECT value AS product_id FROM json_each(?)':
+      "SELECT product_id FROM product_catalog UNION SELECT product_id FROM product_deletions WHERE state='deleted'"}
+   ) SELECT products.product_id,p.definition,p.revision,p.active_version,
+    a.mode asset_mode,a.renderer asset_renderer,a.files asset_files,a.package_metadata asset_package,
+    json_extract(a.originals,'$.package.sha256') asset_original_zip,d.state deletion_state
+   FROM products LEFT JOIN product_catalog p USING(product_id)
+   LEFT JOIN product_asset_versions a ON a.product_id=p.product_id AND a.id=p.active_version
+   LEFT JOIN product_deletions d ON d.product_id=products.product_id
+   ORDER BY products.product_id`,...(keys?[JSON.stringify(keys)]:[]));
  const overrides=new Map(records.map(record=>[record.product_id,record]));
  return new Map((keys||[...new Set([...legacy.keys(),...overrides.keys()])])
   .map(key=>[key,entry(key,overrides.get(key))]).filter(([,p])=>p));
@@ -85,8 +91,8 @@ export async function productById(env,id){
  return (await catalog(env,[id])).get(id);
 }
 
-export const sold=product=>!!product&&product.distribution==='shop'&&product.sale&&!product.archived&&!product.deletePendingAt;
-export const grantable=product=>!!product?.grant&&!product.archived&&!product.deletePendingAt;
+export const sold=product=>!!product&&product.distribution==='shop'&&product.sale&&!product.archived&&!product.deletePendingAt&&!product.deletionState;
+export const grantable=product=>!!product?.grant&&!product.archived&&!product.deletePendingAt&&!product.deletionState;
 
 export function assertProductAction(product,action){
  const legacyCompatibility=product?.type==='gift'&&product.legacy&&!product.listed&&!product.revision;
@@ -98,8 +104,9 @@ export function assertProductAction(product,action){
 // concurrent definition change aborts the entire purchase or operator grant.
 export function productWriteGuard(product,value){
  if(!product)return {sql:'?',args:[value]};
- return {sql:'CASE WHEN COALESCE((SELECT revision FROM product_catalog WHERE product_id=?),0)=? THEN ? END',
-  args:[product.id,product.revision,value]};
+ return {sql:`CASE WHEN COALESCE((SELECT revision FROM product_catalog WHERE product_id=?),0)=?
+   AND NOT EXISTS(SELECT 1 FROM product_deletions WHERE product_id=?) THEN ? END`,
+  args:[product.id,product.revision,product.id,value]};
 }
 
 export function giftRuntime(product){
@@ -111,6 +118,17 @@ export function giftRuntime(product){
   ...(product.eventOnly?{event_only:true}:{}),
   ...(product.activeVersion?{artwork:product.asset.files.fallback||product.asset.files.base,effect:product.asset.files.effect,
    ...(product.asset.mode==='animated'?{animation:product.asset.files.base}:{})}:{})};
+}
+
+export async function archivedGiftImages(env,ids){
+ const missing=[...new Set(ids)];
+ if(!missing.length)return new Map();
+ const records=await rows(env,`WITH ranked AS (
+  SELECT product_id,version_id,file,ROW_NUMBER() OVER(PARTITION BY product_id ORDER BY published_at DESC,version_id) position
+  FROM product_history_assets WHERE product_id IN (SELECT value FROM json_each(?))
+ ) SELECT product_id,version_id,file FROM ranked WHERE position=1`,JSON.stringify(missing));
+ const byId=new Map(records.map(row=>[row.product_id,assetUrl(row.product_id,row.version_id,'thumbnail',JSON.parse(row.file))]));
+ return new Map(missing.map(key=>[key,byId.get(key)??legacyProduct(key)?.asset.files.thumbnail]));
 }
 
 export function decorationRuntime(product){

@@ -153,11 +153,15 @@ async function trackPicker(pid){const ticket=renderId;
 
 function updateQueueButton(){const button=$('#queue-toggle'),count=$('#queue-count');if(button)button.setAttribute('aria-label',`재생목록 열기 · ${queue.length}곡`);if(count){count.textContent=number(queue.length);count.hidden=!queue.length;}}
 function saveQueue(){updateQueueButton();try{const value=JSON.stringify({ids:queue,tracks:queue.map(id=>({id,title:trackMap.get(id)?.title,artist:trackMap.get(id)?.artist}))});sessionStorage.setItem('aifect-queue',value);localStorage.setItem('aifect-queue',value);}catch{}}
-function trackMenu(tid,anchor=null,duetJoin=null){
+let trackMenuRequest=0;
+async function trackMenu(tid,anchor=null,duetJoin=null){
  const t=trackMap.get(tid);if(!t)return;const id=esc(tid);
+ const request=++trackMenuRequest,route=location.hash,account=me?.id;
+ const pickOption=account&&typeof composerPickCandidate==='function'&&composerPickCandidate(t)?await composerPickMenuHTML(t):'';
+ if(request!==trackMenuRequest||route!==location.hash||account!==me?.id||(anchor&&!anchor.isConnected))return;
  const row=(name,label,attrs,extra='')=>`<button type="button" class="track-option ${extra}" ${attrs}>${icon(name)}<span>${label}</span>${icon('chevron')}</button>`;
  const html=`<nav class="track-options" aria-label="곡 옵션">
- ${typeof composerPickMenuHTML==='function'?composerPickMenuHTML(t):''}
+ ${pickOption}
  ${duetJoin&&!duetJoin.getClientRects().length?`<a class="track-option" data-close-dialog href="${esc(duetJoin.getAttribute('href'))}">${icon('mic')}<span>듀엣 참여</span>${icon('chevron')}</a>`:''}
  ${row('play','지금 재생',`data-play="${id}"`,'track-option-now')}
  ${row('next','다음에 재생',`data-queue-insert="${id}" data-placement="next"`)}

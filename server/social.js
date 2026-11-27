@@ -40,13 +40,25 @@ const dmSongShareLabel='곡을 공유했습니다.';
 // Only this server creates DM IDs. The namespace keeps typed shares distinct
 // from user text while existing clients can still read the plain message body.
 const sharedSongId=message=>/^song-share:[a-f0-9-]{36}:([\w-]{1,128})$/.exec(message.id)?.[1]||null;
-async function resolveDmSongCards(env,messages){
+const sharedDubbingId=message=>/^dubbing-share:[a-f0-9-]{36}:([\w-]{1,128})$/.exec(message.id)?.[1]||null;
+const dubbingShareVisible=`p.visibility='public' AND u.provider!='deleted' AND ${dubbingVisibleSQL()}
+ AND NOT EXISTS(SELECT 1 FROM user_blocks b WHERE (b.user_id=? AND b.blocked_id=p.owner_id) OR (b.blocked_id=? AND b.user_id=p.owner_id))
+ AND ${castingUnblockedSQL()}`;
+async function resolveDmSongCards(env,messages,viewer){
  const ids=[...new Set(messages.map(sharedSongId).filter(Boolean))];
- if(!ids.length)return messages;
- const tracks=await trackList(env,`${VISIBLE()} AND t.id IN (SELECT value FROM json_each(?))`,[JSON.stringify(ids)],'t.id',ids.length);
+ const dubIds=[...new Set(messages.map(sharedDubbingId).filter(Boolean))];
+ if(!ids.length&&!dubIds.length)return messages;
+ const [tracks,dubs]=await Promise.all([
+  ids.length?trackList(env,`${VISIBLE()} AND t.id IN (SELECT value FROM json_each(?))`,[JSON.stringify(ids)],'t.id',ids.length):[],
+  dubIds.length?rows(env,`SELECT p.id,p.title,'dubbing' kind,${dubbingPosterSQL} posterUrl,${publicNameSQL('u')} artist,p.options_json
+   FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id IN (SELECT value FROM json_each(?)) AND ${dubbingShareVisible}`,
+   JSON.stringify(dubIds),viewer,viewer,viewer,viewer):[],
+ ]);
  const cards=new Map(tracks.map(({id,kind,title,artist,artwork_id,cover_version})=>[id,{id,kind,title,artist,artwork_id,cover_version}]));
+ const dubCards=new Map(dubs.map(({options_json,...dub})=>[dub.id,{...dub,genres:JSON.parse(options_json).genres||[]}]));
  return messages.map(message=>{
-  const trackId=sharedSongId(message);
+  const trackId=sharedSongId(message),dubId=sharedDubbingId(message);
+  if(dubId)return {...message,shared_track:dubCards.get(dubId)||null};
   return trackId?{...message,shared_track:cards.get(trackId)||null}:message;
  });
 }
@@ -344,7 +356,7 @@ export async function socialRoute(req,env,path,user){
    const [history,receipt]=await env.DB.batch([historyQuery,query(env,'SELECT rowid sequence,read_at FROM direct_messages WHERE sender_id=? AND recipient_id=? AND read_at>0 ORDER BY rowid DESC LIMIT 1',user.id,p.user_id)]);
    const messages=history.results,read_receipt=receipt.results[0]||{sequence:0,read_at:0};
    const has_more=messages.length>100;messages.length=Math.min(messages.length,100);if(!after)messages.reverse();
-   return json({peer:{id:p.id,user_id:p.user_id,name:p.name,chat_nickname:p.chat_nickname,image_version:p.image_version,premium_style_until:p.premium_style_until,premium_default_frame:p.premium_default_frame},settings,messages:await resolveDmSongCards(env,messages),has_more,read_receipt});
+   return json({peer:{id:p.id,user_id:p.user_id,name:p.name,chat_nickname:p.chat_nickname,image_version:p.image_version,premium_style_until:p.premium_style_until,premium_default_frame:p.premium_default_frame},settings,messages:await resolveDmSongCards(env,messages,user.id),has_more,read_receipt});
   }
   if(method==='PATCH'){
    // Bound acknowledgements to history the client actually received. A message
@@ -354,27 +366,37 @@ export async function socialRoute(req,env,path,user){
    await run(env,'UPDATE direct_messages SET read_at=? WHERE sender_id=? AND recipient_id=? AND read_at=0'+(sequence===undefined?'':' AND rowid<=?'),now(),p.user_id,user.id,...(sequence===undefined?[]:[sequence]));return json({ok:true});
   }
   if(method==='POST'){
-   const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,trackId=b.track_id??null;
+   const b=await req.json(),rid=requestId(b),imageId=b.image_id||null,trackId=b.track_id??null,dubbing=b.track_kind==='dubbing';
+   if(b.track_kind!==undefined&&(!dubbing||!trackId))fail(400,'공유할 작품을 확인해 주세요.');
    if(trackId!==null&&(imageId||typeof trackId!=='string'||!/^[\w-]{1,128}$/.test(trackId)))fail(400,'공유할 곡을 확인해 주세요.');
-   const body=trackId?dmSongShareLabel:imageId?'사진':str(b.body,DM_BODY_LIMIT);
+   const body=dubbing?'더빙을 공유했습니다.\nhttps://aifect.co.kr/#dubbing/'+trackId:trackId?dmSongShareLabel:imageId?'사진':str(b.body,DM_BODY_LIMIT);
    if(imageId&&(typeof imageId!=='string'||!/^[-\w]{1,80}$/.test(imageId)))fail(400,'이미지 정보를 확인해 주세요.');
    if(imageId&&!await one(env,'SELECT id FROM chat_images WHERE id=? AND sender_id=? AND recipient_id=? AND expires>? AND deleted=0',imageId,user.id,p.user_id,now()))fail(400,'다시 이미지를 선택해 주세요.');
    const [profile,limit,prior]=await env.DB.batch([query(env,'SELECT id FROM producers WHERE user_id=?',user.id),rateQuery(env,'dm:'+user.id,60),query(env,'SELECT id,recipient_id,body,image_id FROM direct_messages WHERE sender_id=? AND request_id=?',user.id,rid)]);
    if(!profile.results.length)fail(409,'보관함에서 닉네임을 먼저 저장해 주세요.');if(limit.results[0].count>30)fail(429,'요청이 많습니다. 잠시 후 다시 시도해 주세요.');
    const previous=prior.results[0];
-   const matches=message=>message.recipient_id===p.user_id&&message.body===body&&message.image_id===imageId&&sharedSongId(message)===trackId;
+   const matches=message=>message.recipient_id===p.user_id&&message.body===body&&message.image_id===imageId&&
+    (dubbing?sharedDubbingId(message)===trackId:sharedSongId(message)===trackId&&!sharedDubbingId(message));
    if(previous&&!matches(previous))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
    if(!previous&&!trackId)assertDmBody(body);
    let shareGuard='',shareArgs=[];
    if(trackId){
     const recipient="SELECT 1 FROM users WHERE id=? AND provider<>'deleted' AND account_type='human'";
     if(!await one(env,recipient,p.user_id))fail(403,'메시지를 받을 수 없는 이용자입니다.');
-    const eligible=trackListQuery(env,`t.id=? AND ${VISIBLE()}`,[trackId],'t.id',1);
-    if(!previous&&!(await eligible.first()))fail(404,'공개된 곡을 찾을 수 없습니다.');
-    shareGuard=` AND EXISTS(${recipient}) AND EXISTS(SELECT 1 FROM tracks t WHERE t.id=? AND ${VISIBLE()})`;
-    shareArgs=[p.user_id,trackId];
+    if(dubbing){
+     const source=`SELECT 1 FROM dubbing_projects p JOIN users u ON u.id=p.owner_id WHERE p.id=? AND ${dubbingShareVisible}`;
+     const args=[trackId,user.id,user.id,user.id,user.id];
+     if(!previous&&!await one(env,source,...args))fail(404,'공개된 더빙 작품을 찾을 수 없습니다.');
+     shareGuard=` AND EXISTS(${recipient}) AND EXISTS(${source})`;
+     shareArgs=[p.user_id,...args];
+    }else{
+     const eligible=trackListQuery(env,`t.id=? AND ${VISIBLE()}`,[trackId],'t.id',1);
+     if(!previous&&!(await eligible.first()))fail(404,'공개된 곡을 찾을 수 없습니다.');
+     shareGuard=` AND EXISTS(${recipient}) AND EXISTS(SELECT 1 FROM tracks t WHERE t.id=? AND ${VISIBLE()})`;
+     shareArgs=[p.user_id,trackId];
+    }
    }
-   const messageId=trackId?'song-share:'+id()+':'+trackId:id();
+   const messageId=trackId?(dubbing?'dubbing-share:':'song-share:')+id()+':'+trackId:id();
    const result=await env.DB.batch([
     query(env,`INSERT OR IGNORE INTO direct_messages(id,sender_id,recipient_id,body,request_id,created,image_id)
      SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM user_blocks WHERE (user_id=? AND blocked_id=?) OR (user_id=? AND blocked_id=?))${shareGuard}`,messageId,user.id,p.user_id,body,rid,now(),imageId,user.id,p.user_id,p.user_id,user.id,...shareArgs),
@@ -383,7 +405,7 @@ export async function socialRoute(req,env,path,user){
    const message=result[1].results[0];
    if(!message)fail(403,trackId?'곡 또는 메시지 수신 상태가 변경되었습니다.':'차단된 이용자와는 소통할 수 없습니다.');
    if(!matches(message))fail(409,'이미 다른 메시지에 사용된 전송 요청입니다.');
-   return json({ok:true,message:(await resolveDmSongCards(env,[message]))[0]},201);
+   return json({ok:true,message:(await resolveDmSongCards(env,[message],user.id))[0]},201);
   }
  }
  fail(404,'대화를 찾을 수 없습니다.');

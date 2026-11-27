@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFileSync} from 'node:fs';
+import * as AifectCoverPick from '../shared/cover-pick-ui.js';
 
 const source=readFileSync(new URL('../dist/browse.js',import.meta.url),'utf8');
 const deferred=()=>{let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});return {promise,resolve,reject};};
@@ -14,7 +15,7 @@ function helpers(extra={}){
   location:{hash:'#charts'},document:{addEventListener(){}},window:{addEventListener(){}},
   esc:escape,number:String,icon:()=>'',cover:()=>'',credits:()=>'',liked:()=>false,remember:tracks=>tracks,
   empty:(title,description,href,label)=>'<p>'+escape(title)+'</p><a href="'+href+'">'+escape(label)+'</a>',
-  AifectGenres:{GENRES:['Rock','Pop']},
+  AifectGenres:{GENRES:['Rock','Pop']},AifectCoverPick,
   AifectPlaylist:{isPlaylistEligibleTrack:track=>track.kind==='original'},...extra});
  vm.runInContext(source,c);
  return c;

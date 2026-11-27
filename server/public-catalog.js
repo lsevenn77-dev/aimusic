@@ -7,6 +7,7 @@ import {GENRES, genreFilterSQL} from '../shared/genres.js';
 import {rows} from './db.js';
 import {artworkURL, trackArtworkSQL} from './track-artwork.js';
 import {escapeHTML as esc} from '../shared/site-info.js';
+import {titleHTML as coverPickTitleHTML} from '../shared/cover-pick-ui.js';
 import {aboutIcon as icon} from './about-icons.js';
 
 const labels = {
@@ -62,7 +63,8 @@ export async function discoverTracks(env,filters) {
  const popular="(SELECT count(DISTINCT l.listener||l.day) FROM listens l WHERE l.track_id=t.id AND l.qualified=1) DESC,";
  const order=(sort==='popular'?popular:'')+'t.created DESC,t.id';
  // Keep the shared artwork resolution, including inheritance from the original.
- const tracks=await rows(env,`SELECT t.id,t.title,t.kind,t.cover_mode,t.duration,t.genre,t.producer_id,
+ const tracks=await rows(env,`SELECT t.id,t.title,t.kind,t.cover_mode,t.duration,t.genre,t.producer_id,t.original_id,
+  (t.kind='cover' AND EXISTS(SELECT 1 FROM song_cover_picks sp WHERE sp.original_id=t.original_id AND sp.cover_id=t.id)) is_composer_pick,
   ${trackArtworkSQL()},${performer} producer,${partner} partner,fp.id partner_id,
   CASE WHEN t.kind='original' AND ${namedArtistSQL()} THEN a.name ELSE ${performer} END artist,
   CASE WHEN t.kind='original' AND ${namedArtistSQL()} THEN a.id END artist_id,
@@ -74,7 +76,7 @@ export async function discoverTracks(env,filters) {
   WHERE ${conditions.join(' AND ')} ORDER BY ${order} LIMIT ? OFFSET ?`,...args,size+1,(page-1)*size);
  // The public renderer needs the resolved artwork, never a work's underlying version.
  const publicFields=['id','title','kind','cover_mode','duration','genre','producer_id','producer','partner','partner_id',
-  'artist','artist_id','has_ai_artist','completed_duet','artwork_id','has_cover','cover_version'];
+  'artist','artist_id','has_ai_artist','completed_duet','artwork_id','has_cover','cover_version','original_id','is_composer_pick'];
  return tracks.map(track=>Object.fromEntries(publicFields.map(key=>[key,track[key]])));
 }
 const selected=(a,b)=>a===b?' selected':'';
@@ -98,7 +100,7 @@ function trackCard(t){
  const credit=(name,key)=>`<button type="button" class="track-artist user-nickname" data-user-nickname data-profile-preview="${esc(key)}" aria-haspopup="dialog" aria-label="${esc(name)} 프로필 보기">${esc(name)}</button>`;
  const seconds=duration(t.duration);
  return `<article class="discover-track"><a class="track-link" href="${href}" aria-label="${esc(t.title)} 상세 보기"><img src="${esc(artworkURL(t))}" alt="${esc(t.title)} 커버" width="352" height="352" loading="lazy" decoding="async">
- <div class="track-meta"><span data-type="${category}">${type}</span>${seconds?`<span aria-label="재생시간 ${seconds}">${seconds}</span>`:''}</div><h2>${esc(t.title)}</h2></a>
+ <div class="track-meta"><span data-type="${category}">${type}</span>${seconds?`<span aria-label="재생시간 ${seconds}">${seconds}</span>`:''}</div><h2>${coverPickTitleHTML(t)}</h2></a>
  <div class="track-credits">${t.partner_id?credit(t.partner,t.partner_id)+'<span aria-hidden="true"> · </span>':''}${credit(name,profile)}</div></article>`;
 }
 export function catalogResult(tracks,f,error=false){

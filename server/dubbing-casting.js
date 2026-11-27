@@ -1,5 +1,6 @@
 import * as AifectMessages from '../shared/system-messages.js';
-import {dubbingPosterSQL,posterURL} from './dubbing-poster.js';
+import {copyDubbingPoster,discardDubbingPoster,dubbingPosterSQL,isInheritedDubbingPoster,posterURL} from './dubbing-poster.js';
+import {initialListeningTemplate} from './listening.js';
 import {one,rows,query,run,now,id,json,fail,rate} from './db.js';
 import {requireUser} from './auth.js';
 import {publicNameSQL} from './identity.js';
@@ -34,8 +35,8 @@ async function members(env,pid,onlyRecord=null){
 }
 export async function castingInfo(env,p,user){
  const draft=await one(env,'SELECT root_id rootId,target_id targetId,committed_id committedId FROM dubbing_casting_drafts WHERE project_id=?',p.id);
- const combo=await one(env,'SELECT render_requested renderRequested,expired_at expiredAt,offsets_json offsetsJson FROM dubbing_combinations WHERE project_id=?',p.id);
- return {draft,combination:combo?{...combo,offsets:JSON.parse(combo.offsetsJson)}:null,isRoot:!p.root_id};
+ const combo=await one(env,'SELECT render_requested renderRequested,expired_at expiredAt,offsets_json offsetsJson,last_participation lastParticipation FROM dubbing_combinations WHERE project_id=?',p.id);
+ return {draft,combination:combo?{...combo,closed:!!combo.expiredAt||combo.lastParticipation<=now()-CASTING_TTL,offsets:JSON.parse(combo.offsetsJson)}:null,isRoot:!p.root_id};
 }
 export async function castingRootView(env,pid,user){
  const root=await currentRecruitingRoot(env,pid,user);if(root.root_id)fail(400,'원작 대본을 선택해 주세요.');
@@ -57,9 +58,10 @@ async function currentRecruitingRoot(env,pid,user){
  if(revised&&await one(env,'SELECT id FROM admin_audit WHERE id=?',pid+':original-retired'))return accessible(env,revised.root,user);
  return accessible(env,pid,user);
 }
-function cloneProject(env,root,pid,owner,visibility,token,guard='1=1',args=[]){
- return query(env,`INSERT INTO dubbing_projects(id,owner_id,title,options_json,script_json,script_key,creation_hash,source,state,visibility,root_id,role_count,duration,write_token,rights_at,created,updated)
- SELECT ?,?,p.title,p.options_json,p.script_json,p.script_key,?,'manual','recording',?,p.id,p.role_count,p.duration,?,?,?,? FROM dubbing_projects p WHERE p.id=? AND ${dubbingVisibleSQL()} AND ${guard} ON CONFLICT(id) DO NOTHING`,pid,owner,'casting:'+pid,visibility,token,now(),now(),now(),root.id,...args);
+function cloneProject(env,root,pid,owner,visibility,token,listening,guard='1=1',args=[]){
+ return query(env,`INSERT INTO dubbing_projects(id,owner_id,title,options_json,script_json,script_key,creation_hash,source,state,visibility,root_id,role_count,duration,write_token,rights_at,created,updated,listening_template,listening_description,poster_version)
+ SELECT ?,?,p.title,p.options_json,p.script_json,p.script_key,?,'manual','recording',?,p.id,p.role_count,p.duration,?,?,?,?,?,?,?
+ FROM dubbing_projects p WHERE p.id=? AND ${dubbingVisibleSQL()} AND ${guard} ON CONFLICT(id) DO NOTHING`,pid,owner,'casting:'+pid,visibility,token,now(),now(),now(),listening.template,listening.description,listening.poster,root.id,...args);
 }
 function cloneBackground(env,bg,pid,token){
  return query(env,`INSERT INTO dubbing_sound_jobs(id,project_id,script_key,mode,timeline_json,state,output_key,created,updated) SELECT ?,?,script_key,mode,timeline_json,'ready',output_key,?,? FROM dubbing_sound_jobs WHERE id=? AND EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?) ON CONFLICT(project_id,script_key) DO NOTHING`,id(),pid,now(),now(),bg.id,pid,token);
@@ -80,9 +82,14 @@ async function startDraft(env,root,user,body){
  // An empty published script needs no owner take or owner-prepared background.
  // If necessary, the existing recording prepare route builds free basic audio in this private draft.
  const bg=await readyBackground(env,target||root,!!target||!!base),token=id();
- await env.DB.batch([cloneProject(env,root,body.id,user.id,'private',token),...(bg?[cloneBackground(env,bg,body.id,token)]:[]),
- query(env,'INSERT INTO dubbing_role_claims(project_id,role_id,user_id,created) VALUES(?,?,?,?)',body.id,body.roleId,user.id,now()),
- query(env,'INSERT INTO dubbing_casting_drafts(project_id,root_id,target_id,destination_id,role_id,created,base_recording_id) VALUES(?,?,?,?,?,?,?)',body.id,root.id,target?.id||null,target?.id||id(),body.roleId,now(),target?null:base?.id||null)]);
+ const destination={id:body.id,owner_id:user.id};
+ const source=target&&(target.poster_version||target.listening_template!=null)?target:root;
+ const poster=await copyDubbingPoster(env,source,destination);
+ try{
+  await env.DB.batch([cloneProject(env,root,body.id,user.id,'private',token,{template:initialListeningTemplate(target||root),description:'',poster}),...(bg?[cloneBackground(env,bg,body.id,token)]:[]),
+  query(env,'INSERT INTO dubbing_role_claims(project_id,role_id,user_id,created) VALUES(?,?,?,?)',body.id,body.roleId,user.id,now()),
+  query(env,'INSERT INTO dubbing_casting_drafts(project_id,root_id,target_id,destination_id,role_id,created,base_recording_id) VALUES(?,?,?,?,?,?,?)',body.id,root.id,target?.id||null,target?.id||id(),body.roleId,now(),target?null:base?.id||null)]);
+ }finally{await discardDubbingPoster(env,destination,poster);}
  return {projectId:body.id};
 }
 function copyTake(env,recordId,pid,token){
@@ -122,28 +129,46 @@ export async function submitCastingRecording(env,p,user,record,body){
  if(root.visibility!=='public')fail(409,'원작 모집이 중지되었습니다. 내 녹음은 임시 저장되어 있습니다.');
  const base=!draft.target_id&&draft.base_recording_id?await baseRecording(env,root):null;
  if(!draft.target_id&&draft.base_recording_id&&base?.id!==draft.base_recording_id)fail(409,'선택한 기본 녹음의 공개가 중지되었습니다. 내 녹음은 임시 저장되어 있습니다.');
- const pid=draft.destination_id,statements=[];
+ const target=draft.target_id?await accessible(env,draft.target_id,user):null;
+ const targetArtwork=target&&(target.poster_version||target.listening_template!=null)?target:root;
+ // A customized submission keeps the selected cast in a new work owned by the submitter.
+ const ownEdition=!!target&&(!!p.listening_description||initialListeningTemplate(p)!==initialListeningTemplate(target)||!await isInheritedDubbingPoster(env,p,targetArtwork));
+ const pid=ownEdition?id():draft.destination_id,statements=[],destination={id:pid,owner_id:user.id};
+ let poster='';
  // The destination is locked only if the submitting draft still has the exact
  // revision and complete line set checked by the caller. All following writes
  // require this fresh token, making a losing submission a no-op transaction.
  const sourceGuard=`EXISTS(SELECT 1 FROM dubbing_recordings sr JOIN dubbing_casting_drafts sd ON sd.project_id=sr.project_id WHERE sr.id=? AND sr.revision=? AND sr.state='draft' AND sd.committed_id IS NULL AND sd.destination_id=? AND (SELECT COUNT(*) FROM dubbing_recording_lines sl WHERE sl.recording_id=sr.id)=?)`;
- const sourceArgs=[record.id,body.revision,pid,expected];
- if(draft.target_id){
-  const target=await accessible(env,pid,user);
+ const sourceArgs=[record.id,body.revision,draft.destination_id,expected];
+ const targetCanJoin=`EXISTS(SELECT 1 FROM dubbing_combinations c WHERE c.project_id=? AND c.root_id=? AND c.expired_at=0 AND c.last_participation>?)
+  AND NOT EXISTS(SELECT 1 FROM dubbing_recordings WHERE project_id=? AND (role_id=? OR user_id=?))`;
+ const targetArgs=target?[target.id,root.id,stamp-CASTING_TTL,target.id,record.role_id,user.id]:[];
+ if(target&&!ownEdition){
   statements.push(query(env,`UPDATE dubbing_projects SET write_token=?,revision=revision+1,updated=? WHERE id=? AND state!='complete' AND visibility='public' AND ${dubbingVisibleSQL('dubbing_projects')}
-   AND EXISTS(SELECT 1 FROM dubbing_combinations WHERE project_id=? AND root_id=? AND expired_at=0 AND last_participation>?)
-   AND NOT EXISTS(SELECT 1 FROM dubbing_recordings WHERE project_id=? AND (role_id=? OR user_id=?)) AND ${sourceGuard} RETURNING id`,token,stamp,target.id,pid,root.id,stamp-CASTING_TTL,pid,record.role_id,user.id,...sourceArgs));
+   AND revision=? AND ${targetCanJoin} AND ${sourceGuard} RETURNING id`,token,stamp,target.id,target.revision,...targetArgs,...sourceArgs));
  }else{
-  statements.push(cloneProject(env,root,pid,user.id,'public',token,`p.visibility='public' AND ${sourceGuard}`,sourceArgs));
-  statements.push(query(env,`INSERT INTO dubbing_combinations(project_id,root_id,last_participation) SELECT ?,?,? WHERE EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?) ON CONFLICT(project_id) DO NOTHING`,pid,root.id,stamp,pid,token));
-  statements.push(cloneBackground(env,await readyBackground(env,p),pid,token),...(base?copyTake(env,base.id,pid,token):[]));
+  const background=await readyBackground(env,p);
+  const selected=target?await rows(env,"SELECT id FROM dubbing_recordings WHERE project_id=? AND state='submitted' ORDER BY role_id",target.id):base?[base]:[];
+  const eligibility=target?` AND EXISTS(SELECT 1 FROM dubbing_projects target WHERE target.id=? AND target.revision=? AND target.state!='complete' AND target.visibility='public' AND ${dubbingVisibleSQL('target')} AND ${targetCanJoin})`:'';
+  poster=await copyDubbingPoster(env,p,destination);
+  statements.push(cloneProject(env,root,pid,user.id,'public',token,{template:initialListeningTemplate(p),description:p.listening_description||'',poster},`p.visibility='public' AND ${sourceGuard}${eligibility}`,
+   [...sourceArgs,...(target?[target.id,target.revision,...targetArgs]:[])]));
+  statements.push(query(env,`INSERT INTO dubbing_combinations(project_id,root_id,last_participation,offsets_json)
+   SELECT ?,?,?,COALESCE((SELECT offsets_json FROM dubbing_combinations WHERE project_id=?),'{}')
+   WHERE EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?) ON CONFLICT(project_id) DO NOTHING`,pid,root.id,stamp,target?.id??null,pid,token));
+  statements.push(cloneBackground(env,background,pid,token),...selected.flatMap(take=>copyTake(env,take.id,pid,token)));
  }
  statements.push(query(env,`UPDATE dubbing_recordings SET state='submitted',revision=revision+1,rights_at=?,write_token=? WHERE id=? AND revision=? AND state='draft' AND EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?)`,stamp,token,record.id,body.revision,pid,token),permission,...copyTake(env,record.id,pid,token));
  statements.push(query(env,`UPDATE dubbing_combinations SET last_participation=? WHERE project_id=? AND EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?)`,stamp,pid,pid,token));
  statements.push(query(env,`UPDATE dubbing_projects SET state=CASE WHEN (SELECT COUNT(*) FROM dubbing_recordings r WHERE r.project_id=? AND r.state='submitted')=role_count THEN 'complete' ELSE 'recording' END WHERE id=? AND write_token=?`,pid,pid,token));
  statements.push(query(env,`UPDATE dubbing_casting_drafts SET committed_id=? WHERE project_id=? AND EXISTS(SELECT 1 FROM dubbing_projects WHERE id=? AND write_token=?) RETURNING committed_id`,pid,p.id,pid,token));
  let result;try{result=await env.DB.batch(statements);}catch(e){if(/unique|constraint/i.test(e.message))fail(409,'이 배역에 다른 녹음이 먼저 등록되었습니다. 내 녹음은 보존됩니다. 다른 조합을 선택해 주세요.');throw e;}
- if(!result.at(-1).results.length)fail(409,'이 조합은 마감됐거나 배역이 채워졌습니다. 내 녹음은 보존됩니다. 다른 조합을 선택해 주세요.');
+ finally{await discardDubbingPoster(env,destination,poster);}
+ if(!result.at(-1).results.length){
+  const saved=await one(env,'SELECT committed_id FROM dubbing_casting_drafts WHERE project_id=?',p.id);
+  if(saved?.committed_id)return {combinationId:saved.committed_id,submitted:true};
+  fail(409,'이 조합은 마감됐거나 배역이 채워졌습니다. 내 녹음은 보존됩니다. 다른 조합을 선택해 주세요.');
+ }
  return {combinationId:pid,submitted:true};
 }
 export async function castingLines(env,pid,user){

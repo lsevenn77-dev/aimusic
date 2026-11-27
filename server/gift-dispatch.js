@@ -27,6 +27,10 @@ const lineOf=(job,item)=>"json_extract("+job+".plan,'$['||"+item+".line||']')";
 const duplicate=(uid,line)=>productValue(line,'option')+"='"+PERMANENT_PERIOD+"' AND "+
  permanentHeldSQL(uid,productValue(line,'product_id'));
 const revisionChanged=line=>`COALESCE((SELECT revision FROM product_catalog p WHERE p.product_id=${productValue(line,'product_id')}),0)<>${productValue(line,'revision')}`;
+const retiring=line=>`EXISTS(SELECT 1 FROM product_deletions p WHERE p.product_id=${productValue(line,'product_id')})`;
+const confirmedBeforeRetirement=(line,job)=>`EXISTS(SELECT 1 FROM product_deletions p JOIN product_catalog c USING(product_id)
+ WHERE p.product_id=${productValue(line,'product_id')} AND p.state IN ('pending','ready')
+ AND ${job}.confirmed_at<=p.requested_at AND c.revision=${productValue(line,'revision')}+1)`;
 const deadlineExpired=line=>`(${productValue(line,'fixed_until')}<=unixepoch() OR ${productValue(line,'season_ends_at')}<=unixepoch())`;
 const deadlineAt=(line,at)=>{
  const fixed=productValue(line,'fixed_until'),season=productValue(line,'season_ends_at');
@@ -117,7 +121,7 @@ export async function confirmGiftDispatch(env,actor,key){
     AND EXISTS (SELECT 1 FROM gift_dispatch_items WHERE dispatch_id=? AND state='pending')
     AND NOT EXISTS(SELECT id FROM current EXCEPT ${members})
     AND NOT EXISTS(${members} EXCEPT SELECT id FROM current)
-    AND NOT EXISTS(SELECT 1 FROM json_each(plan) p WHERE ${revisionChanged('p.value')} OR ${deadlineExpired('p.value')})
+    AND NOT EXISTS(SELECT 1 FROM json_each(plan) p WHERE ${revisionChanged('p.value')} OR ${retiring('p.value')} OR ${deadlineExpired('p.value')})
     AND NOT EXISTS(SELECT 1 FROM gift_dispatch_items i WHERE i.dispatch_id=gift_dispatches.id
      AND (i.state='excluded')<>(${duplicate('i.user_id',line)}))`,
    ...current.params,at,key,check.id,actor,key,check.id,check.id),
@@ -153,7 +157,7 @@ export async function issueGiftDispatchBatch(env,job){
   ), checked AS MATERIALIZED (
    SELECT i.id,${deadlineAt(line,'unixepoch()')} expires_at,
     CASE WHEN NOT EXISTS(SELECT 1 FROM users u WHERE u.id=i.user_id AND ${eligibleNoticeMember}) THEN 'member_changed'
-     WHEN ${revisionChanged(line)} THEN 'product_changed'
+     WHEN (${revisionChanged(line)} OR ${retiring(line)}) AND NOT ${confirmedBeforeRetirement(line,'d')} THEN 'product_changed'
      WHEN ${deadlineExpired(line)} THEN 'deadline_expired'
      WHEN ${duplicate('i.user_id',line)} THEN 'permanent_owned' END issue
    FROM budget b JOIN gift_dispatch_items i ON i.id=b.id JOIN gift_dispatches d ON d.id=i.dispatch_id
@@ -181,8 +185,9 @@ export async function retryGiftDispatch(env,actor,job,requestKey,ids){
  const key='gift-dispatch:retry:'+giftDispatchKey(requestKey);
  const scope=ids===null?null:JSON.stringify(ids),target=JSON.stringify({dispatch_id:job.id,ids});
  await env.DB.batch([
-  query(env,`UPDATE gift_dispatch_items SET state='pending',issue=NULL WHERE dispatch_id=? AND state='failed'
+  query(env,`UPDATE gift_dispatch_items AS i SET state='pending',issue=NULL WHERE dispatch_id=? AND state='failed'
    AND (? IS NULL OR user_id IN (SELECT value FROM json_each(?)))
+   AND NOT EXISTS(SELECT 1 FROM gift_dispatches d WHERE d.id=i.dispatch_id AND ${retiring(lineOf('d','i'))})
    AND NOT EXISTS(SELECT 1 FROM admin_audit WHERE id=?)`,job.id,scope,scope,key),
   query(env,`INSERT INTO admin_audit(id,admin_id,action,target,created)
    VALUES(?,?,'gift_dispatch:retry',?,?) ON CONFLICT(id) DO NOTHING`,key,actor,target,now())

@@ -55,6 +55,10 @@ function saveNavigationSnapshot(raw,html,tracks,explorer,scroll=0){
 }
 function bindRenderedRoute(base,param,explorer,ticket){
  const region=$('#main');
+ if(typeof mountListeningPlayback==='function'){
+  mountListeningPlayback(explorer?.listeningWork,region);
+  if(explorer?.listeningWork)bindListeningPage(region,explorer.listeningWork);
+ }
  if(region?.prepend&&!region.querySelector('h1')){
   const label=document.querySelector('.nav-link[data-view="'+CSS.escape(base)+'"]')?.textContent?.trim()||region.querySelector('h2')?.textContent||'AIFECT';
   const title=document.createElement('h1');title.className='sr-only';title.textContent=label;region.prepend(title);
@@ -276,16 +280,21 @@ async function renderRoute(showCachedRoute){
    const coverTab=songCoverTabFromRoute(raw);
    const core=readApi('/api/tracks/'+param).then(({track})=>{
     if(ticket===renderId&&readRevision===apiRevision&&account===(me?.id||'guest')){
-     const markup=songDetailHeaderHTML(track,songDetailIsWeb?null:undefined);
+     const markup=track.kind==='cover'&&typeof coverListeningHTML==='function'?listeningBackHTML('#play'):songDetailHeaderHTML(track,songDetailIsWeb?null:undefined);
      routeTracks=remember([track]);main.innerHTML=markup+'<div class="route-loading" role="status"><span>이야기와 참여 작품을 불러오는 중…</span><div></div><div></div></div>';icons();paintInteractions();if(typeof bindSongDescription==='function')bindSongDescription();
     }
     return track;
    });
-   const [t,{comments},allCovers,giftData]=await Promise.all([core,readApi('/api/tracks/'+param+'/comments'),readApi('/api/tracks/'+param+'/covers?view='+coverTab),readApi('/api/tracks/'+param+'/gifts')]);
+   const [t,{comments},allCovers,giftData]=await Promise.all([core,readApi('/api/tracks/'+param+'/comments'),core.then(track=>track.kind==='original'?readApi('/api/tracks/'+param+'/covers?view='+coverTab):null),readApi('/api/tracks/'+param+'/gifts')]);
    remember([t]);nextTracks=[t];const coverData=t.kind==='original'?allCovers:null;if(coverData)remember(coverData.covers);
+   if(t.kind==='cover'&&typeof coverListeningHTML==='function'){
+    explorer={listeningWork:t};
+    html=coverListeningHTML(t,comments,giftData);
+   }else{
    const headerHTML=songDetailHeaderHTML(t,songDetailIsWeb?songVisibleCommentCount(comments):undefined);
    explorer={songCovers:songDetailIsWeb?coverData:null};
-   html=`${headerHTML}<div class="song-page-layout"><div class="song-main-column">${songDetailLyricsHTML()}${songCoversPanelHTML(t,coverData,coverTab,songDetailIsWeb?raw:'')}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2></div><form id="comment-form"><div class="song-comment-compose-row"><textarea data-comment-input name="body" rows="1" maxlength="2000" required placeholder="${me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨 보세요.'}" aria-label="댓글"></textarea><button class="primary-button song-comment-submit" type="submit">댓글 등록</button></div><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label></div><p class="form-error" role="alert"></p></form><div id="comments" data-track="${esc(t.id)}">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${giftsPanelHTML(giftData,'응원 순위',{track:t})}${songCreditCardHTML(t)}</aside></div>`;
+   html=`${headerHTML}<div class="song-page-layout"><div class="song-main-column">${songDetailLyricsHTML()}${songCoversPanelHTML(t,coverData,coverTab,songDetailIsWeb?raw:'')}<section class="surface comments-panel"><div class="section-heading"><h2>함께 듣는 이야기</h2></div>${songCommentComposerHTML()}<div id="comments" data-track="${esc(t.id)}">${commentsHTML(comments,t)}</div></section></div><aside class="song-sidebar">${giftsPanelHTML(giftData,'응원 순위',{track:t})}${songCreditCardHTML(t)}</aside></div>`;
+   }
   }else if(base==='artist'||base==='producer'){
    const d=await readApi(`/api/${base==='artist'?'artists':'producers'}/${param}`);nextTracks=remember(d.tracks);
    if(base==='producer'){const q=new URLSearchParams(paramQuery?.split('?')[1]||''),tab=['tracks','covers','duets'].includes(q.get('tab'))?q.get('tab'):'all';remember(d.covers||[]);nextTracks=musicProfileItems(d,tab);html=heading('음악가의 페이지')+personProfileHTML(d,param,tab);}
@@ -352,6 +361,11 @@ function accountHTML(data){
  return `<section class="login-layout account-guest"><div class="login-story"><span class="eyebrow">AIFECT · AI + EFFECT</span><h1>새로운 취향의 시작.<br><em>마음껏, 무료로.</em></h1><p>회원이 되면 모든 곡을 끝까지 들을 수 있습니다.<br> 좋아하는 음악을 모으고 창작자와 이야기를 나눠 보세요.</p><div class="login-perks"><span>${icon('play')} 전체곡 무료 스트리밍</span><span>${icon('heart')} 좋아요와 나만의 플레이리스트</span><span>${icon('users')} 아티스트 · 제작자 팔로우</span></div></div><div class="surface login-card account-login-panel"><span class="eyebrow">WELCOME TO AIFECT</span><h2 id="auth-title">이메일로 로그인</h2><p>새로운 음악이 기다리고 있습니다.</p>${error?`<p class="form-error">${esc(error)}</p>`:''}<form id="auth-form" data-mode="login"><div id="signup-name" hidden>${formField('닉네임','name','text','','maxlength="8" autocomplete="nickname" disabled')}</div>${formField('이메일','email','email','','required autocomplete="email"')}${formField('비밀번호','password','password','','required minlength="12" maxlength="128" autocomplete="current-password" placeholder="12자 이상"')}<button class="primary-button full-width" id="auth-submit">로그인</button><p class="form-error" role="alert"></p></form><p><a class="text-link account-recovery-link" href="/account/recovery">비밀번호를 잊으셨나요?</a></p><button class="text-link auth-switch" id="auth-switch">처음 오셨나요? 무료 회원가입</button><div class="login-divider">소셜 계정으로 계속하기</div>${inApp&&authConfig.providers?.includes('google')?'<p class="login-note">앱에서는 Google 로그인을 준비 중입니다. 이메일 · 카카오 · Apple로 계속해 주세요.</p>':''}${[['google','Google'],['kakao','카카오'],['apple','Apple']].filter(([p])=>!(inApp&&p==='google')).map(([p,n])=>authConfig.providers?.includes(p)?`<a class="social-login ${p}" href="/api/auth/${p}" data-oauth>${n}로 계속하기</a>`:`<button class="social-login ${p}" disabled>${n} · 연결 준비 중</button>`).join('')}<p class="login-note">회원은 모든 곡을 무료로 감상할 수 있습니다.</p><p class="policy-note"><a href="/terms" target="_blank" rel="noopener">이용약관</a> · <a href="/privacy" target="_blank" rel="noopener">개인정보처리방침</a> · <a href="/contact" target="_blank" rel="noopener">고객센터</a></p></div></section>`;
 }
 function playlistsHTML(items){return `<div class="playlist-grid">${items.map(p=>`<a class="playlist-card surface" href="#playlist/${p.id}"><div class="playlist-art cover-lime">${icon('list')}</div><h2>${esc(p.name)}</h2><p>${playlistOwnerNickname(p)} · ${p.tracks}곡 · ${p.is_public?'공개':'비공개'}</p></a>`).join('')}</div>`;}
+function songCommentComposerHTML(){
+ return '<form id="comment-form"><div class="song-comment-compose-row"><textarea data-comment-input name="body" rows="1" maxlength="2000" required placeholder="'+
+  (me?'이 곡의 어떤 순간이 좋았나요?':'로그인 후 감상을 남겨 보세요.')+
+  '" aria-label="댓글"></textarea><button class="primary-button song-comment-submit" type="submit">댓글 등록</button></div><div class="comment-compose-bottom"><label><input name="with_time" type="checkbox" checked> 현재 재생 시간 포함</label></div><p class="form-error" role="alert"></p></form>';
+}
 function songCommentRowHTML(c,t){
  const inline=typeof inApp==='undefined'||!inApp;
  const replyLabel=c.parent_id?(inline?'<span class="song-reply-icon" aria-hidden="true">'+icon('corner-down-right')+'</span>':'<span class="comment-reply-label">답글</span>'):'';
@@ -420,10 +434,10 @@ function songSupportCardsHTML(){
  const card=(kind,href,title,caption,art)=>'<a class="song-support-card song-support-card--'+kind+'" href="'+href+'"><span class="song-support-card-icon" aria-hidden="true">'+art+'</span><span class="song-support-card-copy"><strong>'+title+'</strong><span>'+caption+'</span></span><span class="song-support-card-arrow" aria-hidden="true">'+icon('chevron')+'</span></a>';
  return '<section class="song-support-gift">'+card('gift','#gifts','선물로 마음 전하기','상점 둘러보기',icon('gift'))+card('silver','#rewards','무료 실버 받기','출석·활동으로 실버를 모읍니다.',silver)+'</section>';
 }
-function songSupportRankingHTML(g){
+function songSupportRankingHTML(g,subject='곡'){
  const ranking=(g.support_ranking||g.ranking||[]).slice(0,5),empty='아직 받은 선물이 없습니다.<br>첫 응원으로 이 무대를 빛내 주세요.';
  const gifts=r=>[Number(r.official_stars)>0?'응원별 ×'+number(r.official_stars):'',Number(r.stars)>0?shopPrice(r.stars,'S'):'',Number(r.gold)>0?shopPrice(r.gold,'G'):''].filter(Boolean).join(' · ');
- return '<h2>응원 순위</h2><p class="song-support-caption">보내준 응원만큼 쌓이는 이 곡의 응원 순위</p>'+ (ranking.length?'<ol class="song-support-ranking">'+ranking.map((r,i)=>'<li><b class="song-support-position">'+(i+1)+'</b><div class="song-support-person">'+(r.profile_id?'<a href="#producer/'+esc(r.profile_id)+'" title="'+esc(r.name)+'">'+userNickname(r.name,{profileId:r.profile_id})+'</a>':'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong>')+'</div><span class="song-support-gifts">'+gifts(r)+'</span></li>').join('')+'</ol>':'<p class="gift-rank-empty">'+empty+'</p>');
+ return '<h2>응원 순위</h2><p class="song-support-caption">보내준 응원만큼 쌓이는 이 '+subject+'의 응원 순위</p>'+ (ranking.length?'<ol class="song-support-ranking">'+ranking.map((r,i)=>'<li><b class="song-support-position">'+(i+1)+'</b><div class="song-support-person">'+(r.profile_id?'<a href="#producer/'+esc(r.profile_id)+'" title="'+esc(r.name)+'">'+userNickname(r.name,{profileId:r.profile_id})+'</a>':'<strong title="'+esc(r.name)+'">'+esc(r.name)+'</strong>')+'</div><span class="song-support-gifts">'+gifts(r)+'</span></li>').join('')+'</ol>':'<p class="gift-rank-empty">'+empty+'</p>');
 }
 function songSupportHTML(g,t){
  return '<section class="surface song-support-rank" data-song-gift-ranking="'+esc(t.id)+'">'+songSupportRankingHTML(g)+'</section>'+songSupportCardsHTML();

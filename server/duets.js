@@ -28,5 +28,5 @@ export async function duetRoute(req,env,path,user){
  if(window)track.duration=window.end-window.start;
  const parts=['instrument','partner'];const files=env.BUCKET?.head?await Promise.all(parts.map(p=>env.BUCKET.head('karaoke/'+source.id+'/duet-'+p+'.mp3'))):[];
  const stems=files.length===2&&files.every(Boolean)?Object.fromEntries(parts.map(p=>[p,'/api/duets/'+source.id+'/'+p])):undefined;
- return json({track,words,mr:`/media/${source.id}/stream`,duet:{stems,parent_id:source.id,slot:'second',part:otherPart(source.duet_part),guide:readDuetGuide(source.duet_guide),partner}});
+ return json({track,words,mr:`/media/${source.id}/stream`,duet:{stems,parent_id:source.id,slot:'second',part:otherPart(source.duet_part),guide:readDuetGuide(source.duet_guide),partner:{...partner,listening_template:source.listening_template??null}}});
 }

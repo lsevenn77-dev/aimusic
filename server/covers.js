@@ -8,6 +8,7 @@ import {MAX_AUDIO} from './storage.js';
 import {duetSource,otherPart} from './duets.js';
 import {coverEditMetadata,coverEditLyrics,coverEditWords,readCoverEdit} from './cover-edit.js';
 import {cropDuetGuide} from '../shared/recording-window.js';
+import {initialListeningTemplate,listeningTemplateInput} from './listening.js';
 
 // A cover is a track of kind 'cover' owned by the singer's profile. It reuses the upload,
 // transcoding, playback, like and comment paths; the audio goes to /api/uploads/:id/audio then /complete.
@@ -54,7 +55,7 @@ export async function coverRoute(req,env,path,user){
   if(!first&&next.mode==='lyrics'&&(!next.lines.some(part=>part==='A'||part==='both')||!next.lines.some(part=>part==='B'||part==='both')))fail(400,'두 사람이 부를 가사가 포함되도록 게시 범위를 조절해 주세요.');
   guide=JSON.stringify(next);
  }
- const description=str(b.description||'',1000,false),writes=[];
+ const description=str(b.description||'',1000,false),listeningTemplate=listeningTemplateInput(b),writes=[];
  // Every person has one profile; a first cover creates it from the account name.
  let profile=await one(env,'SELECT id FROM producers WHERE user_id=?',user.id);
  if(!profile){profile={id:id()};writes.push(query(env,'INSERT INTO producers(id,user_id,name,bio,created) VALUES(?,?,?,?,?)',profile.id,user.id,(user.name||'AIFECT 이용자').trim().slice(0,60)||'AIFECT 이용자','',now()));}
@@ -74,11 +75,11 @@ export async function coverRoute(req,env,path,user){
  const existing=b.request_id&&await one(env,'SELECT id,recording_edit FROM tracks WHERE id=? AND user_id=?',tid,user.id);
  if(existing){
   if(existing.recording_edit!==recordingEdit)fail(409,'편집 범위가 변경되었습니다. 게시 설정을 다시 열어 주세요.');
-  await query(env,`UPDATE tracks SET original_bytes=?,original_ext=?,description=?,cover_mode=?,duet_parent_id=?,duet_part=?,duet_open=?,duet_guide=?,lyrics=?,lyrics_mode=? WHERE id=? AND kind='cover' AND original_id=? AND user_id=? AND status='uploading' AND recording_edit=?`,b.bytes,b.extension,description,mode,parent,part,mode==='duet'&&!first?1:0,guide,lyrics,lyricsMode,tid,original.id,user.id,recordingEdit).run();
+  await query(env,`UPDATE tracks SET original_bytes=?,original_ext=?,description=?,cover_mode=?,duet_parent_id=?,duet_part=?,duet_open=?,duet_guide=?,lyrics=?,lyrics_mode=?,listening_template=COALESCE(?,listening_template) WHERE id=? AND kind='cover' AND original_id=? AND user_id=? AND status='uploading' AND recording_edit=?`,b.bytes,b.extension,description,mode,parent,part,mode==='duet'&&!first?1:0,guide,lyrics,lyricsMode,listeningTemplate??null,tid,original.id,user.id,recordingEdit).run();
   return result();
  }
- writes.push(query(env,`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,description,ai_tool,is_ai,participation,rights_accepted,original_ext,original_bytes,created,kind,original_id,cover_mode,duet_parent_id,duet_part,duet_open,duet_guide,recording_edit,lyrics,lyrics_mode)
-  VALUES(?,?,?,?,?,?,?,'',0,'보컬',?,?,?,?,'cover',?,?,?,?,?,?,?,?,?)`,tid,user.id,original.artist_id,profile.id,original.title,original.genre,description,now(),b.extension,b.bytes,now(),original.id,mode,parent,part,mode==='duet'&&!first?1:0,guide,recordingEdit,lyrics,lyricsMode));
+ writes.push(query(env,`INSERT INTO tracks(id,user_id,artist_id,producer_id,title,genre,description,ai_tool,is_ai,participation,rights_accepted,original_ext,original_bytes,created,kind,original_id,cover_mode,duet_parent_id,duet_part,duet_open,duet_guide,recording_edit,lyrics,lyrics_mode,listening_template)
+  VALUES(?,?,?,?,?,?,?,'',0,'보컬',?,?,?,?,'cover',?,?,?,?,?,?,?,?,?,?)`,tid,user.id,original.artist_id,profile.id,original.title,original.genre,description,now(),b.extension,b.bytes,now(),original.id,mode,parent,part,mode==='duet'&&!first?1:0,guide,recordingEdit,lyrics,lyricsMode,listeningTemplate??initialListeningTemplate(first)));
  try{await env.DB.batch([...writes,...coverClassificationWrites(env,{trackId:tid})]);}
  catch(error){if(!b.request_id||!await one(env,'SELECT id FROM tracks WHERE id=? AND user_id=?',tid,user.id))throw error;}
  return result();

@@ -65,7 +65,7 @@ function workFeedRow(item,{metadata,actions,metrics=false}){
   <a class="work-feed-art" href="${href}" aria-label="${title} 상세보기">${picture}</a>
   <div class="work-feed-copy">
    <div class="work-feed-labels"><span class="work-feed-type">${workFeedLabels.get(kind)}</span>${people}${privateWork}</div>
-   <a class="work-feed-title" href="${href}" title="${title}">${title}</a>
+   <a class="work-feed-title" href="${href}" title="${title}">${AifectCoverPick.titleHTML(work,title)}</a>
    <div class="work-feed-meta">${meta?'<span class="work-feed-credit">'+meta+'</span>':''}${workFeedDate(date)}${metrics?workFeedMetrics(work):''}</div>
    ${note?'<p class="work-feed-note">'+esc(note)+'</p>':''}
   </div>

@@ -1,29 +1,36 @@
 let dubbingRecorder=null;
 function dubbingRecordingHTML(p,data,mine=p.roles.find(r=>r.mine)){
  const record=data.recording.roles.find(r=>r.roleId===mine.id);
- return `<a class="dubbing-back" href="#dubbing/${esc(p.id)}">← 대본과 배역</a><header class="dubbing-heading"><span class="eyebrow">VOICE STUDIO · ${esc(mine.name)}</span><h1>${esc(p.title)}</h1><p>내 대사를 한 줄씩 연기하고, 서로의 목소리로 장면을 완성합니다.</p></header>
+ return `<a class="dubbing-back" href="#dubbing/${esc(p.id)}?manage=1">← 대본과 배역</a><header class="dubbing-heading"><span class="eyebrow">VOICE STUDIO · ${esc(mine.name)}</span><h1>${esc(p.title)}</h1><p>내 대사를 한 줄씩 연기하고, 서로의 목소리로 장면을 완성합니다.</p></header>
  ${window.AifectMicrophoneCheck?.html()||''}
  <div class="dubbing-record-layout"><section class="dubbing-panel dubbing-record-script"><div class="dubbing-section-heading"><div><span class="eyebrow">SCRIPT & TAKES</span><h2>장면의 대사</h2></div><span class="dubbing-tag">내 배역 · ${esc(mine.name)}</span></div><p class="dubbing-record-script-hint">현재 대사 앞뒤를 함께 보며 준비하세요. 내 대사를 누르면 녹음할 위치를 바꿀 수 있습니다.</p><div id="dubbing-record-lines" class="dubbing-record-lines" aria-label="전체 대본과 녹음 위치"></div><p id="dubbing-record-next" class="dubbing-record-next"></p></section>
  <aside class="dubbing-panel dubbing-record-stage"><div class="dubbing-section-heading"><span class="eyebrow">NOW RECORDING</span><span id="dubbing-record-count"></span></div><div id="dubbing-record-current"></div><div id="dubbing-record-cue" class="dubbing-record-cue" role="status" aria-live="polite">녹음 시작 전 3, 2, 1로 알려 드립니다</div><div class="dubbing-record-time"><span id="dubbing-record-clock">0:00</span><progress id="dubbing-record-progress" max="1" value="0" aria-label="현재 대사 녹음 진행"></progress><span id="dubbing-record-limit"></span></div>
  <div class="dubbing-record-controls"><button type="button" class="primary-button" id="dubbing-record-start">${icon('mic')} 녹음 시작</button><button type="button" class="small-button" id="dubbing-record-pause" disabled>일시정지</button><button type="button" class="small-button" id="dubbing-record-stop" disabled>이 대사 마치기</button><button type="button" class="small-button" id="dubbing-record-again" disabled>다시 녹음</button></div>
  <div class="dubbing-form-actions"><button type="button" class="small-button" id="dubbing-record-listen">${icon('audio-play')} 미리 듣기</button><button type="button" class="small-button" id="dubbing-record-save" disabled>${icon('save')} 임시 저장</button></div>
  <p class="dubbing-feedback" role="status" aria-live="polite">${record?.state==='submitted'?'내 배역의 녹음을 제출했습니다. 다른 배역의 목소리를 기다리고 있습니다.':'이어폰을 사용해 주세요. 배경음과 다른 배역의 목소리는 별도로 재생하며 마이크 파일에 합치지 않습니다.'}</p>
- <div class="dubbing-record-submit"><fieldset class="dc-privacy"><legend><h3>내 더빙 녹음 공개 설정</h3></legend><label><input type="radio" name="dubbing-visibility" value="public"> 공개 캐스팅 허용</label><label><input type="radio" name="dubbing-visibility" value="private"> 비공개 보관</label><p>공개하면 이 대본의 선택한 조합에 내 음성이 포함되며, 참여자가 대사를 미리 듣고 공동 작품으로 합성·저장·게시할 수 있습니다. 원작자 녹음은 기본 조합으로 유지되어 이 대본의 새 조합에 사용됩니다. 다른 대본에 자동 재사용하지 않습니다.</p><p>비공개 보관은 공개 조합에 참여하지 않고 내 작업에만 저장합니다. 공개 후 삭제 요청은 작품 관리·고객센터에서 접수하며, 이미 완성된 공동 작품의 처리 범위는 별도 안내합니다. 미완성 조합은 신규 녹음 참여 없이 30일이 지나면 삭제되며, 그 조합에만 쓰인 음성도 삭제됩니다.</p><label class="dubbing-consent"><input type="checkbox" id="dubbing-record-rights"> 공개 캐스팅을 선택한 경우 위 음성 이용 범위에 동의합니다.</label></fieldset><button class="primary-button" id="dubbing-record-submit">공개 설정에 따라 제출</button><small>모든 대사를 임시 저장한 뒤 제출해 주세요. 공개 제출된 목소리는 다른 참여자의 녹음을 보호하기 위해 덮어쓰지 않습니다.</small><div id="dc-record-result" role="status"></div></div>
- <details class="dubbing-record-help"><summary>녹음은 이렇게 진행합니다</summary><p>효과음을 듣고 3, 2, 1 안내에 맞춰 대사를 시작하세요. 녹음한 내 대사는 체크로 표시됩니다. 다른 대사로 이동해도 녹음은 이 화면에 모아두며, 임시 저장을 누르면 지금까지 녹음한 대사를 모두 저장합니다. 저장 전에는 화면을 닫지 마세요.</p></details></aside></div>`;
+ <button class="primary-button" id="dubbing-record-publish-step" type="button">게시 설정</button>
+ <details class="dubbing-record-help"><summary>녹음은 이렇게 진행합니다</summary><p>효과음을 듣고 3, 2, 1 안내에 맞춰 대사를 시작하세요. 녹음한 내 대사는 체크로 표시됩니다. 다른 대사로 이동해도 녹음은 이 화면에 모아두며, 임시 저장을 누르면 지금까지 녹음한 대사를 모두 저장합니다. 저장 전에는 화면을 닫지 마세요.</p></details></aside></div>
+ <section class="surface listening-record-settings" data-dubbing-publish-settings hidden><h2 tabindex="-1">게시 설정</h2>
+ ${p.isOwner?dubbingListeningSettingsHTML(p,{recorder:true}):""}
+ <div class="dubbing-record-submit"><fieldset class="dc-privacy"><legend><h3>내 더빙 녹음 공개 설정</h3></legend><label><input type="radio" name="dubbing-visibility" value="public"> 공개 캐스팅 허용</label><label><input type="radio" name="dubbing-visibility" value="private"> 비공개 보관</label><p>공개하면 이 대본의 선택한 조합에 내 음성이 포함되며, 참여자가 대사를 미리 듣고 공동 작품으로 합성·저장·게시할 수 있습니다. 원작자 녹음은 기본 조합으로 유지되어 이 대본의 새 조합에 사용됩니다. 다른 대본에 자동 재사용하지 않습니다.</p><p>비공개 보관은 공개 조합에 참여하지 않고 내 작업에만 저장합니다. 공개 후 삭제 요청은 작품 관리·고객센터에서 접수하며, 이미 완성된 공동 작품의 처리 범위는 별도 안내합니다. 미완성 조합은 신규 녹음 참여 없이 30일이 지나면 삭제되며, 그 조합에만 쓰인 음성도 삭제됩니다.</p><label class="dubbing-consent"><input type="checkbox" id="dubbing-record-rights"> 공개 캐스팅을 선택한 경우 위 음성 이용 범위에 동의합니다.</label></fieldset>
+ <small>모든 대사를 저장한 뒤 게시해 주세요. 공개 제출된 목소리는 다른 참여자의 녹음을 보호하기 위해 덮어쓰지 않습니다.</small>
+ <div class="dubbing-form-actions"><button type="button" class="small-button" data-dubbing-back-to-record>녹음 편집</button><button type="button" class="small-button" data-dubbing-listening-draft>초안 저장</button><button type="button" class="primary-button" id="dubbing-record-submit">게시하기</button></div>
+ <p class="dubbing-feedback" role="status"></p><div id="dc-record-result" role="status"></div></div></section>`;
 }
 function dubbingRecordBeforeRoute(raw){
- const s=dubbingRecorder;if(!s)return true;if(raw===s.route)return !(s.dirty||s.run||s.busy);
+ const s=dubbingRecorder;if(!s)return true;if(raw===s.route)return !(s.dirty||s.listeningDirty||s.run||s.busy);
  if(s.busy){history.replaceState(null,'','#'+s.route);toast('녹음을 저장하고 있습니다. 저장 후 이동해 주세요.');return false;}
- if((s.dirty||s.run)&&!confirm('아직 임시 저장하지 않은 녹음이 있습니다. 이 화면을 나가면 사라집니다. 이동할까요?')){history.replaceState(null,'','#'+s.route);return false;}
+ if((s.dirty||s.listeningDirty||s.run)&&!confirm('아직 초안에 저장하지 않은 변경사항이 있습니다. 이 화면을 나갈까요?')){history.replaceState(null,'','#'+s.route);return false;}
  dubbingReleaseRecorder(s);return true;
 }
 function dubbingReleaseRecorder(s){
  if(dubbingRecorder===s)dubbingRecorder=null;s.micCheck?.destroy();s.closed=true;cancelAnimationFrame(s.frame);
+ s.listeningAbort?.abort();
  dubbingStopGuide(s);if(s.run){try{s.run.node.port.postMessage('stop');s.run.mic.disconnect();s.run.node.disconnect();s.run.mute.disconnect();}catch{}s.run.stream.getTracks().forEach(t=>t.stop());s.run=null;}
  s.ctx?.close().catch(()=>{});
 }
-function dubbingStopGuide(s){clearTimeout(s.previewTimer);for(const node of s.sources||[]){node.onended=null;try{node.stop();node.disconnect();}catch{}}s.sources=[];s.preview=false;}
-function dubbingRecordMessage(s,message){if(!s.closed)dubbingMessage(s.root,message);}
+function dubbingStopGuide(s){clearTimeout(s.previewTimer);cancelAnimationFrame(s.listeningFrame);s.listeningStarted=null;for(const node of s.sources||[]){node.onended=null;try{node.stop();node.disconnect();}catch{}}s.sources=[];s.preview=false;s.paintListening?.();}
+function dubbingRecordMessage(s,message){if(!s.closed)dubbingMessage(s.publishPanel&&!s.publishPanel.hidden?s.publishPanel:s.root,message);}
 function dubbingRecordState(s){return s.data.recording.roles.find(r=>r.roleId===s.role);}
 function dubbingRememberTake(s){
  if(!s.samples||s.cursor<.1)return;
@@ -57,6 +64,7 @@ function dubbingRecordDraw(s){
  set('dubbing-record-pause',s.busy||!s.run);set('dubbing-record-stop',s.busy||!s.run);
  set('dubbing-record-again',s.busy||!!s.run||locked||(!s.samples&&!slot.audioUrl));
  set('dubbing-record-save',s.busy||!!s.run||locked||!s.dirty);set('dubbing-record-listen',s.busy||!!s.run);
+ set('dubbing-record-publish-step',s.busy||!!s.run);
  const needsConsent=locked&&s.p.casting?.isRoot&&!state.castingVisibility;
  set('dubbing-record-submit',s.busy||!!s.run||s.dirty||(locked&&!needsConsent)||saved!==total);set('dubbing-record-rights',(locked&&!needsConsent)||s.busy||!!s.run);
  s.root.querySelector('#dubbing-record-limit').textContent=time(slot.recordEnd-slot.start);
@@ -145,6 +153,7 @@ async function dubbingSaveRecording(s){
 function bindDubbingRecorder(view,root){
  const s={p:view.project,data:view.recordingData,role:view.recordingRole||view.project.roles.find(r=>r.mine).id,root,route:view.route,buffers:new Map(),takes:new Map(),sources:[],cursor:0,busy:false,dirty:false};
  if(dubbingRecorder)dubbingReleaseRecorder(dubbingRecorder);dubbingRecorder=s;s.micCheck=window.AifectMicrophoneCheck?.bind(root.querySelector('.microphone-check'));s.line=s.p.script.lines.find(l=>l.roleId===s.role).id;
+ bindDubbingRecorderListening(s,root);
  root.querySelector('#dubbing-record-start').onclick=()=>dubbingStartRecording(s);
  root.querySelector('#dubbing-record-pause').onclick=()=>dubbingPauseRecording(s);
  root.querySelector('#dubbing-record-stop').onclick=()=>dubbingPauseRecording(s,true);
@@ -163,7 +172,9 @@ function bindDubbingRecorder(view,root){
   if(!visibility){dubbingRecordMessage(s,'내 더빙 녹음 공개 설정을 선택해 주세요.');return;}
   if(visibility==='public'&&!rights){dubbingRecordMessage(s,'공개 캐스팅의 음성 이용 범위를 확인해 주세요.');return;}
   if(s.busy||s.run||s.dirty)return;s.busy=true;dubbingStopGuide(s);dubbingRecordDraw(s);
-  try{s.data=await api(`/api/dubbing/projects/${s.p.id}/recording/${s.role}/submit`,'POST',{revision:dubbingRecordState(s).revision,visibility,rightsAccepted:rights,licenseVersion:'casting-2026-11-01'});
+  try{
+   await s.saveListening();
+   s.data=await api(`/api/dubbing/projects/${s.p.id}/recording/${s.role}/submit`,'POST',{revision:dubbingRecordState(s).revision,visibility,rightsAccepted:rights,licenseVersion:'casting-2026-11-01'});
    const result=s.data.casting,box=root.querySelector('#dc-record-result');
    dubbingRecordMessage(s,result?.private?'내 작업에 비공개로 보관했습니다. 공개 조합에는 참여하지 않았습니다.':result?.base?'원작자의 기본 녹음을 공개했습니다. 다른 배역이 이 목소리에서 새 조합을 시작할 수 있습니다.':'배역 녹음을 제출했습니다. 모든 배역이 모이면 완성작으로 이동합니다.');
    box.innerHTML=result?.combinationId?`<a class="small-button" href="#dubbing/${esc(result.combinationId)}">참여한 작품 확인</a>`:`<a class="small-button" href="#karaoke/dubbing?tab=${result?.private?'mine&kind=recording':'discover'}">${result?.private?'내 녹음 보기':'작품찾기로'}</a>`;
@@ -172,8 +183,100 @@ function bindDubbingRecorder(view,root){
  };
  dubbingRecordDraw(s);
 }
-window.addEventListener('beforeunload',e=>{if(dubbingRecorder?.dirty||dubbingRecorder?.run){e.preventDefault();e.returnValue='';}});
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&dubbingRecorder?.run)void dubbingPauseRecording(dubbingRecorder);});
+
+function bindDubbingRecorderListening(s,root){
+ const panel=root.querySelector('[data-dubbing-publish-settings]'),layout=root.querySelector('.dubbing-record-layout');
+ const microphone=root.querySelector('.microphone-check'),form=panel.querySelector('[data-dubbing-listening-settings]');
+ s.publishPanel=panel;
+ s.listeningPosition=0;
+ s.listeningStarted=null;
+ const scene=bindDubbingListeningSettings(form,s.p,()=>{s.listeningDirty=true;});
+ if(form)form.onsubmit=event=>event.preventDefault();
+ s.saveListening=async()=>{
+  if(!form||!s.listeningDirty&&!form._photoPending)return;
+  await form._saveListening();
+  s.listeningDirty=false;
+ };
+ const show=visible=>{
+  if(s.busy||s.run)return;
+  dubbingStopGuide(s);
+  panel.hidden=!visible;layout.hidden=visible;
+  if(microphone)microphone.hidden=visible;
+  if(visible){
+   s.paintListening?.();
+   panel.querySelector('h2').focus();
+  }else root.querySelector('#dubbing-record-publish-step').focus();
+ };
+ root.querySelector('#dubbing-record-publish-step').onclick=()=>show(true);
+ panel.querySelector('[data-dubbing-back-to-record]').onclick=()=>show(false);
+ panel.querySelector('[data-dubbing-listening-draft]').onclick=async event=>{
+  const button=event.currentTarget;
+  if(s.run||s.busy||button.disabled)return;
+  button.disabled=true;
+  try{
+   if(s.dirty)await dubbingSaveRecording(s);
+   if(s.dirty)return;
+   s.busy=true;dubbingRecordDraw(s);
+   await s.saveListening();
+   dubbingRecordMessage(s,'초안을 저장했습니다.');
+  }catch(error){dubbingRecordMessage(s,error.message);}
+  finally{button.disabled=false;s.busy=false;dubbingRecordDraw(s);}
+ };
+ if(!scene)return;
+ const controls=listeningSceneState(scene),abort=new AbortController();
+ s.listeningAbort=abort;
+ const playing=()=>s.listeningStarted!==null;
+ const paintMotion=bindListeningMotion(scene,controls,playing,abort.signal);
+ const lineText=new Map(s.p.script.lines.map(line=>[line.id,line.text]));
+ const position=()=>playing()?Math.max(s.listeningPosition,s.ctx.currentTime-s.listeningStarted):s.listeningPosition;
+ s.paintListening=()=>{
+  const at=Math.min(s.p.duration,position());
+  const cue=s.data.lines.find(line=>{
+   const take=s.takes.get(line.id),recorded=take?.cursor??(line.audioUrl?line.duration:0);
+   return at>=line.start&&at<Math.min(line.recordEnd,line.start+recorded);
+  });
+  controls.paint(at,s.p.duration,playing(),cue?lineText.get(cue.id):'');
+  paintMotion();
+ };
+ const animate=()=>{
+  if(!playing()||s.closed)return;
+  if(position()>=s.p.duration){s.listeningPosition=s.p.duration;dubbingStopGuide(s);return;}
+  s.paintListening();s.listeningFrame=requestAnimationFrame(animate);
+ };
+ const stop=()=>{
+  s.listeningPosition=Math.min(s.p.duration,position());
+  dubbingStopGuide(s);
+ };
+ const play=async()=>{
+  if(s.busy||s.run||s.closed)return;
+  if(s.listeningPosition>=s.p.duration-.05)s.listeningPosition=0;
+  s.busy=true;controls.toggle.setAttribute('aria-busy','true');dubbingRecordDraw(s);
+  try{
+   await dubbingRecordAudio(s);
+   if(s.closed||panel.hidden||document.hidden)return;
+   ++playSerial;window.AifectAudioAds?.cancel();audio.pause();
+   const start=s.ctx.currentTime+.06;
+   dubbingPlayGuide(s,s.listeningPosition,start,true);
+   s.preview=true;s.listeningStarted=start-s.listeningPosition;animate();
+  }catch(error){dubbingRecordMessage(s,error.message);}
+  finally{s.busy=false;controls.toggle.removeAttribute('aria-busy');dubbingRecordDraw(s);}
+ };
+ controls.toggle.onclick=()=>playing()?stop():play();
+ controls.range.onchange=()=>{
+  if(s.busy)return;
+  const resume=playing(),to=Number(controls.range.value);
+  if(resume)stop();
+  s.listeningPosition=to;s.paintListening();
+  if(resume)void play();
+ };
+}
+
+window.addEventListener('beforeunload',e=>{if(dubbingRecorder?.dirty||dubbingRecorder?.listeningDirty||dubbingRecorder?.run){e.preventDefault();e.returnValue='';}});
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden||!dubbingRecorder)return;
+ if(dubbingRecorder.run)void dubbingPauseRecording(dubbingRecorder);
+ else if(dubbingRecorder.listeningStarted!==null)dubbingStopGuide(dubbingRecorder);
+});
 
 async function castingRetargetRecording(s){
  const box=s.root.querySelector('#dc-record-result');try{const data=await api('/api/dubbing/casting/'+s.p.casting.draft.rootId,'GET',undefined,{fresh:true});if(!box.isConnected)return;

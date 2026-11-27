@@ -10,7 +10,8 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 function menu(user='owner',liked=false){
  const listeners={},c=nicknameContext({me:user?{id:user}:null,trackMap:new Map([['one',{id:'one',user_id:'owner',title:'<Song "title">',kind:'original'}]]),esc,icon:n=>`<svg data-icon="${n}"></svg>`,liked:()=>liked,dialog:html=>{c.html=html;},paintInteractions:()=>{},$:()=>({addEventListener:(name,fn)=>listeners[name]=fn})});
  vm.runInContext(source('gifts.js').split('\n').slice(0,2).join('\n'),c);
- const text=source('explorer.js');vm.runInContext(text.slice(text.indexOf('function trackMenu('),text.indexOf('function queueDialog(')),c);
+ c.location={hash:'#song/one'};
+ const text=source('explorer.js');vm.runInContext(text.slice(text.indexOf('let trackMenuRequest='),text.indexOf('function queueDialog(')),c);
  c.trackMenu('one');return {c,listeners};
 }
 test('shared menu keeps action contracts, order, ownership and escaped confirmation metadata',()=>{
@@ -34,7 +35,7 @@ test('backdrop closes options only when clicking outside its bounds',()=>{
 
 test('chart menu reuses existing song actions in an anchored popover, never adds chart playlist creation',()=>{
  const {c}=menu('other');let anchorReceived;
- c.chartTrackPopover=(html,anchor)=>{c.html=html;anchorReceived=anchor;};const anchor={};c.trackMenu('one',anchor);
+ c.chartTrackPopover=(html,anchor)=>{c.html=html;anchorReceived=anchor;};const anchor={isConnected:true};c.trackMenu('one',anchor);
  assert.equal(anchorReceived,anchor);
  for(const action of ['data-play="one"','data-add="one"','data-share="one"','data-report-track="one"','data-queue-insert="one"'])assert.ok(c.html.includes(action));
  assert.doesNotMatch(c.html,/data-chart-playlist|플리 만들기|data-delete-track/);

@@ -30,7 +30,9 @@ export async function walletHistory(req,env,user){
    rows(env,`SELECT * FROM (
     SELECT g.id,'gift' kind,g.gold amount,g.created,g.gift_name title FROM gifts g WHERE g.sender_id=? AND NOT EXISTS(SELECT 1 FROM gift_inventory i WHERE i.id=g.id)
     UNION ALL SELECT 'inventory:'||request_id,'inventory',SUM(value),created,gift_name||' 구매' FROM gift_inventory WHERE user_id=? AND currency='gold' AND source='purchase' GROUP BY request_id
-    UNION ALL SELECT 'decoration:'||id,'decoration',gold,created,sku||' · '||period_code FROM decoration_orders WHERE payer_id=?
+    UNION ALL SELECT 'decoration:'||o.id,'decoration',o.gold,o.created,json_array(coalesce(o.product_name,
+      (SELECT n.gift_name FROM activity_notifications n WHERE n.id='decoration:'||o.id AND n.gift_name<>''),d.name),o.sku,o.period_code)
+      FROM decoration_orders o LEFT JOIN product_deletions d ON d.product_id=o.sku WHERE o.payer_id=?
     UNION ALL SELECT 'dubbing:'||job_id,'dubbing',gold,created,'' FROM dubbing_gold_orders WHERE user_id=?
     UNION ALL SELECT 'jump-outfit:'||id,'jump_outfit',json_extract(item_key,'$.amount'),granted_at,source_ref FROM player_inventory WHERE user_id=? AND source='jump_outfit' AND json_extract(item_key,'$.currency')='G'
    ) ORDER BY created DESC,id LIMIT 20`,uid,uid,uid,uid,uid)
@@ -39,7 +41,7 @@ export async function walletHistory(req,env,user){
  return json({currency,earned,spent:spent.map(row=>{
   if(row.kind==='jump_outfit')return {...row,title:(JUMP_OUTFITS.find(item=>item.id===row.title)?.name||'점프게임 의상')+' 구매'};
   if(row.kind!=='decoration')return row;
-  const [sku,period]=row.title.split(' · ');
-  return {...row,title:(DECORATIONS[sku]?.name||'꾸미기 상품')+' · '+(PERIOD_LABELS[period]||'')+' 구매'};
+  const [name,sku,period]=JSON.parse(row.title);
+  return {...row,title:(name||DECORATIONS[sku]?.name||sku||'꾸미기 상품')+' · '+(PERIOD_LABELS[period]||'')+' 구매'};
  })});
 }

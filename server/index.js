@@ -82,6 +82,8 @@ import {giftRoute} from './gifts.js';
 import {payoutRoute} from './payouts.js';
 import {adminDashboardRoute} from './admin-dashboard.js';
 import {adminProductRoute} from './admin-products.js';
+import {checkDeletionAfterInventory,checkPendingDeletions} from './product-deletion-policy.js';
+import {runProductPurgeJobs} from './product-purge.js';
 import {productFileRoute} from './product-assets.js';
 import {productEvidenceRoute} from './product-reviews.js';
 import {productPreviewRoute} from './product-preview.js';
@@ -229,12 +231,16 @@ async function fetchRequest(req,env,ctx){
   if(path==='/api/admin/product-native-review')return await createNativeProductReview(req,env,user);
   if(path.startsWith('/api/admin/product-')||path.startsWith('/api/admin/products')){
    const authorized=isAdmin(env,user);
-   const product=await productFileRoute(req,env,path,authorized?user:null)||await productEvidenceRoute(req,env,path,authorized)||await productPreviewRoute(req,env,path,user)||await adminProductRoute(req,env,path,user);
+   const product=await productFileRoute(req,env,path,authorized?user:null)||await productEvidenceRoute(req,env,path,authorized)||await productPreviewRoute(req,env,path,user)||await adminProductRoute(req,env,path,user,ctx);
    if(product)return product;
   }
   const cutover=await boxCutoverRoute(req,env,path,user);if(cutover)return cutover;
   const notice=await officialNoticeRoute(req,env,path,user)||await welcomeNoticeRoute(req,env,path,user);if(notice)return notice;
-  const noticeAdmin=await adminNoticeRoute(req,env,path,user,ctx)||await adminGiftDispatchRoute(req,env,path,user);if(noticeAdmin)return noticeAdmin;
+  const noticeAdmin=await adminNoticeRoute(req,env,path,user,ctx)||await adminGiftDispatchRoute(req,env,path,user);
+  if(noticeAdmin){
+   if(noticeAdmin.ok&&req.method==='POST'&&/\/gift-dispatch\/[\w-]+\/(?:process|adjustments\/[\w-]+)$/.test(path))recheckProductDeletions(env,ctx);
+   return noticeAdmin;
+  }
   if(path==='/api/admin/mcp/identity'){
    if(!isConsoleAdmin(user))fail(403,'기존 관리자 콘솔에 로그인해 주세요.');
    if(req.method!=='GET')fail(405,'GET만 지원합니다.');
@@ -258,7 +264,11 @@ async function fetchRequest(req,env,ctx){
   if(path.startsWith('/api/crew-racing/'))return await racingRoute(req,env,path,user);
   if(path.includes('/jump')&&path.startsWith('/api/crews/')){const jump=await jumpRoute(req,env,path,user);if(jump)return jump;}
   const play=await playRoute(req,env,path,user);if(play)return play;
-  const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);if(voiceResponse)return voiceResponse;
+  const voiceResponse=await voiceRoomsRoute(req,env,path,user,ctx);
+  if(voiceResponse){
+   if(voiceResponse.ok&&req.method==='POST'&&/^\/api\/voice\/rooms(?:\/[\w-]+\/(?:close|leave|settings))?$/.test(path))recheckProductDeletions(env,ctx);
+   return voiceResponse;
+  }
   const dubbingReportAdmin=await dubbingReportsAdminRoute(req,env,path,user);if(dubbingReportAdmin)return dubbingReportAdmin;
   const dubbingAdmin=await dubbingAdminRoute(req,env,path,user);if(dubbingAdmin)return dubbingAdmin;
   const dubbing=await dubbingRoute(req,env,path,user);if(dubbing){if(dubbing.ok&&req.method==='POST')ctx.waitUntil(dispatchPush(env));if(dubbing.ok&&['POST','PUT','PATCH'].includes(req.method)&&user&&ctx?.waitUntil)ctx.waitUntil(syncActorCrew(env,user.id).catch(()=>console.error('Crew growth pending')));return dubbing;}
@@ -287,6 +297,11 @@ async function fetchRequest(req,env,ctx){
   ]).catch(()=>console.error('Expired authentication state cleanup failed')));
   const result=await playlistsRoute(req,env,path,user)||await myBoxesRoute(req,env,path,user)||await giftCheckoutRoute(req,env,path,user)||await musicLibraryRoute(req,env,path,user)||await profileCollectionsRoute(req,env,path,user)||await crewNoticeRoute(req,env,path,user)||await relationRoute(req,env,path,user)||await decorationRoute(req,env,path,user)||await giftInventoryRoute(req,env,path,user)||await playerRoute(req,env,path,user)||await chatFeaturesRoute(req,env,path,user)||await applePaymentRoute(req,env,path,user)||await profileRoute(req,env,path,user)||await crewV3Route(req,env,path,user)||await socialRoute(req,env,path,user)||await authRoute(req,env,path,user)||await billingRoute(req,env,path,user)||await membershipRoute(req,env,path,user)||await alignmentRoute(req,env,path,user)||await karaokeRoute(req,env,path,user)||await coverRoute(req,env,path,user)||await duetRoute(req,env,path,user)||await goldOrderRoute(req,env,path,user)||await giftRoute(req,env,path,user)||await communityRankingRoute(req,env,path)||await coverRankingRoute(req,env,path)||await commentModerationRoute(req,env,path,user)||await trackModerationRoute(req,env,path,user)||await diamondRoute(req,env,path,user)||await payoutRoute(req,env,path,user)||await lyricsRoute(req,env,path,user)||await catalogRoute(req,env,path,user)||await mediaRoute(req,env,path,user);
   if(result){
+   if(result.ok&&req.method==='POST'){
+    const item=path.match(/^\/api\/(me\/gift-inventory|decorations\/inventory)\/([\w-]+)\/(?:use|send)$/);
+    if(item)recheckProductDeletions(env,ctx,item);
+   }
+   if(result.ok&&req.method==='PUT'&&path==='/api/me/player/equipment')recheckProductDeletions(env,ctx);
    if(result.ok&&['POST','PUT','PATCH'].includes(req.method)&&user&&ctx?.waitUntil&&/^\/api\/(tracks|uploads|studio|covers)/.test(path))ctx.waitUntil(syncActorCrew(env,user.id).catch(()=>console.error('Crew growth pending')));
    if(['POST','PUT','PATCH'].includes(req.method)&&result.ok&&(path.startsWith('/api/artists/')||path.startsWith('/api/crews/')||path.startsWith('/api/dubbing/')||path.startsWith('/api/dm/')||/^\/api\/(tracks|producers)\/[^/]+\/(comments|gifts)$/.test(path)||path==='/api/decorations/gift'||/^\/api\/decorations\/inventory\/[\w-]+\/send$/.test(path)||/^\/api\/me\/gift-inventory\/[\w-]+\/send$/.test(path)))ctx.waitUntil(dispatchPush(env).catch(()=>console.error('Push dispatch failed')));
    if(path.startsWith('/api/auth/')&&result.headers.get('content-type')?.includes('application/json')){
@@ -347,6 +362,17 @@ async function serve(req,env,ctx){
  }
  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});
 }
-export default {fetch:serve,async scheduled(event,env,ctx){ctx.waitUntil(pruneVisits(env));ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));ctx.waitUntil(runNoticeJobs(env));ctx.waitUntil(retrySignupWelcomes(env));}};
+function recheckProductDeletions(env,ctx,item){
+ if(!ctx?.waitUntil)return;
+ const task=item?checkDeletionAfterInventory(env,item[1]==='me/gift-inventory'?'gift':'decoration',item[2]):
+  checkPendingDeletions(env,{limit:8,age:5});
+ ctx.waitUntil(task.catch(error=>console.error('Product deletion check delayed',error.message)));
+}
+export default {fetch:serve,async scheduled(event,env,ctx){
+ ctx.waitUntil(pruneVisits(env));ctx.waitUntil(runLyricBatch(env));ctx.waitUntil(dispatchPush(env));ctx.waitUntil(runBotEngine(env));
+ ctx.waitUntil(cleanupChatImages(env));ctx.waitUntil(expireDubbingCombinations(env));ctx.waitUntil(classifyNext(env));ctx.waitUntil(syncRecentCrewGrowth(env));
+ ctx.waitUntil(runNoticeJobs(env));ctx.waitUntil(retrySignupWelcomes(env));
+ ctx.waitUntil(checkPendingDeletions(env));ctx.waitUntil(runProductPurgeJobs(env));
+}};
 
 async function syncActorCrew(env,uid){const membership=await one(env,'SELECT crew_id FROM crew_members WHERE user_id=?',uid);if(membership)await syncCrewGrowth(env,membership.crew_id);}

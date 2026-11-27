@@ -138,7 +138,7 @@ function playEmpty(title,body,href,label){return `<div class="play-empty" role="
 function playMusicCard(t,action){
  const type=t.kind==='cover'?(t.cover_mode==='duet'?'duet':'solo'):null;
  let html=card(t);
- if(type)html=html.replace('class="album-title"','class="album-title play-work-title"').replace(`>${esc(t.title)}</a><button type="button" class="card-more"`,`>${playTypeIcon(type)}<span>${esc(t.title)}</span></a><button type="button" class="card-more"`);
+ if(type)html=html.replace('class="album-title"','class="album-title play-work-title"').replace(`>${AifectCoverPick.titleHTML(t)}</a><button type="button" class="card-more"`,`>${playTypeIcon(type)}${AifectCoverPick.titleHTML(t)}</a><button type="button" class="card-more"`);
  if(action){const href=action==='duet'?'#sing/'+encodeURIComponent(t.original_id)+'?duet='+encodeURIComponent(t.id):'#sing/'+encodeURIComponent(t.id);
   html=html.replace('</article>',`<a class="small-button play-record-link" href="${esc(href)}">${icon('mic')}${action==='duet'?'듀엣 참여':'노래하기'}</a></article>`);}
  return html;

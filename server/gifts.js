@@ -43,6 +43,27 @@ export async function trackGifts(env,trackId){
  const [total,free,ranking,support]=await Promise.all([one(env,'SELECT COALESCE(sum(gold),0) gold,count(*) gifts FROM gifts WHERE track_id=?',trackId),one(env,'SELECT COALESCE(sum(silver),0) n FROM free_gifts WHERE track_id=?',trackId),rows(env,`${RANKING} WHERE g.track_id=? GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,trackId),rows(env,TRACK_SUPPORT_RANKING,trackId,trackId,trackId)]);
  return {available:true,total_gold:total.gold,gift_count:total.gifts,free_count:free.n,official_ai:await officialSupport(env,'track',trackId),ranking:ranked(ranking),support_ranking:support.map((r,i)=>({rank:i+1,name:r.name,profile_id:r.profile_id,image_version:r.image_version,gold:r.gold,stars:r.stars,official_stars:r.official_stars,score:r.score,gifts:r.gifts}))};
 }
+export async function dubbingGifts(env,project,user){
+ const [recipient,support]=await Promise.all([
+  one(env,`SELECT p.id FROM producers p JOIN users u ON u.id=p.user_id WHERE p.user_id=? AND u.provider!='deleted' AND u.account_type='human'`,project.owner_id),
+  rows(env,`WITH support AS (
+    SELECT g.sender_id,g.gold,0 stars,0 official_stars,g.created FROM gift_sources s JOIN gifts g ON g.id=s.gift_id
+     WHERE s.currency='gold' AND s.source_type='work' AND s.work_kind='dubbing' AND s.source_id=?
+    UNION ALL SELECT g.sender_id,0,g.silver,0,g.created FROM gift_sources s JOIN free_gifts g ON g.id=s.gift_id
+     WHERE s.currency='silver' AND s.source_type='work' AND s.work_kind='dubbing' AND s.source_id=?
+    UNION ALL SELECT sender_id,0,0,quantity,created FROM ai_support_gifts WHERE target_type='dubbing' AND target_id=?
+   )
+   SELECT ${publicNameSQL()} name,p.id profile_id,p.image_version,sum(g.gold) gold,sum(g.stars) stars,sum(g.official_stars) official_stars,
+    sum(g.gold+g.stars+g.official_stars) score,count(*) gifts,min(g.created) first
+   FROM support g JOIN users u ON u.id=g.sender_id LEFT JOIN producers p ON p.user_id=u.id
+   WHERE (u.account_type='human' AND g.official_stars=0) OR (u.account_type='ai_bot' AND g.official_stars>0)
+   GROUP BY g.sender_id ORDER BY score DESC,first ASC,g.sender_id ASC LIMIT 10`,project.id,project.id,project.id),
+ ]);
+ let gift_block_reason=!recipient?'선물을 받을 수 있는 제작자 프로필이 없습니다.':null;
+ if(recipient&&user)try{await assertDubbingGiftContext(env,user.id,recipient.id,project.id);}
+ catch(error){if(![400,404].includes(error.status))throw error;gift_block_reason=error.message;}
+ return {recipient_profile_id:recipient?.id??null,gift_block_reason,support_ranking:support};
+}
 // A person's fans are the people who gifted what that person performs: their covers and their own originals.
 // Gifts to other people's covers of their songs still pay them the creator share, but belong to the singer's fans.
 // Personal support includes official AI cheers, but never replaces paid/fan ranking inputs.

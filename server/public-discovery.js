@@ -35,6 +35,7 @@ function discoveryDocument(html,path,result) {
  if(result){
   head=head.replace(/<meta name="robots" content="[^"]*">/,'').replace(/<link rel="canonical" href="[^"]*">/,()=>`<link rel="canonical" href="${esc(result.canonical)}">`);
   if(result.noindex)head+='<meta name="robots" content="noindex,follow">';
+  if(!head.includes('href="/cover-pick.css"'))head+='<link rel="stylesheet" href="/cover-pick.css">';
  }
  head+='<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;family=Noto+Sans+KR:wght@400;500;600;700;800&amp;display=swap"><link rel="stylesheet" href="/ui-region-scale.css"><link rel="stylesheet" href="/about.css"><link rel="stylesheet" href="/public-discovery.css"><script defer src="/public-discovery.js"></script>';
  return head+'</head><body class="legal-site about-page public-discovery">'+pageHeader(path)+`<main id="content" class="about-wrap discover-main">${body}${stores}</main>`+html.slice(html.indexOf('<footer'));

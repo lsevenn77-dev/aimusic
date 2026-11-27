@@ -70,7 +70,8 @@ test('shared renderers support saving originals and covers and preserve playback
  const c=nicknameContext({AifectUnifiedPlaylists:true,AifectPlaylist:policy,esc:String,icon:()=>'',me:null,liked:()=>false,number:String,giftButton:()=>'',cover:()=>'',musicLayout:()=>'',trackMap:new Map(),dialog(html){c.html=html;},paintInteractions(){}});
  vm.runInContext(readFileSync(new URL('../dist/music-ui.js',import.meta.url),'utf8'),c);
  const explorer=readFileSync(new URL('../dist/explorer.js',import.meta.url),'utf8');
- vm.runInContext(explorer.slice(explorer.indexOf('function trackMenu('),explorer.indexOf('function chartTrackPopover(')),c);
+ c.location={hash:'#song/test'};
+ vm.runInContext(explorer.slice(explorer.indexOf('let trackMenuRequest='),explorer.indexOf('function chartTrackPopover(')),c);
  for(const kind of ['original','cover','duet','dubbing','completed','recruiting',undefined]){
   const track={id:'test',kind,title:'제작곡',status:'published'};c.trackMap.set('test',track);
   assert.equal(c.playlistSaveButton(track).includes('data-add='),['original','cover'].includes(kind));

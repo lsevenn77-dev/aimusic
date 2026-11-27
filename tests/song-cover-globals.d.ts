@@ -3,6 +3,7 @@ interface SongCover {
  cover_mode:'solo'|'duet'; rank?:number; participants?:number; completions?:number;
  duet_partner?:string; can_join?:boolean; likes:number; plays:number; comments?:number; is_composer_pick?:boolean; part_description?:string; remaining_part?:string;
 }
+declare const AifectCoverPick:typeof import('../shared/cover-pick-ui.js');
 type SongCoverTab='all'|'duet'|'recent';
 interface SongCoverPage {
  view:SongCoverTab|'children'; covers:SongCover[]; pick?:{cover_id:string|null;revision:number;can_manage:boolean;cover?:SongCover};

@@ -72,7 +72,7 @@ function shopTransactionKind(path){
  if(['/api/gifts/checkout','/api/decorations/gift'].includes(path)||/^\/api\/(tracks|producers)\/[\w-]+\/gifts$/.test(path))return 'gift';
  return null;
 }
-function updateAfterShopTransaction(kind,account,profileId,trackId){
+function updateAfterShopTransaction(kind,account,profileId,trackId,dubbingId){
  if(!account||me?.id!==account)return;
  if(profileId){
   const prefix=account+':/api/producers/'+profileId;
@@ -95,6 +95,7 @@ function updateAfterShopTransaction(kind,account,profileId,trackId){
  }
  if(!kind.startsWith('buy-')&&typeof refreshSentGiftHistory==='function')void refreshSentGiftHistory();
  if(trackId&&typeof refreshSongGiftRanking==='function')void refreshSongGiftRanking(trackId);
+ if(dubbingId&&typeof refreshDubbingGiftRanking==='function')void refreshDubbingGiftRanking(dubbingId);
 }
 async function api(path,method='GET',body,options={}){
  const read=method==='GET',mutates=invalidatesBrowseReads(path,method),blockMutation=!read&&(/^\/api\/blocks\//.test(path)||path.startsWith('/api/follow-management?')&&['block','unblock'].includes(body?.action));
@@ -120,7 +121,7 @@ async function api(path,method='GET',body,options={}){
  },()=>{entry.pending=false;if(!walletRead&&apiReads.get(key)===entry)apiReads.delete(key);});}
  if(transaction)void request.then(()=>updateAfterShopTransaction(transaction,account,
   body?.profile_id||path.match(/^\/api\/producers\/([\w-]+)\/gifts$/)?.[1],
-  body?.track_id||path.match(/^\/api\/tracks\/([\w-]+)\/gifts$/)?.[1])).catch(()=>{});
+  body?.track_id||path.match(/^\/api\/tracks\/([\w-]+)\/gifts$/)?.[1],body?.dubbing_id)).catch(()=>{});
  return structuredClone(await request);
 }
 function remember(tracks){tracks.forEach(t=>trackMap.set(t.id,t));return tracks;}
@@ -146,7 +147,7 @@ const credits=t=>t.kind==='cover'?`<a href="#producer/${esc(t.producer_id)}">${u
 const heading=(title,desc='')=>`<div class="page-heading"><div><span class="eyebrow">AI + EFFECT</span><h1>${title}</h1>${desc?`<p>${desc}</p>`:''}</div><span class="free-badge">${icon('sparkles')} 전체곡 무료 감상</span></div>`;
 const empty=(title,desc,href='#upload',label='첫 곡 업로드하기')=>`<div class="surface empty-design"><div class="empty-symbol">${icon('sparkles')}</div><h2>${title}</h2><p>${desc}</p><a href="${href}" class="primary-button">${label} ${icon('arrow')}</a></div>`;
 const section=(title,href)=>`<div class="section-heading"><h2>${title}</h2>${href?`<a href="${href}">모두 보기 ${icon('chevron')}</a>`:''}</div>`;
-function card(t){const artist=t.kind!=='cover'&&hasArtist(t);return `<article class="album-card"><div class="album-art-wrap"><a href="#song/${esc(t.id)}">${cover(t)}</a><button class="card-play" data-play="${esc(t.id)}" aria-label="${esc(t.title)} 재생">${icon('ui-play-action',36)}</button></div><div class="album-title-row"><a class="album-title" href="#song/${esc(t.id)}">${esc(t.title)}</a><button type="button" class="card-more" data-track-menu="${esc(t.id)}" aria-label="${esc(t.title)} 더보기">${icon('ui-menu-action')}</button></div><a class="album-artist" href="#${artist?'artist/'+esc(t.artist_id):'producer/'+esc(t.producer_id)}">${t.kind==='cover'?trackPerformers(t):trackNickname(t)}${t.kind==='cover'?'<b class="ai-mini cover-mini">COVER</b>':''}</a></article>`;}
+function card(t){const artist=t.kind!=='cover'&&hasArtist(t);return `<article class="album-card"><div class="album-art-wrap"><a href="#song/${esc(t.id)}">${cover(t)}</a><button class="card-play" data-play="${esc(t.id)}" aria-label="${esc(t.title)} 재생">${icon('ui-play-action',36)}</button></div><div class="album-title-row"><a class="album-title" href="#song/${esc(t.id)}">${AifectCoverPick.titleHTML(t)}</a><button type="button" class="card-more" data-track-menu="${esc(t.id)}" aria-label="${esc(t.title)} 더보기">${icon('ui-menu-action')}</button></div><a class="album-artist" href="#${artist?'artist/'+esc(t.artist_id):'producer/'+esc(t.producer_id)}">${t.kind==='cover'?trackPerformers(t):trackNickname(t)}${t.kind==='cover'?'<b class="ai-mini cover-mini">COVER</b>':''}</a></article>`;}
 function grid(tracks){remember(tracks);return tracks.length?`<div class="album-grid live-album-grid">${tracks.map(card).join('')}</div>`:empty('새로운 음악을 기다리고 있습니다','당신의 첫 곡으로 AIFECT의 플레이리스트를 시작해 보세요.');}
 function songTable(tracks,{removable=null,chart=false}={}){
  remember(tracks);if(!tracks.length)return empty('아직 음악이 없습니다','새로운 곡을 발견하고 나만의 취향을 채워 보세요.','#discover','음악 발견하기');
@@ -154,7 +155,7 @@ function songTable(tracks,{removable=null,chart=false}={}){
  const id=esc(t.id),title=esc(t.title),isLiked=liked(t.id);
  const likes=chart?(t.chart_likes??t.likes):t.likes,comments=chart?(t.chart_comments??t.comments):t.comments,plays=chart?(t.chart_plays??t.plays):t.plays;
  const likeCell=chart?'<span class="list-action metric-inline song-table-stat song-table-like" aria-label="기간 내 좋아요 '+number(likes)+'개">'+icon('ui-heart')+'<span>'+number(likes)+'</span></span>':'<button class="list-action metric-inline song-table-stat song-table-like '+(isLiked?'is-active':'')+'" data-like="'+id+'" aria-label="'+title+' 좋아요" aria-pressed="'+isLiked+'">'+icon('ui-heart')+'<span data-like-count>'+number(likes)+'</span></button>';
- return '<article data-list-row class="song-table-row" data-song-row="'+id+'"><span class="song-table-position">'+(chart?t.chart_rank||i+1:i+1)+'</span><div class="song-table-info"><a class="song-table-cover" href="#song/'+id+'" aria-label="'+title+' 곡 정보">'+cover(t,'mini-cover')+'</a><div><a href="#song/'+id+'"><strong>'+title+'</strong></a><span>'+credits(t)+'</span></div></div>'+likeCell+'<a class="list-action metric-inline song-table-stat song-table-comments" href="#song/'+id+'?comments=1" aria-label="댓글 '+number(comments)+'개">'+icon('ui-comment')+'<span>'+number(comments)+'</span></a><span class="metric-inline song-table-stat song-table-plays" aria-label="재생 '+number(plays)+'회">'+icon('ui-plays')+number(plays)+'</span>'+(chart?chartMovementHTML(t):'')+'<button class="list-action song-table-play" data-play="'+id+'" aria-label="'+title+' 재생">'+icon('ui-play-action')+'</button><div class="song-table-tools">'+(removable?'<button class="list-action icon-button" data-remove-track="'+id+'" data-playlist="'+esc(removable)+'" aria-label="플레이리스트에서 제거">'+icon('ui-minus-action')+'</button>':'')+'<button class="list-action icon-button" data-track-menu="'+id+'" aria-label="'+title+' 더보기">'+icon('ui-menu-action')+'</button></div></article>';
+ return '<article data-list-row class="song-table-row" data-song-row="'+id+'"><span class="song-table-position">'+(chart?t.chart_rank||i+1:i+1)+'</span><div class="song-table-info"><a class="song-table-cover" href="#song/'+id+'" aria-label="'+title+' 곡 정보">'+cover(t,'mini-cover')+'</a><div><a href="#song/'+id+'"><strong>'+AifectCoverPick.titleHTML(t,title)+'</strong></a><span>'+credits(t)+'</span></div></div>'+likeCell+'<a class="list-action metric-inline song-table-stat song-table-comments" href="#song/'+id+'?comments=1" aria-label="댓글 '+number(comments)+'개">'+icon('ui-comment')+'<span>'+number(comments)+'</span></a><span class="metric-inline song-table-stat song-table-plays" aria-label="재생 '+number(plays)+'회">'+icon('ui-plays')+number(plays)+'</span>'+(chart?chartMovementHTML(t):'')+'<button class="list-action song-table-play" data-play="'+id+'" aria-label="'+title+' 재생">'+icon('ui-play-action')+'</button><div class="song-table-tools">'+(removable?'<button class="list-action icon-button" data-remove-track="'+id+'" data-playlist="'+esc(removable)+'" aria-label="플레이리스트에서 제거">'+icon('ui-minus-action')+'</button>':'')+'<button class="list-action icon-button" data-track-menu="'+id+'" aria-label="'+title+' 더보기">'+icon('ui-menu-action')+'</button></div></article>';
  }).join('')+'</div></div>';
 }
 function list(tracks,removable=null){return songTable(tracks,{removable});}
@@ -285,18 +286,19 @@ async function play(tid,tracks=null,start=0,playlistSession=null){
  setCurrentLyrics(t);refreshLyricsPanel();setPlayerVisible(true);
  try{await audio.play();}catch(e){if(e.name==='NotAllowedError')toast('재생 버튼을 눌러 음악을 이어 들어보세요.');else if(e.name!=='AbortError')throw new Error('음원을 재생할 수 없습니다. 잠시 후 다시 시도해 주세요.');}
 }
-function loadDubbingPlayer(project,start=0){
- const src=project.recording.final.audioUrl;
+function loadDubbingPlayer(project,start=0,listeningPreview=null){
+ const src=listeningPreview?.url||project.recording.final.audioUrl;
  const cast=[...new Set((project.roles||[]).map(r=>r.participant).filter(Boolean))].join(' · ');
  current={id:project.id,kind:'dubbing',title:project.title,producer:cast||project.ownerName,artist:cast||project.ownerName,
-  posterUrl:project.posterUrl,rootId:project.rootId,genres:project.script?.genres||[],genre:'더빙',duration:project.duration, countPlay:project.visibility==='public'&&project.state==='complete'};
+  posterUrl:project.posterUrl,rootId:project.rootId,genres:project.script?.genres||[],genre:'더빙',duration:project.duration,
+  listeningPreview:!!listeningPreview,listeningCues:listeningPreview?.cues,countPlay:!listeningPreview&&project.visibility==='public'&&project.state==='complete'};
  playSession=null;preview=false;heard=0;lastTick=0;
  audio.src=src;
  restoredPosition=Math.min(Math.max(0,Number(start)||0),project.duration);
  audio.currentTime=restoredPosition;
  window.AifectPlayerShell?.close();
  renderPlayerActions(current);setCurrentLyrics(null);
- $('#listen-mode').textContent='완성 더빙';$('#seek').max=project.duration;$('#seek').value=restoredPosition;
+ $('#listen-mode').textContent=listeningPreview?.label||'완성 더빙';$('#seek').max=project.duration;$('#seek').value=restoredPosition;
  $('#elapsed').textContent=playerClock(restoredPosition);$('#duration').textContent=playerClock(project.duration);
  setPlayerVisible(true);
 }
@@ -305,16 +307,16 @@ async function toggleDubbingPlayback(){
  if(audio.ended)audio.currentTime=0;
  await audio.play();
 }
-async function playDubbingEdition(id,project=null,playlistSession=null){
+async function playDubbingEdition(id,project=null,playlistSession=null,start=0){
  if(typeof typedPlaylistPlayback!=='undefined'&&(!playlistSession||typedPlaylistPlayback!==playlistSession))clearTypedPlaylist();
  const serial=++playSerial;
- if(current?.kind==='dubbing'&&current.id===id){if(playlistSession){audio.currentTime=0;await audio.play();}else await toggleDubbingPlayback();return;}
+ if(current?.kind==='dubbing'&&current.id===id&&!current.listeningPreview){if(playlistSession){audio.currentTime=0;await audio.play();}else await toggleDubbingPlayback();return;}
  if(!project)({project}=await api('/api/dubbing/projects/'+encodeURIComponent(id)));
  if(serial!==playSerial)return;
  if(!project.recording?.final?.audioUrl){location.hash='dubbing/'+encodeURIComponent(id);return;}
  window.AifectAudioAds?.cancel();countAdListening();audio.pause();void report();
  stopCastingPreview();stopCastingAudio();
- loadDubbingPlayer(project);await toggleDubbingPlayback();
+ loadDubbingPlayer(project,start);await toggleDubbingPlayback();
 }
 async function resumeAfterLogin(){
  // Restore metadata only. Playback sessions, ads and audio.play require a user action.

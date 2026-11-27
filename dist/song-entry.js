@@ -76,11 +76,32 @@ async function loadSongEntryTab(panel,tab){
 }
 function composerPickPerformer(t){return [t?.duet_partner,t?.producer].filter(Boolean).join(' & ')||'표시할 수 없는 커버';}
 function applySongPickAttributes(panel,pick){Object.assign(panel.dataset,{pickId:pick?.cover_id||'',pickExists:String(!!(pick?.has_pick||pick?.cover_id)),pickRevision:String(pick?.revision||0),pickManage:String(!!pick?.can_manage),pickPerformer:composerPickPerformer(pick?.cover)});}
-function composerPickMenuHTML(t){
+function composerPickCandidate(t){
+ return t.kind==='cover'&&!!t.original_id&&(t.cover_mode==='solo'||t.cover_mode==='duet'&&t.duet_parent_id&&!t.duet_open);
+}
+function composerPickPanel(original){
  const panel=document.querySelector('.song-covers-panel');
- if(!panel||panel.dataset.coverOriginal!==t.original_id||panel.dataset.pickManage!=='true'||t.kind!=='cover'||!(t.cover_mode==='solo'||t.cover_mode==='duet'&&t.duet_parent_id&&!t.duet_open))return '';
- const label=panel.dataset.pickId===t.id?'PICK 해제':panel.dataset.pickExists==='true'?'이 커버로 PICK 변경':'작곡가 PICK으로 지정';
- return `<button type="button" class="track-option composer-pick-option" data-composer-pick="${esc(t.id)}" data-pick-original="${esc(t.original_id)}" ${composerPickPending.has(t.original_id)?'disabled':''}>${icon('composer-pin')}<span>${label}</span>${icon('chevron')}</button>`;
+ return panel?.dataset.coverOriginal===original?panel:null;
+}
+async function composerPickMenuHTML(t){
+ const account=me?.id,original=t.original_id;
+ if(!account||!composerPickCandidate(t))return '';
+ const panel=composerPickPanel(original);
+ const projection=panel?null:await api('/api/tracks/'+encodeURIComponent(original)+'/cover-pick').catch(()=>null);
+ if(account!==me?.id||!(panel?panel.dataset.pickManage==='true':projection?.can_manage))return '';
+ const selected=panel?panel.dataset.pickId:projection.cover_id,hasPick=panel?panel.dataset.pickExists==='true':projection.has_pick;
+ const label=selected===t.id?'PICK 해제':hasPick?'이 커버로 PICK 변경':'PICK 지정';
+ return `<button type="button" class="track-option composer-pick-option" data-composer-pick="${esc(t.id)}" data-pick-original="${esc(original)}" ${projection?songPickAttributes(projection):''} ${composerPickPending.has(original)?'disabled':''}>${label}</button>`;
+}
+function syncComposerPickTitles(original,pick){
+ for(const t of trackMap.values())if(t.original_id===original)t.is_composer_pick=t.id===pick.cover_id;
+ if(current?.original_id===original)current.is_composer_pick=current.id===pick.cover_id;
+ for(const title of document.querySelectorAll('[data-pick-title-original]')){
+  if(title.dataset.pickTitleOriginal!==original)continue;
+  const badge=title.querySelector('.composer-pick-badge');
+  if(title.dataset.pickTitle===pick.cover_id){if(!badge)title.insertAdjacentHTML('beforeend',AifectCoverPick.badgeHTML());}
+  else badge?.remove();
+ }
 }
 async function refreshComposerPickPanel(panel){
  if(!panel?.isConnected)return;
@@ -88,12 +109,18 @@ async function refreshComposerPickPanel(panel){
  if(storyTabs)return storyTabs.refresh();
  const id=panel.dataset.coverOriginal,entry=panel.dataset.songEntry==='true',account=me?.id||'guest',requested=entry?songEntryState(id).tab:new URLSearchParams(location.hash.split('?')[1]||'').get('covers'),tab=['all','duet','recent'].includes(requested)?requested:'all';
  const targetCount=Math.max(50,panel.querySelectorAll('.song-cover-list>.song-cover-row,.song-cover-list>.song-cover-group').length);
- let d=await api('/api/tracks/'+encodeURIComponent(id)+'/covers?view='+tab);
- while(d.next_offset!==null&&d.covers.length<targetCount){const next=await api('/api/tracks/'+encodeURIComponent(id)+'/covers?view='+tab+'&offset='+d.next_offset+'&pick_revision='+d.pick.revision);d={...next,covers:[...d.covers,...next.covers]};}
+ const read=(suffix='')=>api('/api/tracks/'+encodeURIComponent(id)+'/covers?view='+tab+suffix,'GET',undefined,{fresh:true});
+ let d=await read();
+ while(d.next_offset!==null&&d.covers.length<targetCount){const next=await read('&offset='+d.next_offset+'&pick_revision='+d.pick.revision);d={...next,covers:[...d.covers,...next.covers]};}
  if(!panel.isConnected||account!==(me?.id||'guest')||entry&&tab!==songEntryState(id).tab)return;
  remember(d.covers);const scroll=window.scrollY;
- panel.outerHTML=entry?songEntryPanelHTML({id},d,tab):songCoversPanelHTML({id},d,tab);
- bindSongCoverList();if(entry)bindSongEntryTabs(document.querySelector('.song-entry-panel'));
+ if(entry){
+  applySongPickAttributes(panel,d.pick);
+  panel.querySelector('.song-cover-list').innerHTML=songEntryListHTML(d,tab);
+ }else{
+  panel.outerHTML=songCoversPanelHTML({id},d,tab);
+  bindSongCoverList();
+ }
  paintInteractions();window.scrollTo({top:scroll,behavior:'instant'});
 }
 function confirmComposerPick(oldName,newName){
@@ -110,29 +137,31 @@ function confirmComposerPick(oldName,newName){
  });
 }
 async function changeComposerPick(button){
- const id=button.dataset.pickOriginal,tid=button.dataset.composerPick,panel=document.querySelector('.song-covers-panel'),account=me?.id;
- if(!panel||panel.dataset.coverOriginal!==id||composerPickPending.has(id))return;
- const old=panel.dataset.pickId,revision=Number(panel.dataset.pickRevision),t=trackMap.get(tid),coverId=old===tid?null:tid;
+ const id=button.dataset.pickOriginal,tid=button.dataset.composerPick,panel=composerPickPanel(id),account=me?.id;
+ if(!account||(!panel&&button.dataset.pickManage!=='true')||composerPickPending.has(id))return;
+ const state=panel?.dataset||button.dataset,old=state.pickId,revision=Number(state.pickRevision),t=trackMap.get(tid),coverId=old===tid?null:tid;
+ const route=location.hash;
  composerPickPending.add(id);button.disabled=true;
  try{
-  if(panel.dataset.pickExists==='true'&&old!==tid){if(!await confirmComposerPick(panel.dataset.pickPerformer,composerPickPerformer(t)))return;}
+  if(state.pickExists==='true'&&old!==tid){if(!await confirmComposerPick(state.pickPerformer,composerPickPerformer(t)))return;}
   else $('#dialog').close();
-  if(!panel.isConnected||account!==me?.id)return;
+  if((panel&&!panel.isConnected)||(!panel&&route!==location.hash)||account!==me?.id)return;
   const pick=await api('/api/tracks/'+encodeURIComponent(id)+'/cover-pick','PUT',{cover_id:coverId,expected_revision:revision});
   if(account!==me?.id)return;
   songEntryRequest++;
-  if(panel.isConnected)applySongPickAttributes(panel,pick);
+  syncComposerPickTitles(id,pick);
+  if(panel?.isConnected)applySongPickAttributes(panel,pick);
   // api() invalidates the shared read caches for both pages, without touching audio.
   try{await refreshComposerPickPanel(panel);}catch(error){
    if(songCoverTabPanels.has(panel)){toast('PICK은 저장했지만 목록을 다시 불러오지 못했습니다.');return;}
-   if(panel.isConnected){
+   if(panel?.isConnected){
     const list=panel.querySelector('.song-cover-list');
     list.innerHTML='<div class="song-entry-error" role="alert"><p>PICK은 저장했지만 목록을 다시 불러오지 못했습니다.</p><button type="button" class="small-button" data-pick-refresh>다시 시도</button></div>';
     list.querySelector('[data-pick-refresh]').onclick=()=>{void refreshComposerPickPanel(panel).catch(e=>toast(e.message));};
    }
    return;
   }
-  toast(coverId?'작곡가 PICK을 저장했습니다.':'PICK을 해제했습니다.');
+  toast(coverId?'PICK을 저장했습니다.':'PICK을 해제했습니다.');
  }catch(error){
   toast(error.message);
   if(error.status===409)await refreshComposerPickPanel(panel).catch(()=>{});

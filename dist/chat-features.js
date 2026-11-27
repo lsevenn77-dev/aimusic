@@ -43,17 +43,21 @@ function songShareTrackHTML(track){
 function dmSongShareHTML(track){
  const label='<span class="dm-song-share-label">곡을 공유했습니다.</span>';
  if(!track)return '<span class="dm-song-share">'+label+'<span class="dm-song-share-detail">공유한 곡을 볼 수 없습니다.</span></span>';
- const destination=track.kind==='cover'?'커버 감상':'곡 이야기';
- return `<a class="dm-song-share" href="#song/${encodeURIComponent(track.id)}">${label}${songShareTrackHTML(track)}<span class="dm-song-share-detail">${destination} 바로가기 ${icon('chevron')}</span></a>`;
+ const destination=track.kind==='dubbing'?'더빙 감상':track.kind==='cover'?'커버 감상':'곡 이야기';
+ const route=track.kind==='dubbing'?'dubbing':'song';
+ return `<a class="dm-song-share" href="#${route}/${encodeURIComponent(track.id)}">${label}${songShareTrackHTML(track)}<span class="dm-song-share-detail">${destination} 바로가기 ${icon('chevron')} </span></a>`;
 }
 function shareSongByMessage(trackId){
+ return shareWorkByMessage(trackMap.get(trackId));
+}
+function shareWorkByMessage(track){
  if(!me)return askLogin();
- const track=trackMap.get(trackId);
  if(!track)return toast('공유할 곡을 찾을 수 없습니다.');
+ const trackId=track.id,dubbing=track.kind==='dubbing';
  openMessageRecipientDialog({
-  heading:'곡 공유',formId:'song-share-form',track,
-  send:(recipient,requestId)=>api('/api/dm/'+encodeURIComponent(recipient),'POST',{track_id:trackId,request_id:requestId}),
-  onSent:()=>{toast('곡을 보냈습니다.');window.dispatchEvent(new Event('aifect:inbox-refresh'));}
+  heading:dubbing?'더빙 공유':'곡 공유',formId:'song-share-form',track,
+  send:(recipient,requestId)=>api('/api/dm/'+encodeURIComponent(recipient),'POST',{track_id:trackId,request_id:requestId,...(dubbing?{track_kind:'dubbing'}:{})}),
+  onSent:()=>{toast(dubbing?'더빙을 보냈습니다.':'곡을 보냈습니다.');window.dispatchEvent(new Event('aifect:inbox-refresh'));}
  });
 }
 function songShareDialogHTML(track,heading,formId,sendLabel){

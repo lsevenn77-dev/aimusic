@@ -71,14 +71,20 @@ async function dubbingView(base,param,raw,readApi=api){
   return {html:dubbingShell(dubbingOptionsHTML(config,mode,genre),false),dubbing:true,dubbingCreate:true,config,route:raw};
  }
  if(param){
-  const {project:p}=await readApi('/api/dubbing/projects/'+encodeURIComponent(param));
-  if(!p.removed&&new URLSearchParams(raw.split('?')[1]).get('record')==='1'&&p.recordingAvailable&&p.roles.some(r=>r.mine)&&p.sound.state==='ready'){
+  const query=new URLSearchParams(raw.split('?')[1]),id=encodeURIComponent(param);
+  const {project:p}=await readApi('/api/dubbing/projects/'+id);
+  if(!p.removed&&query.get('record')==='1'&&p.recordingAvailable&&p.roles.some(r=>r.mine)&&p.sound.state==='ready'){
    const recordingData=await readApi('/api/dubbing/projects/'+p.id+'/recording');
-   const requestedRole=new URLSearchParams(raw.split('?')[1]).get('role');
+   const requestedRole=query.get('role');
    const mine=p.roles.find(r=>r.mine&&r.id===requestedRole)||p.roles.find(r=>r.mine);
    return {html:dubbingShell(dubbingRecordingHTML(p,recordingData,mine)),dubbing:true,recordingData,recordingRole:mine.id,project:p,config,route:raw};
   }
-  const editing=new URLSearchParams(raw.split('?')[1]).get('edit')==='1'&&p.canEdit;
+  const editing=query.get('edit')==='1'&&p.canEdit;
+  if(p.visibility==='public'&&!p.removed&&!editing&&typeof dubbingListeningHTML==='function'&&!['manage','script','record'].some(option=>query.has(option))){
+   const work={...p,kind:'dubbing'};
+   const gifts=await readApi('/api/dubbing/projects/'+id+'/gifts');
+   return {html:dubbingListeningHTML(work,gifts),listeningWork:work,project:work,route:raw};
+  }
   return {html:dubbingShell(editing?'<div id="dubbing-editor-root"></div>':dubbingDetailHTML(p),!editing),dubbing:true,project:p,editing,config,route:raw};
  }
  const query=new URLSearchParams(raw.split('?')[1]),tab=dubbingTabs.some(t=>t[0]===query.get('tab'))?query.get('tab'):'open';
@@ -257,7 +263,7 @@ function dubbingDetailHTML(p){
  <div class="dubbing-detail-layout"><div class="dubbing-panel dubbing-script-reader"><div class="dubbing-section-heading"><h2>대본</h2><span>${s.lines.length}개의 대사</span></div>${s.lines.map((l,i)=>`${i===0||s.lines[i-1].sceneId!==l.sceneId?`<div class="dubbing-scene-heading"><span>SCENE ${s.scenes.findIndex(sc=>sc.id===l.sceneId)+1}</span><h3>${esc(s.scenes.find(sc=>sc.id===l.sceneId)?.title||'')}</h3><p>${esc(s.scenes.find(sc=>sc.id===l.sceneId)?.description||'')}</p></div>`:''}${dubbingCueHTML(s,l.id)}<article class="dubbing-reader-line dubbing-cast-${s.roles.findIndex(r=>r.id===l.roleId)%6} ${mine?.id===l.roleId?'is-mine':''}"><span class="dubbing-line-number">${String(i+1).padStart(2,'0')}</span><div><small>${esc([l.emotion,l.direction].filter(Boolean).join(' · '))}</small><p><b>${esc(role(l.roleId)?.name||'')}: </b>${esc(l.text)}</p></div></article>`).join('')}</div>
  <aside>${p.recording?.final?`<section class="dubbing-panel"><span class="eyebrow">OUR VOICES</span><h2>${p.recording.final.audioUrl?'목소리로 완성한 장면':p.recording.final.state==='failed'?'합성 확인 필요':'완성 오디오 준비 중'}</h2>${p.recording.final.audioUrl?`${dubbingListenButton(p,true)}<p>${esc(p.roles.map(r=>r.name+' · '+(r.participant||'참여자')).join(' / '))}</p><button class="small-button" data-dubbing-share>작품 공유</button>`:`<p>${esc(p.recording.final.error||'모든 배역의 목소리를 배경음과 합치고 있습니다. 잠시 뒤 다시 확인해 주세요.')}</p><button class="small-button" onclick="render()">완성 상태 확인</button>`}</section>`:''}${mine&&p.recordingAvailable?`<section class="dubbing-panel"><span class="eyebrow">MY VOICE</span><h3>${esc(mine.name)}의 목소리</h3><p>${mineRecording?.state==='submitted'?'내 배역 녹음 제출 완료':mineRecording?.saved?mineRecording.saved+'개 대사 저장됨':'대사 한 줄부터 시작해 보세요.'}</p>${p.canRecordMultipleRoles?p.roles.filter(r=>r.mine).map(r=>`<button type="button" class="primary-button" data-dubbing-record-entry="${esc(r.id)}">${esc(r.name)} 녹음</button>`).join(''):`<button type="button" class="primary-button" data-dubbing-record-entry>${icon('mic')} ${mineRecording?.state==='submitted'?'내 녹음 확인':'녹음 시작'}</button>`}<p class="dubbing-record-entry-status dubbing-muted" role="status">${p.sound.state==='not_started'?'효과음 없이 무료로 시작할 수 있습니다. AI 음향을 원하면 먼저 아래에서 제작해 주세요.':p.sound.state==='ready'?'선택한 배역의 녹음 화면으로 이동합니다.':'배경 오디오 준비 상태를 확인하고 녹음으로 이어집니다.'}</p></section>`:''}<section id="dubbing-sound-panel" class="dubbing-panel">${dubbingSoundHTML(p.sound,p.isOwner)}</section><section class="dubbing-panel"><span class="eyebrow">CASTING</span><h2>어떤 배역을 맡을까요?</h2><p class="dubbing-muted">한 작품에서 한 배역을 선택합니다.<br>${p.recordingAvailable?'배역을 선택하면 녹음 준비 화면으로 이어집니다.':'녹음 기능 연결을 준비하고 있습니다.'}</p><div class="dubbing-roles">${p.roles.map((r,i)=>`<article class="dubbing-role ${r.mine?'is-mine':''}"><span class="dubbing-role-avatar">${String.fromCharCode(65+i)}</span><div><h3>${esc(r.name)} <span class="dubbing-role-gender">(${AifectDubbing.dubbingGenderLabel(r.gender)})</span></h3><p>${esc(r.personality||'이 배역의 개성을 함께 만들어 주세요.')}</p><small>${r.mine?'내가 맡은 배역':r.claimed?esc(r.participant)+' 참여':'참여 가능'}</small></div><button type="button" class="small-button" data-dubbing-claim="${esc(r.id)}" data-release="${r.mine?'1':''}" ${(r.mine?p.recording?.roles?.some(saved=>saved.roleId===r.id):r.claimed||(mine&&!p.canRecordMultipleRoles)||p.visibility!=='public')?'disabled':''}>${r.mine?(p.recording?.roles?.some(saved=>saved.roleId===r.id)?'녹음 시작됨':'예약 취소'):r.claimed?'예약됨':'선택'}</button></article>`).join('')}</div>
  <p class="dubbing-feedback" role="status" aria-live="polite"></p></section>
- ${p.isOwner?`<section class="dubbing-panel dubbing-manage"><h3>작품 관리</h3>${p.canEdit?`<a class="small-button" href="#dubbing/${esc(p.id)}?edit=1">대본 수정</a>`:'<p class="dubbing-muted">대본 수정은 모집을 중지하고 모든 배역 예약을 취소한 뒤 가능합니다.</p>'}
+ ${p.isOwner?`<section class="dubbing-panel dubbing-manage"><h3>작품 관리</h3>${dubbingListeningSettingsHTML(p)}${p.canEdit?`<a class="small-button" href="#dubbing/${esc(p.id)}?edit=1">대본 수정</a>`:'<p class="dubbing-muted">대본 수정은 모집을 중지하고 모든 배역 예약을 취소한 뒤 가능합니다.</p>'}
  ${p.visibility==='private'?'<label class="dubbing-consent"><input id="dubbing-rights" type="checkbox"> 이 대본을 공개하고 다른 사람과 함께 연기할 저작권 또는 적법한 이용 권한이 있습니다.</label><button type="button" class="primary-button" id="dubbing-publish">배역 모집 시작</button>':'<button type="button" class="small-button" id="dubbing-unpublish">모집 중지 · 비공개로</button>'}</section>`:''}
  ${p.visibility==='public'?`<section class="dubbing-panel"><h2>이 대본으로 계속 함께합니다</h2><p>완성된 더빙은 남기고, 누구나 새로 시작하거나 빈 배역에 합류할 수 있습니다.</p><label>새로 시작할 배역<select id="dubbing-new-role">${s.roles.map((r,i)=>`<option value="${esc(r.id)}">${String.fromCharCode(65+i)} · ${esc(r.name)} (${AifectDubbing.dubbingGenderLabel(r.gender)})</option>`).join('')}</select></label><button class="primary-button" id="dubbing-start-version" ${p.sound.state==='ready'?'':'disabled'}>새 더빙 시작</button>${p.sound.state!=='ready'?'<p class="dubbing-muted">배경 오디오가 준비되면 시작할 수 있습니다.</p>':''}<div class="dubbing-versions">${(p.versions||[]).map(v=>`<a href="#dubbing/${esc(v.id)}"><span><b>${userNickname(v.ownerName,{userId:v.ownerId})}의 더빙${v.mine?' · 참여 중':''}</b><small>${v.state==='complete'?'완성된 더빙':v.participants<v.roleCount?'빈 배역 '+(v.roleCount-v.participants)+'자리':'녹음 중'} · ${v.participants}/${v.roleCount}명</small></span>${icon('chevron')}</a>`).join('')}</div></section>`:''}
  ${p.isOwner?'<section class="dubbing-panel"><button class="small-button danger-button" id="dubbing-delete-project">대본 · 더빙 삭제</button><p class="dubbing-feedback" role="status"></p></section>':''}
@@ -291,6 +297,7 @@ function bindFinalDubbingPlay(root,project){
 }
 
 function bindDubbing(view){
+ if(view?.listeningWork?.kind==='dubbing'){bindDubbingListeningPage($('#main'),view.listeningWork);return;}
  if(!view?.dubbing)return;
  const root=$('#main .dubbing-page');if(!root)return;
  if(view.dubbingStart){void dubStart(view,root,view.dubbingStart).catch(err=>dubbingMessage(root,err.message));return;}
@@ -353,6 +360,8 @@ function bindDubbing(view){
    requestAnimationFrame(()=>{if(manage?.isConnected){manage.scrollIntoView({block:'center'});manage.querySelector('button,a')?.focus({preventScroll:true});}});
   }
   bindDubbingPoster(p,root);
+  const settings=root.querySelector('.dubbing-manage [data-dubbing-listening-settings]');
+  bindDubbingListeningSettingsPreview(bindDubbingListeningSettings(settings,p),p);
   bindFinalDubbingPlay(root,p);
   bindDubbingCommunity(p,root);
   void bindCastingDetail(p,root);
@@ -363,6 +372,7 @@ function bindDubbing(view){
    if(busy)return;if(!me){returnRoute=location.hash;location.hash='account';return;}
    busy=true;const disabled=new Map([...root.querySelectorAll('button')].map(b=>[b,b.disabled]));disabled.forEach((_,b)=>b.disabled=true);
    try{
+    if(path==='/publish')await settings?._saveListening();
     const result=await api('/api/dubbing/projects/'+p.id+path,method,{revision:p.revision,...body});
     if(path==='/publish'||path==='/unpublish'||result.deleted){
      if(typeof markMyWorkChanged==='function')markMyWorkChanged('dubbing:'+p.id);
