@@ -480,3 +480,17 @@ test('deployment activation is inert in previews and cannot take recipients or c
  assert.equal(campaign.content_json.includes('untrusted replacement'),false);
  assert.equal((await welcomeNoticeStatus(env)).broadcast_missing,0);
 });
+test('Android combined guide acknowledges only rendered receipts, including without a welcome receipt',async t=>{
+ const f=await fixture(t);
+ premiumNotice(f);
+ const guide=async(body)=>{const r=await worker.fetch(new Request('https://aifect.test/api/notices/welcome',{method:body?'PATCH':'GET',headers:{Origin:'https://aifect.test',Cookie:'aifect_session=owner','content-type':'application/json','user-agent':'AIFECT-Android/2.5.136'},body:body?JSON.stringify(body):undefined}),{DB:f.DB});assert.equal(r.status,200);return r.json();};
+ const first=await guide();assert.ok(first.guide.sections.length);assert.equal(first.read_at,0);
+ dm(f,'independent','other','owner','ordinary DM');
+ await activateWelcomeCampaign({DB:f.DB});
+ await guide({campaign_id:first.campaign_id});
+ assert.equal((await f.call('/api/dm/summary')).body.notice_unread,1);
+ const next=await guide();await guide({campaign_id:next.campaign_id});await guide({campaign_id:next.campaign_id});
+ const summary=(await f.call('/api/dm/summary')).body;
+ assert.equal(summary.notice_unread,0);assert.equal(summary.unread,1);
+ assert.ok((await f.call('/api/dm/summary','GET',undefined,'other')).body.notice_unread>0);
+});

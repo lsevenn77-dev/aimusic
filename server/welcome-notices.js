@@ -65,6 +65,23 @@ function channelResponse(receipts) {
  return {...(welcome||notices.at(-1)),peer:peer(receipts),guide,notices};
 }
 
+// Older Android clients display the combined guide and echo one campaign_id on read.
+function androidGuideResponse(receipts) {
+ const data=channelResponse(receipts);
+ const welcome=data.notices.find(n=>n.guide);
+ const visible=data.notices.filter(n=>n.notice||n.rich||n===welcome);
+ const shown=new Set(visible.map(n=>n.campaign_id));
+ const unread=receipts.filter(r=>shown.has(r.campaign_id)&&!r.read_at);
+ if(!data.guide.sections.length){
+  data.guide={...data.guide,intro:[],sections:[{title:'공지',body:data.guide.intro.join('\n\n')}]};
+ }
+ if(unread.length){
+  data.read_at=0;
+  data.campaign_id='shown:'+unread.map(r=>r.sequence).join(',');
+ }
+ return data;
+}
+
 function legacyHistory(req,receipts,userId) {
  const params=new URL(req.url).searchParams,before=params.get('before'),after=params.get('after');
  if((before&&after)||[before,after].some(value=>value!==null&&!/^[1-9]\d{0,14}$/.test(value)))fail(400,'대화 위치를 확인해 주세요.');
@@ -81,7 +98,13 @@ function legacyHistory(req,receipts,userId) {
 async function acknowledgeNotice(req,env,userId,receipts,{campaignId,alias}) {
  let body;try{body=await req.json();}catch{fail(400,'읽은 안내를 다시 확인해 주세요.');}
  if(!body||typeof body!=='object'||Array.isArray(body)||Object.keys(body).length!==1)fail(400,'읽은 안내를 다시 확인해 주세요.');
- if(alias&&Object.hasOwn(body,'sequence')){
+ if(!alias && campaignId===WELCOME_CAMPAIGN_ID && /^AIFECT-Android\//i.test(req.headers.get('user-agent')||'') && typeof body.campaign_id==='string' && body.campaign_id.startsWith('shown:')){
+  const ids=body.campaign_id.slice(6).split(',');
+  const delivered=new Set(receipts.map(r=>String(r.sequence)));
+  if(!ids.every(id=>delivered.has(id)))fail(400,'읽은 공지를 확인해 주세요.');
+  await run(env,`UPDATE welcome_receipts AS r SET read_at=? WHERE r.user_id=? AND r.read_at=0 AND r.rowid IN (SELECT value FROM json_each(?))
+   AND EXISTS(SELECT 1 FROM welcome_campaigns c WHERE c.id=r.campaign_id AND ${noticeVisible})`,now(),userId,JSON.stringify(ids.map(Number)));
+ }else if(alias&&Object.hasOwn(body,'sequence')){
   // A stable receipt rowid bounds legacy DM acknowledgements to delivered
   // history. Concurrent later deliveries and other members remain unread.
   const sequence=body.sequence;
@@ -239,7 +262,8 @@ export async function welcomeNoticeRoute(req,env,path,user) {
  if(!user)fail(401,AifectMessages.signIn);
  if(!['GET','PATCH'].includes(req.method)||(alias&&legacy[2]&&(legacy[2]!=='settings'||req.method!=='GET')))fail(405,'읽기 전용 안내입니다.');
  const receipts=await deliveredNotices(env,user.id),receipt=receipts.find(entry=>entry.campaign_id===campaignId);
- if(!receipts.length||(!alias&&(premium||req.method==='PATCH')&&!receipt))fail(404,'아직 도착한 안내가 없습니다.');
+ const androidGuide=!alias&&!premium&&/^AIFECT-Android\//i.test(req.headers.get('user-agent')||'');
+ if(!receipts.length||(!alias&&!androidGuide&&(premium||req.method==='PATCH')&&!receipt))fail(404,'아직 도착한 안내가 없습니다.');
  if(req.method==='PATCH')return acknowledgeNotice(req,env,user.id,receipts,{campaignId,alias});
  if(alias)return json(legacy[2]==='settings'?{muted:0,cleared_sequence:0,read_only:true}:legacyHistory(req,receipts,user.id));
  if(premium){
@@ -248,7 +272,7 @@ export async function welcomeNoticeRoute(req,env,path,user) {
   const notice=entry.rich?{title:entry.rich.title,body:noticePlainText(entry.rich),banner:image?noticeAssetURL(image.asset,campaignId):null}:entry.notice;
   return json({peer:{...premiumOpenPeer(receipt),last_message:notice.title},campaign_id:campaignId,created:receipt.created,read_at:receipt.read_at,notice});
  }
- return json(channelResponse(receipts));
+ return json(androidGuide?androidGuideResponse(receipts):channelResponse(receipts));
 }
 
 export function formatWelcomeGuide(receipt){
