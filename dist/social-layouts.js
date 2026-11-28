@@ -58,7 +58,7 @@ function communityLandingHTML(tracks,data,tab='all',{open=false,login=false}={})
 
 function communityCrewSidebarHTML(d){
  const crews=[...(d.crews||[])].sort((a,b)=>Number(b.xp||0)-Number(a.xp||0)).slice(0,5);
- return '<section class="social-side-card"><div class="section-heading"><h2>추천 크루</h2><a href="#community/crews?browse=1">더보기 '+icon('chevron')+'</a></div><div class="community-crew-circles">'+crews.map(c=>'<a href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<strong>'+crewNameHTML(c)+'</strong><small>'+number(c.members)+'명</small></a>').join('')+(crews.length?'':'<p class="field-help">첫 크루를 만나보세요.</p>')+'</div><div class="community-crew-invite"><span>'+icon('mic')+'</span><h3>좋은 음악은,<br>좋은 사람들과 더 멀리.</h3><p>크루와 함께 더 특별한 음악을 만듭니다.</p><a class="small-button" href="#community/crews?browse=1">크루 둘러보기 '+icon('arrow')+'</a></div></section>'+crewRankingSidebarHTML(d.rankings);
+ return '<section class="social-side-card"><div class="section-heading"><h2>추천 크루</h2><a href="#community/crews?browse=1">더보기 '+icon('chevron')+'</a></div><div class="community-crew-circles">'+crews.map(c=>'<a href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<strong>'+crewNameHTML(c)+'</strong><small>'+number(c.members)+'명</small></a>').join('')+(crews.length?'':'<p class="field-help">첫 크루를 만나보세요.</p>')+'</div><div class="community-crew-invite"><span>'+icon('mic')+'</span><h3>좋은 음악은,<br>좋은 사람들과 더 멀리.</h3><p>크루와 함께 더 특별한 음악을 만듭니다.</p><a class="small-button" href="#community/crews?browse=1">크루 탐색 '+icon('arrow')+'</a></div></section>'+crewRankingSidebarHTML(d.rankings);
 }
 function crewRankingSidebarHTML(rankings){
  const items=[...(rankings||[])].sort((a,b)=>Number(b.level||1)-Number(a.level||1)||Number(b.xp||0)-Number(a.xp||0)).slice(0,5);

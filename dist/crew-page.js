@@ -28,7 +28,7 @@ function crewDetailView(detail,id,tab='music'){
 }
 
 function crewChallengeHTML(crew,membership){
- const find='<a class="crew-find-link" href="'+crewFindHref+'">크루 찾기 '+icon('chevron',16)+'</a>';
+ const find='<a class="crew-find-link" href="'+crewFindHref+'">크루 탐색 '+icon('chevron',16)+'</a>';
  if(!membership)return find;
  return `<section class="crew-challenge" aria-labelledby="crew-challenge-heading">
   <div class="crew-challenge-heading"><h2 id="crew-challenge-heading">크루 챌린지</h2>${find}</div>

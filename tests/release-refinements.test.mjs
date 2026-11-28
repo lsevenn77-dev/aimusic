@@ -27,6 +27,10 @@ test('release date is the registered timestamp in Korea, without inventing missi
 test('crew discovery uses real rows, functioning filters and independently ranked sidebar',()=>{
  const c=ui(),crews=[{id:'a',name:'<script>x</script>',description:'Real',level:1,xp:2,members:3,capacity:10,recruiting:1,interests:'Rock, Ballad',created:1},{id:'b',name:'Two',level:3,xp:100,members:10,capacity:10,recruiting:1,interests:'Pop',created:2}];
  const page=c.crewDiscoveryHTML({crews,rankings:crews,mine:'a'});assert.match(page,/crew-featured-grid/);assert.match(page,/id="crew-search"/);assert.match(page,/id="crew-discovery-filters"/);assert.match(page,/data-crew-layout="list"/);assert.match(page,/내 크루 들어가기/);assert.doesNotMatch(page,/<script>|124|127명/);
+ assert.match(page,/<h2>크루 탐색 <span id="crew-discovery-count">/);
+ const guest=c.crewDiscoveryHTML({crews,rankings:crews});
+ assert.match(guest,/<h1>크루 탐색<\/h1>/);
+ assert.match(guest,/data-focus-crew-search>크루 탐색<\/button>/);
  assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{recruiting:'open'}),v=>v.id),['a']);assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{recruiting:'closed'}),v=>v.id),['b']);assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{interest:'Ballad'}),v=>v.id),['a']);assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{scope:'mine'},'a'),v=>v.id),['a']);assert.deepEqual(Array.from(c.filterCrewDiscovery(crews,{sort:'level'}),v=>v.id),['b','a']);assert.equal(crews[0].id,'a');
  assert.doesNotThrow(()=>c.bindCrewDiscovery(null));assert.doesNotThrow(()=>c.bindCrewDiscovery(undefined));assert.doesNotThrow(()=>c.bindCrewDiscovery({}));
 });

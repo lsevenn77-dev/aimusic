@@ -47,7 +47,7 @@ test('crew settings follow live staff roles and legacy management links land on 
   const header=view.html.match(/<header class="crew-detail-header[\s\S]*?<\/header>/)[0];
   assert.equal(header.includes('href="#crew-jump/crew"'),!!role);
   assert.match(header,/멤버 2 \/ 10명 · Lv\.1/);
-  assert.match(header,/<a class="crew-find-link" href="#community\/crews\?browse=1"/);
+  assert.match(header,/<a class="crew-find-link" href="#community\/crews\?browse=1">크루 탐색 /);
   assert.doesNotMatch(header.match(/<h1\b[^>]*>[\s\S]*?<\/h1>/)[0],/Lv\./);
   assert.doesNotMatch(view.html,/크루 소식|data-crew-news|tab=manage|data-crew-member=|crew-cover-bg/);
   const nav=view.html.match(/<nav class="crew-room-tabs"[^>]*>(.*?)<\/nav>/)[1];

@@ -90,6 +90,7 @@ test('community fragment markers cover stable navigation, ranking categories and
  assert.equal(new Set(targets).size,targets.length,'fragment IDs remain unique');
  assert.ok(targets.includes(decodeURIComponent(direct)),'fragment IDs match the browser-decoded query');
  for(const [,href] of c.communityNavigation('live').matchAll(/href="(#[^"]+)"/g))assert.ok(targets.includes(unescape(href).slice(1)),href);
+ assert.match(c.communityNavigation('crews','크루 탐색'),/href="#crew" aria-current="page">크루 탐색<\/a>/);
  for(const raw of ['live','voice','community','community/voice','crew','community/crews','community/crews?browse=1'])assert.ok(targets.includes(raw),raw);
  for(const route of ['live','voice','community','community/voice'])for(const mode of ['all','karaoke','talk'])assert.ok(targets.includes(route+'?mode='+mode),route+' mode '+mode);
  for(const category of ['aiArtist','crew','cover','dubbing'])for(const workKind of category==='cover'?['all','solo','duet']:['solo']){

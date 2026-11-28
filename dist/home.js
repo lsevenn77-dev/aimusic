@@ -123,7 +123,7 @@ const homeBanners=[
  {id:'artists',title:'AI 아티스트',headline:'AI 아티스트를 팔로우하고 응원해 보세요',subtitle:'팬라운지에서 응원을 전합니다.',cta:'아티스트 만나기',href:'#artists'},
  {id:'karaoke',title:'노래방',headline:'노래방에서 사람들과 함께 노래해 보세요',subtitle:'노래를 나누고 서로 응원합니다.',cta:'노래방 가기',href:'#live?mode=karaoke'},
  {id:'talking',title:'토킹룸',headline:'토킹룸에서 편하게 이야기해 보세요',subtitle:'취향을 나누고 친구를 만나 보세요.',cta:'토킹룸 가기',href:'#voice?mode=talk'},
- {id:'crew',title:'크루',headline:'크루에 가입하고 함께 즐겨 보세요',subtitle:'음악을 나누고 게임도 함께합니다.',cta:'크루 둘러보기',href:'#community/crews?browse=1'},
+ {id:'crew',title:'크루',headline:'크루에 가입하고 함께 즐겨 보세요',subtitle:'음악을 나누고 게임도 함께합니다.',cta:'크루 탐색',href:'#community/crews?browse=1'},
  {id:'premium',title:'프리미엄',headline:'프리미엄으로 제작곡을 더 많이 올려 보세요',subtitle:'고음질로 음악을 더 깊이 즐겨 보세요.',cta:'프리미엄 혜택 보기',href:'#membership'}
 ].filter(b=>(b.id!=='premium'||typeof AifectSite==='undefined'||AifectSite.PREMIUM.catalogVisible!==false)&&(b.id!=='app-download'||typeof inApp==='undefined'||!inApp));
 const homeRoomsArtwork='rooms-20261117';

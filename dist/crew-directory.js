@@ -55,8 +55,8 @@ function crewDirectoryView(data,q) {
  const {CREW_ACTIVITIES, CREW_GENRES, CREW_JOIN_LABELS} = AifectCrewTags;
  const select = (name,label,items)=>`<label class="directory-select"><span>${label}</span><select name="${name}" aria-label="${label}"><option value="">전체</option>
  ${items.map(([value,text])=>`<option value="${esc(value)}">${esc(text)}</option>`).join('')}</select></label>`;
- return {tracks:[],crewDirectory:data,html:communityNavigation('crews')+`<section class="crew-directory">
- <header class="directory-heading"><h1>크루 찾기</h1>${data.mine?`<a class="small-button" href="#crew/${encodeURIComponent(data.mine)}">${icon('users',16)} 내 크루${data.mine_name?' · '+esc(data.mine_name):''} ${icon('chevron',16)}</a>`:'<button type="button" class="small-button" data-create-crew>크루 만들기</button>'}</header>
+ return {tracks:[],crewDirectory:data,html:communityNavigation('crews','크루 탐색')+`<section class="crew-directory">
+ <header class="directory-heading"><h1>크루 탐색</h1>${data.mine?`<a class="small-button" href="#crew/${encodeURIComponent(data.mine)}">${icon('users',16)} 내 크루${data.mine_name?' · '+esc(data.mine_name):''} ${icon('chevron',16)}</a>`:'<button type="button" class="small-button" data-create-crew>크루 만들기</button>'}</header>
  <form class="directory-filters">
  <div class="directory-search aifect-search">${icon('search',20)}<input type="search" name="q" maxlength="80" aria-label="크루명 또는 소개 검색" placeholder="크루명 또는 소개로 검색" value="${esc(q)}"><button class="text-link" type="submit">검색</button></div>
  <fieldset class="directory-activity-filter"><legend>활동 방향</legend><div>${['',...CREW_ACTIVITIES].map(tag=>`<label><input type="radio" name="activity" value="${esc(tag)}" ${tag?'':'checked'}><span>${esc(tag||'전체')}</span></label>`).join('')}</div></fieldset>

@@ -17,7 +17,7 @@ let socialTimer=null;
 async function loadMyCrewSummary(readApi=api){
  try{
   const d=await readApi('/api/crews?summary=1&home=1','GET',undefined,{fresh:true}),c=d.detail?.membership?d.detail.crew:null;
-  return '<section class="surface my-current-crew"><h3>가입한 크루</h3>'+(c?'<a class="my-current-crew-link" href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<span><strong>'+crewNameHTML(c)+'</strong><small>LV.'+number(c.level)+' · '+number(c.members)+'명</small></span>'+icon('chevron')+'</a>':'<p>현재 가입한 크루가 없습니다.</p><a class="small-button" href="#community/crews?browse=1">크루 둘러보기</a>')+'</section>';
+  return '<section class="surface my-current-crew"><h3>가입한 크루</h3>'+(c?'<a class="my-current-crew-link" href="#crew/'+esc(c.id)+'">'+crewPicture(c,'crew-circle')+'<span><strong>'+crewNameHTML(c)+'</strong><small>LV.'+number(c.level)+' · '+number(c.members)+'명</small></span>'+icon('chevron')+'</a>':'<p>현재 가입한 크루가 없습니다.</p><a class="small-button" href="#community/crews?browse=1">크루 탐색</a>')+'</section>';
  }catch{return '<section class="surface my-current-crew"><h3>가입한 크루</h3><p>가입 정보를 불러오지 못했습니다.</p><a href="#community/crews">다시 확인하기</a></section>';}
 }
 function crewImageEditorHTML(c){

@@ -8,8 +8,8 @@ function coverRankParams(options){const p=new URLSearchParams({period:options.pe
 function coverRankHref(options,changes={}){return '#community/rankings?'+coverRankParams({...options,...changes});}
 function coverDiscoveryHTML(options){return `<section class="cover-discovery" aria-label="커버곡 랭킹 둘러보기"><div class="cover-discovery-title"><div><span class="eyebrow">YOUR VOICE, OUR PLAYLIST</span><h2>듣다 보면, 부르고 싶어지는.</h2><p>좋아요로 발견하는 우리들의 커버곡</p></div><a class="text-link" href="#karaoke">나도 불러보기 ${icon('arrow')}</a></div><nav class="cover-periods" aria-label="커버 랭킹 기간">${coverPeriods.map(([key,label,description,symbol])=>`<a class="cover-period cover-period-${key} ${key===options.period?'is-selected':''}" href="${esc(coverRankHref(options,{period:key}))}" ${key===options.period?'aria-current="page"':''}><span class="cover-period-top">${icon(symbol)}<span>${key==='today'?'TODAY':key==='week'?'THIS WEEK':key==='month'?'THIS MONTH':'ALL TIME'}</span>${icon('arrow')}</span><strong>${label}</strong><small>${description}</small></a>`).join('')}</nav></section>`;}
 function coverRankingShell(options){const label=coverPeriods.find(([key])=>key===options.period)[1];return `<section class="cover-ranking" aria-labelledby="cover-ranking-title"><div class="cover-ranking-heading"><div><h2 id="cover-ranking-title">${options.original_id?'이 곡의 커버 랭킹':label}</h2><p>${options.period==='all'?'누적 좋아요':options.period==='today'?'오늘 받은 좋아요':options.period==='week'?'이번 주 받은 좋아요':'이번 달 받은 좋아요'} 순 · 한국시간 기준</p></div><nav class="cover-kind-tabs" aria-label="커버 랭킹 종류">${[['tracks','커버곡'],['singers','가수']].map(([key,title])=>`<a class="${options.kind===key?'active':''}" href="${esc(coverRankHref(options,{kind:key}))}" ${options.kind===key?'aria-current="page"':''}>${title}</a>`).join('')}</nav></div>${options.original_id?`<p class="cover-original-filter"><a class="text-link" href="#song/${esc(options.original_id)}">원곡 보기</a><a class="text-link" href="${esc(coverRankHref(options,{original_id:''}))}">전체 곡 랭킹 보기</a></p>`:''}<form id="cover-rank-filter" class="cover-rank-filter"><label><span class="sr-only">장르 선택</span><select data-dropdown="md" name="genre" aria-label="커버 장르">${genres.map(g=>`<option value="${esc(g)}" ${g===options.genre?'selected':''}>${g==='전체'?'모든 장르':esc(g)}</option>`).join('')}</select></label><label class="cover-rank-search">${icon('search')}<input name="q" type="search" aria-label="커버곡 또는 가수 검색" placeholder="커버곡 또는 부른 사람 찾기" maxlength="100" value="${esc(options.q)}"></label><button class="small-button" type="submit">검색</button>${options.q||options.genre!=='전체'?`<a class="text-link" href="${esc(coverRankHref(options,{q:'',genre:'전체'}))}">초기화</a>`:''}</form><div id="cover-ranking-results" aria-busy="true"><p class="cover-ranking-status" role="status">커버 랭킹을 불러오고 있습니다.</p></div><p class="cover-ranking-note">${options.period==='week'?'이번 주 월요일부터, ':options.period==='month'?'이번 달 1일부터, ':''}취소하지 않은 좋아요를 받은 공개 커버곡이 순위에 오릅니다.${options.kind==='singers'?' 가수 순위는 해당 커버곡의 좋아요 합계입니다.':''}</p></section>`;}
-function communityNavigation(tab){
- const tabs=[['live','라이브','#live'],['crews','크루','#crew'],['rankings','랭킹','#community/rankings']];
+function communityNavigation(tab,crewLabel='크루'){
+ const tabs=[['live','라이브','#live'],['crews',crewLabel,'#crew'],['rankings','랭킹','#community/rankings']];
  return '<nav class="tabs music-community-tabs aifect-main-tabs" aria-label="커뮤니티">'+tabs.map(([key,label,href],index)=>'<a class="tab '+(tab===key?'active':'')+'" data-tab-tone="'+['pink','mint','purple'][index]+'" href="'+href+'" '+(tab===key?'aria-current="page"':'')+'>'+label+'</a>').join('')+'</nav>';
 }
 // Only the three directory tabs share this shell. Rooms, crew detail/activity,
@@ -44,11 +44,14 @@ function paintCommunityRoute(view,raw,ticket){
  const x=window.scrollX||0,y=window.scrollY||0;
  holdCommunityViewport(main,true);
  const template=document.createElement('template');template.innerHTML=view.html;
- template.content.querySelector('.music-community-tabs')?.remove();
+ const incomingNav=template.content.querySelector('.music-community-tabs');
+ const crewLabel=incomingNav?.querySelector('a[href="#crew"]')?.textContent;
+ incomingNav?.remove();
  for(const child of [...main.children])if(child!==nav&&!child.matches('[data-community-route-targets],[data-community-title]'))child.remove();
  main.append(template.content);
  for(const link of nav.querySelectorAll('a')){
-  const active=communityTabSelection(link.getAttribute('href'))?.tab===selection.tab;
+  const href=link.getAttribute('href'),active=communityTabSelection(href)?.tab===selection.tab;
+  if(href==='#crew'&&crewLabel&&link.textContent!==crewLabel)link.textContent=crewLabel;
   link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');
  }
  const targets=main.querySelector('[data-community-route-targets]'),known=new Set([...targets.children].map(node=>node.id));
@@ -212,10 +215,10 @@ async function loadCommunityCrews(host,ticket){
  const paint=d=>{
  if(host.classList.contains('community-side-crews')){host.innerHTML=communityCrewSidebarHTML(d);return;}
  const all=d.crews||[],mine=all.find(c=>c.id===d.mine),crews=[...all].filter(c=>c.id!==d.mine).sort((a,b)=>(Number(b.xp)||0)-(Number(a.xp)||0)).slice(0,mine?2:3);
- if(mine){host.innerHTML='<div class="music-community-heading"><h2>내 크루</h2><a class="text-link" href="#community/crews?browse=1">다른 크루 둘러보기</a></div><div class="surface my-crew-preview"><div><strong>'+esc(mine.name)+'</strong><p>'+number(mine.members)+'명 · '+esc(mine.interests||'함께 듣는 음악')+'</p></div><nav aria-label="내 크루 바로가기">'+[['chat','message','대화'],['members','users','크루원'],['music','music','음악']].map(([tab,symbol,label])=>'<a href="'+(tab==='chat'?'#dm/crew/'+esc(mine.id):'#crew/'+esc(mine.id)+'?tab='+tab)+'">'+icon(symbol)+label+'</a>').join('')+'</nav></div>';return;}
+ if(mine){host.innerHTML='<div class="music-community-heading"><h2>내 크루</h2><a class="text-link" href="#community/crews?browse=1">크루 탐색</a></div><div class="surface my-crew-preview"><div><strong>'+esc(mine.name)+'</strong><p>'+number(mine.members)+'명 · '+esc(mine.interests||'함께 듣는 음악')+'</p></div><nav aria-label="내 크루 바로가기">'+[['chat','message','대화'],['members','users','크루원'],['music','music','음악']].map(([tab,symbol,label])=>'<a href="'+(tab==='chat'?'#dm/crew/'+esc(mine.id):'#crew/'+esc(mine.id)+'?tab='+tab)+'">'+icon(symbol)+label+'</a>').join('')+'</nav></div>';return;}
  host.innerHTML='<div class="music-community-heading"><h2>음악으로 모이는 크루</h2><a class="text-link" href="#community/crews">모두 보기</a></div>'+(crews.length?'<div class="music-crew-preview-grid">'+crews.map(c=>'<a href="#crew/'+esc(c.id)+'"><strong>'+esc(c.name)+'</strong><span>'+esc(c.interests||'함께 듣고 부르는 음악')+'</span><small>'+number(c.members)+'명 · LV '+number(c.level)+'</small></a>').join('')+'</div>':'<a class="music-crew-entry" href="#community/crews">취향이 맞는 크루를 찾아보세요.</a>');
  };
  const cached=typeof peekCrewNavigation==='function'?peekCrewNavigation('discovery'):null;if(cached&&current())paint(cached);
  try{const d=await api('/api/crews?q=&summary=1');if(!current())return;if(typeof rememberCrewDiscovery==='function')rememberCrewDiscovery(d,'',account,revision);paint(d);}
- catch{if(current()&&!cached)host.innerHTML='<a class="music-crew-entry" href="#community/crews">크루 둘러보기</a>';}
+ catch{if(current()&&!cached)host.innerHTML='<a class="music-crew-entry" href="#community/crews">크루 탐색</a>';}
 }
