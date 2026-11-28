@@ -17,8 +17,11 @@ ssh -o BatchMode=yes -o StrictHostKeyChecking=yes cafe24 true
 2. `$commitSha`에 공식 도구의 전체 SHA를, `$sitesArchive`에 같은 빌드의 게시 아카이브 경로를 넣고 아래 순서로 실행합니다. `stage`는 아카이브의 Worker 리비전과 HTML을 대조한 뒤 Cafe24의 별도 릴리스에 설치해 격리 렌더링을 검사합니다. 출력의 `previousRelease`와 `revision`을 저장하고 GitHub 동기화 출력의 브랜치와 커밋을 기록합니다.
 
    ```powershell
-   node $cafe24Deploy stage $commitSha $sitesArchive
-   node $pushRelease web $commitSha
+   $stage = node $cafe24Deploy stage $commitSha $sitesArchive | ConvertFrom-Json
+   if ($LASTEXITCODE -ne 0) { throw 'Cafe24 stage failed' }
+   $previousRelease = $stage.previousRelease
+   $github = node $pushRelease web $commitSha | ConvertFrom-Json
+   if ($LASTEXITCODE -ne 0 -or $github.commit -ne $commitSha -or $github.dryRun -ne $false) { throw 'GitHub sync failed' }
    ```
 
 3. 준비와 GitHub 확인을 마치면 공식 Sites 절차로 같은 버전을 저장하고 게시합니다. 배포 성공과 실제 운영 게시본의 소스 커밋이 `$commitSha`와 일치하는지 확인합니다. 다른 버전이 동시에 게시되면 운영 버전과 산출물을 다시 대조합니다.
@@ -26,9 +29,20 @@ ssh -o BatchMode=yes -o StrictHostKeyChecking=yes cafe24 true
 
    ```powershell
    node $cafe24Deploy activate $commitSha $sitesArchive $previousRelease
+   if ($LASTEXITCODE -ne 0) { throw 'Check the reported activation state before continuing' }
    ```
 
-5. 운영 홈 `/`과 `/music` 모두 HTTP 200, `x-aifect-web-origin: cafe24`, 준비한 리비전과 같은 `x-aifect-origin-revision`을 반환해야 완료로 기록합니다. 공식 Sites 체크아웃의 `npm run release:verify`로 기존 검증도 수행합니다. 기록한 리비전의 헤더를 읽기 전용으로 재확인할 때는 `node $cafe24Deploy verify $revision`을 실행합니다.
+5. 공식 Sites 체크아웃에서 `npm run release:verify`를 통과한 뒤 현재 운영 게시본을 다시 조회합니다. `get_site_version`을 `$version`에, 해당 게시의 `get_deployment_status`를 `$deployment`에 받습니다. 이때 새로 조회한 `list_site_versions`의 `items`를 첫 페이지부터 해당 버전까지 최신순으로 `$versions`에 담습니다. 더 높은 번호에 배포 ID가 있으면 그 배포 상태를 `$newerDeployments` 배열에 포함합니다. 해당 항목이 없으면 빈 배열을 사용합니다.
+
+   ```powershell
+   npm run release:verify
+   if ($LASTEXITCODE -ne 0) { throw 'Production checks failed' }
+   @{version=$version; deployment=$deployment; versions=@($versions); newerDeployments=@($newerDeployments)} | ConvertTo-Json -Depth 8 -Compress |
+     node $cafe24Deploy confirm $stage.revision $github.ref
+   if ($LASTEXITCODE -ne 0) { throw 'Release confirmation failed' }
+   ```
+
+   `confirm`은 GitHub가 반환한 ref를 원격에서 다시 조회하고 Cafe24의 `current`, 실제 서비스 PID의 작업 디렉터리, 설치 파일과 운영 HTML을 대조합니다. 홈과 `/music`이 모두 HTTP 200, `x-aifect-web-origin: cafe24`와 준비한 리비전으로 응답해야 합니다. 출력의 `file`이 가리키는 JSON을 작업 결과에 보관하고 링크를 남깁니다. 다른 게시가 진행되거나 확인에 실패하면 현재 게시본을 다시 조회한 뒤 `confirm`을 재실행합니다. 헤더만 재확인할 때는 기존 `node $cafe24Deploy verify $revision`을 사용합니다.
 
 ## Sites 407번 기준 자료
 

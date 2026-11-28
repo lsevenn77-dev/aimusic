@@ -1,5 +1,4 @@
 import base64
-import fcntl
 import hashlib
 import http.client
 import json
@@ -181,6 +180,33 @@ def check_running(path, revision):
     local_render(18421, key, revision)
 
 
+def running_identity(commit, revision):
+    selected = active_release()
+    process = live_process()
+    running = (process / 'cwd').resolve(strict=True)
+    require(running == selected, f'Cafe24 current is {selected}, but PID {process.name} runs from {running}')
+    installed = (running / 'revision').read_text().strip()
+    recorded_revision, _, recorded_commit = running.name.rpartition('-')
+    require(re.fullmatch(r'[a-f0-9]{40}', recorded_commit),
+            f'Cafe24 release {running.name} does not record its full source commit')
+    require((recorded_commit, recorded_revision, installed) == (commit, revision, revision),
+            f'Expected Cafe24 {revision}-{commit}, found {running.name} with revision {installed}')
+    return {'commit': recorded_commit, 'revision': installed, 'current': str(selected),
+            'processDirectory': str(running), 'pid': int(process.name)}
+
+
+def confirm_release(commit, revision):
+    observed = running_identity(commit, revision)
+    path = Path(observed['processDirectory'])
+    shell = (path / 'shell.html').read_bytes()
+    require(digest((path / 'renderer.mjs').read_bytes() + b'\0' + shell) == revision,
+            'The installed renderer and HTML do not match the prepared revision')
+    check_live_shell(digest(shell))
+    routes = public_pages(revision)
+    require(running_identity(commit, revision) == observed, 'Cafe24 changed during confirmation. Recheck the live release.')
+    return {**observed, 'routes': routes}
+
+
 def restart():
     subprocess.run(['systemctl', 'restart', SERVICE], check=True, timeout=40)
 
@@ -191,13 +217,13 @@ def activate(path, manifest, previous):
     check_live_shell(manifest['hashes']['shell.html'])
     if previous == path:
         retry(lambda: check_running(path, revision), 8)
-        return public_pages(revision)
+        return public_pages(revision), running_identity(manifest['commit'], revision)
     require(str(previous) == manifest['previousRelease'], f'Current release changed to {previous}. Verify the deployment before retrying.')
     try:
         replace_current(path)
         restart()
         retry(lambda: check_running(path, revision), 10)
-        return retry(lambda: public_pages(revision), 15)
+        return retry(lambda: public_pages(revision), 15), running_identity(manifest['commit'], revision)
     except (Exception, KeyboardInterrupt) as error:
         if active_release() != path:
             raise
@@ -219,8 +245,13 @@ def main():
         print(json.dumps({'revision': revision, 'routes': public_pages(revision)}))
         return
     commit = manifest['commit']
-    require(action in ('stage', 'activate') and re.fullmatch(r'[a-f0-9]{40}', commit)
-            and set(manifest['hashes']) == FILES, 'Invalid deployment manifest')
+    require(re.fullmatch(r'[a-f0-9]{40}', commit), 'Invalid release commit')
+    if action == 'confirm':
+        print(json.dumps(confirm_release(commit, revision)))
+        return
+    require(action in ('stage', 'activate') and set(manifest['hashes']) == FILES, 'Invalid deployment manifest')
+    import fcntl
+
     path = RELEASES / f'{revision}-{commit}'
     os.umask(0o022)
     with open('/run/lock/aifect-public-origin-release.lock', 'a') as lock:
@@ -231,8 +262,10 @@ def main():
             stage(path, manifest)
             report['status'] = 'staged'
         else:
-            report['routes'] = activate(path, manifest, previous)
+            report['routes'], report['running'] = activate(path, manifest, previous)
             report['status'] = 'verified'
+            report['scope'] = 'cafe24'
+            report['deploymentConfirmation'] = 'pending'
         print(json.dumps(report))
 
 
