@@ -73,17 +73,17 @@ const crewBannerCrops={
  jump:{view:'15 23 1056 303',outline:'M63 42H575Q591 22 625 24Q649 24 665 42H758L761 34L778 42H1022Q1071 42 1071 91V277Q1071 326 1022 326H63Q15 326 15 278V91Q15 42 63 42Z'},
  rhythm:{view:'3 9 1080 318',outline:'M49 35H752Q776 9 824 10Q857 9 890 35H982Q988 24 997 22Q1005 15 1014 24Q1027 23 1034 35H1037Q1083 35 1083 82V280Q1083 327 1037 327L49 324Q3 324 3 278V82Q3 35 49 35Z'}
 };
+function crewBannerGameId(catalog){return catalog?.weekly_game_id??catalog?.active_game_id;}
 function crewGameMenuHTML(catalog,now=Date.now()){
- if(!catalog?.banner_ends_at || now>=catalog.banner_ends_at*1000 ||
+ if(!catalog?.ends_at || now>=catalog.ends_at*1000 ||
     now<Date.parse(catalog.week_start+'T00:00:00+09:00'))return '';
- const game=catalog.games.find(game=>game.id===catalog.active_game_id);
+ const game=catalog.games.find(game=>game.id===crewBannerGameId(catalog));
  if(!game)return '<span class="field-help">이번 주 크루 경쟁 게임을 준비 중입니다.</span>';
  const crop=crewBannerCrops[game.id];
- if(!crop)return '';
  const clipId='crew-banner-'+game.id;
- return `<a class="crew-game-entry" href="${esc(game.href)}" aria-label="이번 주 크루 경쟁 게임: ${esc(game.banner_title)}. 플레이">
-  <svg viewBox="${crop.view}" aria-hidden="true" focusable="false"><defs><clipPath id="${clipId}"><path d="${crop.outline}"/></clipPath></defs>
-   <image href="${esc(game.banner_art)}" width="1086" height="362" clip-path="url(#${clipId})"/></svg></a>`;
+ const art=crop?`<svg viewBox="${crop.view}" aria-hidden="true" focusable="false"><defs><clipPath id="${clipId}"><path d="${crop.outline}"/></clipPath></defs>
+   <image href="${esc(game.banner_art)}" width="1086" height="362" clip-path="url(#${clipId})"/></svg>`:`<img src="${esc(game.banner_art)}" alt="">`;
+ return `<a class="crew-game-entry" href="${esc(game.href)}" aria-label="이번 주 크루 경쟁 게임: ${esc(game.banner_title)}. 플레이">${art}</a>`;
 }
 function bindCrewGameMenu(initialCatalog){
  const root=document.querySelector('[data-crew-games]');
@@ -95,23 +95,23 @@ function bindCrewGameMenu(initialCatalog){
  let rankingWeek=null,rankingCheck=0,rankingPending=false;
  const current=()=>alive&&root.isConnected&&account===me?.id;
  function expire(){
-  if(catalog?.banner_ends_at&&Date.now()>=catalog.banner_ends_at*1000&&root.firstChild){
+  if(catalog?.ends_at&&Date.now()>=catalog.ends_at*1000&&root.firstChild){
    root.replaceChildren();lastMarkup='';rankingWeek=null;
   }
  }
  function schedule(){
   clearTimeout(boundary);
-  const now=Date.now(),close=(catalog?.banner_ends_at||0)*1000,weekEnd=(catalog?.ends_at||0)*1000,next=close>now?close:weekEnd;
-  if(next>now)boundary=setTimeout(refresh,next-now);
+  const remaining=(catalog?.ends_at||0)*1000-Date.now();
+  if(remaining>0)boundary=setTimeout(refresh,remaining);
  }
  async function loadRacingSummary(){
-  if(catalog?.active_game_id!=='racing'||!root.querySelector('.crew-game-entry')||document.hidden||rankingPending)return;
+  if(crewBannerGameId(catalog)!=='racing'||!root.querySelector('.crew-game-entry')||document.hidden||rankingPending)return;
   const week=catalog.week;
   if(rankingWeek===week&&Date.now()-rankingCheck<120000)return;
   rankingPending=true;
   try{
    const data=await api('/api/crew-racing/lobby','GET',undefined,{fresh:true,signal:controller.signal});
-   if(!current()||catalog.week!==week||catalog.active_game_id!=='racing'||!root.querySelector('.crew-game-entry'))return;
+   if(!current()||catalog.week!==week||crewBannerGameId(catalog)!=='racing'||!root.querySelector('.crew-game-entry'))return;
    rankingWeek=week;rankingCheck=Date.now();
    root.querySelector('.crew-game-summary')?.remove();
    const standing=data.week===week&&data.crew===crew&&data.ranking?.find(row=>row.crew_id===crew);

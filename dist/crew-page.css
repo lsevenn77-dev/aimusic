@@ -80,9 +80,10 @@
  align-items: center;
  justify-content: space-between;
  gap: 12px;
- margin-bottom: 4px;
+ margin-bottom: 10px;
 }
 #main [data-crew-detail] .crew-challenge-heading h2 {
+ align-self: end;
  margin: 0;
  color: var(--ds-text);
  font-size: var(--pc-font-section, 16px);
@@ -102,6 +103,7 @@
 #main [data-crew-detail] .crew-find-link:hover { color: var(--crew-accent); }
 #main [data-crew-detail] .crew-find-link svg { width: 16px; height: 16px; }
 #main [data-crew-detail] .crew-weekly-games { width: min(100%, 410px); margin: 0; }
+#main [data-crew-detail] .crew-game-entry img { display: block; width: 100%; height: auto; }
 #main [data-crew-detail] .crew-game-summary {
  display: flex;
  flex-wrap: wrap;

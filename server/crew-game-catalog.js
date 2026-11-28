@@ -32,8 +32,10 @@ export async function crewGameCatalog(env={},crew,ms=Date.now()){
  const selected=env.CREW_GAME_VISIBLE_IDS!==undefined?ids(env.CREW_GAME_VISIBLE_IDS):mode==='test'?games.map(g=>g.id):index>=0&&rotation.length?[rotation[index%rotation.length]]:[];
  const encoded=encodeURIComponent(crew);
  const close=monday-KST+5*DAY;
+ // The web banner keeps the same weekly pick after the active menu closes on Saturday.
+ const weeklyGameId=await weeklyPick(selected,week);
  return {title:'이번 주 크루 경쟁 게임',mode,week,week_start:week,ends_at:(monday-KST+WEEK)/1000,
-  banner_ends_at:close/1000,active_game_id:ms<close?await weeklyPick(selected,week):null,server_now:ms/1000,
+  weekly_game_id:weeklyGameId,banner_ends_at:close/1000,active_game_id:ms<close?weeklyGameId:null,server_now:ms/1000,
   games:selected.map(id=>({...games.find(g=>g.id===id),banner_title:weeklyGames[id][0],
    banner_art:`/assets/crew-weekly/crew_weekly_${weeklyGames[id][1]}.webp`,route:`game/${id}/${crew}`,
    href:id==='jump'?`#crew-jump/${encoded}`:`/crew-${id}/?from=crew&crew=${encoded}`}))};

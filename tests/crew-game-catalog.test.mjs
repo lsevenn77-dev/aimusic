@@ -38,21 +38,28 @@ test('crew detail, refresh endpoint and web render share the exact single select
  assert.match(html,/터보레이스/);assert.ok(html.includes(menu.games[0].href));
  assert.match(html,/crew_weekly_turbo_race\.webp/);assert.doesNotMatch(html,/비트콤보|점프러시|월척헌터/);
 });
-test('the app and web share one pick across crews, from KST Monday until Saturday',async()=>{
+test('the web banner keeps the shared weekly pick through Sunday while the active menu closes Saturday KST',async()=>{
  const ctx=nicknameContext({esc:String});
  vm.runInContext(readFileSync(new URL('../dist/social-layouts.js',import.meta.url),'utf8'),ctx);
- const monday=Date.parse('2026-11-09T00:00:00+09:00'),saturday=monday+5*86400000;
- for(const [when,expected] of [[monday-1,null],[monday,'racing'],[saturday-1,'racing'],[saturday,null],[monday+7*86400000-1,null]]){
+ const monday=Date.parse('2026-11-09T00:00:00+09:00'),saturday=monday+5*86400000,nextMonday=monday+7*86400000;
+ for(const [when,expected] of [[monday,'racing'],[saturday-1,'racing'],[saturday,null],[nextMonday-1,null]]){
   for(const crew of ['a','b']){
    const menu=await crewGameCatalog({},crew,when);
    assert.equal(menu.active_game_id,expected);
+   assert.equal(menu.weekly_game_id,'racing');
+   assert.equal(menu.banner_ends_at,saturday/1000);
    const html=ctx.crewGameMenuHTML(menu,when);
-   if(expected){assert.match(html,/터보레이스/);assert.equal(menu.week_start,'2026-11-09');assert.ok(html.includes('crew='+crew));}
-   else assert.equal(html,'');
+   assert.match(html,/터보레이스/);assert.ok(html.includes('crew='+crew));
   }
  }
  const friday=await crewGameCatalog({},'a',saturday-1);
- assert.equal(ctx.crewGameMenuHTML(friday,saturday),'');
+ assert.match(ctx.crewGameMenuHTML(friday,saturday),/터보레이스/);
+ assert.equal(ctx.crewGameMenuHTML(friday,monday-1),'');
+ assert.equal(ctx.crewGameMenuHTML(friday,nextMonday),'');
+ const next=await crewGameCatalog({},'a',nextMonday);
+ assert.equal(next.week_start,'2026-11-16');
+ assert.notEqual(next.weekly_game_id,friday.weekly_game_id);
+ assert.ok(ctx.crewGameMenuHTML(next,nextMonday).includes(next.games.find(game=>game.id===next.weekly_game_id).banner_art));
  const empty=await crewGameCatalog({CREW_GAME_VISIBLE_IDS:''},'a',monday);
  assert.match(ctx.crewGameMenuHTML(empty,monday),/준비 중/);
  for(const id of ['jump','rhythm','racing','fishing']){
@@ -65,6 +72,9 @@ test('the app and web share one pick across crews, from KST Monday until Saturda
   assert.doesNotMatch(html,/테스트 중/);
   const art=readFileSync(new URL('../dist'+game.banner_art,import.meta.url));assert.equal(art.toString('ascii',8,12),'WEBP');
  }
+ const game={id:'next',banner_title:'다음 게임',banner_art:'/assets/registered.webp',href:'#registered'};
+ const registered=ctx.crewGameMenuHTML({...friday,weekly_game_id:game.id,games:[game]},saturday);
+ assert.ok(registered.includes('src="'+game.banner_art+'"'));assert.ok(registered.includes('href="'+game.href+'"'));
 });
 test('all registered frames have equipment metadata; future normalized artwork remains server-driven',()=>{
  for(const p of Object.values(DECORATIONS).filter(p=>p.kind==='PROFILE_FRAME')){
